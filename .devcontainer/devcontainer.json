@@ -1,0 +1,70 @@
+{
+  "name": "Zappaloo",
+  "build": {
+    "dockerfile": "Dockerfile",
+    "context": ".."
+  },
+  "features": {
+    // Docker CLI using the host's Docker engine: for the Docker Compose and Caddy
+    // setup (spec sections 21-22) and the deployment smoke tests
+    "ghcr.io/devcontainers/features/docker-outside-of-docker:1": {},
+    "ghcr.io/devcontainers/features/github-cli:1": {}
+  },
+  // Dev servers, reachable from the browser on the host
+  "forwardPorts": [5173, 3000, 8025],
+  "portsAttributes": {
+    "5173": { "label": "Frontend (Vite dev server)", "onAutoForward": "notify" },
+    "3000": { "label": "Backend (Node.js API)", "onAutoForward": "silent" },
+    "8025": { "label": "Mailpit (caught emails)", "onAutoForward": "silent" }
+  },
+  "mounts": [
+    "source=claude-config,target=/home/vscode/.claude,type=volume",
+    // SQLite database, uploads and imported maps survive container rebuilds
+    "source=zappaloo-data-dev,target=/var/lib/zappaloo,type=volume"
+  ],
+  "containerEnv": {
+    "CLAUDE_CONFIG_DIR": "/home/vscode/.claude",
+    "APP_ENV": "dev",
+    "DATA_DIR": "/var/lib/zappaloo",
+    // Signs the session cookies in development; production sets its own
+    "SESSION_SECRET": "dev-only-secret-not-for-production",
+    // All outgoing mail goes to Mailpit (web UI on port 8025)
+    "SMTP_HOST": "localhost",
+    "SMTP_PORT": "1025"
+  },
+  // Installs the dependencies once the project has a package-lock.json (stage 1)
+  "postCreateCommand": "if [ -f package-lock.json ]; then npm ci; fi",
+  "postStartCommand": "setsid nohup mailpit > /tmp/mailpit.log 2>&1 &",
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "anthropic.claude-code",
+
+        "dbaeumer.vscode-eslint",
+        "esbenp.prettier-vscode",
+        "vitest.explorer",
+        "ms-playwright.playwright",
+
+        "qwtel.sqlite-viewer",
+        "humao.rest-client",
+        "ms-azuretools.vscode-containers",
+        "redhat.vscode-yaml",
+
+        "bierner.markdown-mermaid",
+        "davidanson.vscode-markdownlint",
+        "editorconfig.editorconfig"
+      ],
+      "settings": {
+        "npm.enableScriptExplorer": true,
+        // Use the TypeScript version of the project, once installed
+        "typescript.tsdk": "node_modules/typescript/lib",
+        "typescript.enablePromptUseWorkspaceTsdk": true,
+        "[typescript][typescriptreact][javascript][json][jsonc]": {
+          "editor.defaultFormatter": "esbenp.prettier-vscode",
+          "editor.formatOnSave": true
+        }
+      }
+    }
+  },
+  "remoteUser": "vscode"
+}

@@ -130,9 +130,11 @@ Sections with no requirement table describe architecture and technology choices:
 | 2026-11-04 | Allergies and dietary requirements are health data (FADP): only admins see them, they are named in the privacy notice and deleted at shutdown (SEC-11). |
 | 2026-11-04 | The waiting page is a teaser: a pixel-art door ajar with figures building the world behind it, texts by RSVP status with name and number of waiting guests (DE defaults, editable), an optional countdown, and a "the door is open" email when the platform opens (ACS-11–14). |
 | 2026-11-04 | The project owner draws the door scene for the waiting page. It is the first art task, needed for Release 1 (stage 3) before any maps (ACS-12). |
+| 2026-11-04 | The backend stays TypeScript on Node.js, after Python (FastAPI) and Go were reconsidered once Colyseus was gone. Main reason: code shared between game and server (Tiled parsing, schemas, result structures), plus one language and toolchain (sw-architecture.md 15.1). Backend framework and database library are decided in stage 1. |
 | 2026-11-04 | Everything guests contribute is moderated in one queue before it appears on the event screen, in the gallery or in the guestbook. Swipe right approves and left rejects, with undo and a rejected list (MOD-01–05, SCR-03 withdrawn). Approved guestbook entries can appear on the event screen (SCR-06). |
 
 ## Open points
 
 - **Gift list (optional feature, undecided):** the couple's wishes, which guests reserve or pledge a share of (e.g. a travel fund). No payments through the platform: bank details or TWINT QR code only, and the platform records pledges. Other guests don't see who gave what, and the couple gets an overview. Estimated effort ~3–4 points, value +0.5 to 1. If wanted: feature toggle `giftList`, priority Could. Build it only if the couple wants a gift list.
+- **Backend framework and database library:** proposal Fastify and Drizzle or Kysely on SQLite. Decided when planning stage 1 (sw-architecture.md 15.1).
 - **Load test tool (PERF-01):** see `test-strategy.md`, section 6.2.

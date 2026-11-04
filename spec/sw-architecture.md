@@ -90,6 +90,7 @@
   - [14.5 Template Map Set](#145-template-map-set)
   - [14.6 Requirements](#146-requirements)
 - [15. Technology Stack](#15-technology-stack)
+  - [15.1 Decision: TypeScript for the Backend](#151-decision-typescript-for-the-backend)
 - [16. Frontend Architecture](#16-frontend-architecture)
 - [17. Backend Architecture](#17-backend-architecture)
   - [17.1 Live Updates](#171-live-updates)
@@ -1415,6 +1416,25 @@ The platform is built on a modern TypeScript stack.
 
 The concrete version of each library is pinned in the project's package management.
 
+## 15.1 Decision: TypeScript for the Backend
+
+**Context.** The original reason for a Node.js backend was Colyseus for real-time multiplayer, which has been removed (3.3). Python (e.g. FastAPI) and compiled languages (e.g. Go) were therefore reconsidered.
+
+**Decision.** The backend stays TypeScript on Node.js.
+
+**Reasons.**
+- **Shared code between game and server:** parsing Tiled maps (Phaser in the browser, import validation on the server), input schemas (SEC-03), contribution and RSVP structures, and minigame result structures with their plausibility profiles are written once in `shared/` and used on both sides.
+- **One language and one toolchain** (npm, Vitest, ESLint, Prettier, one CI setup, one devcontainer) for a project with a single developer. The frontend is TypeScript anyway (React, Phaser).
+- **The workload suits Node.js:** many small requests, uploads, Server-Sent Events, and image processing with `sharp`.
+- **Performance doesn't decide:** about 50 concurrent users (PERF-01) run on any of the options.
+
+**Alternatives considered.**
+- *Python (FastAPI):* good libraries (Pillow with HEIC support, WeasyPrint for PDF), but two languages, schemas defined twice or generated, and Tiled parsing written twice.
+- *Go:* single small binary and low memory use, but no code sharing with the frontend, and HEIC and PDF support are less convenient. Deployment runs in Docker anyway.
+- *Rust, .NET:* no advantage that would justify the effort for this project.
+
+**Still open, decided in stage 1:** backend framework (proposal: Fastify) and database access library (proposal: Drizzle or Kysely on SQLite).
+
 ---
 
 # 16. Frontend Architecture
@@ -2125,7 +2145,7 @@ What matters is a clear separation between:
 | Routing | React Router |
 | Game engine | Phaser 4 |
 | Map editor | Tiled |
-| Backend | Node.js + TypeScript |
+| Backend | Node.js + TypeScript; code shared with the frontend in `shared/` (15.1) |
 | Multiplayer | None; attending guests appear as wandering figures |
 | Database | SQLite |
 | Opening | Invitation and RSVP work early behind a teaser waiting page (door ajar, texts by RSVP status, "door is open" email); the admin opens the platform and, separately, snapshot and keepsake uploads |
