@@ -1,0 +1,16 @@
+node_modules/
+dist/
+*.tsbuildinfo
+
+# Test output (Vitest/Playwright JSON results, requirement report, traces)
+reports/
+coverage/
+test-results/
+playwright-report/
+
+.env
+.env.*
+!.env.example
+
+# End-to-end test data (fresh per run)
+.e2e-data/

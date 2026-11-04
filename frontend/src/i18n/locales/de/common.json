@@ -1,0 +1,24 @@
+{
+  "app": {
+    "name": "Zappaloo"
+  },
+  "nav": {
+    "home": "Start",
+    "game": "Spielwelt"
+  },
+  "home": {
+    "title": "Willkommen bei Zappaloo",
+    "placeholder": "Hier entsteht die Plattform für unser Fest. Schau bald wieder vorbei!"
+  },
+  "game": {
+    "loading": "Die Spielwelt wird geladen …",
+    "loadFailed": "Die Spielwelt konnte nicht geladen werden."
+  },
+  "notFound": {
+    "title": "Seite nicht gefunden",
+    "backHome": "Zur Startseite"
+  },
+  "footer": {
+    "version": "Version {{version}}"
+  }
+}

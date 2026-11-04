@@ -1,0 +1,11 @@
+{
+  "//": "Root-level TypeScript: tooling scripts (run directly by Node.js), end-to-end tests (DOM types for page.evaluate) and config files. Workspaces have their own tsconfig.json.",
+  "extends": "./tsconfig.base.json",
+  "compilerOptions": {
+    "types": ["node"],
+    "allowImportingTsExtensions": true,
+    "erasableSyntaxOnly": true,
+    "lib": ["ES2024", "DOM"]
+  },
+  "include": ["scripts", "e2e", "infrastructure", "*.config.ts"]
+}

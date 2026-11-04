@@ -42,4 +42,24 @@ Zappaloo is a reusable event platform (first use: a wedding) that combines a bro
 ## Environment
 
 - Development happens in the devcontainer (`.devcontainer/`): Node.js, Playwright browsers (Chromium, WebKit), Mailpit (caught emails, web UI on port 8025), sqlite3. Dev data lives in the `zappaloo-data-dev` volume at `/var/lib/zappaloo`.
-- Commands: defined in step 1a (tests, linter, requirement report, app). Add them here then.
+- Monorepo with npm workspaces `shared`, `backend`, `frontend`; tooling scripts in `scripts/` run directly by Node.js (type stripping, imports with `.ts` extension).
+- Commands (from the repository root):
+
+| Command | Does |
+|---|---|
+| `npm run dev:backend` / `npm run dev:frontend` | Backend on port 3000 (restarts on change; migrates `DATA_DIR` on start) / Vite on port 5173, proxying `/api` to the backend |
+| `npm run build` | Production build of the frontend (`frontend/dist`) |
+| `npm run cli -- <command>` | The `zappaloo` CLI from source (`version`, `migrate`, …) |
+| `npm run db:generate -w backend` | New Drizzle migration after a change of `backend/src/database/schema.ts` |
+| `npm run migration-check` | Schema has no change without a migration; migrations apply to an empty database and to the latest release's schema; released migrations unchanged |
+| `npm run build:image` | Local image build (`ghcr.io/gravity981/zappaloo:local`, version `<last release>+local.<commit>`) plus smoke test |
+| `npm run test:deploy` | Deployment test: the bundle in `infrastructure/deploy/` with the image (default `:local`, or `ZAPPALOO_TEST_IMAGE`) in Docker; results in `reports/vitest-deploy.json` |
+| `npm run lint` | ESLint (type-checked rules), no warnings allowed |
+| `npm run format` / `npm run format:check` | Prettier (Markdown is excluded) |
+| `npm run typecheck` | `tsc` for the root (scripts, e2e, configs) and every workspace |
+| `npm test` | Vitest, all workspaces; JSON results in `reports/vitest.json` |
+| `npm run test:e2e` | Playwright (desktop/mobile, Chromium/WebKit) against the backend serving a test build of the frontend (port 4173, data in `.e2e-data/`); JSON results in `reports/playwright.json` |
+| `npm run req-report` | Requirement report from the spec and both JSON results; full report in `reports/requirements.md`; non-zero exit on errors |
+| `npm run check` | All of the above in CI order |
+
+- Run the tests before the requirement report; it reads their JSON results.

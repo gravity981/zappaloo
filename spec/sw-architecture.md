@@ -114,7 +114,15 @@
   - [22.1 Persistent Data](#221-persistent-data)
   - [22.2 Backups](#222-backups)
 - [23. GitHub and CI/CD](#23-github-and-cicd)
-  - [23.1 Requirements (Sections 21–23)](#231-requirements-sections-2123)
+  - [23.1 Version Scheme](#231-version-scheme)
+  - [23.2 Branches and CI](#232-branches-and-ci)
+  - [23.3 Release Workflow](#233-release-workflow)
+  - [23.4 Environments](#234-environments)
+  - [23.5 Deployment](#235-deployment)
+  - [23.6 Version Information](#236-version-information)
+  - [23.7 Rollback](#237-rollback)
+  - [23.8 Command-Line Interface](#238-command-line-interface)
+  - [23.9 Requirements (Sections 21–23)](#239-requirements-sections-2123)
 - [24. Security and Privacy](#24-security-and-privacy)
   - [24.1 Requirements](#241-requirements)
 - [25. Performance, Scaling and Tests](#25-performance-scaling-and-tests)
@@ -741,6 +749,8 @@ Every signed-in guest responds to the invitation. The RSVP gives guests a reason
 | ACC-11 | Emails are sent through an SMTP provider configured per installation (host, port, credentials, sender address); Infomaniak mail is the first provider. | Must |
 | ACC-12 | Users can delete their own account and their own contributions at any time. | Must |
 | ACC-13 | Sessions stay valid for a long time (until the user logs out or the platform shuts down), so guests rarely need to sign in again. | Should |
+| ACC-14 | The CLI command `create-admin USERNAME` (optionally with `--vip`) creates an admin account and prints a one-time setup link, valid for 24 hours, where the new admin sets the password; this is how the first admin of an installation is created (23.8). | Must |
+| ACC-15 | The CLI command `reset-password USERNAME` prints a one-time password-reset link for the user, so an admin who is locked out can get back in (23.8). | Must |
 | AVA-01 | A signed-in user can design a pixel-art avatar in an avatar editor (skin colour, hairstyle, hair colour, clothing, clothing colours, accessories, predefined templates). | Must |
 | AVA-02 | The avatar configuration is stored with the user or their event membership. | Must |
 | AVA-03 | Avatars are composed from prepared pixel-art assets; no AI API is used. | Must |
@@ -1434,7 +1444,11 @@ The concrete version of each library is pinned in the project's package manageme
 - *Go:* single small binary and low memory use, but no code sharing with the frontend, and HEIC and PDF support are less convenient. Deployment runs in Docker anyway.
 - *Rust, .NET:* no advantage that would justify the effort for this project.
 
-**Still open, decided in stage 1:** backend framework (proposal: Fastify) and database access library (proposal: Drizzle or Kysely on SQLite).
+**Decided in stage 1 (2026-11-04):**
+- **Backend framework: Fastify.** Schema-based route validation fits SEC-03, good TypeScript support, and its plugin model suits the modular monolith (section 17).
+- **Database access: Drizzle ORM on SQLite** (driver `better-sqlite3`). The schema is written in TypeScript; drizzle-kit generates versioned SQL migration files that are reviewed and committed (DATA-04).
+- **Input validation: Zod.** Schemas live in `shared/`, double as TypeScript types, and are used by the backend (Fastify via `fastify-type-provider-zod`, SEC-03), for `event.json` validation (CFG-02) and in frontend forms.
+- **i18n: react-i18next** with one JSON message file per language and namespace (LANG-01). Hard-coded UI strings are caught by the ESLint rule `i18next/no-literal-string`.
 
 ---
 
@@ -1872,26 +1886,164 @@ Restoring must be tested regularly.
 
 # 23. GitHub and CI/CD
 
-The source code is managed in a GitHub repository.
+The source code is managed in the GitHub repository `gravity981/zappaloo`. GitHub Actions builds, tests and releases the application. Images are pushed to the GitHub Container Registry (`ghcr.io/gravity981/zappaloo`).
 
-GitHub Actions runs automated checks and deployments.
+The application is shipped as **one application image** (backend and built frontend) plus the official Caddy image. Every image contains its version and the commit it was built from, and the backend returns both at `GET /api/version`.
 
-Possible flow:
+Production data and uploads must never be overwritten or deleted by a deployment. Before larger database changes, backups and suitable migrations are required.
 
-1. A developer creates a commit or pull request.
-2. GitHub Actions runs the tests.
-3. TypeScript checks run.
-4. Frontend and backend are built.
-5. If all checks pass, a deployment is prepared.
-6. The application is updated on the VPS.
-7. The containers are restarted or updated.
-8. The deployment status is verified.
+## 23.1 Version Scheme
 
-Production data and uploads must never be overwritten or deleted by a deployment.
+| Build | Built by | Artifact version (inside the image) | Image tags | Git tag |
+|---|---|---|---|---|
+| Pull request | `ci.yml` | `<last release>+build.<N>` | – (not pushed) | – |
+| Push to `main` | `ci.yml` | `<last release>+build.<N>` | `<last release>_build.<N>`, `main` | – |
+| Release candidate | `release-candidate.yml` | `<version>` | `<version>-rc.<M>` | `v<version>-rc.<M>` |
+| Release | `promote.yml` (no build) | unchanged: `<version>` | adds `<version>`, `<major>.<minor>`, `<major>` | `v<version>` |
+| Local build | `infrastructure/scripts/build-image.sh` | `<last release>+local.<short commit>` | `local` | – |
 
-Before larger database changes, backups and suitable migrations are required.
+- `<last release>` is the highest tag `vX.Y.Z` without pre-release suffix reachable from the built commit (`git describe --tags --abbrev=0 --match 'v[0-9]*' --exclude '*-*'`), or `0.0.0` if none exists.
+- `<N>` is the run number of `ci.yml` (`github.run_number`), which increases with every run and is never reused.
+- Docker tags cannot contain `+`, so image tags use `_` in its place: version `1.1.0+build.57` → image tag `1.1.0_build.57`.
+- Build-metadata versions sort equal to the release they are based on (SemVer ignores `+…` for precedence); they identify a build, not a release.
+- All candidates of one version (`1.2.0-rc.1`, `1.2.0-rc.2`) contain the same version `1.2.0`. They are told apart by their commit, which every image also contains, and by their image tag and digest in the registry.
 
-## 23.1 Requirements (Sections 21–23)
+| Version step | When |
+|---|---|
+| MAJOR | Incompatible change: incompatible `event.json` format, removed features, migrations that need manual steps |
+| MINOR | New features, backward-compatible additions |
+| PATCH | Bug fixes only |
+
+## 23.2 Branches and CI
+
+- `main` is always releasable. Work happens on short-lived feature branches (one per stage, see implementation-plan.md) and is merged into `main` through pull requests.
+- No branch protection on `main` (single developer). CI runs on every pull request and push, and a release candidate is only built from a commit whose CI passed (23.3).
+- Workflow **`ci.yml`** runs on every pull request and every push to `main`:
+
+| Step | Tools |
+|---|---|
+| Lint and format check | ESLint, Prettier |
+| Type check | `tsc --noEmit` (frontend, backend, shared, scripts) |
+| Unit, component and integration tests | Vitest |
+| End-to-end tests | Playwright (Chromium, WebKit; desktop and mobile viewports) |
+| Requirement report | `npm run req-report` (section 3 of test-strategy.md) |
+| Migration check | Drizzle migrations apply cleanly to an empty database and to a reference database of the latest release (DATA-04) |
+| Determine version | `<last release>+build.<N>` (23.1) |
+| Image build | Docker build with version and commit baked in; on `main` also pushed to the registry, after the end-to-end tests passed |
+| Image smoke test | Start the image, check `GET /api/version` returns the version determined above |
+
+Images built from `main` are kept for 30 days; release candidates and releases are kept forever. The weekly workflow `cleanup-images.yml` deletes images whose only tags are build tags (`X.Y.Z_build.N`) and that are older than 30 days.
+
+## 23.3 Release Workflow
+
+```mermaid
+flowchart LR
+    A["main<br/>(CI green)"] -->|"Run 'Release candidate'<br/>input: 1.2.0"| B["build image, version 1.2.0<br/>image tag 1.2.0-rc.1<br/>git tag v1.2.0-rc.1<br/>GitHub pre-release"]
+    B -->|deploy to staging,<br/>verify| C{OK?}
+    C -->|no: fix on main| A2["main"] -->|"Run 'Release candidate'<br/>input: 1.2.0"| B2["build image, version 1.2.0<br/>image tag 1.2.0-rc.2<br/>git tag v1.2.0-rc.2<br/>GitHub pre-release"]
+    B2 --> C
+    C -->|"yes: Run 'Promote'<br/>input: v1.2.0-rc.N"| D["no build<br/>tag v1.2.0 on same commit<br/>image tag 1.2.0 added<br/>GitHub release"]
+    D -->|deploy.sh prod 1.2.0| E[Production]
+```
+
+**Workflow `release-candidate.yml`** – started manually (`workflow_dispatch`) with input `version` (e.g. `1.2.0`):
+
+1. Checks that it runs on `main`, that CI passed for this commit, that `version` is valid SemVer, that it is higher than the latest release, and that `v<version>` does not exist yet.
+2. Determines the next candidate number M (one more than the highest existing `v<version>-rc.*` tag, starting at 1).
+3. Runs the full test suite, including the end-to-end tests (it calls `ci.yml`).
+4. Builds the image with version `<version>` baked in — without the `-rc.M` suffix — runs the smoke test, and pushes it with image tag `<version>-rc.M`.
+5. Creates and pushes the tag `v<version>-rc.M` on the commit.
+6. Creates a GitHub **pre-release** for the tag (`gh release create --prerelease`) with notes generated since the last release, and attaches the deployment bundle (23.5).
+
+**Workflow `promote.yml`** – started manually with input `candidate` (e.g. `v1.2.0-rc.2`):
+
+1. Checks that the candidate tag and its image exist, that `v1.2.0` does not exist yet, and that there is no newer candidate for the same version (only the latest candidate can be promoted).
+2. Creates and pushes the tag `v1.2.0` on the candidate's commit.
+3. Adds the image tags `1.2.0`, `1.2` and `1` to the candidate's image without rebuilding it (`docker buildx imagetools create`). The image already contains version `1.2.0`.
+4. Creates a GitHub **release** (not a pre-release, marked as latest) with notes generated since the previous release, the promoted candidate (`v1.2.0-rc.2`, commit), and the deployment bundle.
+
+**Rules**
+
+- Tags matching `v*` are protected by a repository ruleset: only the release workflows can create them; nobody can move or delete them.
+- Releases and candidates are immutable. A problem found in `1.2.0-rc.1` is fixed on `main` and released as `1.2.0-rc.2`. A problem found after `1.2.0` is released becomes `1.2.1`.
+- Releases are always made from `main`; there are no release branches. Hotfixes follow the same flow with a patch version.
+- The product releases in implementation-plan.md (Release 1, Opening, Event-ready, After the event) are each shipped as such a release.
+
+## 23.4 Environments
+
+| Environment | Runs | Data | Purpose |
+|---|---|---|---|
+| dev | devcontainer, from source | volume `zappaloo-data-dev` | Development |
+| staging | LAN server of the project owner (x86-64), Compose project `zappaloo-staging`, `https://<LAN IP address>` with a certificate from Caddy's local CA | volume `zappaloo-data-staging`, replaced by a restore of the latest off-site backup (database, maps, tilesets, photos) at each staging deploy, deleted after verification | Verify a release candidate, including migrations on real data; real-device tests on the LAN |
+| prod | Infomaniak VPS, Compose project `zappaloo`, `https://<domain>` | volume `zappaloo-data-prod` | Production |
+
+- Staging and prod use the same Compose file (application and Caddy); only `.env` differs: host name, certificate source, image tag, volume, `APP_ENV` and mail settings. Staging therefore also tests the Caddy configuration.
+- Staging is not reachable from the internet. It runs only while a candidate is verified. Afterwards its containers are stopped and its volume, which holds a copy of real guest data, is deleted.
+- Staging never sends email to real recipients: its outgoing mail is caught by a Mailpit container in the staging project (Compose profile `mailpit`), whose web UI is reachable on port 8025 of the LAN server.
+- Staging uses HTTPS with a certificate from Caddy's internal CA (`tls internal`), since Let's Encrypt cannot reach the LAN. The project owner installs Caddy's root certificate once on the test devices. Let's Encrypt itself (OPS-02) is only checked on prod.
+- Images are built for `linux/amd64` only; both the VPS and the LAN server use that architecture.
+
+## 23.5 Deployment
+
+Each GitHub release and pre-release has a **deployment bundle** attached: `compose.yaml`, `deploy.sh` and `.env.example`. The Caddy configuration is part of `compose.yaml` (an inline Compose config), so the bundle needs no further files and no bind-mounted configuration.
+
+On each server, the environment has its own directory with the bundle files and:
+
+- `.env`: `IMAGE_TAG` and `APP_VERSION_SUFFIX` (23.6, maintained by `deploy.sh`), `APP_ENV`, `COMPOSE_PROJECT_NAME`, `DATA_VOLUME`, `SITE_ADDRESS` (`<domain>` for prod, the LAN IP address for staging), `TLS_MODE` (the contact email for Let's Encrypt on prod, `internal` for staging), `HTTP_PORT`/`HTTPS_PORT` (default 80/443), mail settings with `COMPOSE_PROFILES=mailpit` on staging, and `BACKUP_DIR` (host folder for pre-deploy database backups, default `./backups`, mounted into the application container at `/backups`).
+- `caddy-data` volume: Caddy's certificates and, on staging, its local CA. It is kept across deployments, so test devices keep trusting the same root certificate.
+- `secrets/session_secret`: the secret that signs session cookies, mode 600, created by `deploy.sh` on the first deployment. `deploy.sh` passes it to Compose as an environment-sourced secret, so it is never written to `.env`; the app reads it from `/run/secrets/session_secret`. Other secrets (SMTP password, backup credentials) are placed in `secrets/` by the project owner.
+- `ghcr-token` (optional): a read-only registry token (`read:packages`), only needed if the image is private; the user is `GHCR_USER` in `.env`.
+
+`deploy.sh <staging|prod> <image tag>`:
+
+1. Pulls the image. If `ghcr-token` exists, it logs in to `ghcr.io` with it first.
+2. Creates the secret file if it does not exist yet. **prod:** creates a consistent backup of the database in `BACKUP_DIR` with the CLI command `backup` (23.8), named with timestamp and the running version. **staging:** replaces the staging data volume with a restore of the latest off-site backup (OPS-05). If no backup exists yet (backups not set up, or no prod release so far), it warns and continues with the existing staging data, or with an empty data volume on the first deployment. Deploying to staging never requires a prod release or a backup.
+3. Sets `IMAGE_TAG=<image tag>` and `APP_VERSION_SUFFIX` in `.env` (never `latest`) and runs `docker compose pull` and `docker compose up -d`.
+4. The application applies database migrations on startup (DATA-04); if they fail, it does not start. On an empty data volume, the migrations create a new database.
+5. Reads the version from the image label (`docker inspect`) and waits until `GET /api/health` reports healthy with that same version (plus `-rc.N` for a release candidate, 23.6). If not, it stops and prints the rollback command (23.7).
+
+Only release image tags (`X.Y.Z`) can be deployed to prod; staging accepts any image tag. `deploy.sh --no-pull` deploys an image that exists only locally (deployment tests, local builds); `DEPLOY_HEALTH_TIMEOUT` sets how long step 5 waits (default 90 seconds).
+
+Deployments are started manually until OPS-07 automates them (stage 10).
+
+## 23.6 Version Information
+
+The version is part of the image and is set exactly once, at build time:
+
+- The build passes the version as build argument `APP_VERSION` and the commit as `APP_COMMIT`. The Dockerfile stores both as environment variables in the image, writes the version to `/app/VERSION`, and sets the OCI labels `org.opencontainers.image.version` (version) and `org.opencontainers.image.revision` (commit).
+- The frontend is built inside the same image build and gets the same version compiled in (Vite `define`), so backend and frontend of one image always report the same version.
+- The deployment never sets or overrides `APP_VERSION`; the Compose file only selects the image (`image: ghcr.io/gravity981/zappaloo:${IMAGE_TAG}`).
+- Only a pre-release suffix can be configured: if the image tag is `<version>-rc.N`, `deploy.sh` writes `APP_VERSION_SUFFIX=rc.N` to `.env` (empty for every other tag), and the backend reports `<version>-rc.N`. A promoted release is deployed with tag `<version>` and reports exactly its version.
+- The backend returns version and commit at `GET /api/version` and includes the version in `GET /api/health`. The website footer shows the frontend's compiled-in version, or the server's if that only adds `-rc.N`.
+- `docker inspect` shows version and commit from the labels without starting the container.
+- Running from source in dev (no image) reports `<last release>+dev`, determined from git at startup.
+
+## 23.7 Rollback
+
+`deploy.sh prod <previous image tag> --restore <backup>` selects the previous image and restores the database backup taken before the failed deployment, with the CLI command `restore` while the application is stopped. Migrations only move forward, so a rollback always goes together with that database backup. Data entered between the deployment and the rollback is lost, which is why the health check runs right after deploying.
+
+## 23.8 Command-Line Interface
+
+The application image contains a command-line interface `zappaloo` for operating tasks. It runs inside the application container of any environment, on the VPS over SSH as well as on the LAN server:
+
+```sh
+docker compose exec app zappaloo version                          # version and commit
+docker compose exec app zappaloo migrate                          # apply pending migrations
+docker compose exec app zappaloo backup /backups/<file>.db        # consistent backup while the app runs
+docker compose run --rm app zappaloo restore /backups/<file>.db --force   # app stopped
+docker compose exec app zappaloo create-admin USERNAME [--vip]    # admin account, prints a setup link
+docker compose exec app zappaloo reset-password USERNAME          # prints a one-time reset link
+```
+
+In dev, the same commands run from source with `npm run cli -- <command>`.
+
+- `backup` uses SQLite's online backup, so the application keeps running. It covers the database only; files (maps, tilesets, photos) are covered by the off-site backups (22.2).
+- `restore` refuses to run while the application is running and asks for `--force` before it overwrites the database. The restored database is migrated on the next start.
+- `create-admin` and `reset-password` never take a password on the command line; they print a one-time link instead, so no password ends up in the shell history.
+- Commands print a clear error and exit non-zero on failure, so `deploy.sh` can rely on them.
+- Each command is built together with its feature: `version` and `migrate` in step 1b, `backup` and `restore` in step 1d, `create-admin` and `reset-password` in step 2b.
+
+## 23.9 Requirements (Sections 21–23)
 
 | ID | Requirement | Prio |
 |---|---|---|
@@ -1902,6 +2054,17 @@ Before larger database changes, backups and suitable migrations are required.
 | OPS-05 | Regular backups of database, photos, uploads, imported maps and tilesets, event configuration and relevant assets are stored off the VPS; restoring from a backup is tested regularly. | Must |
 | OPS-06 | On every commit and pull request, GitHub Actions runs the tests, the TypeScript checks, the builds and the requirement report. | Must |
 | OPS-07 | After successful checks, GitHub Actions deploys to the VPS and verifies the deployment status. | Should |
+| OPS-08 | Every build carries a version according to the version scheme (23.1), baked into the image once at build time together with the commit (23.6); `GET /api/version` returns both, `GET /api/health` and the website footer show the version, and CI checks the version with a smoke test of the built image. | Must |
+| OPS-09 | ~~`main` is protected: changes reach it only through a pull request with a passing CI workflow.~~ (withdrawn: single developer, no branch protection needed; release candidates still require a passing CI run, see OPS-10) | – |
+| OPS-10 | A release candidate is built from `main` by a manually started workflow after the full test suite passed, pushed with image tag `<version>-rc.<M>`, tagged `v<version>-rc.<M>` and published as a GitHub pre-release with the deployment bundle (23.3). | Must |
+| OPS-11 | Only the latest candidate of a version can be promoted to a release; promotion does not rebuild, adds the tag `v<version>` and the image tags `<version>`, `<major>.<minor>`, `<major>`, and creates a GitHub release (23.3). | Must |
+| OPS-12 | Tags `v*` can only be created by the release workflows and can't be moved or deleted. | Must |
+| OPS-13 | A staging environment on the project owner's LAN, not reachable from the internet, verifies release candidates against a restore of the latest off-site backup; it runs only during verification, its data is deleted afterwards, and it never sends email to real recipients (23.4). | Must |
+| OPS-14 | Images that only carry build tags are deleted after 30 days; release candidates and releases are kept. | Should |
+| OPS-15 | `deploy.sh` deploys a given image tag to staging or prod (prod: release tags only), backs up the prod database before deploying, and reports success only when `GET /api/health` is healthy with the expected version; staging can be deployed without any prod release or backup, starting with an empty database (23.5). | Must |
+| OPS-16 | A failed prod deployment can be rolled back to the previous image together with the database backup taken before it (23.7). | Must |
+| OPS-17 | The application image contains a command-line interface that runs inside the application container in every environment, with the commands `version` and `migrate` (23.8). | Must |
+| OPS-18 | The CLI commands `backup` (consistent database backup while the application runs) and `restore` (only while the application is stopped, confirmed with `--force`) are available and used by `deploy.sh` (23.8). | Must |
 
 ---
 
@@ -2209,10 +2372,10 @@ Invitations and RSVP must work early. Stages 1–3 therefore form Release 1, whi
 - SQLite with versioned migrations.
 - i18n framework set up.
 - Docker Compose with Caddy; deployed to the VPS with HTTPS.
-- GitHub Actions: tests, type checks, builds, requirement report.
+- GitHub Actions: tests, type checks, builds, requirement report; versioned images in the GitHub Container Registry; release candidates, promotion, `deploy.sh` with rollback, a staging environment on the LAN, and a command-line interface (section 23).
 - Off-site backups and restore drill.
 
-Requirements: OPS-01–06, DATA-01, DATA-04, LANG-01, SEC-03, SEC-10.
+Requirements: OPS-01–06, OPS-08–18, DATA-01, DATA-04, LANG-01, SEC-03, SEC-10.
 
 ## Stage 2 – Accounts, Roles and Access
 

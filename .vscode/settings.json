@@ -1,0 +1,6 @@
+{
+  // Vitest extension: use only the root config, which defines all workspace
+  // projects (shared, backend, frontend with jsdom, scripts). Without this, the
+  // extension also treats frontend/vite.config.ts as a separate Vitest config.
+  "vitest.rootConfig": "vitest.config.ts"
+}

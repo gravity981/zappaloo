@@ -1,0 +1,5 @@
+{
+  "//": "Solution file: browser code in tsconfig.app.json, Node.js code (build config, lint test) in tsconfig.node.json.",
+  "files": [],
+  "references": [{ "path": "./tsconfig.app.json" }, { "path": "./tsconfig.node.json" }]
+}
