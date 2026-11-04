@@ -35,6 +35,9 @@ function docker(...args: string[]): string {
 
 interface Environment {
   dir: string;
+  /** Caddy's ports, the same inside and outside its container. */
+  httpPort: number;
+  httpsPort: number;
   project: string;
   deploy: (...args: string[]) => { status: number; output: string };
   compose: (...args: string[]) => string;
@@ -67,6 +70,8 @@ function createEnvironment(target: "staging" | "prod", httpsPort: number): Envir
     });
   return {
     dir,
+    httpPort: httpsPort - 1,
+    httpsPort,
     project,
     deploy: (...args) => {
       const result = spawnSync(join(dir, "deploy.sh"), [target, ...args], {
@@ -144,6 +149,28 @@ describe("staging deployment", () => {
     expect(["", ":0"]).toContain(staging.compose("port", "app", "3000").trim());
   });
 
+  it("[OPS-03] publishes only Caddy's HTTP and HTTPS ports and, on staging, Mailpit's web UI", () => {
+    const env = staging;
+    if (!env) throw new Error("staging not deployed");
+    const published = env
+      .compose("ps", "--format", "json")
+      .trim()
+      .split("\n")
+      .map(
+        (line) =>
+          JSON.parse(line) as { Service: string; Publishers: { PublishedPort: number }[] | null },
+      )
+      .flatMap((c) =>
+        (c.Publishers ?? [])
+          .filter((p) => p.PublishedPort > 0)
+          .map((p) => `${c.Service}:${p.PublishedPort}`),
+      );
+    const mailpitPort = env.httpsPort + 1;
+    expect([...new Set(published)].sort()).toEqual(
+      [`caddy:${env.httpPort}`, `caddy:${env.httpsPort}`, `mailpit:${mailpitPort}`].sort(),
+    );
+  });
+
   it("[OPS-01] Caddy serves the app over HTTPS at an IP address, like a browser without SNI", async () => {
     const env = staging;
     if (!env) throw new Error("staging not deployed");
@@ -170,7 +197,7 @@ describe("staging deployment", () => {
        const site = ${JSON.stringify(SITE_IP)};
        let ca = ""; process.stdin.on("data", (d) => (ca += d)).on("end", () => dns.lookup("caddy", (err, ip) => {
          if (err) { console.error(err.message); process.exit(1); }
-         https.get({ host: ip, port: 443, path: "/api/health", headers: { host: site }, ca,
+         https.get({ host: ip, port: ${env.httpsPort}, path: "/api/health", headers: { host: site }, ca,
                      checkServerIdentity: (_host, cert) => tls.checkServerIdentity(site, cert) }, (res) => {
            let body = ""; res.on("data", (d) => (body += d)).on("end", () =>
              console.log(JSON.stringify({ status: res.statusCode, robots: res.headers["x-robots-tag"], body })));
@@ -184,6 +211,69 @@ describe("staging deployment", () => {
     expect(JSON.parse(parsed.body)).toMatchObject({ status: "ok" });
   });
 
+  it("[OPS-02] live updates (Server-Sent Events) pass through Caddy one by one, not buffered", () => {
+    const env = staging;
+    if (!env) throw new Error("staging not deployed");
+    // Three events one second apart, through Caddy over HTTPS with compression
+    // negotiated, as a browser would. Each must arrive about when it is sent.
+    const arrivals = env.node(
+      `const https = require("node:https"), dns = require("node:dns"), zlib = require("node:zlib");
+       dns.lookup("caddy", (_e, ip) => {
+         const start = Date.now(), times = [];
+         https.get({ host: ip, port: ${env.httpsPort}, path: "/api/events/ping?count=3&intervalMs=1000",
+                     headers: { host: ${JSON.stringify(SITE_IP)}, accept: "text/event-stream",
+                                "accept-encoding": "gzip, zstd" },
+                     rejectUnauthorized: false }, (res) => {
+           // Decompress like a browser; flush each chunk as it arrives.
+           const encoding = res.headers["content-encoding"] ?? null;
+           const decoded = encoding === "gzip" ? res.pipe(zlib.createGunzip({ finishFlush: zlib.constants.Z_SYNC_FLUSH }))
+             : encoding === "zstd" ? res.pipe(zlib.createZstdDecompress()) : res;
+           let text = "";
+           decoded.on("data", (chunk) => {
+             text += chunk;
+             const found = (text.match(/event: ping/g) ?? []).length;
+             while (times.length < found) times.push(Date.now() - start);
+           });
+           decoded.on("end", () => console.log(JSON.stringify({ status: res.statusCode,
+             type: res.headers["content-type"], encoding, times })));
+         });
+       });`,
+    );
+    const result = JSON.parse(arrivals) as {
+      status: number;
+      type: string;
+      encoding: string | null;
+      times: number[];
+    };
+    expect(result.status).toBe(200);
+    expect(result.type).toContain("text/event-stream");
+    expect(result.times, JSON.stringify(result)).toHaveLength(3);
+    const [first = 0, , last = 0] = result.times;
+    // Unbuffered: the first event long before the last, about two seconds apart.
+    expect(first).toBeLessThan(1700);
+    expect(last - first).toBeGreaterThan(1500);
+  });
+
+  it("[OPS-01] redirects HTTP to HTTPS on the configured port (staging next to prod on one machine)", () => {
+    const env = staging;
+    if (!env) throw new Error("staging not deployed");
+    const answer = env.node(
+      `const http = require("node:http"), dns = require("node:dns");
+       dns.lookup("caddy", (_e, ip) => {
+         http.get({ host: ip, port: ${env.httpPort}, path: "/game?x=1", headers: { host: ${JSON.stringify(SITE_IP)} } },
+           (res) => {
+             res.resume();
+             console.log(JSON.stringify({ status: res.statusCode, location: res.headers.location }));
+             process.exit(0);
+           });
+       });`,
+    );
+    expect(JSON.parse(answer), answer).toEqual({
+      status: 308,
+      location: `https://${SITE_IP}:${env.httpsPort}/game?x=1`,
+    });
+  });
+
   it("[OPS-01] answers any other host name with 421 and a clear message instead of an empty page", () => {
     const env = staging;
     if (!env) throw new Error("staging not deployed");
@@ -194,7 +284,7 @@ describe("staging deployment", () => {
          proto.get({ host: ip, port, path: "/", headers: { host: "10.99.0.2" }, rejectUnauthorized: false },
            (res) => { let b = ""; res.on("data", (d) => (b += d)).on("end", () => resolve({ status: res.statusCode, body: b })); }));
        dns.lookup("caddy", async (_e, ip) => {
-         console.log(JSON.stringify([await get(https, ip, 443), await get(http, ip, 80)]));
+         console.log(JSON.stringify([await get(https, ip, ${env.httpsPort}), await get(http, ip, ${env.httpPort})]));
        });`,
     );
     const expected = {

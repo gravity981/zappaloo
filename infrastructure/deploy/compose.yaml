@@ -6,7 +6,7 @@ name: ${COMPOSE_PROJECT_NAME:?set COMPOSE_PROJECT_NAME in .env}
 services:
   app:
     image: ghcr.io/gravity981/zappaloo:${IMAGE_TAG:?IMAGE_TAG is set by deploy.sh}
-    # Images are built for linux/amd64 only; the VPS and the LAN server use it (23.4).
+    # Images are built for linux/amd64 only; the server uses it (23.4).
     platform: linux/amd64
     restart: unless-stopped
     environment:
@@ -37,10 +37,12 @@ services:
       zappaloo.caddy-config: ${CADDY_CONFIG_HASH:-}
     depends_on:
       - app
+    # Caddy listens on the same ports inside the container (http_port/https_port
+    # below), so its HTTP→HTTPS redirect keeps a non-standard port (staging: 8443).
     ports:
-      - "${HTTP_PORT:-80}:80"
-      - "${HTTPS_PORT:-443}:443"
-      - "${HTTPS_PORT:-443}:443/udp"
+      - "${HTTP_PORT:-80}:${HTTP_PORT:-80}"
+      - "${HTTPS_PORT:-443}:${HTTPS_PORT:-443}"
+      - "${HTTPS_PORT:-443}:${HTTPS_PORT:-443}/udp"
     configs:
       - source: caddyfile
         target: /etc/caddy/Caddyfile
@@ -71,6 +73,10 @@ configs:
     content: |
       {
         default_sni ${SITE_ADDRESS:?set SITE_ADDRESS in .env}
+        http_port ${HTTP_PORT:-80}
+        https_port ${HTTPS_PORT:-443}
+        # Caddy's own redirect drops a non-standard port; see the http:// site below.
+        auto_https disable_redirects
       }
       ${SITE_ADDRESS:?set SITE_ADDRESS in .env} {
         tls ${TLS_MODE:?set TLS_MODE in .env}
@@ -79,6 +85,9 @@ configs:
           # Server-Sent Events: pass every event on immediately.
           flush_interval -1
         }
+      }
+      http://${SITE_ADDRESS} {
+        redir https://{host}:${HTTPS_PORT:-443}{uri} 308
       }
       https:// {
         tls internal

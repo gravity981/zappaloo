@@ -18,7 +18,7 @@ This plan breaks the stages of [sw-architecture.md](sw-architecture.md), section
 | **Release 1 (early)** | 3 | Redeem invitation, answer the RSVP, waiting page with the door scene. The platform is closed. |
 | **Opening** | 6 | The admin opens the platform: website, game world, wandering figures, speech bubbles, table finder. |
 | **Event-ready** | 9 | Contributions, photo wall, moderation, minigames, treasure hunt; load test passed and release checklist done. |
-| **After the event** | 10 | Export, shutdown notice and deletion (mandatory, ready before the shutdown date); automated deployment (quality of life). |
+| **After the event** | 10 | Export, shutdown notice and deletion (mandatory, ready before the shutdown date). |
 
 Each release goes into production. From Release 1 on, real guest data is stored, so backups (stage 1) and the privacy notice (stage 3) are in place before Release 1.
 
@@ -44,8 +44,7 @@ Each release goes into production. From Release 1 on, real guest data is stored,
 **Before the stage starts:**
 - Decide the backend framework and the database access library. *Decided 2026-11-04: Fastify, and Drizzle ORM on SQLite (sw-architecture.md 15.1).*
 - LAN server (x86-64) with Docker for staging. *Needed from step 1d.*
-- VPS at Infomaniak, domain and SSH access available. *Needed from step 1e.*
-- Decide the off-site backup target (e.g. Infomaniak Swiss Backup or another S3-compatible storage). *Moved: decided before step 1f.*
+- *Hosting is out of scope (2026-11-04, sw-architecture.md 21): the operator provides the hosts, the domain and the off-site backup storage. Stage 1 needs only a host for staging.*
 - CI/CD adapted from the project owner's definitions (2026-11-04): version scheme, release candidates and promotion, GHCR, `deploy.sh` with rollback, staging on the LAN (sw-architecture.md 23, OPS-08–16).
 
 **Steps:**
@@ -62,10 +61,10 @@ Requirements: OPS-06, OPS-08, OPS-14.
 **1d – Containers and staging.** Compose file with the application and Caddy; persistent volumes; `deploy.sh` (pull, secrets, prod pre-deploy backup, version-checked health check) and the deployment bundle; CLI `backup` and `restore`; `deploy.sh --restore` for rollbacks, verified by the deployment test; first deployment of a `main` image to staging on the LAN, with an empty database and HTTPS from Caddy's local CA (sw-architecture.md 23.4–23.8).
 Requirements: OPS-01, OPS-04, OPS-15, OPS-16, OPS-18.
 
-**1e – Releases and production.** `release-candidate.yml` and `promote.yml`; tag ruleset for `v*` (set up by the project owner); firewall and SSH restrictions on the VPS; Let's Encrypt on prod; first release candidate verified on staging, promoted to release `0.1.0` and deployed to prod; rollback with `deploy.sh --restore` tried once on prod as a manual drill (sw-architecture.md 23.3, 23.7).
-Requirements: OPS-02, OPS-03, OPS-10, OPS-11, OPS-12.
+**1e – Releases.** `release-candidate.yml` and `promote.yml` with unit-tested release rules; tag ruleset for `v*` against moving and deleting (set up by the project owner; enforced only once the repository is public, see the open points in README.md); SSE heartbeat endpoint, checked through Caddy by the deployment test; only Caddy's ports published, checked by the deployment test; staging next to prod on other ports with the HTTP→HTTPS redirect keeping the port; first release candidate built and deployed to staging (sw-architecture.md 17.1, 21.2, 21.3, 23.3).
+Requirements: OPS-03, OPS-10, OPS-11, OPS-12.
 
-**1f – Backups and staging data.** Regular off-site backups of database, uploads, imported maps and event configuration; a scripted restore; staging deploys restore the latest off-site backup, with mail caught and the volume deleted after verification.
+**1f – Backup and restore tools.** Full backup of an environment (database and files in the data volume) and its scripted restore; staging deploys restore a prod backup provided by the operator, with mail caught and the volume deleted after verification; runbook listing everything to back up. Scheduling and off-site storage are the operator's (sw-architecture.md 22.2).
 Requirements: OPS-05, OPS-13.
 
 ### Stage 2 – Accounts, Roles and Access
@@ -113,8 +112,8 @@ Requirements: ACS-10, ACS-11, ACS-12, ACS-13.
 **3d – Opening and privacy notice.** Admin switch to open the platform with the "door is open" email; privacy notice reachable from every page.
 Requirements: ACS-14, SEC-09.
 
-**3e – Release 1 go-live.** Deployment to production, invitation print export checked end to end, privacy notice reviewed, manual checks from the release checklist that apply to Release 1.
-Requirements: none (release).
+**3e – Release 1 go-live.** First release promoted and deployed to production on the operator's host; Let's Encrypt and live updates through Caddy checked there (manual test protocol); invitation print export checked end to end, privacy notice reviewed, manual checks from the release checklist that apply to Release 1.
+Requirements: OPS-02.
 
 ### Stage 4 – Content and Website
 
@@ -222,7 +221,7 @@ Requirements: HUNT-01, HUNT-02, HUNT-03, HUNT-04, HUNT-05, HUNT-06, HUNT-07.
 
 **Steps:**
 
-**9a – Load test.** Load test on the production VPS with at least 50 concurrent users and a burst of uploads; findings fixed or accepted.
+**9a – Load test.** Load test on the production host with at least 50 concurrent users and a burst of uploads; findings fixed or accepted.
 Requirements: PERF-01.
 
 **9b – Release checklist.** All manual checks from test-strategy.md, section 7, before the event: devices, emails, QR codes, event screen on the venue projector, legal review of the privacy notice.
@@ -238,8 +237,6 @@ Requirements: none (release).
 **10a – Export, shutdown and deletion.** Export of all contributions; shutdown date with notice email; automatic deletion of all personal data; data minimisation reviewed. Mandatory, because the privacy notice promises the deletion.
 Requirements: SEC-04, SEC-06, SEC-07, SEC-08.
 
-**10b – Automated deployment.** GitHub Actions deploys to the VPS after successful checks and verifies the deployment. Quality of life: can be pulled forward at any time if manual deployments become tedious.
-Requirements: OPS-07.
 
 ## 4. Status report template
 

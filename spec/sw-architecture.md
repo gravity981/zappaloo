@@ -107,9 +107,9 @@
   - [20.1 Later Multi-Event Extension](#201-later-multi-event-extension)
   - [20.2 Requirements (Sections 19 and 20)](#202-requirements-sections-19-and-20)
 - [21. Hosting and Server Infrastructure](#21-hosting-and-server-infrastructure)
-  - [21.1 Domain](#211-domain)
+  - [21.1 Host Prerequisites](#211-host-prerequisites)
   - [21.2 HTTPS](#212-https)
-  - [21.3 Firewall](#213-firewall)
+  - [21.3 Published Ports](#213-published-ports)
 - [22. Docker and Deployment](#22-docker-and-deployment)
   - [22.1 Persistent Data](#221-persistent-data)
   - [22.2 Backups](#222-backups)
@@ -1550,6 +1550,8 @@ A microservice architecture and Kubernetes are not planned for the first version
 
 There is no multiplayer server. A few views need live updates from the server: the event screen, the moderation view and the minigame leaderboards. They receive them through **Server-Sent Events (SSE)**: a one-way stream from server to browser over plain HTTPS, which reconnects automatically. Browsers send data through the normal API.
 
+`GET /api/events/ping` sends a few heartbeat events and ends. It exists so that the deployment test can check that events pass through Caddy one by one, without buffering (OPS-02), before the first real live view is built.
+
 ## 17.2 API
 
 The classic website, the game world and the minigames communicate with the backend through defined interfaces.
@@ -1789,69 +1791,35 @@ Multi-event operation in one installation (section 20.1) is out of scope for the
 
 # 21. Hosting and Server Infrastructure
 
-A VPS at Infomaniak is planned for the start.
+Hosting is **out of scope** for this project (decided 2026-11-04). The project delivers the application image and the deployment bundle (23.5); the operator provides and runs the host. This section lists what the bundle expects of a host.
 
-Planned initial configuration:
+## 21.1 Host Prerequisites
 
-- 2 vCPU.
-- 4 GB RAM.
-- 60 GB NVMe storage.
-- Ubuntu Server.
-- SSH access.
-- Root or administrative rights.
+- Linux on x86-64 (`linux/amd64`) with Docker Engine and the Compose plugin, and a user that may run `docker`.
+- **Prod:** a domain whose DNS record points to the host's public IP address (with dynamic DNS if that address changes), and ports 80 and 443 reachable from the internet, e.g. forwarded by the router. Let's Encrypt needs both.
+- **Staging:** reachable in the operator's network; on the same machine as prod it uses other ports, e.g. 8080 and 8443 (23.4).
+- The operator is responsible for everything around the host: hardware or virtual machine, network and its isolation, router, firewall, SSH access, DNS and dynamic DNS, operating system updates, and off-site storage of backups (22.2).
 
-This is meant as a starting point and must be checked by load tests.
-
-In particular the number of concurrent users and photo uploads drive resource needs.
-
-## 21.1 Domain
-
-The domain is registered separately.
-
-A `.ch` domain can be registered at Infomaniak.
-
-The domain points to the VPS's IPv4 address through a DNS A record.
-
-An AAAA record can be added if IPv6 is used.
+Resources depend mainly on the number of concurrent users and photo uploads. About 2 vCPU, 2–4 GB RAM (with swap) and 40 GB disk are a starting point; the load test (PERF-01) checks them on the production host. When the host is reached through a home connection, its upload bandwidth limits how fast photos are served at the event.
 
 ## 21.2 HTTPS
 
-Caddy acts as reverse proxy.
+Caddy, part of the bundle, is the reverse proxy:
+- Receives the HTTP and HTTPS requests and forwards them to the application.
+- Obtains and renews certificates automatically: from Let's Encrypt for a public domain (prod), from its local CA for an IP address (staging, 23.4).
+- Redirects HTTP to HTTPS, keeping a non-standard port.
+- Passes long-lived Server-Sent Events connections through without buffering (17.1).
+- Answers requests for any other host name with `421 Misdirected Request`.
 
-Caddy:
-- Receives public HTTP and HTTPS requests.
-- Forwards requests to the appropriate internal containers.
-- Provides HTTPS certificates via Let's Encrypt.
-- Renews certificates automatically.
-- Supports long-lived Server-Sent Events connections for live updates (see 17.1).
+## 21.3 Published Ports
 
-Only the necessary web ports are publicly reachable.
-
-## 21.3 Firewall
-
-The firewall opens only the necessary ports.
-
-Typically:
-- Port 80 for HTTP and certificate validation.
-- Port 443 for HTTPS.
-- SSH as restricted as possible, for example from a fixed IP or through a secure access path.
-
-Database and internal backend ports are not exposed publicly.
+The stack publishes only Caddy's HTTP and HTTPS ports, and on staging Mailpit's web UI. The application and the database are reachable only inside the stack.
 
 ---
 
 # 22. Docker and Deployment
 
-The application is run with Docker and Docker Compose.
-
-Docker Engine is installed manually on the VPS.
-
-Docker Compose manages the application containers.
-
-Possible containers:
-- Frontend / web server.
-- Backend.
-- Caddy as reverse proxy.
+The application runs with Docker and Docker Compose, installed on the host by the operator (21.1). Docker Compose manages the containers of an environment: the application, Caddy as reverse proxy, and on staging Mailpit.
 
 ## 22.1 Persistent Data
 
@@ -1868,19 +1836,14 @@ This data is mounted through Docker volumes or suitable host directories.
 
 ## 22.2 Backups
 
-Regular external backups are made.
+The project provides the tools and the documentation for backups; scheduling them and storing them off the host are the operator's (decided 2026-11-04):
 
-Backups include:
-- Database.
-- Photos.
-- Uploads.
-- Imported maps and tilesets.
-- Event configuration.
-- Relevant assets.
+- `zappaloo backup` makes a consistent copy of the database while the application runs, and `zappaloo restore` puts one back (23.8).
+- `deploy.sh` backs up the prod database before every deployment and restores it for a rollback (23.5, 23.7).
+- A full backup of an environment and its scripted restore cover the database and the files (photos, uploads, imported maps and tilesets) in the data volume.
+- The runbook (`infrastructure/deploy/README.md`) documents what to back up: the data volume, the `backups/` folder, `.env`, `secrets/`, and the event configuration.
 
-Backups must not be stored only on the same VPS.
-
-Restoring must be tested regularly.
+Backups contain personal data: they are readable only by the operator and are deleted at shutdown together with all other personal data (SEC-08).
 
 ---
 
@@ -1974,14 +1937,14 @@ flowchart LR
 | Environment | Runs | Data | Purpose |
 |---|---|---|---|
 | dev | devcontainer, from source | volume `zappaloo-data-dev` | Development |
-| staging | LAN server of the project owner (x86-64), Compose project `zappaloo-staging`, `https://<LAN IP address>` with a certificate from Caddy's local CA | volume `zappaloo-data-staging`, replaced by a restore of the latest off-site backup (database, maps, tilesets, photos) at each staging deploy, deleted after verification | Verify a release candidate, including migrations on real data; real-device tests on the LAN |
-| prod | Infomaniak VPS, Compose project `zappaloo`, `https://<domain>` | volume `zappaloo-data-prod` | Production |
+| staging | a host in the operator's network, not reachable from the internet; Compose project `zappaloo-staging`, `https://<LAN IP address>` with a certificate from Caddy's local CA; on the same machine as prod on other ports (e.g. 8080/8443) | volume `zappaloo-data-staging`, replaced by a restore of a prod backup (database and files) provided by the operator, deleted after verification | Verify a release candidate, including migrations on real data; real-device tests on the LAN |
+| prod | the operator's host (21.1), Compose project `zappaloo`, `https://<domain>` on ports 80/443 | volume `zappaloo-data-prod` | Production |
 
 - Staging and prod use the same Compose file (application and Caddy); only `.env` differs: host name, certificate source, image tag, volume, `APP_ENV` and mail settings. Staging therefore also tests the Caddy configuration.
 - Staging is not reachable from the internet. It runs only while a candidate is verified. Afterwards its containers are stopped and its volume, which holds a copy of real guest data, is deleted.
 - Staging never sends email to real recipients: its outgoing mail is caught by a Mailpit container in the staging project (Compose profile `mailpit`), whose web UI is reachable on port 8025 of the LAN server.
 - Staging uses HTTPS with a certificate from Caddy's internal CA (`tls internal`), since Let's Encrypt cannot reach the LAN. Test devices accept the browser's certificate warning once per device; installing Caddy's root certificate is optional (decided 2026-11-04: simpler than a public certificate via DNS challenge, at the cost of the warning). Because browsers send no server name (SNI) when opening an IP address, Caddy is configured with `default_sni` set to the site address. Requests for any other host name (e.g. a wrong `SITE_ADDRESS`) get `421 Misdirected Request` with a message naming the expected address, instead of Caddy's default empty page. Let's Encrypt itself (OPS-02) is only checked on prod.
-- Images are built for `linux/amd64` only; both the VPS and the LAN server use that architecture.
+- Images are built for `linux/amd64` only (21.1).
 
 ## 23.5 Deployment
 
@@ -2005,7 +1968,7 @@ On each server, the environment has its own directory with the bundle files and:
 
 Only release image tags (`X.Y.Z`) can be deployed to prod; staging accepts any image tag. `deploy.sh --no-pull` deploys an image that exists only locally (deployment tests, local builds); `DEPLOY_HEALTH_TIMEOUT` sets how long step 5 waits (default 90 seconds).
 
-Deployments are started manually until OPS-07 automates them (stage 10).
+Deployments are started manually with `deploy.sh` on the host (OPS-07 withdrawn).
 
 ## 23.6 Version Information
 
@@ -2025,7 +1988,7 @@ The version is part of the image and is set exactly once, at build time:
 
 ## 23.8 Command-Line Interface
 
-The application image contains a command-line interface `zappaloo` for operating tasks. It runs inside the application container of any environment, on the VPS over SSH as well as on the LAN server:
+The application image contains a command-line interface `zappaloo` for operating tasks. It runs inside the application container of any environment, on the prod host as well as on staging:
 
 ```sh
 docker compose exec app zappaloo version                          # version and commit
@@ -2050,18 +2013,18 @@ In dev, the same commands run from source with `npm run cli -- <command>`.
 | ID | Requirement | Prio |
 |---|---|---|
 | OPS-01 | The application runs with Docker Compose; Caddy is the reverse proxy in front of the application containers. | Must |
-| OPS-02 | All public traffic uses HTTPS with Let's Encrypt certificates that are obtained and renewed automatically; live update connections work through the proxy. | Must |
-| OPS-03 | Only ports 80 and 443 are publicly open, SSH is restricted; database and internal backend ports are not publicly reachable. | Must |
+| OPS-02 | Deployed with a public domain, the bundle serves all traffic over HTTPS with Let's Encrypt certificates that Caddy obtains and renews automatically, and redirects HTTP to HTTPS; live update connections work through the proxy (21.2). | Must |
+| OPS-03 | The stack publishes only Caddy's HTTP and HTTPS ports, and on staging Mailpit's web UI; the application and database ports are never published. Firewall, SSH and network are the operator's (21.1, 21.3). | Must |
 | OPS-04 | Persistent data (database, photos, uploads, imported maps and tilesets) lives outside the container file system and survives container restarts, updates and deployments unchanged. | Must |
-| OPS-05 | Regular backups of database, photos, uploads, imported maps and tilesets, event configuration and relevant assets are stored off the VPS; restoring from a backup is tested regularly. | Must |
+| OPS-05 | The project provides the tools and documentation to back up and restore an installation: a consistent database backup while running, a full backup and scripted restore of database and files, and a runbook listing everything to back up; scheduling and off-site storage are the operator's (22.2). | Must |
 | OPS-06 | On every commit and pull request, GitHub Actions runs the tests, the TypeScript checks, the builds and the requirement report. | Must |
-| OPS-07 | After successful checks, GitHub Actions deploys to the VPS and verifies the deployment status. | Should |
+| OPS-07 | ~~After successful checks, GitHub Actions deploys to the VPS and verifies the deployment status.~~ (withdrawn: hosting is out of scope; deployments stay manual with `deploy.sh`, see 21) | – |
 | OPS-08 | Every build carries a version according to the version scheme (23.1), baked into the image once at build time together with the commit (23.6); `GET /api/version` returns both, `GET /api/health` and the website footer show the version, and CI checks the version with a smoke test of the built image. | Must |
 | OPS-09 | ~~`main` is protected: changes reach it only through a pull request with a passing CI workflow.~~ (withdrawn: single developer, no branch protection needed; release candidates still require a passing CI run, see OPS-10) | – |
 | OPS-10 | A release candidate is built from `main` by a manually started workflow after the full test suite passed, pushed with image tag `<version>-rc.<M>`, tagged `v<version>-rc.<M>` and published as a GitHub pre-release with the deployment bundle (23.3). | Must |
 | OPS-11 | Only the latest candidate of a version can be promoted to a release; promotion does not rebuild, adds the tag `v<version>` and the image tags `<version>`, `<major>.<minor>`, `<major>`, and creates a GitHub release (23.3). | Must |
-| OPS-12 | Tags `v*` can only be created by the release workflows and can't be moved or deleted. | Must |
-| OPS-13 | A staging environment on the project owner's LAN, not reachable from the internet, verifies release candidates against a restore of the latest off-site backup; it runs only during verification, its data is deleted afterwards, and it never sends email to real recipients (23.4). | Must |
+| OPS-12 | Tags `v*` can't be moved or deleted (repository tag ruleset); they are created only by the release workflows, which never reuse an existing tag. | Must |
+| OPS-13 | A staging environment, not reachable from the internet, verifies release candidates against a restore of a prod backup provided by the operator; it runs only during verification, its data is deleted afterwards, and it never sends email to real recipients (23.4). | Must |
 | OPS-14 | Images that only carry build tags are deleted after 30 days; release candidates and releases are kept. | Should |
 | OPS-15 | `deploy.sh` deploys a given image tag to staging or prod (prod: release tags only), backs up the prod database before deploying, and reports success only when `GET /api/health` is healthy with the expected version; staging can be deployed without any prod release or backup, starting with an empty database (23.5). | Must |
 | OPS-16 | A failed prod deployment can be rolled back to the previous image together with the database backup taken before it (23.7). | Must |
@@ -2211,7 +2174,7 @@ How these areas are tested is defined in [test-strategy.md](test-strategy.md).
 
 | ID | Requirement | Prio |
 |---|---|---|
-| PERF-01 | On the target VPS configuration, the system serves at least 50 concurrent users (website and game) and a burst of concurrent photo uploads at the venue without noticeable slowdown, verified by a load test before the production event. | Must |
+| PERF-01 | On the production host, the system serves at least 50 concurrent users (website and game) and a burst of concurrent photo uploads at the venue without noticeable slowdown, verified by a load test before the production event. | Must |
 | PERF-02 | ~~Only the game state needed by clients is synchronised, per room.~~ (withdrawn: no multiplayer state) | – |
 | PERF-03 | Images are delivered as compressed versions and thumbnails rather than originals where possible. | Should |
 | PERF-04 | On a current smartphone over 4G, the first map is playable within 5 seconds after sign-in; other maps load in the background. | Must |
@@ -2345,7 +2308,7 @@ What matters is a clear separation between:
 | Gallery | Scheduled or manual release |
 | Installation | One separate installation per event |
 | Reuse | One generic codebase with event configurations |
-| Hosting | Infomaniak VPS |
+| Hosting | Out of scope: the operator's host (x86-64 Linux with Docker, section 21); the project ships the image and the deployment bundle |
 | Web server | Caddy |
 | Containers | Docker Engine + Docker Compose |
 | CI/CD | GitHub Actions |
@@ -2357,7 +2320,7 @@ What matters is a clear separation between:
 
 # 28. Development Strategy and Order of Work
 
-Implementation proceeds in stages. The system is deployed to the VPS from the first stage on, so that infrastructure problems (TLS, volumes) show up early. Admin functions are built in each stage together with their topic, not in a separate admin stage.
+Implementation proceeds in stages. The system is deployed to staging from the first stage on, so that infrastructure problems (TLS, volumes) show up early. Admin functions are built in each stage together with their topic, not in a separate admin stage.
 
 The concrete steps of each stage are agreed before the stage starts (see CLAUDE.md).
 
@@ -2373,7 +2336,7 @@ Invitations and RSVP must work early. Stages 1–3 therefore form Release 1, whi
 - React, TypeScript, Vite; Phaser integrated; Node.js backend.
 - SQLite with versioned migrations.
 - i18n framework set up.
-- Docker Compose with Caddy; deployed to the VPS with HTTPS.
+- Docker Compose with Caddy; deployed to staging with HTTPS.
 - GitHub Actions: tests, type checks, builds, requirement report; versioned images in the GitHub Container Registry; release candidates, promotion, `deploy.sh` with rollback, a staging environment on the LAN, and a command-line interface (section 23).
 - Off-site backups and restore drill.
 
@@ -2444,7 +2407,7 @@ Requirements: MG, HUNT, SCR-05, WEB-05.
 
 ## Stage 9 – Event Readiness
 
-- Load test on the production VPS.
+- Load test on the production host.
 - All manual checks of the release checklist (test-strategy.md, section 7).
 
 Requirements: PERF-01.
@@ -2537,4 +2500,5 @@ The platform deliberately balances reusability and individuality: the technical 
 | Drawing maps in the browser | Maps are drawn in Tiled and imported (section 14). |
 | Public self-registration | Accounts are created only via invitation or by an admin (ACS-03 withdrawn). |
 | Native apps | Browser only. |
+| Hosting | Server, network, router, firewall, SSH, domain and DNS, off-site backup storage are the operator's; the project ships the image and the deployment bundle (21). |
 | Host-controlled live quiz rounds | Guests play minigames individually; there is no host console that steps everyone through questions together. |

@@ -1,12 +1,13 @@
 # Deploying Zappaloo
 
-Runbook for the deployment bundle in this folder (`compose.yaml`, `deploy.sh`, `.env.example`). Background: `spec/sw-architecture.md`, sections 23.4–23.8.
+Runbook for the deployment bundle in this folder (`compose.yaml`, `deploy.sh`, `.env.example`). Background: `spec/sw-architecture.md`, sections 21–23. Hosting is the operator's job: the project ships the image and this bundle.
 
-## Server prerequisites
+## Host prerequisites (provided by the operator)
 
-- Linux on x86-64 (`linux/amd64`), Docker Engine with the Compose plugin (`docker compose version` ≥ 2.23).
-- Ports 80 and 443 free. Staging also uses 8025 for Mailpit's web UI.
-- A user that may run `docker`.
+- Linux on x86-64 (`linux/amd64`), Docker Engine with the Compose plugin (`docker compose version` ≥ 2.23), and a user that may run `docker`.
+- **Prod:** a domain whose DNS record points to the host's public IP (dynamic DNS if it changes), and ports 80 and 443 reachable from the internet (router port forwarding). Let's Encrypt needs both.
+- **Staging:** reachable only in your network. On the same machine as prod it uses ports 8080/8443, plus 8025 for Mailpit's web UI.
+- Network, router, firewall, SSH and operating system updates are yours; the stack itself publishes only Caddy's ports (and Mailpit's on staging).
 
 ## First setup of an environment
 
@@ -22,10 +23,11 @@ nano .env          # APP_ENV, COMPOSE_PROJECT_NAME, DATA_VOLUME, SITE_ADDRESS, T
 
 If the image is private, create a GitHub token with only `read:packages`, store it in `ghcr-token` (`chmod 600 ghcr-token`) and set `GHCR_USER` in `.env` to the GitHub user name the token belongs to.
 
-| Setting | Staging (LAN) | Prod (VPS) |
+| Setting | Staging (LAN) | Prod |
 |---|---|---|
 | `APP_ENV` / `COMPOSE_PROJECT_NAME` / `DATA_VOLUME` | `staging` / `zappaloo-staging` / `zappaloo-data-staging` | `prod` / `zappaloo` / `zappaloo-data-prod` |
 | `SITE_ADDRESS` | the server's LAN IP, e.g. `192.168.1.20` | the domain |
+| `HTTP_PORT` / `HTTPS_PORT` | `8080` / `8443` (open `https://<LAN IP>:8443`) | `80` / `443` |
 | `TLS_MODE` | `internal` (Caddy's local CA) | contact email for Let's Encrypt |
 | `COMPOSE_PROFILES` | `mailpit` (all mail is caught) | empty |
 | SMTP settings | `SMTP_HOST=mailpit`, `SMTP_PORT=1025` | the real SMTP account |
