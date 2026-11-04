@@ -67,6 +67,7 @@
   - [10.1 Sign-In Required](#101-sign-in-required)
   - [10.2 No Self-Registration](#102-no-self-registration)
   - [10.3 Features That Add Data](#103-features-that-add-data)
+  - [10.4 Opening the Platform](#104-opening-the-platform)
 - [11. Access Control and Unlock Conditions](#11-access-control-and-unlock-conditions)
   - [11.1 Server-Side Enforcement](#111-server-side-enforcement)
   - [11.2 Requirements (Sections 10 and 11)](#112-requirements-sections-10-and-11)
@@ -122,14 +123,16 @@
 - [26. Proposed Project Structure](#26-proposed-project-structure)
 - [27. Summary of Architecture Decisions](#27-summary-of-architecture-decisions)
 - [28. Development Strategy and Order of Work](#28-development-strategy-and-order-of-work)
+  - [Release 1 (early): Invitations and RSVP — Stages 1–3](#release-1-early-invitations-and-rsvp--stages-13)
   - [Stage 1 – Walking Skeleton and Deployment](#stage-1--walking-skeleton-and-deployment)
   - [Stage 2 – Accounts, Roles and Access](#stage-2--accounts-roles-and-access)
-  - [Stage 3 – Content, Website and RSVP](#stage-3--content-website-and-rsvp)
-  - [Stage 4 – Game World and Map Importer](#stage-4--game-world-and-map-importer)
-  - [Stage 5 – Living World](#stage-5--living-world)
-  - [Stage 6 – Contributions and Event Screen](#stage-6--contributions-and-event-screen)
-  - [Stage 7 – Minigames, Treasure Hunt and Highscores](#stage-7--minigames-treasure-hunt-and-highscores)
-  - [Stage 8 – Event Readiness and Shutdown](#stage-8--event-readiness-and-shutdown)
+  - [Stage 3 – RSVP and Waiting Page (completes Release 1)](#stage-3--rsvp-and-waiting-page-completes-release-1)
+  - [Stage 4 – Content and Website](#stage-4--content-and-website)
+  - [Stage 5 – Game World and Map Importer](#stage-5--game-world-and-map-importer)
+  - [Stage 6 – Living World](#stage-6--living-world)
+  - [Stage 7 – Contributions and Event Screen](#stage-7--contributions-and-event-screen)
+  - [Stage 8 – Minigames, Treasure Hunt and Highscores](#stage-8--minigames-treasure-hunt-and-highscores)
+  - [Stage 9 – Event Readiness and Shutdown](#stage-9--event-readiness-and-shutdown)
   - [Event Operation and Follow-Up (not a development stage)](#event-operation-and-follow-up-not-a-development-stage)
 - [29. Guiding Idea and Core Principles of Zappaloo](#29-guiding-idea-and-core-principles-of-zappaloo)
   - [Zappaloo accompanies an event before, during and after](#zappaloo-accompanies-an-event-before-during-and-after)
@@ -147,7 +150,7 @@ The platform is meant to do more than provide information about a wedding or ano
 
 Zappaloo consists of two connected experiences:
 
-1. **Interactive pixel-art game world — the core:** after sign-in, guests land in a digital representation of the event venues. They explore it with their own avatar, discover objects, NPCs, minigames and small surprises, and meet the figures of the other guests. A speech bubble with photo, greeting and "How I know the couple" helps them get to know each other.
+1. **Interactive pixel-art game world — the core:** once the hosts have opened the platform, guests land after sign-in in a digital representation of the event venues. They explore it with their own avatar, discover objects, NPCs, minigames and small surprises, and meet the figures of the other guests. A speech bubble with photo, greeting and "How I know the couple" helps them get to know each other.
 2. **Classic website — always one click away:** all important information about the event is accessible in a clear, responsive way, also without the game world.
 
 Both parts use the same central data and content base. Information therefore only needs to be maintained once and is available both on the website and in the game world.
@@ -165,7 +168,7 @@ Zappaloo aims to create an experience that goes beyond an ordinary event website
 
 ## 2.1 Two Ways In
 
-The platform offers two ways in. **The game world is the core experience:** after sign-in, guests land in the game world. The classic website is one click away and contains all information. Direct links, e.g. upload links or links in emails, open their target page directly.
+The platform offers two ways in. **The game world is the core experience:** once the hosts have opened the platform (10.4), guests land in the game world after sign-in. The classic website is one click away and contains all information. Direct links, e.g. upload links or links in emails, open their target page directly.
 
 **Pixel-art game world**
 - Top-down perspective.
@@ -206,8 +209,8 @@ Examples:
 
 Guests use the platform most around a few moments. The features are designed around them:
 
-1. **Invitation:** the QR code on the printed card leads to redeeming the invitation, creating the avatar and answering the RSVP (sections 3.5, 7.4, 9).
-2. **Before the event:** the world is populated by the figures of all guests who have accepted, walking around. Guests find their table and the programme (section 3.6).
+1. **Invitation:** the QR code on the printed card leads to redeeming the invitation and answering the RSVP. This works early, before the world is open; until then, guests see a waiting page (sections 7.4, 9, 10.4).
+2. **Before the event:** once the hosts open the world, guests create their avatar and enter it. The world is populated by the figures of all guests who have accepted, walking around. Guests find their table and the programme (section 3.6).
 3. **During the event:** guests share snapshots and keepsakes, also without an account. After a quick swipe moderation, snapshots appear on the event screen. They hunt QR codes hidden at the venue and play the couple quiz, with rankings on the event screen (sections 3.7, 5.4).
 4. **After the event:** the gallery and the keepsake page keep the memories until shutdown, and the hosts keep the printable keepsake book (sections 13, 24).
 
@@ -277,9 +280,9 @@ The game experience is the core of Zappaloo. A portal to a website page therefor
 
 ## 3.5 Entering the Game, Controls and Movement
 
-**Entering the game.** After sign-in, the guest lands in the game world (see 2.1). Many guests come mainly for practical information, so the game must not get in their way:
+**Entering the game.** Once the platform is open (10.4), the guest lands in the game world after sign-in (see 2.1). Many guests come mainly for practical information, so the game must not get in their way:
 
-- On the first sign-in, the guest is guided: create the avatar, optionally add a profile photo and greeting, then answer the RSVP in an overlay, then play freely.
+- On the first entry into the world, the guest is guided: create the avatar (also for their accompanying persons), optionally add a profile photo and greeting, answer the RSVP in an overlay if not yet done, then play freely.
 - A bar with buttons for Programme, RSVP, Upload and Website is always visible above the game. While the RSVP is open, it shows a badge. On the event day, the Programme button shows what is happening now and next (5.5).
 - The game is playable quickly on a phone: the first map loads within 5 seconds over 4G, and other maps load in the background.
 
@@ -338,8 +341,8 @@ A treasure hunt connects the real venue with the game world:
 | GAME-09 | On desktop, the avatar is controlled with the arrow keys; pressing two keys moves diagonally. | Must |
 | GAME-10 | On touch devices, the avatar is controlled by tap-to-move: the client computes a path around the map's collision areas and the avatar walks it. | Must |
 | GAME-11 | A portal to a website page opens the page as an overlay above the paused game; closing the overlay returns the player to the game at the same position. | Must |
-| GAME-12 | After sign-in, the user lands in the game world; the classic website is reachable with one click from the game; direct links (upload links, links in emails) open their target page directly. | Must |
-| GAME-13 | On the first sign-in, the guest is guided: create the avatar, optionally add a profile photo and greeting, then answer the RSVP in an overlay, then play freely. | Must |
+| GAME-12 | Once the platform is open (ACS-10), the user lands in the game world after sign-in; the classic website is reachable with one click from the game; direct links (upload links, links in emails) open their target page directly. | Must |
+| GAME-13 | On the first entry into the world, the guest is guided: create the avatar (also for their accompanying persons), optionally add a profile photo and greeting, answer the RSVP in an overlay if not yet done, then play freely. | Must |
 | GAME-14 | A bar with buttons for Programme, RSVP, Upload and Website is always visible above the game; while the guest's RSVP is open, it shows a badge. | Must |
 | MP-01 | ~~Each map is a separate multiplayer room managed by the server.~~ (withdrawn: no multiplayer, see 3.3) | – |
 | MP-02 | ~~Players on the same map see the avatars and movements of the other players in that room in near real time.~~ (withdrawn: no multiplayer, see 3.3) | – |
@@ -668,7 +671,7 @@ Since the whole platform requires sign-in (see section 10), sessions stay valid 
 
 **Email**
 
-- Emails (verification, password reset, shutdown notice) are sent through an SMTP provider configured per installation. Infomaniak mail is used for the first installation (proof of concept).
+- Emails (verification, password reset, "the door is open", shutdown notice) are sent through an SMTP provider configured per installation. Infomaniak mail is used for the first installation (proof of concept).
 - Accounts are created by redeeming an invitation (printed card with QR code) or by an admin, and need no verification. Their email status stays `unverified` until the user verifies it voluntarily from the profile.
 - Password reset by email is only offered for verified addresses. Otherwise a mistyped address would let a stranger take over the account. Users without a verified address ask an admin, who can create a one-time password-reset link and hand it over.
 
@@ -710,11 +713,11 @@ Avatars are based on prepared pixel-art graphics. No AI API is required, and ava
 Every signed-in guest responds to the invitation. The RSVP gives guests a reason to sign in early, and it gives the hosts a guest list they can use.
 
 - The admin defines the event parts, e.g. ceremony, aperitif, dinner, party. Each invitation states which parts the guest is invited to. Guests invited to the aperitif only are common.
-- A VIP can request **accompanying persons** who get no account of their own, e.g. small children or people without a smartphone. Before submitting the request, the VIP enters the name, selects the person's avatar and answers their RSVP: attendance for the parts the VIP is invited to, menu choice and allergies.
+- A VIP can request **accompanying persons** who get no account of their own, e.g. small children or people without a smartphone. Before submitting the request, the VIP enters the name and answers their RSVP: attendance for the parts the VIP is invited to, menu choice and allergies. The VIP chooses the person's avatar later, when the world opens (3.5).
 - The admin approves or rejects the request. An approved person is added to the event like any VIP — RSVP, figure, seat — but cannot log in. Their VIP manages their data.
 - People who should have their own account get a normal invitation from the admin.
 - For each part, the guest answers yes or no.
-- For each attending person (guest and accompanying persons), the RSVP records the name, a menu choice from the options the admin defines, and allergies or dietary requirements.
+- For each attending person (guest and accompanying persons), the RSVP records the name, a menu choice from the options the admin defines, and allergies or dietary requirements. Allergies and dietary requirements are health data: only admins see them (24).
 - Optionally, the RSVP includes a song wish. Messages to the hosts belong in keepsakes (13.6), not in the RSVP.
 - Guests can change their RSVP until a deadline set by the admin.
 - The admin sees an overview with totals per part, menu choice and allergies, can export it as CSV, and can send a reminder email to guests who haven't responded.
@@ -747,7 +750,7 @@ Every signed-in guest responds to the invitation. The RSVP gives guests a reason
 | RSVP-05 | The admin sees an RSVP overview with totals per event part, menu choice and allergies, and can export it as CSV. | Must |
 | RSVP-06 | The RSVP can include an optional song wish. | Should |
 | RSVP-07 | The admin can send a reminder email to guests who haven't responded. | Should |
-| RSVP-08 | A VIP can request an accompanying person who gets no account (e.g. a child or someone without a smartphone); before submitting, the VIP enters the name, selects the person's avatar and answers their RSVP (attendance for the parts the VIP is invited to, menu choice, allergies). | Must |
+| RSVP-08 | A VIP can request an accompanying person who gets no account (e.g. a child or someone without a smartphone); before submitting, the VIP enters the name and answers their RSVP (attendance for the parts the VIP is invited to, menu choice, allergies); the avatar is chosen later (PRES-07). | Must |
 | RSVP-09 | The admin approves or rejects each request; an approved person is added to the event like any VIP (RSVP, figure, seat) but cannot log in, and their VIP manages their data; if the VIP's account is deleted, their accompanying persons are deleted too. | Must |
 
 ---
@@ -993,6 +996,31 @@ Everything uploaded, anonymously or not, is moderated before it appears anywhere
 
 Submitting contributions is the only function available without an account.
 
+Uploads are closed by default. The admin opens snapshot uploads and keepsake uploads separately, e.g. on the event day, and can close them again. While uploads are closed, upload links and the upload page show a notice instead of the upload form. Nobody can upload anything before the admin opens it.
+
+## 10.4 Opening the Platform
+
+Invitations and RSVP must work early, long before the world and the website are ready. The admin therefore decides when the platform opens for guests:
+
+- **While closed:** after sign-in, guests see the waiting page. They can answer and change the RSVP and manage their accompanying persons, but they can't enter the game world or the website.
+- Staff and admins have full access while the platform is closed, so they can prepare content and maps.
+- **When the admin opens the platform,** guests land in the game world after sign-in (3.5). The admin can send all guests an email that the door is now open.
+
+**The waiting page is a teaser, not a "closed" sign.** It should make guests curious and make them want to come back:
+
+- **Scene:** a full-screen pixel-art scene of a closed door, slightly ajar, with warm light coming through the gap. Behind it, small animated figures are building the world: carrying a table, painting a sign, hanging up lanterns. Tapping the gap shows a slightly bigger glimpse, as a small easter egg. A default scene ships with the platform, and an event can replace it with its own art.
+- **Text by RSVP status:** the text speaks to the guest by name and depends on whether they have answered. The admin can edit each text. Placeholders: `{name}`, `{waitingCount}` (number of guests who have accepted), `{openingDate}`.
+- **Countdown:** if the admin announces an opening date, the page shows it as a countdown.
+- **Button:** "Answer RSVP" while no answer has been given, otherwise "Change my RSVP".
+
+Default texts (German UI, English for reference):
+
+| RSVP status | Default text (DE) | English |
+|---|---|---|
+| Not answered | Psst, {name} … hinter dieser Tür entsteht gerade etwas. Bevor sie aufgeht, verrate uns: Bist du dabei? | Psst, {name}… something is being built behind this door. Before it opens, tell us: are you coming? |
+| Attending | Danke, {name}, deine Zusage ist angekommen! Hinter dieser Tür wird gerade gehämmert, gemalt und gepflanzt – für dich und {waitingCount} weitere Gäste. Wir sagen dir Bescheid, sobald die Tür aufgeht. | Thanks, {name}, your RSVP has arrived! Behind this door we're hammering, painting and planting — for you and {waitingCount} other guests. We'll let you know as soon as the door opens. |
+| Declined | Schade, dass du nicht dabei sein kannst, {name} – danke für deine Antwort! Wenn die Tür aufgeht, darfst du trotzdem einen Blick hineinwerfen. | What a pity you can't make it, {name} — thanks for letting us know! When the door opens, you're still welcome to take a peek. |
+
 ---
 
 # 11. Access Control and Unlock Conditions
@@ -1055,6 +1083,11 @@ Permissions are checked on every request, so a revoked role takes effect immedia
 | ACS-07 | Permissions are enforced on the server for API calls, map loading, private content, protected game areas, contribution upload and moderation, minigame start and result submission, and administrative actions. | Must |
 | ACS-08 | ~~When a role is revoked, permissions are re-checked on the user's existing connections (e.g. open multiplayer sessions).~~ (withdrawn: no persistent multiplayer connections; permissions are checked per request) | – |
 | ACS-09 | Website and game world require sign-in; without sign-in, only login, password reset, invitation redemption, the privacy notice, upload-link pages and the event screen (through its screen link) are reachable. | Must |
+| ACS-10 | The admin opens the platform for guests; until then, signed-in users without the `staff` or `admin` role see only the waiting page, where they can answer and change their RSVP and manage accompanying persons; staff and admins have full access. | Must |
+| ACS-11 | The waiting page shows a text that depends on the guest's RSVP status (not answered, attending, declined) and addresses the guest by name; the platform ships curiosity-raising default texts, the admin can edit each text, and the placeholders `{name}`, `{waitingCount}` and `{openingDate}` are supported; a button leads to answering or changing the RSVP. | Must |
+| ACS-12 | The waiting page shows a full-screen pixel-art scene of a closed door, slightly ajar, with animated figures building the world behind it; tapping the gap shows a bigger glimpse; a default scene ships with the platform and can be replaced per event. | Should |
+| ACS-13 | If the admin announces an opening date, the waiting page shows a countdown to it. | Could |
+| ACS-14 | When opening the platform, the admin can send all guests an email that the platform is now open, with a link to sign in. | Should |
 
 ---
 
@@ -1093,6 +1126,8 @@ Guests make two kinds of contributions, which serve different purposes:
 - **Keepsakes** last: a photo, a photo with text, or a text for the hosts. They go to the keepsake page and can be exported as a printable keepsake book (13.6).
 
 Both share the upload links, the upload pipeline and the moderation queue (13.7). On the upload page, the guest first adds a photo and/or a text, then taps one of two buttons: **"Upload snapshot"** or **"Upload keepsake"**. "Upload snapshot" is only available when a photo is attached.
+
+Uploads are closed until the admin opens them (10.3).
 
 Zappaloo lets guests contribute easily during the event.
 
@@ -1230,6 +1265,7 @@ Admins and staff members with `moderateContributions` can moderate.
 | PHO-15 | There are two kinds of contributions sharing upload links, upload pipeline and moderation queue: snapshots (photo with optional caption of limited length), shown in the gallery and on the photo wall; and keepsakes (photo, photo with text, or text only; text of limited length), shown on the keepsake page. | Must |
 | PHO-16 | Keepsakes have their own page with a layout made for text and photos, separate from the gallery; keepsakes are not shown on the photo wall. | Must |
 | PHO-17 | The admin can export all approved keepsakes as a printable keepsake book (PDF), including their photos. | Must |
+| PHO-18 | Snapshot uploads and keepsake uploads are closed by default; the admin opens and closes each of them separately; while closed, no upload is accepted (signed in or through upload links), and upload links and the upload page show a notice instead of the upload form. | Must |
 | GB-01 | ~~Guests can write a guestbook entry consisting of text and an optional photo, signed in or anonymously through an upload link (PHO-14).~~ (withdrawn: guestbook merged into contributions, see PHO-15) | – |
 | GB-02 | ~~A guestbook entry becomes visible only after approval by an admin or a staff member with `moderatePhotos`, who can also delete entries.~~ (withdrawn: guestbook merged into contributions, see PHO-15) | – |
 | GB-03 | ~~Reading the guestbook is a website page for signed-in users; it is not integrated into the game world, but a portal can open it.~~ (withdrawn: guestbook merged into contributions, see PHO-15) | – |
@@ -1642,11 +1678,17 @@ events/
     "rsvp": true,
     "treasureHunt": true,
     "eventScreen": true
+  },
+
+  "settings": {
+    "platformOpen": false,
+    "snapshotUploadsOpen": false,
+    "keepsakeUploadsOpen": false
   }
 }
 ```
 
-The actual configuration is validated on the server. The values in `features` are initial values; the admin can change them at runtime. Maps and the start map are managed in the map importer.
+The actual configuration is validated on the server. The values in `features` and `settings` are initial values; the admin can change them at runtime. Feature toggles decide whether a feature exists at all; the settings open the platform and the uploads (10.3, 10.4). Maps and the start map are managed in the map importer.
 
 ## 19.4 Configurability
 
@@ -1704,7 +1746,7 @@ A global user account could later be assigned to several events, with different 
 | CFG-02 | An installation is bootstrapped from an `events/<slug>/` directory (`event.json`, `theme.json`, static assets) that is validated on the server at startup; an invalid configuration is rejected with a clear error. | Must |
 | CFG-03 | The features `minigames`, `snapshots`, `gallery`, `keepsakes`, `rsvp`, `treasureHunt` and `eventScreen` can be enabled or disabled per event; disabled features are unavailable in UI and API. | Must |
 | CFG-04 | Each installation serves exactly one event with its own domain, database, uploads, users, content, maps and configuration; all installations share the same codebase. | Must |
-| CFG-05 | Event settings (feature toggles) are initialised from `event.json` and can be changed by the admin at runtime without a redeployment. | Must |
+| CFG-05 | Event settings (feature toggles, platform open, snapshot uploads open, keepsake uploads open) are initialised from `event.json` and can be changed by the admin at runtime without a redeployment. | Must |
 
 Multi-event operation in one installation (section 20.1) is out of scope for the first version (see section 30).
 
@@ -1869,6 +1911,7 @@ The platform follows the Swiss Federal Act on Data Protection (FADP / revDSG):
 - Users can delete their own account and content at any time (ACC-12).
 - The whole site is excluded from search engines.
 - Website content written in Markdown is sanitised before rendering.
+- Allergies and dietary requirements are health data, which the FADP treats as particularly sensitive. Only admins see them, the privacy notice names them, and they are deleted at shutdown.
 
 **Shutdown and deletion.** The platform runs only for a limited time after the event. When the admin plans to shut it down:
 
@@ -1895,6 +1938,7 @@ Measures already covered elsewhere (password hashing ACC-06, sessions ACC-05, HT
 | SEC-08 | On the shutdown date, all personal data (accounts, profile photos and greetings, accompanying persons, RSVPs, seating plan, contributions, minigame results, treasure hunt finds, audit logs) is deleted automatically. | Must |
 | SEC-09 | A privacy notice is reachable from every page, also without sign-in. | Must |
 | SEC-10 | The whole site is excluded from search engine indexing (`robots.txt` disallowing all, and an `X-Robots-Tag: noindex` header on every response). | Must |
+| SEC-11 | Allergies and dietary requirements are visible only to admins (not to staff or other guests), are named in the privacy notice, and are deleted at shutdown. | Must |
 
 The privacy policy and legal review are an organisational precondition for production use, not a software requirement; they are tracked in [test-strategy.md](test-strategy.md) under "Release checklist".
 
@@ -2084,7 +2128,8 @@ What matters is a clear separation between:
 | Backend | Node.js + TypeScript |
 | Multiplayer | None; attending guests appear as wandering figures |
 | Database | SQLite |
-| Entry point | Sign-in lands in the game; guided first sign-in; button bar; website one click away |
+| Opening | Invitation and RSVP work early behind a teaser waiting page (door ajar, texts by RSVP status, "door is open" email); the admin opens the platform and, separately, snapshot and keepsake uploads |
+| Entry point | Once open, sign-in lands in the game; guided first sign-in; button bar; website one click away |
 | Movement | Smooth, all directions; arrow keys on desktop, tap-to-move on touch devices |
 | Collisions | With the map only |
 | Minigames | Separate Phaser scenes, shipped with the platform |
@@ -2132,6 +2177,10 @@ The concrete steps of each stage are agreed before the stage starts (see CLAUDE.
 
 **The spec is a draft.** Implementation starts only once the ratio between value and effort of the specified scope is accepted.
 
+## Release 1 (early): Invitations and RSVP — Stages 1–3
+
+Invitations and RSVP must work early. Stages 1–3 therefore form Release 1, which goes into production with real guest data while the platform is still closed (10.4). Because real personal data is collected from then on, backups, the privacy notice and the protection of health data are part of Release 1.
+
 ## Stage 1 – Walking Skeleton and Deployment
 
 - Monorepo with `frontend`, `backend`, `shared`.
@@ -2140,8 +2189,9 @@ The concrete steps of each stage are agreed before the stage starts (see CLAUDE.
 - i18n framework set up.
 - Docker Compose with Caddy; deployed to the VPS with HTTPS.
 - GitHub Actions: tests, type checks, builds, requirement report.
+- Off-site backups and restore drill.
 
-Requirements: OPS-01–04, OPS-06, DATA-01, DATA-04, LANG-01, SEC-03, SEC-10.
+Requirements: OPS-01–06, DATA-01, DATA-04, LANG-01, SEC-03, SEC-10.
 
 ## Stage 2 – Accounts, Roles and Access
 
@@ -2151,29 +2201,35 @@ Requirements: OPS-01–04, OPS-06, DATA-01, DATA-04, LANG-01, SEC-03, SEC-10.
 - Event settings, access conditions, sign-in everywhere, server-side enforcement.
 - Admin pages for users, roles, invitations, groups and settings.
 
-Requirements: ACC, ROLE, INV, ACS, GRP, CFG-02, CFG-03, CFG-05, DATA-02, DATA-03, SEC-01, SEC-02.
+Requirements: ACC, ROLE, INV, ACS (except ACS-10–14), GRP, CFG-02, CFG-03, CFG-05, DATA-02, DATA-03, SEC-01, SEC-02.
 
-## Stage 3 – Content, Website and RSVP
+## Stage 3 – RSVP and Waiting Page (completes Release 1)
+
+- RSVP with event parts, accompanying persons, deadline, overview, CSV export, reminders.
+- Closed platform with teaser waiting page (door scene, texts by RSVP status, countdown); admin switch to open it, with "the door is open" email.
+- Privacy notice; allergy data visible only to admins.
+
+Requirements: RSVP, ACS-10–14, SEC-09, SEC-11.
+
+## Stage 4 – Content and Website
 
 - Content model with language keys.
 - Website pages, responsive layout, Markdown editing.
-- Privacy notice.
 - Structured schedule with "now / next".
-- RSVP with event parts, accompanying persons, overview and export.
 
-Requirements: CNT, WEB (except WEB-05, WEB-06), LANG-02, RSVP, CFG-01, CFG-04, SEC-05, SEC-09.
+Requirements: CNT, WEB (except WEB-05, WEB-06), LANG-02, CFG-01, CFG-04, SEC-05.
 
-## Stage 4 – Game World and Map Importer
+## Stage 5 – Game World and Map Importer
 
 - Map importer.
 - Smooth movement with map collisions, arrow keys and tap-to-move.
 - Interactive objects, portals, website overlays, avatars and avatar editor.
-- Landing in the game, guided first sign-in, button bar, loading time.
+- Landing in the game, guided first entry, button bar, loading time.
 - Template map set.
 
 Requirements: GAME, MAP, AVA, PERF-04.
 
-## Stage 5 – Living World
+## Stage 6 – Living World
 
 - Wandering figures of attending guests on the maps of their event parts.
 - Profile photo, greeting, "How I know the couple" and speech bubble.
@@ -2181,16 +2237,16 @@ Requirements: GAME, MAP, AVA, PERF-04.
 
 Requirements: PRES.
 
-## Stage 6 – Contributions and Event Screen
+## Stage 7 – Contributions and Event Screen
 
-- QR upload, upload links, worker queue, HEIC handling, albums.
+- QR upload, upload links, admin switches for snapshot and keepsake uploads, worker queue, HEIC handling, albums.
 - Snapshots with captions; keepsake page and printable keepsake book.
 - Moderation queue with swipe view, gallery release.
 - Event screen with photo wall and read-only screen link.
 
 Requirements: PHO, MOD, SCR-01, SCR-02, SCR-04, WEB-06, PERF-03.
 
-## Stage 7 – Minigames, Treasure Hunt and Highscores
+## Stage 8 – Minigames, Treasure Hunt and Highscores
 
 - Scene framework, minigame registry, minigame API.
 - Attempt IDs and plausibility profiles.
@@ -2200,18 +2256,20 @@ Requirements: PHO, MOD, SCR-01, SCR-02, SCR-04, WEB-06, PERF-03.
 
 Requirements: MG, HUNT, SCR-05, WEB-05.
 
-## Stage 8 – Event Readiness and Shutdown
+## Stage 9 – Event Readiness and Shutdown
 
-- Off-site backups and restore drill; automated deployment.
+- Automated deployment.
 - Export, shutdown notice and deletion.
 - Load test.
 
-Requirements: OPS-05, OPS-07, SEC-04, SEC-06–08, PERF-01.
+Requirements: OPS-07, SEC-04, SEC-06–08, PERF-01.
 
 ## Event Operation and Follow-Up (not a development stage)
 
 - Finish content and maps for the concrete event.
-- Print and distribute invitations.
+- Print and distribute invitations (after Release 1 is live).
+- Open the platform for guests when world and website are ready.
+- Open snapshot and keepsake uploads on the event day.
 - Create and place venue QR codes and hide the treasure hunt codes.
 - Set up the event screen on the venue projector.
 - Run functional tests on smartphones.
@@ -2235,7 +2293,7 @@ Both worlds belong together and complement each other. The game world makes info
 
 ## Zappaloo accompanies an event before, during and after
 
-**Before the event**, Zappaloo helps with preparation. Guests redeem their invitation, design their avatar, answer the RSVP and explore the world. The figures of all attending guests already wander through it, so guests can find out who else is coming and how they know the couple. The hosts get a guest list they can plan with.
+**Before the event**, Zappaloo helps with preparation. Guests redeem their invitation and answer the RSVP early, even before the world is open. Once the hosts open it, guests design their avatar and explore the world. The figures of all attending guests already wander through it, so guests can find out who else is coming and how they know the couple. The hosts get a guest list they can plan with.
 
 **During the event**, Zappaloo becomes a companion at the venue. Guests see what is happening now and next. They share snapshots that appear on the photo wall, hunt QR codes hidden at the venue, play the couple quiz with live rankings, write keepsakes for the hosts, and find out who sits at their table.
 

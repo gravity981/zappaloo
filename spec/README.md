@@ -46,32 +46,32 @@ Status values: **specified** (requirements written, not implemented) · **in pro
 
 | Prefix | Topic | Section in sw-architecture.md | Reqs (active) | Stage | Status |
 |---|---|---|---|---|---|
-| GAME | Game world: entry, guided start, controls, movement, objects | 3 | 14 | 4 | specified |
-| PRES | Guest presence (wandering figures, speech bubble with profile) and seating | 3.6 | 13 (2 withdrawn) | 5 | specified |
-| HUNT | Treasure hunt | 3.7 | 7 | 7 | specified |
-| MG | Minigames, results, highscores | 4 | 13 | 7 | specified |
-| WEB | Classic website | 5 | 8 | 3, 6, 7 | specified |
-| LANG | Language and i18n | 5.3 | 2 | 1, 3 | specified |
-| SCR | Event screen (photo wall, live rankings) | 5.4 | 4 (2 withdrawn) | 6, 7 | specified |
-| CNT | Shared content base, Markdown editing | 6 | 5 | 3 | specified |
+| GAME | Game world: entry, guided start, controls, movement, objects | 3 | 14 | 5 | specified |
+| PRES | Guest presence (wandering figures, speech bubble with profile) and seating | 3.6 | 13 (2 withdrawn) | 6 | specified |
+| HUNT | Treasure hunt | 3.7 | 7 | 8 | specified |
+| MG | Minigames, results, highscores | 4 | 13 | 8 | specified |
+| WEB | Classic website | 5 | 8 | 4, 7, 8 | specified |
+| LANG | Language and i18n | 5.3 | 2 | 1, 4 | specified |
+| SCR | Event screen (photo wall, live rankings) | 5.4 | 4 (2 withdrawn) | 7, 8 | specified |
+| CNT | Shared content base, Markdown editing | 6 | 5 | 4 | specified |
 | ACC | User accounts, authentication, email | 7 | 12 (1 withdrawn) | 2 | specified |
-| AVA | Avatars | 7.3 | 4 | 4 | specified |
+| AVA | Avatars | 7.3 | 4 | 5 | specified |
 | RSVP | RSVP, event parts, accompanying persons | 7.4 | 9 | 3 | specified |
 | ROLE | Roles (vip, staff, admin) and staff capabilities | 8 | 8 (2 withdrawn) | 2 | specified |
 | INV | VIP invitations | 9 | 13 (6 withdrawn) | 2 | specified |
-| ACS | Sign-in, upload links, access control | 10, 11 | 5 (4 withdrawn) | 2 | specified |
+| ACS | Sign-in, opening the platform, waiting page, upload links, access control | 10, 11 | 10 (4 withdrawn) | 2, 3 | specified |
 | GRP | Guest groups | 12 | 2 | 2 | specified |
-| PHO | Contributions: snapshots (gallery, photo wall) and keepsakes (keepsake page, printable book) | 13 | 16 (1 withdrawn) | 6 | specified |
-| MOD | Moderation (swipe view) | 13.7 | 5 | 6 | specified |
-| MAP | Tiled maps, map importer, template maps | 14 | 12 (2 withdrawn) | 4 | specified |
+| PHO | Contributions: snapshots (gallery, photo wall) and keepsakes (keepsake page, printable book) | 13 | 17 (1 withdrawn) | 7 | specified |
+| MOD | Moderation (swipe view) | 13.7 | 5 | 7 | specified |
+| MAP | Tiled maps, map importer, template maps | 14 | 12 (2 withdrawn) | 5 | specified |
 | DATA | Database and data model | 18 | 4 | 1, 2 | specified |
-| CFG | Event configuration, installation model | 19, 20 | 5 | 2, 3 | specified |
-| OPS | Hosting, deployment, backups, CI/CD | 21–23 | 7 | 1, 8 | specified |
-| SEC | Security and privacy (Swiss FADP) | 24 | 10 | 1, 2, 3, 8 | specified |
-| PERF | Performance and load | 25 | 3 (1 withdrawn) | 4, 6, 8 | specified |
+| CFG | Event configuration, installation model | 19, 20 | 5 | 2, 4 | specified |
+| OPS | Hosting, deployment, backups, CI/CD | 21–23 | 7 | 1, 9 | specified |
+| SEC | Security and privacy (Swiss FADP) | 24 | 11 | 1, 2, 3, 4, 9 | specified |
+| PERF | Performance and load | 25 | 3 (1 withdrawn) | 5, 7, 9 | specified |
 | MP | Multiplayer — removed | 3.3 | 0 (6 withdrawn) | – | withdrawn |
 | GB | Guestbook — merged into PHO | 13.6 | 0 (4 withdrawn) | – | withdrawn |
-| | **Total** | | **181** (212 IDs, 31 withdrawn) | | |
+| | **Total** | | **188** (219 IDs, 31 withdrawn) | | |
 
 Sections with no requirement table describe architecture and technology choices: 15 (stack), 16 (frontend), 17 (backend), 26 (project structure), 27 (decision summary), 28 (stages) and 29 (principles). Section 30 lists what is out of scope for the first version.
 
@@ -125,6 +125,11 @@ Sections with no requirement table describe architecture and technology choices:
 | 2026-11-04 | Live updates (event screen, moderation view, leaderboards) use Server-Sent Events (17.1). |
 | 2026-11-04 | "Now / next" on the event day: structured schedule, current and next entry on the start page and the Programme button. Optional "Go there" to the map (WEB-07, WEB-08). |
 | 2026-11-04 | RSVP without a "message to the hosts": messages belong in keepsakes. The song wish stays (RSVP-06). |
+| 2026-11-04 | Release 1 (stages 1–3) goes live early with invitations and RSVP. The platform stays closed behind a waiting page ("We've got your RSVP — come back later") until the admin opens it. Staff and admins have full access (ACS-10, ACS-11). Backups move into stage 1. Accompanying persons' avatars are chosen when the world opens (RSVP-08, GAME-13). |
+| 2026-11-04 | Snapshot and keepsake uploads are closed by default and opened separately by the admin. Nobody can upload before that (PHO-18). |
+| 2026-11-04 | Allergies and dietary requirements are health data (FADP): only admins see them, they are named in the privacy notice and deleted at shutdown (SEC-11). |
+| 2026-11-04 | The waiting page is a teaser: a pixel-art door ajar with figures building the world behind it, texts by RSVP status with name and number of waiting guests (DE defaults, editable), an optional countdown, and a "the door is open" email when the platform opens (ACS-11–14). |
+| 2026-11-04 | The project owner draws the door scene for the waiting page. It is the first art task, needed for Release 1 (stage 3) before any maps (ACS-12). |
 | 2026-11-04 | Everything guests contribute is moderated in one queue before it appears on the event screen, in the gallery or in the guestbook. Swipe right approves and left rejects, with undo and a rejected list (MOD-01–05, SCR-03 withdrawn). Approved guestbook entries can appear on the event screen (SCR-06). |
 
 ## Open points

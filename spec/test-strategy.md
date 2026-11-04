@@ -63,13 +63,13 @@ CI runs the report after the test jobs and fails the build on a non-zero exit.
 | HUNT | Integration, E2E | Collecting once, guessed or invalid tokens rejected, rate limit, time window with fake timers, ranking order, unlocking as an access condition. |
 | MG | Unit, Integration, E2E | Plausibility profiles as unit tests. Attempt IDs, API validation and storage as integration tests. Scene start/return as E2E. |
 | SCR | E2E | Panel rotation, an approved snapshot (with caption) appearing on the wall within the configured time, unapproved content and keepsakes never shown, the read-only link granting nothing else, revocation, live leaderboard. |
-| RSVP | Integration, E2E | Event parts per invitation; accompanying-person requests with avatar and RSVP filled in by the VIP, admin approval, no login possible, deletion together with the VIP; deadline, overview totals, CSV export, reminder email via the test mail sink. |
+| RSVP | Integration, E2E | Event parts per invitation; accompanying-person requests with avatar and RSVP filled in by the VIP, admin approval, no login possible, deletion together with the VIP; allergy data visible only to admins (SEC-11); deadline, overview totals, CSV export, reminder email via the test mail sink. |
 | WEB | Component, E2E | E2E on desktop and mobile viewports. WEB-01 with the game bundle blocked. "Now / next" with fake timers across entry boundaries and the event timezone; schedule change visible immediately; "Go there". |
 | CNT, LANG | Unit, Integration, E2E | The same content item appears on the website page and in a game-world dialogue. Markdown editing and preview via E2E. Language keys in the content model, and no hard-coded UI strings (lint check). |
 | ACC, AVA | Integration, Component, E2E | SMTP is replaced by a local test mail sink. Covers verified and unverified paths, and the admin reset link. |
-| ROLE, ACS, GRP | Unit, Integration, E2E | Full combination matrix of the three roles as table-driven tests. Server enforcement tested per endpoint and per map load. Every page and endpoint without sign-in is rejected, except the allowed list (ACS-09). |
+| ROLE, ACS, GRP | Unit, Integration, E2E | Full combination matrix of the three roles as table-driven tests. Server enforcement tested per endpoint and per map load. Every page and endpoint without sign-in is rejected, except the allowed list (ACS-09). Closed platform: guests reach only the waiting page and the RSVP, staff and admins everything; waiting-page text per RSVP status with placeholders filled, admin-edited texts, countdown with fake timers, "door is open" email via the test mail sink; opening switch (ACS-10–14). |
 | INV | Integration, E2E | Includes a concurrency test for atomic redemption (INV-08) and the printable export at creation time (INV-14).  |
-| PHO, MOD | Integration, E2E, Manual | Composer with "Upload snapshot" (disabled without a photo) and "Upload keepsake" (photo, photo + text, text only); text length limits; keepsake page; printable keepsake book PDF including photos. Fixture images in JPEG, PNG and HEIC, plus oversized and invalid files. Worker queue processed in tests. Anonymous upload via upload link: revoked or expired token rejected, token grants nothing else. Swipe moderation via Playwright touch emulation and arrow keys, undo, rejected list. Real-device camera check is manual. |
+| PHO, MOD | Integration, E2E, Manual | Uploads closed by default, opened and closed separately by the admin, upload links show a notice while closed (PHO-18). Composer with "Upload snapshot" (disabled without a photo) and "Upload keepsake" (photo, photo + text, text only); text length limits; keepsake page; printable keepsake book PDF including photos. Fixture images in JPEG, PNG and HEIC, plus oversized and invalid files. Worker queue processed in tests. Anonymous upload via upload link: revoked or expired token rejected, token grants nothing else. Swipe moderation via Playwright touch emulation and arrow keys, undo, rejected list. Real-device camera check is manual. |
 | MAP | Unit, Integration, E2E | Test maps exported from Tiled live in test fixtures, including invalid ones. Import validation, warnings for missing portal targets, portal properties from Tiled, `eventPart` and wander areas, rollback, new version used on next map entry with refreshed graphics. |
 | DATA | Integration | Migrations run from an empty DB and from the previous schema version with data. |
 | CFG | Unit, Integration | Valid and invalid `event.json` fixtures. Feature toggles and runtime settings changes checked in UI and API. |
@@ -96,17 +96,17 @@ All active requirements are listed here until their stage is delivered. Shrink t
 | RSVP | RSVP-01 – RSVP-09 | 9 |
 | ROLE | ROLE-01, ROLE-03 – ROLE-09 | 8 |
 | INV | INV-01 – INV-12, INV-14 | 13 |
-| ACS | ACS-04 – ACS-07, ACS-09 | 5 |
+| ACS | ACS-04 – ACS-07, ACS-09 – ACS-14 | 10 |
 | GRP | GRP-01, GRP-02 | 2 |
-| PHO | PHO-01 – PHO-03, PHO-05 – PHO-17 | 16 |
+| PHO | PHO-01 – PHO-03, PHO-05 – PHO-18 | 17 |
 | MOD | MOD-01 – MOD-05 | 5 |
 | MAP | MAP-01 – MAP-06, MAP-08 – MAP-10, MAP-12 – MAP-14 | 12 |
 | DATA | DATA-01 – DATA-04 | 4 |
 | CFG | CFG-01 – CFG-05 | 5 |
 | OPS | OPS-01 – OPS-07 | 7 |
-| SEC | SEC-01 – SEC-10 | 10 |
+| SEC | SEC-01 – SEC-11 | 11 |
 | PERF | PERF-01, PERF-03, PERF-04 | 3 |
-| **Total** | | **181** |
+| **Total** | | **188** |
 
 The stage each requirement belongs to is listed in `sw-architecture.md`, section 28.
 
