@@ -1,0 +1,20 @@
+# Only sources and lock files go into the image build context.
+**/node_modules
+**/dist
+.git
+.github
+.vscode
+.devcontainer
+.e2e-data
+reports
+coverage
+test-results
+playwright-report
+spec
+e2e
+**/*.test.ts
+**/*.test.tsx
+**/test-support.ts
+**/src/test
+.env
+.env.*

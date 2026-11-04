@@ -153,7 +153,7 @@ export function buildReport(input: ReportInput): Report {
     }
   }
 
-  const runners: TestCase["runner"][] = ["vitest", "playwright"];
+  const runners: TestCase["runner"][] = ["vitest", "playwright", "manual"];
   const implementedRows = rows.filter((row) => row.implemented);
   return {
     rows,

@@ -1,0 +1,35 @@
+# Weekly cleanup of old build images (sw-architecture.md 23.2, OPS-14): deletes
+# images whose only tags are build tags (X.Y.Z_build.N) and that are older than
+# 30 days. Release candidates and releases are kept forever.
+# Requires the package's "Manage Actions access" to give this repository Admin.
+name: Cleanup images
+
+on:
+  schedule:
+    - cron: "17 3 * * 1" # Mondays, 03:17 UTC
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: Only list what would be deleted
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .node-version
+      - name: Delete old build images
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          IMAGE_OWNER: gravity981
+          IMAGE_NAME: zappaloo
+        run: node scripts/cleanup-images/cli.ts ${{ inputs.dry_run && '--dry-run' || '' }}

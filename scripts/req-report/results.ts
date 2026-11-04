@@ -3,7 +3,8 @@
 export type TestStatus = "passed" | "failed" | "skipped";
 
 export interface TestCase {
-  runner: "vitest" | "playwright";
+  /** "manual": a record of spec/manual-test-protocol.md (manual.ts). */
+  runner: "vitest" | "playwright" | "manual";
   file: string;
   /** Title as written in the test (`it("[ABC-01] …")`). */
   title: string;

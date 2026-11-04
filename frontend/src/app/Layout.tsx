@@ -1,5 +1,6 @@
 import { useTranslation } from "react-i18next";
 import { NavLink, Outlet } from "react-router";
+import VersionFooter from "./VersionFooter.tsx";
 
 export default function Layout() {
   const { t } = useTranslation();
@@ -15,6 +16,7 @@ export default function Layout() {
       <main>
         <Outlet />
       </main>
+      <VersionFooter />
     </div>
   );
 }

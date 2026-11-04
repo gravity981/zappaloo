@@ -34,7 +34,8 @@ RUN apt-get update \
 
 # Node.js (current LTS), installed here rather than as a devcontainer feature,
 # because the Playwright browsers below need node while the image is built.
-# Keep in sync with the Node version used in CI.
+# Keep in sync with .node-version (CI) and infrastructure/docker/Dockerfile (image);
+# scripts/ci/workflows.test.ts checks this.
 ARG NODE_VERSION=26.13.0
 RUN case "$(dpkg --print-architecture)" in \
         amd64) arch=x64 ;; \

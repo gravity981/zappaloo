@@ -1,0 +1,10 @@
+{
+  "//": "Code that runs in Node.js, not in the browser: build configuration and the lint test (LANG-01).",
+  "extends": "../tsconfig.base.json",
+  "compilerOptions": {
+    "types": ["node"],
+    "allowImportingTsExtensions": true,
+    "allowJs": true
+  },
+  "include": ["vite.config.ts", "src/i18n/no-literal-strings.test.ts"]
+}

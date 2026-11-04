@@ -1,0 +1,4 @@
+#!/bin/sh
+# Command-line interface inside the container (sw-architecture.md 23.8):
+#   docker compose exec app zappaloo <command>
+exec node /app/backend/src/cli.ts "$@"

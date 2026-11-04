@@ -41,7 +41,14 @@ export async function createTestApp(options: Partial<AppOptions> = {}): Promise<
   ensureDataDirs(paths);
   const database = openDatabase(paths.database);
   runMigrations(database);
-  const app = await buildApp({ database, version: TEST_VERSION, ...options });
+  let app: FastifyInstance;
+  try {
+    app = await buildApp({ database, version: TEST_VERSION, ...options });
+  } catch (error) {
+    database.close();
+    dir.remove();
+    throw error;
+  }
   return {
     app,
     database,

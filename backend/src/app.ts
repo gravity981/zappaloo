@@ -33,13 +33,16 @@ export async function buildApp(options: AppOptions): Promise<FastifyInstance> {
         `FRONTEND_DIR ${frontendDir} contains no index.html (build the frontend first)`,
       );
     }
-    await app.register(fastifyStatic, { root: frontendDir, wildcard: false });
+    // Files are looked up per request, so a rebuilt frontend is served without a restart.
+    await app.register(fastifyStatic, { root: frontendDir });
   }
 
   app.setNotFoundHandler((request, reply) => {
     const path = request.url.split("?")[0] ?? "";
-    // Client-side routes of the single-page app get index.html; the router shows its own 404.
-    if (frontendDir && request.method === "GET" && !path.startsWith("/api/")) {
+    // Page navigations to client-side routes get index.html; the router shows its own 404.
+    // Anything else that is missing (a script, an image, an API route) gets a real 404.
+    const isNavigation = request.headers.accept?.includes("text/html") ?? false;
+    if (frontendDir && request.method === "GET" && isNavigation && !path.startsWith("/api/")) {
       return reply.type("text/html; charset=utf-8").sendFile("index.html");
     }
     return sendError(reply, 404, {

@@ -126,6 +126,7 @@ describe("buildReport", () => {
     expect(report.totals.tests).toEqual([
       { runner: "vitest", total: 2, tagged: 2 },
       { runner: "playwright", total: 1, tagged: 0 },
+      { runner: "manual", total: 0, tagged: 0 },
     ]);
   });
 });

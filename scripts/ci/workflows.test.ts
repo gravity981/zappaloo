@@ -1,0 +1,146 @@
+// Checks the GitHub Actions workflows and the Dockerfile against the CI rules
+// of sw-architecture.md 23.2 and 23.6. They run on GitHub; these tests keep their
+// structure from drifting away from the spec.
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
+import { fileURLToPath } from "node:url";
+import { describe, expect, it } from "vitest";
+import { parse } from "yaml";
+
+const root = fileURLToPath(new URL("../..", import.meta.url));
+const read = (path: string) => readFileSync(join(root, path), "utf8");
+
+interface Step {
+  name?: string;
+  run?: string;
+  uses?: string;
+  if?: string;
+}
+interface Job {
+  needs?: string | string[];
+  permissions?: Record<string, string>;
+  steps: Step[];
+}
+interface Workflow {
+  on: Record<string, unknown>;
+  jobs: Record<string, Job>;
+}
+
+const ci = parse(read(".github/workflows/ci.yml")) as Workflow;
+const cleanup = parse(read(".github/workflows/cleanup-images.yml")) as Workflow;
+const dockerfile = read("infrastructure/docker/Dockerfile");
+const packageJson = JSON.parse(read("package.json")) as { scripts: Record<string, string> };
+
+function runs(job: Job | undefined): string[] {
+  return (job?.steps ?? []).flatMap((step) => (step.run ? [step.run] : []));
+}
+
+/** Index of the first step whose command contains `text`, or -1. */
+function stepIndex(job: Job | undefined, text: string): number {
+  return (job?.steps ?? []).findIndex((step) => step.run?.includes(text));
+}
+
+describe("ci.yml", () => {
+  const checks = ci.jobs.checks;
+  const image = ci.jobs.image;
+
+  it("[OPS-06] runs on every pull request and every push to main", () => {
+    expect(ci.on).toHaveProperty("pull_request");
+    expect(ci.on.push).toEqual({ branches: ["main"] });
+  });
+
+  it("[OPS-06] runs lint, type checks, build, all tests and the requirement report", () => {
+    for (const command of [
+      "npm ci",
+      "npm run lint",
+      "npm run format:check",
+      "npm run typecheck",
+      "npm run migration-check",
+      "npm run build",
+      "npm test",
+      "npm run test:e2e",
+      "npm run req-report",
+    ]) {
+      expect(runs(checks), command).toContain(command);
+    }
+    // The report reads the test results, so it runs after both test steps.
+    expect(stepIndex(checks, "npm run req-report")).toBeGreaterThan(
+      stepIndex(checks, "npm run test:e2e"),
+    );
+    expect(stepIndex(checks, "npm run req-report")).toBeGreaterThan(stepIndex(checks, "npm test"));
+  });
+
+  it("[OPS-06] every npm script used by CI exists", () => {
+    for (const command of runs(checks)) {
+      const script = /^npm run ([\w:-]+)/.exec(command)?.[1];
+      if (script) expect(packageJson.scripts, script).toHaveProperty(script);
+    }
+  });
+
+  it("[OPS-06] pins every action to a full commit", () => {
+    for (const workflow of [ci, cleanup]) {
+      for (const job of Object.values(workflow.jobs)) {
+        for (const step of job.steps) {
+          if (step.uses) expect(step.uses).toMatch(/@[0-9a-f]{40}$/);
+        }
+      }
+    }
+  });
+
+  it("[OPS-08] builds the image with the CI version, smoke-tests it, and pushes only from main after all checks", () => {
+    expect(image?.needs).toBe("checks");
+    const all = runs(image).join("\n");
+    expect(all).toContain("node scripts/version/cli.ts ci --run-number");
+    expect(all).toContain("github.run_number");
+    expect(all).toMatch(/--build-arg APP_VERSION="\$\{\{ steps\.version\.outputs\.version \}\}"/);
+    expect(all).toMatch(/--build-arg APP_COMMIT="\$\{\{ steps\.version\.outputs\.commit \}\}"/);
+    expect(stepIndex(image, "smoke-test-image.sh")).toBeGreaterThan(
+      stepIndex(image, "docker buildx build"),
+    );
+
+    const push = image?.steps.find((step) => step.run?.includes("docker push"));
+    expect(push?.if).toBe("github.event_name == 'push' && github.ref == 'refs/heads/main'");
+    expect(push?.run).toContain('"$IMAGE:${{ steps.version.outputs.image_tag }}"');
+    expect(push?.run).toContain('"$IMAGE:main"');
+    expect(stepIndex(image, "docker push")).toBeGreaterThan(
+      stepIndex(image, "smoke-test-image.sh"),
+    );
+  });
+});
+
+describe("Dockerfile", () => {
+  it("[OPS-08] bakes version and commit into the image once: environment, /app/VERSION and OCI labels", () => {
+    expect(dockerfile).toMatch(/^ARG APP_VERSION$/m);
+    expect(dockerfile).toMatch(/APP_VERSION=\$\{APP_VERSION\}/);
+    expect(dockerfile).toMatch(/APP_COMMIT=\$\{APP_COMMIT\}/);
+    expect(dockerfile).toContain('echo "${APP_VERSION}" > /app/VERSION');
+    expect(dockerfile).toContain('org.opencontainers.image.version="${APP_VERSION}"');
+    expect(dockerfile).toContain('org.opencontainers.image.revision="${APP_COMMIT}"');
+    // The frontend is built in the same image build with the same version.
+    expect(dockerfile).toContain('APP_VERSION="$APP_VERSION" npm run build -w frontend');
+  });
+
+  it("[OPS-17] provides the zappaloo command inside the container", () => {
+    expect(dockerfile).toContain("/usr/local/bin/zappaloo");
+    expect(read("infrastructure/docker/zappaloo")).toContain("node /app/backend/src/cli.ts");
+  });
+});
+
+describe("Node.js version", () => {
+  it("is the same in CI, the image and the devcontainer", () => {
+    const version = read(".node-version").trim();
+    expect(version).toMatch(/^\d+\.\d+\.\d+$/);
+    expect(dockerfile).toContain(`ARG NODE_IMAGE=node:${version}-`);
+    expect(read(".devcontainer/Dockerfile")).toContain(`ARG NODE_VERSION=${version}`);
+  });
+});
+
+describe("cleanup-images.yml", () => {
+  it("[OPS-14] runs weekly and deletes old build images with the package token", () => {
+    expect(cleanup.on).toHaveProperty("schedule");
+    expect(cleanup.on).toHaveProperty("workflow_dispatch");
+    const job = cleanup.jobs.cleanup;
+    expect(runs(job).join("\n")).toContain("node scripts/cleanup-images/cli.ts");
+    expect(read(".github/workflows/cleanup-images.yml")).toMatch(/packages: write/);
+  });
+});

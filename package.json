@@ -25,7 +25,8 @@
     "dev:backend": "npm run dev -w backend",
     "dev:frontend": "npm run dev -w frontend",
     "build": "npm run build -w frontend",
-    "cli": "node backend/src/cli.ts"
+    "cli": "node backend/src/cli.ts",
+    "migration-check": "node scripts/migration-check/cli.ts"
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",
@@ -40,7 +41,8 @@
     "prettier": "3.9.10",
     "typescript": "6.0.3",
     "typescript-eslint": "8.72.1",
-    "vitest": "5.1.0"
+    "vitest": "5.1.0",
+    "yaml": "2.9.1"
   },
   "allowScripts": {
     "better-sqlite3": false,

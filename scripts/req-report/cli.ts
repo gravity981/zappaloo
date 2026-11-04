@@ -9,6 +9,7 @@ import { dirname, join } from "node:path";
 import { parseArgs } from "node:util";
 import { buildReport, renderConsole, renderMarkdown } from "./report.ts";
 import type { TestCase } from "./results.ts";
+import { manualTestCases, parseManualProtocol } from "./manual.ts";
 import { parsePlaywrightResults, parseVitestResults } from "./results.ts";
 import { parseNotImplemented, parseRequirements, parseStages } from "./spec.ts";
 
@@ -44,6 +45,14 @@ for (const [path, parse] of results) {
   } catch (error) {
     inputErrors.push(`${path}: ${error instanceof Error ? error.message : String(error)}`);
   }
+}
+
+// Manual checks (test-strategy.md 6.1); the protocol is optional.
+const protocolPath = join(args["spec-dir"], "manual-test-protocol.md");
+if (existsSync(protocolPath)) {
+  const manual = parseManualProtocol(read(protocolPath));
+  inputErrors.push(...manual.errors);
+  tests.push(...manualTestCases(manual.records));
 }
 
 const report = buildReport({

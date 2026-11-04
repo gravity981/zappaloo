@@ -17,5 +17,8 @@
   "notFound": {
     "title": "Seite nicht gefunden",
     "backHome": "Zur Startseite"
+  },
+  "footer": {
+    "version": "Version {{version}}"
   }
 }

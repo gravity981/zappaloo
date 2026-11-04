@@ -47,12 +47,14 @@ describe("no search engine indexing", () => {
       { url: "/api/does-not-exist", status: 404 },
       { url: "/api/broken", status: 500 },
       { url: "/robots.txt", status: 200 },
-      { url: "/", status: 200 },
-      { url: "/some/client/route", status: 200 },
+      { url: "/", status: 200, html: true },
+      { url: "/some/client/route", status: 200, html: true },
+      { url: "/assets/missing.js", status: 404 },
       { url: "/assets/app.js", status: 200 },
     ];
-    for (const { url, status } of requests) {
-      const response = await ctx.app.inject({ method: "GET", url });
+    for (const { url, status, html } of requests) {
+      const headers = html ? { accept: "text/html" } : {};
+      const response = await ctx.app.inject({ method: "GET", url, headers });
       expect(response.statusCode, url).toBe(status);
       expect(response.headers["x-robots-tag"], url).toBe(X_ROBOTS_TAG);
       expect(X_ROBOTS_TAG).toContain("noindex");

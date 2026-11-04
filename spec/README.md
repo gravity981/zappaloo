@@ -14,6 +14,7 @@ This folder is the **source of truth**. The code implements the spec. When the c
 | [sw-architecture.md](sw-architecture.md) | Concept, architecture, technology choices, and all requirement tables |
 | [test-strategy.md](test-strategy.md) | Test levels, tooling, requirement traceability, "not yet implemented" list |
 | [implementation-plan.md](implementation-plan.md) | Stages and steps, preconditions, releases, status reports after each stage |
+| [manual-test-protocol.md](manual-test-protocol.md) | Records of manual checks in real environments, read by the requirement report |
 
 ## Conventions
 

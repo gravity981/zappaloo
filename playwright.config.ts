@@ -26,7 +26,8 @@ export default defineConfig({
     command:
       "rm -rf .e2e-data && VITE_TEST_HOOKS=true npm run build -w frontend && node backend/src/server.ts",
     url: `http://localhost:${PORT}/api/health`,
-    reuseExistingServer: !isCI,
+    // Always a fresh server: a server left over from an earlier run would serve an old build.
+    reuseExistingServer: false,
     timeout: 120_000,
     env: {
       APP_ENV: "test",
