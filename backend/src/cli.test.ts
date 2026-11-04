@@ -82,7 +82,7 @@ describe("command-line interface", () => {
     expect((await run([])).code).toBe(1);
     const help = await run(["help"]);
     expect(help.code).toBe(0);
-    expect(help.out).toContain("restore <file> --force");
+    expect(help.out).toContain("restore <file|-> --force");
   });
 
   it("[OPS-17] runs as its own process, as inside the container", () => {
@@ -161,6 +161,43 @@ describe("backup and restore", () => {
     // A heartbeat left behind by a crashed server is stale and does not block.
     writeFileSync(dataPaths(dataDir).heartbeat, String(Date.now() - 60_000));
     expect((await run(["restore", backup, "--force"], { DATA_DIR: dataDir })).code).toBe(0);
+  });
+
+  it("[OPS-18] backup - and restore - stream the database through stdout and stdin", async () => {
+    const { dataDir, dir } = await dataDirWithGuest("Anna");
+    const cli = fileURLToPath(new URL("./cli.ts", import.meta.url));
+    const env = { PATH: process.env.PATH, DATA_DIR: dataDir };
+
+    // As in: docker compose exec -T app zappaloo backup - > backups/x.db
+    const backup = spawnSync(process.execPath, [cli, "backup", "-"], { env });
+    expect(backup.status).toBe(0);
+    expect(backup.stderr.toString()).toBe("Database backed up to standard output.\n");
+    const file = join(dir, "streamed.db");
+    writeFileSync(file, backup.stdout);
+    const copy = openDatabase(file);
+    expect(copy.sqlite.prepare("SELECT name FROM guests").all()).toEqual([{ name: "Anna" }]);
+    copy.close();
+
+    const database = openDatabase(dataPaths(dataDir).database);
+    database.sqlite.prepare("UPDATE guests SET name = 'Mallory'").run();
+    database.close();
+
+    // As in: docker compose run --rm -T app zappaloo restore - --force < backups/x.db
+    const restore = spawnSync(process.execPath, [cli, "restore", "-", "--force"], {
+      env,
+      input: backup.stdout,
+    });
+    expect(restore.stderr.toString()).toBe("");
+    expect(restore.status).toBe(0);
+    expect(guests(dataDir)).toEqual([{ name: "Anna" }]);
+
+    // Garbage on stdin is rejected and the database stays.
+    const garbage = spawnSync(process.execPath, [cli, "restore", "-", "--force"], {
+      env,
+      input: "not a database",
+    });
+    expect(garbage.status).toBe(1);
+    expect(guests(dataDir)).toEqual([{ name: "Anna" }]);
   });
 
   it("[OPS-18] restore refuses files that are not an intact SQLite database", async () => {

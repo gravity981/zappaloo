@@ -63,7 +63,8 @@ The CA lives in the `caddy-data` volume and survives deployments; it only change
 docker compose ps                          # status
 docker compose logs -f app                 # app log
 docker compose exec app zappaloo version   # version and commit
-docker compose exec app zappaloo backup /backups/manual-$(date -u +%Y%m%dT%H%M%SZ).db
+# manual database backup into ./backups (mode 600), like deploy.sh does before each prod deployment:
+(umask 077 && docker compose exec -T app zappaloo backup - > backups/manual-$(date -u +%Y%m%dT%H%M%SZ).db)
 ```
 
 Mailpit (staging): `http://<LAN IP>:8025`.

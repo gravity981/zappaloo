@@ -230,7 +230,12 @@ describe("prod deployment", () => {
     expect(backup).toMatch(
       new RegExp(`^\\d{8}T\\d{6}Z_${label(sourceImage).replace(/[.+]/g, "\\$&")}\\.db$`),
     );
-    expect(env.compose("exec", "-T", "app", "ls", "/backups")).toContain(backup);
+    // On the host, owned by the user running deploy.sh, readable only by them, a SQLite file.
+    const file = join(env.dir, "backups", backup ?? "");
+    const stat = statSync(file);
+    expect(stat.mode & 0o777).toBe(0o600);
+    expect(stat.uid).toBe(process.getuid?.());
+    expect(readFileSync(file).subarray(0, 16).toString("latin1")).toBe("SQLite format 3\0");
   });
 
   it("[OPS-15][OPS-16] a failed deployment reports the rollback, which restores image and database", () => {

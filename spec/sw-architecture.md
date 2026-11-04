@@ -1989,7 +1989,7 @@ Each GitHub release and pre-release has a **deployment bundle** attached: `compo
 
 On each server, the environment has its own directory with the bundle files and:
 
-- `.env`: `IMAGE_TAG` and `APP_VERSION_SUFFIX` (23.6, maintained by `deploy.sh`), `APP_ENV`, `COMPOSE_PROJECT_NAME`, `DATA_VOLUME`, `SITE_ADDRESS` (`<domain>` for prod, the LAN IP address for staging), `TLS_MODE` (the contact email for Let's Encrypt on prod, `internal` for staging), `HTTP_PORT`/`HTTPS_PORT` (default 80/443), mail settings with `COMPOSE_PROFILES=mailpit` on staging, and `BACKUP_DIR` (host folder for pre-deploy database backups, default `./backups`, mounted into the application container at `/backups`).
+- `.env`: `IMAGE_TAG` and `APP_VERSION_SUFFIX` (23.6, maintained by `deploy.sh`), `APP_ENV`, `COMPOSE_PROJECT_NAME`, `DATA_VOLUME`, `SITE_ADDRESS` (`<domain>` for prod, the LAN IP address for staging), `TLS_MODE` (the contact email for Let's Encrypt on prod, `internal` for staging), `HTTP_PORT`/`HTTPS_PORT` (default 80/443), mail settings with `COMPOSE_PROFILES=mailpit` on staging, and `BACKUP_DIR` (host folder for pre-deploy database backups, default `./backups`). `deploy.sh` streams backups out of the container and back in for a restore through the Docker CLI, so they belong to the user running `deploy.sh`, have mode 600 (they contain personal data), and the stack needs no bind mount.
 - `caddy-data` volume: Caddy's certificates and, on staging, its local CA. It is kept across deployments, so test devices keep trusting the same root certificate.
 - `secrets/session_secret`: the secret that signs session cookies, mode 600, created by `deploy.sh` on the first deployment. `deploy.sh` passes it to Compose as an environment-sourced secret, so it is never written to `.env`; the app reads it from `/run/secrets/session_secret`. Other secrets (SMTP password, backup credentials) are placed in `secrets/` by the project owner.
 - `ghcr-token` (optional): a read-only registry token (`read:packages`), only needed if the image is private; the user is `GHCR_USER` in `.env`.
@@ -2029,8 +2029,8 @@ The application image contains a command-line interface `zappaloo` for operating
 ```sh
 docker compose exec app zappaloo version                          # version and commit
 docker compose exec app zappaloo migrate                          # apply pending migrations
-docker compose exec app zappaloo backup /backups/<file>.db        # consistent backup while the app runs
-docker compose run --rm app zappaloo restore /backups/<file>.db --force   # app stopped
+docker compose exec -T app zappaloo backup - > backups/<file>.db  # consistent backup while the app runs
+docker compose run --rm --no-deps -T app zappaloo restore - --force < backups/<file>.db   # app stopped
 docker compose exec app zappaloo create-admin USERNAME [--vip]    # admin account, prints a setup link
 docker compose exec app zappaloo reset-password USERNAME          # prints a one-time reset link
 ```
@@ -2038,6 +2038,7 @@ docker compose exec app zappaloo reset-password USERNAME          # prints a one
 In dev, the same commands run from source with `npm run cli -- <command>`.
 
 - `backup` uses SQLite's online backup, so the application keeps running. It covers the database only; files (maps, tilesets, photos) are covered by the off-site backups (22.2).
+- `backup` and `restore` take a file name inside the container or `-` for standard output and input; with `-` the backup is streamed to or from the host, which is how `deploy.sh` uses them.
 - `restore` refuses to run while the application is running and asks for `--force` before it overwrites the database. The restored database is migrated on the next start.
 - `create-admin` and `reset-password` never take a password on the command line; they print a one-time link instead, so no password ends up in the shell history.
 - Commands print a clear error and exit non-zero on failure, so `deploy.sh` can rely on them.

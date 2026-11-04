@@ -9,6 +9,8 @@
 # Environment: DEPLOY_HEALTH_TIMEOUT (seconds to wait for a healthy app, default 90)
 #
 # Runs in the environment's directory: compose.yaml, .env, secrets/, backups/.
+# Backups are streamed out of and into the container through the Docker CLI, so
+# they belong to the user running deploy.sh (mode 600) and need no bind mount.
 set -euo pipefail
 
 REPOSITORY=ghcr.io/gravity981/zappaloo
@@ -57,6 +59,9 @@ previous_tag=$(env_get IMAGE_TAG)
 suffix=""
 if [[ $tag =~ -(rc\.[0-9]+)$ ]]; then suffix=${BASH_REMATCH[1]}; fi
 
+backup_dir=$(env_get BACKUP_DIR)
+backup_dir=${backup_dir:-./backups}
+
 compose() { docker compose "$@"; }
 app_running() { [ -n "$(compose ps --status running --quiet app 2>/dev/null)" ]; }
 
@@ -85,10 +90,13 @@ export SESSION_SECRET
 backup=""
 if [ "$target" = "prod" ] && [ -z "$restore" ]; then
   if app_running; then
-    compose exec -T --user root app chown node:node /backups
     running_version=$(compose exec -T app zappaloo version | cut -d' ' -f1)
     backup="$(date -u +%Y%m%dT%H%M%SZ)_${running_version}.db"
-    compose exec -T app zappaloo backup "/backups/$backup"
+    (umask 077 && mkdir -p "$backup_dir")
+    if ! (umask 077 && compose exec -T app zappaloo backup - > "$backup_dir/$backup"); then
+      rm -f "$backup_dir/$backup"
+      die "the database backup failed; nothing was deployed"
+    fi
     echo "Backed up the database to BACKUP_DIR/$backup."
   else
     echo "The app is not running: no backup before this deployment (first deployment?)."
@@ -104,10 +112,11 @@ env_set APP_VERSION_SUFFIX "$suffix"
 if [ -n "$pull" ]; then compose pull --quiet; fi
 
 if [ -n "$restore" ]; then
+  [ -f "$backup_dir/$restore" ] || die "backup $backup_dir/$restore not found"
   echo "Restoring the database from BACKUP_DIR/$restore."
   compose stop app
-  compose run --rm --no-deps --user root --entrypoint chown app node:node /backups
-  compose run --rm --no-deps app zappaloo restore "/backups/$restore" --force
+  # A one-off container on the same data volume reads the backup from stdin.
+  compose run --rm --no-deps -T app zappaloo restore - --force < "$backup_dir/$restore"
 fi
 compose up --detach --remove-orphans
 

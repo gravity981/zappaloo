@@ -22,7 +22,7 @@ services:
       - session_secret
     volumes:
       - data:/data
-      - ${BACKUP_DIR:-./backups}:/backups
+      # No bind mounts: deploy.sh streams database backups in and out (sw-architecture.md 23.5).
     # No published port: only Caddy is reachable from outside (OPS-03).
     expose:
       - "3000"
