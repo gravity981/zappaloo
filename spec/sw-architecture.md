@@ -133,7 +133,8 @@
   - [Stage 6 – Living World](#stage-6--living-world)
   - [Stage 7 – Contributions and Event Screen](#stage-7--contributions-and-event-screen)
   - [Stage 8 – Minigames, Treasure Hunt and Highscores](#stage-8--minigames-treasure-hunt-and-highscores)
-  - [Stage 9 – Event Readiness and Shutdown](#stage-9--event-readiness-and-shutdown)
+  - [Stage 9 – Event Readiness](#stage-9--event-readiness)
+  - [Stage 10 – After the Event](#stage-10--after-the-event)
   - [Event Operation and Follow-Up (not a development stage)](#event-operation-and-follow-up-not-a-development-stage)
 - [29. Guiding Idea and Core Principles of Zappaloo](#29-guiding-idea-and-core-principles-of-zappaloo)
   - [Zappaloo accompanies an event before, during and after](#zappaloo-accompanies-an-event-before-during-and-after)
@@ -2195,7 +2196,7 @@ Implementation proceeds in stages. The system is deployed to the VPS from the fi
 
 The concrete steps of each stage are agreed before the stage starts (see CLAUDE.md).
 
-**The spec is a draft.** Implementation starts only once the ratio between value and effort of the specified scope is accepted.
+The spec is approved (2026-11-04). The steps of each stage and the status reports are in [implementation-plan.md](implementation-plan.md).
 
 ## Release 1 (early): Invitations and RSVP — Stages 1–3
 
@@ -2221,7 +2222,7 @@ Requirements: OPS-01–06, DATA-01, DATA-04, LANG-01, SEC-03, SEC-10.
 - Event settings, access conditions, sign-in everywhere, server-side enforcement.
 - Admin pages for users, roles, invitations, groups and settings.
 
-Requirements: ACC, ROLE, INV, ACS (except ACS-10–14), GRP, CFG-02, CFG-03, CFG-05, DATA-02, DATA-03, SEC-01, SEC-02.
+Requirements: ACC, ROLE, INV, ACS (except ACS-04, ACS-10–14), GRP, CFG-02, CFG-03, CFG-05, DATA-02, DATA-03, SEC-01, SEC-02.
 
 ## Stage 3 – RSVP and Waiting Page (completes Release 1)
 
@@ -2237,7 +2238,7 @@ Requirements: RSVP, ACS-10–14, SEC-09, SEC-11.
 - Website pages, responsive layout, Markdown editing.
 - Structured schedule with "now / next".
 
-Requirements: CNT, WEB (except WEB-05, WEB-06), LANG-02, CFG-01, CFG-04, SEC-05.
+Requirements: CNT, WEB (except WEB-05, WEB-06, WEB-08), LANG-02, CFG-01, CFG-04, SEC-05.
 
 ## Stage 5 – Game World and Map Importer
 
@@ -2247,7 +2248,7 @@ Requirements: CNT, WEB (except WEB-05, WEB-06), LANG-02, CFG-01, CFG-04, SEC-05.
 - Landing in the game, guided first entry, button bar, loading time.
 - Template map set.
 
-Requirements: GAME, MAP, AVA, PERF-04.
+Requirements: GAME, MAP, AVA (except AVA-04), WEB-08, PERF-04.
 
 ## Stage 6 – Living World
 
@@ -2255,7 +2256,7 @@ Requirements: GAME, MAP, AVA, PERF-04.
 - Profile photo, greeting, "How I know the couple" and speech bubble.
 - Seating plan and table finder with tablemates.
 
-Requirements: PRES.
+Requirements: PRES, AVA-04.
 
 ## Stage 7 – Contributions and Event Screen
 
@@ -2264,7 +2265,7 @@ Requirements: PRES.
 - Moderation queue with swipe view, gallery release.
 - Event screen with photo wall and read-only screen link.
 
-Requirements: PHO, MOD, SCR-01, SCR-02, SCR-04, WEB-06, PERF-03.
+Requirements: PHO, MOD, ACS-04, SCR-01, SCR-02, SCR-04, WEB-06, PERF-03.
 
 ## Stage 8 – Minigames, Treasure Hunt and Highscores
 
@@ -2276,13 +2277,19 @@ Requirements: PHO, MOD, SCR-01, SCR-02, SCR-04, WEB-06, PERF-03.
 
 Requirements: MG, HUNT, SCR-05, WEB-05.
 
-## Stage 9 – Event Readiness and Shutdown
+## Stage 9 – Event Readiness
 
-- Automated deployment.
-- Export, shutdown notice and deletion.
-- Load test.
+- Load test on the production VPS.
+- All manual checks of the release checklist (test-strategy.md, section 7).
 
-Requirements: OPS-07, SEC-04, SEC-06–08, PERF-01.
+Requirements: PERF-01.
+
+## Stage 10 – After the Event
+
+- Export, shutdown notice and deletion. Mandatory: must be ready before the shutdown date.
+- Automated deployment (quality of life, can be done earlier if useful).
+
+Requirements: OPS-07, SEC-04, SEC-06–08.
 
 ## Event Operation and Follow-Up (not a development stage)
 

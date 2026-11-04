@@ -2,13 +2,14 @@
 
 ## Project
 
-<One paragraph: what the project is.> The specification in `spec/` is the source of truth; the code implements it.
+Zappaloo is a reusable event platform (first use: a wedding) that combines a browser-based pixel-art game world — the core experience — with a classic event website. Guests redeem printed invitations, answer the RSVP, explore the event venues with their avatar among the wandering figures of the other guests, share snapshots and keepsakes, and play minigames. Full TypeScript stack: React, Phaser 4, Node.js, SQLite, deployed with Docker Compose and Caddy. The specification in `spec/` is the source of truth; the code implements it.
 
 | Document | Content |
 |---|---|
 | `spec/README.md` | Purpose, document index, status of each spec topic |
 | `spec/sw-architecture.md` | Requirements, architecture, technology choices |
 | `spec/test-strategy.md` | Test levels, requirement traceability, "not yet implemented" list |
+| `spec/implementation-plan.md` | Stages and steps, preconditions per stage, releases, status reports |
 
 ## Working with the spec
 
@@ -20,25 +21,25 @@
 ## Requirement traceability
 
 - Every requirement is verified by at least one test, and each test names the requirement IDs it verifies:
-  - <backend, e.g.> `@pytest.mark.req("ABC-01")`
-  - <frontend / e2e, e.g.> `it("[ABC-01] does something", ...)`
-- A requirement report (`<command, e.g. python -m <pkg>.tools.req_report>`) lists requirement → tests → result. CI fails if an implemented requirement has no passing test. Requirements not implemented yet are listed in `spec/test-strategy.md` ("not yet implemented"); shrink that list as stages are delivered.
+  - Vitest (unit, component, integration): `it("[ABC-01] does something", ...)`
+  - Playwright (end-to-end): `test("[ABC-01][ABC-02] does something", ...)`
+- A requirement report (`npm run req-report`, built in step 1a) lists requirement → tests → result. CI fails if an implemented requirement has no passing test. Requirements not implemented yet are listed in `spec/test-strategy.md` ("not yet implemented"); shrink that list as stages are delivered.
 
 ## Implementation in stages
 
-- The spec is implemented in stages, each split into steps (1a, 1b, …). Agree on the stage and step plan with the user before starting a stage.
+- The spec is implemented in stages, each split into steps (1a, 1b, …), as planned in `spec/implementation-plan.md`. Before starting a stage, confirm its preconditions and steps with the user.
 - **The user creates branches and makes all commits. Never commit, and never create or switch branches.**
 - Each stage is built on a branch named `feature/stage-<n>` or `feature/stage-<n>-<text>`. Before changing any file for a step, check:
   - `git branch --show-current` matches the current stage (exactly `n`, so `stage-1` does not match `stage-10`);
   - the working tree is clean (the previous step is committed).
   If either check fails, stop and ask the user. Don't fix it yourself.
 - After each step: stop with a short summary (what changed, tests and their results, anything open) so the user can review and commit.
-- **When a stage is complete,** finish with the updated status plan:
+- **When a stage is complete,** write a status report using the template in `spec/implementation-plan.md` (section 4), append it to section 5 there, update the overview table in section 3, and show the report in the conversation. It includes:
   - a table of stage | content | status (done / next / open);
   - the remaining requirements grouped by stage, with numbers taken from the requirement report;
   - anything waiting on the user.
 
 ## Environment
 
-- <If the repo is on WSL / Windows:> The checkout has `core.fileMode=false`, so `chmod +x` is never committed. Invoke scripts explicitly (`bash script.sh`) and set the mode in the index: `git update-index --chmod=+x <file>` (check with `git ls-files -s <file>` → `100755`).
-- Commands: <how to run the tests, the linter, the requirement report, and the app>.
+- Development happens in the devcontainer (`.devcontainer/`): Node.js, Playwright browsers (Chromium, WebKit), Mailpit (caught emails, web UI on port 8025), sqlite3. Dev data lives in the `zappaloo-data-dev` volume at `/var/lib/zappaloo`.
+- Commands: defined in step 1a (tests, linter, requirement report, app). Add them here then.

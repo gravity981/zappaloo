@@ -2,7 +2,7 @@
 
 Zappaloo is a reusable digital event platform (e.g. for weddings) that combines a browser-based pixel-art game world with a classic, responsive event website. Both draw on one central content and data base. The game is the core experience: guests explore the event venues with their own avatar among the wandering figures of all attending guests, play minigames with central highscores, answer the RSVP, and contribute photos and messages via QR codes.
 
-**Status: draft.** Implementation starts only once the ratio between value and effort of the specified scope is accepted.
+**Status: approved (2026-11-04).** Implementation follows [implementation-plan.md](implementation-plan.md).
 
 This folder is the **source of truth**. The code implements the spec. When the code and the spec disagree, either the code gets fixed or the spec gets changed explicitly. Silent deviations are not allowed.
 
@@ -13,6 +13,7 @@ This folder is the **source of truth**. The code implements the spec. When the c
 | [README.md](README.md) | Purpose, document index, conventions, topic status, decisions |
 | [sw-architecture.md](sw-architecture.md) | Concept, architecture, technology choices, and all requirement tables |
 | [test-strategy.md](test-strategy.md) | Test levels, tooling, requirement traceability, "not yet implemented" list |
+| [implementation-plan.md](implementation-plan.md) | Stages and steps, preconditions, releases, status reports after each stage |
 
 ## Conventions
 
@@ -50,24 +51,24 @@ Status values: **specified** (requirements written, not implemented) · **in pro
 | PRES | Guest presence (wandering figures, speech bubble with profile) and seating | 3.6 | 13 (2 withdrawn) | 6 | specified |
 | HUNT | Treasure hunt | 3.7 | 7 | 8 | specified |
 | MG | Minigames, results, highscores | 4 | 13 | 8 | specified |
-| WEB | Classic website | 5 | 8 | 4, 7, 8 | specified |
+| WEB | Classic website | 5 | 8 | 4, 5, 7, 8 | specified |
 | LANG | Language and i18n | 5.3 | 2 | 1, 4 | specified |
 | SCR | Event screen (photo wall, live rankings) | 5.4 | 4 (2 withdrawn) | 7, 8 | specified |
 | CNT | Shared content base, Markdown editing | 6 | 5 | 4 | specified |
 | ACC | User accounts, authentication, email | 7 | 12 (1 withdrawn) | 2 | specified |
-| AVA | Avatars | 7.3 | 4 | 5 | specified |
+| AVA | Avatars | 7.3 | 4 | 5, 6 | specified |
 | RSVP | RSVP, event parts, accompanying persons | 7.4 | 9 | 3 | specified |
 | ROLE | Roles (vip, staff, admin) and staff capabilities | 8 | 8 (2 withdrawn) | 2 | specified |
 | INV | VIP invitations | 9 | 13 (6 withdrawn) | 2 | specified |
-| ACS | Sign-in, opening the platform, waiting page, upload links, access control | 10, 11 | 10 (4 withdrawn) | 2, 3 | specified |
+| ACS | Sign-in, opening the platform, waiting page, upload links, access control | 10, 11 | 10 (4 withdrawn) | 2, 3, 7 | specified |
 | GRP | Guest groups | 12 | 2 | 2 | specified |
 | PHO | Contributions: snapshots (gallery, photo wall) and keepsakes (keepsake page, printable book) | 13 | 17 (1 withdrawn) | 7 | specified |
 | MOD | Moderation (swipe view) | 13.7 | 5 | 7 | specified |
 | MAP | Tiled maps, map importer, template maps | 14 | 12 (2 withdrawn) | 5 | specified |
 | DATA | Database and data model | 18 | 4 | 1, 2 | specified |
 | CFG | Event configuration, installation model | 19, 20 | 5 | 2, 4 | specified |
-| OPS | Hosting, deployment, backups, CI/CD | 21–23 | 7 | 1, 9 | specified |
-| SEC | Security and privacy (Swiss FADP) | 24 | 11 | 1, 2, 3, 4, 9 | specified |
+| OPS | Hosting, deployment, backups, CI/CD | 21–23 | 7 | 1, 10 | specified |
+| SEC | Security and privacy (Swiss FADP) | 24 | 11 | 1, 2, 3, 4, 10 | specified |
 | PERF | Performance and load | 25 | 3 (1 withdrawn) | 5, 7, 9 | specified |
 | MP | Multiplayer — removed | 3.3 | 0 (6 withdrawn) | – | withdrawn |
 | GB | Guestbook — merged into PHO | 13.6 | 0 (4 withdrawn) | – | withdrawn |
@@ -131,6 +132,8 @@ Sections with no requirement table describe architecture and technology choices:
 | 2026-11-04 | The waiting page is a teaser: a pixel-art door ajar with figures building the world behind it, texts by RSVP status with name and number of waiting guests (DE defaults, editable), an optional countdown, and a "the door is open" email when the platform opens (ACS-11–14). |
 | 2026-11-04 | The project owner draws the door scene for the waiting page. It is the first art task, needed for Release 1 (stage 3) before any maps (ACS-12). |
 | 2026-11-04 | The backend stays TypeScript on Node.js, after Python (FastAPI) and Go were reconsidered once Colyseus was gone. Main reason: code shared between game and server (Tiled parsing, schemas, result structures), plus one language and toolchain (sw-architecture.md 15.1). Backend framework and database library are decided in stage 1. |
+| 2026-11-04 | Spec approved. Implementation follows implementation-plan.md, with a status report after each completed stage. To avoid dependencies on later stages, ACS-04 moves to stage 7, WEB-08 to stage 5 and AVA-04 to stage 6. |
+| 2026-11-04 | Releases aligned with stages. Stage 9 "Event Readiness" (load test, release checklist) completes Event-ready. New stage 10 "After the Event" holds export, shutdown and deletion (mandatory before the shutdown date) and automated deployment (quality of life). The release "Production-ready" is renamed "After the event". |
 | 2026-11-04 | Everything guests contribute is moderated in one queue before it appears on the event screen, in the gallery or in the guestbook. Swipe right approves and left rejects, with undo and a rejected list (MOD-01–05, SCR-03 withdrawn). Approved guestbook entries can appear on the event screen (SCR-06). |
 
 ## Open points
