@@ -31,6 +31,10 @@ services:
     image: caddy:2.11.7-alpine
     platform: linux/amd64
     restart: unless-stopped
+    labels:
+      # Compose does not recreate a container when an inline config changes; deploy.sh
+      # sets this fingerprint of the Caddy configuration, and a new value recreates Caddy.
+      zappaloo.caddy-config: ${CADDY_CONFIG_HASH:-}
     depends_on:
       - app
     ports:
@@ -59,7 +63,12 @@ configs:
   caddyfile:
     # TLS_MODE is "internal" (Caddy's local CA, staging) or the contact email for
     # Let's Encrypt (prod). The app sets X-Robots-Tag itself (SEC-10).
+    # default_sni: browsers send no server name (SNI) when opening an IP address
+    # (staging); without it Caddy finds no certificate and aborts the handshake.
     content: |
+      {
+        default_sni ${SITE_ADDRESS:?set SITE_ADDRESS in .env}
+      }
       ${SITE_ADDRESS:?set SITE_ADDRESS in .env} {
         tls ${TLS_MODE:?set TLS_MODE in .env}
         encode zstd gzip

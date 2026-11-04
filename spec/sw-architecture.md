@@ -1980,7 +1980,7 @@ flowchart LR
 - Staging and prod use the same Compose file (application and Caddy); only `.env` differs: host name, certificate source, image tag, volume, `APP_ENV` and mail settings. Staging therefore also tests the Caddy configuration.
 - Staging is not reachable from the internet. It runs only while a candidate is verified. Afterwards its containers are stopped and its volume, which holds a copy of real guest data, is deleted.
 - Staging never sends email to real recipients: its outgoing mail is caught by a Mailpit container in the staging project (Compose profile `mailpit`), whose web UI is reachable on port 8025 of the LAN server.
-- Staging uses HTTPS with a certificate from Caddy's internal CA (`tls internal`), since Let's Encrypt cannot reach the LAN. The project owner installs Caddy's root certificate once on the test devices. Let's Encrypt itself (OPS-02) is only checked on prod.
+- Staging uses HTTPS with a certificate from Caddy's internal CA (`tls internal`), since Let's Encrypt cannot reach the LAN. The project owner installs Caddy's root certificate once on the test devices. Because browsers send no server name (SNI) when opening an IP address, Caddy is configured with `default_sni` set to the site address. Let's Encrypt itself (OPS-02) is only checked on prod.
 - Images are built for `linux/amd64` only; both the VPS and the LAN server use that architecture.
 
 ## 23.5 Deployment
@@ -1989,16 +1989,17 @@ Each GitHub release and pre-release has a **deployment bundle** attached: `compo
 
 On each server, the environment has its own directory with the bundle files and:
 
-- `.env`: `IMAGE_TAG` and `APP_VERSION_SUFFIX` (23.6, maintained by `deploy.sh`), `APP_ENV`, `COMPOSE_PROJECT_NAME`, `DATA_VOLUME`, `SITE_ADDRESS` (`<domain>` for prod, the LAN IP address for staging), `TLS_MODE` (the contact email for Let's Encrypt on prod, `internal` for staging), `HTTP_PORT`/`HTTPS_PORT` (default 80/443), mail settings with `COMPOSE_PROFILES=mailpit` on staging, and `BACKUP_DIR` (host folder for pre-deploy database backups, default `./backups`). `deploy.sh` streams backups out of the container and back in for a restore through the Docker CLI, so they belong to the user running `deploy.sh`, have mode 600 (they contain personal data), and the stack needs no bind mount.
+- `.env`: `IMAGE_TAG` and `APP_VERSION_SUFFIX` (23.6, maintained by `deploy.sh`), `APP_ENV`, `COMPOSE_PROJECT_NAME`, `DATA_VOLUME`, `SITE_ADDRESS` (`<domain>` for prod, the LAN IP address for staging), `TLS_MODE` (the contact email for Let's Encrypt on prod, `internal` for staging), `HTTP_PORT`/`HTTPS_PORT` (default 80/443), and mail settings with `COMPOSE_PROFILES=mailpit` on staging.
+- `backups/`: pre-deploy database backups, a fixed folder in the environment's directory (it can be a symlink to another disk). `deploy.sh` streams backups out of the container and back in for a restore through the Docker CLI, so they belong to the user running `deploy.sh`, have mode 600 (they contain personal data), and the stack needs no bind mount.
 - `caddy-data` volume: Caddy's certificates and, on staging, its local CA. It is kept across deployments, so test devices keep trusting the same root certificate.
 - `secrets/session_secret`: the secret that signs session cookies, mode 600, created by `deploy.sh` on the first deployment. `deploy.sh` passes it to Compose as an environment-sourced secret, so it is never written to `.env`; the app reads it from `/run/secrets/session_secret`. Other secrets (SMTP password, backup credentials) are placed in `secrets/` by the project owner.
-- `ghcr-token` (optional): a read-only registry token (`read:packages`), only needed if the image is private; the user is `GHCR_USER` in `.env`.
+- `ghcr-token` (optional): a read-only registry token (`read:packages`), only needed if the image is private; the user is `GHCR_USER` in `.env`, and `deploy.sh` stops with a clear message if the token exists without it.
 
 `deploy.sh <staging|prod> <image tag>`:
 
 1. Pulls the image. If `ghcr-token` exists, it logs in to `ghcr.io` with it first.
-2. Creates the secret file if it does not exist yet. **prod:** creates a consistent backup of the database in `BACKUP_DIR` with the CLI command `backup` (23.8), named with timestamp and the running version. **staging:** replaces the staging data volume with a restore of the latest off-site backup (OPS-05). If no backup exists yet (backups not set up, or no prod release so far), it warns and continues with the existing staging data, or with an empty data volume on the first deployment. Deploying to staging never requires a prod release or a backup.
-3. Sets `IMAGE_TAG=<image tag>` and `APP_VERSION_SUFFIX` in `.env` (never `latest`) and runs `docker compose pull` and `docker compose up -d`.
+2. Creates the secret file if it does not exist yet. **prod:** creates a consistent backup of the database in `backups/` with the CLI command `backup` (23.8), named with timestamp and the running version. **staging:** replaces the staging data volume with a restore of the latest off-site backup (OPS-05). If no backup exists yet (backups not set up, or no prod release so far), it warns and continues with the existing staging data, or with an empty data volume on the first deployment. Deploying to staging never requires a prod release or a backup.
+3. Sets `IMAGE_TAG=<image tag>` and `APP_VERSION_SUFFIX` in `.env` (never `latest`) and runs `docker compose pull` and `docker compose up -d`. Compose does not notice a changed inline config, so `deploy.sh` labels the Caddy container with a fingerprint of `compose.yaml`, `SITE_ADDRESS` and `TLS_MODE`; when it changes, Caddy is recreated with the new configuration.
 4. The application applies database migrations on startup (DATA-04); if they fail, it does not start. On an empty data volume, the migrations create a new database.
 5. Reads the version from the image label (`docker inspect`) and waits until `GET /api/health` reports healthy with that same version (plus `-rc.N` for a release candidate, 23.6). If not, it stops and prints the rollback command (23.7).
 

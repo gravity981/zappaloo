@@ -4,7 +4,7 @@
 #   deploy.sh <staging|prod> <image tag>                       deploy
 #   deploy.sh prod <previous image tag> --restore <backup>     roll back with a backup
 #
-# <backup> is a file name in BACKUP_DIR. Options:
+# <backup> is a file name in ./backups. Options:
 #   --no-pull   use an image that exists locally (tests, local builds)
 # Environment: DEPLOY_HEALTH_TIMEOUT (seconds to wait for a healthy app, default 90)
 #
@@ -59,8 +59,8 @@ previous_tag=$(env_get IMAGE_TAG)
 suffix=""
 if [[ $tag =~ -(rc\.[0-9]+)$ ]]; then suffix=${BASH_REMATCH[1]}; fi
 
-backup_dir=$(env_get BACKUP_DIR)
-backup_dir=${backup_dir:-./backups}
+# Pre-deploy database backups (mode 600). May be a symlink to another disk.
+backup_dir=./backups
 
 compose() { docker compose "$@"; }
 app_running() { [ -n "$(compose ps --status running --quiet app 2>/dev/null)" ]; }
@@ -68,7 +68,9 @@ app_running() { [ -n "$(compose ps --status running --quiet app 2>/dev/null)" ];
 # --- 1. Image ----------------------------------------------------------------------
 if [ -n "$pull" ]; then
   if [ -f ghcr-token ]; then
-    docker login ghcr.io --username "$(env_get GHCR_USER)" --password-stdin < ghcr-token
+    ghcr_user=$(env_get GHCR_USER)
+    [ -n "$ghcr_user" ] || die "ghcr-token exists, but GHCR_USER in .env is empty; set it to the GitHub user name of the token"
+    docker login ghcr.io --username "$ghcr_user" --password-stdin < ghcr-token
   fi
   docker pull "$image"
 fi
@@ -87,6 +89,11 @@ chmod 600 secrets/session_secret
 SESSION_SECRET=$(cat secrets/session_secret)
 export SESSION_SECRET
 
+# Fingerprint of everything that shapes the Caddy configuration (compose.yaml label).
+CADDY_CONFIG_HASH=$(printf '%s\n%s\n' "$(env_get SITE_ADDRESS)" "$(env_get TLS_MODE)" \
+  | cat compose.yaml - | sha256sum | cut -c1-16)
+export CADDY_CONFIG_HASH
+
 backup=""
 if [ "$target" = "prod" ] && [ -z "$restore" ]; then
   if app_running; then
@@ -97,7 +104,7 @@ if [ "$target" = "prod" ] && [ -z "$restore" ]; then
       rm -f "$backup_dir/$backup"
       die "the database backup failed; nothing was deployed"
     fi
-    echo "Backed up the database to BACKUP_DIR/$backup."
+    echo "Backed up the database to backups/$backup."
   else
     echo "The app is not running: no backup before this deployment (first deployment?)."
   fi
@@ -113,7 +120,7 @@ if [ -n "$pull" ]; then compose pull --quiet; fi
 
 if [ -n "$restore" ]; then
   [ -f "$backup_dir/$restore" ] || die "backup $backup_dir/$restore not found"
-  echo "Restoring the database from BACKUP_DIR/$restore."
+  echo "Restoring the database from backups/$restore."
   compose stop app
   # A one-off container on the same data volume reads the backup from stdin.
   compose run --rm --no-deps -T app zappaloo restore - --force < "$backup_dir/$restore"

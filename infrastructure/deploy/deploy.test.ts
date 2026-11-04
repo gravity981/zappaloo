@@ -11,6 +11,8 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 const bundle = fileURLToPath(new URL(".", import.meta.url));
 const REPOSITORY = "ghcr.io/gravity981/zappaloo";
+// Staging is reached by the LAN IP address (sw-architecture.md 23.4); any IP works here.
+const SITE_IP = "10.99.0.1";
 const sourceImage = process.env.ZAPPALOO_TEST_IMAGE ?? `${REPOSITORY}:local`;
 const run = `t${process.pid}`;
 // Tags only used by this test: a staging tag, and two prod release tags.
@@ -49,7 +51,7 @@ function createEnvironment(target: "staging" | "prod", httpsPort: number): Envir
     .replace(/^APP_ENV=.*$/m, `APP_ENV=${target}`)
     .replace(/^COMPOSE_PROJECT_NAME=.*$/m, `COMPOSE_PROJECT_NAME=${project}`)
     .replace(/^DATA_VOLUME=.*$/m, `DATA_VOLUME=${project}-data`)
-    .replace(/^SITE_ADDRESS=.*$/m, "SITE_ADDRESS=localhost")
+    .replace(/^SITE_ADDRESS=.*$/m, `SITE_ADDRESS=${SITE_IP}`)
     .replace(/^HTTP_PORT=.*$/m, `HTTP_PORT=${httpsPort - 1}`)
     .replace(/^HTTPS_PORT=.*$/m, `HTTPS_PORT=${httpsPort}`)
     .replace(/^MAILPIT_UI_PORT=.*$/m, `MAILPIT_UI_PORT=${httpsPort + 1}`)
@@ -142,7 +144,7 @@ describe("staging deployment", () => {
     expect(["", ":0"]).toContain(staging.compose("port", "app", "3000").trim());
   });
 
-  it("[OPS-01] Caddy serves the app over HTTPS with a certificate from its local CA", async () => {
+  it("[OPS-01] Caddy serves the app over HTTPS at an IP address, like a browser without SNI", async () => {
     const env = staging;
     if (!env) throw new Error("staging not deployed");
     // Trust only Caddy's root certificate, as a test device would after installing it.
@@ -162,14 +164,18 @@ describe("staging deployment", () => {
     expect(root).toContain("BEGIN CERTIFICATE");
 
     const response = env.node(
-      `const https = require("node:https");
-       let ca = ""; process.stdin.on("data", (d) => (ca += d)).on("end", () => {
-         https.get({ host: "caddy", port: 443, path: "/api/health", servername: "localhost",
-                     headers: { host: "localhost" }, ca }, (res) => {
+      // Connecting to an IP address, Node (like a browser) sends no server name (SNI).
+      // The certificate must chain to Caddy's root and be valid for the site's IP.
+      `const https = require("node:https"), tls = require("node:tls"), dns = require("node:dns");
+       const site = ${JSON.stringify(SITE_IP)};
+       let ca = ""; process.stdin.on("data", (d) => (ca += d)).on("end", () => dns.lookup("caddy", (err, ip) => {
+         if (err) { console.error(err.message); process.exit(1); }
+         https.get({ host: ip, port: 443, path: "/api/health", headers: { host: site }, ca,
+                     checkServerIdentity: (_host, cert) => tls.checkServerIdentity(site, cert) }, (res) => {
            let body = ""; res.on("data", (d) => (body += d)).on("end", () =>
              console.log(JSON.stringify({ status: res.statusCode, robots: res.headers["x-robots-tag"], body })));
          }).on("error", (e) => { console.error(e.message); process.exit(1); });
-       });`,
+       }));`,
       root,
     );
     const parsed = JSON.parse(response) as { status: number; robots: string; body: string };
@@ -196,6 +202,26 @@ describe("staging deployment", () => {
   });
 });
 
+describe("configuration changes", () => {
+  it("[OPS-15] a changed Caddy configuration in a new bundle takes effect on the next deployment", () => {
+    const env = staging;
+    if (!env) throw new Error("staging not deployed");
+    // A new bundle with a changed Caddyfile (inline in compose.yaml).
+    const composeFile = join(env.dir, "compose.yaml");
+    writeFileSync(
+      composeFile,
+      readFileSync(composeFile, "utf8").replace(
+        "        encode zstd gzip\n",
+        "        encode zstd gzip\n        # changed-in-new-bundle\n",
+      ),
+    );
+    expect(env.deploy(STAGING_TAG, "--no-pull").status).toBe(0);
+    expect(env.compose("exec", "-T", "caddy", "cat", "/etc/caddy/Caddyfile")).toContain(
+      "changed-in-new-bundle",
+    );
+  });
+});
+
 describe("prod deployment", () => {
   it("[OPS-15] prod accepts only release tags, and each directory only its own environment", () => {
     prod = createEnvironment("prod", 18443 + (process.pid % 500) * 3 + 1500);
@@ -213,6 +239,13 @@ describe("prod deployment", () => {
     );
     expect(wrongDirectory.status).not.toBe(0);
     expect(wrongDirectory.stderr).toContain("this directory is for APP_ENV=prod");
+
+    // A registry token without its user name is reported before anything is pulled.
+    writeFileSync(join(prod.dir, "ghcr-token"), "token");
+    const noUser = prod.deploy(RELEASE_TAG);
+    rmSync(join(prod.dir, "ghcr-token"));
+    expect(noUser.status).not.toBe(0);
+    expect(noUser.output).toContain("GHCR_USER in .env is empty");
   });
 
   it("[OPS-15] backs up the prod database before each deployment", () => {
@@ -226,7 +259,7 @@ describe("prod deployment", () => {
     sql(env, "INSERT INTO guests VALUES ('Anna')");
     const second = env.deploy(RELEASE_TAG, "--no-pull");
     expect(second.status).toBe(0);
-    const backup = /Backed up the database to BACKUP_DIR\/(\S+\.db)\./.exec(second.output)?.[1];
+    const backup = /Backed up the database to backups\/(\S+\.db)\./.exec(second.output)?.[1];
     expect(backup).toMatch(
       new RegExp(`^\\d{8}T\\d{6}Z_${label(sourceImage).replace(/[.+]/g, "\\$&")}\\.db$`),
     );

@@ -20,7 +20,7 @@ chmod +x deploy.sh
 nano .env          # APP_ENV, COMPOSE_PROJECT_NAME, DATA_VOLUME, SITE_ADDRESS, TLS_MODE, mail settings
 ```
 
-If the image is private, create a GitHub token with only `read:packages`, store it in `ghcr-token` (`chmod 600 ghcr-token`) and set `GHCR_USER` in `.env`.
+If the image is private, create a GitHub token with only `read:packages`, store it in `ghcr-token` (`chmod 600 ghcr-token`) and set `GHCR_USER` in `.env` to the GitHub user name the token belongs to.
 
 | Setting | Staging (LAN) | Prod (VPS) |
 |---|---|---|
@@ -37,7 +37,7 @@ If the image is private, create a GitHub token with only `read:packages`, store 
 ./deploy.sh prod <X.Y.Z>             # prod accepts release tags only
 ```
 
-`deploy.sh` pulls the image, creates `secrets/session_secret` on the first run, backs up the prod database to `BACKUP_DIR`, starts the stack and waits until `/api/health` reports the image's version. If that fails, it prints the rollback command.
+`deploy.sh` pulls the image, creates `secrets/session_secret` on the first run, backs up the prod database to `./backups` (mode 600; make `backups` a symlink to keep them on another disk), starts the stack and waits until `/api/health` reports the image's version. If that fails, it prints the rollback command.
 
 ## Roll back (prod)
 
