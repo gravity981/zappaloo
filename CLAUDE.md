@@ -47,11 +47,15 @@ Zappaloo is a reusable event platform (first use: a wedding) that combines a bro
 
 | Command | Does |
 |---|---|
+| `npm run dev:backend` / `npm run dev:frontend` | Backend on port 3000 (restarts on change; migrates `DATA_DIR` on start) / Vite on port 5173, proxying `/api` to the backend |
+| `npm run build` | Production build of the frontend (`frontend/dist`) |
+| `npm run cli -- <command>` | The `zappaloo` CLI from source (`version`, `migrate`, …) |
+| `npm run db:generate -w backend` | New Drizzle migration after a change of `backend/src/database/schema.ts` |
 | `npm run lint` | ESLint (type-checked rules), no warnings allowed |
 | `npm run format` / `npm run format:check` | Prettier (Markdown is excluded) |
 | `npm run typecheck` | `tsc` for the root (scripts, e2e, configs) and every workspace |
 | `npm test` | Vitest, all workspaces; JSON results in `reports/vitest.json` |
-| `npm run test:e2e` | Playwright (desktop/mobile, Chromium/WebKit); JSON results in `reports/playwright.json` |
+| `npm run test:e2e` | Playwright (desktop/mobile, Chromium/WebKit) against the backend serving a test build of the frontend (port 4173, data in `.e2e-data/`); JSON results in `reports/playwright.json` |
 | `npm run req-report` | Requirement report from the spec and both JSON results; full report in `reports/requirements.md`; non-zero exit on errors |
 | `npm run check` | All of the above in CI order |
 

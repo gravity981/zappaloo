@@ -19,9 +19,13 @@
     "typecheck": "tsc -p tsconfig.json && npm run typecheck --workspaces --if-present",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:e2e": "playwright test --pass-with-no-tests",
+    "test:e2e": "playwright test",
     "req-report": "node scripts/req-report/cli.ts",
-    "check": "npm run lint && npm run format:check && npm run typecheck && npm run test && npm run test:e2e && npm run req-report"
+    "check": "npm run lint && npm run format:check && npm run typecheck && npm run build && npm run test && npm run test:e2e && npm run req-report",
+    "dev:backend": "npm run dev -w backend",
+    "dev:frontend": "npm run dev -w frontend",
+    "build": "npm run build -w frontend",
+    "cli": "node backend/src/cli.ts"
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",
@@ -29,10 +33,17 @@
     "@types/node": "26.6.6",
     "eslint": "10.14.0",
     "eslint-config-prettier": "10.1.8",
+    "eslint-plugin-i18next": "6.1.5",
+    "eslint-plugin-react-hooks": "7.1.1",
+    "eslint-plugin-react-refresh": "0.5.7",
     "globals": "17.14.0",
     "prettier": "3.9.10",
     "typescript": "6.0.3",
     "typescript-eslint": "8.72.1",
     "vitest": "5.1.0"
+  },
+  "allowScripts": {
+    "better-sqlite3": false,
+    "esbuild": false
   }
 }

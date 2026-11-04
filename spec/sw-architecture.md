@@ -1447,6 +1447,8 @@ The concrete version of each library is pinned in the project's package manageme
 **Decided in stage 1 (2026-11-04):**
 - **Backend framework: Fastify.** Schema-based route validation fits SEC-03, good TypeScript support, and its plugin model suits the modular monolith (section 17).
 - **Database access: Drizzle ORM on SQLite** (driver `better-sqlite3`). The schema is written in TypeScript; drizzle-kit generates versioned SQL migration files that are reviewed and committed (DATA-04).
+- **Input validation: Zod.** Schemas live in `shared/`, double as TypeScript types, and are used by the backend (Fastify via `fastify-type-provider-zod`, SEC-03), for `event.json` validation (CFG-02) and in frontend forms.
+- **i18n: react-i18next** with one JSON message file per language and namespace (LANG-01). Hard-coded UI strings are caught by the ESLint rule `i18next/no-literal-string`.
 
 ---
 
