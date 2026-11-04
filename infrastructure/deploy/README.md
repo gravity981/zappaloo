@@ -39,6 +39,20 @@ If the image is private, create a GitHub token with only `read:packages`, store 
 
 `deploy.sh` pulls the image, creates `secrets/session_secret` on the first run, backs up the prod database to `./backups` (mode 600; make `backups` a symlink to keep them on another disk), starts the stack and waits until `/api/health` reports the image's version. If that fails, it prints the rollback command.
 
+## Stop, start, restart
+
+In the environment's directory (`~/zappaloo-staging` or `~/zappaloo-prod`):
+
+```sh
+docker compose stop             # stop everything; data stays in the volumes
+docker compose start            # start the stopped containers again
+docker compose restart app      # restart only the app (or: caddy)
+```
+
+To (re)create containers – after a change of `.env` or `compose.yaml`, or after `docker compose down` – use `./deploy.sh <staging|prod> <current IMAGE_TAG from .env>`, not `docker compose up`: `deploy.sh` provides the session secret and the Caddy fingerprint and checks the health afterwards. `docker compose down` removes the containers but keeps the data volumes; never add `-v`, which deletes the data.
+
+Staging runs only while a release candidate is verified (sw-architecture.md 23.4): `docker compose stop` when done.
+
 ## Roll back (prod)
 
 ```sh
@@ -47,9 +61,11 @@ If the image is private, create a GitHub token with only `read:packages`, store 
 
 Data entered between the failed deployment and the rollback is lost.
 
-## Trust staging's certificate on a test device
+## Staging's certificate on a test device
 
-Staging uses Caddy's local CA. Export its root certificate once and install it on each test device (phone, laptop):
+Staging uses Caddy's local CA, which browsers don't know. On each device, open `https://<LAN IP>` once and accept the warning (Firefox: **Advanced → Accept the Risk and Continue**; Chrome/Edge: **Advanced → Proceed**; Safari on iPhone: **Show Details → visit this website**). The browser remembers it for that address.
+
+Optional, to get rid of the warning on a device: export the root certificate and install it there as a trusted authority (Firefox: Settings → Privacy & Security → View Certificates → Authorities → Import):
 
 ```sh
 docker compose exec caddy cat /data/caddy/pki/authorities/local/root.crt > zappaloo-staging-root.crt

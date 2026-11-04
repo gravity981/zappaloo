@@ -1,0 +1,47 @@
+{
+  // Development servers without Docker or Caddy (README.md, "Quick start").
+  // Run with Ctrl+Shift+P → "Tasks: Run Task" → "dev", then open http://localhost:5173.
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "dev",
+      "detail": "Backend (port 3000) and frontend (port 5173) in dev mode",
+      "dependsOn": ["dev: backend", "dev: frontend"],
+      "dependsOrder": "parallel",
+      "group": { "kind": "build", "isDefault": true },
+      "problemMatcher": []
+    },
+    {
+      "label": "dev: backend",
+      "detail": "API on port 3000, restarts on change, migrates the dev database",
+      "type": "npm",
+      "script": "dev:backend",
+      "isBackground": true,
+      "presentation": { "group": "dev", "panel": "dedicated", "clear": true },
+      "problemMatcher": {
+        "owner": "zappaloo-backend",
+        "pattern": { "regexp": "^__never_matches__$" },
+        "background": {
+          "beginsPattern": "Restarting|Watching",
+          "endsPattern": "Server listening at"
+        }
+      }
+    },
+    {
+      "label": "dev: frontend",
+      "detail": "Vite on port 5173, forwards /api to the backend",
+      "type": "npm",
+      "script": "dev:frontend",
+      "isBackground": true,
+      "presentation": { "group": "dev", "panel": "dedicated", "clear": true },
+      "problemMatcher": {
+        "owner": "zappaloo-frontend",
+        "pattern": { "regexp": "^__never_matches__$" },
+        "background": {
+          "beginsPattern": "VITE v",
+          "endsPattern": "ready in"
+        }
+      }
+    }
+  ]
+}

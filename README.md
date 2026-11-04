@@ -11,7 +11,7 @@ TypeScript throughout: React and Phaser 4 in the frontend, Fastify and SQLite (D
 You need VS Code with the Dev Containers extension and Docker. Everything else (Node.js, Playwright browsers, Mailpit, sqlite3) comes with the devcontainer.
 
 1. Clone the repository and open it in VS Code: **Dev Containers: Reopen in Container**. The first build takes a few minutes; dependencies are installed automatically (`npm ci`).
-2. Start backend and frontend, each in its own terminal:
+2. Start backend and frontend: in VS Code with **Ctrl+Shift+B** (task "dev", see [.vscode/tasks.json](.vscode/tasks.json)), or each in its own terminal:
 
    ```sh
    npm run dev:backend    # API on port 3000, restarts on change, migrates the dev database

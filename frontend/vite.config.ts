@@ -18,7 +18,13 @@ export default defineConfig({
     __APP_VERSION__: JSON.stringify(appVersion),
   },
   server: {
+    // All interfaces of the devcontainer: VS Code's port forwarding connects via
+    // IPv4, while "localhost" alone resolves to ::1 here. The container itself is
+    // only reachable through that forwarding.
+    host: "0.0.0.0",
     port: 5173,
+    // Fail instead of moving to another port that is not forwarded.
+    strictPort: true,
     headers: noIndexHeaders,
     proxy: {
       "/api": "http://localhost:3000",
