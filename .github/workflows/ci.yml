@@ -1,6 +1,7 @@
 # CI (sw-architecture.md 23.2, OPS-06, OPS-08): every pull request and every push
-# to main. The image is built and smoke-tested only after all checks passed, and
-# pushed to the registry only from main.
+# to main. The image is built, smoke-tested and deployment-tested only after all
+# checks passed, and pushed to the registry only from main. The requirement
+# report combines the results of both jobs.
 name: CI
 
 on:
@@ -48,14 +49,11 @@ jobs:
         run: npm test
       - name: End-to-end tests
         run: npm run test:e2e
-      - name: Requirement report
-        if: ${{ !cancelled() }}
-        run: npm run req-report
-      - name: Upload reports
+      - name: Upload test results
         if: ${{ !cancelled() }}
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
-          name: reports
+          name: test-results
           path: |
             reports/
             playwright-report/
@@ -65,7 +63,7 @@ jobs:
     name: Image
     needs: checks
     runs-on: ubuntu-24.04
-    timeout-minutes: 20
+    timeout-minutes: 30
     permissions:
       contents: read
       packages: write
@@ -76,13 +74,15 @@ jobs:
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version-file: .node-version
+          cache: npm
+      - run: npm ci
       - name: Determine version
         id: version
         run: node scripts/version/cli.ts ci --run-number "${{ github.run_number }}" --github-output
       - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
       - name: Build image
         run: >-
-          docker buildx build --load --provenance=false
+          docker buildx build --load --provenance=false --platform linux/amd64
           -f infrastructure/docker/Dockerfile
           --build-arg APP_VERSION="${{ steps.version.outputs.version }}"
           --build-arg APP_COMMIT="${{ steps.version.outputs.commit }}"
@@ -94,6 +94,17 @@ jobs:
           "$IMAGE:${{ steps.version.outputs.image_tag }}"
           "${{ steps.version.outputs.version }}"
           "${{ steps.version.outputs.commit }}"
+      - name: Deployment test
+        env:
+          ZAPPALOO_TEST_IMAGE: ${{ env.IMAGE }}:${{ steps.version.outputs.image_tag }}
+        run: npm run test:deploy
+      - name: Upload deployment test results
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: deploy-results
+          path: reports/vitest-deploy.json
+          retention-days: 14
       - name: Log in to the registry
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         uses: docker/login-action@81c6f93d4bc991e510b342a00b419b3bb4efc5c6 # v4.7.0
@@ -107,3 +118,32 @@ jobs:
           docker tag "$IMAGE:${{ steps.version.outputs.image_tag }}" "$IMAGE:main"
           docker push "$IMAGE:${{ steps.version.outputs.image_tag }}"
           docker push "$IMAGE:main"
+
+  report:
+    name: Requirement report
+    needs: [checks, image]
+    if: ${{ !cancelled() }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .node-version
+      # test-results keeps its reports/ folder; deploy-results is a single file.
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: test-results
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: deploy-results
+          path: reports
+      - name: Requirement report
+        run: npm run req-report
+      - name: Upload requirement report
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: requirement-report
+          path: reports/requirements.md
+          retention-days: 30

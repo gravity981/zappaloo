@@ -1,0 +1,81 @@
+# Zappaloo – one environment (staging or prod), sw-architecture.md 23.4–23.5.
+# Staging and prod use this same file; only .env differs. Start through deploy.sh,
+# which also sets IMAGE_TAG, APP_VERSION_SUFFIX and the session secret.
+name: ${COMPOSE_PROJECT_NAME:?set COMPOSE_PROJECT_NAME in .env}
+
+services:
+  app:
+    image: ghcr.io/gravity981/zappaloo:${IMAGE_TAG:?IMAGE_TAG is set by deploy.sh}
+    # Images are built for linux/amd64 only; the VPS and the LAN server use it (23.4).
+    platform: linux/amd64
+    restart: unless-stopped
+    environment:
+      APP_ENV: ${APP_ENV:?set APP_ENV in .env}
+      # Only a pre-release suffix (rc.N) can be added; the version itself is in the image (23.6).
+      APP_VERSION_SUFFIX: ${APP_VERSION_SUFFIX:-}
+      SESSION_SECRET_FILE: /run/secrets/session_secret
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-}
+      SMTP_USER: ${SMTP_USER:-}
+      MAIL_FROM: ${MAIL_FROM:-}
+    secrets:
+      - session_secret
+    volumes:
+      - data:/data
+      - ${BACKUP_DIR:-./backups}:/backups
+    # No published port: only Caddy is reachable from outside (OPS-03).
+    expose:
+      - "3000"
+
+  caddy:
+    image: caddy:2.11.7-alpine
+    platform: linux/amd64
+    restart: unless-stopped
+    depends_on:
+      - app
+    ports:
+      - "${HTTP_PORT:-80}:80"
+      - "${HTTPS_PORT:-443}:443"
+      - "${HTTPS_PORT:-443}:443/udp"
+    configs:
+      - source: caddyfile
+        target: /etc/caddy/Caddyfile
+    volumes:
+      # Certificates, and on staging Caddy's local CA: kept across deployments, so
+      # test devices keep trusting the same root certificate.
+      - caddy-data:/data
+      - caddy-config:/config
+
+  # Staging only (COMPOSE_PROFILES=mailpit): catches all outgoing mail (OPS-13).
+  mailpit:
+    image: axllent/mailpit:v1.33.0
+    platform: linux/amd64
+    profiles: [mailpit]
+    restart: unless-stopped
+    ports:
+      - "${MAILPIT_UI_PORT:-8025}:8025"
+
+configs:
+  caddyfile:
+    # TLS_MODE is "internal" (Caddy's local CA, staging) or the contact email for
+    # Let's Encrypt (prod). The app sets X-Robots-Tag itself (SEC-10).
+    content: |
+      ${SITE_ADDRESS:?set SITE_ADDRESS in .env} {
+        tls ${TLS_MODE:?set TLS_MODE in .env}
+        encode zstd gzip
+        reverse_proxy app:3000 {
+          # Server-Sent Events: pass every event on immediately.
+          flush_interval -1
+        }
+      }
+
+secrets:
+  session_secret:
+    # deploy.sh reads secrets/session_secret (mode 600) into this variable.
+    environment: SESSION_SECRET
+
+volumes:
+  data:
+    name: ${DATA_VOLUME:?set DATA_VOLUME in .env}
+  caddy-data:
+  caddy-config:

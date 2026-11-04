@@ -57,13 +57,13 @@ Requirements: none (foundation for all later steps).
 Requirements: DATA-01, DATA-04, LANG-01, SEC-03, SEC-10, OPS-17.
 
 **1c – Continuous integration and versioned images.** `ci.yml` on every pull request and push to `main`: lint and format check, type checks, tests, end-to-end tests, requirement report, migration check; version determination; application image (Dockerfile) built with version and commit, smoke-tested via `GET /api/version`, pushed to GHCR from `main`; `cleanup-images.yml`; local `build-image.sh`. The project owner enables branch protection on `main` (sw-architecture.md 23.1, 23.2).
-Requirements: OPS-06, OPS-08, OPS-09, OPS-14.
+Requirements: OPS-06, OPS-08, OPS-14.
 
-**1d – Containers and staging.** Compose file with the application and Caddy; persistent volumes; `deploy.sh` (pull, secrets, prod pre-deploy backup, version-checked health check) and the deployment bundle; CLI `backup` and `restore`; first deployment of a `main` image to staging on the LAN, with an empty database and HTTPS from Caddy's local CA (sw-architecture.md 23.4–23.6, 23.8).
-Requirements: OPS-01, OPS-04, OPS-15, OPS-18.
+**1d – Containers and staging.** Compose file with the application and Caddy; persistent volumes; `deploy.sh` (pull, secrets, prod pre-deploy backup, version-checked health check) and the deployment bundle; CLI `backup` and `restore`; `deploy.sh --restore` for rollbacks, verified by the deployment test; first deployment of a `main` image to staging on the LAN, with an empty database and HTTPS from Caddy's local CA (sw-architecture.md 23.4–23.8).
+Requirements: OPS-01, OPS-04, OPS-15, OPS-16, OPS-18.
 
-**1e – Releases and production.** `release-candidate.yml` and `promote.yml`; tag ruleset for `v*` (set up by the project owner); firewall and SSH restrictions on the VPS; Let's Encrypt on prod; first release candidate verified on staging, promoted to release `0.1.0` and deployed to prod; rollback with `deploy.sh --restore` tried once (sw-architecture.md 23.3, 23.7).
-Requirements: OPS-02, OPS-03, OPS-10, OPS-11, OPS-12, OPS-16.
+**1e – Releases and production.** `release-candidate.yml` and `promote.yml`; tag ruleset for `v*` (set up by the project owner); firewall and SSH restrictions on the VPS; Let's Encrypt on prod; first release candidate verified on staging, promoted to release `0.1.0` and deployed to prod; rollback with `deploy.sh --restore` tried once on prod as a manual drill (sw-architecture.md 23.3, 23.7).
+Requirements: OPS-02, OPS-03, OPS-10, OPS-11, OPS-12.
 
 **1f – Backups and staging data.** Regular off-site backups of database, uploads, imported maps and event configuration; a scripted restore; staging deploys restore the latest off-site backup, with mail caught and the volume deleted after verification.
 Requirements: OPS-05, OPS-13.

@@ -4,6 +4,7 @@
 import { buildApp } from "./app.ts";
 import { loadConfig } from "./config.ts";
 import { dataPaths, ensureDataDirs } from "./data-dir.ts";
+import { startHeartbeat } from "./database/backup.ts";
 import { openDatabase, runMigrations } from "./database/database.ts";
 import { resolveVersion } from "./version.ts";
 
@@ -24,9 +25,13 @@ async function main(): Promise<void> {
   });
   app.log.info({ version, dataDir: paths.root, migrationsApplied: applied }, "starting");
 
+  // Lets `zappaloo restore` see that the database is in use.
+  const stopHeartbeat = startHeartbeat(paths);
+
   const shutdown = (signal: string) => {
     app.log.info(`${signal} received, shutting down`);
     void app.close().then(() => {
+      stopHeartbeat();
       database.close();
       process.exit(0);
     });

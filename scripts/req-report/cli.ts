@@ -1,4 +1,4 @@
-// npm run req-report [-- --spec-dir spec --vitest reports/vitest.json
+// npm run req-report [-- --spec-dir spec --vitest reports/vitest.json,reports/vitest-deploy.json
 //                       --playwright reports/playwright.json --out reports/requirements.md]
 //
 // Reads the spec and the JSON test results, prints a summary, writes the full
@@ -16,7 +16,8 @@ import { parseNotImplemented, parseRequirements, parseStages } from "./spec.ts";
 const { values: args } = parseArgs({
   options: {
     "spec-dir": { type: "string", default: "spec" },
-    vitest: { type: "string", default: "reports/vitest.json" },
+    // Comma-separated: the main run and the deployment test (npm run test:deploy)
+    vitest: { type: "string", default: "reports/vitest.json,reports/vitest-deploy.json" },
     playwright: { type: "string", default: "reports/playwright.json" },
     out: { type: "string", default: "reports/requirements.md" },
   },
@@ -32,7 +33,9 @@ inputErrors.push(...requirements.errors, ...notImplemented.errors);
 
 const tests: TestCase[] = [];
 const results: [string, (json: unknown) => TestCase[]][] = [
-  [args.vitest, parseVitestResults],
+  ...args.vitest
+    .split(",")
+    .map((path): [string, (json: unknown) => TestCase[]] => [path.trim(), parseVitestResults]),
   [args.playwright, parsePlaywrightResults],
 ];
 for (const [path, parse] of results) {

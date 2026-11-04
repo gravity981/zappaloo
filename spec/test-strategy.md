@@ -73,13 +73,13 @@ CI runs the report after the test jobs and fails the build on a non-zero exit.
 | MAP | Unit, Integration, E2E | Test maps exported from Tiled live in test fixtures, including invalid ones. Import validation, warnings for missing portal targets, portal properties from Tiled, `eventPart` and wander areas, rollback, new version used on next map entry with refreshed graphics. |
 | DATA | Integration | Migrations run from an empty DB and from the previous schema version with data. |
 | CFG | Unit, Integration | Valid and invalid `event.json` fixtures. Feature toggles and runtime settings changes checked in UI and API. |
-| OPS | Deployment smoke, Unit, Manual | Compose stack with Caddy in CI; image smoke test of `GET /api/version` (OPS-08); version determination and release-workflow checks (SemVer, candidate numbering, "only the latest candidate") as unit-tested scripts (OPS-08, OPS-10, OPS-11). See 6.1 for the manual part. |
+| OPS | Deployment smoke, Unit, Manual | Deployment test (`npm run test:deploy`, in CI after the image build): the real bundle (`compose.yaml`, `deploy.sh`) with the real image in Docker – staging without backup, HTTPS through Caddy with its local CA, data kept across redeployments and restarts, prod release-tag rule, pre-deploy backup, failed deployment and rollback with `--restore` (OPS-01, OPS-04, OPS-15, OPS-16). Image smoke test of `GET /api/version` (OPS-08); version determination and release-workflow checks (SemVer, candidate numbering, "only the latest candidate") as unit-tested scripts (OPS-08, OPS-10, OPS-11). See 6.1 for the manual part. |
 | SEC | Unit, Integration, E2E | CSRF, rate limits and schema validation per endpoint group. Markdown sanitising, noindex headers and `robots.txt`, privacy notice without sign-in. Shutdown flow with fake timers: notice email, export, deletion. |
 | PERF | Load | See open decision 6.2. |
 
 ## 5. Not yet implemented
 
-All active requirements are listed here until their stage is delivered. Shrink this list as stages are completed. The requirement report treats every ID listed here as "not yet implemented" and does not require a passing test for it. Withdrawn requirements (ACC-02, ACS-01 – ACS-03, ACS-08, GB-01 – GB-04, INV-13, INV-15 – INV-19, MAP-07, MAP-11, MP-01 – MP-06, PERF-02, PHO-04, PRES-03, PRES-11, ROLE-02, ROLE-10, SCR-03, SCR-06) are not listed, and the report ignores them.
+All active requirements are listed here until their stage is delivered. Shrink this list as stages are completed. The requirement report treats every ID listed here as "not yet implemented" and does not require a passing test for it. Withdrawn requirements (ACC-02, ACS-01 – ACS-03, ACS-08, GB-01 – GB-04, INV-13, INV-15 – INV-19, MAP-07, MAP-11, MP-01 – MP-06, OPS-09, PERF-02, PHO-04, PRES-03, PRES-11, ROLE-02, ROLE-10, SCR-03, SCR-06) are not listed, and the report ignores them.
 
 | Prefix | IDs | Count |
 |---|---|---|
@@ -103,10 +103,10 @@ All active requirements are listed here until their stage is delivered. Shrink t
 | MAP | MAP-01 – MAP-06, MAP-08 – MAP-10, MAP-12 – MAP-14 | 12 |
 | DATA | DATA-02, DATA-03 | 2 |
 | CFG | CFG-01 – CFG-05 | 5 |
-| OPS | OPS-01 – OPS-05, OPS-07, OPS-09 – OPS-13, OPS-15, OPS-16, OPS-18 | 14 |
+| OPS | OPS-02, OPS-03, OPS-05, OPS-07, OPS-10 – OPS-13 | 8 |
 | SEC | SEC-01, SEC-02, SEC-04 – SEC-09, SEC-11 | 9 |
 | PERF | PERF-01, PERF-03, PERF-04 | 3 |
-| **Total** | | **192** |
+| **Total** | | **186** |
 
 The stage each requirement belongs to is listed in `sw-architecture.md`, section 28.
 
@@ -117,7 +117,7 @@ The stage each requirement belongs to is listed in `sw-architecture.md`, section
 These requirements need a production environment, real devices or real time to verify completely:
 
 - OPS-02 (Let's Encrypt in production), OPS-03 (firewall on the VPS), OPS-05 (off-site backup and restore), OPS-07 (deployment to the VPS)
-- OPS-09 and OPS-12 (branch protection and tag ruleset in the GitHub repository settings), OPS-10 and OPS-11 (first real release candidate and promotion), OPS-13 (staging on the LAN restored from the off-site backup, mail caught, volume deleted afterwards), OPS-14 (image cleanup run), OPS-15 and OPS-16 (deployment to prod and a rollback drill with `deploy.sh`)
+- OPS-12 (tag ruleset in the GitHub repository settings), OPS-10 and OPS-11 (first real release candidate and promotion), OPS-13 (staging on the LAN restored from the off-site backup, mail caught, volume deleted afterwards), OPS-14 (image cleanup run), OPS-15 and OPS-16 (deployment to prod and a rollback drill with `deploy.sh`)
 - PHO-03 (camera capture on real iOS and Android devices)
 - PERF-01 (load test on the target VPS)
 

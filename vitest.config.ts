@@ -2,6 +2,8 @@ import { defineConfig } from "vitest/config";
 
 // One Vitest run for the whole monorepo. Each workspace is a project; the JSON
 // results feed the requirement report (spec/test-strategy.md, section 3).
+// The deployment test (Docker) is its own project, run by `npm run test:deploy`
+// with its own result file (VITEST_JSON).
 export default defineConfig({
   test: {
     projects: [
@@ -19,7 +21,19 @@ export default defineConfig({
         },
       },
       { test: { name: "scripts", include: ["scripts/**/*.test.ts"] } },
+      {
+        test: {
+          name: "deploy",
+          include: ["infrastructure/**/*.test.ts"],
+          testTimeout: 300_000,
+          hookTimeout: 300_000,
+          fileParallelism: false,
+        },
+      },
     ],
-    reporters: ["default", ["json", { outputFile: "reports/vitest.json" }]],
+    reporters: [
+      "default",
+      ["json", { outputFile: process.env.VITEST_JSON ?? "reports/vitest.json" }],
+    ],
   },
 });

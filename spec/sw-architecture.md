@@ -1917,7 +1917,7 @@ Production data and uploads must never be overwritten or deleted by a deployment
 ## 23.2 Branches and CI
 
 - `main` is always releasable. Work happens on short-lived feature branches (one per stage, see implementation-plan.md) and is merged into `main` through pull requests.
-- Branch protection on `main`: merge only through a pull request with the CI workflow passing.
+- No branch protection on `main` (single developer). CI runs on every pull request and push, and a release candidate is only built from a commit whose CI passed (23.3).
 - Workflow **`ci.yml`** runs on every pull request and every push to `main`:
 
 | Step | Tools |
@@ -1974,24 +1974,24 @@ flowchart LR
 | Environment | Runs | Data | Purpose |
 |---|---|---|---|
 | dev | devcontainer, from source | volume `zappaloo-data-dev` | Development |
-| staging | LAN server of the project owner (x86-64), Compose project `zappaloo-staging`, `https://<LAN host name>` with a certificate from Caddy's local CA | volume `zappaloo-data-staging`, replaced by a restore of the latest off-site backup (database, maps, tilesets, photos) at each staging deploy, deleted after verification | Verify a release candidate, including migrations on real data; real-device tests on the LAN |
+| staging | LAN server of the project owner (x86-64), Compose project `zappaloo-staging`, `https://<LAN IP address>` with a certificate from Caddy's local CA | volume `zappaloo-data-staging`, replaced by a restore of the latest off-site backup (database, maps, tilesets, photos) at each staging deploy, deleted after verification | Verify a release candidate, including migrations on real data; real-device tests on the LAN |
 | prod | Infomaniak VPS, Compose project `zappaloo`, `https://<domain>` | volume `zappaloo-data-prod` | Production |
 
 - Staging and prod use the same Compose file (application and Caddy); only `.env` differs: host name, certificate source, image tag, volume, `APP_ENV` and mail settings. Staging therefore also tests the Caddy configuration.
 - Staging is not reachable from the internet. It runs only while a candidate is verified. Afterwards its containers are stopped and its volume, which holds a copy of real guest data, is deleted.
-- Staging never sends email to real recipients: its outgoing mail is caught by a Mailpit container in the staging project.
+- Staging never sends email to real recipients: its outgoing mail is caught by a Mailpit container in the staging project (Compose profile `mailpit`), whose web UI is reachable on port 8025 of the LAN server.
 - Staging uses HTTPS with a certificate from Caddy's internal CA (`tls internal`), since Let's Encrypt cannot reach the LAN. The project owner installs Caddy's root certificate once on the test devices. Let's Encrypt itself (OPS-02) is only checked on prod.
 - Images are built for `linux/amd64` only; both the VPS and the LAN server use that architecture.
 
 ## 23.5 Deployment
 
-Each GitHub release and pre-release has a **deployment bundle** attached: `compose.yaml`, `Caddyfile`, `deploy.sh` and `.env.example`.
+Each GitHub release and pre-release has a **deployment bundle** attached: `compose.yaml`, `deploy.sh` and `.env.example`. The Caddy configuration is part of `compose.yaml` (an inline Compose config), so the bundle needs no further files and no bind-mounted configuration.
 
 On each server, the environment has its own directory with the bundle files and:
 
-- `.env`: `IMAGE_TAG`, `APP_VERSION_SUFFIX` (23.6), `APP_ENV`, `SITE_ADDRESS` (`<domain>` for prod, the LAN host name for staging), `TLS_MODE` (Let's Encrypt for prod, `internal` for staging), mail settings, and `BACKUP_DIR` (host folder for pre-deploy database backups, default `./backups`, mounted into the application container at `/backups`).
+- `.env`: `IMAGE_TAG` and `APP_VERSION_SUFFIX` (23.6, maintained by `deploy.sh`), `APP_ENV`, `COMPOSE_PROJECT_NAME`, `DATA_VOLUME`, `SITE_ADDRESS` (`<domain>` for prod, the LAN IP address for staging), `TLS_MODE` (the contact email for Let's Encrypt on prod, `internal` for staging), `HTTP_PORT`/`HTTPS_PORT` (default 80/443), mail settings with `COMPOSE_PROFILES=mailpit` on staging, and `BACKUP_DIR` (host folder for pre-deploy database backups, default `./backups`, mounted into the application container at `/backups`).
 - `caddy-data` volume: Caddy's certificates and, on staging, its local CA. It is kept across deployments, so test devices keep trusting the same root certificate.
-- `secrets/session_secret`: the secret that signs session cookies, mode 600, created by `deploy.sh` on the first deployment. Other secrets (SMTP password, backup credentials) are placed in `secrets/` by the project owner.
+- `secrets/session_secret`: the secret that signs session cookies, mode 600, created by `deploy.sh` on the first deployment. `deploy.sh` passes it to Compose as an environment-sourced secret, so it is never written to `.env`; the app reads it from `/run/secrets/session_secret`. Other secrets (SMTP password, backup credentials) are placed in `secrets/` by the project owner.
 - `ghcr-token` (optional): a read-only registry token (`read:packages`), only needed if the image is private; the user is `GHCR_USER` in `.env`.
 
 `deploy.sh <staging|prod> <image tag>`:
@@ -2002,7 +2002,7 @@ On each server, the environment has its own directory with the bundle files and:
 4. The application applies database migrations on startup (DATA-04); if they fail, it does not start. On an empty data volume, the migrations create a new database.
 5. Reads the version from the image label (`docker inspect`) and waits until `GET /api/health` reports healthy with that same version (plus `-rc.N` for a release candidate, 23.6). If not, it stops and prints the rollback command (23.7).
 
-Only release image tags (`X.Y.Z`) can be deployed to prod; staging accepts any image tag.
+Only release image tags (`X.Y.Z`) can be deployed to prod; staging accepts any image tag. `deploy.sh --no-pull` deploys an image that exists only locally (deployment tests, local builds); `DEPLOY_HEALTH_TIMEOUT` sets how long step 5 waits (default 90 seconds).
 
 Deployments are started manually until OPS-07 automates them (stage 10).
 
@@ -2055,7 +2055,7 @@ In dev, the same commands run from source with `npm run cli -- <command>`.
 | OPS-06 | On every commit and pull request, GitHub Actions runs the tests, the TypeScript checks, the builds and the requirement report. | Must |
 | OPS-07 | After successful checks, GitHub Actions deploys to the VPS and verifies the deployment status. | Should |
 | OPS-08 | Every build carries a version according to the version scheme (23.1), baked into the image once at build time together with the commit (23.6); `GET /api/version` returns both, `GET /api/health` and the website footer show the version, and CI checks the version with a smoke test of the built image. | Must |
-| OPS-09 | `main` is protected: changes reach it only through a pull request with a passing CI workflow. | Must |
+| OPS-09 | ~~`main` is protected: changes reach it only through a pull request with a passing CI workflow.~~ (withdrawn: single developer, no branch protection needed; release candidates still require a passing CI run, see OPS-10) | – |
 | OPS-10 | A release candidate is built from `main` by a manually started workflow after the full test suite passed, pushed with image tag `<version>-rc.<M>`, tagged `v<version>-rc.<M>` and published as a GitHub pre-release with the deployment bundle (23.3). | Must |
 | OPS-11 | Only the latest candidate of a version can be promoted to a release; promotion does not rebuild, adds the tag `v<version>` and the image tags `<version>`, `<major>.<minor>`, `<major>`, and creates a GitHub release (23.3). | Must |
 | OPS-12 | Tags `v*` can only be created by the release workflows and can't be moved or deleted. | Must |

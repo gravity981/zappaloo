@@ -52,7 +52,8 @@ Zappaloo is a reusable event platform (first use: a wedding) that combines a bro
 | `npm run cli -- <command>` | The `zappaloo` CLI from source (`version`, `migrate`, …) |
 | `npm run db:generate -w backend` | New Drizzle migration after a change of `backend/src/database/schema.ts` |
 | `npm run migration-check` | Schema has no change without a migration; migrations apply to an empty database and to the latest release's schema; released migrations unchanged |
-| `infrastructure/scripts/build-image.sh` | Local image build (`ghcr.io/gravity981/zappaloo:local`, version `<last release>+local.<commit>`) plus smoke test |
+| `npm run build:image` | Local image build (`ghcr.io/gravity981/zappaloo:local`, version `<last release>+local.<commit>`) plus smoke test |
+| `npm run test:deploy` | Deployment test: the bundle in `infrastructure/deploy/` with the image (default `:local`, or `ZAPPALOO_TEST_IMAGE`) in Docker; results in `reports/vitest-deploy.json` |
 | `npm run lint` | ESLint (type-checked rules), no warnings allowed |
 | `npm run format` / `npm run format:check` | Prettier (Markdown is excluded) |
 | `npm run typecheck` | `tsc` for the root (scripts, e2e, configs) and every workspace |

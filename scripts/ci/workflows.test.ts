@@ -15,9 +15,11 @@ interface Step {
   run?: string;
   uses?: string;
   if?: string;
+  env?: Record<string, string>;
 }
 interface Job {
   needs?: string | string[];
+  if?: string;
   permissions?: Record<string, string>;
   steps: Step[];
 }
@@ -43,6 +45,7 @@ function stepIndex(job: Job | undefined, text: string): number {
 describe("ci.yml", () => {
   const checks = ci.jobs.checks;
   const image = ci.jobs.image;
+  const report = ci.jobs.report;
 
   it("[OPS-06] runs on every pull request and every push to main", () => {
     expect(ci.on).toHaveProperty("pull_request");
@@ -59,19 +62,18 @@ describe("ci.yml", () => {
       "npm run build",
       "npm test",
       "npm run test:e2e",
-      "npm run req-report",
     ]) {
       expect(runs(checks), command).toContain(command);
     }
-    // The report reads the test results, so it runs after both test steps.
-    expect(stepIndex(checks, "npm run req-report")).toBeGreaterThan(
-      stepIndex(checks, "npm run test:e2e"),
-    );
-    expect(stepIndex(checks, "npm run req-report")).toBeGreaterThan(stepIndex(checks, "npm test"));
+    expect(runs(image)).toContain("npm run test:deploy");
+    // The report reads the results of both jobs, and runs even when tests failed.
+    expect(report?.needs).toEqual(["checks", "image"]);
+    expect(report?.if).toBe("${{ !cancelled() }}");
+    expect(runs(report)).toContain("npm run req-report");
   });
 
   it("[OPS-06] every npm script used by CI exists", () => {
-    for (const command of runs(checks)) {
+    for (const command of Object.values(ci.jobs).flatMap(runs)) {
       const script = /^npm run ([\w:-]+)/.exec(command)?.[1];
       if (script) expect(packageJson.scripts, script).toHaveProperty(script);
     }
@@ -98,12 +100,21 @@ describe("ci.yml", () => {
       stepIndex(image, "docker buildx build"),
     );
 
+    // The deployment test uses exactly the image that was built.
+    const deployTest = image?.steps.find((step) => step.run === "npm run test:deploy");
+    expect(deployTest?.env?.ZAPPALOO_TEST_IMAGE).toBe(
+      "${{ env.IMAGE }}:${{ steps.version.outputs.image_tag }}",
+    );
+    expect(stepIndex(image, "npm run test:deploy")).toBeGreaterThan(
+      stepIndex(image, "smoke-test-image.sh"),
+    );
+
     const push = image?.steps.find((step) => step.run?.includes("docker push"));
     expect(push?.if).toBe("github.event_name == 'push' && github.ref == 'refs/heads/main'");
     expect(push?.run).toContain('"$IMAGE:${{ steps.version.outputs.image_tag }}"');
     expect(push?.run).toContain('"$IMAGE:main"');
     expect(stepIndex(image, "docker push")).toBeGreaterThan(
-      stepIndex(image, "smoke-test-image.sh"),
+      stepIndex(image, "npm run test:deploy"),
     );
   });
 });

@@ -17,16 +17,18 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "typecheck": "tsc -p tsconfig.json && npm run typecheck --workspaces --if-present",
-    "test": "vitest run",
-    "test:watch": "vitest",
+    "test": "vitest run --project shared --project backend --project frontend --project scripts",
+    "test:watch": "vitest --project shared --project backend --project frontend --project scripts",
     "test:e2e": "playwright test",
     "req-report": "node scripts/req-report/cli.ts",
-    "check": "npm run lint && npm run format:check && npm run typecheck && npm run build && npm run test && npm run test:e2e && npm run req-report",
+    "check": "npm run lint && npm run format:check && npm run typecheck && npm run migration-check && npm run build && npm run test && npm run test:e2e && npm run build:image && npm run test:deploy && npm run req-report",
     "dev:backend": "npm run dev -w backend",
     "dev:frontend": "npm run dev -w frontend",
     "build": "npm run build -w frontend",
     "cli": "node backend/src/cli.ts",
-    "migration-check": "node scripts/migration-check/cli.ts"
+    "migration-check": "node scripts/migration-check/cli.ts",
+    "test:deploy": "VITEST_JSON=reports/vitest-deploy.json vitest run --project deploy",
+    "build:image": "infrastructure/scripts/build-image.sh"
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",

@@ -9,6 +9,8 @@ export interface DataPaths {
   database: string;
   uploads: string;
   maps: string;
+  /** Written by the running server (database/backup.ts: startHeartbeat). */
+  heartbeat: string;
 }
 
 export function dataPaths(root: string): DataPaths {
@@ -17,6 +19,7 @@ export function dataPaths(root: string): DataPaths {
     database: join(root, "zappaloo.db"),
     uploads: join(root, "uploads"),
     maps: join(root, "maps"),
+    heartbeat: join(root, "server.heartbeat"),
   };
 }
 
