@@ -65,6 +65,9 @@ configs:
     # Let's Encrypt (prod). The app sets X-Robots-Tag itself (SEC-10).
     # default_sni: browsers send no server name (SNI) when opening an IP address
     # (staging); without it Caddy finds no certificate and aborts the handshake.
+    # The two catch-all sites answer every other host name with 421 and a clear
+    # message, instead of Caddy's default empty page (e.g. a wrong SITE_ADDRESS).
+    # No on-demand TLS: a foreign server name simply fails the handshake.
     content: |
       {
         default_sni ${SITE_ADDRESS:?set SITE_ADDRESS in .env}
@@ -76,6 +79,13 @@ configs:
           # Server-Sent Events: pass every event on immediately.
           flush_interval -1
         }
+      }
+      https:// {
+        tls internal
+        respond "421 Misdirected Request: this server only answers to ${SITE_ADDRESS}" 421
+      }
+      http:// {
+        respond "421 Misdirected Request: this server only answers to ${SITE_ADDRESS}" 421
       }
 
 secrets:

@@ -16,6 +16,7 @@ interface Step {
   uses?: string;
   if?: string;
   env?: Record<string, string>;
+  with?: Record<string, unknown>;
 }
 interface Job {
   needs?: string | string[];
@@ -72,6 +73,18 @@ describe("ci.yml", () => {
     expect(runs(report)).toContain("npm run req-report");
   });
 
+  it("caches Playwright browsers per Playwright version, installing only system packages on a hit", () => {
+    const cache = checks?.steps.find((step) => step.uses?.startsWith("actions/cache@"));
+    expect(cache?.with?.path).toBe("~/.cache/ms-playwright");
+    expect(String(cache?.with?.key)).toContain("steps.playwright.outputs.version");
+    const install = checks?.steps.find((step) =>
+      step.run?.includes("playwright install --with-deps"),
+    );
+    const deps = checks?.steps.find((step) => step.run?.includes("playwright install-deps"));
+    expect(install?.if).toBe("steps.playwright-cache.outputs.cache-hit != 'true'");
+    expect(deps?.if).toBe("steps.playwright-cache.outputs.cache-hit == 'true'");
+  });
+
   it("[OPS-06] every npm script used by CI exists", () => {
     for (const command of Object.values(ci.jobs).flatMap(runs)) {
       const script = /^npm run ([\w:-]+)/.exec(command)?.[1];
@@ -94,11 +107,21 @@ describe("ci.yml", () => {
     const all = runs(image).join("\n");
     expect(all).toContain("node scripts/version/cli.ts ci --run-number");
     expect(all).toContain("github.run_number");
-    expect(all).toMatch(/--build-arg APP_VERSION="\$\{\{ steps\.version\.outputs\.version \}\}"/);
-    expect(all).toMatch(/--build-arg APP_COMMIT="\$\{\{ steps\.version\.outputs\.commit \}\}"/);
-    expect(stepIndex(image, "smoke-test-image.sh")).toBeGreaterThan(
-      stepIndex(image, "docker buildx build"),
+    const buildIndex = (image?.steps ?? []).findIndex((s) =>
+      s.uses?.startsWith("docker/build-push-action@"),
     );
+    const build = image?.steps[buildIndex]?.with ?? {};
+    expect(build.file).toBe("infrastructure/docker/Dockerfile");
+    expect(build["build-args"]).toBe(
+      "APP_VERSION=${{ steps.version.outputs.version }}\nAPP_COMMIT=${{ steps.version.outputs.commit }}\n",
+    );
+    expect(build.tags).toBe("${{ env.IMAGE }}:${{ steps.version.outputs.image_tag }}");
+    expect(build.load).toBe(true);
+    expect(build.push).toBe(false);
+    // Layer cache in the GitHub Actions cache.
+    expect(build["cache-from"]).toBe("type=gha");
+    expect(build["cache-to"]).toBe("type=gha,mode=max");
+    expect(stepIndex(image, "smoke-test-image.sh")).toBeGreaterThan(buildIndex);
 
     // The deployment test uses exactly the image that was built.
     const deployTest = image?.steps.find((step) => step.run === "npm run test:deploy");

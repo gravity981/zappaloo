@@ -184,6 +184,26 @@ describe("staging deployment", () => {
     expect(JSON.parse(parsed.body)).toMatchObject({ status: "ok" });
   });
 
+  it("[OPS-01] answers any other host name with 421 and a clear message instead of an empty page", () => {
+    const env = staging;
+    if (!env) throw new Error("staging not deployed");
+    // E.g. a SITE_ADDRESS that does not match the address in the browser.
+    const answers = env.node(
+      `const https = require("node:https"), http = require("node:http"), dns = require("node:dns");
+       const get = (proto, ip, port) => new Promise((resolve) =>
+         proto.get({ host: ip, port, path: "/", headers: { host: "10.99.0.2" }, rejectUnauthorized: false },
+           (res) => { let b = ""; res.on("data", (d) => (b += d)).on("end", () => resolve({ status: res.statusCode, body: b })); }));
+       dns.lookup("caddy", async (_e, ip) => {
+         console.log(JSON.stringify([await get(https, ip, 443), await get(http, ip, 80)]));
+       });`,
+    );
+    const expected = {
+      status: 421,
+      body: `421 Misdirected Request: this server only answers to ${SITE_IP}`,
+    };
+    expect(JSON.parse(answers)).toEqual([expected, expected]);
+  });
+
   it("[OPS-04] data survives redeployments and a full restart of the stack", () => {
     const env = staging;
     if (!env) throw new Error("staging not deployed");
