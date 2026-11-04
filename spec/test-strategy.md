@@ -73,7 +73,7 @@ CI runs the report after the test jobs and fails the build on a non-zero exit.
 | MAP | Unit, Integration, E2E | Test maps exported from Tiled live in test fixtures, including invalid ones. Import validation, warnings for missing portal targets, portal properties from Tiled, `eventPart` and wander areas, rollback, new version used on next map entry with refreshed graphics. |
 | DATA | Integration | Migrations run from an empty DB and from the previous schema version with data. |
 | CFG | Unit, Integration | Valid and invalid `event.json` fixtures. Feature toggles and runtime settings changes checked in UI and API. |
-| OPS | Deployment smoke, Manual | See open decision 6.1. |
+| OPS | Deployment smoke, Unit, Manual | Compose stack with Caddy in CI; image smoke test of `GET /api/version` (OPS-08); version determination and release-workflow checks (SemVer, candidate numbering, "only the latest candidate") as unit-tested scripts (OPS-08, OPS-10, OPS-11). See 6.1 for the manual part. |
 | SEC | Unit, Integration, E2E | CSRF, rate limits and schema validation per endpoint group. Markdown sanitising, noindex headers and `robots.txt`, privacy notice without sign-in. Shutdown flow with fake timers: notice email, export, deletion. |
 | PERF | Load | See open decision 6.2. |
 
@@ -91,7 +91,7 @@ All active requirements are listed here until their stage is delivered. Shrink t
 | LANG | LANG-01, LANG-02 | 2 |
 | SCR | SCR-01, SCR-02, SCR-04, SCR-05 | 4 |
 | CNT | CNT-01 – CNT-05 | 5 |
-| ACC | ACC-01, ACC-03 – ACC-13 | 12 |
+| ACC | ACC-01, ACC-03 – ACC-15 | 14 |
 | AVA | AVA-01 – AVA-04 | 4 |
 | RSVP | RSVP-01 – RSVP-09 | 9 |
 | ROLE | ROLE-01, ROLE-03 – ROLE-09 | 8 |
@@ -103,10 +103,10 @@ All active requirements are listed here until their stage is delivered. Shrink t
 | MAP | MAP-01 – MAP-06, MAP-08 – MAP-10, MAP-12 – MAP-14 | 12 |
 | DATA | DATA-01 – DATA-04 | 4 |
 | CFG | CFG-01 – CFG-05 | 5 |
-| OPS | OPS-01 – OPS-07 | 7 |
+| OPS | OPS-01 – OPS-18 | 18 |
 | SEC | SEC-01 – SEC-11 | 11 |
 | PERF | PERF-01, PERF-03, PERF-04 | 3 |
-| **Total** | | **188** |
+| **Total** | | **201** |
 
 The stage each requirement belongs to is listed in `sw-architecture.md`, section 28.
 
@@ -117,6 +117,7 @@ The stage each requirement belongs to is listed in `sw-architecture.md`, section
 These requirements need a production environment, real devices or real time to verify completely:
 
 - OPS-02 (Let's Encrypt in production), OPS-03 (firewall on the VPS), OPS-05 (off-site backup and restore), OPS-07 (deployment to the VPS)
+- OPS-09 and OPS-12 (branch protection and tag ruleset in the GitHub repository settings), OPS-10 and OPS-11 (first real release candidate and promotion), OPS-13 (staging on the LAN restored from the off-site backup, mail caught, volume deleted afterwards), OPS-14 (image cleanup run), OPS-15 and OPS-16 (deployment to prod and a rollback drill with `deploy.sh`)
 - PHO-03 (camera capture on real iOS and Android devices)
 - PERF-01 (load test on the target VPS)
 

@@ -1,0 +1,13 @@
+node_modules/
+dist/
+*.tsbuildinfo
+
+# Test output (Vitest/Playwright JSON results, requirement report, traces)
+reports/
+coverage/
+test-results/
+playwright-report/
+
+.env
+.env.*
+!.env.example

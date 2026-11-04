@@ -42,26 +42,31 @@ Each release goes into production. From Release 1 on, real guest data is stored,
 ### Stage 1 – Walking Skeleton and Deployment
 
 **Before the stage starts:**
-- Decide the backend framework (proposal: Fastify) and the database access library (proposal: Drizzle or Kysely on SQLite), see sw-architecture.md 15.1.
-- VPS at Infomaniak, domain and SSH access available.
-- Decide the off-site backup target (e.g. Infomaniak Swiss Backup or another S3-compatible storage).
+- Decide the backend framework and the database access library. *Decided 2026-11-04: Fastify, and Drizzle ORM on SQLite (sw-architecture.md 15.1).*
+- LAN server (x86-64) with Docker for staging. *Needed from step 1d.*
+- VPS at Infomaniak, domain and SSH access available. *Needed from step 1e.*
+- Decide the off-site backup target (e.g. Infomaniak Swiss Backup or another S3-compatible storage). *Moved: decided before step 1f.*
+- CI/CD adapted from the project owner's definitions (2026-11-04): version scheme, release candidates and promotion, GHCR, `deploy.sh` with rollback, staging on the LAN (sw-architecture.md 23, OPS-08–16).
 
 **Steps:**
 
 **1a – Monorepo and tooling.** npm workspaces `frontend`, `backend`, `shared`; TypeScript, ESLint, Prettier, Vitest and Playwright configured; the requirement report (`npm run req-report`) reads the spec, the "not yet implemented" list and the test results.
 Requirements: none (foundation for all later steps).
 
-**1b – Backend and frontend skeleton.** Backend with a health endpoint and schema validation of all inputs; SQLite with versioned migrations; React app with routing and the i18n framework; Phaser mounted with an empty scene; `robots.txt` and `X-Robots-Tag: noindex`.
-Requirements: DATA-01, DATA-04, LANG-01, SEC-03, SEC-10.
+**1b – Backend and frontend skeleton.** Backend with a health endpoint and schema validation of all inputs; SQLite with versioned migrations; React app with routing and the i18n framework; Phaser mounted with an empty scene; `robots.txt` and `X-Robots-Tag: noindex`; CLI with `version` and `migrate`.
+Requirements: DATA-01, DATA-04, LANG-01, SEC-03, SEC-10, OPS-17.
 
-**1c – Continuous integration.** GitHub Actions on every commit and pull request: lint, type checks, tests, builds, requirement report.
-Requirements: OPS-06.
+**1c – Continuous integration and versioned images.** `ci.yml` on every pull request and push to `main`: lint and format check, type checks, tests, end-to-end tests, requirement report, migration check; version determination; application image (Dockerfile) built with version and commit, smoke-tested via `GET /api/version`, pushed to GHCR from `main`; `cleanup-images.yml`; local `build-image.sh`. The project owner enables branch protection on `main` (sw-architecture.md 23.1, 23.2).
+Requirements: OPS-06, OPS-08, OPS-09, OPS-14.
 
-**1d – Containers and deployment.** Dockerfiles and Docker Compose; Caddy with automatic HTTPS; persistent volumes; firewall and SSH restrictions on the VPS; first manual deployment.
-Requirements: OPS-01, OPS-02, OPS-03, OPS-04.
+**1d – Containers and staging.** Compose file with the application and Caddy; persistent volumes; `deploy.sh` (pull, secrets, prod pre-deploy backup, version-checked health check) and the deployment bundle; CLI `backup` and `restore`; first deployment of a `main` image to staging on the LAN, with an empty database and HTTPS from Caddy's local CA (sw-architecture.md 23.4–23.6, 23.8).
+Requirements: OPS-01, OPS-04, OPS-15, OPS-18.
 
-**1e – Backups.** Regular off-site backups of database, uploads and imported maps; a scripted restore, tested once.
-Requirements: OPS-05.
+**1e – Releases and production.** `release-candidate.yml` and `promote.yml`; tag ruleset for `v*` (set up by the project owner); firewall and SSH restrictions on the VPS; Let's Encrypt on prod; first release candidate verified on staging, promoted to release `0.1.0` and deployed to prod; rollback with `deploy.sh --restore` tried once (sw-architecture.md 23.3, 23.7).
+Requirements: OPS-02, OPS-03, OPS-10, OPS-11, OPS-12, OPS-16.
+
+**1f – Backups and staging data.** Regular off-site backups of database, uploads, imported maps and event configuration; a scripted restore; staging deploys restore the latest off-site backup, with mail caught and the volume deleted after verification.
+Requirements: OPS-05, OPS-13.
 
 ### Stage 2 – Accounts, Roles and Access
 
@@ -73,8 +78,8 @@ Requirements: OPS-05.
 **2a – Event bootstrap and settings.** `events/<slug>/` directory read and validated at startup; event with `eventId` on all event-related records; feature toggles and settings changeable at runtime; audit log.
 Requirements: CFG-02, CFG-03, CFG-05, DATA-02, DATA-03.
 
-**2b – Accounts and sessions.** Login and logout, long-lived server-side sessions, password hashing, CSRF protection, rate limiting, profile, accounts created by an admin.
-Requirements: ACC-01, ACC-04, ACC-05, ACC-06, ACC-08, ACC-13, SEC-01, SEC-02.
+**2b – Accounts and sessions.** Login and logout, long-lived server-side sessions, password hashing, CSRF protection, rate limiting, profile, accounts created by an admin; CLI `create-admin` and `reset-password`.
+Requirements: ACC-01, ACC-04, ACC-05, ACC-06, ACC-08, ACC-13, ACC-14, ACC-15, SEC-01, SEC-02.
 
 **2c – Email and account self-service.** SMTP sending; optional email verification; password reset for verified addresses only; admin one-time reset link; users delete their own account. Deleting one's own contributions is added to the tests in stage 7.
 Requirements: ACC-03, ACC-09, ACC-10, ACC-11, ACC-12.

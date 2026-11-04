@@ -42,4 +42,17 @@ Zappaloo is a reusable event platform (first use: a wedding) that combines a bro
 ## Environment
 
 - Development happens in the devcontainer (`.devcontainer/`): Node.js, Playwright browsers (Chromium, WebKit), Mailpit (caught emails, web UI on port 8025), sqlite3. Dev data lives in the `zappaloo-data-dev` volume at `/var/lib/zappaloo`.
-- Commands: defined in step 1a (tests, linter, requirement report, app). Add them here then.
+- Monorepo with npm workspaces `shared`, `backend`, `frontend`; tooling scripts in `scripts/` run directly by Node.js (type stripping, imports with `.ts` extension).
+- Commands (from the repository root):
+
+| Command | Does |
+|---|---|
+| `npm run lint` | ESLint (type-checked rules), no warnings allowed |
+| `npm run format` / `npm run format:check` | Prettier (Markdown is excluded) |
+| `npm run typecheck` | `tsc` for the root (scripts, e2e, configs) and every workspace |
+| `npm test` | Vitest, all workspaces; JSON results in `reports/vitest.json` |
+| `npm run test:e2e` | Playwright (desktop/mobile, Chromium/WebKit); JSON results in `reports/playwright.json` |
+| `npm run req-report` | Requirement report from the spec and both JSON results; full report in `reports/requirements.md`; non-zero exit on errors |
+| `npm run check` | All of the above in CI order |
+
+- Run the tests before the requirement report; it reads their JSON results.

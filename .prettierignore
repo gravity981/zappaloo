@@ -1,0 +1,8 @@
+# Markdown (spec, CLAUDE.md) is written by hand; its tables stay as authored
+*.md
+package-lock.json
+reports/
+coverage/
+test-results/
+playwright-report/
+dist/
