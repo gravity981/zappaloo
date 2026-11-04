@@ -1,6 +1,8 @@
 # Zappaloo – Specification
 
-Zappaloo is a reusable digital event platform (e.g. for weddings) that combines a classic, responsive event website with a browser-based multiplayer pixel-art game world. Both draw on one central content and data base. Guests can explore the event venues with their own avatar, meet other guests, play minigames with central highscores, and upload photos via QR codes.
+Zappaloo is a reusable digital event platform (e.g. for weddings) that combines a browser-based pixel-art game world with a classic, responsive event website. Both draw on one central content and data base. The game is the core experience: guests explore the event venues with their own avatar among the wandering figures of all attending guests, play minigames with central highscores, answer the RSVP, and contribute photos and messages via QR codes.
+
+**Status: draft.** Implementation starts only once the ratio between value and effort of the specified scope is accepted.
 
 This folder is the **source of truth**. The code implements the spec. When the code and the spec disagree, either the code gets fixed or the spec gets changed explicitly. Silent deviations are not allowed.
 
@@ -44,27 +46,32 @@ Status values: **specified** (requirements written, not implemented) · **in pro
 
 | Prefix | Topic | Section in sw-architecture.md | Reqs (active) | Stage | Status |
 |---|---|---|---|---|---|
-| GAME | Game world, movement, interactive objects | 3 | 11 | 4 | specified |
-| MP | Multiplayer | 3, 17.1 | 6 | 5 | specified |
-| MG | Minigames, results, highscores | 4 | 11 | 7 | specified |
-| WEB | Classic website | 5 | 6 | 3, 6, 7 | specified |
+| GAME | Game world: entry, guided start, controls, movement, objects | 3 | 14 | 4 | specified |
+| PRES | Guest presence (wandering figures, speech bubble with profile) and seating | 3.6 | 13 (2 withdrawn) | 5 | specified |
+| HUNT | Treasure hunt | 3.7 | 7 | 7 | specified |
+| MG | Minigames, results, highscores | 4 | 13 | 7 | specified |
+| WEB | Classic website | 5 | 8 | 3, 6, 7 | specified |
 | LANG | Language and i18n | 5.3 | 2 | 1, 3 | specified |
+| SCR | Event screen (photo wall, live rankings) | 5.4 | 4 (2 withdrawn) | 6, 7 | specified |
 | CNT | Shared content base, Markdown editing | 6 | 5 | 3 | specified |
-| ACC | User accounts, authentication, email | 7 | 12 | 2 | specified |
+| ACC | User accounts, authentication, email | 7 | 12 (1 withdrawn) | 2 | specified |
 | AVA | Avatars | 7.3 | 4 | 4 | specified |
-| ROLE | Roles and staff capabilities | 8 | 9 (1 withdrawn) | 2 | specified |
-| INV | VIP invitation system | 9 | 14 | 2 | specified |
-| ACS | Anonymous access, self-registration, access control | 10, 11 | 8 | 2, 5 | specified |
+| RSVP | RSVP, event parts, accompanying persons | 7.4 | 9 | 3 | specified |
+| ROLE | Roles (vip, staff, admin) and staff capabilities | 8 | 8 (2 withdrawn) | 2 | specified |
+| INV | VIP invitations | 9 | 13 (6 withdrawn) | 2 | specified |
+| ACS | Sign-in, upload links, access control | 10, 11 | 5 (4 withdrawn) | 2 | specified |
 | GRP | Guest groups | 12 | 2 | 2 | specified |
-| PHO | Photo upload and gallery | 13 | 12 (1 withdrawn) | 6 | specified |
-| GB | Guestbook | 13.6 | 4 | 6 | specified |
-| MAP | Tiled maps and level editor | 14 | 11 | 4 | specified |
+| PHO | Contributions: snapshots (gallery, photo wall) and keepsakes (keepsake page, printable book) | 13 | 16 (1 withdrawn) | 6 | specified |
+| MOD | Moderation (swipe view) | 13.7 | 5 | 6 | specified |
+| MAP | Tiled maps, map importer, template maps | 14 | 12 (2 withdrawn) | 4 | specified |
 | DATA | Database and data model | 18 | 4 | 1, 2 | specified |
 | CFG | Event configuration, installation model | 19, 20 | 5 | 2, 3 | specified |
 | OPS | Hosting, deployment, backups, CI/CD | 21–23 | 7 | 1, 8 | specified |
 | SEC | Security and privacy (Swiss FADP) | 24 | 10 | 1, 2, 3, 8 | specified |
-| PERF | Performance and load | 25 | 3 | 5, 6, 8 | specified |
-| | **Total** | | **146** (148 IDs, 2 withdrawn) | | |
+| PERF | Performance and load | 25 | 3 (1 withdrawn) | 4, 6, 8 | specified |
+| MP | Multiplayer — removed | 3.3 | 0 (6 withdrawn) | – | withdrawn |
+| GB | Guestbook — merged into PHO | 13.6 | 0 (4 withdrawn) | – | withdrawn |
+| | **Total** | | **181** (212 IDs, 31 withdrawn) | | |
 
 Sections with no requirement table describe architecture and technology choices: 15 (stack), 16 (frontend), 17 (backend), 26 (project structure), 27 (decision summary), 28 (stages) and 29 (principles). Section 30 lists what is out of scope for the first version.
 
@@ -89,11 +96,38 @@ Sections with no requirement table describe architecture and technology choices:
 | 2026-11-04 | Privacy follows the Swiss FADP (revDSG). Shutdown flow: notice email, export, then automatic deletion. Whole site noindex (SEC-04–10). |
 | 2026-11-04 | Out of scope v1: chat, platform administration (ROLE-10 withdrawn), multi-event installations (section 30). |
 | 2026-11-04 | Order of work: 8 stages, deployed from stage 1, with admin functions built per topic (section 28). |
+| 2026-11-04 | Value features added (section 2.3): RSVP with event parts (RSVP), every guest's avatar always present in the world, with a seating plan and table finder (PRES), and an event screen with photo wall and live rankings behind a read-only link (SCR). Also a QR treasure hunt (HUNT), minigames on smartphones and startable from the website or a QR code (MG-12/13), and a template map set (MAP-12–14). |
+| 2026-11-04 | The spec stays a draft until the ratio between value and effort is accepted. |
+| 2026-11-04 | No self-registration (ACC-02, ROLE-02, ACS-03, INV-13 withdrawn). Accounts come only from invitations or from an admin. |
+| 2026-11-04 | Invitation requests: only signed-in VIPs can request an invitation for another person, who needs no invitation link. Admin approval emails a personal invitation link, and redeeming it with the same address marks the email verified (INV-15, INV-17–19; INV-16 withdrawn). |
+| 2026-11-04 | Supersedes the earlier sign-in rule for uploads: photos and guestbook entries can be submitted anonymously through revocable upload links in the venue QR codes, with an optional name (PHO-14, ACS-04). |
+| 2026-11-04 | Three roles: `vip` (every guest is treated as a VIP), `staff`, `admin`. The `visitor` role is removed, and guest groups handle subsets of guests (ROLE-01/03/09). |
+| 2026-11-04 | Accompanying persons (e.g. small children, people without a smartphone) are requested by their VIP and approved by the admin. They get no account and are part of the VIP's RSVP. They have a seat in the seating plan but no figure (RSVP-08/09, PRES-07). |
+| 2026-11-04 | No anonymous access. Website and game world require sign-in, except login, password reset, invitation redemption, privacy notice and upload-link pages. Long sessions keep sign-in rare (ACS-01/02 withdrawn, ACS-09, ACC-13). |
+| 2026-11-04 | The game experience is the core: a portal to a website page opens it as an overlay above the paused game (GAME-11). |
+| 2026-11-04 | The photo wall delay is configurable, with a default of 10 seconds (SCR-02). |
+| 2026-11-04 | The project owner draws the template map art (MAP-12). |
+| 2026-11-04 | Verification beyond CI: automate what is possible with Playwright, and record the rest in a manual test protocol (test-strategy.md 6.1). |
+| 2026-11-04 | Game first: after sign-in, users land in the game world. The website is one click away, and direct links open their target (GAME-12). |
+| 2026-11-04 | Accompanying persons get a static figure whose avatar their VIP chooses. Seat by default at the VIP's table, and the admin can override (PRES-07). |
+| 2026-11-04 | Guestbook and photos merged into contributions: photo, photo + text, or text only. One upload flow, moderation, gallery and wall. The capability is renamed to `moderateContributions`, and the feature toggles to `contributions` and `gallery` (PHO-15; GB-01–04 and SCR-06 withdrawn). |
+| 2026-11-04 | Entering the game: guided first sign-in (avatar → RSVP → free play), always-visible button bar with RSVP badge, first map playable within 5 s over 4G (GAME-13/14, PERF-04). |
+| 2026-11-04 | Contributions stay one upload flow and one moderation queue, but are presented separately. Photos (text as caption) go to the gallery and photo wall. Messages get their own page and a printable messages book (PDF) (PHO-15–17, SCR-02). |
+| 2026-11-04 | Map importer instead of level editor, so art can be improved without a redeployment. Portal targets are Tiled properties again, and the import warns about missing targets (MAP-03/05/08/10; MAP-07, MAP-11 withdrawn). |
+| 2026-11-04 | VIPs request accompanying persons without an account. The VIP fills in name, avatar and RSVP before submitting, and the admin approves. Email invitation requests are withdrawn (RSVP-08/09; INV-15, INV-17–19 withdrawn). |
+| 2026-11-04 | No real-time multiplayer. Attending guests (RSVP accepted) appear as figures wandering randomly in wander areas on the maps of their event parts (MP-01–06, PRES-03, ACS-08, PERF-02 withdrawn; PRES-01/02/08). |
+| 2026-11-04 | Getting to know each other: VIPs add an optional profile photo and one-line greeting (also for accompanying persons). Walking up to or tapping a figure shows a speech bubble with name, photo and greeting. Both are moderated, and tablemates are shown in the table finder. No avatar generation from photos (PRES-09–12, MOD-01). |
+| 2026-11-04 | Confirmed: accompanying persons are deleted with their VIP's account (RSVP-09), and the 5-second load target stays (PERF-04). |
+| 2026-11-04 | Contributions split by purpose. Snapshots (photo + optional caption) go to the gallery and the photo wall, captions included. Guestbook entries (text + optional photo) go to the guestbook page and a printable guestbook (PDF). Both share upload links, pipeline and moderation (PHO-02, PHO-15–17, SCR-02). |
+| 2026-11-04 | Speech bubble opens automatically for the nearest figure when the player comes close, closes on walking away, and stays open when clicked. Profile photos and lines are not moderated, but the admin can remove them (PRES-10, PRES-14; PRES-11 withdrawn). |
+| 2026-11-04 | One composer, two buttons: the guest adds a photo and/or text, then taps "Upload snapshot" (needs a photo) or "Upload keepsake" (photo, photo + text, or text). "Guestbook entry" is renamed to keepsake, with a keepsake page ("Gästebuch" in the German UI) and a printable keepsake book. The feature toggle is `keepsakes` (PHO-02, PHO-15–17). |
+| 2026-11-04 | "How I know the couple": a choice from an admin-defined list (wedding defaults), in addition to the free line. Shown as a badge in the speech bubble and table finder (PRES-15). |
+| 2026-11-04 | Live updates (event screen, moderation view, leaderboards) use Server-Sent Events (17.1). |
+| 2026-11-04 | "Now / next" on the event day: structured schedule, current and next entry on the start page and the Programme button. Optional "Go there" to the map (WEB-07, WEB-08). |
+| 2026-11-04 | RSVP without a "message to the hosts": messages belong in keepsakes. The song wish stays (RSVP-06). |
+| 2026-11-04 | Everything guests contribute is moderated in one queue before it appears on the event screen, in the gallery or in the guestbook. Swipe right approves and left rejects, with undo and a rejected list (MOD-01–05, SCR-03 withdrawn). Approved guestbook entries can appear on the event screen (SCR-06). |
 
 ## Open points
 
-- **Guestbook moderation:** the spec currently reuses the `moderatePhotos` capability for guestbook entries (ROLE-06, GB-02). Should there be a separate `moderateGuestbook` capability instead?
-- **Unverified self-registered accounts:** what can a self-registered user do before verifying their email (ACC-02)? Everything, sign-in only, or nothing?
-- **Anonymous players in the game world:** with `anonymousAccess` enabled, which avatar and name do anonymous players show to others? Or do they appear at all?
-- **Portal to a website page:** does the page open as an overlay above the paused game, or does the browser navigate to the website (GAME-11)?
-- **Verifying requirements that can't be fully automated** and the load test tool: see `test-strategy.md`, section 6.
+- **Gift list (optional feature, undecided):** the couple's wishes, which guests reserve or pledge a share of (e.g. a travel fund). No payments through the platform: bank details or TWINT QR code only, and the platform records pledges. Other guests don't see who gave what, and the couple gets an overview. Estimated effort ~3–4 points, value +0.5 to 1. If wanted: feature toggle `giftList`, priority Could. Build it only if the couple wants a gift list.
+- **Load test tool (PERF-01):** see `test-strategy.md`, section 6.2.
