@@ -58,47 +58,51 @@ CI runs the report after the test jobs and fails the build on a non-zero exit.
 
 | Topic | Main level(s) | Notes |
 |---|---|---|
-| GAME | Unit, E2E | Object type interpretation as unit tests. Movement, collisions and interaction via E2E with the test hook. |
-| MP | Integration, E2E | Colyseus room tests for join/leave/sync/validation. E2E with two browser contexts on the same map. |
-| MG | Unit, Integration, E2E | Plausibility checks as unit tests. API validation and storage as integration tests. Scene start/return as E2E. |
+| GAME | Unit, E2E | Object type interpretation, movement and collision logic, tap-to-move pathfinding as unit tests. Keyboard and tap control, portals and interaction via E2E with the test hook. |
+| MP | Integration, E2E | Colyseus room tests for join/leave/sync and position validation (too fast, through walls, out of bounds → corrected). E2E with two browser contexts on the same map. |
+| MG | Unit, Integration, E2E | Plausibility profiles as unit tests. Attempt IDs, API validation and storage as integration tests. Scene start/return as E2E. |
 | WEB | Component, E2E | E2E on desktop and mobile viewports. WEB-01 with the game bundle blocked. |
-| CNT | Integration, E2E | The same content item appears on the website page and in a game-world dialogue. |
-| ACC, AVA | Integration, Component, E2E | Email delivery is replaced by a test mail sink. |
+| CNT, LANG | Unit, Integration, E2E | The same content item appears on the website page and in a game-world dialogue. Markdown editing and preview via E2E. Language keys in the content model, and no hard-coded UI strings (lint check). |
+| ACC, AVA | Integration, Component, E2E | SMTP is replaced by a local test mail sink. Covers verified and unverified paths, and the admin reset link. |
 | ROLE, ACS, GRP | Unit, Integration | Full role-combination matrix as table-driven tests. Server enforcement tested per endpoint and per room join. |
-| INV | Integration | Includes a concurrency test for atomic redemption (INV-08). |
-| PHO | Integration, E2E, Manual | Fixture images in JPEG, PNG and HEIC, plus oversized and invalid files. Real-device camera check is manual. |
-| MAP | Unit | Test maps exported from Tiled live in test fixtures. |
+| INV | Integration | Includes a concurrency test for atomic redemption (INV-08) and the printable export at creation time (INV-14). |
+| PHO, GB | Integration, E2E, Manual | Fixture images in JPEG, PNG and HEIC, plus oversized and invalid files. Worker queue processed in tests. Guestbook moderation flow. Real-device camera check is manual. |
+| MAP | Unit, Integration, E2E | Test maps exported from Tiled live in test fixtures, including invalid ones. Import validation, portal target assignment, dangling-target detection, rollback and re-import with players online. |
 | DATA | Integration | Migrations run from an empty DB and from the previous schema version with data. |
-| CFG | Unit, Integration | Valid and invalid `event.json` fixtures. Feature toggles checked in UI and API. |
+| CFG | Unit, Integration | Valid and invalid `event.json` fixtures. Feature toggles and runtime settings changes checked in UI and API. |
 | OPS | Deployment smoke, Manual | See open decision 6.1. |
-| SEC | Unit, Integration | CSRF, rate limits and schema validation per endpoint group. |
+| SEC | Unit, Integration, E2E | CSRF, rate limits and schema validation per endpoint group. Markdown sanitising, noindex headers and `robots.txt`, privacy notice without sign-in. Shutdown flow with fake timers: notice email, export, deletion. |
 | PERF | Load | See open decision 6.2. |
 
 ## 5. Not yet implemented
 
-All requirements are listed here until their stage is delivered. Shrink this list as stages are completed. The requirement report treats every ID listed here as "not yet implemented" and does not require a passing test for it.
+All active requirements are listed here until their stage is delivered. Shrink this list as stages are completed. The requirement report treats every ID listed here as "not yet implemented" and does not require a passing test for it. Withdrawn requirements (ROLE-10, PHO-04) are not listed, and the report ignores them.
 
 | Prefix | IDs | Count |
 |---|---|---|
-| GAME | GAME-01 – GAME-08 | 8 |
-| MP | MP-01 – MP-05 | 5 |
-| MG | MG-01 – MG-10 | 10 |
+| GAME | GAME-01 – GAME-11 | 11 |
+| MP | MP-01 – MP-06 | 6 |
+| MG | MG-01 – MG-11 | 11 |
 | WEB | WEB-01 – WEB-06 | 6 |
-| CNT | CNT-01 – CNT-04 | 4 |
-| ACC | ACC-01 – ACC-08 | 8 |
+| LANG | LANG-01 – LANG-02 | 2 |
+| CNT | CNT-01 – CNT-05 | 5 |
+| ACC | ACC-01 – ACC-12 | 12 |
 | AVA | AVA-01 – AVA-04 | 4 |
-| ROLE | ROLE-01 – ROLE-10 | 10 |
-| INV | INV-01 – INV-13 | 13 |
+| ROLE | ROLE-01 – ROLE-09 | 9 |
+| INV | INV-01 – INV-14 | 14 |
 | ACS | ACS-01 – ACS-08 | 8 |
 | GRP | GRP-01 – GRP-02 | 2 |
-| PHO | PHO-01 – PHO-12 | 12 |
-| MAP | MAP-01 – MAP-04 | 4 |
+| PHO | PHO-01 – PHO-03, PHO-05 – PHO-13 | 12 |
+| GB | GB-01 – GB-04 | 4 |
+| MAP | MAP-01 – MAP-11 | 11 |
 | DATA | DATA-01 – DATA-04 | 4 |
-| CFG | CFG-01 – CFG-04 | 4 |
+| CFG | CFG-01 – CFG-05 | 5 |
 | OPS | OPS-01 – OPS-07 | 7 |
-| SEC | SEC-01 – SEC-04 | 4 |
+| SEC | SEC-01 – SEC-10 | 10 |
 | PERF | PERF-01 – PERF-03 | 3 |
-| **Total** | | **116** |
+| **Total** | | **146** |
+
+The stage each requirement belongs to is listed in `sw-architecture.md`, section 28.
 
 ## 6. Open decisions
 
@@ -133,4 +137,7 @@ Organisational items that are not software requirements:
 - Load test executed on the production VPS and result recorded (PERF-01).
 - Backup restore drill done (OPS-05).
 - Photo upload checked on at least one current iOS device and one current Android device (PHO-03).
-- QR codes printed and checked against the production URLs.
+- Emails (verification, password reset, shutdown notice) arrive through the production SMTP account and aren't marked as spam (sender domain SPF/DKIM set up).
+- Printed invitation QR codes tested against production: redemption works and the account becomes VIP.
+- Venue QR codes printed and checked against the production URLs.
+- Before shutdown: shutdown date set, notice sent, export taken and handed to the hosts.

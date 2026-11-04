@@ -19,7 +19,8 @@
   - [3.2 Representation of the Real Venues](#32-representation-of-the-real-venues)
   - [3.3 Multiplayer](#33-multiplayer)
   - [3.4 Interactive Objects and NPCs](#34-interactive-objects-and-npcs)
-  - [3.5 Requirements](#35-requirements)
+  - [3.5 Movement and Controls](#35-movement-and-controls)
+  - [3.6 Requirements](#36-requirements)
 - [4. Minigames and Central Result Management](#4-minigames-and-central-result-management)
   - [4.1 Technical Implementation](#41-technical-implementation)
   - [4.2 Data Exchange Between Zappaloo and Minigames](#42-data-exchange-between-zappaloo-and-minigames)
@@ -31,7 +32,8 @@
 - [5. Classic Website](#5-classic-website)
   - [5.1 Possible Pages and Content](#51-possible-pages-and-content)
   - [5.2 Responsive Design](#52-responsive-design)
-  - [5.3 Requirements](#53-requirements)
+  - [5.3 Language](#53-language)
+  - [5.4 Requirements](#54-requirements)
 - [6. Shared Content and Data Base](#6-shared-content-and-data-base)
   - [6.1 Requirements](#61-requirements)
 - [7. User Accounts, Registration and Avatars](#7-user-accounts-registration-and-avatars)
@@ -57,24 +59,26 @@
 - [10. Anonymous Access and Self-Registration](#10-anonymous-access-and-self-registration)
   - [10.1 Shared Setting anonymousAccess](#101-shared-setting-anonymousaccess)
   - [10.2 Self-Registration visitorSelfRegistration](#102-self-registration-visitorselfregistration)
-  - [10.3 Separate Rules for Photos](#103-separate-rules-for-photos)
+  - [10.3 Features That Add Data](#103-features-that-add-data)
 - [11. Access Control and Unlock Conditions](#11-access-control-and-unlock-conditions)
   - [11.1 Server-Side Enforcement](#111-server-side-enforcement)
   - [11.2 Requirements (Sections 10 and 11)](#112-requirements-sections-10-and-11)
 - [12. Guest Groups](#12-guest-groups)
   - [12.1 Requirements](#121-requirements)
-- [13. Photo Upload and Photo Gallery](#13-photo-upload-and-photo-gallery)
+- [13. Photo Upload, Photo Gallery and Guestbook](#13-photo-upload-photo-gallery-and-guestbook)
   - [13.1 QR Code Upload](#131-qr-code-upload)
   - [13.2 Upload Flow](#132-upload-flow)
-  - [13.3 Anonymous Upload](#133-anonymous-upload)
+  - [13.3 Sign-In for Upload](#133-sign-in-for-upload)
   - [13.4 Photo Security and Processing](#134-photo-security-and-processing)
   - [13.5 Photo Gallery and Publication](#135-photo-gallery-and-publication)
-  - [13.6 Requirements](#136-requirements)
+  - [13.6 Guestbook](#136-guestbook)
+  - [13.7 Requirements](#137-requirements)
 - [14. Map Editor: Tiled](#14-map-editor-tiled)
   - [14.1 Map Structure](#141-map-structure)
   - [14.2 Object Properties](#142-object-properties)
-  - [14.3 Export and Use](#143-export-and-use)
-  - [14.4 Requirements](#144-requirements)
+  - [14.3 Export and Import](#143-export-and-import)
+  - [14.4 Level Editor](#144-level-editor)
+  - [14.5 Requirements](#145-requirements)
 - [15. Technology Stack](#15-technology-stack)
 - [16. Frontend Architecture](#16-frontend-architecture)
 - [17. Backend Architecture](#17-backend-architecture)
@@ -85,7 +89,7 @@
   - [18.2 Requirements](#182-requirements)
 - [19. Reusability and Event Configuration](#19-reusability-and-event-configuration)
   - [19.1 Basic Principle](#191-basic-principle)
-  - [19.2 Example Event Structure](#192-example-event-structure)
+  - [19.2 Example Bootstrap Directory](#192-example-bootstrap-directory)
   - [19.3 Example event.json](#193-example-eventjson)
   - [19.4 Configurability](#194-configurability)
 - [20. Installation and Operating Model](#20-installation-and-operating-model)
@@ -108,21 +112,21 @@
   - [25.3 Requirements](#253-requirements)
 - [26. Proposed Project Structure](#26-proposed-project-structure)
 - [27. Summary of Architecture Decisions](#27-summary-of-architecture-decisions)
-- [28. Development Strategy and Recommended Order](#28-development-strategy-and-recommended-order)
-  - [Phase 1 – Technical Foundation](#phase-1--technical-foundation)
-  - [Phase 2 – First Game World](#phase-2--first-game-world)
-  - [Phase 3 – Multiplayer](#phase-3--multiplayer)
-  - [Phase 4 – Users and Access Control](#phase-4--users-and-access-control)
-  - [Phase 5 – Website and Content](#phase-5--website-and-content)
-  - [Phase 6 – Minigames and Result Management](#phase-6--minigames-and-result-management)
-  - [Phase 7 – Photo Upload and Gallery](#phase-7--photo-upload-and-gallery)
-  - [Phase 8 – Admin Dashboard](#phase-8--admin-dashboard)
-  - [Phase 9 – Hosting and Production Operation](#phase-9--hosting-and-production-operation)
-  - [Phase 10 – Event Operation and Follow-Up](#phase-10--event-operation-and-follow-up)
+- [28. Development Strategy and Order of Work](#28-development-strategy-and-order-of-work)
+  - [Stage 1 – Walking Skeleton and Deployment](#stage-1--walking-skeleton-and-deployment)
+  - [Stage 2 – Accounts, Roles and Access](#stage-2--accounts-roles-and-access)
+  - [Stage 3 – Content and Website](#stage-3--content-and-website)
+  - [Stage 4 – Game World and Level Editor](#stage-4--game-world-and-level-editor)
+  - [Stage 5 – Multiplayer](#stage-5--multiplayer)
+  - [Stage 6 – Photos and Guestbook](#stage-6--photos-and-guestbook)
+  - [Stage 7 – Minigames and Highscores](#stage-7--minigames-and-highscores)
+  - [Stage 8 – Event Readiness and Shutdown](#stage-8--event-readiness-and-shutdown)
+  - [Event Operation and Follow-Up (not a development stage)](#event-operation-and-follow-up-not-a-development-stage)
 - [29. Guiding Idea and Core Principles of Zappaloo](#29-guiding-idea-and-core-principles-of-zappaloo)
   - [Zappaloo accompanies an event before, during and after](#zappaloo-accompanies-an-event-before-during-and-after)
   - [One platform, many individual worlds](#one-platform-many-individual-worlds)
   - [Core principles](#core-principles)
+- [30. Out of Scope for the First Version](#30-out-of-scope-for-the-first-version)
 
 ---
 
@@ -165,7 +169,7 @@ The platform offers two equivalent ways in:
 - Venues and directions.
 - Parking and accommodation.
 - FAQ and contact information.
-- Photo upload and photo gallery.
+- Photo upload, photo gallery and guestbook.
 - Further event-related content.
 
 The website must remain fully usable for anyone who does not want to use the game world.
@@ -244,37 +248,47 @@ Examples:
 - Buildings with further information.
 - Items with easter eggs.
 - Transitions to other areas.
-- Minigame triggers.
+- Portals to minigames and website pages.
 
-Objects are defined through generic types, for example:
+Objects are defined through generic types:
 
-- `portal`
-- `dialog`
-- `information`
-- `minigame`
-- `decoration`
+- `portal`: leads to another map (at a spawn point), to a minigame, or to a website page (e.g. guestbook, photo upload, gallery, programme).
+- `dialog`: shows a dialogue, e.g. an NPC conversation.
+- `information`: shows a content item that is shared with the website.
+- `decoration`: no interaction.
 
-The concrete behaviour is determined by the object type and its configuration.
+The concrete behaviour is determined by the object type and its configuration. Objects are placed in Tiled; portal targets are assigned in the admin level editor (see section 14).
 
-An object can, for example, open a dialogue, show website information or start a minigame.
+## 3.5 Movement and Controls
 
-## 3.5 Requirements
+Avatars move smoothly in all directions, not tile by tile.
+
+- **Desktop:** arrow keys; pressing two keys moves diagonally.
+- **Smartphone and tablet:** tap-to-move. The client computes a path around the map's collision areas and the avatar walks it.
+
+Avatars collide with the collision areas of the map. There are **no collisions between players**: avatars can pass through each other. This prevents players from blocking doors and portals and keeps synchronisation simple (see 17.1).
+
+## 3.6 Requirements
 
 | ID | Requirement | Prio |
 |---|---|---|
 | GAME-01 | The game world is rendered in the browser as a top-down pixel-art world using Phaser. | Must |
-| GAME-02 | The player moves their own avatar through the world; the camera follows the avatar and collisions defined in the map are respected. | Must |
+| GAME-02 | Avatars move smoothly in all directions and collide with the collision areas of the map; the camera follows the player's avatar. | Must |
 | GAME-03 | The world consists of several maps (areas) that are connected in a logical order via portals. | Must |
 | GAME-04 | The whole world can be explored before the event; by default no area is locked or unlocked automatically according to the real schedule. | Must |
-| GAME-05 | Interactive objects are defined through the generic types `portal`, `dialog`, `information`, `minigame` and `decoration`; their behaviour is determined by type and configuration. | Must |
-| GAME-06 | Interacting with an object can open a dialogue, show content shared with the website, change the map, or start a minigame. | Must |
+| GAME-05 | Interactive objects are defined through the generic types `portal`, `dialog`, `information` and `decoration`; their behaviour is determined by type and configuration. | Must |
+| GAME-06 | Interacting with an object can open a dialogue or show a content item shared with the website; a portal leads to another map at a spawn point, starts a minigame, or opens a website page. | Must |
 | GAME-07 | Controls and display of the game world are suitable for the intended screen sizes (desktop and smartphone). | Must |
 | GAME-08 | The world can contain easter eggs (hidden interactive objects with special content). | Could |
+| GAME-09 | On desktop, the avatar is controlled with the arrow keys; pressing two keys moves diagonally. | Must |
+| GAME-10 | On touch devices, the avatar is controlled by tap-to-move: the client computes a path around the map's collision areas and the avatar walks it. | Must |
+| GAME-11 | When a portal opens a website page, the player can return to the game world at the previous position. | Must |
 | MP-01 | Each map is a separate multiplayer room managed by the server. | Must |
 | MP-02 | Players on the same map see the avatars and movements of the other players in that room in near real time. | Must |
 | MP-03 | Passing through a portal moves the player from the current room to the target map's room at the configured target spawn point. | Must |
-| MP-04 | The server is authoritative: it validates movements and actions, and the client cannot alone decide which game actions are valid. | Must |
-| MP-05 | Client-side prediction and interpolation are used to render movement smoothly despite network latency. | Could |
+| MP-04 | Each client simulates its own avatar's movement; the server validates every position update (speed within the limit, no crossing of collision areas, inside the map) and, if a check fails, keeps the last valid position and sends it back to the client. | Must |
+| MP-05 | The movement of other players is interpolated between server updates so that it appears smooth. | Must |
+| MP-06 | There are no collisions between players; avatars can pass through each other. | Must |
 
 ---
 
@@ -285,6 +299,8 @@ Minigames are a separate part of Zappaloo. They do not work in isolation; they c
 ## 4.1 Technical Implementation
 
 Minigames are implemented as separate Phaser scenes.
+
+Minigames ship with the platform: their code and their content (questions, tasks, levels) are part of the platform code and change only with a deployment. Each minigame is registered under a unique `minigameId`. In the game world, a minigame is started through a portal whose target is set to that minigame in the level editor.
 
 When a minigame starts:
 1. The current game world is paused.
@@ -306,8 +322,6 @@ Data exchange must work in both directions.
 - Avatar or relevant profile information.
 - Event ID and event information.
 - Minigame ID.
-- Minigame configuration.
-- Questions, tasks or other content.
 - Existing results and progress, where relevant.
 
 Only the data that the minigame actually needs is passed.
@@ -332,7 +346,6 @@ Communication goes through a central minigame API, i.e. a dedicated backend modu
 This module is responsible for:
 
 - Providing the required user and event data.
-- Providing the minigame configuration.
 - Providing existing results and progress.
 - Accepting new results.
 - Validating submitted results on the server.
@@ -394,24 +407,27 @@ The backend must check at least:
 - Are score, duration and results plausible?
 - Is the submission allowed for this attempt?
 
-For competitive minigames, important game actions must be validated on the server to prevent manipulated scores as far as possible.
+Protection is proportionate to a private event:
 
-The concrete validation may differ from minigame to minigame.
+- Every attempt starts with a server-issued attempt ID; a result is accepted only for an open attempt of the same user.
+- Each minigame defines a plausibility profile, e.g. maximum score and minimum duration, which the server checks.
+- For quizzes, answers are checked on the server and the correct answers are never sent to the client.
 
 ## 4.7 Requirements
 
 | ID | Requirement | Prio |
 |---|---|---|
 | MG-01 | Minigames run as separate Phaser scenes; the game world is paused when a minigame starts and resumes at the previous position when it ends. | Must |
-| MG-02 | The platform passes to a minigame only the data it needs, from: user ID, user name, avatar/profile info, event ID and info, minigame ID, minigame configuration, content (questions, tasks), and existing results/progress. | Must |
+| MG-02 | The platform passes to a minigame only the data it needs, from: user ID, user name, avatar/profile info, event ID and info, minigame ID, and existing results/progress. | Must |
 | MG-03 | A minigame submits its results through the central minigame API; the result structure is flexible (score, result, duration, attempts, answers, items, progress, achievements, minigame-specific data). | Must |
 | MG-04 | Minigames never access the database directly; all reads and writes go through backend interfaces. | Must |
 | MG-05 | Each result record contains at least `eventId`, `userId`, `minigameId`, `score`, `duration`, `resultData` and `createdAt`; all minigames share one generic storage structure. | Must |
 | MG-06 | Multiple attempts per user are supported; individual attempts are stored and the personal best is derived from them. | Must |
 | MG-07 | The server rejects a result submission unless the user is authenticated, belongs to the event, may access the minigame, the minigame ID is valid, score/duration/results are plausible, and the submission is allowed for this attempt. | Must |
-| MG-08 | For competitive minigames, important game actions are validated on the server. | Must |
+| MG-08 | Each attempt starts with a server-issued attempt ID and a result is accepted only for an open attempt of the same user; the server checks each minigame's plausibility profile (e.g. maximum score, minimum duration); quiz answers are checked on the server and correct answers are never sent to the client. | Must |
 | MG-09 | Highscores are managed centrally: best results of the event, personal best, current rank, top players per minigame and number of attempts. | Must |
 | MG-10 | Leaderboards can be shown inside a minigame, on the website, as an information panel in the game world, and as personal statistics. | Should |
+| MG-11 | Minigames, including their content, ship with the platform code and are registered under a unique `minigameId`; the level editor offers all registered minigames as portal targets. | Must |
 
 ---
 
@@ -435,6 +451,7 @@ It must work independently of Phaser and make all important information accessib
 - Guest information.
 - Photo upload.
 - Photo gallery.
+- Guestbook.
 - Highscore and minigame overviews.
 - Further event-related pages.
 
@@ -451,7 +468,11 @@ Photo upload is optimised especially for smartphones.
 
 The game world can also be opened in the browser. Its controls and display must suit the intended screen sizes.
 
-## 5.3 Requirements
+## 5.3 Language
+
+The UI is in German. Translation is planned from the start: all UI strings are externalised through an i18n framework, and every content item is stored with a language key (see section 6). Further languages can then be added without code changes.
+
+## 5.4 Requirements
 
 | ID | Requirement | Prio |
 |---|---|---|
@@ -460,7 +481,9 @@ The game world can also be opened in the browser. Its controls and display must 
 | WEB-03 | The set of pages and their content is configurable per event. | Must |
 | WEB-04 | The website renders and is usable on smartphones, tablets and desktop computers. | Must |
 | WEB-05 | The website offers highscore and minigame overview pages. | Should |
-| WEB-06 | The website gives access to photo upload and photo gallery (see PHO). | Must |
+| WEB-06 | The website gives access to photo upload, photo gallery and guestbook (see PHO, GB). | Must |
+| LANG-01 | All UI strings are externalised through an i18n framework; German is the default and initially only UI language. | Must |
+| LANG-02 | Every content item (pages, dialogues, NPC texts, information objects) is stored with a language key; initially only German (`de`) is maintained. | Must |
 
 ---
 
@@ -477,13 +500,14 @@ Example content areas:
 - Dialogues.
 - NPC texts.
 - Information objects.
-- Minigame configurations.
 - FAQ.
 - Website pages.
 - Photo albums.
 - Unlock conditions.
 
 The data is stored in a structured way and served by the backend.
+
+Website pages and other texts are edited in the browser using Markdown with a preview, by admins and by staff with `editWebsiteContent`. Changes are live without a redeployment. Rendered Markdown is sanitised.
 
 A piece of content may be presented differently depending on context. A venue, for example, can appear as an information page on the website and as an interactive building in the game world.
 
@@ -498,9 +522,10 @@ The platform therefore separates:
 | ID | Requirement | Prio |
 |---|---|---|
 | CNT-01 | Website and game world use one central event content base; each piece of content is maintained once. | Must |
-| CNT-02 | The content base covers event information, schedule, places/addresses, dialogues, NPC texts, information objects, minigame configurations, FAQ, website pages, photo albums and unlock conditions. | Must |
+| CNT-02 | The content base covers event information, schedule, places/addresses, dialogues, NPC texts, information objects, FAQ, website pages, photo albums and unlock conditions. | Must |
 | CNT-03 | Content is separate from its presentation; the same content item can be shown as a website page and referenced from a game-world object (e.g. via `contentId`). | Must |
 | CNT-04 | Content is stored in a structured form and served through the backend API. | Must |
+| CNT-05 | Admins and staff with `editWebsiteContent` edit website pages and other content texts in the browser using Markdown with a preview; changes are live without a redeployment. | Must |
 
 ---
 
@@ -522,6 +547,15 @@ Planned functions:
 Authentication is done on the server through secure sessions.
 
 Passwords are stored only using a suitable password-hashing algorithm.
+
+**Email**
+
+- Emails (verification, password reset, shutdown notice) are sent through an SMTP provider configured per installation. Infomaniak mail is used for the first installation (proof of concept).
+- Self-registered accounts must verify their email address.
+- Accounts created by redeeming an invitation (printed card with QR code) need no verification. Their email status stays `unverified` until the user verifies it voluntarily from the profile.
+- Password reset by email is only offered for verified addresses. Otherwise a mistyped address would let a stranger take over the account. Users without a verified address ask an admin, who can create a one-time password-reset link and hand it over.
+
+Users can delete their own account and their own content at any time.
 
 ## 7.2 Registration and Invitations
 
@@ -560,13 +594,17 @@ Avatars are based on prepared pixel-art graphics. No AI API is required.
 | ID | Requirement | Prio |
 |---|---|---|
 | ACC-01 | Users can register, log in and log out. | Must |
-| ACC-02 | The email address is verified after registration. | Must |
-| ACC-03 | Users can reset a forgotten password. | Must |
+| ACC-02 | Self-registered accounts must verify their email address. | Must |
+| ACC-03 | Users with a verified email address can reset a forgotten password by email; no reset email is sent to unverified addresses. | Must |
 | ACC-04 | Users have a profile they can view and edit. | Must |
 | ACC-05 | Authentication uses server-side sessions with secure session cookies. | Must |
 | ACC-06 | Passwords are stored only as hashes produced by a suitable password-hashing algorithm. | Must |
 | ACC-07 | A user who already has an account and redeems an invitation keeps that account; no second account is created. | Must |
 | ACC-08 | An admin can create user accounts. | Must |
+| ACC-09 | Accounts created by redeeming an invitation need no email verification; their email status is `unverified` until the user verifies it from the profile. | Must |
+| ACC-10 | An admin can create a one-time password-reset link for a user and hand it over. | Must |
+| ACC-11 | Emails are sent through an SMTP provider configured per installation (host, port, credentials, sender address); Infomaniak mail is the first provider. | Must |
+| ACC-12 | Users can delete their own account and their own photos and guestbook entries at any time. | Must |
 | AVA-01 | A signed-in user can design a pixel-art avatar in an avatar editor (skin colour, hairstyle, hair colour, clothing, clothing colours, accessories, predefined templates). | Must |
 | AVA-02 | The avatar configuration is stored with the user or their event membership. | Must |
 | AVA-03 | Avatars are composed from prepared pixel-art assets; no AI API is used. | Must |
@@ -619,8 +657,8 @@ Staff does not automatically mean VIP.
 
 Additional, fixed capabilities can be enabled for Staff:
 
-- `editWebsiteContent`: create and edit website content.
-- `moderatePhotos`: review, approve and delete photos.
+- `editWebsiteContent`: create and edit website content (Markdown).
+- `moderatePhotos`: review, approve and delete photos and guestbook entries.
 
 These capabilities are defined by the platform. Event administrators can enable or disable them for individual staff members, but cannot create their own permissions.
 
@@ -636,10 +674,10 @@ These include:
 - Invitation management.
 - Event settings.
 - Content management.
-- Map and game world management.
-- Photo and gallery management.
-- Management of minigames and their configuration.
+- Map management in the level editor.
+- Photo, gallery and guestbook management.
 - Management of event features.
+- Data export and shutdown.
 
 Admin does not, however, automatically mean VIP or Staff.
 
@@ -669,6 +707,8 @@ The platform administrator can manage all events and installations.
 
 This role is not the same as the per-event Admin role.
 
+Platform administration is out of scope for the first version, since each installation serves one event (see section 30).
+
 ## 8.7 Requirements
 
 | ID | Requirement | Prio |
@@ -678,11 +718,11 @@ This role is not the same as the per-event Admin role.
 | ROLE-03 | `vip` includes all `visitor` rights and can grant access to areas and content configured for VIPs. | Must |
 | ROLE-04 | VIP status persists until an admin explicitly revokes it. | Must |
 | ROLE-05 | `staff` grants access to staff-only areas and does not imply `vip`. | Must |
-| ROLE-06 | An admin can enable or disable the fixed capabilities `editWebsiteContent` and `moderatePhotos` per staff member; only staff members with the capability can use the corresponding function. | Must |
-| ROLE-07 | `admin` grants the event administration functions: users, roles, invitations, event settings, content, maps/game world, photos/gallery, minigames, and event features. | Must |
+| ROLE-06 | An admin can enable or disable the fixed capabilities `editWebsiteContent` (website content) and `moderatePhotos` (photos and guestbook entries) per staff member; only staff members with the capability can use the corresponding function. | Must |
+| ROLE-07 | `admin` grants the event administration functions: users, roles, invitations, guest groups, event settings and features, website content, maps (level editor), photos/gallery/guestbook, data export and shutdown. | Must |
 | ROLE-08 | `admin` does not imply `vip` or `staff`; an admin without those roles has no access to VIP or staff areas. | Must |
 | ROLE-09 | Revoking one role leaves all other roles of the user unchanged; a user whose VIP is revoked remains Visitor. | Must |
-| ROLE-10 | A separate platform administrator, distinct from the event `admin` role, can manage all events and installations. | Should |
+| ROLE-10 | ~~A separate platform administrator, distinct from the event `admin` role, can manage all events and installations.~~ (withdrawn: out of scope, see section 30) | – |
 
 ---
 
@@ -702,6 +742,8 @@ A code can be redeemed exactly once.
 - A code can be revoked by an admin.
 - A code can be replaced or regenerated.
 - When a code is replaced, the old code becomes invalid.
+
+Invitations are printed, e.g. on cards, with the code and a QR code containing the personal invitation link. Because only the hash is stored, the plain token is available only when the invitation is created or regenerated. Printing uses that output; a lost card is replaced by regenerating the code.
 
 Possible status values:
 
@@ -781,6 +823,7 @@ An existing invitation remains manageable independently.
 | INV-11 | An admin can promote a Visitor directly to VIP without a code; the action is audit-logged, the assignment method (`invitation_code` / `admin_promotion`) is recorded, and no code is created or consumed. | Must |
 | INV-12 | Code redemption attempts are rate-limited and validated on the server; uniqueness is enforced by database constraints. | Must |
 | INV-13 | A valid personal VIP invitation can be redeemed even when `visitorSelfRegistration` is disabled. | Must |
+| INV-14 | When invitations are created or regenerated, the admin can export them for printing (code plus QR code with the personal invitation link); the plain token is not available afterwards. | Must |
 
 ---
 
@@ -814,13 +857,11 @@ When `visitorSelfRegistration` is disabled:
 
 A valid personal VIP invitation can be redeemed even when normal self-registration is disabled.
 
-## 10.3 Separate Rules for Photos
+## 10.3 Features That Add Data
 
-Photo upload has its own access settings.
+Features that add data — photo upload, guestbook, minigame results — and the photo gallery always require sign-in, regardless of `anonymousAccess`.
 
-It is not automatically enabled or disabled by `anonymousAccess`.
-
-For example, the website can be public while photo upload is only reachable through a special QR code or a separate upload grant.
+A QR code at a venue therefore leads to sign-in or registration first, then to the upload page.
 
 ---
 
@@ -879,7 +920,7 @@ When a role is revoked from a user, the corresponding permissions must be re-che
 | ACS-01 | A single event setting `anonymousAccess` controls anonymous access for both website and game world: when enabled, users who are not signed in can open the website and enter the public game world; when disabled, sign-in is required for both. | Must |
 | ACS-02 | Private or protected areas and content stay protected regardless of `anonymousAccess`. | Must |
 | ACS-03 | An event setting `visitorSelfRegistration`, independent of `anonymousAccess`, controls self-registration: when enabled, anyone can register and gets `visitor`; when disabled, new accounts can only be created via a valid invitation or by an admin. | Must |
-| ACS-04 | Photo upload has its own access settings and is not enabled or disabled by `anonymousAccess`. | Must |
+| ACS-04 | Photo upload, photo gallery, guestbook and minigame result submission always require sign-in, regardless of `anonymousAccess`. | Must |
 | ACS-05 | Areas, content and functions can be protected by the conditions: sign-in required, role required, guest group membership, time-based unlock, manual admin release, and related feature enabled. | Must |
 | ACS-06 | Access conditions are combined with AND by default; explicitly defined alternatives can be combined with OR. | Must |
 | ACS-07 | Permissions are enforced on the server for API calls, multiplayer room joins, private content, protected game areas, photo upload and management, minigame start and result submission, and administrative actions. | Must |
@@ -914,7 +955,7 @@ Group membership can be managed by an admin.
 
 ---
 
-# 13. Photo Upload and Photo Gallery
+# 13. Photo Upload, Photo Gallery and Guestbook
 
 Zappaloo lets guests upload photos easily during the event.
 
@@ -944,7 +985,7 @@ The location is preselected and the photo can be assigned to the matching album.
 The intended flow:
 
 1. The guest scans the QR code.
-2. The upload page opens in the browser.
+2. The upload page opens in the browser, after sign-in or registration if needed.
 3. The guest taps "Take photo".
 4. Camera or file picker opens.
 5. The guest sees a preview.
@@ -963,15 +1004,11 @@ For camera selection, for example:
 
 The behaviour must be tested on iOS and Android.
 
-## 13.3 Anonymous Upload
+## 13.3 Sign-In for Upload
 
-Upload without sign-in must be possible.
+Upload requires sign-in. Each photo is linked to the uploading user's account.
 
-If a user is signed in, the photo can optionally be linked to their user account.
-
-Anonymous uploads use specially restricted, revocable upload tokens.
-
-These tokens are not user passwords and do not grant general access to the platform.
+A guest who scans a QR code without being signed in signs in or registers first and is then taken to the upload page with the location preselected.
 
 ## 13.4 Photo Security and Processing
 
@@ -984,6 +1021,8 @@ The server must:
 - Create previews and thumbnails.
 - Limit abusive uploads.
 - Allow moderation and deletion.
+
+Image processing (conversion, compression, thumbnails) runs in a background worker queue with limited concurrency, so that photo uploads don't slow down the multiplayer server.
 
 Supported formats must include in particular JPEG, PNG and HEIC.
 
@@ -1007,22 +1046,35 @@ One possible configuration: photos can be uploaded during the event, but the pub
 
 This publication must be controllable without redeploying the platform.
 
-## 13.6 Requirements
+## 13.6 Guestbook
+
+Signed-in guests can write a guestbook entry: a text with an optional photo.
+
+- Entries are moderated: they become visible only after approval by an admin or a staff member with `moderatePhotos`.
+- The guestbook is a website page and only accessible to signed-in users. It is not integrated into the game world; a portal can open the guestbook page.
+- An optional photo goes through the same validation and processing as photo uploads.
+
+## 13.7 Requirements
 
 | ID | Requirement | Prio |
 |---|---|---|
-| PHO-01 | A QR code per location opens the upload page with the location preselected (e.g. `?location=aperitif`); uploaded photos are assigned to the matching album. | Must |
+| PHO-01 | A QR code per location leads to the upload page with the location preselected (e.g. `?location=aperitif`), via sign-in or registration if the guest is not signed in; uploaded photos are assigned to the matching album. | Must |
 | PHO-02 | The mobile upload flow is: tap "Take photo" → camera or file picker → preview → confirm → upload → confirmation → option to take another photo. | Must |
 | PHO-03 | Upload works in the mobile browser without a native app, using a file input with camera capture, on current iOS and Android devices. | Must |
-| PHO-04 | Anonymous upload is possible using restricted, revocable upload tokens that grant no other access to the platform. | Must |
-| PHO-05 | A signed-in user's upload can optionally be linked to their account. | Should |
+| PHO-04 | ~~Anonymous upload is possible using restricted, revocable upload tokens that grant no other access to the platform.~~ (withdrawn: upload requires sign-in, see ACS-04) | – |
+| PHO-05 | Every upload is linked to the uploading user's account. | Must |
 | PHO-06 | The server checks the file type, limits the file size and validates each upload; invalid uploads are rejected. | Must |
 | PHO-07 | JPEG, PNG and HEIC are accepted; the server converts where needed, compresses, and creates previews and thumbnails. | Must |
-| PHO-08 | Abusive uploads are limited (e.g. rate limiting per token/client). | Must |
+| PHO-08 | Abusive uploads are limited (e.g. rate limiting per user). | Must |
 | PHO-09 | Image files are stored on persistent file storage; only metadata is stored in SQLite. | Must |
 | PHO-10 | The gallery is organised per event and album and can group photos by location. | Must |
 | PHO-11 | Admins and staff with `moderatePhotos` can review, approve and delete photos. | Must |
 | PHO-12 | The gallery can be published fully or partially, at a scheduled time or by manual admin release, without redeploying the platform. | Must |
+| PHO-13 | Image processing runs in a background worker queue with limited concurrency so that uploads don't affect multiplayer responsiveness. | Must |
+| GB-01 | Signed-in users can write a guestbook entry consisting of text and an optional photo. | Must |
+| GB-02 | A guestbook entry becomes visible only after approval by an admin or a staff member with `moderatePhotos`, who can also delete entries. | Must |
+| GB-03 | The guestbook is a website page accessible only to signed-in users; it is not integrated into the game world, but a portal can open it. | Must |
+| GB-04 | A guestbook photo is validated and processed like a photo upload (PHO-06, PHO-07, PHO-13). | Must |
 
 ---
 
@@ -1065,49 +1117,61 @@ They define, for example:
 - Portals.
 - NPCs.
 - Interaction points.
-- Minigame triggers.
 - Protected zones.
 
 ## 14.2 Object Properties
 
-Objects are configured through custom properties.
+In Tiled, each object gets a `type`, a unique name and the properties that belong to the map itself. Examples:
 
-Example for a portal:
+- Information point: `type = information`, `contentId = parking-info`
+- NPC: `type = dialog`, `contentId = npc-pastor`
+- Spawn point: `type = spawn`, name e.g. `entrance`
+- Portal: `type = portal` (only placed in Tiled)
 
-- `type = portal`
-- `targetMap = dinner`
-- `targetSpawn = entrance`
+Portal targets are not set in Tiled but assigned in the level editor (see 14.4). A portal can lead to:
 
-Example for a minigame trigger:
-
-- `type = minigame`
-- `minigameId = quiz-01`
-
-Example for an information point:
-
-- `type = information`
-- `contentId = parking-info`
+- another map, at a named spawn point;
+- a minigame (by `minigameId`);
+- a website page (e.g. guestbook, photo upload, gallery, programme).
 
 The engine interprets these generic object types and executes the associated behaviour.
 
-## 14.3 Export and Use
+## 14.3 Export and Import
 
-Tiled exports the map as a JSON file.
+Tiled exports the map as a JSON file. The admin imports it, together with its tilesets, through the level editor; no redeployment is needed.
 
-Phaser loads this data and interprets the layers, objects and properties.
+Phaser loads this data and interprets the layers, objects and properties. The server reads the collision layer to validate movement.
 
 Tiled is only needed to create maps and is not part of the running server.
 
-For a new event, new maps and graphics can be created without redeveloping the underlying game engine.
+## 14.4 Level Editor
 
-## 14.4 Requirements
+The admin dashboard contains a simple level editor. It is not a drawing tool, since maps are drawn in Tiled. It manages the maps of the event:
+
+- Import a map (Tiled JSON plus tilesets) as a new map or as a new version of an existing map.
+- Validate the import: format, required layers, referenced tilesets, spawn points and portal objects. An invalid import is rejected and the active version stays unchanged.
+- Assign each portal's target from lists: map and spawn point, minigame, or website page.
+- Flag portals without a target or with a target that no longer exists, e.g. after a map was deleted.
+- Set the start map and each map's default spawn point.
+- Keep the previous version of each map and allow rollback.
+
+When a map is re-imported while players are on it, they get the new version the next time they enter the map. The admin can force a reload, which moves the players on that map to the default spawn point of the new version.
+
+## 14.5 Requirements
 
 | ID | Requirement | Prio |
 |---|---|---|
-| MAP-01 | Maps are authored in Tiled, exported as JSON and loaded by Phaser at runtime; Tiled is not part of the running system. | Must |
-| MAP-02 | The engine supports tile layers (background, ground, decoration, objects, foreground, collision) and object layers defining spawn points, collisions, portals, NPCs, interaction points, minigame triggers and protected zones. | Must |
-| MAP-03 | The engine interprets the object properties `type`, `targetMap`, `targetSpawn`, `minigameId` and `contentId` and executes the corresponding behaviour. | Must |
-| MAP-04 | New maps and graphics for an event can be added without changing engine code. | Must |
+| MAP-01 | Maps are drawn in Tiled, exported as JSON and imported at runtime through the admin level editor; Tiled is not part of the running system. | Must |
+| MAP-02 | The engine supports tile layers (background, ground, decoration, objects, foreground, collision) and object layers defining spawn points, collisions, portals, NPCs, interaction points and protected zones. | Must |
+| MAP-03 | The engine interprets the object properties `type` and `contentId` and executes the corresponding behaviour; portal targets come from the level editor. | Must |
+| MAP-04 | New or changed maps and tilesets can be imported without a redeployment or code change. | Must |
+| MAP-05 | The level editor lists the event's maps and lets the admin import a new map or a new version of an existing map, delete a map, set the start map and set each map's default spawn point. | Must |
+| MAP-06 | An import is validated (format, required layers, referenced tilesets, spawn points, portal objects); an invalid import is rejected and the active version stays unchanged. | Must |
+| MAP-07 | The admin assigns each portal's target in the level editor: another map at a spawn point, a minigame, or a website page. | Must |
+| MAP-08 | The level editor flags portals without a target or with a target that no longer exists. | Must |
+| MAP-09 | The previous version of each map is kept and the admin can roll back to it. | Should |
+| MAP-10 | When a map is re-imported, players on it get the new version the next time they enter the map; the admin can force a reload that moves them to the default spawn point of the new version. | Must |
+| MAP-11 | The server reads each map's collision layer on import and uses it to validate movement (MP-04). | Must |
 
 ---
 
@@ -1155,6 +1219,8 @@ React handles:
 - Admin dashboard.
 - Photo upload.
 - Photo gallery.
+- Guestbook.
+- Level editor.
 - Highscore views.
 - Other UI elements.
 
@@ -1211,8 +1277,12 @@ Planned modules:
 - `albums`
 - `admin`
 - `content`
+- `maps`
+- `guestbook`
 - `minigames`
 - `game-results`
+- `mail`
+- `jobs` (background worker queue)
 - `database`
 - `services`
 - `api`
@@ -1237,11 +1307,14 @@ This includes:
 - Synchronisation.
 - Relevant interactions.
 
-The client must not alone decide which game actions are valid.
+Movement model:
 
-The server checks movements and actions and thereby prevents simple manipulation as far as possible.
+- Each client simulates its own avatar's movement against the map's collision areas and sends its position to the server.
+- The server validates each update: the speed is within the limit, the path from the last position does not cross a collision area, and the position is inside the map. If a check fails, the server keeps the last valid position and sends it back, and the client snaps back.
+- Colyseus synchronises the validated positions to the other players in the room, whose clients interpolate between updates.
+- There are no collisions between players, so no server-side physics simulation is needed.
 
-Client prediction and interpolation can be used to render movement smoothly despite network latency.
+The server reads the collision layer of each map when it is imported (see section 14). Other actions (portal use, access to protected zones) are also validated on the server.
 
 ## 17.2 API
 
@@ -1281,11 +1354,13 @@ The database stores, for example:
 - Content.
 - Photo metadata.
 - Album information.
+- Guestbook entries.
+- Map metadata and versions.
 - Minigame results.
 - Highscores, or the result data needed for them.
 - Audit logs.
 
-The actual image files are not stored in SQLite.
+The actual image files and imported map files (Tiled JSON, tilesets) are not stored in SQLite but on persistent file storage.
 
 ## 18.1 Event Reference
 
@@ -1311,7 +1386,7 @@ These include in particular:
 
 | ID | Requirement | Prio |
 |---|---|---|
-| DATA-01 | Application data is stored in SQLite; image files are not stored in the database. | Must |
+| DATA-01 | Application data is stored in SQLite; image files and imported map files are stored on persistent file storage, not in the database. | Must |
 | DATA-02 | Every event-related record (memberships, roles, groups, permissions, content, maps, photos, albums, minigame results, settings) carries an `eventId`. | Must |
 | DATA-03 | Administrative actions are recorded in an audit log (who, what, when). | Must |
 | DATA-04 | Database schema changes are applied through versioned migrations that preserve existing data. | Must |
@@ -1337,7 +1412,7 @@ There are two levels:
 - User management.
 - Roles and permissions.
 - Multiplayer.
-- Minigame system.
+- Minigame system and all minigames, including their content.
 - Photo management.
 - Content management.
 - Admin dashboard.
@@ -1352,7 +1427,6 @@ There are two levels:
 - NPCs.
 - Dialogues.
 - Interactive objects.
-- Minigames and their content.
 - Guest groups.
 - Unlock conditions.
 - Photo albums.
@@ -1360,29 +1434,19 @@ There are two levels:
 
 The platform provides generic functions. The concrete event is shaped through configuration and content.
 
-## 19.2 Example Event Structure
+Event configuration is managed at runtime. Settings, website content, guest groups and maps are edited through the admin dashboard and the level editor and stored in the database and on persistent file storage. The `events/<slug>/` directory only bootstraps a new installation: event identity, theme, initial settings, and static graphics that are not imported through the level editor.
+
+## 19.2 Example Bootstrap Directory
 
 ```text
 events/
   event-muster/
     event.json
     theme.json
-
-    content/
-      pages/
-      locations/
-      dialogs/
-      objects/
-
-    game/
-      maps/
-      tilesets/
+    assets/
       sprites/
-      animations/
+      avatars/
       audio/
-
-    photos/
-      albums.json
 ```
 
 ## 19.3 Example `event.json`
@@ -1394,25 +1458,18 @@ events/
   "slug": "event-muster",
   "timezone": "Europe/Zurich",
 
+  "defaultLanguage": "de",
+
   "theme": {
     "config": "theme.json"
-  },
-
-  "gameWorld": {
-    "startMap": "church",
-    "maps": [
-      "church",
-      "aperitif",
-      "dinner",
-      "party"
-    ]
   },
 
   "features": {
     "multiplayer": true,
     "minigames": true,
     "photoUpload": true,
-    "photoGallery": true
+    "photoGallery": true,
+    "guestbook": true
   },
 
   "registration": {
@@ -1425,7 +1482,7 @@ events/
 }
 ```
 
-The actual configuration is validated on the server.
+The actual configuration is validated on the server. The values in `features`, `registration` and `access` are initial values; the admin can change them at runtime. Maps and the start map are managed in the level editor.
 
 ## 19.4 Configurability
 
@@ -1479,12 +1536,13 @@ A global user account could later be assigned to several events, with different 
 
 | ID | Requirement | Prio |
 |---|---|---|
-| CFG-01 | The platform core is generic; an event is shaped only through configuration and content (name, theme, website content, maps, tilesets, sprites, NPCs, dialogues, objects, minigames, guest groups, unlock conditions, albums, schedule). | Must |
-| CFG-02 | Event configuration lives in an `events/<slug>/` directory (`event.json`, `theme.json`, content, game assets, albums) and is validated on the server at startup; an invalid configuration is rejected with a clear error. | Must |
-| CFG-03 | The features `multiplayer`, `minigames`, `photoUpload` and `photoGallery` can be enabled or disabled per event; disabled features are unavailable in UI and API. | Must |
+| CFG-01 | The platform core is generic; an event is shaped only through configuration and content (name, theme, website content, maps, tilesets, sprites, NPCs, dialogues, objects, guest groups, unlock conditions, albums, schedule). | Must |
+| CFG-02 | An installation is bootstrapped from an `events/<slug>/` directory (`event.json`, `theme.json`, static assets) that is validated on the server at startup; an invalid configuration is rejected with a clear error. | Must |
+| CFG-03 | The features `multiplayer`, `minigames`, `photoUpload`, `photoGallery` and `guestbook` can be enabled or disabled per event; disabled features are unavailable in UI and API. | Must |
 | CFG-04 | Each installation serves exactly one event with its own domain, database, uploads, users, content, maps and configuration; all installations share the same codebase. | Must |
+| CFG-05 | Event settings (`anonymousAccess`, `visitorSelfRegistration`, feature toggles) are initialised from `event.json` and can be changed by the admin at runtime without a redeployment. | Must |
 
-Multi-event operation in one installation (section 20.1) is out of scope for the first version and has no requirements yet.
+Multi-event operation in one installation (section 20.1) is out of scope for the first version (see section 30).
 
 ---
 
@@ -1565,6 +1623,7 @@ This includes:
 - SQLite database.
 - Photos.
 - Uploads.
+- Imported maps and tilesets.
 - Other persistent files.
 
 This data is mounted through Docker volumes or suitable host directories.
@@ -1577,6 +1636,7 @@ Backups include:
 - Database.
 - Photos.
 - Uploads.
+- Imported maps and tilesets.
 - Event configuration.
 - Relevant assets.
 
@@ -1614,8 +1674,8 @@ Before larger database changes, backups and suitable migrations are required.
 | OPS-01 | The application runs with Docker Compose; Caddy is the reverse proxy in front of the application containers. | Must |
 | OPS-02 | All public traffic uses HTTPS/WSS with Let's Encrypt certificates that are obtained and renewed automatically; WebSocket connections for multiplayer work through the proxy. | Must |
 | OPS-03 | Only ports 80 and 443 are publicly open, SSH is restricted; database and internal backend ports are not publicly reachable. | Must |
-| OPS-04 | Persistent data (database, photos, uploads) lives outside the container file system and survives container restarts, updates and deployments unchanged. | Must |
-| OPS-05 | Regular backups of database, photos, uploads, event configuration and relevant assets are stored off the VPS; restoring from a backup is tested regularly. | Must |
+| OPS-04 | Persistent data (database, photos, uploads, imported maps and tilesets) lives outside the container file system and survives container restarts, updates and deployments unchanged. | Must |
+| OPS-05 | Regular backups of database, photos, uploads, imported maps and tilesets, event configuration and relevant assets are stored off the VPS; restoring from a backup is tested regularly. | Must |
 | OPS-06 | On every commit and pull request, GitHub Actions runs the tests, the TypeScript checks, the builds and the requirement report. | Must |
 | OPS-07 | After successful checks, GitHub Actions deploys to the VPS and verifies the deployment status. | Should |
 
@@ -1641,11 +1701,22 @@ Key measures:
 - Regular backups.
 - Restriction of public server ports.
 
-The platform stores only the personal data actually needed for operation.
+The platform follows the Swiss Federal Act on Data Protection (FADP / revDSG):
 
-Suitable deletion and retention rules must be defined for photos, user profiles and other personal content.
+- Only personal data needed for operation is stored.
+- A privacy notice is reachable from every page, also without sign-in.
+- Users can delete their own account and content at any time (ACC-12).
+- The whole site is excluded from search engines.
+- Website content written in Markdown is sanitised before rendering.
 
-The concrete privacy policy and legal requirements must be reviewed before production use.
+**Shutdown and deletion.** The platform runs only for a limited time after the event. When the admin plans to shut it down:
+
+1. The admin sets a shutdown date.
+2. The platform emails all users that they can view the content until that date.
+3. The admin can export photos and guestbook entries for the hosts.
+4. On the shutdown date all personal data (accounts, photos, guestbook entries, minigame results, audit logs) is deleted automatically.
+
+The concrete privacy notice and the legal review are required before production use.
 
 ## 24.1 Requirements
 
@@ -1656,7 +1727,13 @@ Measures already covered elsewhere (password hashing ACC-06, sessions ACC-05, HT
 | SEC-01 | State-changing requests that rely on cookie authentication are protected against CSRF. | Must |
 | SEC-02 | Login, registration, password reset, invitation redemption and photo upload are rate-limited. | Must |
 | SEC-03 | All API and real-time inputs are validated on the server against a schema; invalid input is rejected. | Must |
-| SEC-04 | Only personal data needed for operation is stored; users' photos, profiles and personal content can be deleted according to defined retention rules. | Must |
+| SEC-04 | Only personal data needed for operation is stored (Swiss FADP / revDSG). | Must |
+| SEC-05 | Markdown content is sanitised before rendering; raw HTML and scripts are not executed. | Must |
+| SEC-06 | An admin can export all photos and guestbook entries with their metadata (e.g. as a ZIP archive). | Must |
+| SEC-07 | An admin can set a shutdown date; the platform then emails all users that the content is available until that date. | Must |
+| SEC-08 | On the shutdown date, all personal data (accounts, photos, guestbook entries, minigame results, audit logs) is deleted automatically. | Must |
+| SEC-09 | A privacy notice is reachable from every page, also without sign-in. | Must |
+| SEC-10 | The whole site is excluded from search engine indexing (`robots.txt` disallowing all, and an `X-Robots-Tag: noindex` header on every response). | Must |
 
 The privacy policy and legal review are an organisational precondition for production use, not a software requirement; they are tracked in [test-strategy.md](test-strategy.md) under "Release checklist".
 
@@ -1685,6 +1762,7 @@ This is not a guaranteed capacity. Actual capacity depends among other things on
 - Load assets efficiently.
 - Compress images.
 - Create previews.
+- Process images in a background worker queue.
 - Avoid unnecessary API calls.
 - Optimise database queries.
 - Check permissions efficiently on the server.
@@ -1846,7 +1924,10 @@ What matters is a clear separation between:
 | Backend | Node.js + TypeScript |
 | Multiplayer | Colyseus + WebSockets |
 | Database | SQLite |
-| Minigames | Separate Phaser scenes |
+| Movement | Smooth, all directions; arrow keys on desktop, tap-to-move on touch devices |
+| Collisions | With the map only, not between players |
+| Movement validation | Client simulates, server validates positions |
+| Minigames | Separate Phaser scenes, shipped with the platform |
 | Minigame communication | Central minigame API |
 | Results | Stored centrally by Zappaloo |
 | Highscores | Centrally managed leaderboards |
@@ -1857,7 +1938,13 @@ What matters is a clear separation between:
 | VIP assignment | Invitation code or direct admin promotion |
 | Anonymous access | One shared setting for website and game world |
 | Self-registration | Separate setting |
-| Photos | QR code upload, optionally anonymous |
+| Photos | QR code upload, sign-in required, worker queue for processing |
+| Guestbook | Text plus optional photo, moderated, website only |
+| Maps | Drawn in Tiled, imported at runtime via the level editor |
+| Website content | Edited in the browser as Markdown |
+| Language | German, i18n from the start, content with language keys |
+| Email | SMTP, Infomaniak mail first |
+| Privacy | Swiss FADP; shutdown notice, export, then deletion; no search indexing |
 | Gallery | Scheduled or manual release |
 | Installation | One separate installation per event |
 | Reuse | One generic codebase with event configurations |
@@ -1871,119 +1958,90 @@ What matters is a clear separation between:
 
 ---
 
-# 28. Development Strategy and Recommended Order
+# 28. Development Strategy and Order of Work
 
-Implementation proceeds in clearly separated phases. The goal is to build a stable technical foundation first and then add event features step by step.
+Implementation proceeds in stages. The system is deployed to the VPS from the first stage on, so that infrastructure problems (TLS, WebSockets, volumes) show up early. Admin functions are built in each stage together with their topic, not in a separate admin stage.
 
-These phases are the starting point for the implementation stages. The concrete stage and step plan is agreed before each stage starts (see CLAUDE.md).
+The concrete steps of each stage are agreed before the stage starts (see CLAUDE.md).
 
-## Phase 1 – Technical Foundation
+## Stage 1 – Walking Skeleton and Deployment
 
-- Set up the GitHub repository.
-- Set up the React, TypeScript and Vite project.
-- Integrate Phaser.
-- Set up the Node.js backend.
-- Integrate SQLite.
-- Create the Docker and Docker Compose configuration.
-- Set up the development and test environment.
+- Monorepo with `frontend`, `backend`, `shared`.
+- React, TypeScript, Vite; Phaser integrated; Node.js backend; Colyseus server.
+- SQLite with versioned migrations.
+- i18n framework set up.
+- Docker Compose with Caddy; deployed to the VPS with HTTPS and WebSockets.
+- GitHub Actions: tests, type checks, builds, requirement report.
 
-## Phase 2 – First Game World
+Requirements: OPS-01–04, OPS-06, DATA-01, DATA-04, LANG-01, SEC-03, SEC-10.
 
-- Create Tiled maps.
-- Implement the Phaser map import.
-- Implement player movement.
-- Integrate collisions.
-- Render avatars.
-- Implement spawn points and portals.
-- Integrate generic interactive objects.
+## Stage 2 – Accounts, Roles and Access
 
-## Phase 3 – Multiplayer
+- Registration, login, sessions, email via SMTP, verification, password reset.
+- Four roles, staff capabilities, guest groups.
+- Invitations with printable export.
+- Event settings, access conditions, server-side enforcement.
+- Admin pages for users, roles, invitations, groups and settings.
 
-- Integrate Colyseus.
-- Set up rooms per map.
-- Synchronise player movements.
-- Render other players.
-- Implement room changes.
-- Add server-side movement and action validation.
+Requirements: ACC, ROLE, INV, ACS (except ACS-08), GRP, CFG-02, CFG-03, CFG-05, DATA-02, DATA-03, SEC-01, SEC-02.
 
-## Phase 4 – Users and Access Control
+## Stage 3 – Content and Website
 
-- Registration and login.
-- User profiles.
-- Avatar editor.
-- Event memberships.
-- Four fixed roles.
-- Role combinations.
-- VIP invitation system.
-- Shared setting `anonymousAccess`.
-- Separate setting `visitorSelfRegistration`.
-- Server-side access checks.
+- Content model with language keys.
+- Website pages, responsive layout, Markdown editing.
+- Privacy notice.
 
-## Phase 5 – Website and Content
+Requirements: CNT, WEB (except WEB-05, WEB-06), LANG-02, CFG-01, CFG-04, SEC-05, SEC-09.
 
-- Responsive website.
-- Central content management.
-- Event information.
-- Programme and schedule.
-- Venues.
-- FAQ and contact.
-- Linking website content and the game world.
+## Stage 4 – Game World and Level Editor
 
-## Phase 6 – Minigames and Result Management
+- Map import and level editor.
+- Smooth movement with map collisions, arrow keys and tap-to-move.
+- Interactive objects, portals, avatars and avatar editor.
 
-- Generic minigame interface.
-- Starting and ending separate Phaser scenes.
-- Passing user, event and configuration data.
-- Central minigame API.
-- Result submission.
-- Server-side validation.
-- Storing results.
-- Personal bests.
-- Central highscore and leaderboard functions.
-- Showing results in the minigame and on the website.
+Requirements: GAME, MAP, AVA.
 
-## Phase 7 – Photo Upload and Gallery
+## Stage 5 – Multiplayer
 
-- QR code system.
-- Upload page for smartphones.
-- Anonymous upload with restricted upload tokens.
-- Image validation and compression.
-- Album assignment.
-- Photo moderation.
-- Gallery and release control.
+- Rooms per map, position validation, interpolation.
+- Room changes through portals.
+- Re-checking access on live connections.
 
-## Phase 8 – Admin Dashboard
+Requirements: MP, ACS-08, PERF-02.
 
-- User management.
-- Role and invitation management.
-- Content management.
-- Event settings management.
-- Map and game world configuration.
-- Minigame configuration and result overviews.
-- Photo and album management.
+## Stage 6 – Photos and Guestbook
 
-## Phase 9 – Hosting and Production Operation
+- QR upload, worker queue, HEIC handling, albums.
+- Moderation and gallery release.
+- Guestbook.
 
-- Set up the VPS.
-- Connect the domain.
-- Configure Caddy.
-- Enable HTTPS.
-- Set up Docker deployment.
-- Integrate GitHub Actions.
-- Configure backups.
-- Run security tests.
-- Run load tests with realistic player numbers.
+Requirements: PHO, GB, WEB-06, PERF-03.
 
-## Phase 10 – Event Operation and Follow-Up
+## Stage 7 – Minigames and Highscores
+
+- Scene framework, minigame registry, minigame API.
+- Attempt IDs and plausibility profiles.
+- Highscores and leaderboards.
+
+Requirements: MG, WEB-05.
+
+## Stage 8 – Event Readiness and Shutdown
+
+- Off-site backups and restore drill; automated deployment.
+- Export, shutdown notice and deletion.
+- Load test.
+
+Requirements: OPS-05, OPS-07, SEC-04, SEC-06–08, PERF-01.
+
+## Event Operation and Follow-Up (not a development stage)
 
 - Finish content and maps for the concrete event.
-- Distribute invitations.
+- Print and distribute invitations.
 - Create and place QR codes.
 - Run functional tests on smartphones.
-- Test multiplayer and minigames.
-- Test photo upload.
+- Test multiplayer, minigames, photo upload and guestbook.
 - Prepare gallery release.
-- After the event, make photos and memories accessible.
+- After the event, make photos and memories accessible; later announce the shutdown, export, and delete.
 
 ---
 
@@ -2036,3 +2094,18 @@ The platform deliberately balances reusability and individuality: the technical 
 **Zappaloo turns a special occasion into a small digital world — a world you don't just visit, but experience together.**
 
 *Tiny world. Big moments.*
+
+---
+
+# 30. Out of Scope for the First Version
+
+| Topic | Note |
+|---|---|
+| Chat | No text or voice chat between players. |
+| Platform administration | Each installation serves one event (ROLE-10 withdrawn). |
+| Multiple events per installation | Prepared through `eventId`, not implemented (section 20.1). |
+| Collisions between players | Avatars pass through each other (MP-06). |
+| Editing minigames at runtime | Minigames and their content ship with the platform (MG-11). |
+| Drawing maps in the browser | Maps are drawn in Tiled and imported (section 14). |
+| Anonymous photo upload | Upload requires sign-in (PHO-04 withdrawn). |
+| Native apps | Browser only. |
