@@ -180,6 +180,9 @@ describe("data model", () => {
       "audit_log",
       "event_features",
       "event_settings",
+      "guest_group_members",
+      "guest_groups",
+      "membership_capabilities",
       "membership_roles",
       "memberships",
     ]);

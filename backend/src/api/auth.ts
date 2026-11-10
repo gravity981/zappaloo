@@ -19,7 +19,7 @@ import {
   sessionResponseSchema,
   userSchema,
 } from "@zappaloo/shared";
-import type { Role, User } from "@zappaloo/shared";
+import type { Capability, Role, User } from "@zappaloo/shared";
 import type { FastifyPluginAsyncZod } from "fastify-type-provider-zod";
 import { AccountError, LINK_VALIDITY_MS } from "../auth/accounts.ts";
 import type { AccountService } from "../auth/accounts.ts";
@@ -33,6 +33,7 @@ import {
   VERIFY_MAIL_PER_USER,
 } from "../auth/rate-limit.ts";
 import type { RateLimiter } from "../auth/rate-limit.ts";
+import type { GroupService } from "../auth/groups.ts";
 import type { SessionService } from "../auth/sessions.ts";
 import type { EventService } from "../event/service.ts";
 import type { Mailer } from "../mail/mailer.ts";
@@ -52,6 +53,8 @@ export interface AuthOptions {
   secureCookies: boolean;
   /** Address of the site, for the links handed out. */
   publicUrl: string;
+  /** Guest groups (GRP-01). */
+  groups: GroupService;
   /** Sends emails (ACC-11); undefined if no mail server is configured. */
   mailer?: Mailer | undefined;
 }
@@ -92,7 +95,7 @@ function originHost(origin: string | undefined): string | undefined | null {
 }
 
 /** The signed-in user of a request that passed `requireUser` or `requireRole`. */
-function signedIn(request: FastifyRequest): AuthState {
+export function signedIn(request: FastifyRequest): AuthState {
   if (!request.auth) throw new Error("no signed-in user: the route needs requireUser");
   return request.auth;
 }
@@ -125,7 +128,30 @@ export function requireRole(role: Role) {
   };
 }
 
-function rateLimited(reply: FastifyReply, retryAfter: number): FastifyReply {
+/**
+ * `preHandler`: 401 unless signed in, 403 unless the user is staff with the capability (ROLE-06).
+ * An admin does not pass without being staff with it (ROLE-08).
+ */
+export function requireCapability(capability: Capability) {
+  return async (
+    request: FastifyRequest,
+    reply: FastifyReply,
+  ): Promise<FastifyReply | undefined> => {
+    if (!request.auth) {
+      return sendError(reply, 401, { code: "unauthorized", message: "Sign in first." });
+    }
+    const { roles, capabilities } = request.auth.user;
+    if (!roles.includes("staff") || !capabilities.includes(capability)) {
+      return sendError(reply, 403, {
+        code: "forbidden",
+        message: `The capability "${capability}" is required.`,
+      });
+    }
+    return undefined;
+  };
+}
+
+export function rateLimited(reply: FastifyReply, retryAfter: number): FastifyReply {
   return sendError(reply.header("retry-after", String(retryAfter)), 429, {
     code: "rate_limited",
     message: "Too many attempts. Try again later.",

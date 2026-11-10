@@ -5,6 +5,7 @@ import type { Database } from "../database/database.ts";
 import type { EventService } from "../event/service.ts";
 import type { Mailer } from "../mail/mailer.ts";
 import { AccountService } from "./accounts.ts";
+import { GroupService } from "./groups.ts";
 import { RateLimiter } from "./rate-limit.ts";
 import { SessionService } from "./sessions.ts";
 
@@ -17,6 +18,7 @@ export function createAuth(
   return {
     accounts: new AccountService(database, event),
     sessions: new SessionService(database),
+    groups: new GroupService(database, event),
     limiter: new RateLimiter(),
     event,
     secret: config.SESSION_SECRET,

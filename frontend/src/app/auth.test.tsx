@@ -18,6 +18,7 @@ const anna = {
   email: null,
   emailStatus: "unverified",
   roles: ["vip"],
+  capabilities: [],
 };
 const event = {
   id: "event-muster",

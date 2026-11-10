@@ -21,6 +21,11 @@ export const passwordSchema = z
   .min(PASSWORD_MIN_LENGTH, `must have at least ${String(PASSWORD_MIN_LENGTH)} characters`)
   .max(PASSWORD_MAX_LENGTH, `must have at most ${String(PASSWORD_MAX_LENGTH)} characters`);
 
+/** The fixed capabilities of a staff member (ROLE-06); there are no others. */
+export const CAPABILITIES = ["editWebsiteContent", "moderateContributions"] as const;
+export const capabilitySchema = z.enum(CAPABILITIES);
+export type Capability = z.infer<typeof capabilitySchema>;
+
 export const userSchema = z.object({
   id: z.number().int(),
   username: z.string(),
@@ -29,6 +34,8 @@ export const userSchema = z.object({
   emailStatus: z.enum(["unverified", "verified"]),
   /** Roles in the event of this installation. */
   roles: z.array(roleSchema),
+  /** Capabilities switched on for a staff member; empty without the `staff` role. */
+  capabilities: z.array(capabilitySchema),
 });
 export type User = z.infer<typeof userSchema>;
 

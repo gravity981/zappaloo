@@ -51,6 +51,9 @@ function guests(dataDir: string): unknown[] {
   }
 }
 
+/** Tests that start the CLI as a process several times; they get slow when all files run at once. */
+const SPAWN_TIMEOUT = 30_000;
+
 describe("command-line interface", () => {
   it("[OPS-17] version prints version and commit", async () => {
     const result = await run(["version"], {
@@ -167,42 +170,46 @@ describe("backup and restore", () => {
     expect((await run(["restore", backup, "--force"], { DATA_DIR: dataDir })).code).toBe(0);
   });
 
-  it("[OPS-18] backup - and restore - stream the database through stdout and stdin", async () => {
-    const { dataDir, dir } = await dataDirWithGuest("Anna");
-    const cli = fileURLToPath(new URL("./cli.ts", import.meta.url));
-    const env = { PATH: process.env.PATH, DATA_DIR: dataDir };
+  it(
+    "[OPS-18] backup - and restore - stream the database through stdout and stdin",
+    async () => {
+      const { dataDir, dir } = await dataDirWithGuest("Anna");
+      const cli = fileURLToPath(new URL("./cli.ts", import.meta.url));
+      const env = { PATH: process.env.PATH, DATA_DIR: dataDir };
 
-    // As in: docker compose exec -T app zappaloo backup - > backups/x.db
-    const backup = spawnSync(process.execPath, [cli, "backup", "-"], { env });
-    expect(backup.status).toBe(0);
-    expect(backup.stderr.toString()).toBe("Database backed up to standard output.\n");
-    const file = join(dir, "streamed.db");
-    writeFileSync(file, backup.stdout);
-    const copy = openDatabase(file);
-    expect(copy.sqlite.prepare("SELECT name FROM guests").all()).toEqual([{ name: "Anna" }]);
-    copy.close();
+      // As in: docker compose exec -T app zappaloo backup - > backups/x.db
+      const backup = spawnSync(process.execPath, [cli, "backup", "-"], { env });
+      expect(backup.status).toBe(0);
+      expect(backup.stderr.toString()).toBe("Database backed up to standard output.\n");
+      const file = join(dir, "streamed.db");
+      writeFileSync(file, backup.stdout);
+      const copy = openDatabase(file);
+      expect(copy.sqlite.prepare("SELECT name FROM guests").all()).toEqual([{ name: "Anna" }]);
+      copy.close();
 
-    const database = openDatabase(dataPaths(dataDir).database);
-    database.sqlite.prepare("UPDATE guests SET name = 'Mallory'").run();
-    database.close();
+      const database = openDatabase(dataPaths(dataDir).database);
+      database.sqlite.prepare("UPDATE guests SET name = 'Mallory'").run();
+      database.close();
 
-    // As in: docker compose run --rm -T app zappaloo restore - --force < backups/x.db
-    const restore = spawnSync(process.execPath, [cli, "restore", "-", "--force"], {
-      env,
-      input: backup.stdout,
-    });
-    expect(restore.stderr.toString()).toBe("");
-    expect(restore.status).toBe(0);
-    expect(guests(dataDir)).toEqual([{ name: "Anna" }]);
+      // As in: docker compose run --rm -T app zappaloo restore - --force < backups/x.db
+      const restore = spawnSync(process.execPath, [cli, "restore", "-", "--force"], {
+        env,
+        input: backup.stdout,
+      });
+      expect(restore.stderr.toString()).toBe("");
+      expect(restore.status).toBe(0);
+      expect(guests(dataDir)).toEqual([{ name: "Anna" }]);
 
-    // Garbage on stdin is rejected and the database stays.
-    const garbage = spawnSync(process.execPath, [cli, "restore", "-", "--force"], {
-      env,
-      input: "not a database",
-    });
-    expect(garbage.status).toBe(1);
-    expect(guests(dataDir)).toEqual([{ name: "Anna" }]);
-  });
+      // Garbage on stdin is rejected and the database stays.
+      const garbage = spawnSync(process.execPath, [cli, "restore", "-", "--force"], {
+        env,
+        input: "not a database",
+      });
+      expect(garbage.status).toBe(1);
+      expect(guests(dataDir)).toEqual([{ name: "Anna" }]);
+    },
+    SPAWN_TIMEOUT,
+  );
 
   it("[OPS-18] restore refuses files that are not an intact SQLite database", async () => {
     const { dataDir, dir } = await dataDirWithGuest("Anna");
@@ -314,39 +321,43 @@ describe("full backup and restore", () => {
     expect(readdirSync(dataDir).filter((n) => n.startsWith(".restore-"))).toEqual([]);
   });
 
-  it("[OPS-05] backup --full - and restore --full - stream the archive through stdout and stdin", async () => {
-    const { dataDir } = await dataDirWithGuest("Anna");
-    writeFiles(dataDir, { "uploads/a.jpg": "photo A" });
-    const cli = fileURLToPath(new URL("./cli.ts", import.meta.url));
-    const env = { PATH: process.env.PATH, DATA_DIR: dataDir };
+  it(
+    "[OPS-05] backup --full - and restore --full - stream the archive through stdout and stdin",
+    async () => {
+      const { dataDir } = await dataDirWithGuest("Anna");
+      writeFiles(dataDir, { "uploads/a.jpg": "photo A" });
+      const cli = fileURLToPath(new URL("./cli.ts", import.meta.url));
+      const env = { PATH: process.env.PATH, DATA_DIR: dataDir };
 
-    // As in: docker compose exec -T app zappaloo backup --full - > backups/x.tar.gz
-    const backup = spawnSync(process.execPath, [cli, "backup", "--full", "-"], { env });
-    expect(backup.status).toBe(0);
-    expect(backup.stderr.toString()).toBe("Full backup written to standard output.\n");
+      // As in: docker compose exec -T app zappaloo backup --full - > backups/x.tar.gz
+      const backup = spawnSync(process.execPath, [cli, "backup", "--full", "-"], { env });
+      expect(backup.status).toBe(0);
+      expect(backup.stderr.toString()).toBe("Full backup written to standard output.\n");
 
-    rmSync(join(dataDir, "uploads/a.jpg"));
-    const database = openDatabase(dataPaths(dataDir).database);
-    database.sqlite.prepare("UPDATE guests SET name = 'Mallory'").run();
-    database.close();
+      rmSync(join(dataDir, "uploads/a.jpg"));
+      const database = openDatabase(dataPaths(dataDir).database);
+      database.sqlite.prepare("UPDATE guests SET name = 'Mallory'").run();
+      database.close();
 
-    // As in: docker compose run --rm --no-deps -T app zappaloo restore --full - --force < x.tar.gz
-    const restore = spawnSync(process.execPath, [cli, "restore", "--full", "-", "--force"], {
-      env,
-      input: backup.stdout,
-    });
-    expect(restore.stderr.toString()).toBe("");
-    expect(restore.status).toBe(0);
-    expect(guests(dataDir)).toEqual([{ name: "Anna" }]);
-    expect(readFileSync(join(dataDir, "uploads/a.jpg"), "utf8")).toBe("photo A");
+      // As in: docker compose run --rm --no-deps -T app zappaloo restore --full - --force < x.tar.gz
+      const restore = spawnSync(process.execPath, [cli, "restore", "--full", "-", "--force"], {
+        env,
+        input: backup.stdout,
+      });
+      expect(restore.stderr.toString()).toBe("");
+      expect(restore.status).toBe(0);
+      expect(guests(dataDir)).toEqual([{ name: "Anna" }]);
+      expect(readFileSync(join(dataDir, "uploads/a.jpg"), "utf8")).toBe("photo A");
 
-    const garbage = spawnSync(process.execPath, [cli, "restore", "--full", "-", "--force"], {
-      env,
-      input: "not an archive",
-    });
-    expect(garbage.status).toBe(1);
-    expect(guests(dataDir)).toEqual([{ name: "Anna" }]);
-  });
+      const garbage = spawnSync(process.execPath, [cli, "restore", "--full", "-", "--force"], {
+        env,
+        input: "not an archive",
+      });
+      expect(garbage.status).toBe(1);
+      expect(guests(dataDir)).toEqual([{ name: "Anna" }]);
+    },
+    SPAWN_TIMEOUT,
+  );
 });
 
 describe("event commands", () => {

@@ -1,9 +1,17 @@
 // Accounts, event roles and one-time links (ACC-04, ACC-06, ACC-08, ACC-14,
 // ACC-15; sw-architecture.md 7.1.1).
 import { and, eq, gt, or, sql } from "drizzle-orm";
-import type { ProfileUpdate, Role, User } from "@zappaloo/shared";
+import type { AdminUser, Capability, ProfileUpdate, Role, User } from "@zappaloo/shared";
 import type { Database } from "../database/database.ts";
-import { membershipRoles, memberships, oneTimeLinks, users } from "../database/schema.ts";
+import {
+  guestGroupMembers,
+  guestGroups,
+  membershipCapabilities,
+  membershipRoles,
+  memberships,
+  oneTimeLinks,
+  users,
+} from "../database/schema.ts";
 import type { Actor, EventService } from "../event/service.ts";
 import { hashPassword, verifyDummyPassword, verifyPassword } from "./password.ts";
 import { hashToken, newToken } from "./tokens.ts";
@@ -14,7 +22,8 @@ export type AccountErrorCode =
   | "invalid_password"
   | "invalid_link"
   | "no_email"
-  | "last_admin";
+  | "last_admin"
+  | "not_staff";
 
 export class AccountError extends Error {
   override name = "AccountError";
@@ -59,6 +68,20 @@ export class AccountService {
       .all()
       .map((r) => r.role)
       .sort();
+    const capabilities = roles.includes("staff")
+      ? this.#database.db
+          .select({ capability: membershipCapabilities.capability })
+          .from(membershipCapabilities)
+          .where(
+            and(
+              eq(membershipCapabilities.eventId, this.#event.eventId),
+              eq(membershipCapabilities.userId, row.id),
+            ),
+          )
+          .all()
+          .map((c) => c.capability)
+          .sort()
+      : [];
     return {
       id: row.id,
       username: row.username,
@@ -66,6 +89,7 @@ export class AccountService {
       email: row.email,
       emailStatus: row.emailStatus,
       roles,
+      capabilities,
     };
   }
 
@@ -325,18 +349,126 @@ export class AccountService {
       throw new AccountError("invalid_password", "the password is wrong");
     }
     this.#database.db.transaction((tx) => {
-      const admins = tx
-        .select({ userId: membershipRoles.userId })
-        .from(membershipRoles)
-        .where(
-          and(eq(membershipRoles.eventId, this.#event.eventId), eq(membershipRoles.role, "admin")),
-        )
-        .all();
-      if (admins.some((a) => a.userId === userId) && admins.length === 1) {
+      if (this.#isLastAdmin(tx, userId)) {
         throw new AccountError("last_admin", "the last admin cannot delete the account");
       }
       tx.delete(users).where(eq(users.id, userId)).run(); // memberships, roles, sessions, links cascade
       this.#event.audit(`user:${String(userId)}`, "user.delete", { userId }, tx);
+    });
+  }
+
+  /** True if the user is the only admin of the event. */
+  #isLastAdmin(tx: Pick<Database["db"], "select">, userId: number): boolean {
+    const admins = tx
+      .select({ userId: membershipRoles.userId })
+      .from(membershipRoles)
+      .where(
+        and(eq(membershipRoles.eventId, this.#event.eventId), eq(membershipRoles.role, "admin")),
+      )
+      .all();
+    return admins.length === 1 && admins[0]?.userId === userId;
+  }
+
+  /** Every account of the event with its groups (admin overview). */
+  listUsers(): AdminUser[] {
+    const { db } = this.#database;
+    const rows = db
+      .select({ user: users })
+      .from(users)
+      .innerJoin(memberships, eq(memberships.userId, users.id))
+      .where(eq(memberships.eventId, this.#event.eventId))
+      .orderBy(users.username)
+      .all();
+    const groups = db
+      .select({
+        userId: guestGroupMembers.userId,
+        id: guestGroups.id,
+        name: guestGroups.name,
+      })
+      .from(guestGroupMembers)
+      .innerJoin(guestGroups, eq(guestGroups.id, guestGroupMembers.groupId))
+      .where(eq(guestGroups.eventId, this.#event.eventId))
+      .orderBy(guestGroups.name)
+      .all();
+    return rows.map(({ user }) => ({
+      ...this.#toUser(user),
+      groups: groups.filter((g) => g.userId === user.id).map(({ id, name }) => ({ id, name })),
+    }));
+  }
+
+  /**
+   * Sets the complete set of roles of the user (ROLE-01, ROLE-04, ROLE-09). Roles the admin
+   * leaves in the set stay as they are, so revoking one never touches another. The last admin
+   * keeps the role. Removing `staff` also switches off the staff capabilities.
+   */
+  setRoles(userId: number, roles: Role[], actor: Actor): User {
+    const wanted = [...new Set(roles)];
+    return this.#database.db.transaction((tx) => {
+      const row = tx.select().from(users).where(eq(users.id, userId)).get();
+      if (!row) throw new AccountError("user_not_found", "no such user");
+      const current = this.#toUser(row).roles;
+      if (current.includes("admin") && !wanted.includes("admin") && this.#isLastAdmin(tx, userId)) {
+        throw new AccountError("last_admin", "the last admin cannot lose the admin role");
+      }
+      const eventId = this.#event.eventId;
+      for (const role of current.filter((r) => !wanted.includes(r))) {
+        tx.delete(membershipRoles)
+          .where(
+            and(
+              eq(membershipRoles.eventId, eventId),
+              eq(membershipRoles.userId, userId),
+              eq(membershipRoles.role, role),
+            ),
+          )
+          .run();
+      }
+      for (const role of wanted.filter((r) => !current.includes(r))) {
+        tx.insert(membershipRoles).values({ eventId, userId, role }).run();
+      }
+      if (!wanted.includes("staff")) {
+        tx.delete(membershipCapabilities)
+          .where(
+            and(
+              eq(membershipCapabilities.eventId, eventId),
+              eq(membershipCapabilities.userId, userId),
+            ),
+          )
+          .run();
+      }
+      this.#event.audit(actor, "user.roles", { userId, from: current, to: [...wanted].sort() }, tx);
+      return this.#toUser(row);
+    });
+  }
+
+  /** Sets the complete set of capabilities of a staff member (ROLE-06). */
+  setCapabilities(userId: number, capabilities: Capability[], actor: Actor): User {
+    const wanted = [...new Set(capabilities)];
+    return this.#database.db.transaction((tx) => {
+      const row = tx.select().from(users).where(eq(users.id, userId)).get();
+      if (!row) throw new AccountError("user_not_found", "no such user");
+      const before = this.#toUser(row);
+      if (!before.roles.includes("staff")) {
+        throw new AccountError("not_staff", "capabilities belong to staff members");
+      }
+      const eventId = this.#event.eventId;
+      tx.delete(membershipCapabilities)
+        .where(
+          and(
+            eq(membershipCapabilities.eventId, eventId),
+            eq(membershipCapabilities.userId, userId),
+          ),
+        )
+        .run();
+      for (const capability of wanted) {
+        tx.insert(membershipCapabilities).values({ eventId, userId, capability }).run();
+      }
+      this.#event.audit(
+        actor,
+        "user.capabilities",
+        { userId, from: before.capabilities, to: [...wanted].sort() },
+        tx,
+      );
+      return this.#toUser(row);
     });
   }
 }
