@@ -29,6 +29,8 @@ export const groupListSchema = z.object({ groups: z.array(groupSchema) });
 
 /** `GET /api/admin/users`: every account of the event with its groups. */
 export const adminUserSchema = userSchema.extend({
+  /** How `vip` was granted (INV-11); null without the role. */
+  vipAssignment: z.enum(["invitation_code", "admin_promotion"]).nullable(),
   groups: z.array(z.object({ id: z.number().int(), name: z.string() })),
 });
 export type AdminUser = z.infer<typeof adminUserSchema>;

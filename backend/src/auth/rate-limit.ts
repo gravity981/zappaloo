@@ -57,3 +57,11 @@ export const FORGOT_PER_ADDRESS: Limit = { max: 10, windowMs: 15 * 60_000 };
 export const VERIFY_MAIL_PER_USER: Limit = { max: 3, windowMs: 60 * 60_000 };
 export const RESET_MAILS_PER_ACCOUNT = 3;
 export const RESET_MAILS_WINDOW_MS = 60 * 60_000;
+/** Looking up and redeeming invitation codes (INV-12, SEC-02). */
+export const REDEEM_PER_ADDRESS: Limit = { max: 20, windowMs: 15 * 60_000 };
+/**
+ * Failed redemption attempts (codes that do not exist or cannot be redeemed) across all
+ * addresses: the short code is safe against a guesser with many addresses only with this cap.
+ */
+export const REDEEM_FAILURES_GLOBAL: Limit = { max: 100, windowMs: 60 * 60_000 };
+export const REDEEM_GLOBAL_KEY = "redeem:failures";

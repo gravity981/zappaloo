@@ -11,6 +11,7 @@ import type { EventService } from "./event/service.ts";
 import { adminRoutes } from "./api/admin.ts";
 import { authRoutes } from "./api/auth.ts";
 import type { AuthOptions } from "./api/auth.ts";
+import { invitationRoutes } from "./api/invitations.ts";
 import { eventApiRoutes } from "./api/event.ts";
 import { eventRoutes } from "./api/events.ts";
 import { noIndex } from "./api/no-index.ts";
@@ -43,6 +44,7 @@ export async function buildApp(options: AppOptions): Promise<FastifyInstance> {
   await app.register(eventRoutes);
   await app.register(authRoutes, options.auth);
   await app.register(adminRoutes, options.auth);
+  await app.register(invitationRoutes, options.auth);
   await app.register(eventApiRoutes, { event: options.event });
 
   const frontendDir = options.frontendDir && resolve(options.frontendDir);

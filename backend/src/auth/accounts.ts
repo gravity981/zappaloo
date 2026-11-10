@@ -37,6 +37,9 @@ export class AccountError extends Error {
 /** A one-time link is valid for 24 hours (sw-architecture.md 7.1.1). */
 export const LINK_VALIDITY_MS = 24 * 60 * 60 * 1000;
 
+/** A transaction of the database, so a caller can make several changes atomically. */
+export type Tx = Parameters<Parameters<Database["db"]["transaction"]>[0]>[0];
+
 export type LinkPurpose = "setup" | "reset" | "verify";
 
 export interface IssuedLink {
@@ -112,11 +115,21 @@ export class AccountService {
    * `roles`. Its owner sets the password with a setup link (see `createLink`).
    */
   createUser(
-    input: { username: string; displayName?: string | undefined; roles: Role[] },
+    input: {
+      username: string;
+      displayName?: string | undefined;
+      roles: Role[];
+      /** Redeeming an invitation sets the password at once. */
+      passwordHash?: string;
+      /** The invitation that grants `vip`; without it `vip` is an admin promotion (INV-11). */
+      invitationId?: number;
+    },
     actor: Actor,
+    /** Inside the transaction of the caller. */
+    outer?: Tx,
   ): User {
     const username = input.username.toLowerCase();
-    return this.#database.db.transaction((tx) => {
+    const create = (tx: Tx): User => {
       if (tx.select({ id: users.id }).from(users).where(eq(users.username, username)).get()) {
         throw new AccountError("username_taken", `the username "${username}" is already taken`);
       }
@@ -126,13 +139,25 @@ export class AccountService {
         .values({
           username,
           displayName: input.displayName ?? username,
+          passwordHash: input.passwordHash ?? null,
           createdAt: now,
           updatedAt: now,
         })
         .returning()
         .get();
       tx.insert(memberships)
-        .values({ eventId: this.#event.eventId, userId: row.id, createdAt: now })
+        .values({
+          eventId: this.#event.eventId,
+          userId: row.id,
+          createdAt: now,
+          ...(input.roles.includes("vip")
+            ? {
+                vipAssignment:
+                  input.invitationId === undefined ? "admin_promotion" : "invitation_code",
+                vipInvitationId: input.invitationId ?? null,
+              }
+            : {}),
+        })
         .run();
       for (const role of new Set(input.roles)) {
         tx.insert(membershipRoles)
@@ -142,11 +167,17 @@ export class AccountService {
       this.#event.audit(
         actor,
         "user.create",
-        { userId: row.id, username, roles: [...new Set(input.roles)].sort() },
+        {
+          userId: row.id,
+          username,
+          roles: [...new Set(input.roles)].sort(),
+          ...(input.invitationId === undefined ? {} : { invitationId: input.invitationId }),
+        },
         tx,
       );
       return this.#toUser(row);
-    });
+    };
+    return outer ? create(outer) : this.#database.db.transaction(create);
   }
 
   /** Checks username and password; always does the hashing work, also for unknown users. */
@@ -373,7 +404,7 @@ export class AccountService {
   listUsers(): AdminUser[] {
     const { db } = this.#database;
     const rows = db
-      .select({ user: users })
+      .select({ user: users, vipAssignment: memberships.vipAssignment })
       .from(users)
       .innerJoin(memberships, eq(memberships.userId, users.id))
       .where(eq(memberships.eventId, this.#event.eventId))
@@ -390,8 +421,9 @@ export class AccountService {
       .where(eq(guestGroups.eventId, this.#event.eventId))
       .orderBy(guestGroups.name)
       .all();
-    return rows.map(({ user }) => ({
+    return rows.map(({ user, vipAssignment }) => ({
       ...this.#toUser(user),
+      vipAssignment,
       groups: groups.filter((g) => g.userId === user.id).map(({ id, name }) => ({ id, name })),
     }));
   }
@@ -425,6 +457,18 @@ export class AccountService {
       for (const role of wanted.filter((r) => !current.includes(r))) {
         tx.insert(membershipRoles).values({ eventId, userId, role }).run();
       }
+      // Direct promotion needs no code; revoking vip forgets how it was granted (INV-11).
+      const gainedVip = wanted.includes("vip") && !current.includes("vip");
+      if (gainedVip || (!wanted.includes("vip") && current.includes("vip"))) {
+        tx.update(memberships)
+          .set(
+            gainedVip
+              ? { vipAssignment: "admin_promotion", vipInvitationId: null }
+              : { vipAssignment: null, vipInvitationId: null },
+          )
+          .where(and(eq(memberships.eventId, eventId), eq(memberships.userId, userId)))
+          .run();
+      }
       if (!wanted.includes("staff")) {
         tx.delete(membershipCapabilities)
           .where(
@@ -435,7 +479,19 @@ export class AccountService {
           )
           .run();
       }
-      this.#event.audit(actor, "user.roles", { userId, from: current, to: [...wanted].sort() }, tx);
+      this.#event.audit(
+        actor,
+        "user.roles",
+        {
+          userId,
+          from: current,
+          to: [...wanted].sort(),
+          ...(wanted.includes("vip") && !current.includes("vip")
+            ? { vipAssignment: "admin_promotion" }
+            : {}),
+        },
+        tx,
+      );
       return this.#toUser(row);
     });
   }

@@ -354,3 +354,172 @@ describe("email and account self-service", () => {
     expect(await screen.findByRole("alert")).toHaveTextContent("letzte Admin-Person");
   });
 });
+
+describe("invitations", () => {
+  const preview = { status: 200, body: { guestName: "Anna Muster" } };
+
+  it("[INV-07] a new guest registers with the code and is signed in", async () => {
+    let current: { status: number; body: unknown } = anonymous;
+    const calls = fakeBackend({
+      "GET /api/session": () => current,
+      "GET /api/invitations/K7QMX4": () => preview,
+      "POST /api/invitations/K7QMX4/register": () => ({
+        status: 201,
+        body: { user: anna },
+      }),
+      "POST /api/session": () => {
+        current = signedIn;
+        return signedIn;
+      },
+    });
+    renderAt("/invite/K7QMX4");
+    expect(
+      await screen.findByRole("heading", { name: "Willkommen, Anna Muster!" }),
+    ).toBeInTheDocument();
+    expect(screen.getByLabelText("Anzeigename")).toHaveValue("Anna Muster");
+    user.type(screen.getByLabelText("Benutzername"), "Anna");
+    user.type(screen.getByLabelText("Passwort"), "a-long-enough-password");
+    user.type(screen.getByLabelText("Passwort wiederholen"), "a-long-enough-password");
+    user.click(screen.getByRole("button", { name: "Konto anlegen" }));
+
+    expect(await screen.findByRole("link", { name: "Profil" })).toBeInTheDocument();
+    expect(calls.find((c) => c.path.endsWith("/register"))?.body).toEqual({
+      username: "anna",
+      displayName: "Anna Muster",
+      password: "a-long-enough-password",
+    });
+    expect(calls.find((c) => c.method === "POST" && c.path === "/api/session")?.body).toEqual({
+      username: "anna",
+      password: "a-long-enough-password",
+    });
+  });
+
+  it("[INV-03][INV-04] explains a redeemed, expired or unknown code", async () => {
+    for (const [code, expected] of [
+      ["invitation_redeemed", "schon eingelöst"],
+      ["invitation_expired", "abgelaufen"],
+      ["invalid_invitation", "nicht gültig"],
+    ] as const) {
+      fakeBackend({
+        "GET /api/session": () => anonymous,
+        "GET /api/invitations/ABC": () => ({
+          status: 410,
+          body: { error: { code, message: "x" } },
+        }),
+      });
+      const { unmount } = render(
+        <RouterProvider router={createMemoryRouter(routes, { initialEntries: ["/invite/ABC"] })} />,
+      );
+      expect(await screen.findByRole("alert")).toHaveTextContent(expected);
+      unmount();
+    }
+  });
+
+  it("[INV-07] the code can be typed in on the invitation page", async () => {
+    fakeBackend({
+      "GET /api/session": () => anonymous,
+      "GET /api/invitations/K7QMX4": () => preview,
+    });
+    renderAt("/invite");
+    user.type(await screen.findByLabelText("Einladungscode"), "k7q-mx4");
+    user.click(screen.getByRole("button", { name: "Weiter" }));
+    expect(
+      await screen.findByRole("heading", { name: "Willkommen, Anna Muster!" }),
+    ).toBeInTheDocument();
+  });
+
+  it("[INV-07][ACC-07] a signed-in user without vip redeems the code on their account", async () => {
+    const helper = { ...anna, roles: ["staff"] };
+    const calls = fakeBackend({
+      "GET /api/session": () => ({ status: 200, body: { user: helper, csrfToken: "csrf-1" } }),
+      "GET /api/invitations/K7QMX4": () => preview,
+      "POST /api/invitations/K7QMX4/redeem": () => ({
+        status: 200,
+        body: { user: { ...helper, roles: ["staff", "vip"] } },
+      }),
+    });
+    renderAt("/invite/K7QMX4");
+    user.click(await screen.findByRole("button", { name: "Einladung einlösen" }));
+    await waitFor(() => {
+      expect(calls.find((c) => c.path.endsWith("/redeem"))?.csrf).toBe("csrf-1");
+    });
+    expect(
+      await screen.findByRole("heading", { name: "Willkommen bei Zappaloo" }),
+    ).toBeInTheDocument();
+  });
+
+  const admin = { ...anna, roles: ["admin"] };
+  const asAdmin = { status: 200, body: { user: admin, csrfToken: "csrf-1" } };
+  const row = {
+    id: 1,
+    guestName: "Anna Muster",
+    note: null,
+    status: "active",
+    expiresAt: null,
+    createdAt: "2026-11-10T10:00:00.000Z",
+    redeemedAt: null,
+    redeemedBy: null,
+  };
+
+  it("[INV-01][INV-14] an admin creates invitations and gets cards with code and QR code", async () => {
+    const calls = fakeBackend({
+      "GET /api/session": () => asAdmin,
+      "GET /api/admin/invitations": () => ({ status: 200, body: { invitations: [] } }),
+      "POST /api/admin/invitations": () => ({
+        status: 201,
+        body: {
+          invitations: [{ ...row, code: "K7QMX4", url: "http://localhost:5173/invite/K7QMX4" }],
+        },
+      }),
+    });
+    renderAt("/admin/invitations");
+    user.type(await screen.findByLabelText("Gäste (ein Name pro Zeile)"), "Anna Muster\nBen");
+    user.click(screen.getByRole("button", { name: "Einladungen erstellen" }));
+
+    expect(await screen.findByText("K7QMX4")).toBeInTheDocument();
+    expect(
+      await screen.findByRole("img", { name: "QR-Code der Einladung für Anna Muster" }),
+    ).toHaveAttribute("src", expect.stringContaining("data:image/svg+xml"));
+    expect(screen.getByRole("button", { name: "Karten drucken" })).toBeInTheDocument();
+    const post = calls.find((c) => c.method === "POST");
+    expect(post?.csrf).toBe("csrf-1");
+    expect(post?.body).toEqual({ guests: [{ name: "Anna Muster" }, { name: "Ben" }] });
+  });
+
+  it("[INV-05] an admin revokes and regenerates a code from the list", async () => {
+    const calls = fakeBackend({
+      "GET /api/session": () => asAdmin,
+      "GET /api/admin/invitations": () => ({ status: 200, body: { invitations: [row] } }),
+      "POST /api/admin/invitations/1/revoke": () => ({
+        status: 200,
+        body: { ...row, status: "revoked" },
+      }),
+      "POST /api/admin/invitations/1/regenerate": () => ({
+        status: 201,
+        body: {
+          ...row,
+          id: 2,
+          code: "AAAABB",
+          url: "http://localhost:5173/invite/AAAABB",
+        },
+      }),
+    });
+    renderAt("/admin/invitations");
+    expect(await screen.findByText("Offen")).toBeInTheDocument();
+    user.click(screen.getByRole("button", { name: "Neu erstellen" }));
+    expect(await screen.findByText("AAAABB")).toBeInTheDocument();
+    user.click(screen.getByRole("button", { name: "Widerrufen" }));
+    await waitFor(() => {
+      expect(calls.some((c) => c.path === "/api/admin/invitations/1/revoke")).toBe(true);
+    });
+  });
+
+  it("[INV-01] the admin page is not for other users", async () => {
+    fakeBackend({ "GET /api/session": () => signedIn });
+    renderAt("/admin/invitations");
+    expect(
+      await screen.findByRole("heading", { name: "Willkommen bei Zappaloo" }),
+    ).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "Einladungen" })).not.toBeInTheDocument();
+  });
+});

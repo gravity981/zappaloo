@@ -985,6 +985,16 @@ VIPs cannot invite people who would get an account of their own. They can reques
 - Logging of administrative actions.
 - Server-side validation of all redemptions.
 
+### 9.6.1 Implementation (step 2e, decided 2026-11-10)
+
+- **Code.** 6 random characters from the 32-letter alphabet `A–H J–N P–Z 2–9` (no 0/O, 1/I): 30 bits, e.g. `K7QMX4`, no separator. Input ignores case, dashes and spaces. The link is `<PUBLIC_URL>/invite/<code>`, the QR code on the card holds it. Only the SHA-256 of the normalised code is stored; the plain code is in the response that creates or regenerates the invitation and nowhere else. Six characters are guessable by someone with many addresses (decision record in README.md), so besides the per-address limit there is a global one (decided 2026-11-10): at most 100 failed attempts per hour across all addresses; beyond it every redemption call answers `429` until the hour is over. Only failures count (a code that does not exist, or is redeemed, expired, revoked or replaced), so real guests are not slowed down.
+- **Invitation.** Guest name (1–100 characters; suggested as display name at redemption), optional note, optional expiry date (no default expiry: a code stays valid until redeemed, revoked or replaced). Event parts per invitation come with step 3a.
+- **Status.** Stored: `active`, `redeemed`, `revoked`, `replaced`; `expired` is derived from the expiry date, so nothing has to flip a row. Only an `active` or `expired` code can be regenerated (the old one becomes `replaced`, the new one is a new invitation for the same guest); only an `active` one can be revoked, a revoked one needs a fresh invitation. A redeemed code stays redeemed, also after its account was deleted.
+- **Redemption.** `GET /api/invitations/:code` (guest name, or `404 invalid_invitation` / `410 invitation_expired|redeemed|revoked|replaced`); `POST /api/invitations/:code/register` creates the account with `vip` and its password and marks the code redeemed in one transaction; `POST /api/invitations/:code/redeem` does the same for the signed-in user without `vip` (`409 already_vip` otherwise, the code is not consumed). The update that marks the code redeemed only matches `active`, so of any number of concurrent attempts exactly one wins. Redemption attempts are limited to 20 per client address in 15 minutes, and failed attempts to 100 per hour overall.
+- **How vip was granted** (INV-11): `memberships.vip_assignment` (`invitation_code` or `admin_promotion`) and `vip_invitation_id`; direct promotion (role change, account created by an admin, CLI `--vip`) records `admin_promotion`, revoking `vip` clears both. The audit log records the method.
+- **Admin API.** `GET`/`POST /api/admin/invitations` (batch of up to 200 guests with one expiry), `POST /api/admin/invitations/:id/revoke` and `/regenerate`.
+- **Frontend.** `/invite` (type the code) and `/invite/:code` (register, or redeem when signed in); `/admin/invitations` creates invitations and prints the cards (name, QR code drawn in the browser, code, link) with the browser's print function.
+
 ## 9.7 Requirements
 
 | ID | Requirement | Prio |

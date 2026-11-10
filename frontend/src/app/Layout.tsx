@@ -12,6 +12,9 @@ function AccountNav() {
   if (!session.user) return <NavLink to="/login">{t("nav.login")}</NavLink>;
   return (
     <>
+      {session.user.roles.includes("admin") && (
+        <NavLink to="/admin/invitations">{t("nav.invitations")}</NavLink>
+      )}
       <NavLink to="/profile">{t("nav.profile")}</NavLink>
       <button type="button" onClick={() => void session.logout()}>
         {t("nav.logout")}

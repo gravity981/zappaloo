@@ -34,6 +34,7 @@ import {
 } from "../auth/rate-limit.ts";
 import type { RateLimiter } from "../auth/rate-limit.ts";
 import type { GroupService } from "../auth/groups.ts";
+import type { InvitationService } from "../auth/invitations.ts";
 import type { SessionService } from "../auth/sessions.ts";
 import type { EventService } from "../event/service.ts";
 import type { Mailer } from "../mail/mailer.ts";
@@ -55,6 +56,8 @@ export interface AuthOptions {
   publicUrl: string;
   /** Guest groups (GRP-01). */
   groups: GroupService;
+  /** Personal invitation codes (INV-01 – INV-12). */
+  invitations: InvitationService;
   /** Sends emails (ACC-11); undefined if no mail server is configured. */
   mailer?: Mailer | undefined;
 }

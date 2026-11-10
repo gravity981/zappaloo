@@ -6,6 +6,7 @@ import type { EventService } from "../event/service.ts";
 import type { Mailer } from "../mail/mailer.ts";
 import { AccountService } from "./accounts.ts";
 import { GroupService } from "./groups.ts";
+import { InvitationService } from "./invitations.ts";
 import { RateLimiter } from "./rate-limit.ts";
 import { SessionService } from "./sessions.ts";
 
@@ -15,10 +16,12 @@ export function createAuth(
   config: Pick<Config, "SESSION_SECRET" | "SECURE_COOKIES" | "PUBLIC_URL">,
   mailer?: Mailer,
 ): AuthOptions {
+  const accounts = new AccountService(database, event);
   return {
-    accounts: new AccountService(database, event),
+    accounts,
     sessions: new SessionService(database),
     groups: new GroupService(database, event),
+    invitations: new InvitationService(database, event, accounts),
     limiter: new RateLimiter(),
     event,
     secret: config.SESSION_SECRET,

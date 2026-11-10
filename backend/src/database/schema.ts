@@ -99,6 +99,10 @@ export const memberships = sqliteTable(
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
     createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull(),
+    /** How `vip` was granted (INV-11); null without the role. Cleared when vip is revoked. */
+    vipAssignment: text("vip_assignment", { enum: ["invitation_code", "admin_promotion"] }),
+    /** For `invitation_code`: the invitation that was redeemed. */
+    vipInvitationId: integer("vip_invitation_id"),
   },
   (table) => [primaryKey({ columns: [table.eventId, table.userId] })],
 );
@@ -205,4 +209,36 @@ export const guestGroupMembers = sqliteTable(
     primaryKey({ columns: [table.groupId, table.userId] }),
     index("guest_group_members_user").on(table.userId),
   ],
+);
+
+// --- Invitations (sw-architecture.md 9) ---------------------------------------------
+
+/**
+ * Personal invitation codes (INV-01 – INV-06). Only the SHA-256 of the code is stored (INV-02).
+ * `status` holds what happened to the code; `expired` is not stored but derived from
+ * `expires_at`, so a clock never has to flip a row.
+ */
+export const invitations = sqliteTable(
+  "invitations",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    eventId: text("event_id")
+      .notNull()
+      .references(() => events.id),
+    /** Whom the card is for; suggested as the display name at redemption. */
+    guestName: text("guest_name").notNull(),
+    note: text("note"),
+    codeHash: text("code_hash").notNull().unique(),
+    status: text("status", { enum: ["active", "redeemed", "revoked", "replaced"] })
+      .notNull()
+      .default("active"),
+    expiresAt: integer("expires_at", { mode: "timestamp_ms" }),
+    createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull(),
+    redeemedAt: integer("redeemed_at", { mode: "timestamp_ms" }),
+    /** Null again if the account is deleted; the code stays recorded as redeemed (INV-10). */
+    redeemedBy: integer("redeemed_by").references(() => users.id, { onDelete: "set null" }),
+    /** For a `replaced` code: the code that took its place. */
+    replacedBy: integer("replaced_by"),
+  },
+  (table) => [index("invitations_event").on(table.eventId)],
 );

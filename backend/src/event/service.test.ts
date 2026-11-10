@@ -182,6 +182,7 @@ describe("data model", () => {
       "event_settings",
       "guest_group_members",
       "guest_groups",
+      "invitations",
       "membership_capabilities",
       "membership_roles",
       "memberships",
