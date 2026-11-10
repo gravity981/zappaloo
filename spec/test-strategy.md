@@ -103,10 +103,10 @@ All active requirements are listed here until their stage is delivered. Shrink t
 | MAP | MAP-01 – MAP-06, MAP-08 – MAP-10, MAP-12 – MAP-14 | 12 |
 | DATA | DATA-02, DATA-03 | 2 |
 | CFG | CFG-01 – CFG-05 | 5 |
-| OPS | OPS-02, OPS-05, OPS-12, OPS-13 | 4 |
+| OPS | OPS-02, OPS-12, OPS-13 | 3 |
 | SEC | SEC-01, SEC-02, SEC-04 – SEC-09, SEC-11 | 9 |
 | PERF | PERF-01, PERF-03, PERF-04 | 3 |
-| **Total** | | **182** |
+| **Total** | | **181** |
 
 The stage each requirement belongs to is listed in `sw-architecture.md`, section 28.
 
@@ -124,7 +124,7 @@ These requirements need a production environment, real devices or real time to v
 Decision:
 
 - Everything that can run in CI is automated with Playwright and tagged with the requirement ID: local Compose stack, WebKit/Chromium mobile emulation including touch and swipe, scripted backup and restore against a temporary volume.
-- The remaining real-environment checks are manual tests, recorded in a manual test protocol (`spec/manual-test-protocol.md`) that the requirement report reads as an extra result source. Each record has requirement ID, date, tester, environment and result. For each requirement only its latest record counts, so a passed re-check replaces an earlier failure; the older rows stay as history.
+- The remaining real-environment checks are manual tests, recorded in a manual test protocol (`spec/manual-test-protocol.md`) that the requirement report reads as an extra result source. Each record has requirement ID, date, environment and result. For each requirement only its latest record counts, so a passed re-check replaces an earlier failure; the older rows stay as history.
 
 ### 6.2 Load test tool (PERF-01) — open
 

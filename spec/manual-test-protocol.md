@@ -8,5 +8,6 @@ Checks that need a real environment, real devices or real time (see [test-strate
 
 ## Records
 
-| Requirements | Date | Tester | Environment | Result | Notes |
-|---|---|---|---|---|---|
+| Requirements | Date | Environment | Result | Notes |
+|---|---|---|---|---|
+| OPS-05 | 2026-11-10 | LAN staging | pass | Full backup and restore with `zappaloo backup --full` and `restore --full` |

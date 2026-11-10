@@ -276,9 +276,9 @@ After each completed stage, Claude appends a report with this structure to secti
 
 **Steps:** 1a Monorepo and tooling – done. 1b Backend and frontend skeleton – done. 1c Continuous integration and versioned images – done. 1d Containers and staging – done. 1e Releases – done. 1f Backup and restore tools – done (full backup as one `.tar.gz`, staging restore from `backups/`, `--teardown`).
 
-**Requirements:** 18 of 21 planned for this stage, all with passing tests (requirement report). Overall: 18 of 200 active requirements. The other three (OPS-05, OPS-12, OPS-13) have passing automated tests, but stay on the "not yet implemented" list until their manual checks are done (test-strategy.md 6.1).
+**Requirements:** 19 of 21 planned for this stage, all with passing tests (requirement report). Overall: 19 of 200 active requirements. The other two (OPS-12, OPS-13) have passing automated tests, but stay on the "not yet implemented" list until their manual checks are done (test-strategy.md 6.1). OPS-05 is done: its restore drill is recorded in the manual test protocol (2026-11-10, LAN staging).
 
-**Tests:** 131 Vitest results (unit, integration and the 15-test deployment test against the real image in Docker), all passing; 20 Playwright results as of the last end-to-end run (not repeated in step 1f). Manual checks: none yet; the restore drill, the tag ruleset and the staging drill are open (see below).
+**Tests:** 131 Vitest results (unit, integration and the 15-test deployment test against the real image in Docker), all passing; 20 Playwright results as of the last end-to-end run (not repeated in step 1f). Manual checks: the full backup and restore on LAN staging (OPS-05); the tag ruleset and the staging drill with a prod backup are open (see below).
 
 **Spec changes and deviations:** Hosting is out of scope and step 1g was dropped (2026-11-04). Steps 1d–1f were reordered and OPS-08–18 added with the CI/CD definitions. In step 1f the full backup became one `.tar.gz` made and restored with `zappaloo backup --full` / `restore --full`, staging restores the newest `backups/*.tar.gz` (refused unless mail is caught) and `deploy.sh staging --teardown` deletes the staging data (sw-architecture.md 22.2, 23.5, 23.8; decisions table in README.md). No deviation from the spec.
 
@@ -297,10 +297,10 @@ After each completed stage, Claude appends a report with this structure to secti
 | 9 | Event readiness | open |
 | 10 | After the event | open |
 
-**Remaining requirements by stage:** stage 1 → 3 (OPS-05, OPS-12, OPS-13: manual checks); 2 → 48; 3 → 17; 4 → 14; 5 → 31; 6 → 14; 7 → 28; 8 → 22; 9 → 1; 10 → 4. In total 182 of 200 active.
+**Remaining requirements by stage:** stage 1 → 2 (OPS-12, OPS-13: manual checks); 2 → 48; 3 → 17; 4 → 14; 5 → 31; 6 → 14; 7 → 28; 8 → 22; 9 → 1; 10 → 4. In total 181 of 200 active.
 
 **Waiting on the project owner:**
-- Restore drill with a real full backup (OPS-05) and the staging drill on the LAN server: restore a prod backup, mail caught, volume deleted afterwards (OPS-13).
+- The staging drill on the LAN server: restore a prod backup, mail caught, volume deleted afterwards (OPS-13).
 - Tag ruleset for `v*` in the GitHub repository settings (OPS-12; enforced only once the repository is public).
 - First real release candidate built and promoted (OPS-10, OPS-11), and enabling branch protection as in the plan for 1c.
 - Confirm the preconditions and steps of stage 2 before it starts.
