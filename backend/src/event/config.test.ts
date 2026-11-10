@@ -120,12 +120,69 @@ describe("EVENT_SLUG", () => {
   it("[CFG-02] defaults to the example event in dev and test, and is required in staging and prod", () => {
     expect(loadConfig({ DATA_DIR: "/d" }).EVENT_SLUG).toBe("event-muster");
     expect(loadConfig({ DATA_DIR: "/d", APP_ENV: "test" }).EVENT_SLUG).toBe("event-muster");
-    expect(loadConfig({ DATA_DIR: "/d", APP_ENV: "prod", EVENT_SLUG: "our-day" }).EVENT_SLUG).toBe(
-      "our-day",
-    );
+    const deployed = {
+      DATA_DIR: "/d",
+      EVENT_SLUG: "our-day",
+      PUBLIC_URL: "https://zappaloo.example",
+      SESSION_SECRET: "x".repeat(32),
+    };
+    expect(loadConfig({ ...deployed, APP_ENV: "prod" }).EVENT_SLUG).toBe("our-day");
     for (const appEnv of ["staging", "prod"]) {
-      expect(() => loadConfig({ DATA_DIR: "/d", APP_ENV: appEnv })).toThrow(/EVENT_SLUG: required/);
+      const withoutSlug: Record<string, string> = { ...deployed };
+      delete withoutSlug.EVENT_SLUG;
+      expect(() => loadConfig({ ...withoutSlug, APP_ENV: appEnv })).toThrow(/EVENT_SLUG: required/);
     }
     expect(() => loadConfig({ DATA_DIR: "/d", EVENT_SLUG: "../x" })).toThrow(/EVENT_SLUG/);
+  });
+});
+
+describe("session and site settings", () => {
+  const deployed = {
+    DATA_DIR: "/d",
+    APP_ENV: "prod",
+    EVENT_SLUG: "our-day",
+    PUBLIC_URL: "https://zappaloo.example",
+  };
+
+  it("[ACC-05] the session secret is required in staging and prod, at least 32 characters, from a variable or a file", () => {
+    expect(() => loadConfig(deployed)).toThrow(/SESSION_SECRET: required in prod/);
+    expect(() => loadConfig({ ...deployed, SESSION_SECRET: "short" })).toThrow(/at least 32/);
+    expect(loadConfig({ ...deployed, SESSION_SECRET: "s".repeat(40) }).SESSION_SECRET).toBe(
+      "s".repeat(40),
+    );
+    expect(() => loadConfig({ ...deployed, SESSION_SECRET_FILE: "/does/not/exist" })).toThrow(
+      /cannot read/,
+    );
+
+    const dir = tempDir();
+    cleanups.push(dir.remove);
+    const file = join(dir.path, "session_secret");
+    writeFileSync(file, `${"f".repeat(48)}\n`);
+    expect(loadConfig({ ...deployed, SESSION_SECRET_FILE: file }).SESSION_SECRET).toBe(
+      "f".repeat(48),
+    );
+  });
+
+  it("[ACC-05] dev and test get a random secret per process, and cookies are Secure only in staging and prod", () => {
+    const a = loadConfig({ DATA_DIR: "/d" });
+    const b = loadConfig({ DATA_DIR: "/d" });
+    expect(a.SESSION_SECRET).toHaveLength(64);
+    expect(a.SESSION_SECRET).not.toBe(b.SESSION_SECRET);
+    expect(a.SECURE_COOKIES).toBe(false);
+    expect(loadConfig({ ...deployed, SESSION_SECRET: "s".repeat(32) }).SECURE_COOKIES).toBe(true);
+  });
+
+  it("[ACC-14] the site address is required in staging and prod and defaults to the dev server", () => {
+    const withoutUrl: Record<string, string> = { ...deployed };
+    delete withoutUrl.PUBLIC_URL;
+    expect(() => loadConfig({ ...withoutUrl, SESSION_SECRET: "s".repeat(32) })).toThrow(
+      /PUBLIC_URL: required in prod/,
+    );
+    expect(loadConfig({ DATA_DIR: "/d" }).PUBLIC_URL).toBe("http://localhost:5173");
+  });
+
+  it("[SEC-02] only trusts X-Forwarded-For when told to", () => {
+    expect(loadConfig({ DATA_DIR: "/d" }).TRUST_PROXY).toBe(false);
+    expect(loadConfig({ DATA_DIR: "/d", TRUST_PROXY: "true" }).TRUST_PROXY).toBe(true);
   });
 });

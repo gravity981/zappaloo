@@ -4,7 +4,10 @@
   },
   "nav": {
     "home": "Start",
-    "game": "Spielwelt"
+    "game": "Spielwelt",
+    "login": "Anmelden",
+    "profile": "Profil",
+    "logout": "Abmelden"
   },
   "home": {
     "title": "Willkommen bei Zappaloo",
@@ -20,5 +23,48 @@
   },
   "footer": {
     "version": "Version {{version}}"
+  },
+  "login": {
+    "title": "Anmelden",
+    "username": "Benutzername",
+    "password": "Passwort",
+    "submit": "Anmelden"
+  },
+  "setPassword": {
+    "title": "Passwort festlegen",
+    "hint": "Wähle ein Passwort mit mindestens {{min}} Zeichen.",
+    "password": "Passwort",
+    "repeat": "Passwort wiederholen",
+    "submit": "Passwort speichern",
+    "doneTitle": "Passwort gespeichert",
+    "doneText": "Du kannst dich jetzt anmelden.",
+    "toLogin": "Zur Anmeldung"
+  },
+  "profile": {
+    "title": "Profil",
+    "username": "Benutzername: {{username}}",
+    "displayName": "Anzeigename",
+    "email": "E-Mail-Adresse (optional)",
+    "emailStatus": {
+      "unverified": "Die Adresse ist noch nicht bestätigt.",
+      "verified": "Die Adresse ist bestätigt."
+    },
+    "save": "Speichern",
+    "saved": "Gespeichert.",
+    "passwordTitle": "Passwort ändern",
+    "currentPassword": "Aktuelles Passwort",
+    "newPassword": "Neues Passwort (mindestens {{min}} Zeichen)",
+    "changePassword": "Passwort ändern",
+    "passwordChanged": "Das Passwort wurde geändert. Auf anderen Geräten musst du dich neu anmelden."
+  },
+  "errors": {
+    "unknown": "Das hat nicht geklappt. Bitte versuche es später noch einmal.",
+    "invalid_credentials": "Benutzername oder Passwort stimmt nicht.",
+    "rate_limited": "Zu viele Versuche. Bitte warte einen Moment und versuche es dann noch einmal.",
+    "invalid_link": "Dieser Link ist ungültig, abgelaufen oder wurde schon benutzt.",
+    "invalid_password": "Das aktuelle Passwort stimmt nicht.",
+    "validation_failed": "Bitte prüfe deine Eingaben.",
+    "passwords_differ": "Die beiden Passwörter sind nicht gleich.",
+    "csrf_failed": "Die Sitzung ist abgelaufen. Bitte lade die Seite neu."
   }
 }

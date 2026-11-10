@@ -320,6 +320,64 @@ describe("staging deployment", () => {
   });
 });
 
+describe("accounts", () => {
+  it("[ACC-14][ACC-05][SEC-01] create-admin prints a link with the site address; signing in through Caddy sets a Secure cookie, and CSRF protection applies", () => {
+    const env = staging;
+    if (!env) throw new Error("staging not deployed");
+    const output = env.compose("exec", "-T", "app", "zappaloo", "create-admin", "deploy-admin");
+    const link = new RegExp(
+      `^https://${SITE_IP.replaceAll(".", "\\.")}:${String(env.httpsPort)}/set-password/([\\w-]{43})$`,
+      "m",
+    ).exec(output);
+    expect(link, output).not.toBeNull();
+    const token = link?.[1] ?? "";
+
+    // Through Caddy over HTTPS, as a browser would: set the password, sign in, change something.
+    const result = env.node(
+      `const https = require("node:https"), dns = require("node:dns");
+       const origin = "https://${SITE_IP}:${String(env.httpsPort)}";
+       const call = (ip, method, path, body, headers = {}) => new Promise((resolve, reject) => {
+         const data = body ? JSON.stringify(body) : undefined;
+         const req = https.request({ host: ip, port: ${String(env.httpsPort)}, method, path, rejectUnauthorized: false,
+           headers: { host: "${SITE_IP}:${String(env.httpsPort)}", origin, ...(data ? { "content-type": "application/json" } : {}), ...headers } },
+           (res) => { let b = ""; res.on("data", (d) => (b += d)).on("end", () => resolve({ status: res.statusCode, cookies: res.headers["set-cookie"] ?? [], body: b })); });
+         req.on("error", reject); if (data) req.write(data); req.end();
+       });
+       dns.lookup("caddy", async (_e, ip) => {
+         const password = "correct-horse-battery";
+         const set = await call(ip, "POST", "/api/password/set", { token: ${JSON.stringify(token)}, newPassword: password });
+         const login = await call(ip, "POST", "/api/session", { username: "deploy-admin", password });
+         const cookie = (login.cookies[0] ?? "").split(";")[0];
+         const csrf = JSON.parse(login.body).csrfToken;
+         const withoutToken = await call(ip, "PATCH", "/api/profile", { displayName: "x" }, { cookie });
+         const withToken = await call(ip, "PATCH", "/api/profile", { displayName: "x" }, { cookie, "x-csrf-token": csrf });
+         const crossSite = await call(ip, "POST", "/api/session", { username: "deploy-admin", password }, { origin: "https://evil.example" });
+         console.log(JSON.stringify({ set: set.status, login: login.status, flags: login.cookies[0], withoutToken: withoutToken.status, withToken: withToken.status, crossSite: crossSite.status }));
+       });`,
+    );
+    const parsed = JSON.parse(result) as {
+      set: number;
+      login: number;
+      flags: string;
+      withoutToken: number;
+      withToken: number;
+      crossSite: number;
+    };
+    expect(parsed).toMatchObject({
+      set: 204,
+      login: 200,
+      withoutToken: 403,
+      withToken: 200,
+      crossSite: 403,
+    });
+    // staging runs over HTTPS: the cookie is Secure, HttpOnly and SameSite=Lax.
+    expect(parsed.flags).toMatch(/zappaloo_session=/);
+    expect(parsed.flags).toMatch(/; Secure/i);
+    expect(parsed.flags).toMatch(/; HttpOnly/i);
+    expect(parsed.flags).toMatch(/SameSite=Lax/i);
+  });
+});
+
 describe("configuration changes", () => {
   it("[OPS-15] a changed Caddy configuration in a new bundle takes effect on the next deployment", () => {
     const env = staging;

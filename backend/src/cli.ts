@@ -14,6 +14,10 @@ import { backupFull, restoreFull } from "./database/full-backup.ts";
 import { openDatabase, runMigrations } from "./database/database.ts";
 import { CLI_ACTOR, EventService, isFeatureName, isSettingName } from "./event/service.ts";
 import { FEATURE_NAMES, SETTING_NAMES } from "@zappaloo/shared";
+import { setPasswordUrl } from "./api/auth.ts";
+import { AccountError, AccountService } from "./auth/accounts.ts";
+import type { IssuedLink } from "./auth/accounts.ts";
+import { usernameSchema } from "@zappaloo/shared";
 import { resolveVersion } from "./version.ts";
 
 export interface CliIo {
@@ -155,6 +159,53 @@ const commands: Record<string, Command> = {
       return 0;
     },
   },
+  "create-admin": {
+    summary: "Create an admin account and print its one-time setup link (valid 24 hours)",
+    usage: "create-admin USERNAME [--vip]",
+    run: (args, io) => {
+      const { positionals, values } = parseArgs({
+        args,
+        allowPositionals: true,
+        options: { vip: { type: "boolean", default: false } },
+      });
+      const [name] = positionals;
+      if (!name || positionals.length > 1) return usageError(io, "create-admin USERNAME [--vip]");
+      const username = usernameSchema.safeParse(name);
+      if (!username.success) {
+        io.err(`Invalid username "${name}": ${username.error.issues[0]?.message ?? "invalid"}.`);
+        return 1;
+      }
+      return withAccounts(io, (accounts, publicUrl) => {
+        const user = accounts.createUser(
+          { username: username.data, roles: values.vip ? ["admin", "vip"] : ["admin"] },
+          CLI_ACTOR,
+        );
+        io.out(
+          `Admin account "${user.username}" created (roles: ${user.roles.join(", ")}). ` +
+            "No password is set yet.",
+        );
+        printLink(io, publicUrl, accounts.createLink(user.id, "setup", CLI_ACTOR));
+        return 0;
+      });
+    },
+  },
+  "reset-password": {
+    summary: "Print a one-time link (valid 24 hours) where the user sets a new password",
+    usage: "reset-password USERNAME",
+    run: (args, io) => {
+      const [name] = args;
+      if (!name || args.length > 1) return usageError(io, "reset-password USERNAME");
+      return withAccounts(io, (accounts, publicUrl) => {
+        const user = accounts.findUser(name);
+        if (!user) {
+          io.err(`There is no user "${name}".`);
+          return 1;
+        }
+        printLink(io, publicUrl, accounts.createLink(user.id, "reset", CLI_ACTOR));
+        return 0;
+      });
+    },
+  },
   event: {
     summary: "Show the event, or switch a feature or setting on or off (audited)",
     usage: "event show | feature <name> on|off | setting <name> on|off",
@@ -217,6 +268,32 @@ const commands: Record<string, Command> = {
     },
   },
 };
+
+/** Opens the database with the account service of the installation's event. */
+function withAccounts(
+  io: CliIo,
+  use: (accounts: AccountService, publicUrl: string) => number,
+): number {
+  const config = loadConfig(io.env);
+  const database = openDatabase(dataPaths(config.DATA_DIR).database);
+  try {
+    const accounts = new AccountService(database, EventService.forInstallation(database));
+    return use(accounts, config.PUBLIC_URL);
+  } catch (error) {
+    if (error instanceof AccountError) {
+      io.err(error.message);
+      return 1;
+    }
+    throw error;
+  } finally {
+    database.close();
+  }
+}
+
+function printLink(io: CliIo, publicUrl: string, link: IssuedLink): void {
+  io.out(`One-time link (valid until ${link.expiresAt.toISOString()}, works once):`);
+  io.out(setPasswordUrl(publicUrl, link.token));
+}
 
 function usageError(io: CliIo, usage: string): number {
   io.err(`Usage: zappaloo ${usage}`);

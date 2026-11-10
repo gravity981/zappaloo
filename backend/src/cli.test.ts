@@ -8,6 +8,7 @@ import type { CliIo } from "./cli.ts";
 import { BUNDLED_EVENTS_DIR } from "./config.ts";
 import { dataPaths } from "./data-dir.ts";
 import { loadEvent } from "./event/config.ts";
+import { AccountService } from "./auth/accounts.ts";
 import { bootstrapEvent, EventService } from "./event/service.ts";
 import { startHeartbeat } from "./database/backup.ts";
 import { openDatabase } from "./database/database.ts";
@@ -424,5 +425,116 @@ describe("event commands", () => {
     const noEvent = await run(["event", "show"], emptyEnv);
     expect(noEvent.code).toBe(1);
     expect(noEvent.err).toMatch(/no event yet; start the application once/);
+  });
+});
+
+describe("account commands", () => {
+  async function dataDirWithEvent(): Promise<string> {
+    const dir = tempDir();
+    cleanups.push(dir.remove);
+    const dataDir = join(dir.path, "data");
+    expect((await run(["migrate"], { DATA_DIR: dataDir })).code).toBe(0);
+    const database = openDatabase(dataPaths(dataDir).database);
+    bootstrapEvent(database, loadEvent("event-muster", [BUNDLED_EVENTS_DIR]).config);
+    database.close();
+    return dataDir;
+  }
+
+  /** The services behind a data directory, to check what the commands did. */
+  function withAccounts<T>(
+    dataDir: string,
+    use: (accounts: AccountService, event: EventService) => Promise<T>,
+  ) {
+    const database = openDatabase(dataPaths(dataDir).database);
+    const event = EventService.forInstallation(database);
+    return use(new AccountService(database, event), event).finally(() => {
+      database.close();
+    });
+  }
+
+  const linkToken = (out: string) => /\/set-password\/([\w-]{43})$/m.exec(out)?.[1] ?? "";
+
+  it("[ACC-14] create-admin creates an admin and prints a one-time setup link where the password is set", async () => {
+    const dataDir = await dataDirWithEvent();
+    const env = { DATA_DIR: dataDir, PUBLIC_URL: "https://zappaloo.example:8443" };
+    const result = await run(["create-admin", "boss"], env);
+    expect(result.code, result.err).toBe(0);
+    expect(result.out).toContain('Admin account "boss" created (roles: admin).');
+    expect(result.out).toMatch(/valid until \d{4}-\d\d-\d\dT/);
+    expect(result.out).toMatch(/^https:\/\/zappaloo\.example:8443\/set-password\/[\w-]{43}$/m);
+    // No password on the command line, none in the output.
+    expect(result.out).not.toMatch(/password: /i);
+
+    await withAccounts(dataDir, async (accounts, event) => {
+      expect(accounts.findUser("boss")).toMatchObject({ roles: ["admin"], displayName: "boss" });
+      await expect(accounts.verifyLogin("boss", "correct-horse-battery")).resolves.toBeUndefined();
+      await accounts.useLink(linkToken(result.out), "correct-horse-battery");
+      await expect(accounts.verifyLogin("boss", "correct-horse-battery")).resolves.toMatchObject({
+        username: "boss",
+      });
+      // The link works once, and the creation is in the audit log, done by the CLI.
+      await expect(
+        accounts.useLink(linkToken(result.out), "another-long-password"),
+      ).rejects.toThrow();
+      expect(event.auditEntries().map((e) => [e.actor, e.action])).toEqual([
+        ["cli", "link.create"],
+        ["cli", "user.create"],
+      ]);
+    });
+  });
+
+  it("[ACC-14] create-admin --vip also makes the admin a VIP; invalid and taken usernames are refused", async () => {
+    const dataDir = await dataDirWithEvent();
+    const env = { DATA_DIR: dataDir };
+    expect((await run(["create-admin", "boss", "--vip"], env)).out).toContain("roles: admin, vip");
+    const roles = await withAccounts(dataDir, (accounts) =>
+      Promise.resolve(accounts.findUser("boss")?.roles),
+    );
+    expect(roles).toEqual(["admin", "vip"]);
+
+    const taken = await run(["create-admin", "BOSS"], env);
+    expect(taken.code).toBe(1);
+    expect(taken.err).toContain('the username "boss" is already taken');
+    const invalid = await run(["create-admin", "a b"], env);
+    expect(invalid.code).toBe(1);
+    expect(invalid.err).toContain('Invalid username "a b"');
+    expect((await run(["create-admin"], env)).err).toMatch(
+      /Usage: zappaloo create-admin USERNAME \[--vip\]/,
+    );
+
+    const empty = tempDir();
+    cleanups.push(empty.remove);
+    const emptyEnv = { DATA_DIR: join(empty.path, "data") };
+    expect((await run(["migrate"], emptyEnv)).code).toBe(0);
+    expect((await run(["create-admin", "boss"], emptyEnv)).err).toMatch(/no event yet/);
+  });
+
+  it("[ACC-15] reset-password prints a one-time link; the user's old sessions end when it is used", async () => {
+    const dataDir = await dataDirWithEvent();
+    const env = { DATA_DIR: dataDir };
+    expect((await run(["reset-password", "boss"], env)).err).toContain('There is no user "boss"');
+
+    const created = await run(["create-admin", "boss"], env);
+    await withAccounts(dataDir, (accounts) =>
+      accounts.useLink(linkToken(created.out), "correct-horse-battery"),
+    );
+
+    const reset = await run(["reset-password", "Boss"], env);
+    expect(reset.code, reset.err).toBe(0);
+    expect(reset.out).toContain("One-time link (valid until");
+    expect(reset.out).toMatch(/^http:\/\/localhost:5173\/set-password\/[\w-]{43}$/m);
+
+    await withAccounts(dataDir, async (accounts, event) => {
+      // Until the link is used, the old password still works; afterwards only the new one.
+      await expect(accounts.verifyLogin("boss", "correct-horse-battery")).resolves.toBeDefined();
+      await accounts.useLink(linkToken(reset.out), "locked-out-new-password");
+      await expect(accounts.verifyLogin("boss", "correct-horse-battery")).resolves.toBeUndefined();
+      await expect(accounts.verifyLogin("boss", "locked-out-new-password")).resolves.toBeDefined();
+      expect(event.auditEntries()[0]).toMatchObject({ actor: "cli", action: "link.create" });
+      expect(event.auditEntries()[0]?.details).toMatchObject({ purpose: "reset" });
+    });
+    expect((await run(["reset-password"], env)).err).toMatch(
+      /Usage: zappaloo reset-password USERNAME/,
+    );
   });
 });

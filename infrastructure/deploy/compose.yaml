@@ -16,6 +16,10 @@ services:
       # Only a pre-release suffix (rc.N) can be added; the version itself is in the image (23.6).
       APP_VERSION_SUFFIX: ${APP_VERSION_SUFFIX:-}
       SESSION_SECRET_FILE: /run/secrets/session_secret
+      # Address of the site, for the one-time links the CLI prints (7.1.1).
+      PUBLIC_URL: https://${SITE_ADDRESS:?set SITE_ADDRESS in .env}:${HTTPS_PORT:-443}
+      # Caddy is the only way in: the client address comes from X-Forwarded-For.
+      TRUST_PROXY: "true"
       SMTP_HOST: ${SMTP_HOST:-}
       SMTP_PORT: ${SMTP_PORT:-}
       SMTP_USER: ${SMTP_USER:-}

@@ -91,7 +91,7 @@ All active requirements are listed here until their stage is delivered. Shrink t
 | LANG | LANG-02 | 1 |
 | SCR | SCR-01, SCR-02, SCR-04, SCR-05 | 4 |
 | CNT | CNT-01 – CNT-05 | 5 |
-| ACC | ACC-01, ACC-03 – ACC-15 | 14 |
+| ACC | ACC-03, ACC-07, ACC-09 – ACC-12 | 6 |
 | AVA | AVA-01 – AVA-04 | 4 |
 | RSVP | RSVP-01 – RSVP-09 | 9 |
 | ROLE | ROLE-01, ROLE-03 – ROLE-09 | 8 |
@@ -103,9 +103,9 @@ All active requirements are listed here until their stage is delivered. Shrink t
 | MAP | MAP-01 – MAP-06, MAP-08 – MAP-10, MAP-12 – MAP-14 | 12 |
 | CFG | CFG-01, CFG-04 | 2 |
 | OPS | OPS-02, OPS-12, OPS-13 | 3 |
-| SEC | SEC-01, SEC-02, SEC-04 – SEC-09, SEC-11 | 9 |
+| SEC | SEC-04 – SEC-09, SEC-11 | 7 |
 | PERF | PERF-01, PERF-03, PERF-04 | 3 |
-| **Total** | | **176** |
+| **Total** | | **166** |
 
 The stage each requirement belongs to is listed in `sw-architecture.md`, section 28.
 

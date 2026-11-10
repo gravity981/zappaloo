@@ -161,17 +161,27 @@ describe("audit log", () => {
 });
 
 describe("data model", () => {
-  it("[DATA-02] every table except events and migrations carries a not-null eventId that references events", () => {
+  // Tables of a person, not of an event: accounts, their sessions and their one-time links.
+  // A table that is not in this list must carry an eventId.
+  const PERSON_TABLES = ["one_time_links", "sessions", "users"];
+
+  it("[DATA-02] every event-related table carries a not-null eventId that references events", () => {
     const database = migratedDatabase();
-    const tables = database.sqlite
-      .prepare(
-        "SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%' AND name NOT LIKE '\\_\\_drizzle%' ESCAPE '\\' AND name <> 'events'",
-      )
-      .all() as { name: string }[];
+    const all = (
+      database.sqlite
+        .prepare(
+          "SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%' AND name NOT LIKE '\\_\\_drizzle%' ESCAPE '\\' AND name <> 'events'",
+        )
+        .all() as { name: string }[]
+    ).map((t) => t.name);
+    expect(all.filter((name) => PERSON_TABLES.includes(name)).sort()).toEqual(PERSON_TABLES);
+    const tables = all.filter((name) => !PERSON_TABLES.includes(name)).map((name) => ({ name }));
     expect(tables.map((t) => t.name).sort()).toEqual([
       "audit_log",
       "event_features",
       "event_settings",
+      "membership_roles",
+      "memberships",
     ]);
     for (const { name } of tables) {
       const columns = database.sqlite.prepare(`PRAGMA table_info(${name})`).all() as {

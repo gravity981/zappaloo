@@ -118,6 +118,11 @@ export function buildInstallNotes(tag: string, repository: string): string {
       ? "\n# Staging starts from the newest full backup of prod: copy it to backups/*.tar.gz first"
       : "";
   const deploy = `./deploy.sh ${environment} ${tag.slice(1)}`;
+  // The first admin of prod; staging starts from a prod backup, accounts included (7.1.1, 23.8).
+  const admin =
+    environment === "prod"
+      ? "\ndocker compose exec app zappaloo create-admin <username> --vip    # prints the link where you set your password"
+      : "";
   // Every staging deployment replaces the data with the newest backup (23.5).
   const updateDeploy =
     environment === "staging" ? `${deploy}    # --no-restore keeps the current data` : deploy;
@@ -128,7 +133,7 @@ export function buildInstallNotes(tag: string, repository: string): string {
     `mkdir -p ${directory} && cd ${directory}`,
     `curl -fsSL "${url}" | tar -xz --strip-components=1`,
     `cp .env.example .env    # ${hint}${restore}`,
-    deploy,
+    `${deploy}${admin}`,
     "```",
     "",
     `**Update** of an existing ${environment} (keeps its .env, secrets and backups):`,

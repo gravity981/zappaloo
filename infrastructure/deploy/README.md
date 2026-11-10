@@ -70,6 +70,17 @@ The private event folder is part of the full backup (`events/`).
 
 On **staging**, `deploy.sh` instead replaces the data with the newest full backup (`./backups/*.tar.gz`), if there is one; see "Backups and restore" below.
 
+## Accounts
+
+The first admin of an installation is created with the CLI, once the app runs. It prints a **one-time link** (valid 24 hours, works once) where the new admin sets the password; no password is ever typed on the command line:
+
+```sh
+docker compose exec app zappaloo create-admin <username> --vip     # --vip: the admin is also a guest
+docker compose exec app zappaloo reset-password <username>         # a locked-out user gets a new one-time link
+```
+
+The link starts with the site address (`https://<SITE_ADDRESS>:<HTTPS_PORT>`, set by Compose). Further accounts are created by an admin in the app, or by invitation. A user changes the password in the profile, which ends their other sessions; sessions last a year and renew with use. Logins are rate-limited per user and per client address (the address comes from Caddy). `secrets/session_secret` signs the session cookies: if it changes, everybody has to sign in again.
+
 ## Backups and restore
 
 What to back up (everything else is rebuilt by `deploy.sh`):

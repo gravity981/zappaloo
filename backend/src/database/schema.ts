@@ -61,3 +61,85 @@ export const auditLog = sqliteTable(
   },
   (table) => [index("audit_log_event_time").on(table.eventId, table.createdAt)],
 );
+
+// --- Accounts and sessions (sw-architecture.md 7.1.1) ----------------------------
+// Accounts, sessions and links belong to a person, not to an event: they carry no
+// event_id. Only the event membership and its roles do (DATA-02).
+
+export const users = sqliteTable("users", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  /** Login name, lower case, never changes. */
+  username: text("username").notNull().unique(),
+  displayName: text("display_name").notNull(),
+  email: text("email"),
+  emailStatus: text("email_status", { enum: ["unverified", "verified"] })
+    .notNull()
+    .default("unverified"),
+  /** argon2id hash string; null until the owner sets a password with a one-time link. */
+  passwordHash: text("password_hash"),
+  createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull(),
+  updatedAt: integer("updated_at", { mode: "timestamp_ms" }).notNull(),
+});
+
+/** A user's membership of an event; the roles are in `membership_roles`. */
+export const memberships = sqliteTable(
+  "memberships",
+  {
+    eventId: text("event_id")
+      .notNull()
+      .references(() => events.id),
+    userId: integer("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull(),
+  },
+  (table) => [primaryKey({ columns: [table.eventId, table.userId] })],
+);
+
+/** Roles `vip`, `staff`, `admin` of a membership; combinable (sw-architecture.md 8). */
+export const membershipRoles = sqliteTable(
+  "membership_roles",
+  {
+    eventId: text("event_id")
+      .notNull()
+      .references(() => events.id),
+    userId: integer("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    role: text("role", { enum: ["vip", "staff", "admin"] }).notNull(),
+  },
+  (table) => [primaryKey({ columns: [table.eventId, table.userId, table.role] })],
+);
+
+/** Server-side sessions; only the SHA-256 of the cookie's token is stored. */
+export const sessions = sqliteTable(
+  "sessions",
+  {
+    tokenHash: text("token_hash").primaryKey(),
+    userId: integer("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    csrfToken: text("csrf_token").notNull(),
+    createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull(),
+    lastUsedAt: integer("last_used_at", { mode: "timestamp_ms" }).notNull(),
+    expiresAt: integer("expires_at", { mode: "timestamp_ms" }).notNull(),
+  },
+  (table) => [index("sessions_user").on(table.userId)],
+);
+
+/** One-time setup and reset links; only the SHA-256 of the token is stored. */
+export const oneTimeLinks = sqliteTable(
+  "one_time_links",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    tokenHash: text("token_hash").notNull().unique(),
+    userId: integer("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    purpose: text("purpose", { enum: ["setup", "reset"] }).notNull(),
+    createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull(),
+    expiresAt: integer("expires_at", { mode: "timestamp_ms" }).notNull(),
+    usedAt: integer("used_at", { mode: "timestamp_ms" }),
+  },
+  (table) => [index("one_time_links_user").on(table.userId)],
+);

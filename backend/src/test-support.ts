@@ -13,6 +13,8 @@ import type { Database } from "./database/database.ts";
 import { loadEvent } from "./event/config.ts";
 import { bootstrapEvent, EventService } from "./event/service.ts";
 import { BUNDLED_EVENTS_DIR } from "./config.ts";
+import type { AuthOptions } from "./api/auth.ts";
+import { createAuth } from "./auth/setup.ts";
 
 export const TEST_VERSION = { version: "1.2.3+test", commit: "abc123" };
 
@@ -31,6 +33,8 @@ export interface TestContext {
   database: Database;
   /** The example event (events/event-muster), created in the database. */
   event: EventService;
+  /** Accounts, sessions and rate limits behind the app. */
+  auth: AuthOptions;
   paths: DataPaths;
   /** Closes app and database and deletes the data directory. */
   close: () => Promise<void>;
@@ -49,9 +53,14 @@ export async function createTestApp(options: Partial<AppOptions> = {}): Promise<
   const loaded = loadEvent("event-muster", [BUNDLED_EVENTS_DIR]);
   bootstrapEvent(database, loaded.config);
   const event = new EventService(database, loaded.config.id);
+  const auth = createAuth(database, event, {
+    SESSION_SECRET: "test-secret-test-secret-test-secret-123",
+    SECURE_COOKIES: false,
+    PUBLIC_URL: "http://localhost:5173",
+  });
   let app: FastifyInstance;
   try {
-    app = await buildApp({ database, event, version: TEST_VERSION, ...options });
+    app = await buildApp({ database, event, auth, version: TEST_VERSION, ...options });
   } catch (error) {
     database.close();
     dir.remove();
@@ -61,6 +70,7 @@ export async function createTestApp(options: Partial<AppOptions> = {}): Promise<
     app,
     database,
     event,
+    auth,
     paths,
     close: async () => {
       await app.close();

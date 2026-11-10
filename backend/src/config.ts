@@ -1,4 +1,6 @@
 // Runtime configuration from environment variables, validated at startup.
+import { randomBytes } from "node:crypto";
+import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { z } from "zod";
 import { eventSlugSchema } from "@zappaloo/shared";
@@ -30,6 +32,16 @@ const configSchema = z
     EVENT_SLUG: z.string().min(1).optional(),
     /** Replaces the application's `events/` folder (tests). */
     EVENTS_DIR: z.string().min(1).default(BUNDLED_EVENTS_DIR),
+    /** Signs the session cookies (sw-architecture.md 7.1.1); or read from SESSION_SECRET_FILE. */
+    SESSION_SECRET: z.string().optional(),
+    SESSION_SECRET_FILE: z.string().min(1).optional(),
+    /** Address of the site, in the links the CLI and the admin hand out. */
+    PUBLIC_URL: z.url().optional(),
+    /** Trust X-Forwarded-For (Caddy is the only way in): for the client address of rate limits. */
+    TRUST_PROXY: z
+      .enum(["true", "false"])
+      .default("false")
+      .transform((value) => value === "true"),
   })
   .superRefine((value, context) => {
     if (
@@ -40,6 +52,16 @@ const configSchema = z
         code: "custom",
         path: ["EVENT_SLUG"],
         message: `required in ${value.APP_ENV}: the folder name of the event, e.g. ${EXAMPLE_EVENT}`,
+      });
+    }
+    if (
+      value.PUBLIC_URL === undefined &&
+      (value.APP_ENV === "staging" || value.APP_ENV === "prod")
+    ) {
+      context.addIssue({
+        code: "custom",
+        path: ["PUBLIC_URL"],
+        message: `required in ${value.APP_ENV}: the address of the site, e.g. https://example.org`,
       });
     }
     if (value.EVENT_SLUG !== undefined) {
@@ -53,9 +75,49 @@ const configSchema = z
       }
     }
   })
-  .transform((value) => ({ ...value, EVENT_SLUG: value.EVENT_SLUG ?? EXAMPLE_EVENT }));
+  .transform((value) => ({
+    ...value,
+    EVENT_SLUG: value.EVENT_SLUG ?? EXAMPLE_EVENT,
+    PUBLIC_URL: value.PUBLIC_URL ?? "http://localhost:5173",
+  }));
 
-export type Config = z.infer<typeof configSchema>;
+type ParsedConfig = z.infer<typeof configSchema>;
+export type Config = Omit<ParsedConfig, "SESSION_SECRET" | "SESSION_SECRET_FILE"> & {
+  /** At least 32 characters; random per process in dev and test when not configured. */
+  SESSION_SECRET: string;
+  /** Session cookies only travel over HTTPS in staging and prod. */
+  SECURE_COOKIES: boolean;
+};
+
+const SESSION_SECRET_MIN_LENGTH = 32;
+
+function resolveSessionSecret(parsed: ParsedConfig): string {
+  let secret = parsed.SESSION_SECRET;
+  if (secret === undefined && parsed.SESSION_SECRET_FILE !== undefined) {
+    try {
+      secret = readFileSync(parsed.SESSION_SECRET_FILE, "utf8").trim();
+    } catch {
+      throw new ConfigError(
+        `invalid configuration:\n  SESSION_SECRET_FILE: cannot read ${parsed.SESSION_SECRET_FILE}`,
+      );
+    }
+  }
+  if (secret === undefined) {
+    if (parsed.APP_ENV === "staging" || parsed.APP_ENV === "prod") {
+      throw new ConfigError(
+        `invalid configuration:\n  SESSION_SECRET: required in ${parsed.APP_ENV} (or SESSION_SECRET_FILE)`,
+      );
+    }
+    // Sessions do not survive a restart without a configured secret: fine in dev and test.
+    return randomBytes(32).toString("hex");
+  }
+  if (secret.length < SESSION_SECRET_MIN_LENGTH) {
+    throw new ConfigError(
+      `invalid configuration:\n  SESSION_SECRET: must have at least ${String(SESSION_SECRET_MIN_LENGTH)} characters`,
+    );
+  }
+  return secret;
+}
 
 export class ConfigError extends Error {
   override name = "ConfigError";
@@ -67,5 +129,9 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
     const problems = result.error.issues.map((i) => `${i.path.join(".")}: ${i.message}`);
     throw new ConfigError(`invalid configuration:\n  ${problems.join("\n  ")}`);
   }
-  return result.data;
+  return {
+    ...result.data,
+    SESSION_SECRET: resolveSessionSecret(result.data),
+    SECURE_COOKIES: result.data.APP_ENV === "staging" || result.data.APP_ENV === "prod",
+  };
 }

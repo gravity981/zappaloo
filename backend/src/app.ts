@@ -8,6 +8,8 @@ import type { FastifyInstance, FastifyServerOptions } from "fastify";
 import type { VersionResponse } from "@zappaloo/shared";
 import type { Database } from "./database/database.ts";
 import type { EventService } from "./event/service.ts";
+import { authRoutes } from "./api/auth.ts";
+import type { AuthOptions } from "./api/auth.ts";
 import { eventApiRoutes } from "./api/event.ts";
 import { eventRoutes } from "./api/events.ts";
 import { noIndex } from "./api/no-index.ts";
@@ -18,6 +20,10 @@ export interface AppOptions {
   database: Database;
   /** The installation's event, with its feature toggles and settings. */
   event: EventService;
+  /** Accounts, sessions and their settings (sw-architecture.md 7.1.1). */
+  auth: AuthOptions;
+  /** Use X-Forwarded-For for the client address (Caddy is the only way in). */
+  trustProxy?: boolean;
   version: VersionResponse;
   /** Built frontend to serve; omitted in dev, where Vite serves the frontend. */
   frontendDir?: string | undefined;
@@ -25,12 +31,16 @@ export interface AppOptions {
 }
 
 export async function buildApp(options: AppOptions): Promise<FastifyInstance> {
-  const app = Fastify({ logger: options.logger ?? false });
+  const app = Fastify({
+    logger: options.logger ?? false,
+    trustProxy: options.trustProxy ?? false,
+  });
 
   await app.register(validation);
   await app.register(noIndex);
   await app.register(systemRoutes, { database: options.database, version: options.version });
   await app.register(eventRoutes);
+  await app.register(authRoutes, options.auth);
   await app.register(eventApiRoutes, { event: options.event });
 
   const frontendDir = options.frontendDir && resolve(options.frontendDir);

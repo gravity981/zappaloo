@@ -111,6 +111,9 @@ describe("install and update instructions", () => {
       expect(part).toContain("cd ~/zappaloo-prod");
     }
     expect(install).toContain("cp .env.example .env");
+    // The first admin is created once, not with an update.
+    expect(install).toContain("zappaloo create-admin <username> --vip");
+    expect(update).not.toContain("create-admin");
     expect(update).not.toContain(".env.example"); // an update keeps the existing .env
     expect(notes).toContain("blob/v1.2.0/infrastructure/deploy/README.md");
   });
@@ -121,6 +124,7 @@ describe("install and update instructions", () => {
     expect(notes).toContain("./deploy.sh staging 1.2.0-rc.3");
     expect(notes).toContain("cd ~/zappaloo-staging");
     expect(notes).toContain("backups/*.tar.gz");
+    expect(notes).not.toContain("create-admin"); // staging starts from prod's accounts
     expect(notes).toContain("--no-restore");
   });
 

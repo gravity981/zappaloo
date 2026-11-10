@@ -8,6 +8,7 @@ import { startHeartbeat } from "./database/backup.ts";
 import { openDatabase, runMigrations } from "./database/database.ts";
 import { loadEvent } from "./event/config.ts";
 import { bootstrapEvent, EventService } from "./event/service.ts";
+import { createAuth } from "./auth/setup.ts";
 import { resolveVersion } from "./version.ts";
 
 async function main(): Promise<void> {
@@ -24,9 +25,12 @@ async function main(): Promise<void> {
   const applied = runMigrations(database);
   bootstrapEvent(database, loaded.config);
 
+  const event = new EventService(database, loaded.config.id);
   const app = await buildApp({
     database,
-    event: new EventService(database, loaded.config.id),
+    event,
+    auth: createAuth(database, event, config),
+    trustProxy: config.TRUST_PROXY,
     version,
     frontendDir: config.FRONTEND_DIR,
     logger: { level: config.APP_ENV === "test" ? "warn" : "info" },

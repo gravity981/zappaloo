@@ -687,6 +687,29 @@ Since the whole platform requires sign-in (see section 10), sessions stay valid 
 
 Users can delete their own account and their own content at any time.
 
+### 7.1.1 Accounts, Sessions and Links (decided 2026-11-10)
+
+**Accounts.** One account (`users`) is global, not tied to an event; its roles belong to an event membership (`memberships`, role rows `vip`, `staff`, `admin`, combinable; 8, 20.1).
+- `username` is the login name: 3–32 characters from `a–z`, `0–9`, `.`, `_`, `-`, stored in lower case, compared case-insensitively, never changed.
+- `displayName` (1–100 characters) is the name other guests see; the user can change it, it starts as the username (or the name an admin gave).
+- `email` is optional; it is `unverified` until the user verifies it (step 2c).
+- The profile holds display name, email and password. Photo, greeting and the other profile items come with their features.
+- A new account has no password until its owner sets one through a one-time setup link.
+
+**Passwords** (ACC-06). Hashed with **argon2id** (library `@node-rs/argon2`, parameters m = 19 MiB, t = 2, p = 1, random salt; the hash string carries its parameters). A password has 10–128 characters and must not equal the username; there are no composition rules. Setting or changing a password ends all other sessions of that user.
+
+**Sessions** (ACC-05, ACC-13). Server-side table `sessions`; the browser holds only a random 32-byte token in the cookie `zappaloo_session` (`HttpOnly`, `SameSite=Lax`, `Path=/`, `Secure` in staging and prod), signed with `SESSION_SECRET`; the database stores only the SHA-256 of the token. A session lasts 365 days and is renewed on use (at most once a day), so active guests never sign in again; logout deletes it. `SESSION_SECRET` is read from the environment or from `SESSION_SECRET_FILE` (`secrets/session_secret`, 23.5); it has at least 32 characters and is required in staging and prod.
+
+**CSRF** (SEC-01). Every session has a CSRF token, returned by `GET /api/session`; every `POST`, `PUT`, `PATCH` and `DELETE` with a session must send it in the header `X-CSRF-Token`. Independently, a request with an `Origin` header whose host differs from the `Host` header is refused. Both failures answer `403 csrf_failed`.
+
+**Rate limiting** (SEC-02). Login: at most 20 attempts per client address and 5 failed attempts per username in 15 minutes (a success clears the username's count); setting a password with a link: 10 attempts per client address in 15 minutes. An exceeded limit answers `429 rate_limited` with `Retry-After`. The counters live in memory (one process). The client address comes from `X-Forwarded-For` only if `TRUST_PROXY=true` (set in the Compose file, where Caddy is the only way in). Invitation redemption and uploads get their limits with their features.
+
+**Login errors** do not reveal whether a username exists: unknown user and wrong password give the same `401 invalid_credentials`, after the same amount of hashing work.
+
+**One-time links.** A setup link (new account, ACC-14) or reset link (ACC-10, ACC-15) holds a random token, stored only as SHA-256 with its purpose, user, expiry (24 hours) and use; it works once. The URL is `<PUBLIC_URL>/set-password/<token>`; `PUBLIC_URL` (default `http://localhost:5173` in dev and test) is derived from `SITE_ADDRESS` and `HTTPS_PORT` in the Compose file. Using a link sets the password and ends the user's sessions.
+
+**API.** `GET /api/session` (current user or none, with the CSRF token), `POST /api/session` (login), `DELETE /api/session` (logout), `GET`/`PATCH /api/profile`, `POST /api/profile/password`, `POST /api/password/set` (with a link), `POST /api/admin/users` (admin role of the event: creates an account with roles and returns its setup link, ACC-08). Role management follows in step 2d.
+
 ## 7.2 Registration and Invitations
 
 There is no public self-registration. An account is created only:
@@ -2038,6 +2061,7 @@ In dev, the same commands run from source with `npm run cli -- <command>`.
 - `create-admin` and `reset-password` never take a password on the command line; they print a one-time link instead, so no password ends up in the shell history.
 - Commands print a clear error and exit non-zero on failure, so `deploy.sh` can rely on them.
 - `event show`, `event feature` and `event setting` read and change the event's feature toggles and settings in the database; every change is written to the audit log with the actor `cli` (19.3.1). They need the event to exist, so the application must have been started once.
+- `create-admin USERNAME [--vip]` and `reset-password USERNAME` print the one-time link (7.1.1) with its expiry; both need the event to exist (the application must have been started once) and are written to the audit log with the actor `cli`.
 - Each command is built together with its feature: `version` and `migrate` in step 1b, `backup` and `restore` in step 1d, `create-admin` and `reset-password` in step 2b.
 
 ## 23.9 Requirements (Sections 21–23)

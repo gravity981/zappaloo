@@ -31,6 +31,9 @@ export default defineConfig({
     timeout: 120_000,
     env: {
       APP_ENV: "test",
+      // Each test comes from its own client address (X-Forwarded-For), so the rate limits
+      // of one test do not block the others, which share the machine's address.
+      TRUST_PROXY: "true",
       PORT: String(PORT),
       DATA_DIR: ".e2e-data",
       FRONTEND_DIR: "frontend/dist",
