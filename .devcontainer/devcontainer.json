@@ -26,11 +26,14 @@
     "CLAUDE_CONFIG_DIR": "/home/vscode/.claude",
     "APP_ENV": "dev",
     "DATA_DIR": "/var/lib/zappaloo",
-    // Signs the session cookies in development; production sets its own
-    "SESSION_SECRET": "dev-only-secret-not-for-production",
     // All outgoing mail goes to Mailpit (web UI on port 8025)
     "SMTP_HOST": "localhost",
     "SMTP_PORT": "1025"
+  },
+  // Set at runtime, not baked into the image as ENV. Signs the session cookies
+  // in development; production sets its own
+  "remoteEnv": {
+    "SESSION_SECRET": "dev-only-secret-not-for-production"
   },
   // Installs the dependencies once the project has a package-lock.json (stage 1)
   "postCreateCommand": "if [ -f package-lock.json ]; then npm ci; fi",
