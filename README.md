@@ -79,3 +79,14 @@ spec/            The specification – the source of truth
 3. On staging: `./deploy.sh staging 0.1.0-rc.1` and check it. A problem → fix on `main`, run step 2 again (`0.1.0-rc.2`).
 4. GitHub → Actions → **Promote** with the candidate tag, e.g. `v0.1.0-rc.2`. No rebuild: it tags `v0.1.0`, adds the image tags `0.1.0`, `0.1`, `0` and publishes the release.
 5. On prod: `./deploy.sh prod 0.1.0`.
+
+## Contributing and license
+
+Contributions are welcome; see [CONTRIBUTING.md](CONTRIBUTING.md) and the
+[Code of Conduct](CODE_OF_CONDUCT.md). Report security problems privately as described in
+[SECURITY.md](SECURITY.md).
+
+Zappaloo is free software under the
+[GNU Affero General Public License v3.0 or later](LICENSE): you may use, change and share
+it, and if you run a modified version as a network service, you must offer its users the
+source code.
