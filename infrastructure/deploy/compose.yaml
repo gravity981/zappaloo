@@ -11,6 +11,8 @@ services:
     restart: unless-stopped
     environment:
       APP_ENV: ${APP_ENV:?set APP_ENV in .env}
+      # The event folder: events/<slug> in the data volume, else in the image (19.3.1).
+      EVENT_SLUG: ${EVENT_SLUG:?set EVENT_SLUG in .env}
       # Only a pre-release suffix (rc.N) can be added; the version itself is in the image (23.6).
       APP_VERSION_SUFFIX: ${APP_VERSION_SUFFIX:-}
       SESSION_SECRET_FILE: /run/secrets/session_secret

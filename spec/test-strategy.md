@@ -101,12 +101,11 @@ All active requirements are listed here until their stage is delivered. Shrink t
 | PHO | PHO-01 – PHO-03, PHO-05 – PHO-18 | 17 |
 | MOD | MOD-01 – MOD-05 | 5 |
 | MAP | MAP-01 – MAP-06, MAP-08 – MAP-10, MAP-12 – MAP-14 | 12 |
-| DATA | DATA-02, DATA-03 | 2 |
-| CFG | CFG-01 – CFG-05 | 5 |
+| CFG | CFG-01, CFG-04 | 2 |
 | OPS | OPS-02, OPS-12, OPS-13 | 3 |
 | SEC | SEC-01, SEC-02, SEC-04 – SEC-09, SEC-11 | 9 |
 | PERF | PERF-01, PERF-03, PERF-04 | 3 |
-| **Total** | | **181** |
+| **Total** | | **176** |
 
 The stage each requirement belongs to is listed in `sw-architecture.md`, section 28.
 

@@ -50,3 +50,16 @@ test("the backend reports health and version", async ({ request }) => {
   const version = (await (await request.get("/api/version")).json()) as { version: string };
   expect(version.version).toMatch(/\+dev$/);
 });
+
+test("[CFG-02][CFG-05] the server started with the example event and serves it with its toggles", async ({
+  request,
+}) => {
+  const response = await request.get("/api/event");
+  expect(response.status()).toBe(200);
+  expect(await response.json()).toMatchObject({
+    id: "event-muster",
+    name: "Event Muster",
+    features: { minigames: true, eventScreen: true },
+    settings: { platformOpen: false },
+  });
+});

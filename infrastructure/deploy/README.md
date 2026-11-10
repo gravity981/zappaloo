@@ -27,11 +27,37 @@ If the image is private, create a GitHub token with only `read:packages`, store 
 | Setting | Staging (LAN) | Prod |
 |---|---|---|
 | `APP_ENV` / `COMPOSE_PROJECT_NAME` / `DATA_VOLUME` | `staging` / `zappaloo-staging` / `zappaloo-data-staging` | `prod` / `zappaloo` / `zappaloo-data-prod` |
+| `EVENT_SLUG` | the event folder (see "The event" below) | the event folder |
 | `SITE_ADDRESS` | the server's LAN IP, e.g. `192.168.1.20` | the domain |
 | `HTTP_PORT` / `HTTPS_PORT` | `8080` / `8443` (open `https://<LAN IP>:8443`) | `80` / `443` |
 | `TLS_MODE` | `internal` (Caddy's local CA) | contact email for Let's Encrypt |
 | `COMPOSE_PROFILES` | `mailpit` (all mail is caught) | empty |
 | SMTP settings | `SMTP_HOST=mailpit`, `SMTP_PORT=1025` | the real SMTP account |
+
+## The event
+
+An installation serves one event. `EVENT_SLUG` in `.env` names its folder `events/<slug>/` (`event.json`, `theme.json`). The application looks for it first in the data volume (`/data/events/<slug>/`), then in the image, which ships the example event `event-muster`. The application does not start if the event is missing or invalid; it prints every problem with the file name.
+
+A **private event** stays out of the public repository and lives in the data volume. Put it there **before the first deployment** of the environment, with the image you are going to deploy:
+
+```sh
+# our-day/ is the folder with event.json and theme.json; EVENT_SLUG=our-day is set in .env
+docker run --rm -v "<DATA_VOLUME from .env>:/data" -v "$PWD/our-day:/event:ro" \
+  ghcr.io/gravity981/zappaloo:<image tag> sh -c 'mkdir -p /data/events && cp -r /event /data/events/our-day'
+./deploy.sh <staging|prod> <image tag>
+```
+
+An installation serves exactly one event: a database created for one event is refused when `EVENT_SLUG` selects another. To change an event's files later, replace the folder in the volume the same way and deploy again.
+
+`event.json` is read when the app starts: the name, time zone and default language are refreshed from it, while features and settings are only initial values. Change them while the app runs with the CLI; every change is written to the audit log:
+
+```sh
+docker compose exec app zappaloo event show
+docker compose exec app zappaloo event feature gallery off
+docker compose exec app zappaloo event setting platformOpen on
+```
+
+The private event folder is part of the full backup (`events/`).
 
 ## Deploy
 
@@ -50,7 +76,7 @@ What to back up (everything else is rebuilt by `deploy.sh`):
 
 | What | Where | How |
 |---|---|---|
-| Database and files (photos, uploads, imported maps and tilesets) | the data volume (`DATA_VOLUME`, mounted at `/data`) | a **full backup**, below |
+| Database and files (photos, uploads, imported maps and tilesets, a private event) | the data volume (`DATA_VOLUME`, mounted at `/data`) | a **full backup**, below |
 | Pre-deploy database backups | `backups/` | copy the folder |
 | Settings | `.env` | copy the file |
 | Secrets (session secret, SMTP password, registry token) | `secrets/`, `ghcr-token` | copy the folder; keep it private (mode 600) |

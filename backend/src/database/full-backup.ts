@@ -28,7 +28,7 @@ import {
 } from "./backup.ts";
 
 const DATABASE_ENTRY = "zappaloo.db";
-const FILE_DIRS = ["uploads", "maps"] as const;
+const FILE_DIRS = ["uploads", "maps", "events"] as const;
 
 /** Runs `tar`; `input`/`output` are connected to its standard streams. */
 function runTar(

@@ -10,6 +10,9 @@ import { dataPaths, ensureDataDirs } from "./data-dir.ts";
 import type { DataPaths } from "./data-dir.ts";
 import { openDatabase, runMigrations } from "./database/database.ts";
 import type { Database } from "./database/database.ts";
+import { loadEvent } from "./event/config.ts";
+import { bootstrapEvent, EventService } from "./event/service.ts";
+import { BUNDLED_EVENTS_DIR } from "./config.ts";
 
 export const TEST_VERSION = { version: "1.2.3+test", commit: "abc123" };
 
@@ -26,6 +29,8 @@ export function tempDir(prefix = "zappaloo-test-"): { path: string; remove: () =
 export interface TestContext {
   app: FastifyInstance;
   database: Database;
+  /** The example event (events/event-muster), created in the database. */
+  event: EventService;
   paths: DataPaths;
   /** Closes app and database and deletes the data directory. */
   close: () => Promise<void>;
@@ -41,9 +46,12 @@ export async function createTestApp(options: Partial<AppOptions> = {}): Promise<
   ensureDataDirs(paths);
   const database = openDatabase(paths.database);
   runMigrations(database);
+  const loaded = loadEvent("event-muster", [BUNDLED_EVENTS_DIR]);
+  bootstrapEvent(database, loaded.config);
+  const event = new EventService(database, loaded.config.id);
   let app: FastifyInstance;
   try {
-    app = await buildApp({ database, version: TEST_VERSION, ...options });
+    app = await buildApp({ database, event, version: TEST_VERSION, ...options });
   } catch (error) {
     database.close();
     dir.remove();
@@ -52,6 +60,7 @@ export async function createTestApp(options: Partial<AppOptions> = {}): Promise<
   return {
     app,
     database,
+    event,
     paths,
     close: async () => {
       await app.close();

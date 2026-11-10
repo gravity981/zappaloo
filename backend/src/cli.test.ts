@@ -5,7 +5,10 @@ import { fileURLToPath } from "node:url";
 import { afterEach, describe, expect, it } from "vitest";
 import { runCli } from "./cli.ts";
 import type { CliIo } from "./cli.ts";
+import { BUNDLED_EVENTS_DIR } from "./config.ts";
 import { dataPaths } from "./data-dir.ts";
+import { loadEvent } from "./event/config.ts";
+import { bootstrapEvent, EventService } from "./event/service.ts";
 import { startHeartbeat } from "./database/backup.ts";
 import { openDatabase } from "./database/database.ts";
 import { tempDir } from "./test-support.ts";
@@ -223,7 +226,11 @@ describe("full backup and restore", () => {
 
   it("[OPS-05] backup --full holds the database and the files and restore --full brings both back", async () => {
     const { dataDir, dir } = await dataDirWithGuest("Anna");
-    writeFiles(dataDir, { "uploads/a.jpg": "photo A", "maps/town/map.json": "{}" });
+    writeFiles(dataDir, {
+      "uploads/a.jpg": "photo A",
+      "maps/town/map.json": "{}",
+      "events/our-day/event.json": "{}",
+    });
     const archive = join(dir, "full.tar.gz");
 
     // While the app runs: a heartbeat and a held database.
@@ -256,6 +263,8 @@ describe("full backup and restore", () => {
     expect(readFileSync(join(dataDir, "uploads/a.jpg"), "utf8")).toBe("photo A");
     expect(existsSync(join(dataDir, "uploads/b.jpg"))).toBe(false);
     expect(readFileSync(join(dataDir, "maps/town/map.json"), "utf8")).toBe("{}");
+    // A private event in the data volume is part of the backup.
+    expect(readFileSync(join(dataDir, "events/our-day/event.json"), "utf8")).toBe("{}");
     expect(readdirSync(dataDir).filter((n) => n.startsWith(".restore-"))).toEqual([]);
   });
 
@@ -336,5 +345,84 @@ describe("full backup and restore", () => {
     });
     expect(garbage.status).toBe(1);
     expect(guests(dataDir)).toEqual([{ name: "Anna" }]);
+  });
+});
+
+describe("event commands", () => {
+  /** A migrated data directory with the example event, as after the first start. */
+  async function dataDirWithEvent(): Promise<string> {
+    const dir = tempDir();
+    cleanups.push(dir.remove);
+    const dataDir = join(dir.path, "data");
+    expect((await run(["migrate"], { DATA_DIR: dataDir })).code).toBe(0);
+    const database = openDatabase(dataPaths(dataDir).database);
+    bootstrapEvent(database, loadEvent("event-muster", [BUNDLED_EVENTS_DIR]).config);
+    database.close();
+    return dataDir;
+  }
+
+  it("[CFG-05] event show lists the event with its features and settings", async () => {
+    const dataDir = await dataDirWithEvent();
+    const result = await run(["event", "show"], { DATA_DIR: dataDir });
+    expect(result.code).toBe(0);
+    expect(result.out).toContain("Event Muster (event-muster), Europe/Zurich, de");
+    expect(result.out).toContain("  minigames: on");
+    expect(result.out).toContain("  platformOpen: off");
+  });
+
+  it("[CFG-03][CFG-05] feature and setting switch values at runtime, and the audit log records them as cli", async () => {
+    const dataDir = await dataDirWithEvent();
+    const env = { DATA_DIR: dataDir };
+    expect(await run(["event", "feature", "gallery", "off"], env)).toEqual({
+      code: 0,
+      out: "Feature gallery is now off.",
+      err: "",
+    });
+    expect((await run(["event", "feature", "gallery", "off"], env)).out).toBe(
+      "Feature gallery was already off.",
+    );
+    expect((await run(["event", "setting", "platformOpen", "on"], env)).out).toBe(
+      "Setting platformOpen is now on.",
+    );
+
+    const shown = (await run(["event", "show"], env)).out;
+    expect(shown).toContain("  gallery: off");
+    expect(shown).toContain("  platformOpen: on");
+
+    const database = openDatabase(dataPaths(dataDir).database);
+    const log = EventService.forInstallation(database).auditEntries();
+    database.close();
+    expect(log.map((e) => [e.actor, e.action, e.details])).toEqual([
+      ["cli", "setting.set", { name: "platformOpen", from: false, to: true }],
+      ["cli", "feature.set", { name: "gallery", from: true, to: false }],
+    ]);
+  });
+
+  it("[CFG-03] refuses unknown names, wrong usage and a database without an event", async () => {
+    const dataDir = await dataDirWithEvent();
+    const env = { DATA_DIR: dataDir };
+    const unknownFeature = await run(["event", "feature", "karaoke", "on"], env);
+    expect(unknownFeature.code).toBe(1);
+    expect(unknownFeature.err).toContain('Unknown feature "karaoke"; known: minigames');
+    expect((await run(["event", "setting", "platformopen", "on"], env)).err).toContain(
+      "Unknown setting",
+    );
+    for (const args of [
+      ["event"],
+      ["event", "feature", "gallery"],
+      ["event", "feature", "gallery", "yes"],
+    ]) {
+      const result = await run(args, env);
+      expect(result.code, args.join(" ")).toBe(1);
+      expect(result.err, args.join(" ")).toMatch(/Usage: zappaloo event/);
+    }
+
+    const empty = tempDir();
+    cleanups.push(empty.remove);
+    const emptyEnv = { DATA_DIR: join(empty.path, "data") };
+    expect((await run(["migrate"], emptyEnv)).code).toBe(0);
+    const noEvent = await run(["event", "show"], emptyEnv);
+    expect(noEvent.code).toBe(1);
+    expect(noEvent.err).toMatch(/no event yet; start the application once/);
   });
 });

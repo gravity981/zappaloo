@@ -6,6 +6,8 @@ import { loadConfig } from "./config.ts";
 import { dataPaths, ensureDataDirs } from "./data-dir.ts";
 import { startHeartbeat } from "./database/backup.ts";
 import { openDatabase, runMigrations } from "./database/database.ts";
+import { loadEvent } from "./event/config.ts";
+import { bootstrapEvent, EventService } from "./event/service.ts";
 import { resolveVersion } from "./version.ts";
 
 async function main(): Promise<void> {
@@ -14,16 +16,31 @@ async function main(): Promise<void> {
   const paths = dataPaths(config.DATA_DIR);
   ensureDataDirs(paths);
 
+  // The event is validated before anything else is touched: an invalid
+  // configuration stops the start with a clear error (CFG-02).
+  const loaded = loadEvent(config.EVENT_SLUG, [paths.events, config.EVENTS_DIR]);
+
   const database = openDatabase(paths.database);
   const applied = runMigrations(database);
+  bootstrapEvent(database, loaded.config);
 
   const app = await buildApp({
     database,
+    event: new EventService(database, loaded.config.id),
     version,
     frontendDir: config.FRONTEND_DIR,
     logger: { level: config.APP_ENV === "test" ? "warn" : "info" },
   });
-  app.log.info({ version, dataDir: paths.root, migrationsApplied: applied }, "starting");
+  app.log.info(
+    {
+      version,
+      dataDir: paths.root,
+      migrationsApplied: applied,
+      event: loaded.config.id,
+      eventDir: loaded.dir,
+    },
+    "starting",
+  );
 
   // Lets `zappaloo restore` see that the database is in use.
   const stopHeartbeat = startHeartbeat(paths);

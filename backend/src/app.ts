@@ -7,6 +7,8 @@ import Fastify from "fastify";
 import type { FastifyInstance, FastifyServerOptions } from "fastify";
 import type { VersionResponse } from "@zappaloo/shared";
 import type { Database } from "./database/database.ts";
+import type { EventService } from "./event/service.ts";
+import { eventApiRoutes } from "./api/event.ts";
 import { eventRoutes } from "./api/events.ts";
 import { noIndex } from "./api/no-index.ts";
 import { systemRoutes } from "./api/system.ts";
@@ -14,6 +16,8 @@ import { sendError, validation } from "./api/validation.ts";
 
 export interface AppOptions {
   database: Database;
+  /** The installation's event, with its feature toggles and settings. */
+  event: EventService;
   version: VersionResponse;
   /** Built frontend to serve; omitted in dev, where Vite serves the frontend. */
   frontendDir?: string | undefined;
@@ -27,6 +31,7 @@ export async function buildApp(options: AppOptions): Promise<FastifyInstance> {
   await app.register(noIndex);
   await app.register(systemRoutes, { database: options.database, version: options.version });
   await app.register(eventRoutes);
+  await app.register(eventApiRoutes, { event: options.event });
 
   const frontendDir = options.frontendDir && resolve(options.frontendDir);
   if (frontendDir) {

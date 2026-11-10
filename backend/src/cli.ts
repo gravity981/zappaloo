@@ -12,6 +12,8 @@ import { dataPaths, ensureDataDirs } from "./data-dir.ts";
 import { backupDatabase, restoreDatabase } from "./database/backup.ts";
 import { backupFull, restoreFull } from "./database/full-backup.ts";
 import { openDatabase, runMigrations } from "./database/database.ts";
+import { CLI_ACTOR, EventService, isFeatureName, isSettingName } from "./event/service.ts";
+import { FEATURE_NAMES, SETTING_NAMES } from "@zappaloo/shared";
 import { resolveVersion } from "./version.ts";
 
 export interface CliIo {
@@ -151,6 +153,67 @@ const commands: Record<string, Command> = {
       });
       io.out("Database restored from standard input; migrations run on the next start.");
       return 0;
+    },
+  },
+  event: {
+    summary: "Show the event, or switch a feature or setting on or off (audited)",
+    usage: "event show | feature <name> on|off | setting <name> on|off",
+    run: (args, io) => {
+      const [action, name, state] = args;
+      const usageText = "event show | feature <name> on|off | setting <name> on|off";
+      const paths = dataPaths(loadConfig(io.env).DATA_DIR);
+      const database = openDatabase(paths.database);
+      try {
+        const event = EventService.forInstallation(database);
+        if (action === "show" && args.length === 1) {
+          const current = event.get();
+          const line = (flags: Record<string, boolean>) =>
+            Object.entries(flags)
+              .map(([key, on]) => `  ${key}: ${on ? "on" : "off"}`)
+              .join("\n");
+          io.out(
+            [
+              `${current.name} (${current.id}), ${current.timezone}, ${current.defaultLanguage}`,
+              "Features:",
+              line(current.features),
+              "Settings:",
+              line(current.settings),
+            ].join("\n"),
+          );
+          return 0;
+        }
+        if ((action === "feature" || action === "setting") && name && args.length === 3) {
+          if (state !== "on" && state !== "off") return usageError(io, usageText);
+          const on = state === "on";
+          if (action === "feature") {
+            if (!isFeatureName(name)) {
+              io.err(`Unknown feature "${name}"; known: ${FEATURE_NAMES.join(", ")}.`);
+              return 1;
+            }
+            const changed = event.setFeature(name, on, CLI_ACTOR);
+            io.out(
+              changed
+                ? `Feature ${name} is now ${state}.`
+                : `Feature ${name} was already ${state}.`,
+            );
+          } else {
+            if (!isSettingName(name)) {
+              io.err(`Unknown setting "${name}"; known: ${SETTING_NAMES.join(", ")}.`);
+              return 1;
+            }
+            const changed = event.setSetting(name, on, CLI_ACTOR);
+            io.out(
+              changed
+                ? `Setting ${name} is now ${state}.`
+                : `Setting ${name} was already ${state}.`,
+            );
+          }
+          return 0;
+        }
+        return usageError(io, usageText);
+      } finally {
+        database.close();
+      }
     },
   },
 };

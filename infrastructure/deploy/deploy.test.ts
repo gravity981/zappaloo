@@ -437,6 +437,70 @@ describe("staging with a prod backup", () => {
   });
 });
 
+describe("private event", () => {
+  it("[CFG-02] an event put into the data volume is used instead of the one in the image", () => {
+    const env = createEnvironment("staging", 18443 + (process.pid % 500) * 3 + 3000);
+    const envFile = join(env.dir, ".env");
+    writeFileSync(
+      envFile,
+      readFileSync(envFile, "utf8").replace(/^EVENT_SLUG=.*$/m, "EVENT_SLUG=our-day"),
+    );
+    try {
+      // As in the runbook: before the first deployment, with the image to deploy.
+      const event = mkdtempSync(join(tmpdir(), "zappaloo-private-event-"));
+      const eventJson = JSON.parse(
+        execFileSync(
+          "docker",
+          ["run", "--rm", sourceImage, "cat", "/app/events/event-muster/event.json"],
+          {
+            encoding: "utf8",
+          },
+        ),
+      ) as Record<string, unknown>;
+      writeFileSync(
+        join(event, "event.json"),
+        JSON.stringify({ ...eventJson, id: "our-day", slug: "our-day", name: "Our Day" }),
+      );
+      writeFileSync(join(event, "theme.json"), "{}");
+      // Docker runs outside the devcontainer, so no bind mount: the files go in as a tar stream.
+      const files = execFileSync("tar", ["-cf", "-", "-C", event, "."]);
+      execFileSync(
+        "docker",
+        [
+          "run",
+          "--rm",
+          "-i",
+          "-v",
+          `${env.project}-data:/data`,
+          sourceImage,
+          "sh",
+          "-c",
+          "mkdir -p /data/events/our-day && tar -xf - -C /data/events/our-day",
+        ],
+        { input: files },
+      );
+      rmSync(event, { recursive: true, force: true });
+
+      const result = env.deploy(STAGING_TAG, "--no-pull", "--no-restore");
+      expect(result.status, result.output).toBe(0);
+      expect(result.output).toContain("healthy, version");
+      const served = JSON.parse(
+        env.node(
+          `fetch("http://127.0.0.1:3000/api/event").then((r) => r.text()).then(console.log)`,
+        ),
+      ) as { id: string; name: string };
+      expect(served).toMatchObject({ id: "our-day", name: "Our Day" });
+      // Switched on and off at runtime with the CLI, as in the runbook.
+      env.compose("exec", "-T", "app", "zappaloo", "event", "feature", "gallery", "off");
+      expect(env.compose("exec", "-T", "app", "zappaloo", "event", "show")).toContain(
+        "gallery: off",
+      );
+    } finally {
+      destroy(env);
+    }
+  });
+});
+
 describe("prod deployment", () => {
   it("[OPS-15] prod accepts only release tags, and each directory only its own environment", () => {
     prod = createEnvironment("prod", 18443 + (process.pid % 500) * 3 + 1500);

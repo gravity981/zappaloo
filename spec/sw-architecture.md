@@ -1727,6 +1727,16 @@ events/
 
 The actual configuration is validated on the server. The values in `features` and `settings` are initial values; the admin can change them at runtime. Feature toggles decide whether a feature exists at all; the settings open the platform and the uploads (10.3, 10.4). Maps and the start map are managed in the map importer.
 
+## 19.3.1 Bootstrap at Startup (decided 2026-11-10)
+
+- **Which event:** the environment variable `EVENT_SLUG` names the event folder. It has the default `event-muster` in `dev` and `test` and is required in `staging` and `prod` (`.env` of the deployment), so a real installation never starts with the example event by accident.
+- **Where it is read from:** first `$DATA_DIR/events/<slug>/` (in the data volume), then the `events/<slug>/` folder of the application (in the image; the repository holds the example event `event-muster`). The first one found is used. A **private event** is therefore put into the data volume of the installation: it stays out of the public repository, and the full backup (22.2) covers it. `EVENTS_DIR` replaces the application's `events/` folder (tests).
+- **Validation:** `event.json` is validated with a strict schema (all keys of `features` and `settings` present, no unknown keys, `slug` equal to the folder name, a valid IANA time zone); `theme.json` must exist and be a JSON object (its fields are specified with the website, stage 4). On any problem the application does not start and prints every problem, naming the file.
+- **Database:** the first start creates the event with the `id` from `event.json` (text, e.g. `event-muster`) as its `eventId`. On every later start name, time zone and default language are refreshed from `event.json` (they cannot be changed at runtime); `features` and `settings` only fill in keys that are missing in the database, so values changed by the admin are never overwritten and a new toggle gets its initial value. An installation serves exactly one event (CFG-04); if the database holds an event with another `id`, the application does not start.
+- **Changing at runtime:** features and settings are read from the database on every request, so a change applies at once, in every process. Until roles exist (step 2d) they are changed with the CLI (`zappaloo event feature|setting <name> on|off`, 23.8), the audit actor is `cli`; the admin API follows in step 2d. `GET /api/event` returns the event with its features and settings.
+- **Disabled features** (CFG-03): the API answers `404` with the code `feature_disabled` for a disabled feature (a guard every feature route uses), and the frontend hides it (`useFeature`, `FeatureGate`).
+- **Audit log** (DATA-03): table `audit_log` with `eventId`, actor (`cli`, later `user:<id>`), action, details (JSON) and time.
+
 ## 19.4 Configurability
 
 Not every function needs to be freely configurable.
@@ -2012,6 +2022,9 @@ docker compose exec -T app zappaloo backup - > backups/<file>.db  # consistent b
 docker compose run --rm --no-deps -T app zappaloo restore - --force < backups/<file>.db   # app stopped
 docker compose exec -T app zappaloo backup --full - > backups/<file>.tar.gz              # database and files
 docker compose run --rm --no-deps -T app zappaloo restore --full - --force < backups/<file>.tar.gz   # app stopped
+docker compose exec app zappaloo event show                       # the event with its features and settings
+docker compose exec app zappaloo event feature <name> on|off      # feature toggle, audited (CFG-03, CFG-05)
+docker compose exec app zappaloo event setting <name> on|off      # platformOpen, snapshotUploadsOpen, keepsakeUploadsOpen
 docker compose exec app zappaloo create-admin USERNAME [--vip]    # admin account, prints a setup link
 docker compose exec app zappaloo reset-password USERNAME          # prints a one-time reset link
 ```
@@ -2019,11 +2032,12 @@ docker compose exec app zappaloo reset-password USERNAME          # prints a one
 In dev, the same commands run from source with `npm run cli -- <command>`.
 
 - `backup` uses SQLite's online backup, so the application keeps running. Without `--full` it covers the database only.
-- `backup --full` writes one `.tar.gz` archive with a consistent database copy (`zappaloo.db`) and the files directories `uploads/` and `maps/`; `restore --full` replaces the database and both directories with the archive's content, with the same safeguards as `restore` (application stopped, `--force`). It first unpacks the archive next to the data and checks it (only these entries, no links, an intact database); an invalid archive leaves the data untouched (decided 2026-11-10).
+- `backup --full` writes one `.tar.gz` archive with a consistent database copy (`zappaloo.db`) and the files directories `uploads/`, `maps/` and `events/` (a private event, 19.3.1); `restore --full` replaces the database and the directories with the archive's content, with the same safeguards as `restore` (application stopped, `--force`). It first unpacks the archive next to the data and checks it (only these entries, no links, an intact database); an invalid archive leaves the data untouched (decided 2026-11-10).
 - `backup` and `restore` take a file name inside the container or `-` for standard output and input; with `-` the backup is streamed to or from the host, which is how `deploy.sh` uses them.
 - `restore` refuses to run while the application is running and asks for `--force` before it overwrites the database. The restored database is migrated on the next start.
 - `create-admin` and `reset-password` never take a password on the command line; they print a one-time link instead, so no password ends up in the shell history.
 - Commands print a clear error and exit non-zero on failure, so `deploy.sh` can rely on them.
+- `event show`, `event feature` and `event setting` read and change the event's feature toggles and settings in the database; every change is written to the audit log with the actor `cli` (19.3.1). They need the event to exist, so the application must have been started once.
 - Each command is built together with its feature: `version` and `migrate` in step 1b, `backup` and `restore` in step 1d, `create-admin` and `reset-password` in step 2b.
 
 ## 23.9 Requirements (Sections 21–23)
