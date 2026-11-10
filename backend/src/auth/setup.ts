@@ -11,6 +11,27 @@ import { InvitationService } from "./invitations.ts";
 import { RateLimiter } from "./rate-limit.ts";
 import { SessionService } from "./sessions.ts";
 
+const HOUSEKEEPING_INTERVAL_MS = 24 * 60 * 60 * 1000;
+
+/**
+ * Deletes expired sessions and used or expired one-time links now and once a day, so the
+ * tables do not grow and no address is kept longer than needed (SEC-04). Returns a stop function.
+ */
+export function startHousekeeping(
+  auth: Pick<AuthOptions, "accounts" | "sessions">,
+  log: (details: { sessions: number; links: number }) => void,
+): () => void {
+  const run = () => {
+    log({ sessions: auth.sessions.purgeExpired(), links: auth.accounts.purgeLinks() });
+  };
+  run();
+  const timer = setInterval(run, HOUSEKEEPING_INTERVAL_MS);
+  timer.unref();
+  return () => {
+    clearInterval(timer);
+  };
+}
+
 export function createAuth(
   database: Database,
   event: EventService,

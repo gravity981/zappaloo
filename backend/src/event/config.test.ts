@@ -181,6 +181,14 @@ describe("session and site settings", () => {
     expect(loadConfig({ DATA_DIR: "/d" }).PUBLIC_URL).toBe("http://localhost:5173");
   });
 
+  it("[INV-14][ACC-14] keeps only the origin of the site address, so links show no default port", () => {
+    const at = (url: string) =>
+      loadConfig({ ...deployed, SESSION_SECRET: "s".repeat(32), PUBLIC_URL: url }).PUBLIC_URL;
+    expect(at("https://zappaloo.example:443")).toBe("https://zappaloo.example");
+    expect(at("https://zappaloo.example:443/")).toBe("https://zappaloo.example");
+    expect(at("https://192.168.1.20:8443")).toBe("https://192.168.1.20:8443");
+  });
+
   it("[SEC-02] only trusts X-Forwarded-For when told to", () => {
     expect(loadConfig({ DATA_DIR: "/d" }).TRUST_PROXY).toBe(false);
     expect(loadConfig({ DATA_DIR: "/d", TRUST_PROXY: "true" }).TRUST_PROXY).toBe(true);

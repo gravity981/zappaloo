@@ -3,7 +3,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import type { ReactNode } from "react";
 import { sessionResponseSchema } from "@zappaloo/shared";
 import type { SessionResponse, User } from "@zappaloo/shared";
-import { apiRequest } from "./api.ts";
+import { apiRequest, onSessionEnded } from "./api.ts";
 import { SessionContext } from "./session.ts";
 import type { SessionState } from "./session.ts";
 
@@ -28,6 +28,15 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       cancelled = true;
     };
   }, []);
+
+  // A call answered "unauthorized": the session ended elsewhere, so the guard shows the login.
+  useEffect(
+    () =>
+      onSessionEnded(() => {
+        setSession({ user: null, csrfToken: null });
+      }),
+    [],
+  );
 
   const login = useCallback(async (username: string, password: string) => {
     const result = await apiRequest("POST", "/api/session", { body: { username, password } });

@@ -297,7 +297,12 @@ describe("email and account self-service", () => {
       "POST /api/email/verify": () => ({ status: 204 }),
     });
     renderAt("/verify-email/token-from-mail");
+    // Nothing is sent on opening the page: a link scanner must not use the link up.
+    const confirm = await screen.findByRole("button", { name: "Adresse bestätigen" });
+    expect(calls.some((c) => c.path === "/api/email/verify")).toBe(false);
+    fireEvent.click(confirm);
     expect(await screen.findByRole("heading", { name: "Adresse bestätigt" })).toBeInTheDocument();
+    expect(calls.filter((c) => c.path === "/api/email/verify")).toHaveLength(1);
     expect(calls.find((c) => c.path === "/api/email/verify")?.body).toEqual({
       token: "token-from-mail",
     });
@@ -312,6 +317,7 @@ describe("email and account self-service", () => {
       }),
     });
     renderAt("/verify-email/old");
+    fireEvent.click(await screen.findByRole("button", { name: "Adresse bestätigen" }));
     expect(await screen.findByRole("alert")).toHaveTextContent("ungültig, abgelaufen");
   });
 
@@ -587,9 +593,48 @@ describe("sign-in is required (ACS-09)", () => {
         router={createMemoryRouter(routes, { initialEntries: ["/verify-email/t"] })}
       />,
     );
+    fireEvent.click(await screen.findByRole("button", { name: "Adresse bestätigen" }));
     expect(await screen.findByRole("heading", { name: "Adresse bestätigt" })).toBeInTheDocument();
     unmount();
     renderAt("/invite/K7QMX4");
     expect(await screen.findByRole("heading", { name: "Willkommen, Anna!" })).toBeInTheDocument();
+  });
+});
+
+describe("ended sessions and lost connections", () => {
+  it("[ACS-09][ACC-05] a session that ended on another device leads to the login page", async () => {
+    fakeBackend({
+      "GET /api/session": () => signedIn,
+      "PATCH /api/profile": () => ({
+        status: 401,
+        body: { error: { code: "unauthorized", message: "Sign in first." } },
+      }),
+    });
+    renderAt("/profile");
+    user.click(await screen.findByRole("button", { name: "Speichern" }));
+    expect(await screen.findByLabelText("Benutzername")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Anmelden" })).toBeInTheDocument();
+  });
+
+  it("[ACC-01] a lost connection is shown, and the form can be sent again", async () => {
+    let offline = true;
+    fakeBackend({
+      "GET /api/session": () => anonymous,
+      "POST /api/session": () => {
+        if (offline) throw new TypeError("Failed to fetch");
+        return signedIn;
+      },
+    });
+    renderAt("/login");
+    user.type(await screen.findByLabelText("Benutzername"), "anna");
+    user.type(screen.getByLabelText("Passwort"), "correct-horse-battery");
+    const submit = screen.getByRole("button", { name: "Anmelden" });
+    user.click(submit);
+    expect(await screen.findByRole("alert")).toHaveTextContent("Keine Verbindung zum Server");
+    expect(submit).toBeEnabled();
+
+    offline = false;
+    user.click(submit);
+    expect(await screen.findByRole("link", { name: "Profil" })).toBeInTheDocument();
   });
 });

@@ -64,3 +64,59 @@ describe("event API", () => {
     expect((await app.inject({ url: "/api/gallery", headers: who })).statusCode).toBe(200);
   });
 });
+
+describe("admin: features and settings", () => {
+  const patch = (who: Record<string, string>, payload: Record<string, unknown>) => {
+    if (!context) throw new Error("no app");
+    return context.app.inject({ method: "PATCH", url: "/api/admin/event", headers: who, payload });
+  };
+
+  it("[CFG-05][CFG-03] the admin changes features and settings at runtime; each change is audited", async () => {
+    context = await createTestApp();
+    const admin = await signIn(context, "boss", ["admin"]);
+    const response = await patch(admin, {
+      features: { gallery: false },
+      settings: { platformOpen: true },
+    });
+    expect(response.statusCode, response.body).toBe(200);
+    expect(response.json()).toMatchObject({
+      features: { gallery: false, minigames: true },
+      settings: { platformOpen: true, snapshotUploadsOpen: false },
+    });
+    // Every request reads the new state at once.
+    expect(context.event.isFeatureEnabled("gallery")).toBe(false);
+    const boss = context.auth.accounts.findUser("boss");
+    const actions = context.event
+      .auditEntries()
+      .filter((e) => e.actor === `user:${String(boss?.id)}`)
+      .map((e) => [e.action, e.details]);
+    expect(actions).toEqual(
+      expect.arrayContaining([
+        ["feature.set", { name: "gallery", from: true, to: false }],
+        ["setting.set", { name: "platformOpen", from: false, to: true }],
+      ]),
+    );
+    // An unchanged value is not logged again.
+    const before = context.event.auditEntries().length;
+    expect((await patch(admin, { features: { gallery: false } })).statusCode).toBe(200);
+    expect(context.event.auditEntries()).toHaveLength(before);
+  });
+
+  it("[CFG-05][ROLE-08] needs the admin role and known names; nothing changes on a refused request", async () => {
+    context = await createTestApp();
+    const staff = await signIn(context, "helper", ["staff", "vip"]);
+    expect((await patch(staff, { settings: { platformOpen: true } })).statusCode).toBe(403);
+    const admin = await signIn(context, "boss", ["admin"]);
+    for (const payload of [
+      {},
+      { features: {} },
+      { features: { unknownFeature: true } },
+      { settings: { platformOpen: "yes" } },
+      { features: { gallery: false }, extra: 1 },
+    ]) {
+      expect((await patch(admin, payload)).statusCode, JSON.stringify(payload)).toBe(400);
+    }
+    expect(context.event.get().settings.platformOpen).toBe(false);
+    expect(context.event.isFeatureEnabled("gallery")).toBe(true);
+  });
+});

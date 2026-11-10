@@ -276,6 +276,27 @@ describe("full backup and restore", () => {
     expect(readdirSync(dataDir).filter((n) => n.startsWith(".restore-"))).toEqual([]);
   });
 
+  it("[OPS-05][CFG-02] restoring an older archive without events/ keeps the installation's event", async () => {
+    const { dataDir, dir } = await dataDirWithGuest("Anna");
+    writeFiles(dataDir, { "uploads/a.jpg": "photo A", "events/our-day/event.json": "{}" });
+    // An archive as stage 1 made it: database, uploads and maps only.
+    const old = join(dir, "old.tar.gz");
+    const src = join(dir, "src");
+    mkdirSync(join(src, "uploads"), { recursive: true });
+    mkdirSync(join(src, "maps"), { recursive: true });
+    writeFileSync(join(src, "uploads/old.jpg"), "old photo");
+    expect((await run(["backup", join(src, "zappaloo.db")], { DATA_DIR: dataDir })).code).toBe(0);
+    expect(
+      spawnSync("tar", ["-czf", old, "-C", src, "zappaloo.db", "uploads", "maps"]).status,
+    ).toBe(0);
+
+    const restored = await run(["restore", "--full", old, "--force"], { DATA_DIR: dataDir });
+    expect(restored.code, restored.err).toBe(0);
+    expect(existsSync(join(dataDir, "uploads/a.jpg"))).toBe(false);
+    expect(readFileSync(join(dataDir, "uploads/old.jpg"), "utf8")).toBe("old photo");
+    expect(readFileSync(join(dataDir, "events/our-day/event.json"), "utf8")).toBe("{}");
+  });
+
   it("[OPS-05] restore --full refuses while the application is running", async () => {
     const { dataDir, dir } = await dataDirWithGuest("Anna");
     const archive = join(dir, "full.tar.gz");

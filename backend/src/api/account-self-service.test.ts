@@ -283,6 +283,23 @@ describe("password reset by email", () => {
     expect(ctx.mailer.sent).toHaveLength(3);
   });
 
+  it("[ACC-03] links an admin hands out do not use up the mails; the request is logged as anonymous", async () => {
+    const ctx = await setup();
+    const anna = await makeUser(ctx, "anna");
+    const session = await login(ctx, "anna");
+    await verifyAddress(ctx, session, "anna@example.org");
+    for (let i = 0; i < 3; i++) ctx.auth.accounts.createLink(anna.id, "reset", "cli");
+    ctx.mailer.sent.length = 0;
+    await forgot(ctx, "anna");
+    await new Promise((resolve) => setImmediate(resolve));
+    expect(ctx.mailer.sent).toHaveLength(1);
+    const entry = ctx.event.auditEntries().find((e) => e.action === "link.create");
+    expect(entry).toMatchObject({
+      actor: "anonymous",
+      details: { userId: anna.id, purpose: "reset" },
+    });
+  });
+
   it("[ACC-03] still answers 204 when the mail cannot be sent", async () => {
     const ctx = await setup();
     await makeUser(ctx, "anna");
@@ -401,6 +418,29 @@ describe("deleting the own account", () => {
     expect(login2.statusCode).toBe(401);
     const audit = ctx.event.auditEntries().find((e) => e.action === "user.delete");
     expect(audit).toMatchObject({ actor: `user:${String(anna.id)}`, details: { userId: anna.id } });
+    // The log keeps only the id: no entry names the deleted account.
+    expect(JSON.stringify(ctx.event.auditEntries())).not.toContain("anna");
+  });
+
+  it("[ACC-12] a guest who registered with an invitation leaves only ids in the log", async () => {
+    const ctx = await setup();
+    await makeUser(ctx, "root", ["admin"]);
+    const [issued] = ctx.auth.invitations.create([{ name: "Zora Zimmermann" }], undefined, "cli");
+    if (!issued) throw new Error("no invitation");
+    const user = await ctx.auth.invitations.redeemWithNewAccount(issued.code, {
+      username: "zora",
+      password: PASSWORD,
+    });
+    const created = ctx.event.auditEntries().find((e) => e.action === "user.create");
+    expect(created).toMatchObject({
+      actor: `user:${String(user.id)}`,
+      details: { userId: user.id, vipAssignment: "invitation_code" },
+    });
+    const session = await login(ctx, "zora");
+    expect((await remove(ctx, session, PASSWORD)).statusCode).toBe(204);
+    const log = JSON.stringify(ctx.event.auditEntries());
+    expect(log).not.toContain("zora");
+    expect(log).not.toContain("Zimmermann");
   });
 
   it("[ACC-12] the last admin cannot delete the account, another admin can", async () => {

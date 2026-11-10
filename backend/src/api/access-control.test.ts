@@ -1,9 +1,11 @@
+import { writeFileSync } from "node:fs";
+import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import { z } from "zod";
 import { accessConditionSchema } from "@zappaloo/shared";
 import type { AccessCondition, Role } from "@zappaloo/shared";
 import { AccessService } from "../auth/access.ts";
-import { createTestApp, signIn } from "../test-support.ts";
+import { createTestApp, signIn, tempDir } from "../test-support.ts";
 import type { TestContext } from "../test-support.ts";
 import { requireAccess } from "./access.ts";
 
@@ -70,6 +72,59 @@ describe("sign-in is required everywhere (ACS-09, ACS-07)", () => {
       expect(response.json(), `${route.method} ${route.url}`).toMatchObject({
         error: { code: "unauthorized" },
       });
+    }
+  });
+
+  it("[ACS-07][ACS-09][SEC-01] percent-encoded paths reach the same checks as the plain ones", async () => {
+    const ctx = await setup();
+    await ctx.app.ready();
+    const protectedRoutes = ctx.app.routeTable.filter(
+      (route) => !route.public && route.url.startsWith("/api/") && route.method !== "HEAD",
+    );
+    for (const route of protectedRoutes) {
+      const plain = route.url.replace(/:\w+/g, "1");
+      // The router decodes the path: "/%61pi/..." is "/api/...".
+      for (const url of [
+        plain.replace(/^\/api\//, "/%61pi/"),
+        plain.replace(/^\/api\//, "/ap%69/"),
+      ]) {
+        const response = await ctx.app.inject({ method: route.method as "GET", url });
+        expect(response.statusCode, `${route.method} ${url}`).toBe(401);
+      }
+    }
+
+    // CSRF: a signed-in admin's request without the token is refused under any spelling.
+    const admin = await signIn(ctx, "boss", ["admin"]);
+    for (const url of ["/api/admin/groups", "/%61pi/admin/groups", "/api/%61dmin/groups"]) {
+      const response = await ctx.app.inject({
+        method: "POST",
+        url,
+        headers: { cookie: admin.cookie, origin: "https://evil.example" },
+        payload: { name: "Forged" },
+      });
+      expect(response.statusCode, url).toBe(403);
+      expect(response.json(), url).toMatchObject({ error: { code: "csrf_failed" } });
+    }
+    expect(ctx.auth.groups.list()).toEqual([]);
+  });
+
+  it("[ACS-09] unknown API paths are refused also while the built frontend is served", async () => {
+    const dir = tempDir();
+    try {
+      writeFileSync(join(dir.path, "index.html"), "<!doctype html><title>app</title>");
+      context = await createTestApp({ frontendDir: dir.path });
+      for (const url of ["/api/does-not-exist", "/%61pi/does-not-exist"]) {
+        const response = await context.app.inject({ url, headers: { accept: "text/html" } });
+        expect(response.statusCode, url).toBe(401);
+      }
+      // A path that cannot be decoded is refused before any route runs.
+      expect((await context.app.inject("/api/%zz")).statusCode).toBe(400);
+      // Pages are served to everyone: they hold no event data.
+      expect(
+        (await context.app.inject({ url: "/login", headers: { accept: "text/html" } })).statusCode,
+      ).toBe(200);
+    } finally {
+      dir.remove();
     }
   });
 

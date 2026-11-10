@@ -19,7 +19,17 @@ describe("password hashing", () => {
     expect(await verifyPassword("not a hash", "secret-password-1")).toBe(false);
   });
 
-  it("[ACC-06] does the hashing work for an unknown user too (no timing difference)", async () => {
-    await expect(verifyDummyPassword("whatever-password")).resolves.toBeUndefined();
+  it("[ACC-06] the dummy check does the work of a real one (no timing difference)", async () => {
+    const real = await hashPassword("secret-password-1");
+    await verifyDummyPassword("warm-up-password"); // the dummy hash is made once
+    const time = async (check: () => Promise<unknown>) => {
+      const start = performance.now();
+      await check();
+      return performance.now() - start;
+    };
+    const realTime = await time(() => verifyPassword(real, "wrong-password"));
+    const dummyTime = await time(() => verifyDummyPassword("wrong-password"));
+    // Without hashing it would take far under a millisecond; argon2id takes tens.
+    expect(dummyTime).toBeGreaterThan(realTime / 3);
   });
 });

@@ -5,11 +5,17 @@ import fp from "fastify-plugin";
 
 export const ROBOTS_TXT = "User-agent: *\nDisallow: /\n";
 export const X_ROBOTS_TAG = "noindex, nofollow, noarchive";
+/**
+ * Pages like /invite/<code> and /set-password/<token> carry a secret in the path: the browser
+ * never sends it to another site in the Referer header.
+ */
+export const REFERRER_POLICY = "same-origin";
 
 function noIndexPlugin(app: FastifyInstance): void {
   // onSend runs for every response, including errors and 404s.
   app.addHook("onSend", async (_request, reply, payload) => {
     reply.header("X-Robots-Tag", X_ROBOTS_TAG);
+    reply.header("Referrer-Policy", REFERRER_POLICY);
     return payload;
   });
 

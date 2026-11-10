@@ -1,6 +1,11 @@
 import { afterEach, describe, expect, it } from "vitest";
 import type { IssuedInvitation, Role } from "@zappaloo/shared";
-import { InvitationService, newInvitationCode, normalizeCode } from "../auth/invitations.ts";
+import {
+  InvitationService,
+  markRedeemed,
+  newInvitationCode,
+  normalizeCode,
+} from "../auth/invitations.ts";
 import { hashToken } from "../auth/tokens.ts";
 import { invitations as invitationsTable, memberships } from "../database/schema.ts";
 import { createTestApp } from "../test-support.ts";
@@ -195,6 +200,18 @@ describe("redeeming a code", () => {
     ).toHaveLength(1);
   });
 
+  it("[INV-07][ACC-06] registering refuses a password equal to the username; the code stays unused", async () => {
+    const ctx = await setup();
+    const root = await admin(ctx);
+    const [invitation] = await createInvitations(ctx, root, ["Anna"]);
+    const response = await register(ctx, invitation?.code ?? "", "anna.muster", {
+      password: "Anna.Muster",
+    });
+    expect(response.statusCode).toBe(400);
+    expect(response.json()).toMatchObject({ error: { code: "password_is_username" } });
+    expect((await register(ctx, invitation?.code ?? "", "anna.muster")).statusCode).toBe(201);
+  });
+
   it("[INV-08] a failed registration does not consume the code", async () => {
     const ctx = await setup();
     const root = await admin(ctx);
@@ -335,6 +352,45 @@ describe("redeeming a code", () => {
     expect(register.statusCode).toBe(429);
   });
 
+  it("[INV-12][SEC-02] successful lookups from one address are not limited: guests share the venue's Wi-Fi", async () => {
+    const ctx = await setup();
+    const root = await admin(ctx);
+    const [invitation] = await createInvitations(ctx, root, ["Anna"]);
+    for (let n = 0; n < 30; n++) {
+      expect((await preview(ctx, invitation?.code ?? "")).statusCode).toBe(200);
+    }
+    // Failures from the address still count.
+    for (let n = 0; n < 20; n++) expect((await preview(ctx, "AAAAAA")).statusCode).toBe(404);
+    expect((await preview(ctx, invitation?.code ?? "")).statusCode).toBe(429);
+  });
+
+  it("[INV-08] the update itself refuses a code that is no longer active, whatever checked it before", async () => {
+    const ctx = await setup();
+    const root = await admin(ctx);
+    const [invitation] = await createInvitations(ctx, root, ["Anna"]);
+    const id = invitation?.id ?? 0;
+    const user = ctx.auth.accounts.createUser({ username: "anna", roles: [] }, "cli");
+    markRedeemed(ctx.database.db, id, user.id, new Date());
+    // A second transaction that had seen the code as active loses at the update.
+    expect(() => {
+      markRedeemed(ctx.database.db, id, user.id, new Date());
+    }).toThrow(expect.objectContaining({ code: "invitation_redeemed" }));
+  });
+
+  it("[INV-01][INV-12] a new code that is already taken is drawn again, so the batch succeeds", async () => {
+    const ctx = await setup();
+    const drawn = ["AAAAAA", "AAAAAA", "AAAAAA", "BBBBBB"];
+    const service = new InvitationService(
+      ctx.database,
+      ctx.event,
+      ctx.auth.accounts,
+      () => new Date(),
+      () => drawn.shift() ?? newInvitationCode(),
+    );
+    const issued = service.create([{ name: "Anna" }, { name: "Ben" }], undefined, "cli");
+    expect(issued.map((i) => i.code)).toEqual(["AAAAAA", "BBBBBB"]);
+  });
+
   it("[INV-12] successful lookups do not count against the global limit", async () => {
     const ctx = await setup();
     const root = await admin(ctx);
@@ -391,16 +447,45 @@ describe("expiry, revocation and replacement", () => {
     expect(ctx.auth.accounts.findUser("anna")).toBeUndefined();
   });
 
-  it("[INV-04] an expiry date in the past is refused", async () => {
+  it("[INV-04] an expiry date in the past is refused, when creating and when regenerating", async () => {
     const ctx = await setup();
     const root = await admin(ctx);
+    const past = new Date(Date.now() - 1000).toISOString();
     const response = await ctx.app.inject({
       method: "POST",
       url: "/api/admin/invitations",
       headers: as(root),
-      payload: { guests: [{ name: "Anna" }], expiresAt: new Date(Date.now() - 1000).toISOString() },
+      payload: { guests: [{ name: "Anna" }], expiresAt: past },
     });
     expect(response.statusCode).toBe(400);
+    const [invitation] = await createInvitations(ctx, root, ["Anna"]);
+    const regenerate = await ctx.app.inject({
+      method: "POST",
+      url: `/api/admin/invitations/${String(invitation?.id)}/regenerate`,
+      headers: as(root),
+      payload: { expiresAt: past },
+    });
+    expect(regenerate.statusCode).toBe(400);
+    expect(ctx.auth.invitations.list().map((i) => i.status)).toEqual(["active"]);
+  });
+
+  it("[INV-05][INV-06] an expired code cannot be revoked, but it can be regenerated", async () => {
+    const ctx = await setup();
+    const root = await admin(ctx);
+    const soon = new Date(Date.now() + 60_000).toISOString();
+    const [invitation] = await createInvitations(ctx, root, ["Anna"], soon);
+    const later = new InvitationService(
+      ctx.database,
+      ctx.event,
+      ctx.auth.accounts,
+      () => new Date(Date.now() + 86_400_000),
+    );
+    expect(() => later.revoke(invitation?.id ?? 0, "cli")).toThrow(
+      expect.objectContaining({ code: "not_revocable" }),
+    );
+    const fresh = later.regenerate(invitation?.id ?? 0, undefined, "cli");
+    expect(fresh.invitation.status).toBe("active");
+    expect(later.list().map((i) => i.status)).toEqual(["active", "replaced"]);
   });
 
   it("[INV-05][INV-06] an admin revokes a code; it can no longer be redeemed", async () => {

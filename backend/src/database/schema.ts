@@ -1,11 +1,14 @@
 // Drizzle schema of the application database. Tables are added with the
 // features that need them; every change is followed by
 // `npm run db:generate -w backend`, which writes a new migration (DATA-04).
+// The migrations of stages 1 and 2 were squashed into one before the first release with
+// a database (2026-11-10); released migrations are never changed (migration check).
 //
 // Every event-related table carries an `event_id` that references `events`
 // (DATA-02); a test checks this for every table, so a table added later cannot
 // forget it.
 import {
+  foreignKey,
   index,
   integer,
   primaryKey,
@@ -13,6 +16,7 @@ import {
   text,
   uniqueIndex,
 } from "drizzle-orm/sqlite-core";
+import type { AnySQLiteColumn } from "drizzle-orm/sqlite-core";
 
 /** The event of this installation (sw-architecture.md 19.3.1). `id` is the `id` of event.json. */
 export const events = sqliteTable("events", {
@@ -59,7 +63,7 @@ export const auditLog = sqliteTable(
     eventId: text("event_id")
       .notNull()
       .references(() => events.id),
-    /** "cli", later "user:<id>". */
+    /** "cli", "user:<id>" or "anonymous" (a request without sign-in). */
     actor: text("actor").notNull(),
     action: text("action").notNull(),
     /** JSON object with the details of the action. */
@@ -102,10 +106,20 @@ export const memberships = sqliteTable(
     /** How `vip` was granted (INV-11); null without the role. Cleared when vip is revoked. */
     vipAssignment: text("vip_assignment", { enum: ["invitation_code", "admin_promotion"] }),
     /** For `invitation_code`: the invitation that was redeemed. */
-    vipInvitationId: integer("vip_invitation_id"),
+    vipInvitationId: integer("vip_invitation_id").references(
+      (): AnySQLiteColumn => invitations.id,
+      { onDelete: "set null" },
+    ),
   },
   (table) => [primaryKey({ columns: [table.eventId, table.userId] })],
 );
+
+/** Roles, capabilities and group memberships belong to a membership and go with it. */
+const ofMembership = (table: { eventId: AnySQLiteColumn; userId: AnySQLiteColumn }) =>
+  foreignKey({
+    columns: [table.eventId, table.userId],
+    foreignColumns: [memberships.eventId, memberships.userId],
+  }).onDelete("cascade");
 
 /** Roles `vip`, `staff`, `admin` of a membership; combinable (sw-architecture.md 8). */
 export const membershipRoles = sqliteTable(
@@ -119,7 +133,10 @@ export const membershipRoles = sqliteTable(
       .references(() => users.id, { onDelete: "cascade" }),
     role: text("role", { enum: ["vip", "staff", "admin"] }).notNull(),
   },
-  (table) => [primaryKey({ columns: [table.eventId, table.userId, table.role] })],
+  (table) => [
+    primaryKey({ columns: [table.eventId, table.userId, table.role] }),
+    ofMembership(table),
+  ],
 );
 
 /** Server-side sessions; only the SHA-256 of the cookie's token is stored. */
@@ -173,7 +190,10 @@ export const membershipCapabilities = sqliteTable(
       enum: ["editWebsiteContent", "moderateContributions"],
     }).notNull(),
   },
-  (table) => [primaryKey({ columns: [table.eventId, table.userId, table.capability] })],
+  (table) => [
+    primaryKey({ columns: [table.eventId, table.userId, table.capability] }),
+    ofMembership(table),
+  ],
 );
 
 /** Guest groups: family, friends, … Independent of roles (GRP-01). */
@@ -189,7 +209,11 @@ export const guestGroups = sqliteTable(
     nameKey: text("name_key").notNull(),
     createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull(),
   },
-  (table) => [uniqueIndex("guest_groups_name").on(table.eventId, table.nameKey)],
+  (table) => [
+    uniqueIndex("guest_groups_name").on(table.eventId, table.nameKey),
+    // Lets a member row reference the group together with its event.
+    uniqueIndex("guest_groups_event").on(table.id, table.eventId),
+  ],
 );
 
 export const guestGroupMembers = sqliteTable(
@@ -208,6 +232,12 @@ export const guestGroupMembers = sqliteTable(
   (table) => [
     primaryKey({ columns: [table.groupId, table.userId] }),
     index("guest_group_members_user").on(table.userId),
+    // The member's event is the group's event, and the member belongs to it.
+    foreignKey({
+      columns: [table.groupId, table.eventId],
+      foreignColumns: [guestGroups.id, guestGroups.eventId],
+    }).onDelete("cascade"),
+    ofMembership(table),
   ],
 );
 
@@ -238,7 +268,7 @@ export const invitations = sqliteTable(
     /** Null again if the account is deleted; the code stays recorded as redeemed (INV-10). */
     redeemedBy: integer("redeemed_by").references(() => users.id, { onDelete: "set null" }),
     /** For a `replaced` code: the code that took its place. */
-    replacedBy: integer("replaced_by"),
+    replacedBy: integer("replaced_by").references((): AnySQLiteColumn => invitations.id),
   },
   (table) => [index("invitations_event").on(table.eventId)],
 );

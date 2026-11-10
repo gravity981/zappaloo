@@ -27,12 +27,12 @@ If the image is private, create a GitHub token with only `read:packages`, store 
 | Setting | Staging (LAN) | Prod |
 |---|---|---|
 | `APP_ENV` / `COMPOSE_PROJECT_NAME` / `DATA_VOLUME` | `staging` / `zappaloo-staging` / `zappaloo-data-staging` | `prod` / `zappaloo` / `zappaloo-data-prod` |
-| `EVENT_SLUG` | the event folder (see "The event" below) | the event folder |
+| `EVENT_SLUG` | the event folder (see "The event" below) | the event folder; set it before the first start: the database is tied to that event |
 | `SITE_ADDRESS` | the server's LAN IP, e.g. `192.168.1.20` | the domain |
 | `HTTP_PORT` / `HTTPS_PORT` | `8080` / `8443` (open `https://<LAN IP>:8443`) | `80` / `443` |
 | `TLS_MODE` | `internal` (Caddy's local CA) | contact email for Let's Encrypt |
 | `COMPOSE_PROFILES` | `mailpit` (all mail is caught) | empty |
-| SMTP settings | `SMTP_HOST=mailpit`, `SMTP_PORT=1025` | the real SMTP account |
+| SMTP settings | `SMTP_HOST=mailpit`, `SMTP_PORT=1025` | the real SMTP account: `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `MAIL_FROM`; the password in `secrets/smtp_password` (mode 600) |
 
 ## The event
 

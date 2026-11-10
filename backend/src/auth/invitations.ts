@@ -6,7 +6,9 @@ import { and, desc, eq } from "drizzle-orm";
 import type { Invitation, InvitationStatus, User } from "@zappaloo/shared";
 import type { Database } from "../database/database.ts";
 import { invitations, membershipRoles, memberships } from "../database/schema.ts";
+import { SELF_ACTOR } from "../event/service.ts";
 import type { Actor, EventService } from "../event/service.ts";
+import { assertPasswordAllowed } from "./accounts.ts";
 import type { AccountService } from "./accounts.ts";
 import { hashPassword } from "./password.ts";
 import { hashToken } from "./tokens.ts";
@@ -64,17 +66,21 @@ export class InvitationService {
   readonly #event: EventService;
   readonly #accounts: AccountService;
   readonly #now: () => Date;
+  readonly #newCode: () => string;
 
   constructor(
     database: Database,
     event: EventService,
     accounts: AccountService,
     now: () => Date = () => new Date(),
+    /** Draws a new code (tests replace it to force a collision). */
+    newCode: () => string = newInvitationCode,
   ) {
     this.#database = database;
     this.#event = event;
     this.#accounts = accounts;
     this.#now = now;
+    this.#newCode = newCode;
   }
 
   #status(row: Row): InvitationStatus {
@@ -114,19 +120,32 @@ export class InvitationService {
     return this.#database.db.transaction((tx) =>
       guests.map((guest) => {
         const issued = this.#insert(tx, guest.name, guest.note ?? null, expiresAt);
-        this.#event.audit(
-          actor,
-          "invitation.create",
-          { invitationId: issued.invitation.id, guestName: guest.name },
-          tx,
-        );
+        // The id only: the guest's name is in the invitation, not copied into the log.
+        this.#event.audit(actor, "invitation.create", { invitationId: issued.invitation.id }, tx);
         return issued;
       }),
     );
   }
 
+  /**
+   * A code no invitation has had yet. With a few hundred codes among about a billion a
+   * collision is rare, but it would fail the whole batch on the unique index; so draw again.
+   */
+  #unusedCode(tx: Pick<Database["db"], "select">): string {
+    for (let attempt = 0; attempt < 10; attempt += 1) {
+      const code = this.#newCode();
+      const taken = tx
+        .select({ id: invitations.id })
+        .from(invitations)
+        .where(eq(invitations.codeHash, hashToken(code)))
+        .get();
+      if (!taken) return code;
+    }
+    throw new Error("no unused invitation code found in 10 attempts");
+  }
+
   #insert(tx: Tx, guestName: string, note: string | null, expiresAt: Date | undefined): IssuedCode {
-    const code = newInvitationCode();
+    const code = this.#unusedCode(tx);
     const row = tx
       .insert(invitations)
       .values({
@@ -152,12 +171,16 @@ export class InvitationService {
     return row;
   }
 
-  /** Revokes an active or expired code; a redeemed code stays redeemed (INV-05, INV-10). */
+  /**
+   * Revokes an active code (INV-05). An expired code needs no revoking, a redeemed one stays
+   * redeemed (INV-10), and a revoked or replaced one is already dead (9.6.1).
+   */
   revoke(id: number, actor: Actor): Invitation {
     return this.#database.db.transaction((tx) => {
       const row = this.#get(tx, id);
-      if (row.status !== "active") {
-        throw new InvitationError("not_revocable", `a ${row.status} code cannot be revoked`);
+      const status = this.#status(row);
+      if (status !== "active") {
+        throw new InvitationError("not_revocable", `a ${status} code cannot be revoked`);
       }
       const updated = tx
         .update(invitations)
@@ -236,6 +259,9 @@ export class InvitationService {
     input: string,
     account: { username: string; displayName?: string | undefined; password: string },
   ): Promise<User> {
+    // Code and password are checked before the (expensive) hashing, and again in the transaction.
+    this.#assertRedeemable(this.#find(this.#database.db, input));
+    assertPasswordAllowed(account.username, account.password);
     const passwordHash = await hashPassword(account.password);
     return this.#database.db.transaction((tx) => {
       const row = this.#find(tx, input);
@@ -248,10 +274,10 @@ export class InvitationService {
           passwordHash,
           invitationId: row.id,
         },
-        `user:${account.username.toLowerCase()}`,
+        SELF_ACTOR,
         tx,
       );
-      this.#markRedeemed(tx, row.id, user.id);
+      markRedeemed(tx, row.id, user.id, this.#now());
       return user;
     });
   }
@@ -281,7 +307,7 @@ export class InvitationService {
         .set({ vipAssignment: "invitation_code", vipInvitationId: row.id })
         .where(and(eq(memberships.eventId, eventId), eq(memberships.userId, userId)))
         .run();
-      this.#markRedeemed(tx, row.id, userId);
+      markRedeemed(tx, row.id, userId, this.#now());
       this.#event.audit(
         `user:${String(userId)}`,
         "user.roles",
@@ -293,16 +319,25 @@ export class InvitationService {
       return user;
     });
   }
+}
 
-  /** Only one transaction can flip `active` to `redeemed`: the update checks the status (INV-08). */
-  #markRedeemed(tx: Pick<Database["db"], "update">, id: number, userId: number): void {
-    const done = tx
-      .update(invitations)
-      .set({ status: "redeemed", redeemedAt: this.#now(), redeemedBy: userId })
-      .where(and(eq(invitations.id, id), eq(invitations.status, "active")))
-      .run();
-    if (done.changes !== 1) {
-      throw new InvitationError("invitation_redeemed", "this code is redeemed");
-    }
+/**
+ * Marks the invitation redeemed. Only one transaction can flip `active` to `redeemed`: the
+ * update matches only an active row, so a second one fails even if it got past every check
+ * before (INV-08).
+ */
+export function markRedeemed(
+  tx: Pick<Database["db"], "update">,
+  id: number,
+  userId: number,
+  now: Date,
+): void {
+  const done = tx
+    .update(invitations)
+    .set({ status: "redeemed", redeemedAt: now, redeemedBy: userId })
+    .where(and(eq(invitations.id, id), eq(invitations.status, "active")))
+    .run();
+  if (done.changes !== 1) {
+    throw new InvitationError("invitation_redeemed", "this code is redeemed");
   }
 }

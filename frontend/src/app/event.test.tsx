@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { act, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { EventProvider } from "./EventProvider.tsx";
 import { SessionContext } from "./session.ts";
@@ -100,5 +100,20 @@ describe("feature toggles in the UI", () => {
     await Promise.resolve();
     expect(screen.queryByText("the minigames")).not.toBeInTheDocument();
     expect(screen.queryByText("the gallery")).not.toBeInTheDocument();
+  });
+
+  it("[CFG-05] picks up a feature the admin switched meanwhile when the page is shown again", async () => {
+    let gallery = false;
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(() => Promise.resolve(Response.json(event(gallery)))),
+    );
+    renderGate();
+    expect(await screen.findByText("no gallery")).toBeInTheDocument();
+    gallery = true;
+    act(() => {
+      document.dispatchEvent(new Event("visibilitychange"));
+    });
+    expect(await screen.findByText("the gallery")).toBeInTheDocument();
   });
 });

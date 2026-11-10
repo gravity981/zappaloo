@@ -4,7 +4,7 @@ import { existsSync } from "node:fs";
 import { join, resolve } from "node:path";
 import fastifyStatic from "@fastify/static";
 import Fastify from "fastify";
-import type { FastifyInstance, FastifyServerOptions } from "fastify";
+import type { FastifyInstance, FastifyRequest, FastifyServerOptions } from "fastify";
 import type { VersionResponse } from "@zappaloo/shared";
 import type { Database } from "./database/database.ts";
 import type { EventService } from "./event/service.ts";
@@ -33,9 +33,40 @@ export interface AppOptions {
   logger?: FastifyServerOptions["logger"];
 }
 
+/**
+ * Paths whose last part is a secret: invitation codes (INV-02) and one-time link tokens. They
+ * are replaced in the request log, which would otherwise keep them in the container logs.
+ */
+const SECRET_PATHS = /^(\/(?:api\/invitations|invite|set-password|verify-email)\/)[^/?#]+/;
+
+export function redactUrl(url: string): string {
+  let decoded = url;
+  try {
+    decoded = decodeURIComponent(url);
+  } catch {
+    // Not decodable: Fastify refuses it before any route runs; log it as it came.
+  }
+  return decoded.replace(SECRET_PATHS, "$1[redacted]");
+}
+
+/** Fastify's request serializer, with the secrets taken out of the URL. */
+function serializeRequest(request: FastifyRequest) {
+  return {
+    method: request.method,
+    url: redactUrl(request.url),
+    host: request.host,
+    remoteAddress: request.ip,
+  };
+}
+
+function withRedaction(logger: AppOptions["logger"]): FastifyServerOptions["logger"] {
+  if (!logger) return false;
+  return { ...(logger === true ? {} : logger), serializers: { req: serializeRequest } };
+}
+
 export async function buildApp(options: AppOptions): Promise<FastifyInstance> {
   const app = Fastify({
-    logger: options.logger ?? false,
+    logger: withRedaction(options.logger),
     trustProxy: options.trustProxy ?? false,
   });
 

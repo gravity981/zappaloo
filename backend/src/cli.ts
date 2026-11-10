@@ -176,7 +176,8 @@ const commands: Record<string, Command> = {
         return 1;
       }
       return withAccounts(io, (accounts, publicUrl) => {
-        const user = accounts.createUser(
+        // Account and link in one transaction: never an admin without a way to sign in.
+        const { user, link } = accounts.createUserWithSetupLink(
           { username: username.data, roles: values.vip ? ["admin", "vip"] : ["admin"] },
           CLI_ACTOR,
         );
@@ -184,7 +185,7 @@ const commands: Record<string, Command> = {
           `Admin account "${user.username}" created (roles: ${user.roles.join(", ")}). ` +
             "No password is set yet.",
         );
-        printLink(io, publicUrl, accounts.createLink(user.id, "setup", CLI_ACTOR));
+        printLink(io, publicUrl, link);
         return 0;
       });
     },

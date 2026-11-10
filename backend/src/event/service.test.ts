@@ -206,6 +206,50 @@ describe("data model", () => {
     }
   });
 
+  it("[DATA-02] roles, capabilities and group members belong to a membership of the group's own event", () => {
+    const database = migratedDatabase();
+    const { sqlite } = database;
+    const now = Date.now();
+    for (const id of ["one", "two"]) {
+      sqlite
+        .prepare(
+          "INSERT INTO events (id, slug, name, timezone, default_language, created_at, updated_at) VALUES (?, ?, ?, 'UTC', 'de', ?, ?)",
+        )
+        .run(id, id, id, now, now);
+    }
+    sqlite
+      .prepare(
+        "INSERT INTO users (username, display_name, created_at, updated_at) VALUES ('anna', 'Anna', ?, ?)",
+      )
+      .run(now, now);
+    sqlite
+      .prepare(
+        "INSERT INTO guest_groups (event_id, name, name_key, created_at) VALUES ('two', 'G', 'g', ?)",
+      )
+      .run(now);
+    const insertRole = () =>
+      sqlite
+        .prepare("INSERT INTO membership_roles (event_id, user_id, role) VALUES ('one', 1, 'vip')")
+        .run();
+    const insertMember = (eventId: string) =>
+      sqlite
+        .prepare("INSERT INTO guest_group_members (event_id, group_id, user_id) VALUES (?, 1, 1)")
+        .run(eventId);
+
+    // Without a membership: no role, no group membership.
+    expect(insertRole).toThrow(/FOREIGN KEY/);
+    sqlite
+      .prepare("INSERT INTO memberships (event_id, user_id, created_at) VALUES ('one', 1, ?)")
+      .run(now);
+    insertRole();
+    // The group belongs to event "two": a member row for event "one" is refused.
+    expect(() => insertMember("one")).toThrow(/FOREIGN KEY/);
+
+    // Removing the membership takes its roles along.
+    sqlite.prepare("DELETE FROM memberships WHERE event_id = 'one' AND user_id = 1").run();
+    expect(sqlite.prepare("SELECT * FROM membership_roles").all()).toEqual([]);
+  });
+
   it("[CFG-03][CFG-05] knows exactly the features and settings of the spec", () => {
     expect([...FEATURE_NAMES]).toEqual([
       "minigames",

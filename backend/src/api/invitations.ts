@@ -21,7 +21,7 @@ import type { IssuedCode } from "../auth/invitations.ts";
 import {
   REDEEM_FAILURES_GLOBAL,
   REDEEM_GLOBAL_KEY,
-  REDEEM_PER_ADDRESS,
+  REDEEM_FAILURES_PER_ADDRESS,
 } from "../auth/rate-limit.ts";
 import type { RateLimiter } from "../auth/rate-limit.ts";
 import { rateLimited, requireRole, requireUser, signedIn } from "./auth.ts";
@@ -46,11 +46,19 @@ const STATUSES: Partial<Record<string, number>> = {
   not_revocable: 409,
 };
 
-function fail(reply: FastifyReply, error: unknown, limiter?: RateLimiter): FastifyReply {
+/** Answers an invitation error; `failure` counts it against the address and everyone. */
+function fail(
+  reply: FastifyReply,
+  error: unknown,
+  failure?: { limiter: RateLimiter; ip: string },
+): FastifyReply {
   if (error instanceof InvitationError) {
-    // A wrong code, or one that is used up, counts against everyone (a guesser has many addresses).
-    if (limiter && error.code !== "already_vip")
-      limiter.hit(REDEEM_GLOBAL_KEY, REDEEM_FAILURES_GLOBAL);
+    // A wrong code, or one that is used up, counts against the address and against everyone
+    // (a guesser has many addresses). Successful attempts are not counted.
+    if (failure && error.code !== "already_vip") {
+      failure.limiter.hit(`redeem:ip:${failure.ip}`, REDEEM_FAILURES_PER_ADDRESS);
+      failure.limiter.hit(REDEEM_GLOBAL_KEY, REDEEM_FAILURES_GLOBAL);
+    }
     const status = STATUSES[error.code];
     if (status !== undefined) {
       return sendError(reply, status, { code: error.code, message: error.message });
@@ -61,9 +69,9 @@ function fail(reply: FastifyReply, error: unknown, limiter?: RateLimiter): Fasti
 
 const invitationPlugin: FastifyPluginAsyncZod<AuthOptions> = (app, options) => {
   const { invitations, limiter, publicUrl } = options;
-  /** Seconds to wait if this address or all addresses together tried too often. */
+  /** Seconds to wait if this address or all addresses together failed too often. */
   const redeemWait = (ip: string) =>
-    limiter.hit(`redeem:ip:${ip}`, REDEEM_PER_ADDRESS) ??
+    limiter.blocked(`redeem:ip:${ip}`, REDEEM_FAILURES_PER_ADDRESS) ??
     limiter.blocked(REDEEM_GLOBAL_KEY, REDEEM_FAILURES_GLOBAL);
   const admin = { preHandler: requireRole("admin") };
   const actor = (request: Parameters<typeof signedIn>[0]) =>
@@ -143,6 +151,12 @@ const invitationPlugin: FastifyPluginAsyncZod<AuthOptions> = (app, options) => {
     async (request, reply) => {
       try {
         const expiresAt = request.body?.expiresAt;
+        if (expiresAt !== undefined && new Date(expiresAt) <= new Date()) {
+          return await sendError(reply, 400, {
+            code: "validation_failed",
+            message: "The expiry date must be in the future.",
+          });
+        }
         const code = invitations.regenerate(
           request.params.id,
           expiresAt === undefined ? undefined : new Date(expiresAt),
@@ -172,7 +186,7 @@ const invitationPlugin: FastifyPluginAsyncZod<AuthOptions> = (app, options) => {
       try {
         return await reply.send(invitations.preview(request.params.code));
       } catch (error) {
-        return fail(reply, error, limiter);
+        return fail(reply, error, { limiter, ip: request.ip });
       }
     },
   );
@@ -199,7 +213,10 @@ const invitationPlugin: FastifyPluginAsyncZod<AuthOptions> = (app, options) => {
         if (error instanceof AccountError && error.code === "username_taken") {
           return sendError(reply, 409, { code: "username_taken", message: error.message });
         }
-        return fail(reply, error, limiter);
+        if (error instanceof AccountError && error.code === "password_is_username") {
+          return sendError(reply, 400, { code: "password_is_username", message: error.message });
+        }
+        return fail(reply, error, { limiter, ip: request.ip });
       }
     },
   );
@@ -223,7 +240,7 @@ const invitationPlugin: FastifyPluginAsyncZod<AuthOptions> = (app, options) => {
         const user = invitations.redeemForUser(request.params.code, signedIn(request).user.id);
         return await reply.send({ user });
       } catch (error) {
-        return fail(reply, error, limiter);
+        return fail(reply, error, { limiter, ip: request.ip });
       }
     },
   );

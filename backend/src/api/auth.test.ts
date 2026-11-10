@@ -267,6 +267,42 @@ describe("rate limiting", () => {
       });
     for (let i = 0; i < 10; i++) expect((await attempt()).statusCode).toBe(400);
     expect((await attempt()).statusCode).toBe(429);
+    // Confirming an email address has its own counter.
+    const verify = await ctx.app.inject({
+      method: "POST",
+      url: "/api/email/verify",
+      payload: { token: "x".repeat(43) },
+    });
+    expect(verify.statusCode).toBe(400);
+  });
+
+  it("[SEC-02] successful logins from one address are not limited: guests share the venue's Wi-Fi", async () => {
+    const ctx = await setup();
+    for (let i = 0; i < 25; i++) {
+      await makeUser(ctx, `guest${String(i)}`);
+      expect((await login(ctx, `guest${String(i)}`)).cookie).toContain(SESSION_COOKIE);
+    }
+  });
+
+  it("[SEC-02] takes the client address from X-Forwarded-For only with TRUST_PROXY", async () => {
+    const attempt = (ctx: TestContext, ip: string) =>
+      ctx.app.inject({
+        method: "POST",
+        url: "/api/session",
+        headers: { "x-forwarded-for": ip },
+        payload: { username: `u${ip.replace(/\D/g, "")}`, password: "wrong-password" },
+      });
+    // Without it a forged header changes nothing: all attempts come from the same address.
+    const direct = await setup();
+    for (let i = 0; i < 20; i++) await attempt(direct, `10.0.0.${String(i)}`);
+    expect((await attempt(direct, "10.0.1.1")).statusCode).toBe(429);
+    await direct.close();
+
+    // Behind Caddy each client has its own counter.
+    const proxied = await setup({ trustProxy: true });
+    for (let i = 0; i < 20; i++) await attempt(proxied, "10.0.0.1");
+    expect((await attempt(proxied, "10.0.0.1")).statusCode).toBe(429);
+    expect((await attempt(proxied, "10.0.0.2")).statusCode).toBe(401);
   });
 });
 
@@ -374,6 +410,54 @@ describe("passwords", () => {
   });
 });
 
+describe("password rules", () => {
+  it("[ACC-06] a password must not be the username, whichever way it is set", async () => {
+    const ctx = await setup();
+    const user = ctx.auth.accounts.createUser({ username: "anna.mueller1", roles: ["vip"] }, "cli");
+    const link = ctx.auth.accounts.createLink(user.id, "setup", "cli");
+    const viaLink = await ctx.app.inject({
+      method: "POST",
+      url: "/api/password/set",
+      payload: { token: link.token, newPassword: "Anna.Mueller1" },
+    });
+    expect(viaLink.statusCode).toBe(400);
+    expect(viaLink.json()).toMatchObject({ error: { code: "password_is_username" } });
+    // The link was not used up by the refused password.
+    await ctx.auth.accounts.useLink(link.token, PASSWORD);
+
+    const anna = await login(ctx, "anna.mueller1");
+    const change = await ctx.app.inject({
+      method: "POST",
+      url: "/api/profile/password",
+      headers: asUser(anna, true),
+      payload: { currentPassword: PASSWORD, newPassword: "anna.mueller1" },
+    });
+    expect(change.statusCode).toBe(400);
+    expect(change.json()).toMatchObject({ error: { code: "password_is_username" } });
+  });
+
+  it("[ACC-01][ACC-06] an unknown user and an account without a password cost the same hashing work", async () => {
+    const ctx = await setup();
+    await makeUser(ctx, "anna");
+    ctx.auth.accounts.createUser({ username: "nopass", roles: ["vip"] }, "cli");
+    const time = async (username: string) => {
+      const start = performance.now();
+      expect(await ctx.auth.accounts.verifyLogin(username, "wrong-password")).toBeUndefined();
+      return performance.now() - start;
+    };
+    await time("anna"); // warm-up: the dummy hash is made once
+    await time("nobody");
+    const [known, unknown, withoutPassword] = [
+      await time("anna"),
+      await time("nobody"),
+      await time("nopass"),
+    ];
+    // A lookup without hashing takes well under a millisecond; argon2id takes tens.
+    expect(unknown).toBeGreaterThan(known / 3);
+    expect(withoutPassword).toBeGreaterThan(known / 3);
+  });
+});
+
 describe("one-time links", () => {
   const setPassword = (ctx: TestContext, token: string, newPassword = PASSWORD) =>
     ctx.app.inject({ method: "POST", url: "/api/password/set", payload: { token, newPassword } });
@@ -415,6 +499,52 @@ describe("one-time links", () => {
       csrfToken: null,
     });
     expect((await login(ctx, "anna", "brand-new-password")).cookie).toContain(SESSION_COOKIE);
+  });
+
+  it("[ACC-15][ACC-10][ACC-03] using a link, changing the password or the email voids every other open link", async () => {
+    const ctx = await setup();
+    const anna = await makeUser(ctx, "anna");
+    const { accounts } = ctx.auth;
+    const set = (token: string) =>
+      ctx.app.inject({
+        method: "POST",
+        url: "/api/password/set",
+        payload: { token, newPassword: "another-password-1" },
+      });
+
+    // Two reset links: using one voids the other.
+    const first = accounts.createLink(anna.id, "reset", "cli");
+    const second = accounts.createLink(anna.id, "reset", "cli");
+    expect((await set(first.token)).statusCode).toBe(204);
+    expect((await set(second.token)).statusCode).toBe(400);
+
+    // Changing the password voids an open link.
+    const open = accounts.createLink(anna.id, "reset", "cli");
+    const who = await login(ctx, "anna", "another-password-1");
+    const changed = await ctx.app.inject({
+      method: "POST",
+      url: "/api/profile/password",
+      headers: asUser(who, true),
+      payload: { currentPassword: "another-password-1", newPassword: PASSWORD },
+    });
+    expect(changed.statusCode).toBe(204);
+    expect((await set(open.token)).statusCode).toBe(400);
+
+    // Changing the email address voids an open link (it may have gone to the old address).
+    const mailed = accounts.createLink(anna.id, "reset", "cli");
+    const email = await ctx.app.inject({
+      method: "PATCH",
+      url: "/api/profile",
+      headers: asUser(who, true),
+      payload: { email: "new@example.org" },
+    });
+    expect(email.statusCode).toBe(200);
+    expect((await set(mailed.token)).statusCode).toBe(400);
+
+    // Changing only the display name keeps it.
+    const kept = accounts.createLink(anna.id, "reset", "cli");
+    accounts.updateProfile(anna.id, { displayName: "Anna M." });
+    expect((await set(kept.token)).statusCode).toBe(204);
   });
 
   it("[ACC-14] stores only a hash of the link's token", async () => {
@@ -491,7 +621,9 @@ describe("accounts created by an admin", () => {
     const entries = ctx.event
       .auditEntries()
       .filter((e) => e.action === "user.create" && e.actor === `user:${String(boss.id)}`);
-    expect(entries.map((e) => e.details)).toMatchObject([{ username: "ben", roles: [] }]);
+    // Ids only, no username: the log outlives a deleted account (ACC-12).
+    const ben = ctx.auth.accounts.findUser("ben");
+    expect(entries.map((e) => e.details)).toEqual([{ userId: ben?.id, roles: [] }]);
     expect(ctx.event.auditEntries().some((e) => e.action === "link.create")).toBe(true);
   });
 });

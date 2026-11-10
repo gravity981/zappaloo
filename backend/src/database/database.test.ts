@@ -123,3 +123,24 @@ describe("database migrations", () => {
     );
   });
 });
+
+describe("concurrent processes", () => {
+  it("[DATA-01] a transaction holds the write lock from its start, so another process waits instead of failing midway", () => {
+    const { database, dir } = freshDatabase();
+    database.sqlite.exec("CREATE TABLE t (n INTEGER)");
+    // A second connection, like the CLI next to the server; it does not wait at all.
+    const other = openDatabase(join(dir, "test.db"));
+    cleanups.unshift(() => {
+      other.close();
+    });
+    other.sqlite.pragma("busy_timeout = 0");
+
+    database.db.transaction(() => {
+      // Nothing written yet, but the lock is taken: the other connection cannot start writing.
+      expect(() => other.sqlite.exec("BEGIN IMMEDIATE")).toThrow(/locked|busy/i);
+    });
+    // Afterwards it can.
+    other.sqlite.exec("BEGIN IMMEDIATE; INSERT INTO t VALUES (1); COMMIT");
+    expect(database.sqlite.prepare("SELECT count(*) AS n FROM t").get()).toEqual({ n: 1 });
+  });
+});

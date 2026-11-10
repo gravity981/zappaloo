@@ -1,6 +1,6 @@
 // Server-side sessions (ACC-05, ACC-13; sw-architecture.md 7.1.1): a random token
 // in the cookie, only its SHA-256 in the database; 365 days, renewed on use.
-import { and, eq, ne } from "drizzle-orm";
+import { and, eq, lte, ne } from "drizzle-orm";
 import type { Database } from "../database/database.ts";
 import { sessions } from "../database/schema.ts";
 import { hashToken, newToken } from "./tokens.ts";
@@ -79,6 +79,12 @@ export class SessionService {
       .delete(sessions)
       .where(eq(sessions.tokenHash, hashToken(token)))
       .run();
+  }
+
+  /** Deletes the expired sessions nobody presented again. Returns how many were deleted. */
+  purgeExpired(): number {
+    return this.#database.db.delete(sessions).where(lte(sessions.expiresAt, this.#now())).run()
+      .changes;
   }
 
   /** Ends all sessions of the user, except the one with `keepToken` (password change). */

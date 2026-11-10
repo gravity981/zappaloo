@@ -48,17 +48,24 @@ export class RateLimiter {
   }
 }
 
-/** Limits of the auth endpoints (15 minutes). */
-export const LOGIN_PER_ADDRESS: Limit = { max: 20, windowMs: 15 * 60_000 };
+/**
+ * Limits of the auth endpoints. The limits per client address count only failed attempts:
+ * many guests share one address (the venue's Wi-Fi, a mobile network), and only failures
+ * help a guesser (sw-architecture.md 7.1.1).
+ */
+export const LOGIN_FAILURES_PER_ADDRESS: Limit = { max: 20, windowMs: 15 * 60_000 };
 export const LOGIN_FAILURES_PER_USER: Limit = { max: 5, windowMs: 15 * 60_000 };
-export const PASSWORD_SET_PER_ADDRESS: Limit = { max: 10, windowMs: 15 * 60_000 };
-/** Password-reset requests (ACC-03) and verification mails; the mails per account are limited separately. */
+/** Unknown, used or expired links when setting a password. */
+export const PASSWORD_SET_FAILURES_PER_ADDRESS: Limit = { max: 10, windowMs: 15 * 60_000 };
+/** Unknown, used or expired links when confirming an email address. */
+export const EMAIL_VERIFY_FAILURES_PER_ADDRESS: Limit = { max: 10, windowMs: 15 * 60_000 };
+/** Password-reset requests (ACC-03), counted whether they succeed or not: each may send a mail. */
 export const FORGOT_PER_ADDRESS: Limit = { max: 10, windowMs: 15 * 60_000 };
 export const VERIFY_MAIL_PER_USER: Limit = { max: 3, windowMs: 60 * 60_000 };
-export const RESET_MAILS_PER_ACCOUNT = 3;
-export const RESET_MAILS_WINDOW_MS = 60 * 60_000;
-/** Looking up and redeeming invitation codes (INV-12, SEC-02). */
-export const REDEEM_PER_ADDRESS: Limit = { max: 20, windowMs: 15 * 60_000 };
+/** Reset mails per account; links an admin or the CLI hands out do not count. */
+export const RESET_MAILS_PER_ACCOUNT: Limit = { max: 3, windowMs: 60 * 60_000 };
+/** Failed lookups and redemptions of invitation codes per address (INV-12, SEC-02). */
+export const REDEEM_FAILURES_PER_ADDRESS: Limit = { max: 20, windowMs: 15 * 60_000 };
 /**
  * Failed redemption attempts (codes that do not exist or cannot be redeemed) across all
  * addresses: the short code is safe against a guesser with many addresses only with this cap.

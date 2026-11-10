@@ -82,6 +82,8 @@
   },
   "verifyEmail": {
     "title": "E-Mail-Adresse bestätigen",
+    "intro": "Tippe auf den Knopf, um deine E-Mail-Adresse zu bestätigen.",
+    "confirm": "Adresse bestätigen",
     "working": "Die Adresse wird bestätigt …",
     "doneTitle": "Adresse bestätigt",
     "doneText": "Danke! Mit dieser Adresse kannst du dein Passwort per E-Mail zurücksetzen.",
@@ -141,6 +143,17 @@
     "last_admin": "Du bist die letzte Admin-Person. Ernenne zuerst jemand anderen, dann kannst du dein Konto löschen.",
     "validation_failed": "Bitte prüfe deine Eingaben.",
     "passwords_differ": "Die beiden Passwörter sind nicht gleich.",
-    "csrf_failed": "Die Sitzung ist abgelaufen. Bitte lade die Seite neu."
+    "csrf_failed": "Die Sitzung ist abgelaufen. Bitte lade die Seite neu.",
+    "network_error": "Keine Verbindung zum Server. Prüfe deine Internetverbindung und versuche es noch einmal.",
+    "unauthorized": "Du bist nicht mehr angemeldet. Bitte melde dich wieder an.",
+    "forbidden": "Dafür hast du keine Berechtigung.",
+    "not_found": "Das gibt es nicht (mehr).",
+    "feature_disabled": "Diese Funktion ist für diesen Anlass ausgeschaltet.",
+    "password_is_username": "Das Passwort darf nicht gleich wie der Benutzername sein.",
+    "invitation_not_found": "Diese Einladung gibt es nicht.",
+    "user_not_found": "Dieses Konto gibt es nicht.",
+    "group_name_taken": "Eine Gruppe mit diesem Namen gibt es schon.",
+    "group_not_found": "Diese Gruppe gibt es nicht.",
+    "not_staff": "Fähigkeiten gibt es nur für Personen mit der Rolle Staff."
   }
 }

@@ -1,9 +1,12 @@
-// Administration of roles, staff capabilities and guest groups (ROLE-01, ROLE-03 – ROLE-09,
-// GRP-01; sw-architecture.md 8, 12). All routes need the admin role of the event.
+// Administration of the event's features and settings, roles, staff capabilities, guest groups
+// and releases (CFG-05, ROLE-01, ROLE-03 – ROLE-09, GRP-01, ACS-05; sw-architecture.md 8, 12,
+// 19.3.1). All routes need the admin role of the event.
 import fp from "fastify-plugin";
 import { z } from "zod";
 import {
   adminUserListSchema,
+  eventResponseSchema,
+  eventUpdateSchema,
   releaseKeySchema,
   releaseListSchema,
   groupListSchema,
@@ -47,10 +50,27 @@ function fail(reply: FastifyReply, error: unknown): FastifyReply {
   throw error;
 }
 
-const adminPlugin: FastifyPluginAsyncZod<AuthOptions> = (app, { accounts, groups, access }) => {
+const adminPlugin: FastifyPluginAsyncZod<AuthOptions> = (
+  app,
+  { accounts, groups, access, event },
+) => {
   const admin = { preHandler: requireRole("admin") };
   const actor = (request: Parameters<typeof signedIn>[0]) =>
     `user:${String(signedIn(request).user.id)}`;
+
+  // Feature toggles and settings, changed at runtime without a redeployment (CFG-03, CFG-05).
+  app.patch(
+    "/api/admin/event",
+    {
+      ...admin,
+      schema: {
+        querystring: noQuery,
+        body: eventUpdateSchema,
+        response: { 200: eventResponseSchema },
+      },
+    },
+    (request) => event.update(request.body, actor(request)),
+  );
 
   app.get(
     "/api/admin/users",

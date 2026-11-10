@@ -62,6 +62,7 @@ function createEnvironment(target: "staging" | "prod", httpsPort: number): Envir
     .replace(/^APP_ENV=.*$/m, `APP_ENV=${target}`)
     .replace(/^COMPOSE_PROJECT_NAME=.*$/m, `COMPOSE_PROJECT_NAME=${project}`)
     .replace(/^DATA_VOLUME=.*$/m, `DATA_VOLUME=${project}-data`)
+    .replace(/^EVENT_SLUG=.*$/m, "EVENT_SLUG=event-muster")
     .replace(/^SITE_ADDRESS=.*$/m, `SITE_ADDRESS=${SITE_IP}`)
     .replace(/^HTTP_PORT=.*$/m, `HTTP_PORT=${httpsPort - 1}`)
     .replace(/^HTTPS_PORT=.*$/m, `HTTPS_PORT=${httpsPort}`)
@@ -472,6 +473,23 @@ describe("staging with a prod backup", () => {
       { name: "Anna" },
       { name: "Ben" },
     ]);
+  });
+
+  it("[ACC-11] refuses an SMTP login without secrets/smtp_password, and passes the password as a file", () => {
+    const env = staging;
+    if (!env) throw new Error("staging not deployed");
+    const envFile = join(env.dir, ".env");
+    const original = readFileSync(envFile, "utf8");
+    writeFileSync(envFile, original.replace(/^SMTP_USER=.*$/m, "SMTP_USER=mailer"));
+    const result = env.deploy(STAGING_TAG, "--no-pull");
+    writeFileSync(envFile, original);
+    expect(result.status).not.toBe(0);
+    expect(result.output).toContain("secrets/smtp_password is missing or empty");
+
+    // The running app reads the password from the Compose secret, never from its environment.
+    const app = env.compose("exec", "-T", "app", "sh", "-c", "echo $SMTP_PASSWORD_FILE; env");
+    expect(app).toContain("/run/secrets/smtp_password");
+    expect(app).not.toMatch(/^SMTP_PASSWORD=/m);
   });
 
   it("[OPS-13] --teardown stops staging and deletes its data volume, but not Caddy's CA", () => {

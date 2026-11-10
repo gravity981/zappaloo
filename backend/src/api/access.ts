@@ -29,9 +29,25 @@ export interface RouteEntry {
 /** The route marker: no sign-in needed (ACS-09). */
 export const PUBLIC = { public: true } as const;
 
+/**
+ * True for a request to the API. The raw URL is not enough: the router decodes the path, so
+ * `/%61pi/event` reaches `/api/event`. A request is an API request if the route that matched
+ * is under /api, or if its decoded path is (unknown API paths match the static files' wildcard).
+ * A path that cannot be decoded counts as an API request, so it gets the stricter checks.
+ */
+export function isApiRequest(request: FastifyRequest): boolean {
+  if (request.routeOptions.url?.startsWith("/api/")) return true;
+  const path = request.url.split("?")[0] ?? "";
+  try {
+    return decodeURIComponent(path).startsWith("/api/");
+  } catch {
+    return true;
+  }
+}
+
 /** True for API requests that need a signed-in user: all of /api except public routes. */
 export function needsSignIn(request: FastifyRequest): boolean {
-  return request.url.startsWith("/api/") && request.routeOptions.config.public !== true;
+  return isApiRequest(request) && request.routeOptions.config.public !== true;
 }
 
 /** Records the routes registered after it; register it first. */

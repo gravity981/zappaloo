@@ -59,6 +59,33 @@ describe("mail configuration", () => {
     expect(() => loadConfig(env)).toThrow(ConfigError);
     expect(() => loadConfig({ ...env, MAIL_FROM: "hello@example.org" })).not.toThrow();
   });
+
+  it("[ACC-11] refuses a login without a password in staging and prod; an empty password file counts as none", () => {
+    const dir = tempDir();
+    try {
+      const empty = join(dir.path, "smtp_password");
+      writeFileSync(empty, "");
+      const env = {
+        ...BASE,
+        APP_ENV: "prod",
+        EVENT_SLUG: "event-muster",
+        PUBLIC_URL: "https://example.org",
+        SESSION_SECRET: "x".repeat(32),
+        SMTP_HOST: "mail.example.org",
+        MAIL_FROM: "hello@example.org",
+      };
+      expect(() => loadConfig({ ...env, SMTP_USER: "zappaloo" })).toThrow(
+        /SMTP_PASSWORD: required with SMTP_USER/,
+      );
+      expect(() =>
+        loadConfig({ ...env, SMTP_USER: "zappaloo", SMTP_PASSWORD_FILE: empty }),
+      ).toThrow(/SMTP_PASSWORD: required with SMTP_USER/);
+      // Without a login the empty file is fine (the Compose secret always exists).
+      expect(loadConfig({ ...env, SMTP_PASSWORD_FILE: empty }).SMTP_PASSWORD).toBeUndefined();
+    } finally {
+      dir.remove();
+    }
+  });
 });
 
 describe("SMTP mailer", () => {

@@ -1,6 +1,6 @@
 // Accounts, event roles and one-time links (ACC-04, ACC-06, ACC-08, ACC-14,
 // ACC-15; sw-architecture.md 7.1.1).
-import { and, eq, gt, or, sql } from "drizzle-orm";
+import { and, eq, inArray, isNotNull, isNull, lte, or, sql } from "drizzle-orm";
 import type { AdminUser, Capability, ProfileUpdate, Role, User } from "@zappaloo/shared";
 import type { Database } from "../database/database.ts";
 import {
@@ -12,6 +12,7 @@ import {
   oneTimeLinks,
   users,
 } from "../database/schema.ts";
+import { SELF_ACTOR } from "../event/service.ts";
 import type { Actor, EventService } from "../event/service.ts";
 import { hashPassword, verifyDummyPassword, verifyPassword } from "./password.ts";
 import { hashToken, newToken } from "./tokens.ts";
@@ -23,7 +24,8 @@ export type AccountErrorCode =
   | "invalid_link"
   | "no_email"
   | "last_admin"
-  | "not_staff";
+  | "not_staff"
+  | "password_is_username";
 
 export class AccountError extends Error {
   override name = "AccountError";
@@ -31,6 +33,16 @@ export class AccountError extends Error {
   constructor(code: AccountErrorCode, message: string) {
     super(message);
     this.code = code;
+  }
+}
+
+/**
+ * A password must not equal the username, ignoring case (sw-architecture.md 7.1.1); the
+ * length is checked by the request schema.
+ */
+export function assertPasswordAllowed(username: string, password: string): void {
+  if (password.trim().toLowerCase() === username.toLowerCase()) {
+    throw new AccountError("password_is_username", "the password must not be the username");
   }
 }
 
@@ -165,12 +177,18 @@ export class AccountService {
           .run();
       }
       this.#event.audit(
-        actor,
+        actor === SELF_ACTOR ? `user:${String(row.id)}` : actor,
         "user.create",
         {
+          // Ids only: the log outlives a deleted account (ACC-12).
           userId: row.id,
-          username,
           roles: [...new Set(input.roles)].sort(),
+          ...(input.roles.includes("vip")
+            ? {
+                vipAssignment:
+                  input.invitationId === undefined ? "admin_promotion" : "invitation_code",
+              }
+            : {}),
           ...(input.invitationId === undefined ? {} : { invitationId: input.invitationId }),
         },
         tx,
@@ -178,6 +196,20 @@ export class AccountService {
       return this.#toUser(row);
     };
     return outer ? create(outer) : this.#database.db.transaction(create);
+  }
+
+  /**
+   * Creates an account and its setup link in one transaction (ACC-08, ACC-14), so a failure
+   * never leaves an account without a password and without a link.
+   */
+  createUserWithSetupLink(
+    input: { username: string; displayName?: string | undefined; roles: Role[] },
+    actor: Actor,
+  ): { user: User; link: IssuedLink } {
+    return this.#database.db.transaction((tx) => {
+      const user = this.createUser(input, actor, tx);
+      return { user, link: this.createLink(user.id, "setup", actor, undefined, tx) };
+    });
   }
 
   /** Checks username and password; always does the hashing work, also for unknown users. */
@@ -206,13 +238,12 @@ export class AccountService {
         changes.emailStatus = "unverified";
       }
     }
-    const updated = this.#database.db
-      .update(users)
-      .set(changes)
-      .where(eq(users.id, userId))
-      .returning()
-      .get();
-    return this.#toUser(updated);
+    return this.#database.db.transaction((tx) => {
+      const updated = tx.update(users).set(changes).where(eq(users.id, userId)).returning().get();
+      // A link sent to the old address must not outlive it.
+      if (changes.email !== undefined) this.#voidLinks(tx, userId);
+      return this.#toUser(updated);
+    });
   }
 
   /** Changes the password after checking the current one. */
@@ -222,15 +253,32 @@ export class AccountService {
     if (!row.passwordHash || !(await verifyPassword(row.passwordHash, current))) {
       throw new AccountError("invalid_password", "the current password is wrong");
     }
-    await this.#setPassword(userId, next);
+    assertPasswordAllowed(row.username, next);
+    const passwordHash = await hashPassword(next);
+    this.#database.db.transaction((tx) => {
+      tx.update(users)
+        .set({ passwordHash, updatedAt: this.#now() })
+        .where(eq(users.id, userId))
+        .run();
+      this.#voidLinks(tx, userId);
+    });
   }
 
-  async #setPassword(userId: number, password: string): Promise<void> {
-    const passwordHash = await hashPassword(password);
-    this.#database.db
-      .update(users)
-      .set({ passwordHash, updatedAt: this.#now() })
-      .where(eq(users.id, userId))
+  /**
+   * Marks every open setup and reset link of the user as used: after the password or the
+   * address changed, an older link must not take the account over (7.1.1). A verification
+   * link needs no voiding: it counts only for the address it was sent to.
+   */
+  #voidLinks(tx: Tx, userId: number): void {
+    tx.update(oneTimeLinks)
+      .set({ usedAt: this.#now() })
+      .where(
+        and(
+          eq(oneTimeLinks.userId, userId),
+          inArray(oneTimeLinks.purpose, ["setup", "reset"]),
+          isNull(oneTimeLinks.usedAt),
+        ),
+      )
       .run();
   }
 
@@ -238,11 +286,18 @@ export class AccountService {
    * A new one-time link for the user; older unused links stay valid until they expire.
    * A `verify` link confirms `email`.
    */
-  createLink(userId: number, purpose: LinkPurpose, actor: Actor, email?: string): IssuedLink {
+  createLink(
+    userId: number,
+    purpose: LinkPurpose,
+    actor: Actor,
+    email?: string,
+    /** Inside the transaction of the caller. */
+    outer?: Tx,
+  ): IssuedLink {
     const token = newToken();
     const now = this.#now();
     const expiresAt = new Date(now.getTime() + LINK_VALIDITY_MS);
-    this.#database.db.transaction((tx) => {
+    const insert = (tx: Tx) => {
       tx.insert(oneTimeLinks)
         .values({
           tokenHash: hashToken(token),
@@ -254,30 +309,47 @@ export class AccountService {
         })
         .run();
       this.#event.audit(actor, "link.create", { userId, purpose }, tx);
-    });
+    };
+    if (outer) insert(outer);
+    else this.#database.db.transaction(insert);
     return { token, expiresAt };
+  }
+
+  /** The setup or reset link of a token, if it can still be used. */
+  #usableLink(tx: Pick<Database["db"], "select">, token: string) {
+    const link = tx
+      .select()
+      .from(oneTimeLinks)
+      .where(eq(oneTimeLinks.tokenHash, hashToken(token)))
+      .get();
+    if (link?.usedAt !== null || link.purpose === "verify" || link.expiresAt <= this.#now()) {
+      throw new AccountError("invalid_link", "the link is unknown, expired or already used");
+    }
+    return link;
   }
 
   /**
    * Sets the password with a one-time link, once: an unknown, used or expired link is refused.
-   * Returns the user, whose sessions the caller ends.
+   * The link is checked before the (expensive) hashing and again in the transaction. All other
+   * open links of the user become invalid. Returns the user, whose sessions the caller ends.
    */
   async useLink(token: string, password: string): Promise<User> {
+    const checked = this.#usableLink(this.#database.db, token);
+    const owner = this.#database.db
+      .select({ username: users.username })
+      .from(users)
+      .where(eq(users.id, checked.userId))
+      .get();
+    if (!owner)
+      throw new AccountError("invalid_link", "the link is unknown, expired or already used");
+    assertPasswordAllowed(owner.username, password);
     const passwordHash = await hashPassword(password);
-    const now = this.#now();
     return this.#database.db.transaction((tx) => {
-      const link = tx
-        .select()
-        .from(oneTimeLinks)
-        .where(eq(oneTimeLinks.tokenHash, hashToken(token)))
-        .get();
-      if (link?.usedAt !== null || link.purpose === "verify" || link.expiresAt <= now) {
-        throw new AccountError("invalid_link", "the link is unknown, expired or already used");
-      }
-      tx.update(oneTimeLinks).set({ usedAt: now }).where(eq(oneTimeLinks.id, link.id)).run();
+      const link = this.#usableLink(tx, token);
+      this.#voidLinks(tx, link.userId);
       const row = tx
         .update(users)
-        .set({ passwordHash, updatedAt: now })
+        .set({ passwordHash, updatedAt: this.#now() })
         .where(eq(users.id, link.userId))
         .returning()
         .get();
@@ -353,19 +425,15 @@ export class AccountService {
     );
   }
 
-  /** Reset links created for the user in the last `sinceMs` (to limit mails per account). */
-  recentResetLinks(userId: number, sinceMs: number): number {
+  /**
+   * Deletes the one-time links that can no longer be used (used or expired): they hold
+   * email addresses that are not needed any more (SEC-04). Returns how many were deleted.
+   */
+  purgeLinks(): number {
     return this.#database.db
-      .select({ id: oneTimeLinks.id })
-      .from(oneTimeLinks)
-      .where(
-        and(
-          eq(oneTimeLinks.userId, userId),
-          eq(oneTimeLinks.purpose, "reset"),
-          gt(oneTimeLinks.createdAt, new Date(this.#now().getTime() - sinceMs)),
-        ),
-      )
-      .all().length;
+      .delete(oneTimeLinks)
+      .where(or(isNotNull(oneTimeLinks.usedAt), lte(oneTimeLinks.expiresAt, this.#now())))
+      .run().changes;
   }
 
   /**

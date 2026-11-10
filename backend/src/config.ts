@@ -39,7 +39,10 @@ const configSchema = z
     /** Signs the session cookies (sw-architecture.md 7.1.1); or read from SESSION_SECRET_FILE. */
     SESSION_SECRET: z.string().optional(),
     SESSION_SECRET_FILE: z.string().min(1).optional(),
-    /** Address of the site, in the links the CLI and the admin hand out. */
+    /**
+     * Address of the site, in the links the CLI and the admin hand out. Only its origin is kept,
+     * so the default port disappears (`https://example.org:443` gives `https://example.org`).
+     */
     PUBLIC_URL: z.url().optional(),
     /** Mail server (ACC-11); without it no email is sent. Mailpit in dev, staging and tests. */
     SMTP_HOST: optional(z.string().min(1)),
@@ -103,7 +106,7 @@ const configSchema = z
   .transform((value) => ({
     ...value,
     EVENT_SLUG: value.EVENT_SLUG ?? EXAMPLE_EVENT,
-    PUBLIC_URL: value.PUBLIC_URL ?? "http://localhost:5173",
+    PUBLIC_URL: new URL(value.PUBLIC_URL ?? "http://localhost:5173").origin,
     MAIL_FROM: value.MAIL_FROM ?? "zappaloo@localhost",
   }));
 
@@ -173,10 +176,18 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
     const problems = result.error.issues.map((i) => `${i.path.join(".")}: ${i.message}`);
     throw new ConfigError(`invalid configuration:\n  ${problems.join("\n  ")}`);
   }
+  const smtpPassword = resolveSmtpPassword(result.data);
+  const deployed = result.data.APP_ENV === "staging" || result.data.APP_ENV === "prod";
+  if (deployed && result.data.SMTP_USER !== undefined && smtpPassword === undefined) {
+    // A login without a password would fail on every email, silently (7.1.1).
+    throw new ConfigError(
+      `invalid configuration:\n  SMTP_PASSWORD: required with SMTP_USER in ${result.data.APP_ENV} (or SMTP_PASSWORD_FILE)`,
+    );
+  }
   return {
     ...result.data,
     SESSION_SECRET: resolveSessionSecret(result.data),
-    SMTP_PASSWORD: resolveSmtpPassword(result.data),
+    SMTP_PASSWORD: smtpPassword,
     SECURE_COOKIES: result.data.APP_ENV === "staging" || result.data.APP_ENV === "prod",
   };
 }

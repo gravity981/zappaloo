@@ -92,6 +92,9 @@ Requirements: INV-01, INV-02, INV-03, INV-04, INV-05, INV-06, INV-07, INV-08, IN
 **2f – Access control.** Sign-in required everywhere except the allowed pages; access conditions combined with AND/OR; server-side enforcement on every request. Conditions that depend on later features (treasure hunt) are added in their stage.
 Requirements: ACS-05, ACS-06, ACS-07, ACS-09.
 
+**2g – Review fixes** (added 2026-11-10 after the stage review). Sign-in and CSRF checks also for percent-encoded paths; admin API for feature toggles and settings (`PATCH /api/admin/event`); deployment bundle ready for prod mail (`secrets/smtp_password`, `EVENT_SLUG` without default, links without the default port); password must not equal the username; open setup and reset links voided by a password or email change; per-address limits count only failures; codes and tokens kept out of the logs, `Referrer-Policy`; audit log with ids only; cleanup of expired sessions and links; frontend handles ended sessions and lost connections, email verification with a button; migrations squashed into one before the first release with a database; partially implemented requirements tied to later steps (test-strategy.md 5).
+Requirements: none new (strengthens CFG-05, SEC-01, SEC-02, ACC-03, ACC-06, ACC-11, ACC-12, INV-02, INV-05, ACS-07 and ACS-09).
+
 ### Stage 3 – RSVP and Waiting Page (completes Release 1)
 
 **Before the stage starts:**
@@ -124,6 +127,7 @@ Requirements: OPS-02.
 
 **4a – Content model and editing.** Central content base with language keys; content items referenced from website and game; Markdown editing with preview; sanitised rendering.
 Requirements: CNT-01, CNT-02, CNT-03, CNT-04, CNT-05, LANG-02, SEC-05.
+Follow-up from stage 2: the content routes use `requireCapability("editWebsiteContent")` and get `[ROLE-06]` tests.
 
 **4b – Website.** Website pages, configurable per event, responsive, usable without the game; generic platform core with one event per installation.
 Requirements: WEB-01, WEB-02, WEB-03, WEB-04, CFG-01, CFG-04.
@@ -143,6 +147,7 @@ Requirements: GAME-01, GAME-03, MAP-02.
 
 **5b – Map importer.** Import of Tiled JSON with tilesets at runtime, validation, warnings for missing portal targets, versions with rollback, refreshed graphics on next map entry.
 Requirements: MAP-01, MAP-04, MAP-05, MAP-06, MAP-08, MAP-09, MAP-10.
+Follow-up from stage 2: map loading and protected game areas checked on the server, with `[ACS-07]` tests.
 
 **5c – Movement and controls.** Smooth movement with map collisions, arrow keys on desktop, tap-to-move with pathfinding on touch devices, suitable for all screen sizes.
 Requirements: GAME-02, GAME-07, GAME-09, GAME-10.
@@ -184,9 +189,11 @@ Requirements: PHO-03, PHO-06, PHO-07, PHO-09, PHO-13, PERF-03.
 
 **7b – Snapshots, keepsakes and upload links.** Composer with "Upload snapshot" and "Upload keepsake"; QR codes per location; anonymous upload links with optional name; rate limits; upload switches for the admin.
 Requirements: PHO-01, PHO-02, PHO-05, PHO-08, PHO-14, PHO-15, PHO-18, ACS-04.
+Follow-up from stage 2: contribution upload checked on the server, with `[ACS-07]` tests.
 
 **7c – Moderation.** One queue, swipe view, live counter, undo, rejected list.
 Requirements: MOD-01, MOD-02, MOD-03, MOD-04, MOD-05, PHO-11.
+Follow-up from stage 2: moderation uses `requireCapability("moderateContributions")`, with `[ROLE-06]` and `[ACS-07]` tests.
 
 **7d – Gallery and keepsakes.** Gallery by album and location with scheduled or manual release; keepsake page; printable keepsake book.
 Requirements: PHO-10, PHO-12, PHO-16, PHO-17, WEB-06.
@@ -206,12 +213,14 @@ Requirements: MG-01, MG-02, MG-03, MG-04, MG-05, MG-06, MG-07, MG-11.
 
 **8b – Anti-cheat and highscores.** Attempt IDs, plausibility profiles, server-side quiz checks; central highscores; leaderboards on the website and live on the event screen.
 Requirements: MG-08, MG-09, MG-10, WEB-05, SCR-05.
+Follow-up from stage 2: minigame start and result submission checked on the server, with `[ACS-07]` tests.
 
 **8c – Couple quiz on smartphones.** The first minigame, playable with touch, startable directly from a website page or a QR code.
 Requirements: MG-12, MG-13.
 
 **8d – Treasure hunt.** Hunt items with printable QR codes, collecting, collected items in profile and game, unlock condition, ranking, time window.
 Requirements: HUNT-01, HUNT-02, HUNT-03, HUNT-04, HUNT-05, HUNT-06, HUNT-07.
+Follow-up from stage 2: the treasure-hunt leaf of the access conditions, with `[ACS-05]` tests.
 
 ### Stage 9 – Event Readiness (completes Event-ready)
 
@@ -309,19 +318,28 @@ After each completed stage, Claude appends a report with this structure to secti
 
 ### Stage 2 – Accounts, Roles and Access (2026-11-10)
 
-**Summary:** Guests can redeem a personal invitation (code or link) and sign in; users manage their profile, verify their email, reset a forgotten password and delete their account. Admins create invitations and print the cards, and the API for users, roles, staff capabilities, guest groups and manual releases is in place. The whole platform needs a sign-in, and every request is checked on the server.
+**Summary:** Guests can redeem a personal invitation (code or link) and sign in; users manage their profile, verify their email, reset a forgotten password and delete their account. Admins create invitations and print the cards, and the API for users, roles, staff capabilities, guest groups, manual releases, feature toggles and settings is in place. The whole platform needs a sign-in, and every request is checked on the server.
 
-**Steps:** 2a Event bootstrap and settings – done. 2b Accounts and sessions – done. 2c Email and account self-service – done. 2d Roles, capabilities and guest groups – done (API only). 2e Invitations – done, with the invitation page and a minimal admin page that prints the cards. 2f Access control – done.
+**Steps:** 2a Event bootstrap and settings – done. 2b Accounts and sessions – done. 2c Email and account self-service – done. 2d Roles, capabilities and guest groups – done (API only). 2e Invitations – done, with the invitation page and a minimal admin page that prints the cards. 2f Access control – done. 2g Review fixes – added after the stage review and done (see spec changes).
 
-**Requirements:** 48 of 48 planned for this stage have passing automated tests (requirement report). Overall: 67 of 200 active requirements implemented. The report still shows 7 of them red (ACC-05, ACC-14, CFG-02, SEC-01, OPS-05, OPS-15, OPS-16) because of the deployment test, see risks.
+**Requirements:** 48 of 48 planned for this stage have passing automated tests (requirement report). Overall: 67 of 200 active requirements implemented. The report still shows 7 of them red (ACC-05, ACC-14, CFG-02, SEC-01, OPS-05, OPS-15, OPS-16) because of the deployment test, see risks. ACS-05, ACS-07, ROLE-06 and ROLE-07 are partially implemented: their remaining parts are tied to later steps (test-strategy.md 5).
 
-**Tests:** 294 Vitest results (backend 172, frontend 37, shared 9, scripts and infrastructure 76), all passing; 36 Playwright results (9 tests on 4 browser profiles), all passing. The deployment test (15 tests against the real image) could not be run, see risks. Manual checks: none new; the printed invitation cards should be checked once on a real printer or PDF (INV-14).
+**Tests:** 323 Vitest results (backend 198, frontend 40, shared 9, scripts and infrastructure 76), all passing; 36 Playwright results (9 tests on 4 browser profiles), all passing in two runs after 2g. The deployment test (16 tests against the real image, one added in 2g) could not be run, see risks. Manual checks: none new; the printed invitation cards should be checked once on a real printer or PDF (INV-14).
 
 **Spec changes and deviations:**
 - The decisions are written into sw-architecture.md: 7.1.1 (mail, verification, reset, deleting an account, roles, capabilities, groups), 9.6.1 (invitations) and 11.1.1 (sign-in everywhere, access conditions, manual releases).
 - The invitation code has 6 characters and is protected by a global limit of 100 failed attempts per hour (decision record in README.md).
 - `GET /api/event` needs a sign-in; the deployment test now reads the event with the CLI.
-- Deviation: sw-architecture.md names admin pages for users, roles, invitations, groups and settings in this stage. Only the invitation page exists; the others are API only (reset links, roles, capabilities, groups, releases). They are not assigned to a stage yet.
+- Deviation: sw-architecture.md names admin pages for users, roles, invitations, groups and settings in this stage. Only the invitation page exists; the others are API only (reset links, roles, capabilities, groups, releases, features and settings). They are not assigned to a stage yet.
+- Step 2g, after the stage review (all written into sw-architecture.md 7.1.1, 9.6.1, 11.1.1, 19.3.1, 23.5 and 23.8):
+  - Security: percent-encoded paths (`/%61pi/event`) passed the sign-in and CSRF checks; both now use the matched route or the decoded path. Invitation codes and link tokens are kept out of the request log, and responses carry `Referrer-Policy: same-origin`.
+  - CFG-05: the admin API for features and settings (`PATCH /api/admin/event`) was missing; added. The frontend reloads the event when the page becomes visible.
+  - Prod setup: `secrets/smtp_password` is passed as a Compose secret (a login without it stops the start and `deploy.sh`); `.env.example` leaves `EVENT_SLUG` empty; links use only the origin of `PUBLIC_URL`, so printed cards show no `:443`.
+  - Accounts: a password must not equal the username (it was specified but not checked); using a link or changing the password or email voids the other open setup and reset links (decided 2026-11-10); the limits per client address count only failed attempts, so guests sharing the venue's Wi-Fi do not block each other (decided 2026-11-10); reset mails are counted per mail, not per link; the audit log holds ids only (it kept usernames and guest names); expired sessions and used links are deleted daily.
+  - Invitations: an expired code can no longer be revoked (as specified); a code collision draws a new code; regenerating refuses a past expiry.
+  - Robustness: transactions take the write lock when they begin, so the CLI next to the running server waits instead of failing with "database is locked" (it made the end-to-end tests flaky); the frontend shows the login page when the session ended elsewhere and an error on a lost connection; email verification needs a click, so link scanners cannot use the link up; a full restore of an archive without `events/` keeps the private event.
+  - Data model: the six migrations of this stage were squashed into one (nothing with a database was released yet); roles, capabilities and group members now reference their membership, and group members the group's own event.
+  - Tests: weak tests replaced (the ACC-06 timing check, the INV-08 guard), tests added for encoded paths, `TRUST_PROXY`, the new limits and the voided links.
 
 **Overall status:**
 
@@ -344,9 +362,12 @@ After each completed stage, Claude appends a report with this structure to secti
 - Run `npm run test:deploy` on a machine where Docker works (see risks) and send me the result, or tell me to proceed.
 - Decide where the missing admin pages (users and roles, groups, releases, settings, reset links) go: a step in stage 3, a stage of their own, or with the features that need them.
 - For stage 3: draw the door scene for the waiting page (ACS-12) and provide the event parts, menu options and RSVP deadline (at least as test data).
-- Infomaniak SMTP account and the Compose wiring for its password (`secrets/smtp_password`, not done yet).
+- Infomaniak SMTP account (the bundle now takes its password in `secrets/smtp_password`).
+- Recreate the dev database once: the squashed migration does not apply on top of the six old ones (`docker volume rm zappaloo-data-dev`, or delete `/var/lib/zappaloo/zappaloo.db*`, then restart the backend).
+- Decide whether guest-group conditions should refer to the group by id instead of by name (see risks).
 
 **Risks and notes:**
 - In this devcontainer Docker loses the output of every command that runs longer than about 0.3 seconds (`docker run`, `docker exec`), so the image smoke test (`npm run build:image`: the image builds, the smoke test fails on `zappaloo version` printing nothing) and `npm run test:deploy` cannot be trusted here. The deploy results in `reports/` date from before this stage and also show failures. The deployment test has not run against the stage-2 image; it needs one run in a working Docker setup before the next release candidate.
-- The Compose file does not pass `SMTP_PASSWORD_FILE` yet, so production cannot send mail with a login.
+- Group conditions name the group (11.1.1): renaming a group closes what was protected with the old name, and a new group with the old name opens it to others. Nothing stores conditions yet; to decide before the first feature does (stage 4 or 5).
+- Five failed logins lock a username for 15 minutes, also the admin's; anyone who knows a username can do that on purpose. Accepted for now; the admin can still use `zappaloo reset-password`, which does not unlock it, so the admin waits out the window.
 - Redemption can be blocked for an hour by anyone who fails 100 times on purpose (accepted, see the decision record); the admin can hand a code over.

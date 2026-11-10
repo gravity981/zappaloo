@@ -24,8 +24,11 @@ services:
       SMTP_PORT: ${SMTP_PORT:-}
       SMTP_USER: ${SMTP_USER:-}
       MAIL_FROM: ${MAIL_FROM:-}
+      # Empty file without secrets/smtp_password: a mail server without login (7.1.1).
+      SMTP_PASSWORD_FILE: /run/secrets/smtp_password
     secrets:
       - session_secret
+      - smtp_password
     volumes:
       - data:/data
       # No bind mounts: deploy.sh streams database backups in and out (sw-architecture.md 23.5).
@@ -107,6 +110,9 @@ secrets:
   session_secret:
     # deploy.sh reads secrets/session_secret (mode 600) into this variable.
     environment: SESSION_SECRET
+  smtp_password:
+    # deploy.sh reads secrets/smtp_password (mode 600) into this variable, or leaves it empty.
+    environment: SMTP_PASSWORD_SECRET
 
 volumes:
   data:

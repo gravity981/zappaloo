@@ -86,3 +86,19 @@ export const eventResponseSchema = z.object({
   settings: settingsSchema,
 });
 export type EventResponse = z.infer<typeof eventResponseSchema>;
+
+/**
+ * `PATCH /api/admin/event` (CFG-05): the features and settings to change; those left out
+ * stay as they are. At least one value.
+ */
+export const eventUpdateSchema = z
+  .strictObject({
+    features: featuresSchema.partial().optional(),
+    settings: settingsSchema.partial().optional(),
+  })
+  .refine(
+    (value) =>
+      Object.keys(value.features ?? {}).length + Object.keys(value.settings ?? {}).length > 0,
+    { message: "name at least one feature or setting" },
+  );
+export type EventUpdate = z.infer<typeof eventUpdateSchema>;

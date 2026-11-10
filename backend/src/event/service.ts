@@ -9,6 +9,7 @@ import { FEATURE_NAMES, SETTING_NAMES } from "@zappaloo/shared";
 import type {
   EventConfig,
   EventResponse,
+  EventUpdate,
   FeatureName,
   Features,
   SettingName,
@@ -21,9 +22,15 @@ export class EventError extends Error {
   override name = "EventError";
 }
 
-/** Who did something: "cli", later "user:<id>". */
+/**
+ * Who did something: "cli", "user:<id>" (the signed-in user, or the account a guest just
+ * created), or "anonymous" (a request without sign-in, e.g. a forgotten password).
+ */
 export type Actor = string;
 export const CLI_ACTOR: Actor = "cli";
+export const ANONYMOUS_ACTOR: Actor = "anonymous";
+/** Passed to `createUser` by a guest creating their own account: logged as `user:<new id>`. */
+export const SELF_ACTOR: Actor = "self";
 
 export function isFeatureName(name: string): name is FeatureName {
   return (FEATURE_NAMES as readonly string[]).includes(name);
@@ -191,6 +198,22 @@ export class EventService {
       this.audit(actor, "setting.set", { name, from: current, to: value }, tx);
       return true;
     });
+  }
+
+  /**
+   * Changes several features and settings at once, all or nothing (CFG-05). Each change is
+   * audited; unchanged values are not. Returns the event as it is now.
+   */
+  update(changes: EventUpdate, actor: Actor): EventResponse {
+    this.#database.db.transaction(() => {
+      for (const [name, enabled] of Object.entries(changes.features ?? {})) {
+        if (isFeatureName(name)) this.setFeature(name, enabled, actor);
+      }
+      for (const [name, value] of Object.entries(changes.settings ?? {})) {
+        if (isSettingName(name)) this.setSetting(name, value, actor);
+      }
+    });
+    return this.get();
   }
 
   /** Records an administrative action (DATA-03). */

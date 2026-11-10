@@ -22,14 +22,15 @@ import {
 import type { Capability, Role, User } from "@zappaloo/shared";
 import type { FastifyPluginAsyncZod } from "fastify-type-provider-zod";
 import { AccountError, LINK_VALIDITY_MS } from "../auth/accounts.ts";
+import { ANONYMOUS_ACTOR } from "../event/service.ts";
 import type { AccountService } from "../auth/accounts.ts";
 import {
+  EMAIL_VERIFY_FAILURES_PER_ADDRESS,
   FORGOT_PER_ADDRESS,
+  LOGIN_FAILURES_PER_ADDRESS,
   LOGIN_FAILURES_PER_USER,
-  LOGIN_PER_ADDRESS,
-  PASSWORD_SET_PER_ADDRESS,
+  PASSWORD_SET_FAILURES_PER_ADDRESS,
   RESET_MAILS_PER_ACCOUNT,
-  RESET_MAILS_WINDOW_MS,
   VERIFY_MAIL_PER_USER,
 } from "../auth/rate-limit.ts";
 import type { RateLimiter } from "../auth/rate-limit.ts";
@@ -40,8 +41,7 @@ import type { SessionService } from "../auth/sessions.ts";
 import type { EventService } from "../event/service.ts";
 import type { Mailer } from "../mail/mailer.ts";
 import { passwordResetMail, verificationMail } from "../mail/templates.ts";
-import { needsSignIn } from "./access.ts";
-import { PUBLIC } from "./access.ts";
+import { isApiRequest, needsSignIn, PUBLIC } from "./access.ts";
 import { sendError } from "./validation.ts";
 
 export const SESSION_COOKIE = "zappaloo_session";
@@ -203,7 +203,7 @@ const authPlugin: FastifyPluginAsyncZod<AuthOptions> = async (app, options) => {
       return sendError(reply, 401, { code: "unauthorized", message: "Sign in first." });
     }
 
-    if (!UNSAFE_METHODS.has(request.method) || !request.url.startsWith("/api/")) return;
+    if (!UNSAFE_METHODS.has(request.method) || !isApiRequest(request)) return;
     const origin = originHost(request.headers.origin);
     const refused =
       (origin !== undefined && origin !== request.headers.host) ||
@@ -245,13 +245,16 @@ const authPlugin: FastifyPluginAsyncZod<AuthOptions> = async (app, options) => {
     async (request, reply) => {
       const username = request.body.username.trim().toLowerCase();
       const userKey = `login:user:${username}`;
+      const addressKey = `login:ip:${request.ip}`;
+      // Only failures count, so guests sharing one address are not blocked by each other.
       const wait =
-        limiter.hit(`login:ip:${request.ip}`, LOGIN_PER_ADDRESS) ??
+        limiter.blocked(addressKey, LOGIN_FAILURES_PER_ADDRESS) ??
         limiter.blocked(userKey, LOGIN_FAILURES_PER_USER);
       if (wait !== undefined) return rateLimited(reply, wait);
 
       const user = await accounts.verifyLogin(username, request.body.password);
       if (!user) {
+        limiter.hit(addressKey, LOGIN_FAILURES_PER_ADDRESS);
         limiter.hit(userKey, LOGIN_FAILURES_PER_USER);
         return sendError(reply, 401, {
           code: "invalid_credentials",
@@ -312,6 +315,9 @@ const authPlugin: FastifyPluginAsyncZod<AuthOptions> = async (app, options) => {
           limiter.hit(key, LOGIN_FAILURES_PER_USER);
           return sendError(reply, 400, { code: "invalid_password", message: error.message });
         }
+        if (error instanceof AccountError && error.code === "password_is_username") {
+          return sendError(reply, 400, { code: "password_is_username", message: error.message });
+        }
         throw error;
       }
       limiter.reset(key);
@@ -325,14 +331,19 @@ const authPlugin: FastifyPluginAsyncZod<AuthOptions> = async (app, options) => {
     "/api/password/set",
     { config: PUBLIC, schema: { querystring: noQuery, body: passwordSetSchema } },
     async (request, reply) => {
-      const wait = limiter.hit(`password-set:ip:${request.ip}`, PASSWORD_SET_PER_ADDRESS);
+      const key = `password-set:ip:${request.ip}`;
+      const wait = limiter.blocked(key, PASSWORD_SET_FAILURES_PER_ADDRESS);
       if (wait !== undefined) return rateLimited(reply, wait);
       try {
         const user = await accounts.useLink(request.body.token, request.body.newPassword);
         sessions.destroyForUser(user.id);
       } catch (error) {
         if (error instanceof AccountError && error.code === "invalid_link") {
+          limiter.hit(key, PASSWORD_SET_FAILURES_PER_ADDRESS);
           return sendError(reply, 400, { code: "invalid_link", message: error.message });
+        }
+        if (error instanceof AccountError && error.code === "password_is_username") {
+          return sendError(reply, 400, { code: "password_is_username", message: error.message });
         }
         throw error;
       }
@@ -379,12 +390,14 @@ const authPlugin: FastifyPluginAsyncZod<AuthOptions> = async (app, options) => {
     "/api/email/verify",
     { config: PUBLIC, schema: { querystring: noQuery, body: emailVerifySchema } },
     (request, reply) => {
-      const wait = limiter.hit(`password-set:ip:${request.ip}`, PASSWORD_SET_PER_ADDRESS);
+      const key = `email-verify:ip:${request.ip}`;
+      const wait = limiter.blocked(key, EMAIL_VERIFY_FAILURES_PER_ADDRESS);
       if (wait !== undefined) return rateLimited(reply, wait);
       try {
         accounts.verifyEmail(request.body.token);
       } catch (error) {
         if (error instanceof AccountError && error.code === "invalid_link") {
+          limiter.hit(key, EMAIL_VERIFY_FAILURES_PER_ADDRESS);
           return sendError(reply, 400, { code: "invalid_link", message: error.message });
         }
         throw error;
@@ -405,12 +418,12 @@ const authPlugin: FastifyPluginAsyncZod<AuthOptions> = async (app, options) => {
       if (mailer) {
         const eventName = options.event.get().name;
         for (const { user, email } of accounts.findResettable(request.body.identifier)) {
-          if (
-            accounts.recentResetLinks(user.id, RESET_MAILS_WINDOW_MS) >= RESET_MAILS_PER_ACCOUNT
-          ) {
+          // Only the mails count: links an admin or the CLI hands out do not use up the quota.
+          if (limiter.hit(`reset-mail:${String(user.id)}`, RESET_MAILS_PER_ACCOUNT) !== undefined) {
             continue;
           }
-          const link = accounts.createLink(user.id, "reset", `user:${String(user.id)}`);
+          // Nobody is signed in: the request is anonymous, not the user's own.
+          const link = accounts.createLink(user.id, "reset", ANONYMOUS_ACTOR);
           const url = setPasswordUrl(options.publicUrl, link.token);
           // Not awaited: the answer must not depend on whether a mail was sent.
           mailer
@@ -492,8 +505,7 @@ const authPlugin: FastifyPluginAsyncZod<AuthOptions> = async (app, options) => {
     async (request, reply) => {
       const actor = `user:${String(signedIn(request).user.id)}`;
       try {
-        const user = accounts.createUser(request.body, actor);
-        const link = accounts.createLink(user.id, "setup", actor);
+        const { user, link } = accounts.createUserWithSetupLink(request.body, actor);
         return await reply.status(201).send({
           user,
           setupUrl: setPasswordUrl(options.publicUrl, link.token),
