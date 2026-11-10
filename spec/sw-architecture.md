@@ -1840,7 +1840,7 @@ The project provides the tools and the documentation for backups; scheduling the
 
 - `zappaloo backup` makes a consistent copy of the database while the application runs, and `zappaloo restore` puts one back (23.8).
 - `deploy.sh` backs up the prod database before every deployment and restores it for a rollback (23.5, 23.7).
-- A full backup of an environment and its scripted restore cover the database and the files (photos, uploads, imported maps and tilesets) in the data volume.
+- A full backup of an environment and its scripted restore cover the database and the files (photos, uploads, imported maps and tilesets) in the data volume: `zappaloo backup --full` and `zappaloo restore --full` (23.8), one `.tar.gz` archive (decided 2026-11-10).
 - The runbook (`infrastructure/deploy/README.md`) documents what to back up: the data volume, the `backups/` folder, `.env`, `secrets/`, and the event configuration.
 
 Backups contain personal data: they are readable only by the operator and are deleted at shutdown together with all other personal data (SEC-08).
@@ -1961,12 +1961,14 @@ On each server, the environment has its own directory with the bundle files and:
 `deploy.sh <staging|prod> <image tag>`:
 
 1. Pulls the image. If `ghcr-token` exists, it logs in to `ghcr.io` with it first.
-2. Creates the secret file if it does not exist yet. **prod:** creates a consistent backup of the database in `backups/` with the CLI command `backup` (23.8), named with timestamp and the running version. **staging:** replaces the staging data volume with a restore of the latest off-site backup (OPS-05). If no backup exists yet (backups not set up, or no prod release so far), it warns and continues with the existing staging data, or with an empty data volume on the first deployment. Deploying to staging never requires a prod release or a backup.
+2. Creates the secret file if it does not exist yet. **prod:** creates a consistent backup of the database in `backups/` with the CLI command `backup` (23.8), named with timestamp and the running version. **staging:** replaces the staging data volume with a restore of the latest full backup (OPS-05, OPS-13): the newest `*.tar.gz` in `backups/`, which the operator copies there from the off-site storage (decided 2026-11-10). `--no-restore` keeps the current data. Because the backup holds real guest data, `deploy.sh` refuses to restore it unless the mail is caught (`COMPOSE_PROFILES` contains `mailpit` and `SMTP_HOST=mailpit`). If no full backup exists yet (backups not set up, or no prod release so far), it warns and continues with the existing staging data, or with an empty data volume on the first deployment. Deploying to staging never requires a prod release or a backup.
 3. Sets `IMAGE_TAG=<image tag>` and `APP_VERSION_SUFFIX` in `.env` (never `latest`) and runs `docker compose pull` and `docker compose up -d`. Compose does not notice a changed inline config, so `deploy.sh` labels the Caddy container with a fingerprint of `compose.yaml`, `SITE_ADDRESS` and `TLS_MODE`; when it changes, Caddy is recreated with the new configuration.
 4. The application applies database migrations on startup (DATA-04); if they fail, it does not start. On an empty data volume, the migrations create a new database.
 5. Reads the version from the image label (`docker inspect`) and waits until `GET /api/health` reports healthy with that same version (plus `-rc.N` for a release candidate, 23.6). If not, it stops and prints the rollback command (23.7).
 
 Only release image tags (`X.Y.Z`) can be deployed to prod; staging accepts any image tag. `deploy.sh --no-pull` deploys an image that exists only locally (deployment tests, local builds); `DEPLOY_HEALTH_TIMEOUT` sets how long step 5 waits (default 90 seconds).
+
+`deploy.sh staging --teardown` ends a verification: it stops the staging containers and deletes the staging data volume, after confirmation (`--yes` skips the question). Caddy's volumes stay, so test devices keep trusting the local CA. It refuses to run for prod (decided 2026-11-10).
 
 Deployments are started manually with `deploy.sh` on the host (OPS-07 withdrawn).
 
@@ -1995,13 +1997,16 @@ docker compose exec app zappaloo version                          # version and 
 docker compose exec app zappaloo migrate                          # apply pending migrations
 docker compose exec -T app zappaloo backup - > backups/<file>.db  # consistent backup while the app runs
 docker compose run --rm --no-deps -T app zappaloo restore - --force < backups/<file>.db   # app stopped
+docker compose exec -T app zappaloo backup --full - > backups/<file>.tar.gz              # database and files
+docker compose run --rm --no-deps -T app zappaloo restore --full - --force < backups/<file>.tar.gz   # app stopped
 docker compose exec app zappaloo create-admin USERNAME [--vip]    # admin account, prints a setup link
 docker compose exec app zappaloo reset-password USERNAME          # prints a one-time reset link
 ```
 
 In dev, the same commands run from source with `npm run cli -- <command>`.
 
-- `backup` uses SQLite's online backup, so the application keeps running. It covers the database only; files (maps, tilesets, photos) are covered by the off-site backups (22.2).
+- `backup` uses SQLite's online backup, so the application keeps running. Without `--full` it covers the database only.
+- `backup --full` writes one `.tar.gz` archive with a consistent database copy (`zappaloo.db`) and the files directories `uploads/` and `maps/`; `restore --full` replaces the database and both directories with the archive's content, with the same safeguards as `restore` (application stopped, `--force`). It first unpacks the archive next to the data and checks it (only these entries, no links, an intact database); an invalid archive leaves the data untouched (decided 2026-11-10).
 - `backup` and `restore` take a file name inside the container or `-` for standard output and input; with `-` the backup is streamed to or from the host, which is how `deploy.sh` uses them.
 - `restore` refuses to run while the application is running and asks for `--force` before it overwrites the database. The restored database is migrated on the next start.
 - `create-admin` and `reset-password` never take a password on the command line; they print a one-time link instead, so no password ends up in the shell history.

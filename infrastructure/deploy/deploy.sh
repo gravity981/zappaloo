@@ -3,9 +3,12 @@
 #
 #   deploy.sh <staging|prod> <image tag>                       deploy
 #   deploy.sh prod <previous image tag> --restore <backup>     roll back with a backup
+#   deploy.sh staging --teardown [--yes]                       stop staging, delete its data
 #
 # <backup> is a file name in ./backups. Options:
-#   --no-pull   use an image that exists locally (tests, local builds)
+#   --no-pull      use an image that exists locally (tests, local builds)
+#   --no-restore   staging: keep the current data instead of restoring the latest
+#                  full backup (the newest ./backups/*.tar.gz, provided by the operator)
 # Environment: DEPLOY_HEALTH_TIMEOUT (seconds to wait for a healthy app, default 90)
 #
 # Runs in the environment's directory: compose.yaml, .env, secrets/, backups/.
@@ -17,7 +20,7 @@ REPOSITORY=ghcr.io/gravity981/zappaloo
 HEALTH_TIMEOUT=${DEPLOY_HEALTH_TIMEOUT:-90}
 
 die() { echo "deploy.sh: $*" >&2; exit 1; }
-usage() { sed -n '3,9p' "$0" | sed 's/^# \{0,1\}//' >&2; exit 2; }
+usage() { sed -n '3,13p' "$0" | sed 's/^# \{0,1\}//' >&2; exit 2; }
 
 [ $# -ge 2 ] || usage
 target=$1
@@ -25,13 +28,20 @@ tag=$2
 shift 2
 restore=""
 pull=1
+restore_latest=1
+teardown=""
+yes=""
+if [ "$tag" = "--teardown" ]; then teardown=1; tag=""; fi
 while [ $# -gt 0 ]; do
   case $1 in
     --restore) restore=${2:?--restore needs a backup file name}; shift 2 ;;
     --no-pull) pull=""; shift ;;
+    --no-restore) restore_latest=""; shift ;;
+    --yes) yes=1; shift ;;
     *) usage ;;
   esac
 done
+[ -z "$yes" ] || [ -n "$teardown" ] || usage
 
 cd "$(dirname "$0")"
 [ -f .env ] || die "no .env in $(pwd); copy .env.example and adjust it"
@@ -44,6 +54,7 @@ env_set() {
 # --- Checks ----------------------------------------------------------------------
 case $target in
   prod)
+    [ -z "$teardown" ] || die "--teardown is only for staging"
     [[ $tag =~ ^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$ ]] \
       || die "prod accepts only release image tags (X.Y.Z), not '$tag'"
     ;;
@@ -53,6 +64,28 @@ esac
 [ "$tag" != "latest" ] || die "the tag 'latest' is never deployed; name the version"
 [ "$(env_get APP_ENV)" = "$target" ] \
   || die "this directory is for APP_ENV=$(env_get APP_ENV), not $target"
+
+# --- Teardown (staging only) -------------------------------------------------------
+# Staging holds a copy of real guest data and runs only while a candidate is
+# verified; afterwards its containers stop and its data volume is deleted (OPS-13).
+# Caddy's volumes stay, so test devices keep trusting the same local CA.
+if [ -n "$teardown" ]; then
+  [ "$target" = "staging" ] || die "--teardown is only for staging"
+  data_volume=$(env_get DATA_VOLUME)
+  [ -n "$data_volume" ] || die "DATA_VOLUME is not set in .env"
+  if [ -z "$yes" ]; then
+    [ -t 0 ] || die "this deletes the volume $data_volume; confirm with --yes"
+    read -r -p "Delete the volume $data_volume and stop staging? [y/N] " answer
+    [[ $answer =~ ^[yY]$ ]] || die "cancelled"
+  fi
+  # Compose reads these only to interpolate the file; nothing is started.
+  IMAGE_TAG=$(env_get IMAGE_TAG) SESSION_SECRET=unused docker compose down --remove-orphans
+  if docker volume inspect "$data_volume" > /dev/null 2>&1; then
+    docker volume rm "$data_volume" > /dev/null
+  fi
+  echo "Staging stopped; volume $data_volume deleted."
+  exit 0
+fi
 
 image="$REPOSITORY:$tag"
 previous_tag=$(env_get IMAGE_TAG)
@@ -108,15 +141,35 @@ if [ "$target" = "prod" ] && [ -z "$restore" ]; then
   else
     echo "The app is not running: no backup before this deployment (first deployment?)."
   fi
-elif [ "$target" = "staging" ]; then
-  echo "Note: restoring the latest off-site backup into staging is set up in step 1f;" \
-    "staging keeps its current data (empty on the first deployment)."
+elif [ "$target" = "staging" ] && [ -n "$restore_latest" ]; then
+  # The operator copies the latest off-site full backup into ./backups (sw-architecture.md 22.2).
+  # Newest by modification time; `|| true`: no backup is not an error.
+  staging_backup=$(cd "$backup_dir" 2> /dev/null && ls -t -- *.tar.gz 2> /dev/null | head -n 1 || true)
+  if [ -z "$staging_backup" ]; then
+    echo "Warning: no full backup (backups/*.tar.gz) found: staging keeps its current data" \
+      "(empty on the first deployment)."
+  else
+    # Staging holds a copy of real guest data: its mail must be caught (OPS-13).
+    [[ ,$(env_get COMPOSE_PROFILES), == *,mailpit,* && "$(env_get SMTP_HOST)" = "mailpit" ]] \
+      || die "refusing to restore guest data into staging: set COMPOSE_PROFILES=mailpit and SMTP_HOST=mailpit in .env so that no mail reaches real recipients"
+  fi
 fi
 
 # --- 3. Start ------------------------------------------------------------------------
 env_set IMAGE_TAG "$tag"
 env_set APP_VERSION_SUFFIX "$suffix"
 if [ -n "$pull" ]; then compose pull --quiet; fi
+
+if [ -n "${staging_backup:-}" ]; then
+  echo "Replacing the staging data with the full backup backups/$staging_backup."
+  compose down --remove-orphans
+  if docker volume inspect "$(env_get DATA_VOLUME)" > /dev/null 2>&1; then
+    docker volume rm "$(env_get DATA_VOLUME)" > /dev/null
+  fi
+  # A one-off container creates the new, empty data volume and reads the backup from stdin.
+  compose run --rm --no-deps -T app zappaloo restore --full - --force < "$backup_dir/$staging_backup" \
+    || die "restoring backups/$staging_backup failed; staging has no data (fix the backup, deploy again)"
+fi
 
 if [ -n "$restore" ]; then
   [ -f "$backup_dir/$restore" ] || die "backup $backup_dir/$restore not found"

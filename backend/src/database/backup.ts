@@ -52,7 +52,7 @@ export async function backupDatabase(sqlite: Sqlite.Database, target: string): P
   await sqlite.backup(target);
 }
 
-function assertValidDatabase(file: string): void {
+export function assertValidDatabase(file: string): void {
   if (!existsSync(file)) throw new BackupError(`${file} does not exist`);
   let db: Sqlite.Database | undefined;
   try {
@@ -67,6 +67,22 @@ function assertValidDatabase(file: string): void {
   }
 }
 
+/** A restore needs the application stopped and an explicit `force`. */
+export function assertRestorable(
+  paths: DataPaths,
+  options: { force: boolean; now?: number },
+  replaces: string,
+): void {
+  if (isServerRunning(paths, options.now)) {
+    throw new BackupError(
+      "the application is running; stop it first (docker compose stop app), then restore with docker compose run --rm app zappaloo restore …",
+    );
+  }
+  if (!options.force) {
+    throw new BackupError(`this replaces ${replaces}; repeat with --force to confirm`);
+  }
+}
+
 /**
  * Replaces the database with a backup. Only while no server uses the data
  * directory, and only with `force`. Pending migrations run on the next start.
@@ -77,14 +93,7 @@ export function restoreDatabase(
   options: { force: boolean; now?: number },
 ): void {
   assertValidDatabase(source);
-  if (isServerRunning(paths, options.now)) {
-    throw new BackupError(
-      "the application is running; stop it first (docker compose stop app), then restore with docker compose run --rm app zappaloo restore …",
-    );
-  }
-  if (!options.force) {
-    throw new BackupError(`this replaces ${paths.database}; repeat with --force to confirm`);
-  }
+  assertRestorable(paths, options, paths.database);
   mkdirSync(dirname(paths.database), { recursive: true });
   const temporary = `${paths.database}.restoring`;
   copyFileSync(source, temporary);
