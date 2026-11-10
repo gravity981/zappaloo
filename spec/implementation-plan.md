@@ -7,6 +7,7 @@ This plan breaks the stages of [sw-architecture.md](sw-architecture.md), section
 - One stage at a time, on a branch `feature/stage-<n>` (or `feature/stage-<n>-<text>`) that the project owner creates. Claude never commits and never creates or switches branches (see CLAUDE.md).
 - **Before a stage starts:** the preconditions listed for the stage are settled, and the steps below are confirmed or adjusted with the project owner.
 - **Each step** ends with a short summary: what changed, tests and their results, anything open. The project owner reviews and commits before the next step starts.
+- **Frontend steps follow the UX mocks** in [mocks/](mocks/README.md) (decided 2026-11-10): a screen shown there is built from its layout, flow and texts; deviations are proposed first and then applied to the mock.
 - **Each completed stage** ends with a status report (section 4), appended to section 5 of this document and shown in the conversation.
 - Every step adds tests tagged with the requirement IDs it implements, and removes those IDs from the "not yet implemented" list in [test-strategy.md](test-strategy.md). The requirement report must pass.
 - If a step shows that the spec is wrong or incomplete, Claude proposes a spec change before deviating.
@@ -106,8 +107,8 @@ Requirements: none new (strengthens CFG-05, SEC-01, SEC-02, ACC-03, ACC-06, ACC-
 **3a – RSVP.** Event parts and invitations per part; RSVP with menu choice and allergies; deadline; admin overview with totals and CSV export; reminder email; song wish; allergy data visible only to admins.
 Requirements: RSVP-01, RSVP-02, RSVP-03, RSVP-04, RSVP-05, RSVP-06, RSVP-07, SEC-11.
 
-**3b – Accompanying persons.** VIP requests an accompanying person with name and RSVP; admin approves or rejects; no login; deleted together with the VIP.
-Requirements: RSVP-08, RSVP-09.
+**3b – Accompanying persons.** VIP requests an accompanying person with name and RSVP; pending requests can be edited or withdrawn and carry an optional note; admin approves or rejects; no login; deleted together with the VIP.
+Requirements: RSVP-08, RSVP-09, RSVP-10 (added 2026-11-10).
 
 **3c – Closed platform and waiting page.** Platform closed by default; waiting page with the door scene, texts by RSVP status with placeholders, editable texts, countdown; staff and admins have full access.
 Requirements: ACS-10, ACS-11, ACS-12, ACS-13.
@@ -115,7 +116,10 @@ Requirements: ACS-10, ACS-11, ACS-12, ACS-13.
 **3d – Opening and privacy notice.** Admin switch to open the platform with the "door is open" email; privacy notice reachable from every page.
 Requirements: ACS-14, SEC-09.
 
-**3e – Release 1 go-live.** First release promoted and deployed to production on the operator's host; Let's Encrypt and live updates through Caddy checked there (manual test protocol); invitation print export checked end to end, privacy notice reviewed, manual checks from the release checklist that apply to Release 1.
+**3e – Sign-in by email** (added 2026-11-10). The login accepts a verified email address as well as the username; an address can be verified by one account only (`409 email_taken`).
+Requirements: ACC-16.
+
+**3f – Release 1 go-live.** First release promoted and deployed to production on the operator's host; Let's Encrypt and live updates through Caddy checked there (manual test protocol); invitation print export checked end to end, privacy notice reviewed, manual checks from the release checklist that apply to Release 1.
 Requirements: OPS-02.
 
 ### Stage 4 – Content and Website
@@ -132,8 +136,8 @@ Follow-up from stage 2: the content routes use `requireCapability("editWebsiteCo
 **4b – Website.** Website pages, configurable per event, responsive, usable without the game; generic platform core with one event per installation.
 Requirements: WEB-01, WEB-02, WEB-03, WEB-04, CFG-01, CFG-04.
 
-**4c – Schedule and "now / next".** Structured schedule; current and next entry on the start page. The Programme button above the game follows in stage 5.
-Requirements: WEB-07.
+**4c – Schedule and "now / next".** Structured schedule; current and next entry on the start page (the game world shows no "now / next", decided 2026-11-10); the programme shows only the parts the guest is invited to.
+Requirements: WEB-07, WEB-09.
 
 ### Stage 5 – Game World and Map Importer
 
@@ -152,11 +156,11 @@ Follow-up from stage 2: map loading and protected game areas checked on the serv
 **5c – Movement and controls.** Smooth movement with map collisions, arrow keys on desktop, tap-to-move with pathfinding on touch devices, suitable for all screen sizes.
 Requirements: GAME-02, GAME-07, GAME-09, GAME-10.
 
-**5d – Objects and overlays.** Object types and their properties; dialogues, information items, easter eggs; website pages as overlays above the paused game; "Go there" from the schedule.
-Requirements: GAME-04, GAME-05, GAME-06, GAME-08, GAME-11, MAP-03, WEB-08.
+**5d – Objects and overlays.** Object types `portal`, `clickable`, `decoration` and their properties; clickable objects that sparkle, walking to an object's approach point and running its action (page overlay, content item, dialogue, minigame), Enter or Space on desktop; portals as wobbling arrows; easter eggs; website pages as overlays above the paused game; "Go there" from the schedule; admin view "Spielwelt" to assign the actions per map.
+Requirements: GAME-04, GAME-05, GAME-06, GAME-08, GAME-11, GAME-15, GAME-16, MAP-03, MAP-15, WEB-08.
 
-**5e – Avatars and entering the game.** Avatar editor; landing in the game after sign-in; guided first entry; button bar with RSVP badge and "now / next"; first map playable within 5 seconds over 4G.
-Requirements: AVA-01, AVA-02, AVA-03, GAME-12, GAME-13, GAME-14, PERF-04.
+**5e – Avatars and entering the game.** Avatar editor; landing in the game after sign-in; guided first entry with the hint about sparkling objects; button bar at the top with RSVP badge; own avatar opens the profile; first map playable within 5 seconds over 4G.
+Requirements: AVA-01, AVA-02, AVA-03, GAME-12, GAME-13, GAME-14, GAME-17, GAME-18, PERF-04.
 
 **5f – Template map set.** Church, garden, banquet hall and party area with decoration on separate layers; maps created from templates in the importer.
 Requirements: MAP-12, MAP-13, MAP-14.
@@ -168,7 +172,7 @@ Requirements: MAP-12, MAP-13, MAP-14.
 
 **Steps:**
 
-**6a – Wandering figures.** Figures of attending guests in the wander areas of the maps of their event parts; own avatar instead of own figure; hiding; simulated per device.
+**6a – Wandering figures.** Figures of attending guests in the wander areas of the maps of their event parts; own avatar instead of own figure; simulated per device.
 Requirements: PRES-01, PRES-02, PRES-04, PRES-08, AVA-04.
 
 **6b – Profiles and speech bubble.** Profile photo, greeting, "How I know the couple" with relation list; speech bubble opening for the nearest figure; admin can remove profile data.
@@ -195,11 +199,11 @@ Follow-up from stage 2: contribution upload checked on the server, with `[ACS-07
 Requirements: MOD-01, MOD-02, MOD-03, MOD-04, MOD-05, PHO-11.
 Follow-up from stage 2: moderation uses `requireCapability("moderateContributions")`, with `[ROLE-06]` and `[ACS-07]` tests.
 
-**7d – Gallery and keepsakes.** Gallery by album and location with scheduled or manual release; keepsake page; printable keepsake book.
-Requirements: PHO-10, PHO-12, PHO-16, PHO-17, WEB-06.
+**7d – Gallery and keepsakes.** Gallery by album and location with scheduled or manual release; photo viewer with full-resolution download; keepsake page; printable keepsake book.
+Requirements: PHO-10, PHO-12, PHO-16, PHO-17, PHO-19, WEB-06.
 
-**7e – Event screen.** Full-screen panels with rotation, photo wall with captions over Server-Sent Events, read-only screen link.
-Requirements: SCR-01, SCR-02, SCR-04.
+**7e – Event screen.** Full-screen panels with rotation, photo wall with captions over Server-Sent Events, read-only screen link, upload QR code shown now and then.
+Requirements: SCR-01, SCR-02, SCR-04, SCR-07.
 
 ### Stage 8 – Minigames, Treasure Hunt and Highscores
 

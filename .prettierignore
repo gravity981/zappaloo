@@ -6,3 +6,6 @@ coverage/
 test-results/
 playwright-report/
 dist/
+
+# UX mocks are a hand-written HTML prototype, not project code
+spec/mocks/

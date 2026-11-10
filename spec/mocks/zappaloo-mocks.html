@@ -1,0 +1,1985 @@
+<title>Zappaloo UX Mocks</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&family=Silkscreen&display=swap">
+<style>
+/* Layout: screen index (left) · device stage (centre) · notes with requirement IDs and open questions (right). Mock interiors use a fixed neutral wireframe palette; the chrome follows the viewer's theme. */
+:root {
+  --bg: #eceef2;
+  --panel: #ffffff;
+  --ink: #1a1d24;
+  --muted: #5b6270;
+  --line: #d4d8df;
+  --accent: #2b5bd0;
+  --accent-soft: #e3eafb;
+  --note-bg: #fff4cf;
+  --note-ink: #5a4200;
+  --done-bg: #e2f2e6;
+  --done-ink: #1f5132;
+  --frame: #20232b;
+  --f-display: "Space Grotesk", "Segoe UI", system-ui, sans-serif;
+  --f-text: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --f-pixel: "Silkscreen", ui-monospace, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #111318; --panel: #1a1d24; --ink: #e6e8ed; --muted: #9aa1ad; --line: #2c313b;
+    --accent: #86a6ff; --accent-soft: #1f2a44; --note-bg: #352d14; --note-ink: #f1d98e; --done-bg: #183324; --done-ink: #a8e0bc; --frame: #000;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #111318; --panel: #1a1d24; --ink: #e6e8ed; --muted: #9aa1ad; --line: #2c313b;
+  --accent: #86a6ff; --accent-soft: #1f2a44; --note-bg: #352d14; --note-ink: #f1d98e; --done-bg: #183324; --done-ink: #a8e0bc; --frame: #000;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body { background: var(--bg); color: var(--ink); font: 14px/1.5 var(--f-text); }
+a { color: var(--accent); }
+button { font: inherit; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+.app {
+  display: grid;
+  grid-template-columns: 248px minmax(0, 1fr) 340px;
+  min-height: 100vh;
+}
+.index {
+  position: sticky; top: 0; height: 100vh; overflow: auto;
+  border-right: 1px solid var(--line); background: var(--panel);
+  padding-block: 20px 32px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: 16px;
+  display: flex; flex-direction: column; gap: 18px;
+}
+.brand { display: flex; flex-direction: column; gap: 2px; }
+.brand b { font: 700 18px/1.1 var(--f-display); letter-spacing: -0.01em; }
+.brand span { color: var(--muted); font-size: 12px; }
+.ix-top { display: flex; flex-direction: column; gap: 2px; }
+.ix-group { display: flex; flex-direction: column; gap: 1px; }
+.ix-group h3 {
+  margin: 0 0 4px; font: 600 10.5px/1.3 var(--f-text); letter-spacing: 0.09em; text-transform: uppercase; color: var(--muted);
+}
+.ix-link {
+  display: flex; justify-content: space-between; align-items: baseline; gap: 8px;
+  padding: 5px 8px; border-radius: 7px; color: var(--ink); text-decoration: none; font-size: 13px;
+}
+.ix-link small { color: var(--muted); font-size: 10.5px; font-variant-numeric: tabular-nums; }
+.ix-link:hover { background: var(--bg); }
+.ix-link.on { background: var(--accent-soft); color: var(--accent); font-weight: 600; }
+.ix-link .qn { background: var(--note-bg); color: var(--note-ink); border-radius: 999px; padding: 0 6px; font-weight: 600; }
+
+.stage { min-width: 0; display: flex; flex-direction: column; padding-block: 16px 40px; padding-inline: 24px; gap: 14px; }
+.toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+.toolbar h1 { font: 600 20px/1.2 var(--f-display); margin: 0; margin-right: auto; text-wrap: balance; }
+.seg { display: inline-flex; background: var(--panel); border: 1px solid var(--line); border-radius: 9px; padding: 2px; }
+.seg button { border: 0; background: none; color: var(--muted); padding: 5px 11px; border-radius: 7px; cursor: pointer; font-size: 12.5px; font-weight: 500; }
+.seg button.on { background: var(--ink); color: var(--panel); }
+.seg button[disabled] { opacity: 0.4; cursor: default; }
+.variants { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; font-size: 12px; color: var(--muted); }
+.variants button { border: 1px dashed var(--line); background: var(--panel); color: var(--ink); padding: 4px 10px; border-radius: 999px; cursor: pointer; font-size: 12px; }
+.variants button.on { border-style: solid; border-color: var(--accent); color: var(--accent); font-weight: 600; }
+.pager { display: flex; gap: 6px; }
+.pager a { border: 1px solid var(--line); background: var(--panel); color: var(--ink); padding: 4px 10px; border-radius: 8px; text-decoration: none; font-size: 12.5px; }
+.viewport { width: 100%; display: flex; justify-content: center; }
+.dev-wrap { position: relative; }
+.dev {
+  position: absolute; top: 0; left: 0; transform-origin: top left;
+  background: var(--frame); border-radius: 34px; padding: 12px; box-shadow: 0 18px 40px rgba(0,0,0,0.18);
+  display: flex; flex-direction: column;
+}
+.dev.desktop { border-radius: 14px; padding: 0; overflow: hidden; }
+.dev.tv { border-radius: 10px; padding: 14px; }
+.dev-url {
+  height: 34px; flex: none; display: flex; align-items: center; gap: 8px; padding: 0 14px;
+  background: #e4e4df; color: #55554f; font: 12px/1 var(--f-text); border-radius: 22px 22px 0 0;
+}
+.dev.desktop .dev-url { border-radius: 0; background: #dcdcd6; }
+.dev-url i { width: 9px; height: 9px; border-radius: 50%; background: #b9b9b2; display: inline-block; }
+.dev-url span { background: #f6f6f2; padding: 5px 12px; border-radius: 999px; flex: 1; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.dev.phone .screen { border-radius: 0 0 22px 22px; }
+
+.notes {
+  border-left: 1px solid var(--line); background: var(--panel);
+  padding-block: 20px 40px; padding-left: 18px; padding-right: max(16px, env(safe-area-inset-right, 0px));
+  display: flex; flex-direction: column; gap: 16px; position: sticky; top: 0; height: 100vh; overflow: auto;
+}
+.notes h2 { font: 600 16px/1.3 var(--f-display); margin: 0; }
+.path { font: 12px/1.4 ui-monospace, SFMono-Regular, Menlo, monospace; color: var(--muted); word-break: break-all; }
+.reqs { display: flex; flex-wrap: wrap; gap: 4px; }
+.req { font: 600 10.5px/1 ui-monospace, SFMono-Regular, Menlo, monospace; border: 1px solid var(--line); border-radius: 5px; padding: 4px 5px; color: var(--muted); }
+.nsec { display: flex; flex-direction: column; gap: 6px; }
+.nsec h4 { margin: 0; font-size: 10.5px; letter-spacing: 0.09em; text-transform: uppercase; color: var(--muted); }
+.nsec ul { margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 4px; font-size: 13px; }
+.q { background: var(--note-bg); color: var(--note-ink); border-radius: 10px; padding: 10px 12px; font-size: 13px; display: flex; flex-direction: column; gap: 4px; }
+.q b { font-family: var(--f-display); }
+.q em { font-style: normal; opacity: 0.85; font-size: 12.5px; }
+.q.done { background: var(--done-bg); color: var(--done-ink); }
+.q .dec { font-size: 12.5px; }
+.q .new { align-self: flex-start; font: 600 10px/1.6 var(--f-text); letter-spacing: .06em; text-transform: uppercase; background: var(--note-ink); color: var(--note-bg); border-radius: 4px; padding: 0 5px; }
+.mobile-pick { display: none; }
+
+.doc { max-width: 920px; display: flex; flex-direction: column; gap: 22px; }
+.doc p { margin: 0; max-width: 68ch; color: var(--muted); }
+.doc h2 { font: 600 17px/1.3 var(--f-display); margin: 0; }
+.flows { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 14px; }
+.flow { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 16px; display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.flow h3 { margin: 0; font: 600 15px/1.3 var(--f-display); }
+.flow p { font-size: 12.5px; }
+.chain { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; font-size: 12.5px; }
+.chain a { background: var(--bg); border-radius: 6px; padding: 3px 8px; text-decoration: none; color: var(--ink); }
+.chain a:hover { color: var(--accent); }
+.chain span { color: var(--muted); }
+.qlist { display: flex; flex-direction: column; gap: 10px; }
+.qgroup { display: flex; flex-direction: column; gap: 8px; }
+.qgroup h3 { margin: 0; font: 600 14px/1.3 var(--f-display); }
+.qgroup h3 a { text-decoration: none; }
+
+@media (max-width: 1240px) {
+  .app { grid-template-columns: 232px minmax(0, 1fr); }
+  .notes { grid-column: 2; position: static; height: auto; border-left: 0; border-top: 1px solid var(--line); padding-left: 24px; }
+}
+@media (max-width: 780px) {
+  .app { grid-template-columns: minmax(0, 1fr); }
+  .index { display: none; }
+  .notes { grid-column: 1; padding-left: max(16px, env(safe-area-inset-left, 0px)); }
+  .stage { padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+  .mobile-pick { display: flex; gap: 8px; align-items: center; }
+  .mobile-pick select { flex: 1; min-width: 0; padding: 8px; border-radius: 8px; border: 1px solid var(--line); background: var(--panel); color: var(--ink); font: inherit; }
+}
+
+/* ---------- Mock interior: fixed wireframe palette ---------- */
+.screen {
+  --w-bg: #f4f4f1; --w-card: #ffffff; --w-ink: #1f1f1d; --w-muted: #6a6a64; --w-line: #d5d5ce;
+  --w-fill: #e8e8e2; --w-dark: #2a2a28; --w-badge: #c4422e; --w-ok: #2d7a4c; --w-warn: #a06a00;
+  color-scheme: light;
+  background: var(--w-bg); color: var(--w-ink); font: 14px/1.45 var(--f-text);
+  container-type: inline-size; overflow: auto; position: relative; flex: 1;
+}
+.screen * { box-sizing: border-box; }
+.screen a { color: var(--w-ink); text-decoration: underline; cursor: pointer; }
+.screen p { margin: 0; }
+.screen svg.i { width: 18px; height: 18px; flex: none; }
+.m-h1 { font: 600 23px/1.2 var(--f-display); margin: 0; text-wrap: balance; letter-spacing: -0.01em; }
+.m-h2 { font: 600 16px/1.3 var(--f-display); margin: 0; }
+.m-muted { color: var(--w-muted); }
+.sm { font-size: 12.5px; }
+.m-eyebrow { font-size: 10.5px; letter-spacing: 0.09em; text-transform: uppercase; color: var(--w-muted); font-weight: 600; }
+.m-stack { display: flex; flex-direction: column; gap: 12px; }
+.m-grid-d2, .m-grid-d3 { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+.m-row2 { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.m-hr { border: 0; border-top: 1px solid var(--w-line); margin: 4px 0; width: 100%; }
+.m-btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 7px; min-height: 44px; padding: 0 18px;
+  border-radius: 10px; background: var(--w-dark); color: #fff; border: 1.5px solid var(--w-dark); font-weight: 600; font-size: 14px; cursor: pointer;
+}
+.m-btn.ghost { background: transparent; color: var(--w-ink); border-color: var(--w-ink); }
+.m-btn.soft { background: var(--w-fill); color: var(--w-ink); border-color: var(--w-fill); }
+.m-btn.danger { background: transparent; color: var(--w-badge); border-color: currentColor; }
+.m-btn.sm { min-height: 32px; padding: 0 12px; font-size: 12.5px; border-radius: 8px; }
+.m-btn.block { width: 100%; }
+.m-btn[disabled] { opacity: 0.32; cursor: not-allowed; }
+.m-field { display: flex; flex-direction: column; gap: 5px; }
+.m-field > span { font-size: 12.5px; font-weight: 600; }
+.m-input {
+  width: 100%; min-height: 44px; border: 1.5px solid var(--w-line); border-radius: 10px; padding: 0 12px;
+  background: #fff; font: inherit; color: inherit;
+}
+textarea.m-input { min-height: 84px; padding: 10px 12px; resize: vertical; }
+select.m-input { appearance: auto; }
+.m-code { font: 600 22px/1 ui-monospace, Menlo, monospace; letter-spacing: 0.3em; text-transform: uppercase; text-align: center; }
+.m-hint { font-size: 12px; color: var(--w-muted); }
+.m-card { background: var(--w-card); border: 1px solid var(--w-line); border-radius: 14px; padding: 16px; display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.m-card.flat { background: var(--w-fill); border-color: var(--w-fill); }
+.m-card.strong { border: 2px solid var(--w-ink); }
+.m-seg { display: inline-grid; grid-auto-flow: column; grid-auto-columns: 1fr; background: var(--w-fill); border-radius: 10px; padding: 3px; }
+.m-seg button { border: 0; background: none; min-height: 36px; padding: 0 16px; border-radius: 8px; font-weight: 600; color: var(--w-muted); cursor: pointer; }
+.m-seg button.on { background: #fff; color: var(--w-ink); box-shadow: 0 1px 2px rgba(0,0,0,0.14); }
+.m-chips { display: flex; flex-wrap: wrap; gap: 7px; }
+.m-chip {
+  display: inline-flex; align-items: center; gap: 6px; min-height: 32px; padding: 0 12px; border-radius: 999px;
+  border: 1.5px solid var(--w-line); background: #fff; font-size: 13px; cursor: pointer; color: var(--w-ink);
+}
+.m-chip.on { border-color: var(--w-ink); background: var(--w-ink); color: #fff; }
+.m-tag { display: inline-flex; align-items: center; gap: 4px; font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 999px; background: var(--w-fill); color: var(--w-ink); white-space: nowrap; }
+.m-tag.ok { background: #dcefe2; color: var(--w-ok); }
+.m-tag.warn { background: #f6e8c8; color: var(--w-warn); }
+.m-tag.bad { background: #f6dcd6; color: var(--w-badge); }
+.m-tag.line { background: transparent; border: 1px solid var(--w-line); color: var(--w-muted); }
+.m-list { display: flex; flex-direction: column; }
+.m-li { display: flex; align-items: center; gap: 12px; padding: 12px 0; border-bottom: 1px solid var(--w-line); min-width: 0; }
+.m-li:last-child { border-bottom: 0; }
+.m-li > .grow { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.m-li.link { cursor: pointer; }
+.m-av { width: 40px; height: 40px; border-radius: 50%; background: var(--w-fill); border: 1.5px solid var(--w-line); display: grid; place-items: center; font-weight: 600; font-size: 13px; color: var(--w-muted); flex: none; }
+.m-av.lg { width: 72px; height: 72px; font-size: 20px; }
+.m-ph {
+  position: relative; width: 100%; max-width: 100%; border-radius: 10px; background-color: var(--w-fill);
+  background-image:
+    linear-gradient(to top right, transparent calc(50% - 0.6px), var(--w-line) 50%, transparent calc(50% + 0.6px)),
+    linear-gradient(to top left, transparent calc(50% - 0.6px), var(--w-line) 50%, transparent calc(50% + 0.6px));
+  display: grid; place-items: center; overflow: hidden;
+}
+.m-ph span { background: var(--w-fill); padding: 2px 8px; border-radius: 6px; font-size: 11px; color: var(--w-muted); text-align: center; }
+.m-grid2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.m-grid3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
+.m-switch { width: 44px; height: 26px; border-radius: 999px; background: var(--w-line); border: 0; position: relative; cursor: pointer; flex: none; }
+.m-switch::after { content: ""; position: absolute; top: 3px; left: 3px; width: 20px; height: 20px; border-radius: 50%; background: #fff; transition: left 0.15s; }
+.m-switch.on { background: var(--w-ok); }
+.m-switch.on::after { left: 21px; }
+.m-lock { display: flex; gap: 6px; align-items: center; font-size: 12px; color: var(--w-muted); }
+.m-scroll { overflow-x: auto; }
+.m-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.m-table th { text-align: left; font-size: 11px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--w-muted); font-weight: 600; padding: 8px 10px; border-bottom: 1.5px solid var(--w-line); white-space: nowrap; }
+.m-table td { padding: 10px; border-bottom: 1px solid var(--w-line); vertical-align: middle; }
+.m-table tr.me td { background: #fbf3d9; font-weight: 600; }
+.num { font-variant-numeric: tabular-nums; }
+
+/* site shell */
+.m-site { display: flex; flex-direction: column; min-height: 100%; }
+.m-head { display: flex; align-items: center; gap: 12px; padding: 10px 14px; background: var(--w-card); border-bottom: 1px solid var(--w-line); position: sticky; top: 0; z-index: 5; }
+.m-brand { display: flex; flex-direction: column; line-height: 1.15; cursor: pointer; }
+.m-brand b { font: 600 16px/1.15 var(--f-display); }
+.m-brand small { color: var(--w-muted); font-size: 11px; }
+.m-head-r { margin-left: auto; display: flex; gap: 8px; align-items: center; }
+.m-topnav { display: none; }
+.m-body { flex: 1; padding: 16px; display: flex; flex-direction: column; gap: 16px; width: 100%; max-width: 1000px; margin-inline: auto; }
+.m-tabbar { position: sticky; bottom: 0; display: grid; grid-template-columns: repeat(5, 1fr); background: var(--w-card); border-top: 1px solid var(--w-line); padding: 4px 4px 12px; z-index: 5; }
+.m-tab { display: flex; flex-direction: column; align-items: center; gap: 2px; font-size: 10.5px; color: var(--w-muted); background: none; border: 0; padding: 6px 0 2px; cursor: pointer; }
+.m-tab svg.i { width: 22px; height: 22px; }
+.m-tab.on { color: var(--w-ink); font-weight: 700; }
+.m-crumb { font-size: 12px; color: var(--w-muted); display: flex; gap: 6px; align-items: center; }
+.m-subtabs { display: flex; gap: 0; border-bottom: 1.5px solid var(--w-line); }
+.m-subtabs button { background: none; border: 0; padding: 10px 14px; font-weight: 600; color: var(--w-muted); border-bottom: 2.5px solid transparent; margin-bottom: -1.5px; cursor: pointer; }
+.m-subtabs button.on { color: var(--w-ink); border-bottom-color: var(--w-ink); }
+
+/* bare + flow shells */
+.m-bare { min-height: 100%; display: flex; flex-direction: column; align-items: center; padding: 28px 20px 40px; gap: 22px; }
+.m-bare-brand { font: 600 15px/1 var(--f-display); color: var(--w-muted); display: flex; flex-direction: column; align-items: center; gap: 4px; }
+.m-bare-brand small { font: 11px/1 var(--f-text); }
+.m-bare-inner { width: 100%; max-width: 400px; display: flex; flex-direction: column; gap: 16px; }
+.m-flow { min-height: 100%; display: flex; flex-direction: column; }
+.m-flowhead { position: sticky; top: 0; z-index: 5; background: var(--w-card); border-bottom: 1px solid var(--w-line); padding: 10px 14px 0; display: flex; flex-direction: column; gap: 10px; }
+.m-flowhead .top { display: flex; align-items: center; gap: 10px; }
+.m-flowhead .top b { flex: 1; text-align: center; font: 600 14px/1.2 var(--f-display); }
+.m-iconbtn { width: 34px; height: 34px; border-radius: 50%; border: 0; background: var(--w-fill); display: grid; place-items: center; cursor: pointer; color: var(--w-ink); flex: none; }
+.m-progress { display: grid; grid-auto-flow: column; gap: 4px; padding-bottom: 10px; }
+.m-progress i { height: 4px; border-radius: 2px; background: var(--w-line); }
+.m-progress i.on { background: var(--w-ink); }
+.m-flowbody { flex: 1; padding: 18px 16px 24px; display: flex; flex-direction: column; gap: 14px; width: 100%; max-width: 620px; margin-inline: auto; }
+.m-flowfoot { position: sticky; bottom: 0; background: var(--w-card); border-top: 1px solid var(--w-line); padding: 12px 16px 16px; display: flex; gap: 8px; }
+.m-flowfoot > * { flex: 1; }
+.m-flowfoot-in { max-width: 620px; margin-inline: auto; width: 100%; display: flex; gap: 8px; }
+.m-flowfoot-in > * { flex: 1; }
+
+/* parts */
+.m-part { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; }
+.m-part .grow { flex: 1 1 160px; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+.m-swatches { display: flex; flex-wrap: wrap; gap: 8px; }
+.m-sw { width: 32px; height: 32px; border-radius: 50%; border: 2px solid #fff; box-shadow: 0 0 0 1.5px var(--w-line); cursor: pointer; }
+.m-sw.on { box-shadow: 0 0 0 2.5px var(--w-ink); }
+.m-templates { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 2px; }
+.m-templates canvas { background: var(--w-fill); border-radius: 10px; border: 1.5px solid var(--w-line); cursor: pointer; flex: none; image-rendering: pixelated; }
+.m-avatar-stage { background: repeating-conic-gradient(#e3e3dc 0 25%, #ecece6 0 50%) 0 0 / 24px 24px; border-radius: 14px; display: grid; place-items: center; padding: 18px; border: 1px solid var(--w-line); }
+.m-avatar-stage canvas { image-rendering: pixelated; }
+.m-person-tabs { display: flex; gap: 8px; }
+.m-pixel { font-family: var(--f-pixel); }
+
+.m-nownext { display: grid; gap: 0; border: 2px solid var(--w-ink); border-radius: 14px; overflow: hidden; background: var(--w-card); }
+.m-nownext > div { padding: 14px 16px; display: flex; gap: 12px; align-items: center; }
+.m-nownext > div + div { border-top: 1px solid var(--w-line); background: var(--w-bg); }
+.m-nownext .when { font: 700 11px/1.2 var(--f-text); letter-spacing: 0.08em; text-transform: uppercase; width: 62px; flex: none; }
+.m-nownext .grow { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.m-timeline { display: flex; flex-direction: column; }
+.m-tl { display: grid; grid-template-columns: 52px 18px minmax(0, 1fr); gap: 0 10px; }
+.m-tl .t { font-weight: 600; font-variant-numeric: tabular-nums; padding-top: 12px; font-size: 13px; }
+.m-tl .rail { position: relative; }
+.m-tl .rail::before { content: ""; position: absolute; left: 8px; top: 0; bottom: 0; width: 2px; background: var(--w-line); }
+.m-tl .rail::after { content: ""; position: absolute; left: 3px; top: 15px; width: 12px; height: 12px; border-radius: 50%; background: var(--w-card); border: 2px solid var(--w-ink); }
+.m-tl.now .rail::after { background: var(--w-badge); border-color: var(--w-badge); }
+.m-tl.past { color: var(--w-muted); }
+.m-tl .c { padding: 10px 0 14px; display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.m-masonry { columns: 2 160px; column-gap: 10px; }
+.m-masonry > * { break-inside: avoid; margin-bottom: 10px; }
+.m-quote { font-size: 14px; line-height: 1.55; }
+.m-sig { font-size: 12px; color: var(--w-muted); }
+.m-galgrid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 4px; }
+.m-galgrid .m-ph { border-radius: 4px; }
+.m-empty { text-align: center; padding: 36px 16px; display: flex; flex-direction: column; gap: 10px; align-items: center; }
+.m-bars { display: flex; flex-direction: column; gap: 8px; }
+.m-bar-row { display: grid; grid-template-columns: 80px minmax(0, 1fr) 70px; gap: 10px; align-items: center; font-size: 13px; }
+.m-bar-row .track { height: 10px; background: var(--w-fill); border-radius: 5px; overflow: hidden; display: flex; }
+.m-bar-row .track i { display: block; height: 100%; }
+.m-kpis { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.m-kpi { background: var(--w-card); border: 1px solid var(--w-line); border-radius: 12px; padding: 12px 14px; display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.m-kpi b { font: 600 22px/1.1 var(--f-display); font-variant-numeric: tabular-nums; }
+.m-kpi.alert { border: 2px solid var(--w-ink); }
+.m-seattable { width: 168px; height: 168px; position: relative; margin: 6px auto; }
+.m-seattable .tbl { position: absolute; inset: 36px; border-radius: 50%; background: var(--w-fill); border: 2px solid var(--w-line); display: grid; place-items: center; font: 600 12px/1.2 var(--f-display); text-align: center; color: var(--w-muted); }
+.m-seattable .seat { position: absolute; width: 30px; height: 30px; margin: -15px 0 0 -15px; border-radius: 50%; background: #fff; border: 1.5px solid var(--w-line); display: grid; place-items: center; font-size: 10px; font-weight: 600; color: var(--w-muted); }
+.m-seattable .seat.me { background: var(--w-ink); color: #fff; border-color: var(--w-ink); }
+.m-seattable .seat.mate { border-color: var(--w-ink); color: var(--w-ink); }
+.m-composer-photo { border: 2px dashed var(--w-line); border-radius: 14px; min-height: 168px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; cursor: pointer; background: #fff; text-align: center; padding: 16px; }
+.m-composer-photo.has { border-style: solid; padding: 0; overflow: hidden; position: relative; }
+.m-composer-photo.has .m-ph { border-radius: 0; height: 200px; }
+.m-composer-photo .rm { position: absolute; top: 8px; right: 8px; }
+.m-check { width: 72px; height: 72px; border-radius: 50%; border: 3px solid var(--w-ok); color: var(--w-ok); display: grid; place-items: center; }
+.m-check svg.i { width: 36px; height: 36px; }
+.m-mdsplit { display: grid; grid-template-columns: minmax(0, 1fr); gap: 12px; }
+.m-mdsplit textarea { min-height: 260px; font: 12.5px/1.6 ui-monospace, Menlo, monospace; }
+.m-md h1 { font: 600 20px/1.2 var(--f-display); margin: 0 0 6px; }
+.m-md h2 { font: 600 15px/1.3 var(--f-display); margin: 12px 0 4px; }
+.m-md p, .m-md ul { margin: 0 0 8px; }
+.m-md ul { padding-left: 20px; }
+.m-qr { width: 64px; height: 64px; background: #fff; border-radius: 6px; padding: 5px; flex: none; }
+.m-qr canvas { width: 100%; height: 100%; image-rendering: pixelated; display: block; }
+.m-cards-print { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 12px; }
+.m-printcard { border: 1.5px dashed var(--w-muted); border-radius: 6px; padding: 14px; display: flex; flex-direction: column; align-items: center; gap: 8px; background: #fff; text-align: center; }
+.m-printcard .m-qr { width: 96px; height: 96px; padding: 0; }
+
+/* admin shell */
+.m-admin { display: grid; grid-template-columns: minmax(0, 1fr); grid-template-rows: auto auto 1fr; min-height: 100%; }
+.m-ahead { background: var(--w-dark); color: #fff; display: flex; align-items: center; gap: 10px; padding: 10px 14px; position: sticky; top: 0; z-index: 6; }
+.m-ahead b { font: 600 15px/1.2 var(--f-display); }
+.m-ahead .m-tag { background: rgba(255,255,255,0.14); color: #fff; }
+.m-ahead a { color: #fff; margin-left: auto; font-size: 12.5px; }
+.m-anav { display: flex; gap: 6px; overflow-x: auto; padding: 10px 14px; background: var(--w-card); border-bottom: 1px solid var(--w-line); }
+.m-anav button { white-space: nowrap; border: 0; background: none; padding: 7px 10px; border-radius: 8px; color: var(--w-muted); cursor: pointer; font-weight: 500; text-align: left; display: flex; justify-content: space-between; gap: 8px; }
+.m-anav button.on { background: var(--w-fill); color: var(--w-ink); font-weight: 700; }
+.m-anav .cnt { background: var(--w-badge); color: #fff; border-radius: 999px; font-size: 10.5px; padding: 0 6px; font-weight: 700; }
+.m-amain { padding: 16px; display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+.m-sethead { display: flex; align-items: center; gap: 12px; }
+.m-sethead .grow { flex: 1; min-width: 0; }
+.m-setrow { display: flex; align-items: center; gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--w-line); }
+.m-setrow:last-child { border-bottom: 0; }
+.m-setrow .grow { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+
+/* game */
+.m-game { position: relative; height: 100%; overflow: hidden; background: #9cbf73; user-select: none; }
+.m-game canvas.m-map { position: absolute; inset: 0; width: 100%; height: 100%; cursor: pointer; touch-action: none; }
+.m-gbar { position: absolute; top: 10px; left: 10px; right: 10px; display: flex; gap: 6px; z-index: 3; margin-inline: auto; max-width: 620px; }
+.m-gbtn { flex: 1; min-width: 0; background: rgba(255,255,255,0.95); border: 2px solid #222; border-radius: 11px; min-height: 52px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px; font-size: 11px; font-weight: 700; position: relative; cursor: pointer; color: #222; box-shadow: 2px 2px 0 rgba(0,0,0,0.25); padding: 4px 2px; }
+.m-gbtn small { font-weight: 500; font-size: 9.5px; color: var(--w-badge); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+.m-gbtn .dot { position: absolute; top: -7px; right: -6px; min-width: 18px; height: 18px; border-radius: 9px; background: var(--w-badge); color: #fff; font-size: 11px; display: grid; place-items: center; border: 2px solid #fff; }
+.m-gme { position: absolute; left: 10px; bottom: 12px; z-index: 3; display: flex; gap: 6px; }
+.m-gme button { width: 44px; height: 44px; border-radius: 50%; border: 2px solid #222; background: rgba(255,255,255,0.95); display: grid; place-items: center; cursor: pointer; box-shadow: 2px 2px 0 rgba(0,0,0,0.25); color: #222; }
+.m-bubble { position: absolute; z-index: 4; width: 214px; background: #fff; border: 2px solid #222; border-radius: 12px; padding: 10px; transform: translate(-50%, calc(-100% - 12px)); box-shadow: 3px 3px 0 rgba(0,0,0,0.25); display: flex; gap: 10px; cursor: pointer; }
+.m-bubble::after { content: ""; position: absolute; left: 50%; bottom: -9px; width: 14px; height: 14px; background: #fff; border-right: 2px solid #222; border-bottom: 2px solid #222; transform: translateX(-50%) rotate(45deg); }
+.m-bubble .grow { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; font-size: 12px; }
+.m-bubble b { font-size: 13px; }
+.m-bubble .x { position: absolute; top: -10px; right: -10px; width: 24px; height: 24px; border-radius: 50%; background: #222; color: #fff; border: 0; display: grid; place-items: center; cursor: pointer; font-size: 13px; }
+.m-otp { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 8px; }
+.m-otp input { min-width: 0; height: 56px; text-align: center; font: 600 24px/1 ui-monospace, Menlo, monospace; text-transform: uppercase; padding: 0; }
+.m-gnow { position: absolute; top: 10px; left: 50%; transform: translateX(-50%); z-index: 3; display: flex; align-items: center; gap: 8px; background: rgba(255,255,255,0.95); border: 2px solid #222; border-radius: 999px; padding: 5px 14px 5px 5px; box-shadow: 2px 2px 0 rgba(0,0,0,0.25); font-size: 12.5px; color: #222; cursor: pointer; white-space: nowrap; max-width: calc(100% - 20px); }
+.m-gnow .when { background: var(--w-badge); color: #fff; border-radius: 999px; padding: 3px 9px; font-size: 11px; font-weight: 700; }
+.m-gnow small { color: #666; overflow: hidden; text-overflow: ellipsis; }
+.m-gprompt { position: absolute; z-index: 4; transform: translate(-50%, -100%); background: #222; color: #fff; border-radius: 8px; padding: 5px 10px; font-size: 12px; font-weight: 600; white-space: nowrap; pointer-events: none; display: flex; gap: 6px; align-items: center; box-shadow: 2px 2px 0 rgba(0,0,0,0.25); }
+.m-gprompt kbd { background: #fff; color: #222; border-radius: 4px; padding: 0 5px; font: 600 10.5px/1.6 ui-monospace, monospace; }
+.m-tvqrpop { position: absolute; right: 30px; bottom: 34px; z-index: 2; transition: opacity .5s, transform .5s; }
+.m-tvqrpop.off { opacity: 0; transform: translateY(16px); }
+.m-tvqrpop .m-tvqr { width: 210px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
+.m-tvqrpop .m-qr { width: 130px; height: 130px; }
+.m-viewer { position: absolute; inset: 0; background: rgba(10,10,10,0.94); z-index: 5; display: flex; flex-direction: column; color: #fff; }
+.m-viewer .top { display: flex; align-items: center; gap: 10px; padding: 12px 14px; }
+.m-viewer .img { flex: 1; display: flex; align-items: center; justify-content: center; padding: 0 14px; min-height: 0; }
+.m-viewer .img .m-ph { width: 100%; max-width: 760px; background-color: #2a2a2a; }
+.m-viewer .cap { padding: 14px 18px 22px; display: flex; flex-direction: column; gap: 4px; max-width: 760px; width: 100%; margin-inline: auto; }
+.m-gfade { position: absolute; inset: 0; z-index: 6; background: #111; color: #fff; display: grid; place-items: center; font: 12px/1.4 Silkscreen, monospace; text-align: center; animation: m-fade 1.2s ease both; }
+.m-gfade[hidden] { display: none; }
+@keyframes m-fade { 0% { opacity: 0; } 30%, 70% { opacity: 1; } 100% { opacity: 0; } }
+.m-gtoast { position: absolute; left: 50%; bottom: 16px; transform: translateX(-50%); background: rgba(20,20,20,0.85); color: #fff; padding: 8px 14px; border-radius: 999px; font-size: 12px; z-index: 3; white-space: nowrap; pointer-events: none; }
+.m-ovl { position: absolute; inset: 0; z-index: 8; background: rgba(18,18,18,0.5); display: flex; flex-direction: column; justify-content: flex-end; }
+.m-paused { position: absolute; top: 14px; left: 14px; color: #fff; font: 12px/1 var(--f-pixel); letter-spacing: 0.05em; }
+.m-sheet { background: var(--w-bg); width: 100%; max-height: 90%; border-radius: 18px 18px 0 0; overflow: auto; display: flex; flex-direction: column; }
+.m-sheethead { position: sticky; top: 0; z-index: 2; background: var(--w-card); display: flex; align-items: center; gap: 10px; padding: 12px 14px; border-bottom: 1px solid var(--w-line); }
+.m-sheethead b { flex: 1; font: 600 16px/1.2 var(--f-display); }
+.m-sheetbody { padding: 16px; display: flex; flex-direction: column; gap: 14px; }
+
+/* waiting page */
+.m-wait { position: relative; height: 100%; overflow: hidden; background: #2d2832; color: #fff; }
+.m-wait canvas { position: absolute; inset: 0; width: 100%; height: 100%; cursor: pointer; }
+.m-wait-top { position: absolute; top: 12px; left: 14px; right: 14px; display: flex; justify-content: space-between; align-items: center; z-index: 2; font-size: 12px; }
+.m-wait-top b { font: 600 14px/1.1 var(--f-display); }
+.m-wait-top button { background: rgba(255,255,255,0.14); color: #fff; border: 0; border-radius: 999px; padding: 6px 12px; cursor: pointer; font-size: 12px; }
+.m-wait-card { position: absolute; left: 14px; right: 14px; bottom: 16px; margin-inline: auto; max-width: 460px; background: #fffaf0; color: #2a2420; border-radius: 16px; padding: 18px; display: flex; flex-direction: column; gap: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.35); z-index: 2; }
+.m-wait-card p { font-size: 15px; line-height: 1.5; }
+.m-count { display: flex; gap: 8px; justify-content: center; }
+.m-count div { background: #2d2832; color: #ffd27a; border-radius: 8px; padding: 6px 8px; min-width: 52px; text-align: center; display: flex; flex-direction: column; gap: 2px; }
+.m-count b { font: 18px/1 var(--f-pixel); font-weight: 400; }
+.m-count small { font-size: 9.5px; color: #d8cdb8; }
+
+/* moderation */
+.m-mod { height: 100%; display: flex; flex-direction: column; background: #1c1c1e; color: #f2f2f2; }
+.m-modhead { display: flex; align-items: center; gap: 10px; padding: 12px 14px; }
+.m-modhead b { font: 600 15px/1.2 var(--f-display); }
+.m-live { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: #cfcfcf; }
+.m-live i { width: 8px; height: 8px; border-radius: 50%; background: #3fbf6f; display: inline-block; box-shadow: 0 0 0 3px rgba(63,191,111,0.25); }
+.m-modarea { flex: 1; position: relative; display: grid; place-items: center; padding: 8px 16px; min-height: 0; }
+.m-modcard { width: 100%; max-width: 380px; background: #fff; color: #1f1f1d; border-radius: 18px; overflow: hidden; touch-action: none; cursor: grab; box-shadow: 0 12px 30px rgba(0,0,0,0.4); transition: transform 0.2s; position: relative; }
+.m-modcard.drag { transition: none; }
+.m-modcard .meta { padding: 12px 14px 14px; display: flex; flex-direction: column; gap: 6px; }
+.m-modcard .stamp { position: absolute; top: 18px; padding: 4px 10px; border: 3px solid; border-radius: 8px; font: 700 18px/1 var(--f-display); opacity: 0; text-transform: uppercase; background: rgba(255,255,255,0.85); }
+.m-modcard .stamp.yes { left: 16px; color: var(--w-ok); transform: rotate(-12deg); }
+.m-modcard .stamp.no { right: 16px; color: var(--w-badge); transform: rotate(12deg); }
+.m-modbtns { display: flex; justify-content: center; align-items: center; gap: 22px; padding: 12px 16px 20px; }
+.m-modbtns .r { width: 64px; height: 64px; border-radius: 50%; border: 0; display: grid; place-items: center; cursor: pointer; }
+.m-modbtns .r svg.i { width: 28px; height: 28px; }
+.m-modbtns .no { background: #3a2422; color: #ff8a78; }
+.m-modbtns .yes { background: #1f3a2a; color: #6fe3a0; }
+.m-modbtns .u { background: #2c2c2e; color: #ddd; border: 0; border-radius: 999px; padding: 8px 14px; cursor: pointer; font-size: 12.5px; }
+.m-modbtns .u[disabled] { opacity: 0.35; }
+.m-keys { text-align: center; font-size: 11.5px; color: #9a9a9a; padding-bottom: 12px; display: none; }
+.m-modtoast { position: absolute; top: 10px; left: 50%; transform: translateX(-50%); background: #fff; color: #222; padding: 6px 14px; border-radius: 999px; font-size: 12.5px; font-weight: 600; z-index: 3; }
+
+/* event screen */
+.m-tv { height: 100%; background: #141414; color: #f4f4f4; position: relative; overflow: hidden; display: flex; flex-direction: column; }
+.m-tvtop { display: flex; justify-content: space-between; align-items: center; padding: 22px 34px 0; font: 600 20px/1.2 var(--f-display); }
+.m-tvtop small { font: 500 15px/1 var(--f-text); color: #aaa; }
+.m-tvmain { flex: 1; display: flex; gap: 30px; padding: 20px 34px 30px; min-height: 0; }
+.m-tvphoto { flex: 1; position: relative; border-radius: 14px; overflow: hidden; min-width: 0; }
+.m-tvphoto .m-ph { height: 100%; border-radius: 0; background-color: #2a2a2a; background-image:
+    linear-gradient(to top right, transparent calc(50% - 0.6px), #3a3a3a 50%, transparent calc(50% + 0.6px)),
+    linear-gradient(to top left, transparent calc(50% - 0.6px), #3a3a3a 50%, transparent calc(50% + 0.6px)); }
+.m-tvphoto .m-ph span { background: #2a2a2a; color: #888; font-size: 15px; }
+.m-tvcap { position: absolute; left: 0; right: 0; bottom: 0; padding: 40px 28px 22px; background: linear-gradient(transparent, rgba(0,0,0,0.75)); font: 500 30px/1.25 var(--f-display); display: flex; flex-direction: column; gap: 6px; }
+.m-tvcap small { font: 400 17px/1.2 var(--f-text); color: #ccc; }
+.m-tvside { width: 250px; display: flex; flex-direction: column; gap: 14px; justify-content: flex-end; }
+.m-tvqr { background: #fff; color: #111; border-radius: 14px; padding: 16px; display: flex; flex-direction: column; align-items: center; gap: 10px; text-align: center; font-weight: 600; font-size: 15px; }
+.m-tvqr .m-qr { width: 150px; height: 150px; padding: 0; }
+.m-tvdots { display: flex; gap: 8px; justify-content: center; padding-bottom: 18px; }
+.m-tvdots i { width: 44px; height: 5px; border-radius: 3px; background: #444; display: block; }
+.m-tvdots i.on { background: #f4f4f4; }
+.m-tvboard { flex: 1; display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.m-tvrow { display: grid; grid-template-columns: 64px minmax(0, 1fr) 140px; gap: 16px; align-items: center; background: #1f1f1f; border-radius: 12px; padding: 12px 20px; font: 500 24px/1.2 var(--f-display); }
+.m-tvrow .rk { font: 26px/1 var(--f-pixel); color: #ffd27a; }
+.m-tvrow .sc { text-align: right; font-variant-numeric: tabular-nums; }
+.m-tvrow.up { outline: 2px solid #ffd27a; }
+
+@container (min-width: 720px) {
+  .m-tabbar { display: none; }
+  .m-topnav { display: flex; gap: 2px; margin-left: 22px; }
+  .m-topnav button { background: none; border: 0; padding: 8px 12px; border-radius: 8px; color: var(--w-muted); font-weight: 500; cursor: pointer; display: flex; gap: 6px; align-items: center; }
+  .m-topnav button.on { background: var(--w-fill); color: var(--w-ink); font-weight: 700; }
+  .m-head { padding: 12px 28px; }
+  .m-body { padding: 28px 32px 40px; }
+  .m-h1 { font-size: 28px; }
+  .m-grid-d2 { display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr); gap: 16px; align-items: start; }
+  .m-grid-d3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; align-items: start; }
+  .m-galgrid { grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 8px; }
+  .m-masonry { columns: 3 200px; }
+  .m-kpis { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .m-mdsplit { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+  .m-admin { grid-template-columns: 210px minmax(0, 1fr); grid-template-rows: auto 1fr; }
+  .m-ahead { grid-column: 1 / -1; }
+  .m-anav { flex-direction: column; overflow: visible; border-bottom: 0; border-right: 1px solid var(--w-line); padding: 16px 10px; }
+  .m-amain { padding: 24px 28px 40px; }
+  .m-ovl { justify-content: center; align-items: center; }
+  .m-sheet { width: 620px; border-radius: 18px; max-height: 84%; }
+  .m-keys { display: block; }
+  .m-bubble { width: 240px; }
+}
+@media (prefers-reduced-motion: reduce) { .m-modcard, .m-switch::after { transition: none; } }
+</style>
+
+<div class="app">
+  <aside class="index" id="index"></aside>
+  <main class="stage" id="stage">
+    <div class="mobile-pick"><select id="pick" aria-label="Screen"></select></div>
+    <div class="toolbar" id="toolbar"></div>
+    <div class="viewport" id="viewport"></div>
+  </main>
+  <section class="notes" id="notes"></section>
+</div>
+
+<script>
+(() => {
+"use strict";
+
+/* ---------- icons ---------- */
+const P = {
+  home: '<path d="M3 11 12 4l9 7v9h-6v-6H9v6H3z"/>',
+  cal: '<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/>',
+  cam: '<path d="M4 8h3l2-3h6l2 3h3v12H4z"/><circle cx="12" cy="14" r="3.5"/>',
+  album: '<rect x="3" y="3" width="8" height="8" rx="1"/><rect x="13" y="3" width="8" height="8" rx="1"/><rect x="3" y="13" width="8" height="8" rx="1"/><rect x="13" y="13" width="8" height="8" rx="1"/>',
+  menu: '<path d="M4 7h16M4 12h16M4 17h16"/>',
+  play: '<path d="M7 4l13 8-13 8z"/>',
+  check: '<path d="M5 12.5l4.5 4.5L19 7.5"/>',
+  x: '<path d="M6 6l12 12M18 6L6 18"/>',
+  lock: '<rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/>',
+  user: '<circle cx="12" cy="8" r="4"/><path d="M4 21c1-4 4.5-6 8-6s7 2 8 6"/>',
+  back: '<path d="M15 5l-7 7 7 7"/>',
+  next: '<path d="M9 5l7 7-7 7"/>',
+  undo: '<path d="M9 14L4 9l5-5"/><path d="M4 9h11a5 5 0 0 1 0 10h-3"/>',
+  pin: '<path d="M12 21s7-6.2 7-12a7 7 0 0 0-14 0c0 5.8 7 12 7 12z"/><circle cx="12" cy="9" r="2.5"/>',
+  seat: '<circle cx="12" cy="12" r="5"/><circle cx="12" cy="3.5" r="1.5"/><circle cx="12" cy="20.5" r="1.5"/><circle cx="3.5" cy="12" r="1.5"/><circle cx="20.5" cy="12" r="1.5"/>',
+  web: '<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18"/>',
+  trophy: '<path d="M8 4h8v5a4 4 0 0 1-8 0z"/><path d="M8 6H5a3 3 0 0 0 3 4M16 6h3a3 3 0 0 1-3 4M12 13v4M8 20h8"/>',
+  mail: '<rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 7l9 6 9-6"/>',
+  dl: '<path d="M12 4v11M7 10l5 5 5-5M5 20h14"/>',
+  plus: '<path d="M12 5v14M5 12h14"/>',
+  eye: '<path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/>',
+};
+const ic = (n) => `<svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${P[n]}</svg>`;
+
+/* ---------- small helpers ---------- */
+const ph = (label, ratio = "4/3", extra = "") => `<div class="m-ph" style="aspect-ratio:${ratio};${extra}"><span>${label}</span></div>`;
+const seg = (opts, on = -1) => `<div class="m-seg" data-seg>${opts.map((o, i) => `<button type="button" class="${i === on ? "on" : ""}">${o}</button>`).join("")}</div>`;
+const chips = (opts, on = [], multi = false) => `<div class="m-chips" ${multi ? "data-multi" : "data-single"}>${opts.map((o, i) => `<button type="button" class="m-chip ${on.includes(i) ? "on" : ""}">${o}</button>`).join("")}</div>`;
+const field = (label, input, hint = "") => `<label class="m-field"><span>${label}</span>${input}${hint ? `<small class="m-hint">${hint}</small>` : ""}</label>`;
+const inp = (id, val = "", attrs = "") => `<input class="m-input" id="${id}" value="${val}" ${attrs}>`;
+const area = (id, val = "", attrs = "") => `<textarea class="m-input" id="${id}" ${attrs}>${val}</textarea>`;
+const sw = (on = false) => `<button type="button" class="m-switch ${on ? "on" : ""}" data-switch aria-label="Schalter"></button>`;
+const qr = () => `<div class="m-qr"><canvas data-qr width="25" height="25"></canvas></div>`;
+
+const EVENT = { couple: "Lea & Jonas", date: "Sa, 12. Juni 2027" };
+const PARTS = [
+  ["Trauung", "14:00", "Kirche Muri"],
+  ["Apéro", "15:30", "Schlossgarten"],
+  ["Dinner", "18:30", "Landgasthof Linde"],
+  ["Party", "22:00", "Linde, Saal"],
+];
+const HOW = ["Familie Braut", "Familie Bräutigam", "Freunde Braut", "Freunde Bräutigam", "Freunde beider", "Arbeit"];
+
+/* ---------- shells ---------- */
+const TABS = [["home", "Start", "home"], ["programme", "Programm", "cal"], ["upload", "Hochladen", "cam"], ["gallery", "Erinnerungen", "album"], ["more", "Mehr", "menu"]];
+function site(tab, body, opts = {}) {
+  const tabsHtml = (cls) => TABS.map(([id, l, i]) => `<button type="button" class="${cls} ${tab === id ? "on" : ""}" data-go="${id}">${ic(i)}<span>${l}</span></button>`).join("");
+  return `<div class="m-site">
+    <header class="m-head">
+      <div class="m-brand" data-go="home"><b>${EVENT.couple}</b><small>${EVENT.date}</small></div>
+      <nav class="m-topnav">${tabsHtml("")}</nav>
+      <div class="m-head-r">
+        <button class="m-btn sm" data-go="game">${ic("play")} Spielwelt</button>
+        <button class="m-av" style="width:34px;height:34px" data-go="profile" aria-label="Profil">EH</button>
+      </div>
+    </header>
+    <div class="m-body">${body}</div>
+    ${opts.noTabs ? "" : `<nav class="m-tabbar">${tabsHtml("m-tab")}</nav>`}
+  </div>`;
+}
+function bare(body) {
+  return `<div class="m-bare"><div class="m-bare-brand">${EVENT.couple}<small>${EVENT.date}</small></div><div class="m-bare-inner">${body}</div></div>`;
+}
+function flow(title, step, total, body, foot, closeTo = "waiting") {
+  const bars = total ? `<div class="m-progress">${Array.from({ length: total }, (_, i) => `<i class="${i < step ? "on" : ""}"></i>`).join("")}</div>` : `<div style="height:2px"></div>`;
+  return `<div class="m-flow">
+    <div class="m-flowhead"><div class="top"><button class="m-iconbtn" data-go="${closeTo}" aria-label="Schliessen">${ic("x")}</button><b>${title}</b><span class="m-muted sm" style="width:34px;text-align:right">${total ? step + "/" + total : ""}</span></div>${bars}</div>
+    <div class="m-flowbody">${body}</div>
+    ${foot ? `<div class="m-flowfoot"><div class="m-flowfoot-in">${foot}</div></div>` : ""}
+  </div>`;
+}
+const ANAV = [["admin-home", "Übersicht"], ["admin-invitations", "Einladungen"], ["admin-users", "Konten & Rollen"], ["admin-rsvp", "Rückmeldungen", 3], ["admin-seating", "Sitzplan"], ["admin-content", "Inhalte"], ["admin-world", "Spielwelt"], ["moderation", "Moderation", 12], ["admin-settings", "Einstellungen"]];
+function admin(active, body) {
+  return `<div class="m-admin">
+    <header class="m-ahead"><b>Verwaltung</b><span class="m-tag">Plattform geschlossen</span><a data-go="home">Zur Website</a></header>
+    <nav class="m-anav">${ANAV.map(([id, l, c]) => `<button type="button" class="${id === active ? "on" : ""}" data-go="${id}"><span>${l}</span>${c ? `<span class="cnt">${c}</span>` : ""}</button>`).join("")}</nav>
+    <div class="m-amain">${body}</div>
+  </div>`;
+}
+function gameShell(v, overlay = "") {
+  const rsvpOpen = v === "rsvp";
+  return `<div class="m-game" data-game data-rsvp="${rsvpOpen ? 1 : 0}">
+    <canvas class="m-map"></canvas>
+    <div class="m-gbar">
+      <button class="m-gbtn" data-go="game-overlay" data-variant="programme">${ic("cal")}Programm</button>
+      <button class="m-gbtn" data-go="game-overlay" data-variant="rsvp">${ic("check")}Rückmeldung${rsvpOpen ? '<span class="dot">!</span>' : ""}</button>
+      <button class="m-gbtn" data-go="game-overlay" data-variant="upload">${ic("cam")}Hochladen</button>
+      <button class="m-gbtn" data-go="home">${ic("web")}Website</button>
+    </div>
+    <div class="m-gfade" hidden></div>
+    <div class="m-gprompt" hidden></div>
+    <div class="m-bubble" hidden></div>
+    ${overlay ? "" : '<div class="m-gtoast" data-hint></div>'}
+    ${overlay}
+  </div>`;
+}
+function sheet(title, body, closeTo = "game") {
+  return `<div class="m-ovl"><span class="m-paused">II PAUSIERT</span><div class="m-sheet"><div class="m-sheethead"><b>${title}</b><button class="m-iconbtn" data-go="${closeTo}" aria-label="Schliessen">${ic("x")}</button></div><div class="m-sheetbody">${body}</div></div></div>`;
+}
+
+/* ---------- reusable content blocks ---------- */
+function partsBlock(on = [0, 0, 0, 1]) {
+  return PARTS.map(([n, t, p], i) => `<div class="m-card"><div class="m-part"><div class="grow"><b>${n}</b><span class="m-muted sm">${t} · ${p}</span></div>${seg(["Ja", "Nein"], on[i])}</div></div>`).join("");
+}
+function timeline(eventDay, withGo = true, only = null) {
+  const rows = [
+    ["13:30", "Eintreffen", "Kirche Muri", false],
+    ["14:00", "Trauung", "Kirche Muri", true],
+    ["15:30", "Apéro", "Schlossgarten", true],
+    ["18:30", "Dinner", "Landgasthof Linde", true],
+    ["20:30", "Paar-Quiz", "Linde, Saal · am Handy", false],
+    ["22:00", "Party", "Linde, Saal", true],
+  ];
+  return `<div class="m-timeline">${rows.map((r, i) => (only && !only.includes(r[1]) ? "" : tlRow(r, i))).join("")}</div>`;
+  function tlRow([t, n, p, map], i) {
+    const cls = eventDay ? (i < 2 ? "past" : i === 2 ? "now" : "") : "";
+    return `<div class="m-tl ${cls}"><div class="t">${t}</div><div class="rail"></div><div class="c"><div class="m-row2"><b>${n}</b>${cls === "now" ? '<span class="m-tag bad">Jetzt</span>' : ""}</div><span class="m-muted sm">${p}</span>${map && withGo ? `<div><button class="m-btn soft sm" data-go="game">${ic("pin")} Hingehen</button></div>` : ""}</div></div>`;
+  }
+}
+function bubbleCard(name, badge, greet, how) {
+  return `<div class="m-card" style="flex-direction:row;gap:12px;border:2px solid var(--w-ink)"><div class="m-av lg">${name.split(" ").map((s) => s[0]).join("")}</div><div class="m-stack" style="gap:4px;min-width:0"><b>${name}</b><div><span class="m-tag">${badge}</span></div><span>${greet}</span><span class="m-muted sm">${how}</span></div></div>`;
+}
+function composer(mode, keepClosed = false) {
+  const anon = mode === "anon";
+  return `
+    <div class="m-row2"><span class="m-muted sm">Ort</span><select class="m-input" id="up-loc" style="width:auto;min-height:36px"><option>Apéro</option><option>Trauung</option><option>Dinner</option><option>Party</option><option>Allgemein</option></select></div>
+    <div class="m-composer-photo" data-photo>${ic("cam")}<b>Foto aufnehmen oder auswählen</b><span class="m-hint">Kamera oder Galerie · JPEG, PNG, HEIC</span></div>
+    ${field("Text", area("up-text", "", 'placeholder="Bildunterschrift – oder eine Nachricht fürs Brautpaar" maxlength="1000"'), '<span data-count>0</span> / 1000 Zeichen · Bildunterschrift für Schnappschüsse: max. 140')}
+    ${anon ? field("Dein Name (optional)", inp("up-name", "", 'placeholder="z. B. Tante Erika"'), "Ohne Namen erscheint dein Beitrag als «Anonym».") : `<div class="m-lock">${ic("user")} Wird als <b>&nbsp;Erika Huber&nbsp;</b> hochgeladen</div>`}
+    <div class="m-stack" style="gap:8px">
+      <button class="m-btn block" data-up="snap" disabled>${ic("cam")} Schnappschuss hochladen</button>
+      ${keepClosed ? `<button class="m-btn ghost block" data-up="keep" data-closed disabled>Als Andenken hochladen · deaktiviert</button>` : `<button class="m-btn ghost block" data-up="keep" disabled>Als Andenken hochladen</button>`}
+    </div>
+    <p class="m-hint"><b>Schnappschuss:</b> Foto mit kurzer Bildunterschrift für Galerie und Fotowand. <b>Andenken:</b> Foto und/oder Nachricht fürs Gästebuch des Paars. Alles wird vor der Veröffentlichung kurz geprüft.</p>`;
+}
+
+/* ---------- screens ---------- */
+const S = [];
+const add = (o) => S.push(o);
+const GROUPS = [
+  ["access", "Release 1: Invitation & RSVP"],
+  ["game", "Game world"],
+  ["web", "Website"],
+  ["admin", "Admin, moderation, event screen"],
+];
+
+/* ===== Release 1 ===== */
+add({
+  id: "invite-code", group: "access", title: "Enter invitation code", path: "/invite", reqs: ["INV-01", "INV-07", "INV-12"],
+  shows: ["Entry point without QR scan: six character boxes; typing jumps to the next box, backspace goes back, pasting “K7Q-MX4” fills all six (case and dashes ignored). Try it.", "QR on the card skips this screen and opens /invite/K7QMX4 directly.", "Link to login for guests who already have an account."],
+  qs: [{ q: "One input field or six separate character boxes?", p: "Mock: one wide field with letter spacing (paste-friendly, works with autofill and screen readers)." }],
+  render: () => bare(`
+    <h1 class="m-h1">Einladung einlösen</h1>
+    <p class="m-muted">Den Code findest du auf deiner Einladungskarte.</p>
+    <div class="m-field"><span>Einladungscode</span><div class="m-otp" data-otp>${["K", "7", "Q", "M", "", ""].map((c, i) => `<input class="m-input" value="${c}" maxlength="1" inputmode="text" autocomplete="${i ? "off" : "one-time-code"}" autocapitalize="characters" aria-label="Zeichen ${i + 1} von 6">`).join("")}</div><small class="m-hint">6 Zeichen. Einfügen füllt alle Felder auf einmal.</small></div>
+    <button class="m-btn block" data-go="invite-register">Weiter</button>
+    <p class="m-hint">Tipp: Scanne den QR-Code auf der Karte – dann ist der Code schon ausgefüllt.</p>
+    <hr class="m-hr"><p class="sm">Schon ein Konto? <a data-go="login">Anmelden</a></p>`),
+});
+add({
+  id: "invite-register", group: "access", title: "Redeem & create account", path: "/invite/K7QMX4", reqs: ["INV-07", "INV-03", "INV-04", "INV-06", "ACC-01", "ACC-07", "ACC-09"],
+  variants: [["ok", "Valid code"], ["redeemed", "Already redeemed"], ["expired", "Expired / revoked"]],
+  shows: ["Guest name from the invitation greets the guest and pre-fills the display name.", "Username (login, unchangeable; suggested from the guest name), password (≥ 10 chars), optional email (for news and password reset, verified later in the profile).", "Signed-in user without vip: same screen shows only “Einladung einlösen” (ACC-07).", "Error states for redeemed / expired / revoked / replaced codes."],
+  qs: [
+    { q: "Offer the (optional) email field already at registration?", p: "Mock: yes, optional, with the hint that it only serves “Passwort vergessen” and is verified later in the profile." },
+    { q: "Suggest a username from the guest name (erika.huber)?", p: "Mock: pre-filled suggestion, editable." },
+  ],
+  render: (v) => {
+    if (v === "redeemed" || v === "expired") {
+      const t = v === "redeemed"
+        ? ["Diese Einladung wurde schon eingelöst.", "Wenn du das warst: melde dich einfach an. Sonst melde dich bei Lea & Jonas – sie schicken dir eine neue Karte."]
+        : ["Diese Einladung ist nicht mehr gültig.", "Der Code ist abgelaufen oder wurde ersetzt. Melde dich bei Lea & Jonas, dann bekommst du einen neuen."];
+      return bare(`<div class="m-card flat" style="align-items:center;text-align:center;gap:12px;padding:28px 18px"><div class="m-av lg">${ic("mail")}</div><h1 class="m-h1" style="font-size:20px">${t[0]}</h1><p class="m-muted">${t[1]}</p></div>
+        <button class="m-btn block" data-go="login">Anmelden</button><button class="m-btn ghost block" data-go="invite-code">Anderen Code eingeben</button>`);
+    }
+    return bare(`
+      <div class="m-card flat" style="flex-direction:row;align-items:center;gap:12px"><div class="m-av">${ic("mail")}</div><div class="m-stack" style="gap:0"><span class="m-eyebrow">Persönliche Einladung</span><b>Erika Huber</b></div><span class="m-tag line" style="margin-left:auto;font-family:ui-monospace,monospace">K7QMX4</span></div>
+      <h1 class="m-h1">Schön, dass du da bist, Erika!</h1>
+      <p class="m-muted">Lege dein Konto an. Damit kommst du auch später wieder hinein.</p>
+      ${field("Anzeigename", inp("reg-display", "Erika Huber", 'type="text" name="display-name" autocomplete="name"'), "So sehen dich die anderen Gäste.")}
+      ${field("Benutzername", inp("reg-user", "erika.huber", 'type="text" name="username" autocomplete="username" autocapitalize="none" spellcheck="false"'), "Zum Anmelden. Lässt sich später nicht ändern.")}
+      ${field("Passwort", inp("reg-pw", "", 'type="password" name="new-password" autocomplete="new-password" placeholder="Mindestens 10 Zeichen"'), "Mindestens 10 Zeichen.")}
+      ${field("E-Mail (optional)", inp("reg-mail", "", 'type="email" name="email" autocomplete="email" placeholder="du@beispiel.ch"'), "Für Nachrichten zum Fest und «Passwort vergessen». Bestätigen kannst du sie später im Profil.")}
+      <button class="m-btn block" data-go="waiting">Konto anlegen</button>
+      <hr class="m-hr"><p class="sm">Du hast schon ein Konto? <a data-go="login">Anmelden und Einladung einlösen</a></p>`);
+  },
+});
+add({
+  id: "login", group: "access", title: "Login", path: "/login", reqs: ["ACC-01", "ACC-05", "ACC-13", "ACC-16", "ACS-09"],
+  shows: ["Username or email address + password. Long session (365 days), so no “remember me” box.", "Links to password reset, invitation redemption and the privacy notice (all public)."],
+  qs: [
+    { q: "Allow signing in with the email address as well as the username?", p: "Spec: login is by username; reset accepts both. Mock keeps username only." },
+    { n: 44, q: "Email addresses are not unique today (optional, unverified). Which address counts for sign-in by email?", p: "Proposal: sign-in by email works only for a verified address, and a verified address belongs to one account only (verifying fails if another account already verified it). An unverified address never signs anyone in, so a typo can't lock out or impersonate someone." },
+    { n: 45, q: "Is the email also required for accounts an admin creates (e.g. a grandparent without email)?", p: "Proposal: required when redeeming an invitation, optional when an admin creates the account." },
+  ],
+  render: () => bare(`
+    <h1 class="m-h1">Anmelden</h1>
+    ${field("Benutzername oder E-Mail", inp("li-user", "erika.huber", 'type="text" name="username" autocomplete="username" autocapitalize="none" spellcheck="false"'), "E-Mail nur, wenn du sie im Profil bestätigt hast.")}
+    ${field("Passwort", inp("li-pw", "", 'type="password" name="password" autocomplete="current-password" placeholder="Passwort"'))}
+    <button class="m-btn block" data-go="waiting">Anmelden</button>
+    <a class="sm" data-go="forgot">Passwort vergessen?</a>
+    <hr class="m-hr">
+    <div class="m-card flat"><b>Noch kein Konto?</b><span class="m-muted sm">Du brauchst deine Einladungskarte.</span><button class="m-btn ghost sm" data-go="invite-code" style="align-self:flex-start">Einladung einlösen</button></div>
+    <a class="sm m-muted" style="text-align:center">Datenschutz</a>`),
+});
+add({
+  id: "forgot", group: "access", title: "Forgot password", path: "/forgot-password", reqs: ["ACC-03", "ACC-10"],
+  variants: [["form", "Form"], ["sent", "After submit"]],
+  shows: ["Username or email. The answer never reveals whether an account exists.", "Explains the fallback: without a verified address, the hosts create a reset link (ACC-10)."],
+  qs: [],
+  render: (v) => bare(v === "sent" ? `
+    <div class="m-check" style="align-self:center">${ic("mail")}</div>
+    <h1 class="m-h1" style="text-align:center">Schau in dein Postfach</h1>
+    <p class="m-muted" style="text-align:center">Wenn zu diesem Konto eine bestätigte E-Mail-Adresse gehört, ist ein Link unterwegs. Er gilt 24 Stunden.</p>
+    <div class="m-card flat sm"><b>Keine E-Mail bekommen?</b>Dann ist keine bestätigte Adresse hinterlegt. Frag Lea & Jonas – sie können dir einen Link zum Zurücksetzen geben.</div>
+    <button class="m-btn ghost block" data-go="login">Zurück zur Anmeldung</button>` : `
+    <h1 class="m-h1">Passwort vergessen</h1>
+    <p class="m-muted">Wir schicken dir einen Link, mit dem du ein neues Passwort setzt.</p>
+    ${field("Benutzername oder E-Mail", inp("fp-id", "erika.huber"))}
+    <button class="m-btn block" data-go="forgot" data-variant="sent">Link anfordern</button>
+    <p class="m-hint">Klappt nur mit einer bestätigten E-Mail-Adresse.</p>
+    <a class="sm" data-go="login">Zurück zur Anmeldung</a>`),
+});
+add({
+  id: "waiting", group: "access", title: "Waiting page", path: "/ (platform closed)", reqs: ["ACS-10", "ACS-11", "ACS-12", "ACS-13"],
+  variants: [["open", "RSVP open"], ["yes", "Attending"], ["no", "Declined"]],
+  shows: ["Full-screen door scene (placeholder pixel art): tap the door gap for a bigger glimpse.", "Text by RSVP status with {name}, {waitingCount}, {openingDate}.", "Countdown when an opening date is set.", "Button: “Rückmeldung geben” or “Rückmeldung ändern”."],
+  qs: [
+    { q: "What else is reachable from the waiting page?", p: "Mock: a small top-right menu with Profil and Abmelden. No website, no gallery." },
+    { q: "Show a teaser of the programme or the date/venue on the waiting page?", p: "Mock: no, only the date in the header, so the page stays a teaser." },
+  ],
+  render: (v) => {
+    const txt = {
+      open: "Psst, Erika … hinter dieser Tür entsteht gerade etwas. Bevor sie aufgeht, verrate uns: Bist du dabei?",
+      yes: "Danke, Erika, deine Zusage ist angekommen! Hinter dieser Tür wird gerade gehämmert, gemalt und gepflanzt – für dich und 83 weitere Gäste. Wir sagen dir Bescheid, sobald die Tür aufgeht.",
+      no: "Schade, dass du nicht dabei sein kannst, Erika – danke für deine Antwort! Wenn die Tür aufgeht, darfst du trotzdem einen Blick hineinwerfen.",
+    }[v];
+    return `<div class="m-wait" data-door>
+      <canvas></canvas>
+      <div class="m-wait-top"><b>${EVENT.couple}</b><span class="m-row2"><button data-go="profile">Profil</button><button data-go="login">Abmelden</button></span></div>
+      <div class="m-wait-card">
+        <div class="m-count" data-countdown><div><b>12</b><small>Tage</small></div><div><b>04</b><small>Std</small></div><div><b>31</b><small>Min</small></div><div><b>09</b><small>Sek</small></div></div>
+        <p>${txt}</p>
+        <button class="m-btn block" data-go="${v === "open" ? "rsvp-parts" : "rsvp-done"}">${v === "open" ? "Rückmeldung geben" : "Rückmeldung ändern"}</button>
+      </div>
+    </div>`;
+  },
+});
+add({
+  id: "rsvp-parts", group: "access", title: "RSVP 1 · Attendance", path: "/rsvp", reqs: ["RSVP-01", "RSVP-02", "RSVP-04"],
+  shows: ["Only the event parts this invitation covers; yes/no per part.", "Deadline shown up front.", "Declining every part skips straight to the summary."],
+  qs: [
+    { q: "RSVP as a three-step wizard (attendance → food → companions & song), or one long page?", p: "Mock: wizard, because it feels light on a phone and reuses well inside the game overlay." },
+    { q: "Add a shortcut like “Ich bin überall dabei”?", p: "Mock: not shown. Could be a link above the parts." },
+  ],
+  render: () => flow("Rückmeldung", 1, 3, `
+    <h1 class="m-h1">Bist du dabei, Erika?</h1>
+    <p class="m-muted">Sag uns für jeden Teil, ob du kommst. Du kannst deine Antwort bis <b>1. Mai 2027</b> ändern.</p>
+    ${partsBlock([0, 0, 0, -1])}`, `<button class="m-btn" data-go="rsvp-people">Weiter</button>`),
+});
+add({
+  id: "rsvp-people", group: "access", title: "RSVP 2 · Food & allergies", path: "/rsvp", reqs: ["RSVP-03", "SEC-11"],
+  shows: ["One card per attending person: the guest plus companions.", "Menu choice from admin-defined options.", "Allergies marked as visible only to the organisers (health data)."],
+  qs: [{ q: "How should the privacy note on allergies be worded? “Organisationsteam” or “nur Lea & Jonas”?", p: "Mock: “Sieht nur das Organisationsteam” (admins see it; a technical admin may not be the couple)." }],
+  render: () => flow("Rückmeldung", 2, 3, `
+    <h1 class="m-h1">Essen & Allergien</h1>
+    <div class="m-card"><div class="m-row2"><b>Erika Huber</b><span class="m-tag">Du</span></div>
+      ${field("Menü", chips(["Fleisch", "Vegetarisch", "Vegan"], [1]))}
+      ${field("Allergien oder Unverträglichkeiten", area("rp-all-1", "Nüsse", 'placeholder="z. B. Nüsse, laktosefrei" style="min-height:60px"'))}
+      <div class="m-lock">${ic("lock")} Sieht nur das Organisationsteam.</div></div>
+    <div class="m-card"><div class="m-row2"><b>Mia Huber</b><span class="m-tag warn">Begleitperson · beantragt</span></div>
+      ${field("Menü", chips(["Fleisch", "Vegetarisch", "Kindermenü"], [2]))}
+      ${field("Allergien oder Unverträglichkeiten", area("rp-all-2", "", 'placeholder="keine" style="min-height:60px"'))}
+      <div class="m-lock">${ic("lock")} Sieht nur das Organisationsteam.</div></div>`,
+    `<button class="m-btn ghost" data-go="rsvp-parts">Zurück</button><button class="m-btn" data-go="rsvp-companion">Weiter</button>`),
+});
+add({
+  id: "rsvp-companion", group: "access", title: "RSVP 3 · Companions & song", path: "/rsvp", reqs: ["RSVP-08", "RSVP-09", "RSVP-10", "RSVP-06"],
+  variants: [["list", "Overview"], ["form", "Request companion"]],
+  shows: ["Existing companions with their request status (pending / approved / rejected).", "Request form: name, attendance for the guest's own parts, menu and allergies; avatar comes later.", "Optional song wish."],
+  qs: [
+    { q: "Can a guest edit or withdraw a companion request while it is still pending?", p: "Mock: yes, “Bearbeiten” and “Zurückziehen” on pending requests." },
+    { q: "Should the guest give a reason, e.g. “Kind, 6 Jahre”?", p: "Mock: optional note field for the admin." },
+  ],
+  render: (v) => v === "form" ? flow("Begleitperson beantragen", 0, 0, `
+    <p class="m-muted">Für Personen ohne eigenes Konto, z. B. Kinder. Du verwaltest ihre Angaben. Ihre Figur wählst du, sobald die Spielwelt offen ist.</p>
+    ${field("Name", inp("cp-name", "Mia Huber"))}
+    ${field("Notiz fürs Brautpaar (optional)", inp("cp-note", "Meine Tochter, 6 Jahre"))}
+    <b class="sm">Teilnahme</b>
+    ${partsBlock([0, 0, 0, 1])}
+    ${field("Menü", chips(["Fleisch", "Vegetarisch", "Kindermenü"], [2]))}
+    ${field("Allergien oder Unverträglichkeiten", area("cp-all", "", 'style="min-height:60px"'))}
+    <div class="m-lock">${ic("lock")} Sieht nur das Organisationsteam.</div>`,
+    `<button class="m-btn ghost" data-go="rsvp-companion" data-variant="list">Abbrechen</button><button class="m-btn" data-go="rsvp-companion" data-variant="list">Beantragen</button>`, "rsvp-companion")
+  : flow("Rückmeldung", 3, 3, `
+    <h1 class="m-h1">Begleitpersonen & Musik</h1>
+    <div class="m-card"><b>Begleitpersonen</b>
+      <div class="m-list"><div class="m-li"><div class="m-av">MH</div><div class="grow"><b>Mia Huber</b><span class="m-muted sm">Trauung, Apéro, Dinner · Kindermenü</span></div><span class="m-tag warn">Wartet auf Bestätigung</span></div></div>
+      <div class="m-row2"><button class="m-btn soft sm" data-go="rsvp-companion" data-variant="form">Bearbeiten</button><button class="m-btn ghost sm">Zurückziehen</button></div>
+      <button class="m-btn ghost sm" style="align-self:flex-start" data-go="rsvp-companion" data-variant="form">${ic("plus")} Begleitperson beantragen</button>
+      <p class="m-hint">Wer ein eigenes Handy hat, bekommt besser eine eigene Einladung. Frag dafür Lea & Jonas.</p></div>
+    <div class="m-card">${field("Songwunsch (optional)", inp("rp-song", "ABBA – Dancing Queen"), "Dieses Lied bringt dich auf die Tanzfläche.")}</div>`,
+    `<button class="m-btn ghost" data-go="rsvp-people">Zurück</button><button class="m-btn" data-go="rsvp-done">Antwort senden</button>`),
+});
+add({
+  id: "rsvp-done", group: "access", title: "RSVP summary", path: "/rsvp", reqs: ["RSVP-01", "RSVP-03", "RSVP-04"],
+  variants: [["before", "Before deadline"], ["after", "After deadline"]],
+  shows: ["Confirmation and a summary of the answer.", "Editable until the deadline; afterwards read-only with a hint to contact the hosts."],
+  qs: [{ q: "Send a confirmation email with the summary (for verified addresses)?", p: "Not in the spec. Mock: no email, only this page." }],
+  render: (v) => flow("Rückmeldung", 0, 0, `
+    <div class="m-check" style="align-self:center">${ic("check")}</div>
+    <h1 class="m-h1" style="text-align:center">Danke, Erika! Deine Antwort ist angekommen.</h1>
+    <div class="m-card"><div class="m-list">
+      ${PARTS.map(([n], i) => `<div class="m-li"><div class="grow"><b>${n}</b></div>${i < 3 ? '<span class="m-tag ok">Dabei</span>' : '<span class="m-tag">Nicht dabei</span>'}</div>`).join("")}
+    </div></div>
+    <div class="m-card"><div class="m-list">
+      <div class="m-li"><div class="grow"><b>Erika Huber</b><span class="m-muted sm">Vegetarisch · Allergien angegeben</span></div></div>
+      <div class="m-li"><div class="grow"><b>Mia Huber</b><span class="m-muted sm">Kindermenü</span></div><span class="m-tag warn">beantragt</span></div>
+      <div class="m-li"><div class="grow"><b>Songwunsch</b><span class="m-muted sm">ABBA – Dancing Queen</span></div></div>
+    </div></div>
+    ${v === "after" ? `<div class="m-card flat sm">${ic("lock")} Die Frist ist vorbei. Für Änderungen melde dich bei Lea & Jonas.</div>` : `<p class="m-muted sm" style="text-align:center">Änderbar bis 1. Mai 2027.</p>`}`,
+    v === "after" ? `<button class="m-btn" data-go="waiting" data-variant="yes">Fertig</button>` : `<button class="m-btn ghost" data-go="rsvp-parts">Ändern</button><button class="m-btn" data-go="waiting" data-variant="yes">Fertig</button>`),
+});
+add({
+  id: "profile", group: "access", title: "Profile", path: "/profile", reqs: ["ACC-04", "ACC-09", "ACC-12", "PRES-04", "PRES-09", "PRES-13", "PRES-15", "HUNT-04", "AVA-01"],
+  shows: ["Person switcher: the guest and each approved companion.", "“So sehen dich andere”: photo, greeting, how I know the couple, with a speech bubble preview.", "Figure: avatar only. The figure is always shown; there is no switch to hide it.", "Found treasure hunt items.", "Account: username (read-only), email with verification state, password, logout, delete account."],
+  qs: [
+    { q: "Where do guests see and delete their own contributions (ACC-12)?", p: "Mock: “Meine Beiträge” row in the profile (screen not drawn yet)." },
+    { q: "Is the “show my figure” switch per person (companions too)?", p: "Mock: yes, it sits in the per-person section." },
+    { n: 47, q: "PRES-04 says a guest can hide their own figure. With no switch, should the spec drop that part?", p: "Proposal: yes. PRES-04 becomes “Figures and name tags are shown only to signed-in users.” A guest who doesn't want to appear can still leave out the avatar's photo and lines, or delete the account." },
+  ],
+  render: () => site("more", `
+    <div class="m-crumb">Mehr › Profil</div>
+    <h1 class="m-h1">Mein Profil</h1>
+    <div class="m-person-tabs" data-single>${["Erika", "Mia"].map((n, i) => `<button class="m-chip ${i === 0 ? "on" : ""}">${n}</button>`).join("")}</div>
+    <div class="m-grid-d2">
+      <div class="m-stack">
+        <div class="m-card"><b>So sehen dich andere Gäste</b>
+          <div class="m-row2"><div class="m-av lg">EH</div><div class="m-stack" style="gap:6px"><button class="m-btn soft sm">Foto ändern</button><button class="m-btn soft sm">Entfernen</button></div></div>
+          ${field("Anzeigename", inp("pf-name", "Erika Huber"))}
+          ${field("Gruss (eine Zeile)", inp("pf-greet", "Hi, schön dich kennenzulernen!", 'maxlength="80"'))}
+          ${field("Wie kennst du das Paar?", chips(HOW, [2]))}
+          ${inp("pf-how", "WG-Gspänli aus Bern", 'maxlength="80" placeholder="Eigene Zeile (optional)"')}
+          <span class="m-eyebrow">Vorschau</span>${bubbleCard("Erika Huber", "Freunde Braut", "Hi, schön dich kennenzulernen!", "WG-Gspänli aus Bern")}
+        </div>
+      </div>
+      <div class="m-stack">
+        <div class="m-card"><b>Figur</b><div class="m-row2"><div class="m-avatar-stage" style="padding:8px"><canvas data-avatar="me" data-p="5"></canvas></div><button class="m-btn soft sm" data-go="onboard-avatar">Avatar bearbeiten</button></div>
+          <span class="m-hint">Andere Gäste sehen deine Figur in der Spielwelt herumspazieren.</span></div>
+        <div class="m-card"><b>Fundstücke</b><div class="m-grid3">${["Ring", "Torte", "Schlüssel"].map((n) => ph(n, "1/1")).join("")}</div><a class="sm" data-go="highscores">3 von 8 gefunden · Rangliste</a></div>
+        <div class="m-card"><b>Konto</b><div class="m-list">
+          <div class="m-li"><div class="grow"><span class="m-hint">Benutzername</span><b>erika.huber</b></div></div>
+          <div class="m-li"><div class="grow"><span class="m-hint">E-Mail</span><b>erika@beispiel.ch</b></div><span class="m-tag warn">nicht bestätigt</span><button class="m-btn soft sm">Bestätigen</button></div>
+          <div class="m-li link"><div class="grow"><b>Passwort ändern</b></div>${ic("next")}</div>
+          <div class="m-li link"><div class="grow"><b>Meine Beiträge</b><span class="m-hint">4 Schnappschüsse, 1 Andenken</span></div>${ic("next")}</div>
+        </div>
+        <div class="m-row2"><button class="m-btn ghost sm" data-go="login">Abmelden</button><button class="m-btn danger sm">Konto löschen</button></div></div>
+      </div>
+    </div>`),
+});
+
+/* ===== Game ===== */
+add({
+  id: "onboard-avatar", group: "game", title: "First entry 1 · Avatar", path: "/game (first entry)", reqs: ["GAME-13", "AVA-01", "AVA-02", "AVA-03", "PRES-07"],
+  shows: ["Step 1 of the guided first entry; the same editor is reused from the profile.", "Tabs per person: the guest and each companion get an avatar.", "Templates, skin, hairstyle, hair colour, clothing and colour, accessory, plus “Zufällig”. All of it is live and clickable here."],
+  qs: [{ q: "Can a guest skip the avatar step?", p: "Mock: no skip, but “Zufällig” makes it one tap. A random default avoids figures without an avatar (PRES-01 needs one)." }],
+  render: () => flow("Willkommen in der Spielwelt", 1, 3, `
+    <h1 class="m-h1">Wie siehst du aus?</h1>
+    <div class="m-person-tabs" data-single data-avperson>${["Du", "Mia"].map((n, i) => `<button class="m-chip ${i === 0 ? "on" : ""}">${n}</button>`).join("")}</div>
+    <div class="m-grid-d2">
+      <div class="m-stack"><div class="m-avatar-stage"><canvas data-avatar="edit" data-p="14"></canvas></div><button class="m-btn soft sm" data-avrandom style="align-self:center">Zufällig</button></div>
+      <div class="m-stack" data-aveditor></div>
+    </div>`, `<button class="m-btn" data-go="onboard-profile">Weiter</button>`, "game"),
+});
+add({
+  id: "onboard-profile", group: "game", title: "First entry 2 · Say hello", path: "/game (first entry)", reqs: ["GAME-13", "PRES-09", "PRES-13", "PRES-15"],
+  shows: ["Optional profile photo, greeting and “Wie kennst du das Paar?”, with a live bubble preview.", "Companions included if the guest wants (explicit choice).", "Step 3 (RSVP overlay) only appears if the RSVP is still open, and reuses the RSVP screens."],
+  qs: [],
+  render: () => flow("Willkommen in der Spielwelt", 2, 3, `
+    <h1 class="m-h1">Sag hallo</h1>
+    <p class="m-muted">Wenn andere Gäste deiner Figur begegnen, sehen sie diese Sprechblase. Alles ist freiwillig.</p>
+    <div class="m-person-tabs" data-single>${["Du", "Mia"].map((n, i) => `<button class="m-chip ${i === 0 ? "on" : ""}">${n}</button>`).join("")}</div>
+    <div class="m-row2"><div class="m-av lg">${ic("cam")}</div><button class="m-btn soft sm">Foto hinzufügen</button></div>
+    ${field("Gruss", inp("ob-greet", "Hi, schön dich kennenzulernen!", 'maxlength="80"'))}
+    ${field("Wie kennst du das Paar?", chips(HOW, [2]))}
+    ${inp("ob-how", "WG-Gspänli aus Bern", 'placeholder="Eigene Zeile (optional)"')}
+    <span class="m-eyebrow">Vorschau</span>${bubbleCard("Erika Huber", "Freunde Braut", "Hi, schön dich kennenzulernen!", "WG-Gspänli aus Bern")}`,
+    `<button class="m-btn ghost" data-go="game">Überspringen</button><button class="m-btn" data-go="game">Los geht's</button>`, "game"),
+});
+add({
+  id: "game", group: "game", title: "Game world", path: "/game", reqs: ["GAME-02", "GAME-05", "GAME-06", "GAME-09", "GAME-10", "GAME-12", "GAME-14", "GAME-15", "GAME-16", "GAME-17", "GAME-18", "PRES-01", "PRES-02", "PRES-10"],
+  variants: [["rsvp", "RSVP open (badge)"], ["done", "RSVP answered"]],
+  shows: ["Live demo: tap/click to walk (arrow keys on desktop). Walk near a guest and their speech bubble opens; click it to pin.", "Bar at the top: Programm, Rückmeldung (badge while open), Hochladen, Website (leaves the game). No buttons at the bottom, no event-day banner.", "Clickable objects sparkle now and then at random. Tap one: the avatar walks there, stops in front of it, and its action runs. Each map's objects come from its Tiled file; the admin assigns their actions (see Admin › Spielwelt).", "Example assignments: Kirche → Programm · Linde → Wo sitze ich? · Post → Rückmeldung · Fotobox → Hochladen · Torte → Minispiel Tortenturm · own figure → Profil.", "Portal: the wobbling arrow “Dinner” leads to another scene (here it fades and restarts).", "Desktop: walk up to an object and press Enter (or Space).", "Hint “Tippe auf Dinge, die funkeln” at the first entry.", "Wander area outlined for the review only, not in the real game."],
+  qs: [
+    { q: "Does “Website” leave the game (full website), or open the website as an overlay too?", p: "Mock: leaves the game; the website header has “Spielwelt” to come back. Programm, Rückmeldung and Hochladen open as overlays." },
+    { q: "Where do profile and table finder live in the game, since the bar has only four buttons?", p: "Mock: two small round buttons bottom-left (Profil, Wo sitze ich?)." },
+    { n: 40, q: "Which world objects open the RSVP, the upload, the website and the profile?", p: "Proposal as drawn: mailbox “Post” → Rückmeldung (with a red “!” while open), photo booth → Hochladen, signpost “Website” → website, tapping your own figure → Profil." },
+    { n: 41, q: "On the event day, where does “now / next” (WEB-07) show without the Programm button?", p: "Proposal: a slim “Jetzt: Apéro” banner at the top of the screen, only on the event day; tapping it opens the programme." },
+    { n: 42, q: "Must every map carry these objects, or only the map where they fit (church on the ceremony map, restaurant on the dinner map)?", p: "Proposal: Programm, Rückmeldung, Hochladen and Website objects on every map (the map check warns if one is missing); the table finder on the map with the seats." },
+    { n: 43, q: "How does a newcomer learn that things are clickable?", p: "Proposal: the sparkle, plus a hint at the first entry (“Tippe auf Dinge, die funkeln”) until the first object is opened." },
+  ],
+  render: (v) => gameShell(v),
+});
+add({
+  id: "game-overlay", group: "game", title: "Page overlay over game", path: "/game + overlay", reqs: ["GAME-06", "GAME-11", "GAME-14", "WEB-08", "PHO-02", "MG-01"],
+  variants: [["programme", "Programm"], ["rsvp", "Rückmeldung"], ["upload", "Hochladen"], ["minigame", "Minigame (Torte)"]],
+  shows: ["Opened from the bar at the top or by clicking an object in the world (Kirche, Post, Fotobox, Torte). The game pauses; a bottom sheet (phone) or centred panel (desktop) shows the page.", "Links inside the overlay stay in the overlay; only “Website” leaves the game.", "Closing returns to the same spot.", "“Hingehen” on a programme entry closes the overlay and walks to that map."],
+  qs: [{ q: "Within an overlay, do links to other pages stay in the overlay?", p: "Mock: yes, the overlay navigates; only “Website” leaves the game." }],
+  render: (v) => {
+    let body;
+    if (v === "minigame") return gameShell("done", sheet("Tortenturm", `${ph("Minispiel-Titelbild", "16/9")}<p class="m-muted">Staple die Torte so hoch wie möglich. Deine Bestleistung: 14 Stockwerke · Rang 5.</p><button class="m-btn block">${ic("play")} Spielen</button><p class="m-hint">Startet im Vollbild; die Spielwelt ist pausiert und geht danach an derselben Stelle weiter.</p>`));
+    if (v === "rsvp") return gameShell("rsvp", sheet("Rückmeldung", `<p class="m-muted">Bist du dabei? Bis 1. Mai 2027 änderbar.</p>${partsBlock([0, 0, -1, -1])}<button class="m-btn block" data-go="rsvp-people">Weiter</button>`));
+    else if (v === "upload") body = sheet("Hochladen", composer("signed"));
+    else body = sheet("Programm", `${timeline(true)}<div class="m-card flat" style="flex-direction:row;align-items:center" data-go="game-table"><div class="grow" style="flex:1"><b>Dein Tisch: Edelweiss</b><br><span class="m-muted sm">mit Lukas, Sara und 5 weiteren</span></div>${ic("next")}</div>`);
+    return gameShell("done", body);
+  },
+});
+add({
+  id: "game-table", group: "game", title: "Table finder (game)", path: "/game + overlay", reqs: ["PRES-05", "PRES-06", "PRES-07", "PRES-12"],
+  shows: ["Opened by clicking the restaurant (Linde) in the world.", "Same content as the website's “Wo sitze ich?”, in the overlay: the table only, no seat.", "“Zeig mir den Weg” takes the player to their table on the banquet map."],
+  qs: [],
+  render: () => gameShell("done", sheet("Wo sitze ich?", seatingBody(true))),
+});
+
+/* ===== Website ===== */
+function seatingBody(compact) {
+  const mates = [["Lukas Meier", "Freunde Bräutigam", "Bin für jeden Tanz zu haben!"], ["Sara Keller", "Freunde Braut", "Frag mich nach dem Kuchen."], ["Mia Huber", "Begleitperson von Erika", ""], ["Tom Brunner", "Arbeit", "Neu in Bern – sag hallo!"]];
+  const seats = 8, R = 66;
+  const seatHtml = Array.from({ length: seats }, (_, i) => {
+    const a = (i / seats) * Math.PI * 2 - Math.PI / 2;
+    const cls = i === 0 ? "me" : i < 5 ? "mate" : "";
+    const lbl = ["EH", "MH", "LM", "SK", "TB", "", "", ""][i];
+    return `<div class="seat ${cls}" style="left:${84 + R * Math.cos(a)}px;top:${84 + R * Math.sin(a)}px">${lbl}</div>`;
+  }).join("");
+  void seatHtml;
+  return `<div class="m-card strong" style="align-items:center;text-align:center"><span class="m-eyebrow">Dein Tisch</span><h2 class="m-h1" style="font-size:26px">Edelweiss</h2><span class="m-muted sm">Dinner · Landgasthof Linde, Saal · 8 Plätze</span><button class="m-btn soft sm" data-go="game">${ic("pin")} ${compact ? "Zeig mir den Weg" : "In der Spielwelt zeigen"}</button></div>
+    <b>An deinem Tisch</b><div class="m-list">${mates.map(([n, b, g]) => `<div class="m-li"><div class="m-av">${n.split(" ").map((s) => s[0]).join("")}</div><div class="grow"><b>${n}</b>${g ? `<span class="sm">${g}</span>` : ""}</div><span class="m-tag">${b}</span></div>`).join("")}</div>`;
+}
+add({
+  id: "home", group: "web", title: "Start page", path: "/home", reqs: ["WEB-01", "WEB-02", "WEB-04", "WEB-07", "GAME-12"],
+  variants: [["before", "Before the event"], ["eventday", "Event day"]],
+  shows: ["Bottom tab bar on phones (Start · Programm · Hochladen · Erinnerungen · Mehr); a top nav on desktop.", "“Spielwelt” always in the header.", "Before the event: countdown, RSVP status, quick links.", "Event day: now/next on top, table, upload and quiz shortcuts."],
+  qs: [
+    { q: "Are these the right five tabs? “Erinnerungen” groups the gallery and the keepsake page.", p: "Mock: as shown. Info pages (Anreise, FAQ, …) live under “Mehr”." },
+    { q: "What content does the home page carry? Is it editable Markdown, structured blocks, or both?", p: "Mock: an editable welcome block (Markdown) plus fixed system cards (RSVP status, now/next, links)." },
+  ],
+  render: (v) => site("home", v === "eventday" ? `
+    <div class="m-nownext"><div><span class="when">Jetzt</span><div class="grow"><b>Apéro</b><span class="m-muted sm">seit 15:30 · Schlossgarten</span></div><button class="m-btn soft sm" data-go="game">${ic("pin")} Hingehen</button></div><div><span class="when">Danach</span><div class="grow"><b>Dinner</b><span class="m-muted sm">18:30 · Landgasthof Linde</span></div></div></div>
+    <div class="m-grid-d3">
+      <div class="m-card" data-go="seating" style="cursor:pointer"><span class="m-eyebrow">Wo sitze ich?</span><b class="m-h2">Tisch Edelweiss</b><span class="m-muted sm">mit Lukas, Sara und 5 weiteren</span></div>
+      <div class="m-card" data-go="upload" style="cursor:pointer"><span class="m-eyebrow">Schnappschuss</span><b class="m-h2">Teile deinen Moment</b><span class="m-muted sm">Erscheint nach kurzer Prüfung auf der Fotowand.</span></div>
+      <div class="m-card" data-go="highscores" style="cursor:pointer"><span class="m-eyebrow">Paar-Quiz · live</span><b class="m-h2">Du bist auf Rang 7</b><span class="m-muted sm">Noch 2 Versuche</span></div>
+    </div>` : `
+    <div class="m-grid-d2">
+      <div class="m-stack">${ph("Bild des Paars / Pixel-Art-Titel", "16/9")}
+        <div class="m-md"><h1>Wir heiraten!</h1><p>Wir freuen uns riesig, diesen Tag mit euch zu feiern. Hier findet ihr alles, was ihr wissen müsst – und hinter dem Knopf «Spielwelt» wartet eine kleine Überraschung.</p></div>
+        <button class="m-btn" data-go="game" style="align-self:flex-start">${ic("play")} Spielwelt betreten</button></div>
+      <div class="m-stack">
+        <div class="m-card strong"><span class="m-eyebrow">Noch</span><b class="m-pixel" style="font-size:30px">214 Tage</b><span class="m-muted sm">${EVENT.date} · Muri bei Bern</span></div>
+        <div class="m-card"><div class="m-row2"><b>Deine Rückmeldung</b><span class="m-tag ok">Dabei</span></div><span class="m-muted sm">Trauung, Apéro, Dinner · Mia beantragt</span><a class="sm" data-go="rsvp-done">Ansehen oder ändern</a></div>
+        <div class="m-grid2">${[["Programm", "programme"], ["Anreise", "info"], ["Unterkunft", "info"], ["FAQ", "info"]].map(([l, g]) => `<button class="m-btn soft" data-go="${g}">${l}</button>`).join("")}</div>
+      </div>
+    </div>`),
+});
+add({
+  id: "programme", group: "web", title: "Programme", path: "/programme", reqs: ["WEB-02", "WEB-07", "WEB-08", "WEB-09"],
+  variants: [["eventday", "Event day"], ["before", "Before"], ["apero", "Guest invited to Apéro only"]],
+  shows: ["Structured schedule as a timeline; on the event day, past entries are greyed out and the current entry is marked.", "“Hingehen” on entries with a map.", "Only the parts the guest is invited to; one line says so (state “Apéro only”)."],
+  qs: [{ q: "Show only the parts the guest is invited to (e.g. hide Dinner for aperitif-only guests)?", p: "Not in the spec. Mock: shows all; proposal: hide uninvited parts and say so in one line." }],
+  render: (v) => site("programme", `<h1 class="m-h1">Programm</h1><span class="m-eyebrow">Samstag, 12. Juni 2027</span>${v === "apero" ? `<div class="m-card flat sm">${ic("eye")} Du siehst die Teile, zu denen du eingeladen bist: Apéro.</div>` : ""}${timeline(v === "eventday", true, v === "apero" ? ["Apéro"] : null)}`),
+});
+add({
+  id: "info", group: "web", title: "Content page (Markdown)", path: "/p/anreise", reqs: ["WEB-02", "WEB-03", "CNT-01", "CNT-05"],
+  shows: ["A typical info page rendered from Markdown: Anreise & Parkieren.", "Same layout for venues, accommodation, FAQ, contact, guest info."],
+  qs: [{ q: "Should FAQ get its own accordion layout, or stay plain Markdown?", p: "Mock: plain Markdown for every page (one editor, less to build)." }],
+  render: () => site("more", `<div class="m-crumb"><a data-go="more">Mehr</a> › Anreise & Parkieren</div>
+    <div class="m-grid-d2"><div class="m-md">
+      <h1>Anreise & Parkieren</h1>
+      <h2>Mit dem ÖV</h2><p>Ab Bern HB mit der S-Bahn bis Muri bei Bern (12 Min.), dann 5 Minuten zu Fuss zur Kirche.</p>
+      <h2>Mit dem Auto</h2><p>Parkplätze hat es beim Landgasthof Linde. Von der Kirche zur Linde fährt ein Shuttle (15:15 und 18:00).</p>
+      <ul><li>Kirche Muri, Kirchstrasse 1, 3074 Muri</li><li>Landgasthof Linde, Dorfstrasse 20, 3074 Muri</li></ul>
+    </div><div class="m-stack">${ph("Karte (Link zu Karten-App)", "4/3")}<button class="m-btn soft sm" style="align-self:flex-start">In Karten öffnen</button></div></div>`),
+});
+add({
+  id: "more", group: "web", title: "More (all pages)", path: "/more", reqs: ["WEB-02", "WEB-03", "WEB-05", "WEB-06"],
+  shows: ["Every page that is not a tab, in an order the admin sets.", "Admin and moderation entries appear only for those roles."],
+  qs: [],
+  render: () => {
+    const rows = [["Das Fest", "info"], ["Orte", "info"], ["Anreise & Parkieren", "info"], ["Unterkunft", "info"], ["FAQ", "info"], ["Kontakt", "info"], ["Wo sitze ich?", "seating"], ["Spiele & Ranglisten", "highscores"], ["Mein Profil", "profile"]];
+    return site("more", `<h1 class="m-h1">Mehr</h1><div class="m-card" style="padding:4px 16px"><div class="m-list">${rows.map(([l, g]) => `<div class="m-li link" data-go="${g}"><div class="grow"><b>${l}</b></div>${ic("next")}</div>`).join("")}</div></div>
+      <div class="m-card" style="padding:4px 16px"><div class="m-list"><div class="m-li link" data-go="admin-home"><div class="grow"><b>Verwaltung</b><span class="m-hint">nur für Admins</span></div>${ic("next")}</div><div class="m-li link" data-go="moderation"><div class="grow"><b>Moderation</b><span class="m-hint">12 offen</span></div>${ic("next")}</div></div></div>
+      <div class="m-row2"><a class="sm m-muted">Datenschutz</a><a class="sm m-muted" data-go="login">Abmelden</a></div>`);
+  },
+});
+add({
+  id: "seating", group: "web", title: "Where do I sit?", path: "/seating", reqs: ["PRES-05", "PRES-06", "PRES-07", "PRES-12", "PRES-15"],
+  variants: [["visible", "Visible"], ["hidden", "Not yet visible"]],
+  shows: ["Table name and tablemates with photo, greeting and badge. Only the table, no seat (the server still places everyone on a seat for the game world).", "Before release: a friendly notice with the date."],
+  qs: [{ q: "Show the guest's exact seat, or only the table?", p: "Mock: the seat sketch shows seats, since seats exist as map objects anyway. Could be just the table." }],
+  render: (v) => site("more", v === "hidden"
+    ? `<h1 class="m-h1">Wo sitze ich?</h1><div class="m-card m-empty"><div class="m-av lg">${ic("seat")}</div><b class="m-h2">Noch ein Geheimnis</b><p class="m-muted">Der Sitzplan wird am Festtag hier sichtbar.</p></div>`
+    : `<h1 class="m-h1">Wo sitze ich?</h1><div class="m-grid-d2"><div class="m-stack">${seatingBody(false)}</div></div>`),
+});
+add({
+  id: "upload", group: "web", title: "Upload (composer)", path: "/upload/<token>?location=aperitif", reqs: ["PHO-01", "PHO-02", "PHO-03", "PHO-05", "PHO-14", "PHO-15", "PHO-18", "ACS-04"],
+  variants: [["anon", "Via QR link (no account)"], ["signed", "Signed in"], ["partial", "Keepsakes closed"], ["closed", "Uploads closed"]],
+  shows: ["One composer: photo and/or text, then “Schnappschuss” (needs a photo) or “Andenken”. Try it: tap the photo area, type text.", "QR link: no site navigation, location preselected, optional name.", "Signed in: inside the site, the upload is linked to the account.", "Closed: a notice instead of the form."],
+  qs: [
+    { q: "Text limits: caption for snapshots and text for keepsakes?", p: "Proposal: caption 140 characters, keepsake text 1000 characters." },
+    { q: "If snapshots are open but keepsakes are closed (or the other way round), hide the closed button or show it disabled with a note?", p: "Proposal: show it disabled with “öffnet später”." },
+  ],
+  render: (v) => {
+    if (v === "closed") return site("upload", `<h1 class="m-h1">Hochladen</h1><div class="m-card m-empty"><div class="m-av lg">${ic("cam")}</div><b class="m-h2">Noch geschlossen</b><p class="m-muted">Am Festtag kannst du hier Schnappschüsse und Andenken teilen.</p></div>`);
+    if (v === "signed" || v === "partial") return site("upload", `<h1 class="m-h1">Hochladen</h1><div class="m-stack" style="max-width:520px">${composer("signed", v === "partial")}</div>`);
+    return `<div class="m-site"><header class="m-head"><div class="m-brand"><b>${EVENT.couple}</b><small>Fotos & Andenken teilen</small></div></header><div class="m-body"><div class="m-stack" style="max-width:520px;width:100%;margin-inline:auto">${composer("anon")}</div></div></div>`;
+  },
+});
+add({
+  id: "upload-done", group: "web", title: "Upload confirmation", path: "/upload/<token>", reqs: ["PHO-02", "MOD-01"],
+  variants: [["snap", "Snapshot"], ["keep", "Keepsake"]],
+  shows: ["Confirmation that says moderation comes next.", "One tap to contribute again."],
+  qs: [],
+  render: (v) => bare(`<div class="m-check" style="align-self:center">${ic("check")}</div>
+    <h1 class="m-h1" style="text-align:center">Danke! ${v === "keep" ? "Dein Andenken" : "Dein Schnappschuss"} ist angekommen.</h1>
+    <p class="m-muted" style="text-align:center">${v === "keep" ? "Es erscheint im Gästebuch, sobald es geprüft wurde." : "Er erscheint auf der Fotowand und in der Galerie, sobald er geprüft wurde."}</p>
+    <button class="m-btn block" data-go="upload">${ic("cam")} Noch einen Beitrag</button>`),
+});
+add({
+  id: "gallery", group: "web", title: "Gallery", path: "/gallery", reqs: ["PHO-10", "PHO-12", "PHO-19", "WEB-06"],
+  variants: [["open", "Published"], ["viewer", "Photo viewer"], ["closed", "Not yet published"]],
+  shows: ["Tab “Erinnerungen”: sub-tabs Galerie | Gästebuch.", "Albums by location as filter chips; captions under photos.", "Photo viewer: caption, contributor, “Herunterladen” in full resolution, swipe for the next photo."],
+  qs: [{ q: "May guests download photos in full resolution?", p: "Not in the spec. Proposal: a download button in the photo viewer." }],
+  render: (v) => site("gallery", `<div class="m-subtabs"><button class="on" data-go="gallery">Galerie</button><button data-go="keepsakes">Gästebuch</button></div>
+    ${v === "closed" ? `<div class="m-card m-empty"><div class="m-av lg">${ic("album")}</div><b class="m-h2">Die Galerie öffnet nach dem Fest</b><p class="m-muted">Bis dahin sammeln wir eure Schnappschüsse.</p></div>` : `
+    ${chips(["Alle", "Trauung", "Apéro", "Dinner", "Party"], [0])}
+    <div class="m-galgrid">${Array.from({ length: 15 }, (_, i) => `<div data-go="gallery" data-variant="viewer" style="cursor:pointer">${ph(i % 4 === 0 ? "«Prost!»" : "", "1/1")}</div>`).join("")}</div>`}
+    ${v === "viewer" ? `<div class="m-viewer"><div class="top"><button class="m-iconbtn" data-go="gallery" data-variant="open" aria-label="Schliessen" style="color:#fff">${ic("x")}</button><span class="sm" style="flex:1;color:#bbb">3 / 148 · Apéro</span><button class="m-btn soft sm">${ic("dl")} Herunterladen</button></div><div class="img">${ph("Foto in voller Grösse", "4/3")}</div><div class="cap"><b>Prost auf euch zwei!</b><span class="sm" style="color:#bbb">Tante Erika · 15:42</span></div></div>` : ""}`),
+});
+add({
+  id: "keepsakes", group: "web", title: "Keepsake page (Gästebuch)", path: "/keepsakes", reqs: ["PHO-15", "PHO-16"],
+  shows: ["Layout made for text and photos: cards in columns, the author's name or “Anonym”.", "No photo wall; the printable book is an admin export."],
+  qs: [{ q: "Is the keepsake page visible to all guests, or only to the couple?", p: "Spec: a page for guests. Mock: visible to all signed-in guests." }],
+  render: () => site("gallery", `<div class="m-subtabs"><button data-go="gallery">Galerie</button><button class="on" data-go="keepsakes">Gästebuch</button></div>
+    <div class="m-masonry">
+      <div class="m-card"><p class="m-quote">Liebe Lea, lieber Jonas – ihr zwei seid das beste Team, das ich kenne. Auf viele weitere Abenteuer!</p><span class="m-sig">– Tante Erika</span></div>
+      <div class="m-card" style="padding:0;overflow:hidden">${ph("Foto", "4/5", "border-radius:0")}<div style="padding:12px 14px"><p class="m-quote">Der schönste Apéro ever.</p><span class="m-sig">– Lukas</span></div></div>
+      <div class="m-card"><p class="m-quote">Danke für die Einladung! Die Torte war ein Traum.</p><span class="m-sig">– Anonym</span></div>
+      <div class="m-card" style="padding:0;overflow:hidden">${ph("Foto", "1/1", "border-radius:0")}<div style="padding:10px 14px"><span class="m-sig">– Familie Brunner</span></div></div>
+      <div class="m-card"><p class="m-quote">Ich weiss noch, wie ihr euch auf der WG-Party kennengelernt habt …</p><span class="m-sig">– Sara</span></div>
+    </div>
+    <button class="m-btn" data-go="upload" style="align-self:center">Etwas ins Gästebuch schreiben</button>`),
+});
+add({
+  id: "highscores", group: "web", title: "Games & rankings", path: "/games", reqs: ["WEB-05", "MG-09", "MG-10", "MG-13", "HUNT-06"],
+  shows: ["Leaderboard per minigame with the guest's own row highlighted, personal best and attempts.", "“Jetzt spielen” starts the minigame directly (MG-13).", "Treasure hunt ranking below."],
+  qs: [{ q: "Does “Jetzt spielen” from the website open the minigame full-screen without the game world?", p: "Mock: yes, a full-screen minigame; closing returns to this page." }],
+  render: () => site("more", `<h1 class="m-h1">Spiele & Ranglisten</h1>
+    ${chips(["Paar-Quiz", "Tortenturm", "Schatzsuche"], [0])}
+    <div class="m-grid-d2"><div class="m-card"><div class="m-row2"><b class="m-h2">Paar-Quiz</b><span class="m-live" style="color:var(--w-muted)"><i></i> live</span></div>
+      <div class="m-scroll"><table class="m-table"><thead><tr><th>#</th><th>Name</th><th>Punkte</th></tr></thead><tbody>
+      ${[["1", "Lukas Meier", "10/10"], ["2", "Sara Keller", "9/10"], ["3", "Tom Brunner", "9/10"], ["…", "", ""], ["7", "Erika Huber", "8/10"]].map(([r, n, s]) => `<tr class="${n === "Erika Huber" ? "me" : ""}"><td class="num">${r}</td><td>${n}</td><td class="num">${s}</td></tr>`).join("")}
+      </tbody></table></div></div>
+      <div class="m-stack"><div class="m-card flat"><span class="m-eyebrow">Deine Bestleistung</span><b class="m-h2">8 von 10 · Rang 7</b><span class="m-muted sm">3 Versuche gespielt</span><button class="m-btn" style="align-self:flex-start">${ic("play")} Jetzt spielen</button></div>
+      <div class="m-card"><b>Schatzsuche</b><div class="m-list">${[["1", "Familie Brunner", "8 / 8"], ["2", "Lukas Meier", "7 / 8"], ["12", "Erika Huber", "3 / 8"]].map(([r, n, s]) => `<div class="m-li"><span class="num" style="width:22px">${r}</span><div class="grow">${n}</div><span class="num">${s}</span></div>`).join("")}</div></div></div></div>`),
+});
+add({
+  id: "hunt-found", group: "web", title: "Treasure found (QR scan)", path: "/hunt/<token>", reqs: ["HUNT-03", "HUNT-04", "HUNT-07"],
+  variants: [["found", "Found"], ["again", "Already found"], ["outside", "Outside time window"]],
+  shows: ["What a guest sees after scanning a hidden QR code (after sign-in if needed).", "Progress and links to the game and the ranking."],
+  qs: [{ q: "Should the found screen give a hint for the next item?", p: "Spec: each item has a hint. Mock: shows the hint of one unfound item." }],
+  render: (v) => bare(v === "outside" ? `<div class="m-card m-empty"><div class="m-av lg">${ic("lock")}</div><b class="m-h2">Die Schatzsuche läuft am Partyabend</b><p class="m-muted">Ab 22:00 zählt dieser Fund. Merk dir das Versteck!</p></div>` : `
+    <div class="m-avatar-stage" style="aspect-ratio:1/1;max-width:180px;width:100%;align-self:center">${ph("Fundstück-Grafik", "1/1", "background-color:transparent")}</div>
+    <span class="m-eyebrow" style="text-align:center">${v === "again" ? "Schon gefunden" : "Gefunden!"}</span>
+    <h1 class="m-h1" style="text-align:center">Der goldene Ring</h1>
+    <p class="m-muted" style="text-align:center">${v === "again" ? "Den hast du bereits in deiner Sammlung." : "Du hast jetzt 3 von 8 Fundstücken."}</p>
+    <div class="m-card flat sm"><b>Tipp für das nächste</b>Wo die Musik spielt, liegt etwas Süsses.</div>
+    <button class="m-btn block" data-go="highscores">Zur Rangliste</button><button class="m-btn ghost block" data-go="game">In der Spielwelt ansehen</button>`),
+});
+
+/* ===== Admin ===== */
+add({
+  id: "admin-home", group: "admin", title: "Admin overview", path: "/admin", reqs: ["ROLE-07", "ACS-10", "PHO-18", "RSVP-05", "MOD-03"],
+  shows: ["Status at a glance: platform open/closed, uploads, RSVPs, moderation and companion requests.", "Admin shell: side navigation on desktop, scrollable chips on phones."],
+  qs: [{ q: "Should the admin area work fully on phones, or desktop-first with only moderation and switches tuned for phones?", p: "Mock: everything responsive, but tables are tuned for desktop." }],
+  render: () => admin("admin-home", `<h1 class="m-h1">Übersicht</h1>
+    <div class="m-kpis">
+      <div class="m-kpi alert"><span class="m-eyebrow">Plattform</span><b>Geschlossen</b><button class="m-btn sm" data-go="admin-settings">Öffnen …</button></div>
+      <div class="m-kpi"><span class="m-eyebrow">Rückmeldungen</span><b>84 / 120</b><span class="m-hint">36 ohne Antwort</span></div>
+      <div class="m-kpi"><span class="m-eyebrow">Moderation</span><b>12 offen</b><a class="sm" data-go="moderation">Prüfen</a></div>
+      <div class="m-kpi"><span class="m-eyebrow">Begleitpersonen</span><b>3 Anfragen</b><a class="sm" data-go="admin-rsvp">Entscheiden</a></div>
+    </div>
+    <div class="m-grid-d2"><div class="m-card"><b>Hochladen</b>
+      <div class="m-setrow"><div class="grow"><b class="sm">Schnappschüsse</b><span class="m-hint">Geschlossen</span></div>${sw(false)}</div>
+      <div class="m-setrow"><div class="grow"><b class="sm">Andenken</b><span class="m-hint">Geschlossen</span></div>${sw(false)}</div></div>
+      <div class="m-card"><b>Zuletzt</b><div class="m-list sm">
+        <div class="m-li"><div class="grow">Erika Huber hat zugesagt (3 Teile)</div><span class="m-hint">vor 2 Std</span></div>
+        <div class="m-li"><div class="grow">Begleitperson «Mia Huber» beantragt</div><span class="m-hint">vor 2 Std</span></div>
+        <div class="m-li"><div class="grow">12 Einladungen erstellt</div><span class="m-hint">gestern</span></div></div></div></div>`),
+});
+add({
+  id: "admin-invitations", group: "admin", title: "Invitations", path: "/admin/invitations", reqs: ["INV-01", "INV-04", "INV-05", "INV-06", "INV-14", "RSVP-02"],
+  variants: [["list", "List"], ["created", "Just created → print"]],
+  shows: ["Batch creation: one guest per line, invited parts, optional expiry.", "Codes are visible only right after creation, so the print view comes immediately.", "List with status filter, regenerate (replace) and revoke."],
+  qs: [{ q: "Set invited parts per batch only, or also edit them per invitation afterwards?", p: "Mock: per batch at creation, editable per row later." }],
+  render: (v) => admin("admin-invitations", v === "created" ? `
+    <div class="m-sethead"><div class="grow"><h1 class="m-h1">3 Einladungen erstellt</h1><span class="m-muted sm">Die Codes sind nur jetzt sichtbar. Drucke die Karten, bevor du die Seite verlässt.</span></div><button class="m-btn">Karten drucken</button></div>
+    <div class="m-cards-print">${[["Erika Huber", "K7QMX4"], ["Lukas Meier", "R4TW9C"], ["Familie Brunner", "H2PZ8E"]].map(([n, c]) => `<div class="m-printcard">${qr()}<b>${n}</b><span class="m-code" style="font-size:17px">${c}</span><span class="m-hint">zappaloo.ch/invite/${c}</span></div>`).join("")}</div>
+    <button class="m-btn ghost sm" style="align-self:flex-start" data-go="admin-invitations" data-variant="list">Fertig</button>` : `
+    <h1 class="m-h1">Einladungen</h1>
+    <div class="m-card"><b>Neue Einladungen</b>
+      ${field("Gäste (ein Name pro Zeile)", area("ai-names", "Erika Huber\nLukas Meier\nFamilie Brunner"))}
+      ${field("Eingeladen zu", chips(PARTS.map((p) => p[0]), [0, 1, 2, 3], true))}
+      <div class="m-row2">${field("Ablaufdatum (optional)", inp("ai-exp", "", 'type="date" style="width:auto"'))}</div>
+      <button class="m-btn" style="align-self:flex-start" data-go="admin-invitations" data-variant="created">3 Einladungen erstellen</button></div>
+    ${chips(["Alle 124", "Aktiv 36", "Eingelöst 84", "Abgelaufen 1", "Widerrufen 2", "Ersetzt 1"], [0])}
+    <div class="m-card" style="padding:4px 8px"><div class="m-scroll"><table class="m-table"><thead><tr><th>Gast</th><th>Teile</th><th>Status</th><th></th></tr></thead><tbody>
+      ${[["Erika Huber", "T A D P", "ok", "eingelöst"], ["Lukas Meier", "T A D P", "", "aktiv"], ["Familie Brunner", "A", "", "aktiv"], ["Peter Graf", "A D", "warn", "abgelaufen"], ["Nina Roth", "T A", "bad", "widerrufen"]].map(([n, p, c, s]) => `<tr><td>${n}</td><td class="m-muted">${p}</td><td><span class="m-tag ${c}">${s}</span></td><td style="text-align:right;white-space:nowrap">${s === "aktiv" || s === "abgelaufen" ? '<button class="m-btn soft sm">Neu erzeugen</button> ' : ""}${s === "aktiv" ? '<button class="m-btn ghost sm">Widerrufen</button>' : ""}</td></tr>`).join("")}
+    </tbody></table></div></div>`),
+});
+add({
+  id: "admin-users", group: "admin", title: "Accounts, roles & groups", path: "/admin/users", reqs: ["ACC-08", "ACC-10", "ROLE-01", "ROLE-06", "ROLE-09", "INV-11", "GRP-01", "PRES-14"],
+  shows: ["Accounts with role toggles (vip / staff / admin), staff capabilities and groups.", "Row actions: create a reset link, remove the profile photo or lines.", "Guest groups beside the table."],
+  qs: [],
+  render: () => admin("admin-users", `<div class="m-sethead"><h1 class="m-h1 grow">Konten & Rollen</h1><button class="m-btn sm">${ic("plus")} Konto anlegen</button></div>
+    <div class="m-grid-d2"><div class="m-card" style="padding:4px 8px"><div class="m-scroll"><table class="m-table"><thead><tr><th>Name</th><th>Rollen</th><th>Fähigkeiten</th><th></th></tr></thead><tbody>
+      ${[["Erika Huber", "erika.huber", [1, 0, 0], ""], ["Lea Muster", "lea", [1, 0, 1], ""], ["Ben (Technik)", "ben", [0, 1, 1], "Inhalte, Moderation"], ["Sara Keller", "sara.k", [1, 1, 0], "Moderation"]].map(([n, u, r, c]) => `<tr><td><b>${n}</b><br><span class="m-hint">${u}</span></td><td><div class="m-chips" data-multi style="gap:4px">${["vip", "staff", "admin"].map((x, i) => `<button class="m-chip ${r[i] ? "on" : ""}" style="min-height:26px;padding:0 9px;font-size:12px">${x}</button>`).join("")}</div></td><td class="sm m-muted">${c || "–"}</td><td><button class="m-btn soft sm">…</button></td></tr>`).join("")}
+    </tbody></table></div></div>
+    <div class="m-card"><div class="m-row2"><b class="grow" style="flex:1">Gästegruppen</b><button class="m-btn soft sm">${ic("plus")} Neu</button></div><div class="m-list">${[["Trauzeugen", 4], ["Familie", 22], ["Kinder", 6]].map(([g, n]) => `<div class="m-li"><div class="grow"><b>${g}</b></div><span class="m-hint">${n} Personen</span></div>`).join("")}</div></div></div>`),
+});
+add({
+  id: "admin-rsvp", group: "admin", title: "RSVP overview", path: "/admin/rsvp", reqs: ["RSVP-05", "RSVP-07", "RSVP-09", "SEC-11"],
+  shows: ["Totals per part and per menu; allergies (admins only); song wishes.", "CSV export and reminder email to guests who haven't answered.", "Companion requests to approve or reject."],
+  qs: [],
+  render: () => admin("admin-rsvp", `<div class="m-sethead"><h1 class="m-h1 grow">Rückmeldungen</h1><button class="m-btn soft sm">${ic("dl")} CSV</button><button class="m-btn sm">${ic("mail")} Erinnern (36)</button></div>
+    <div class="m-card strong"><b>Begleitpersonen-Anfragen (3)</b><div class="m-list">${[["Mia Huber", "von Erika Huber · «Meine Tochter, 6 Jahre»"], ["Noah Brunner", "von Familie Brunner"], ["Hans Graf", "von Peter Graf · «Mein Vater, ohne Handy»"]].map(([n, b]) => `<div class="m-li"><div class="grow"><b>${n}</b><span class="m-hint">${b}</span></div><button class="m-btn ghost sm">Ablehnen</button><button class="m-btn sm">Annehmen</button></div>`).join("")}</div></div>
+    <div class="m-grid-d2"><div class="m-card"><b>Pro Teil</b><div class="m-bars">${[["Trauung", 72, 6], ["Apéro", 96, 4], ["Dinner", 68, 8], ["Party", 74, 10]].map(([n, y, no]) => `<div class="m-bar-row"><span>${n}</span><div class="track"><i style="width:${y / 1.2}%;background:var(--w-dark)"></i><i style="width:${no / 1.2}%;background:var(--w-line)"></i></div><span class="num sm">${y} ja · ${no} nein</span></div>`).join("")}</div></div>
+    <div class="m-card"><b>Menüs (Dinner)</b><div class="m-bars">${[["Fleisch", 38], ["Vegetarisch", 22], ["Vegan", 3], ["Kinder", 5]].map(([n, c]) => `<div class="m-bar-row"><span>${n}</span><div class="track"><i style="width:${c * 2.4}%;background:var(--w-dark)"></i></div><span class="num sm">${c}</span></div>`).join("")}</div></div></div>
+    <div class="m-card"><div class="m-row2"><b>Allergien</b><span class="m-lock">${ic("lock")} nur Admins</span></div><div class="m-list sm">${[["Erika Huber", "Nüsse"], ["Tom Brunner", "Laktose"], ["Nina Roth", "Zöliakie (glutenfrei)"]].map(([n, a]) => `<div class="m-li"><div class="grow"><b>${n}</b></div><span>${a}</span></div>`).join("")}</div></div>`),
+});
+add({
+  id: "admin-seating", group: "admin", title: "Seating plan", path: "/admin/seating", reqs: ["PRES-05", "PRES-06", "PRES-07"],
+  shows: ["Tables (from the map's seat objects) with assigned guests; unassigned guests to drag onto tables.", "Companions follow their VIP by default.", "When the plan becomes visible to guests."],
+  qs: [{ q: "Is drag-and-drop enough, or do you also want an auto-fill (e.g. by group)?", p: "Mock: drag-and-drop only." }],
+  render: () => admin("admin-seating", `<div class="m-sethead"><h1 class="m-h1 grow">Sitzplan</h1></div>
+    <div class="m-card flat" style="flex-direction:row;flex-wrap:wrap;align-items:center;gap:12px"><b class="sm">Für Gäste sichtbar ab</b>${inp("as-vis", "2027-06-12T00:00", 'type="datetime-local" style="width:auto"')}</div>
+    <div class="m-card"><b>Noch ohne Platz (5)</b><div class="m-chips">${["Peter Graf", "Hans Graf ↳", "Nina Roth", "Tom Brunner", "Noah Brunner ↳"].map((n) => `<span class="m-chip">${n}</span>`).join("")}</div><span class="m-hint">↳ Begleitperson, folgt standardmässig der einladenden Person.</span></div>
+    <div class="m-grid-d3">${[["Edelweiss", 8, ["Erika Huber", "Mia Huber ↳", "Lukas Meier", "Sara Keller", "Tom B."]], ["Enzian", 8, ["Familie Brunner (4)", "Lea's Eltern (2)"]], ["Brauttisch", 6, ["Lea", "Jonas", "Trauzeugen (4)"]]].map(([t, c, g]) => `<div class="m-card"><div class="m-row2"><b class="grow" style="flex:1">${t}</b><span class="m-hint">${g.length >= 5 ? 5 : g.length} / ${c}</span></div><div class="m-list sm">${g.map((n) => `<div class="m-li" style="padding:7px 0">${n}</div>`).join("")}</div></div>`).join("")}</div>`),
+});
+add({
+  id: "admin-content", group: "admin", title: "Content editor", path: "/admin/content", reqs: ["CNT-05", "WEB-03", "LANG-02", "WEB-07"],
+  shows: ["Page list (order and visibility = navigation under “Mehr”).", "Markdown editor with live preview; publish is live at once.", "Programme as structured entries, not Markdown."],
+  qs: [{ q: "Need drafts (save without publishing), or is publish-on-save fine?", p: "Spec: changes are live at once. Mock: one “Veröffentlichen” button." }],
+  render: () => admin("admin-content", `<div class="m-sethead"><h1 class="m-h1 grow">Inhalte</h1><button class="m-btn soft sm">${ic("plus")} Seite</button></div>
+    ${chips(["Start", "Das Fest", "Programm", "Anreise & Parkieren", "Unterkunft", "FAQ", "Kontakt", "Warteseite"], [3])}
+    <div class="m-mdsplit"><div class="m-stack">${field("Titel", inp("ac-title", "Anreise & Parkieren"))}${area("ac-md", "# Anreise & Parkieren\n\n## Mit dem ÖV\nAb Bern HB mit der S-Bahn bis Muri bei Bern (12 Min.), dann 5 Minuten zu Fuss zur Kirche.\n\n## Mit dem Auto\nParkplätze hat es beim **Landgasthof Linde**.\n\n- Kirche Muri, Kirchstrasse 1\n- Landgasthof Linde, Dorfstrasse 20")}</div>
+    <div class="m-card"><span class="m-eyebrow">Vorschau</span><div class="m-md"><h1>Anreise & Parkieren</h1><h2>Mit dem ÖV</h2><p>Ab Bern HB mit der S-Bahn bis Muri bei Bern (12 Min.), dann 5 Minuten zu Fuss zur Kirche.</p><h2>Mit dem Auto</h2><p>Parkplätze hat es beim <b>Landgasthof Linde</b>.</p><ul><li>Kirche Muri, Kirchstrasse 1</li><li>Landgasthof Linde, Dorfstrasse 20</li></ul></div></div></div>
+    <div class="m-row2"><button class="m-btn">Veröffentlichen</button><span class="m-hint">Sprache: Deutsch (de) · In «Mehr» sichtbar ${sw(true)}</span></div>`),
+});
+add({
+  id: "admin-world", group: "admin", title: "Game world: objects & portals", path: "/admin/world", reqs: ["MAP-05", "MAP-08", "MAP-15", "GAME-05", "GAME-06"],
+  variants: [["objects", "Clickable objects"], ["import", "Maps & import"]],
+  shows: ["One tab per scene (map) of the event's Tiled world; the start scene is marked.", "Clickable objects of the scene, by their Tiled name and label; per object the admin picks the action: page as overlay, content item, dialogue, minigame or none. A preset from the Tiled file is shown and used until changed.", "Portals of the scene with their target scene and spawn point, read-only (set in Tiled); missing targets are warnings.", "Changes are live at once, without re-importing the map."],
+  qs: [],
+  render: (v) => {
+    const scenes = ["Kirche & Garten ★", "Landgasthof Linde", "Party-Saal"];
+    const acts = ["Seite: Programm", "Seite: Rückmeldung", "Seite: Hochladen", "Seite: Wo sitze ich?", "Seite: Anreise & Parkieren", "Inhalt: Geschichte der Kirche", "Dialog: Pfarrer", "Minispiel: Tortenturm", "Minispiel: Paar-Quiz", "– keine –"];
+    const sel = (on, id) => `<select class="m-input" id="${id}" style="min-height:36px;width:auto;max-width:100%">${acts.map((a) => `<option ${a === on ? "selected" : ""}>${a}</option>`).join("")}</select>`;
+    const rows = [["kirche", "Kirche", "Seite: Programm", true], ["linde", "Landgasthof Linde", "Seite: Wo sitze ich?", true], ["post", "Briefkasten", "Seite: Rückmeldung", true], ["fotobox", "Fotobox", "Seite: Hochladen", false], ["torte", "Torte", "Minispiel: Tortenturm", false], ["pfarrer", "Pfarrer (NPC)", "Dialog: Pfarrer", true], ["infotafel", "Infotafel", "– keine –", false]];
+    if (v === "import") return admin("admin-world", `<div class="m-sethead"><h1 class="m-h1 grow">Spielwelt</h1><button class="m-btn sm">${ic("plus")} Karte importieren</button></div>
+      <div class="m-subtabs"><button data-go="admin-world" data-variant="objects">Objekte & Portale</button><button class="on">Karten & Import</button></div>
+      <div class="m-card" style="padding:4px 8px"><div class="m-scroll"><table class="m-table"><thead><tr><th>Szene</th><th>Version</th><th>Teil</th><th>Hinweise</th><th></th></tr></thead><tbody>
+      ${[["Kirche & Garten ★", "v3 · heute", "Trauung, Apéro", ""], ["Landgasthof Linde", "v1 · 02.11.", "Dinner", '<span class="m-tag warn">1 Warnung</span>'], ["Party-Saal", "Vorlage", "Party", ""]].map(([n, ver, p, w]) => `<tr><td><b>${n}</b></td><td class="m-muted">${ver}</td><td>${p}</td><td>${w || "–"}</td><td style="text-align:right;white-space:nowrap"><button class="m-btn soft sm">Neue Version</button> <button class="m-btn ghost sm">Zurückrollen</button></td></tr>`).join("")}
+      </tbody></table></div></div>
+      <div class="m-card flat sm"><b>Warnung · Landgasthof Linde</b>Portal «zum-garten» zeigt auf den Spawnpunkt «tor», den es in «Kirche & Garten» nicht gibt.</div>`);
+    return admin("admin-world", `<div class="m-sethead"><h1 class="m-h1 grow">Spielwelt</h1></div>
+      <div class="m-subtabs"><button class="on">Objekte & Portale</button><button data-go="admin-world" data-variant="import">Karten & Import</button></div>
+      ${chips(scenes, [0])}
+      <div class="m-card" style="padding:4px 8px"><div class="m-row2" style="padding:10px 8px 0"><b class="grow" style="flex:1">Anklickbare Objekte (${rows.length})</b><span class="m-hint">aus der Tiled-Datei · Änderungen sind sofort live</span></div><div class="m-scroll"><table class="m-table"><thead><tr><th>Objekt</th><th>Aktion</th><th>Vorgabe aus Tiled</th></tr></thead><tbody>
+      ${rows.map(([id, l, a, preset]) => `<tr><td><b>${l}</b><br><span class="m-hint">${id}</span></td><td>${sel(a, "aw-" + id)}</td><td class="m-muted sm">${preset ? a : "–"}</td></tr>`).join("")}
+      </tbody></table></div></div>
+      <div class="m-card"><b>Portale (2)</b><div class="m-list">${[["zum-dinner", "→ Landgasthof Linde · Spawn «eingang»"], ["zur-party", "→ Party-Saal · Spawn «treppe»"]].map(([n, t]) => `<div class="m-li"><div class="grow"><b>${n}</b><span class="m-hint">${t}</span></div><span class="m-tag">in Tiled</span></div>`).join("")}</div><span class="m-hint">Portale verbinden Szenen; Ziel und Spawnpunkt kommen aus der Tiled-Datei. Im Spiel erscheinen sie als wackelnde Pfeile.</span></div>`);
+  },
+});
+add({
+  id: "admin-settings", group: "admin", title: "Settings & opening", path: "/admin/settings", reqs: ["ACS-10", "ACS-11", "ACS-13", "ACS-14", "PHO-18", "RSVP-04", "PRES-15", "CFG-02", "CFG-03", "SCR-04", "SCR-07", "PHO-14"],
+  shows: ["One page with sections.", "Opening the platform with an optional “Die Tür ist offen” email and an opening date (countdown).", "Uploads, RSVP deadline, event parts and menus.", "Waiting page texts with placeholders.", "Features; upload links and screen links (create, QR, revoke; per screen link: show the upload QR now and then).", "Guest profiles: the “Wie kennst du das Paar?” list, in its own section."],
+  qs: [{ q: "One long settings page, or split into tabs (Öffnung · Rückmeldung · Funktionen · Links)?", p: "Mock: one page with sections. Splitting is easy later." }],
+  render: () => admin("admin-settings", `<h1 class="m-h1">Einstellungen</h1>
+    <div class="m-card strong"><div class="m-row2"><b class="m-h2" style="flex:1">Plattform öffnen</b><span class="m-tag warn">Geschlossen</span></div>
+      <p class="m-muted sm">Bis zur Öffnung sehen Gäste nur die Warteseite und die Rückmeldung. Staff und Admins haben vollen Zugang.</p>
+      ${field("Angekündigtes Öffnungsdatum (für den Countdown)", inp("as-open", "2027-05-15T18:00", 'type="datetime-local" style="width:auto"'))}
+      <label class="m-row2 sm"><input type="checkbox" id="as-mail" checked> E-Mail «Die Tür ist offen» an alle Gäste mit Adresse senden (84)</label>
+      <button class="m-btn" style="align-self:flex-start">Jetzt öffnen</button></div>
+    <div class="m-grid-d2">
+      <div class="m-card"><b>Rückmeldung</b>${field("Frist", inp("as-dl", "2027-05-01", 'type="date" style="width:auto"'))}
+        <span class="m-eyebrow">Teile</span><div class="m-chips">${PARTS.map((p) => `<span class="m-chip">${p[0]}</span>`).join("")}<button class="m-chip">${ic("plus")}</button></div>
+        <span class="m-eyebrow">Menüs</span><div class="m-chips">${["Fleisch", "Vegetarisch", "Vegan", "Kindermenü"].map((p) => `<span class="m-chip">${p}</span>`).join("")}<button class="m-chip">${ic("plus")}</button></div></div>
+      <div class="m-card"><b>Funktionen</b>${[["Minigames", 1], ["Schnappschüsse", 1], ["Galerie", 1], ["Gästebuch", 1], ["Schatzsuche", 1], ["Eventscreen", 1], ["Galerie für Gäste freigegeben", 0]].map(([n, o]) => `<div class="m-setrow"><div class="grow"><b class="sm">${n}</b></div>${sw(o)}</div>`).join("")}</div>
+    </div>
+    <div class="m-card"><b>Warteseite-Texte</b><span class="m-hint">Platzhalter: {name}, {waitingCount}, {openingDate}</span>
+      ${field("Noch nicht geantwortet", area("as-w1", "Psst, {name} … hinter dieser Tür entsteht gerade etwas. Bevor sie aufgeht, verrate uns: Bist du dabei?", 'style="min-height:60px"'))}
+      ${field("Zugesagt", area("as-w2", "Danke, {name}, deine Zusage ist angekommen! … für dich und {waitingCount} weitere Gäste.", 'style="min-height:60px"'))}
+      ${field("Abgesagt", area("as-w3", "Schade, dass du nicht dabei sein kannst, {name} – danke für deine Antwort!", 'style="min-height:60px"'))}</div>
+    <div class="m-grid-d2">
+      <div class="m-card"><b>Upload-Links</b><div class="m-list">${[["Apéro", "aktiv"], ["Dinner", "aktiv"], ["Allgemein", "abgelaufen"]].map(([n, s]) => `<div class="m-li">${qr()}<div class="grow"><b>${n}</b><span class="m-hint">?location=${n.toLowerCase()}</span></div><span class="m-tag ${s === "aktiv" ? "ok" : "warn"}">${s}</span><button class="m-btn ghost sm">Widerrufen</button></div>`).join("")}</div><button class="m-btn soft sm" style="align-self:flex-start">${ic("plus")} Upload-Link</button></div>
+      <div class="m-card"><b>Eventscreen-Links</b><div class="m-list"><div class="m-li"><div class="grow"><b>Beamer Saal</b><span class="m-hint">Fotowand, Paar-Quiz · Wechsel alle 20 s</span></div><button class="m-btn ghost sm">Widerrufen</button></div></div><button class="m-btn soft sm" style="align-self:flex-start">${ic("plus")} Screen-Link</button>
+        <div class="m-setrow"><div class="grow"><b class="sm">Upload-QR einblenden</b><span class="m-hint">Link «Allgemein» · 15 s alle 2 Min, unten rechts</span></div>${sw(true)}</div></div>
+    </div>
+    <div class="m-card"><b>Gästeprofile</b><span class="m-hint">Auswahl für «Wie kennst du das Paar?» in Profil und Sprechblase.</span><div class="m-chips">${HOW.map((h) => `<span class="m-chip">${h}</span>`).join("")}<button class="m-chip">${ic("plus")}</button></div></div>`),
+});
+add({
+  id: "moderation", group: "admin", title: "Moderation (swipe)", path: "/moderation", reqs: ["MOD-01", "MOD-02", "MOD-03", "MOD-04", "MOD-05", "PHO-11"],
+  variants: [["queue", "Queue"], ["rejected", "Rejected list"]],
+  shows: ["Live demo: drag the card right to approve, left to reject; or use the buttons, or the arrow keys on desktop; Z undoes.", "Live pending counter; new items arrive without reloading.", "Rejected list with restore and delete."],
+  qs: [{ q: "Show the contributor's name and the upload time on the card?", p: "Mock: yes, both, plus type (Schnappschuss / Andenken) and location." }],
+  render: (v) => v === "rejected" ? `<div class="m-mod"><div class="m-modhead"><button class="m-iconbtn" data-go="moderation" data-variant="queue" style="background:#2c2c2e;color:#fff">${ic("back")}</button><b>Abgelehnt (4)</b></div>
+    <div style="padding:0 14px 20px;display:flex;flex-direction:column;gap:10px;overflow:auto">${[["Schnappschuss", "unscharf", "Anonym"], ["Andenken", "«test test»", "Anonym"], ["Schnappschuss", "Daumen vor der Linse", "Tom B."], ["Schnappschuss", "doppelt", "Lukas"]].map(([t, c, n]) => `<div style="background:#2a2a2c;border-radius:12px;padding:10px;display:flex;gap:10px;align-items:center"><div style="width:52px;height:52px;border-radius:8px;background:#3a3a3c;flex:none"></div><div style="flex:1;min-width:0;font-size:13px"><b>${t}</b><br><span style="color:#aaa">${c} · ${n}</span></div><button class="m-btn soft sm">Wiederherstellen</button><button class="m-btn danger sm" style="color:#ff8a78">Löschen</button></div>`).join("")}</div></div>`
+  : `<div class="m-mod" data-mod>
+    <div class="m-modhead"><button class="m-iconbtn" data-go="admin-home" style="background:#2c2c2e;color:#fff">${ic("back")}</button><b><span data-pending>12</span> offen</b><span class="m-live"><i></i> live</span><a style="margin-left:auto;color:#ddd;font-size:12.5px" data-go="moderation" data-variant="rejected">Abgelehnt (4)</a></div>
+    <div class="m-modarea"><div class="m-modtoast" hidden></div><div class="m-modcard" data-card></div></div>
+    <div class="m-modbtns"><button class="r no" data-decide="no" aria-label="Ablehnen">${ic("x")}</button><button class="u" data-undo disabled>${ic("undo")} Rückgängig</button><button class="r yes" data-decide="yes" aria-label="Freigeben">${ic("check")}</button></div>
+    <div class="m-keys">← ablehnen · → freigeben · Z rückgängig</div></div>`,
+});
+add({
+  id: "event-screen", group: "admin", title: "Event screen", path: "/screen/<token>", device: "tv", reqs: ["SCR-01", "SCR-02", "SCR-04", "SCR-05", "SCR-07", "HUNT-06"],
+  variants: [["wall", "Photo wall"], ["quiz", "Quiz leaderboard"], ["hunt", "Treasure hunt"]],
+  shows: ["Full-screen 16:9, no interaction; the panels rotate (progress bars at the bottom).", "Photo wall: the newest approved snapshot with caption and contributor (no name for anonymous uploads), otherwise a slideshow.", "Live leaderboards.", "Upload QR: no fixed column; it slides in bottom right now and then (here: 5 s every 10 s; proposal: 15 s every 2 minutes)."],
+  qs: [
+    { q: "Show the contributor's name under each photo on the wall?", p: "Mock: yes (“— Tante Erika”), “Anonym” omitted." },
+    { q: "Show an upload QR code on the screen, so guests can join in from the projector?", p: "Not in the spec. Proposal: yes, it costs little and drives uploads. It would link to a dedicated upload link." },
+    { n: 46, q: "Upload QR overlay: which upload link does it show, and how often?", p: "Proposal: the admin picks one upload link per screen link (or none = no QR); it shows for 15 s every 2 minutes, over every panel." },
+  ],
+  render: (v) => {
+    const dots = `<div class="m-tvdots">${["wall", "quiz", "hunt"].map((x) => `<i class="${x === v ? "on" : ""}"></i>`).join("")}</div>`;
+    const top = (t) => `<div class="m-tvtop"><span>${t}</span><small>${EVENT.couple} · 21:47</small></div>`;
+    const side = `<div class="m-tvqrpop off" data-qrpop><div class="m-tvqr">${qr()}Teile deinen Schnappschuss!</div></div>`;
+    if (v === "wall") return `<div class="m-tv">${top("Fotowand")}<div class="m-tvmain"><div class="m-tvphoto">${ph("neuester freigegebener Schnappschuss", "auto")}<div class="m-tvcap">Prost auf euch zwei!<small>— Tante Erika · Apéro</small></div></div></div>${side}${dots}</div>`;
+    const rows = v === "quiz"
+      ? [["1", "Lukas Meier", "10/10"], ["2", "Sara Keller", "9/10"], ["3", "Tom Brunner", "9/10"], ["4", "Erika Huber", "8/10"], ["5", "Nina Roth", "8/10"]]
+      : [["1", "Familie Brunner", "8 / 8"], ["2", "Lukas Meier", "7 / 8"], ["3", "Sara Keller", "6 / 8"], ["4", "Jonas' Team", "5 / 8"], ["5", "Peter Graf", "4 / 8"]];
+    return `<div class="m-tv">${top(v === "quiz" ? 'Paar-Quiz <span class="m-live" style="font-size:14px;margin-left:10px"><i></i> live</span>' : "Schatzsuche")}<div class="m-tvmain"><div class="m-tvboard" style="max-width:900px;margin-inline:auto">${rows.map(([r, n, s], i) => `<div class="m-tvrow ${v === "quiz" && i === 3 ? "up" : ""}"><span class="rk">${r}</span><span>${n}</span><span class="sc">${s}</span></div>`).join("")}</div></div>${side}${dots}</div>`;
+  },
+});
+
+/* ---------- global open questions ---------- */
+/* answers given on 2026-11-10, keyed by question number */
+const DECIDED = {
+  1: "Six separate character boxes.",
+  2: "Yes, offered at registration but optional (revised with Q45: grandparents without email); it serves news and “Passwort vergessen”, verified later in the profile.",
+  3: "Yes, suggest it from the guest name (editable).",
+  4: "Yes, sign in with username or email address.",
+  5: "As in the mock: Profil and Abmelden only.",
+  6: "No teaser.",
+  7: "Three-step wizard.",
+  8: "Not needed.",
+  9: "“Sieht nur das Organisationsteam” with a lock icon, on every person card (companions too).",
+  10: "Yes, edit and withdraw while pending.",
+  11: "Optional note field for the admin.",
+  12: "No confirmation email.",
+  13: "“Meine Beiträge” row in the profile.",
+  14: "No switch: the figure is always shown.",
+  15: "No skip.",
+  16: "Website leaves the game.",
+  17: "No buttons at the bottom (the bar at the top stays). Information also opens when the player clicks an object in the world: the avatar walks to it, stops in front of it, and the overlay opens (church → programme, restaurant → table finder). Clickable objects sparkle now and then at random (no wobble; wobbling arrows mark portals).",
+  18: "Yes, links stay in the overlay.",
+  19: "Yes, these five tabs.",
+  20: "As in the mock: editable welcome block plus fixed system cards.",
+  21: "Hide uninvited parts and say so in one line.",
+  22: "Plain Markdown for every page.",
+  23: "Only the table.",
+  24: "Caption 140 characters, keepsake text 1000 characters.",
+  25: "Show the closed button disabled with “deaktiviert”.",
+  26: "Yes, a download button in the photo viewer.",
+  27: "Visible to all signed-in guests.",
+  28: "Yes, full-screen minigame; closing returns to the page.",
+  29: "Yes, show the hint of one unfound item.",
+  30: "Everything responsive; tables tuned for desktop.",
+  31: "Per batch at creation, editable per row later.",
+  32: "Drag-and-drop only.",
+  33: "One “Veröffentlichen” button, live at once.",
+  34: "One page with sections.",
+  35: "Name and upload time, plus type and location.",
+  36: "Yes, name under the photo; omitted for anonymous uploads.",
+  37: "Not as a fixed column (takes too much space): an overlay in the bottom-right corner from time to time.",
+  38: "The mock style is fine. For the website the theme means colours and fonts; the pixel style of the game UI is decided later.",
+  39: "Calm website; pixel accents only in game-related places.",
+  40: "Clickable objects come from the event's Tiled world files (several scenes, connected by portals shown as wobbling arrows). A defined interface describes clickable objects and portals; in an admin view each scene lists its clickable objects, and the admin assigns each one to an overlay or a minigame.",
+  41: "Keep the bar at the top (Programm, Rückmeldung, Hochladen, Website — one click back to the website); only the bottom buttons go. No event-day “now / next” in the game world.",
+  42: "Each map has its own clickable objects, assigned individually (see Q40).",
+  43: "The sparkle plus a hint at the first entry.",
+  44: "Sign-in by email only with a verified address; a verified address belongs to one account only.",
+  45: "Email stays optional, also at registration (grandparents).",
+  46: "As proposed: one upload link per screen link (or none), 15 s every 2 minutes, bottom right.",
+  47: "Yes, drop it: PRES-04 becomes “Figures and name tags are shown only to signed-in users.”",
+};
+const GLOBAL_QS = [
+  { q: "Visual theme: when do we decide the look (colours, fonts, pixel style of the UI)?", p: "These mocks are deliberately neutral. theme.json fields are specified in stage 4." },
+  { q: "Does the website get its own pixel-art accents (headings, icons) or stay a calm, classic site?", p: "Proposal: calm website, pixel accents only in game-related places (countdown, game buttons, event screen)." },
+];
+
+/* ---------- pixel art: avatars ---------- */
+const SKIN = ["#f6d7bf", "#e8b894", "#c98e64", "#8d5a3b", "#5c3a24"];
+const HAIRC = ["#2b2220", "#6b4423", "#c48a3c", "#e7cf8a", "#a33a2a", "#9a9a9a"];
+const TOPC = ["#3d5a99", "#b6483c", "#3f7a52", "#d9a640", "#6b4d8a", "#f2f2ee", "#2a2a28"];
+const STYLES = ["Kurz", "Lang", "Dutt", "Glatze"];
+const CLOTHES = ["Hemd", "Kleid", "Anzug"];
+const ACCS = ["Keins", "Hut", "Brille", "Blume"];
+const AV = {
+  me: { skin: 1, hair: 2, style: 1, clothes: 1, top: 2, acc: 3 },
+  mia: { skin: 1, hair: 3, style: 2, clothes: 1, top: 3, acc: 0 },
+};
+function sprite(ctx, x, y, p, c, frame = 0) {
+  const R = (cx, cy, w, h, col) => { ctx.fillStyle = col; ctx.fillRect(Math.round(x + cx * p), Math.round(y + cy * p), Math.ceil(w * p), Math.ceil(h * p)); };
+  const hair = HAIRC[c.hair], skin = SKIN[c.skin], top = TOPC[c.top];
+  const dark = "#2a2420";
+  // legs
+  const l1 = frame ? 1 : 0;
+  if (CLOTHES[c.clothes] === "Kleid") { R(1, 9, 6, 1, top); R(2, 10, 1, 2 - l1, skin); R(5, 10, 1, 1 + l1, skin); }
+  else { const pants = CLOTHES[c.clothes] === "Anzug" ? "#2a2a2e" : "#4a4a52"; R(2, 10, 2, 2 - l1, pants); R(4, 10, 2, 1 + l1, pants); }
+  // body
+  R(1, 6, 6, 4, top); R(0, 6, 1, 3, top); R(7, 6, 1, 3, top); R(0, 9, 1, 1, skin); R(7, 9, 1, 1, skin);
+  if (CLOTHES[c.clothes] === "Anzug") { R(3, 6, 2, 3, "#f2f2ee"); R(3.5, 6.5, 1, 2, "#b6483c"); }
+  if (CLOTHES[c.clothes] === "Kleid") R(1, 8, 6, 1, top);
+  // head
+  R(1, 2, 6, 4, skin);
+  R(2, 4, 1, 1, dark); R(5, 4, 1, 1, dark);
+  const st = STYLES[c.style];
+  if (st !== "Glatze") { R(1, 1, 6, 2, hair); R(2, 0, 4, 1, hair); R(1, 3, 1, 1, hair); R(6, 3, 1, 1, hair); }
+  else { R(1, 2, 6, 1, skin); R(1, 2, 1, 2, hair); R(6, 2, 1, 2, hair); }
+  if (st === "Lang") { R(0, 2, 1, 5, hair); R(7, 2, 1, 5, hair); R(1, 4, 1, 2, hair); R(6, 4, 1, 2, hair); }
+  if (st === "Dutt") { R(3, -1, 2, 1, hair); }
+  const a = ACCS[c.acc];
+  if (a === "Hut") { R(0, 1, 8, 1, "#3a2c24"); R(2, -1, 4, 2, "#3a2c24"); R(2, 0.5, 4, 0.5, "#b6483c"); }
+  if (a === "Brille") { R(1.5, 3.7, 2, 1.5, dark); R(4.5, 3.7, 2, 1.5, dark); R(2, 4, 1, 1, "#cfe3f2"); R(5, 4, 1, 1, "#cfe3f2"); }
+  if (a === "Blume") { R(6, 0, 2, 2, "#f07a8a"); R(6.5, 0.5, 1, 1, "#ffe27a"); }
+}
+function paintAvatar(cv, cfg, p) {
+  cv.width = 10 * p; cv.height = 14 * p;
+  const ctx = cv.getContext("2d");
+  ctx.clearRect(0, 0, cv.width, cv.height);
+  ctx.fillStyle = "rgba(0,0,0,0.15)"; ctx.fillRect(2 * p, 12.6 * p, 6 * p, 1 * p);
+  sprite(ctx, p, 1.2 * p, p, cfg);
+}
+
+/* ---------- pixel art: QR placeholder ---------- */
+function paintQr(cv) {
+  const ctx = cv.getContext("2d"); const n = 25;
+  ctx.fillStyle = "#fff"; ctx.fillRect(0, 0, n, n); ctx.fillStyle = "#111";
+  let s = 11; const r = () => ((s = (s * 48271) % 2147483647) / 2147483647);
+  for (let y = 0; y < n; y++) for (let x = 0; x < n; x++) if (r() > 0.55) ctx.fillRect(x, y, 1, 1);
+  const finder = (fx, fy) => { ctx.fillStyle = "#fff"; ctx.fillRect(fx - 1, fy - 1, 9, 9); ctx.fillStyle = "#111"; ctx.fillRect(fx, fy, 7, 7); ctx.fillStyle = "#fff"; ctx.fillRect(fx + 1, fy + 1, 5, 5); ctx.fillStyle = "#111"; ctx.fillRect(fx + 2, fy + 2, 3, 3); };
+  finder(0, 0); finder(n - 7, 0); finder(0, n - 7);
+}
+
+/* ---------- game scene ---------- */
+const PEOPLE = [
+  ["Lukas Meier", "Freunde Bräutigam", "Bin für jeden Tanz zu haben!", "Studienkollege aus Fribourg", { skin: 0, hair: 1, style: 0, clothes: 2, top: 6, acc: 0 }],
+  ["Sara Keller", "Freunde Braut", "Frag mich nach dem Kuchen.", "Seit dem Kindergarten", { skin: 2, hair: 0, style: 1, clothes: 1, top: 1, acc: 0 }],
+  ["Tom Brunner", "Arbeit", "Neu in Bern – sag hallo!", "", { skin: 3, hair: 0, style: 0, clothes: 0, top: 0, acc: 2 }],
+  ["Nina Roth", "Familie Braut", "Cousine mit Kamera", "", { skin: 0, hair: 4, style: 2, clothes: 1, top: 4, acc: 3 }],
+  ["Peter Graf", "Familie Bräutigam", "Onkel Peter. Grillmeister.", "", { skin: 1, hair: 5, style: 3, clothes: 0, top: 3, acc: 1 }],
+  ["Mia Huber", "Begleitperson", "", "", { skin: 1, hair: 3, style: 2, clothes: 1, top: 3, acc: 0 }],
+];
+let anim = null;
+const cleanups = [];
+function stopAll() { if (anim) cancelAnimationFrame(anim); anim = null; while (cleanups.length) cleanups.pop()(); }
+
+function mountGame(root, isDesktop) {
+  const host = root.querySelector("[data-game]");
+  if (!host) return;
+  const cv = host.querySelector("canvas.m-map");
+  const paused = !!host.querySelector(".m-ovl");
+  const rsvpOpen = host.dataset.rsvp === "1";
+  const W = host.clientWidth, H = host.clientHeight;
+  const dpr = Math.min(2, window.devicePixelRatio || 1);
+  cv.width = W * dpr; cv.height = H * dpr;
+  const ctx = cv.getContext("2d");
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.imageSmoothingEnabled = false;
+  let seed = 7; const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
+  const T = 24;
+  const tiles = []; for (let y = 0; y < H / T + 1; y++) for (let x = 0; x < W / T + 1; x++) tiles.push([x * T, y * T, rnd()]);
+  const pathY = H * 0.6;
+  const ch = { x: Math.max(18, W * 0.08), y: H * 0.17, w: 132, h: 118 };
+  const doorX = ch.x + ch.w / 2;
+  const garden = { x: W * 0.44, y: H * 0.26, w: W * 0.5, h: H * 0.56 };
+  const tables = [[garden.x + garden.w * 0.25, garden.y + garden.h * 0.3], [garden.x + garden.w * 0.7, garden.y + garden.h * 0.25], [garden.x + garden.w * 0.5, garden.y + garden.h * 0.7]];
+  const rest = { x: Math.max(14, W * 0.06), y: pathY + 44, w: 128, h: 92 };
+  const restDoorX = rest.x + rest.w / 2;
+  const mailbox = { x: doorX + 40, y: ch.y + ch.h + 62 };
+  const booth = { x: garden.x + 8, y: Math.min(H - 30, garden.y + garden.h + 46) };
+  const sx = Math.min(W - 30, garden.x - 16);
+  const portal = { x: garden.x + garden.w * 0.8, y: H - 26 };
+  const cake = tables[2];
+  const keepOut = [
+    [ch.x - 30, ch.y - 50, ch.w + 60, ch.h + 90], [rest.x - 20, rest.y - 30, rest.w + 40, rest.h + 50],
+    [mailbox.x - 24, mailbox.y - 50, 48, 70], [booth.x - 30, booth.y - 60, 80, 80], [portal.x - 40, portal.y - 40, 80, 50],
+    [garden.x - 14, garden.y - 14, garden.w + 28, garden.h + 28], [0, pathY - 40, W, 80],
+  ];
+  const trees = [];
+  for (let i = 0; i < 14 && trees.length < 9; i++) {
+    const tx = rnd() * W, ty = H * 0.12 + rnd() * H * 0.85;
+    if (!keepOut.some(([x, y, w, h]) => tx > x && tx < x + w && ty > y && ty < y + h)) trees.push([tx, ty, 14 + rnd() * 8]);
+  }
+
+  const SP = 3;
+  const figs = PEOPLE.map((d) => ({ d, x: garden.x + 20 + rnd() * (garden.w - 60), y: garden.y + 30 + rnd() * (garden.h - 60), tx: 0, ty: 0, wait: rnd() * 2, f: 0 }));
+  figs.forEach((f) => { f.tx = f.x; f.ty = f.y; });
+  const me = { x: Math.min(garden.x - 30, restDoorX + 60), y: pathY, tx: null, ty: null, f: 0, moving: false };
+  // clickable world objects: tap → the avatar walks to the front spot → the overlay opens
+  const OBJ = [
+    { label: "Programm", hit: [ch.x, ch.y - 40, ch.w, ch.h + 40], front: [doorX, ch.y + ch.h + 18], go: ["game-overlay", "programme"] },
+    { label: "Wo sitze ich?", hit: [rest.x, rest.y - 26, rest.w, rest.h + 26], front: [restDoorX, rest.y - 16], go: ["game-table"] },
+    { label: "Rückmeldung", hit: [mailbox.x - 16, mailbox.y - 40, 32, 46], front: [mailbox.x, mailbox.y + 18], go: ["game-overlay", "rsvp"] },
+    { label: "Hochladen", hit: [booth.x - 20, booth.y - 48, 40, 54], front: [booth.x + 30, booth.y + 4], go: ["game-overlay", "upload"] },
+    { label: "Tortenturm (Minispiel)", hit: [cake[0] - 20, cake[1] - 22, 40, 36], front: [cake[0], cake[1] + 26], go: ["game-overlay", "minigame"] },
+    { label: "Zum Dinner", hit: [portal.x - 26, portal.y - 24, 52, 34], front: [portal.x, portal.y - 6], portal: "Landgasthof Linde · Dinner", go: [] },
+  ];
+  const t0 = performance.now();
+  OBJ.forEach((o) => { o.next = t0 + 800 + Math.random() * 3500; o.until = 0; });
+  const keys = new Set();
+  const bubble = host.querySelector(".m-bubble");
+  const prompt = host.querySelector(".m-gprompt");
+  const hint = host.querySelector("[data-hint]");
+  let pinned = null, shown = null, hintT = 5, pending = null;
+  if (hint) hint.textContent = isDesktop ? "Klicke auf Dinge, die funkeln – oder geh hin und drück Enter" : "Tippe auf Dinge, die funkeln";
+  const inRect = (x, y, [rx, ry, rw, rh]) => x > rx && x < rx + rw && y > ry && y < ry + rh;
+  const nearObj = () => OBJ.find((o) => Math.hypot(o.front[0] - me.x, o.front[1] - me.y) < 34);
+  const fade = host.querySelector(".m-gfade");
+  const open = (o) => {
+    if (!o.portal) { go(o.go[0], o.go[1]); return; }
+    fade.innerHTML = `Portal<br>→ ${o.portal}<br><small style="opacity:.6">(andere Szene · im Mock zurück zum Start)</small>`; fade.hidden = false; paused2 = true;
+    const tm = setTimeout(() => go("game"), 1200); cleanups.push(() => clearTimeout(tm));
+  };
+  let paused2 = false;
+
+  const blocked = (x, y) => inRect(x, y, [ch.x - 6, ch.y, ch.w + 12, ch.h + 6]) || inRect(x, y, [rest.x - 6, rest.y, rest.w + 12, rest.h + 6])
+    || inRect(x, y, [mailbox.x - 9, mailbox.y - 14, 18, 18]) || inRect(x, y, [booth.x - 15, booth.y - 20, 30, 24])
+    || x < 10 || x > W - 10 || y < 84 || y > H - 6;
+
+  if (!paused) {
+    cv.addEventListener("pointerdown", (e) => {
+      const r = cv.getBoundingClientRect();
+      const px = (e.clientX - r.left) * (W / r.width), py = (e.clientY - r.top) * (H / r.height);
+      hintT = 0;
+      if (Math.abs(px - me.x) < 14 && py > me.y - 40 && py < me.y + 4) { go("profile"); return; }
+      const o = OBJ.find((ob) => inRect(px, py, ob.hit));
+      if (o) { pending = o; me.tx = o.front[0]; me.ty = o.front[1]; return; }
+      pending = null; me.tx = px; me.ty = py;
+    });
+    const kd = (e) => {
+      if (["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].includes(e.key)) { keys.add(e.key); e.preventDefault(); me.tx = null; pending = null; hintT = 0; }
+      if (e.key === "Enter" || e.key === " ") { const o = nearObj(); if (o) { e.preventDefault(); open(o); } }
+    };
+    const ku = (e) => keys.delete(e.key);
+    window.addEventListener("keydown", kd); window.addEventListener("keyup", ku);
+    cleanups.push(() => { window.removeEventListener("keydown", kd); window.removeEventListener("keyup", ku); });
+    bubble.addEventListener("click", (e) => {
+      if (e.target.closest(".x")) { pinned = null; shown = null; bubble.hidden = true; return; }
+      if (shown) { pinned = shown; renderBubble(shown, true); }
+    });
+  }
+  function renderBubble(f, pin) {
+    const [n, b, g, h] = f.d;
+    bubble.innerHTML = `<div class="m-av">${n.split(" ").map((s) => s[0]).join("")}</div><div class="grow"><b>${n}</b><span><span class="m-tag">${b}</span></span>${g ? `<span>${g}</span>` : ""}${h ? `<span class="m-muted">${h}</span>` : ""}${pin ? "" : '<span class="m-hint">Tippen zum Anheften</span>'}</div>${pin ? '<button class="x" aria-label="Schliessen">×</button>' : ""}`;
+    bubble.hidden = false;
+  }
+
+  function drawTree(x, y, r) {
+    ctx.fillStyle = "rgba(0,0,0,0.15)"; ctx.beginPath(); ctx.ellipse(x, y + r * 0.9, r, r * 0.35, 0, 0, 7); ctx.fill();
+    ctx.fillStyle = "#6e5236"; ctx.fillRect(x - 3, y, 6, r * 0.8);
+    ctx.fillStyle = "#4f8445"; ctx.beginPath(); ctx.arc(x, y - r * 0.2, r, 0, 7); ctx.fill();
+    ctx.fillStyle = "#62994f"; ctx.beginPath(); ctx.arc(x - r * 0.3, y - r * 0.5, r * 0.55, 0, 7); ctx.fill();
+  }
+  function tag(x, y, text) {
+    ctx.font = "8px Silkscreen, monospace";
+    const w = ctx.measureText(text).width + 8;
+    ctx.fillStyle = "rgba(255,255,255,0.88)"; ctx.fillRect(Math.round(x - w / 2), Math.round(y - 11), Math.round(w), 11);
+    ctx.fillStyle = "#222"; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillText(text, Math.round(x), Math.round(y - 5));
+  }
+  function star(x, y, r, a) {
+    ctx.fillStyle = `rgba(255,248,200,${a})`;
+    ctx.fillRect(x - 1, y - r, 2, r * 2); ctx.fillRect(x - r, y - 1, r * 2, 2);
+    ctx.fillStyle = `rgba(255,255,255,${a})`; ctx.fillRect(x - 1, y - 1, 2, 2);
+  }
+  // shine: clickable objects sparkle for a moment at random intervals; portals wobble all the time
+  function shineOf(o, t) {
+    if (paused || o.portal) return 0;
+    if (t > o.next) { o.until = t + 900; o.next = t + 3500 + Math.random() * 5000; o.sp = [0, 1, 2].map(() => [Math.random(), Math.random()]); }
+    return t < o.until ? Math.sin(((o.until - t) / 900) * Math.PI) : 0;
+  }
+  function withShine(o, t, fn) {
+    const s = shineOf(o, t);
+    fn();
+    if (s) { const [x, y, w, h] = o.hit; o.sp.forEach(([a, b], i) => star(x + a * w, y + b * h * 0.8, 3 + 3 * s, s * (0.6 + i * 0.15))); }
+  }
+  function drawChurch(t) {
+    ctx.fillStyle = "rgba(0,0,0,0.18)"; ctx.fillRect(ch.x + 6, ch.y + ch.h - 4, ch.w, 10);
+    ctx.fillStyle = "#ece6da"; ctx.fillRect(ch.x, ch.y + 36, ch.w, ch.h - 36);
+    ctx.fillStyle = "#a0604f";
+    for (let i = 0; i < 6; i++) ctx.fillRect(ch.x - 6 + i * 6, ch.y + 36 - i * 6, ch.w + 12 - i * 12, 6);
+    ctx.fillStyle = "#ece6da"; ctx.fillRect(ch.x + 8, ch.y - 8, 28, 50);
+    ctx.fillStyle = "#8a5040"; for (let i = 0; i < 4; i++) ctx.fillRect(ch.x + 6 + i * 4, ch.y - 8 - i * 6, 32 - i * 8, 6);
+    ctx.fillStyle = "#d9b44a"; ctx.fillRect(ch.x + 20, ch.y - 40, 4, 12); ctx.fillRect(ch.x + 16, ch.y - 36, 12, 3);
+    ctx.fillStyle = "#8fb3d9"; ctx.fillRect(ch.x + 52, ch.y + 56, 14, 22); ctx.fillRect(ch.x + 96, ch.y + 56, 14, 22); ctx.fillRect(ch.x + 16, ch.y + 12, 12, 14);
+    ctx.fillStyle = "#6b4b34"; ctx.fillRect(doorX - 12, ch.y + ch.h - 30, 24, 30);
+    const glow = 0.35 + 0.25 * Math.sin(t / 400);
+    ctx.fillStyle = `rgba(255,230,140,${glow})`; ctx.fillRect(doorX - 16, ch.y + ch.h - 2, 32, 6);
+    tag(doorX, ch.y + ch.h - 34, "KIRCHE");
+  }
+  function drawRestaurant() {
+    const { x, y, w, h } = rest;
+    ctx.fillStyle = "rgba(0,0,0,0.18)"; ctx.fillRect(x + 6, y + 6, w, h);
+    ctx.fillStyle = "#b9704f"; ctx.fillRect(x, y, w, h);
+    ctx.fillStyle = "#a3603f"; for (let i = 0; i < h; i += 8) ctx.fillRect(x, y + i, w, 3);
+    ctx.fillStyle = "#8a4f34"; ctx.fillRect(x, y + h / 2 - 3, w, 6);
+    ctx.fillStyle = "#6e3e28"; ctx.fillRect(x + w * 0.72, y + 10, 12, 16);
+    ctx.fillStyle = "#e9d7aa"; ctx.fillRect(x + 8, y - 6, w - 16, 10);
+    ctx.fillStyle = "#3f7a52"; for (let i = 0; i < w - 16; i += 12) ctx.fillRect(x + 8 + i, y - 6, 6, 10);
+    ctx.fillStyle = "#6b4b34"; ctx.fillRect(restDoorX - 11, y - 2, 22, 8);
+    tag(restDoorX, y - 12, "LINDE");
+  }
+  function drawMailbox(t) {
+    const { x, y } = mailbox;
+    ctx.fillStyle = "rgba(0,0,0,0.18)"; ctx.beginPath(); ctx.ellipse(x, y + 2, 10, 4, 0, 0, 7); ctx.fill();
+    ctx.fillStyle = "#6e5236"; ctx.fillRect(x - 2, y - 14, 4, 16);
+    ctx.fillStyle = "#e3b23c"; ctx.fillRect(x - 10, y - 30, 20, 16); ctx.fillStyle = "#c99a2a"; ctx.fillRect(x - 10, y - 30, 20, 3);
+    ctx.fillStyle = "#3a2c24"; ctx.fillRect(x - 6, y - 24, 12, 2);
+    if (rsvpOpen) {
+      const by = y - 46 + Math.sin(t / 220) * 2;
+      ctx.fillStyle = "#c4422e"; ctx.beginPath(); ctx.arc(x + 8, by, 8, 0, 7); ctx.fill();
+      ctx.fillStyle = "#fff"; ctx.fillRect(x + 7, by - 5, 2, 6); ctx.fillRect(x + 7, by + 2, 2, 2);
+    }
+    tag(x, y + 16, "POST");
+  }
+  function drawBooth() {
+    const { x, y } = booth;
+    ctx.fillStyle = "rgba(0,0,0,0.18)"; ctx.beginPath(); ctx.ellipse(x, y + 2, 14, 5, 0, 0, 7); ctx.fill();
+    ctx.fillStyle = "#3a3a3a"; ctx.fillRect(x - 1, y - 22, 2, 24); ctx.fillRect(x - 9, y - 2, 2, 4); ctx.fillRect(x + 7, y - 2, 2, 4);
+    ctx.fillRect(x - 9, y - 4, 18, 2);
+    ctx.fillStyle = "#2a2a2e"; ctx.fillRect(x - 12, y - 40, 24, 18);
+    ctx.fillStyle = "#8fb3d9"; ctx.fillRect(x - 5, y - 36, 10, 10); ctx.fillStyle = "#cfe3f2"; ctx.fillRect(x - 3, y - 34, 3, 3);
+    ctx.fillStyle = "#c4422e"; ctx.fillRect(x + 6, y - 44, 5, 4);
+    tag(x, y + 16, "FOTOBOX");
+  }
+  function drawCake() {
+    const [x, y] = cake;
+    ctx.fillStyle = "#f3e3c8"; ctx.fillRect(x - 9, y - 8, 18, 6); ctx.fillRect(x - 6, y - 14, 12, 6); ctx.fillRect(x - 3, y - 19, 6, 5);
+    ctx.fillStyle = "#f0a0a8"; ctx.fillRect(x - 9, y - 3, 18, 2); ctx.fillRect(x - 6, y - 9, 12, 2); ctx.fillStyle = "#c4422e"; ctx.fillRect(x - 1, y - 22, 2, 3);
+  }
+  function drawPortal(t) {
+    const { x, y } = portal;
+    const wob = Math.sin(t / 180) * 4, tilt = Math.sin(t / 260) * 0.12;
+    ctx.save(); ctx.translate(x, y + wob); ctx.rotate(tilt);
+    ctx.fillStyle = "rgba(0,0,0,0.2)"; ctx.fillRect(-11, -9, 26, 14);
+    ctx.fillStyle = "#ffd23f"; ctx.fillRect(-7, -20, 14, 12); ctx.beginPath(); ctx.moveTo(-15, -8); ctx.lineTo(15, -8); ctx.lineTo(0, 6); ctx.closePath(); ctx.fill();
+    ctx.strokeStyle = "#5a4200"; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(-7, -20); ctx.lineTo(7, -20); ctx.lineTo(7, -8); ctx.lineTo(15, -8); ctx.lineTo(0, 6); ctx.lineTo(-15, -8); ctx.lineTo(-7, -8); ctx.closePath(); ctx.stroke();
+    ctx.restore();
+    tag(x, y - 26, "DINNER");
+  }
+  function draw(t) {
+    ctx.fillStyle = "#9cbf73"; ctx.fillRect(0, 0, W, H);
+    for (const [x, y, v] of tiles) {
+      if (v < 0.35) { ctx.fillStyle = "#91b667"; ctx.fillRect(x + 6, y + 8, 3, 3); ctx.fillRect(x + 15, y + 15, 3, 3); }
+      else if (v > 0.93) { ctx.fillStyle = "#f3e7a0"; ctx.fillRect(x + 10, y + 10, 3, 3); }
+    }
+    ctx.fillStyle = "#c8b385"; ctx.fillRect(0, pathY - 22, W, 44);
+    ctx.fillStyle = "#dcc9a0"; ctx.fillRect(0, pathY - 19, W, 38);
+    ctx.fillStyle = "#dcc9a0"; ctx.fillRect(doorX - 15, ch.y + ch.h, 30, pathY - ch.y - ch.h);
+    ctx.fillRect(restDoorX - 12, pathY, 24, rest.y - pathY);
+    ctx.fillStyle = "#b7d08f"; ctx.fillRect(garden.x, garden.y, garden.w, garden.h);
+    ctx.strokeStyle = "#5e8f4b"; ctx.lineWidth = 6; ctx.strokeRect(garden.x - 3, garden.y - 3, garden.w + 6, garden.h + 6);
+    ctx.setLineDash([5, 4]); ctx.strokeStyle = "rgba(40,40,40,0.45)"; ctx.lineWidth = 1.5; ctx.strokeRect(garden.x + 8, garden.y + 8, garden.w - 16, garden.h - 16); ctx.setLineDash([]);
+    ctx.font = "8px Silkscreen, monospace"; ctx.fillStyle = "rgba(40,40,40,0.6)"; ctx.textAlign = "left"; ctx.textBaseline = "top"; ctx.fillText("WANDER-BEREICH APÉRO", garden.x + 12, garden.y + 12);
+    for (const [x, y] of tables) {
+      ctx.fillStyle = "rgba(0,0,0,0.15)"; ctx.beginPath(); ctx.ellipse(x, y + 10, 20, 7, 0, 0, 7); ctx.fill();
+      ctx.fillStyle = "#f7f2e6"; ctx.beginPath(); ctx.arc(x, y, 16, 0, 7); ctx.fill();
+      ctx.fillStyle = "#e1d8c3"; ctx.fillRect(x - 2, y - 8, 4, 6); ctx.fillStyle = "#f0a0a8"; ctx.fillRect(x - 3, y - 11, 6, 4);
+    }
+    withShine(OBJ[4], t, drawCake);
+    drawPortal(t);
+    withShine(OBJ[0], t, () => drawChurch(t));
+    withShine(OBJ[1], t, drawRestaurant);
+    for (const tr of trees) drawTree(...tr);
+    withShine(OBJ[2], t, () => drawMailbox(t));
+    withShine(OBJ[3], t, drawBooth);
+
+    // figures sorted by y
+    const all = figs.map((f) => ({ ...f, isMe: false })).concat([{ ...me, isMe: true }]);
+    all.sort((a, b) => a.y - b.y);
+    for (const o of all) {
+      const cfg = o.isMe ? AV.me : o.d[4];
+      const fx = o.x - 4 * SP, fy = o.y - 12 * SP;
+      ctx.fillStyle = "rgba(0,0,0,0.18)"; ctx.beginPath(); ctx.ellipse(o.x, o.y, 11, 4, 0, 0, 7); ctx.fill();
+      sprite(ctx, fx, fy, SP, cfg, o.f);
+      if (o.isMe) { ctx.fillStyle = "#ffd23f"; ctx.beginPath(); ctx.moveTo(o.x - 5, fy - 10); ctx.lineTo(o.x + 5, fy - 10); ctx.lineTo(o.x, fy - 4); ctx.fill(); }
+      else tag(o.x, fy - 3, o.d[0].split(" ")[0].toUpperCase());
+    }
+  }
+  let last = performance.now();
+  function step(t) {
+    const dt = Math.min(0.05, (t - last) / 1000); last = t;
+    if (!paused && !paused2) {
+      let dx = 0, dy = 0;
+      if (keys.size) { if (keys.has("ArrowLeft")) dx -= 1; if (keys.has("ArrowRight")) dx += 1; if (keys.has("ArrowUp")) dy -= 1; if (keys.has("ArrowDown")) dy += 1; }
+      else if (me.tx != null) {
+        dx = me.tx - me.x; dy = me.ty - me.y;
+        if (Math.hypot(dx, dy) < 3) { me.tx = null; dx = dy = 0; if (pending) { const o = pending; pending = null; open(o); return; } }
+      }
+      const len = Math.hypot(dx, dy);
+      me.moving = len > 0;
+      if (len > 0) {
+        const v = 95 * dt; const nx = me.x + (dx / len) * v, ny = me.y + (dy / len) * v;
+        if (!blocked(nx, ny)) { me.x = nx; me.y = ny; } else if (!blocked(nx, me.y)) me.x = nx; else if (!blocked(me.x, ny)) me.y = ny; else { me.tx = null; pending = null; }
+        me.f = Math.floor(t / 160) % 2;
+      } else me.f = 0;
+      let near = null, nd = 52;
+      for (const f of figs) { const d = Math.hypot(f.x - me.x, f.y - me.y); if (d < nd) { nd = d; near = f; } }
+      for (const f of figs) {
+        if (f === near || f === pinned) { f.f = 0; continue; }
+        if (f.wait > 0) { f.wait -= dt; f.f = 0; continue; }
+        const ddx = f.tx - f.x, ddy = f.ty - f.y, dd = Math.hypot(ddx, ddy);
+        if (dd < 2) { f.wait = 1 + Math.random() * 3; f.tx = garden.x + 24 + Math.random() * (garden.w - 48); f.ty = garden.y + 40 + Math.random() * (garden.h - 56); continue; }
+        const v = 22 * dt; f.x += (ddx / dd) * v; f.y += (ddy / dd) * v; f.f = Math.floor(t / 220) % 2;
+      }
+      const target = pinned || near;
+      if (target !== shown) { shown = target; if (target) renderBubble(target, target === pinned); else bubble.hidden = true; }
+      if (shown) {
+        const bx = Math.max(isDesktop ? 124 : 110, Math.min(W - (isDesktop ? 124 : 110), shown.x));
+        bubble.style.left = bx + "px"; bubble.style.top = (shown.y - 12 * SP - 14) + "px";
+      }
+      // prompt: where the avatar is heading, or what it is standing in front of
+      const po = pending || (!me.moving && nearObj());
+      if (po && !shown) {
+        prompt.innerHTML = `${po.label}${!pending && isDesktop ? " <kbd>Enter</kbd>" : ""}`;
+        prompt.style.left = Math.max(70, Math.min(W - 70, po.hit[0] + po.hit[2] / 2)) + "px"; prompt.style.top = Math.max(30, po.hit[1] - 6) + "px";
+        prompt.hidden = false;
+      } else prompt.hidden = true;
+      if (hint) { hintT -= dt; hint.hidden = hintT <= 0; }
+    }
+    draw(t);
+    anim = requestAnimationFrame(step);
+  }
+  anim = requestAnimationFrame(step);
+}
+
+/* ---------- waiting page door scene ---------- */
+function mountDoor(root) {
+  const host = root.querySelector("[data-door]");
+  if (!host) return;
+  const cv = host.querySelector("canvas");
+  const W = host.clientWidth, H = host.clientHeight;
+  const dpr = Math.min(2, window.devicePixelRatio || 1);
+  cv.width = W * dpr; cv.height = H * dpr;
+  const ctx = cv.getContext("2d"); ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  const floorY = H * 0.56;
+  const dw = Math.min(150, W * 0.36), dh = dw * 1.6;
+  const dx = W / 2 - dw / 2, dy = floorY - dh;
+  let gap = 18, want = 18, glimpseUntil = 0;
+  const workers = [
+    { x: 0, sp: 18, cfg: { skin: 1, hair: 1, style: 0, clothes: 0, top: 1, acc: 1 }, carry: "plank" },
+    { x: 40, sp: -12, cfg: { skin: 3, hair: 0, style: 1, clothes: 0, top: 2, acc: 0 }, carry: "lantern" },
+    { x: 80, sp: 9, cfg: { skin: 0, hair: 2, style: 2, clothes: 1, top: 4, acc: 0 }, carry: "brush" },
+  ];
+  const motes = Array.from({ length: 14 }, () => ({ x: Math.random(), y: Math.random(), s: 0.3 + Math.random() * 0.7 }));
+  cv.addEventListener("pointerdown", (e) => {
+    const r = cv.getBoundingClientRect(); const x = (e.clientX - r.left) * (W / r.width), y = (e.clientY - r.top) * (H / r.height);
+    if (x > dx - 10 && x < dx + dw + 20 && y > dy && y < floorY) glimpseUntil = performance.now() + 3500;
+  });
+  const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  let last = performance.now();
+  function frame(t) {
+    const dt = Math.min(0.05, (t - last) / 1000); last = t;
+    want = t < glimpseUntil ? dw * 0.55 : 18;
+    gap += (want - gap) * Math.min(1, dt * 4);
+    ctx.fillStyle = "#2d2832"; ctx.fillRect(0, 0, W, H);
+    for (let y = 0; y < floorY; y += 14) for (let x = (y / 14) % 2 ? -14 : 0; x < W; x += 28) { ctx.fillStyle = (x + y) % 3 ? "#352f3b" : "#3a3340"; ctx.fillRect(x + 1, y + 1, 26, 12); }
+    ctx.fillStyle = "#24202a"; ctx.fillRect(0, floorY, W, H - floorY);
+    for (let x = 0; x < W; x += 40) { ctx.fillStyle = "#2a2530"; ctx.fillRect(x, floorY + 4, 38, H); }
+    // interior
+    const gx = dx + dw - gap;
+    ctx.save(); ctx.beginPath(); ctx.rect(gx, dy, gap, dh); ctx.clip();
+    ctx.fillStyle = "#ffd27a"; ctx.fillRect(gx, dy, gap, dh);
+    ctx.fillStyle = "#f6b95c"; ctx.fillRect(gx, floorY - 22, gap, 22);
+    ctx.fillStyle = "#e9a24a"; for (let i = 0; i < 6; i++) ctx.fillRect(dx + i * 30 + ((t / 50) % 30), dy + 16, 4, 4);
+    for (const w of workers) {
+      if (!reduce) { w.x += w.sp * dt; if (w.x > dw + 20) w.x = -40; if (w.x < -40) w.x = dw + 20; }
+      const px = dx + w.x, py = floorY - 40;
+      sprite(ctx, px, py, 3, w.cfg, Math.floor(t / 200) % 2);
+      ctx.fillStyle = "#8a5a32";
+      if (w.carry === "plank") ctx.fillRect(px - 16, py + 16, 56, 5);
+      if (w.carry === "lantern") { ctx.fillStyle = "#ff8c3a"; ctx.fillRect(px + 24, py + 12, 8, 10); ctx.fillStyle = "#fff2b0"; ctx.fillRect(px + 26, py + 14, 4, 6); }
+      if (w.carry === "brush") { ctx.fillRect(px + 24, py + 4, 3, 18); ctx.fillStyle = "#b6483c"; ctx.fillRect(px + 23, py, 5, 6); }
+    }
+    ctx.restore();
+    // light wedge
+    const lg = ctx.createLinearGradient(0, floorY, 0, H);
+    lg.addColorStop(0, "rgba(255,210,122,0.45)"); lg.addColorStop(1, "rgba(255,210,122,0)");
+    ctx.fillStyle = lg; ctx.beginPath(); ctx.moveTo(gx, floorY); ctx.lineTo(gx + gap, floorY); ctx.lineTo(gx + gap * 2.6 + 50, H); ctx.lineTo(gx - 20, H); ctx.closePath(); ctx.fill();
+    for (const m of motes) { if (!reduce) { m.y -= dt * 0.03 * m.s; if (m.y < 0) m.y = 1; } ctx.fillStyle = `rgba(255,230,160,${0.5 * m.s})`; ctx.fillRect(gx - 10 + m.x * (gap + 60), floorY - 40 + m.y * (H - floorY + 30), 2, 2); }
+    // frame + door
+    ctx.fillStyle = "#4a3a32"; ctx.fillRect(dx - 10, dy - 12, dw + 20, 12); ctx.fillRect(dx - 10, dy, 10, dh); ctx.fillRect(dx + dw, dy, 10, dh);
+    ctx.fillStyle = "#7a5638"; ctx.fillRect(dx, dy, dw - gap, dh);
+    ctx.fillStyle = "#6a4a30"; for (let i = 1; i < 4; i++) ctx.fillRect(dx + ((dw - gap) / 4) * i, dy, 2, dh);
+    ctx.fillStyle = "#5a3e28"; ctx.fillRect(dx, dy + dh * 0.2, dw - gap, 5); ctx.fillRect(dx, dy + dh * 0.75, dw - gap, 5);
+    ctx.fillStyle = "#e8c35a"; ctx.fillRect(dx + dw - gap - 14, dy + dh * 0.5, 6, 6);
+    ctx.fillStyle = "rgba(255,210,122,0.35)"; ctx.fillRect(gx - 2, dy, 2, dh);
+    // sign
+    ctx.fillStyle = "#e9d7aa"; ctx.fillRect(dx + dw / 2 - 44, dy - 44, 88, 22); ctx.fillStyle = "#4a3a32";
+    ctx.font = "9px Silkscreen, monospace"; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillText("BAUSTELLE", dx + dw / 2, dy - 33);
+    anim = requestAnimationFrame(frame);
+  }
+  anim = requestAnimationFrame(frame);
+  const cd = host.querySelector("[data-countdown]");
+  if (cd) {
+    const target = Date.now() + ((12 * 24 + 4) * 60 + 31) * 60000 + 9000;
+    const tick = () => { let s = Math.max(0, Math.floor((target - Date.now()) / 1000)); const d = Math.floor(s / 86400); s -= d * 86400; const h = Math.floor(s / 3600); s -= h * 3600; const m = Math.floor(s / 60); s -= m * 60; const b = cd.querySelectorAll("b"); [d, h, m, s].forEach((v, i) => (b[i].textContent = String(v).padStart(2, "0"))); };
+    const iv = setInterval(tick, 1000); cleanups.push(() => clearInterval(iv));
+  }
+}
+
+/* ---------- avatar editor ---------- */
+function mountAvatars(root) {
+  root.querySelectorAll("canvas[data-avatar]").forEach((cv) => { if (cv.dataset.avatar !== "edit") paintAvatar(cv, AV.me, +cv.dataset.p); });
+  const ed = root.querySelector("[data-aveditor]");
+  if (!ed) return;
+  let who = "me";
+  const prev = root.querySelector('canvas[data-avatar="edit"]');
+  const rows = [
+    ["Vorlagen", "tpl"], ["Hautfarbe", "skin", SKIN], ["Frisur", "style", STYLES], ["Haarfarbe", "hair", HAIRC], ["Kleidung", "clothes", CLOTHES], ["Farbe", "top", TOPC], ["Accessoire", "acc", ACCS],
+  ];
+  const TPL = [
+    { skin: 0, hair: 1, style: 0, clothes: 2, top: 6, acc: 0 }, { skin: 2, hair: 0, style: 1, clothes: 1, top: 1, acc: 3 },
+    { skin: 3, hair: 0, style: 2, clothes: 0, top: 2, acc: 2 }, { skin: 1, hair: 5, style: 3, clothes: 0, top: 3, acc: 1 },
+  ];
+  function paint() {
+    const c = AV[who === "me" ? "me" : "mia"];
+    paintAvatar(prev, c, +prev.dataset.p);
+    ed.innerHTML = rows.map(([label, key, opts]) => {
+      if (key === "tpl") return `<div class="m-field"><span>${label}</span><div class="m-templates">${TPL.map((_, i) => `<canvas data-tpl="${i}" width="50" height="70"></canvas>`).join("")}</div></div>`;
+      const isColor = opts[0].startsWith("#");
+      return `<div class="m-field"><span>${label}</span>${isColor
+        ? `<div class="m-swatches">${opts.map((o, i) => `<button type="button" class="m-sw ${c[key] === i ? "on" : ""}" style="background:${o}" data-k="${key}" data-v="${i}" aria-label="${label} ${i + 1}"></button>`).join("")}</div>`
+        : `<div class="m-chips">${opts.map((o, i) => `<button type="button" class="m-chip ${c[key] === i ? "on" : ""}" data-k="${key}" data-v="${i}">${o}</button>`).join("")}</div>`}</div>`;
+    }).join("");
+    ed.querySelectorAll("canvas[data-tpl]").forEach((t) => paintAvatar(t, TPL[+t.dataset.tpl], 5));
+  }
+  ed.addEventListener("click", (e) => {
+    const c = AV[who === "me" ? "me" : "mia"];
+    const b = e.target.closest("[data-k]");
+    if (b) { c[b.dataset.k] = +b.dataset.v; paint(); return; }
+    const t = e.target.closest("[data-tpl]");
+    if (t) { Object.assign(c, TPL[+t.dataset.tpl]); paint(); }
+  });
+  root.querySelector("[data-avrandom]").addEventListener("click", () => {
+    const c = AV[who === "me" ? "me" : "mia"];
+    c.skin = rint(SKIN.length); c.hair = rint(HAIRC.length); c.style = rint(STYLES.length); c.clothes = rint(CLOTHES.length); c.top = rint(TOPC.length); c.acc = rint(ACCS.length); paint();
+  });
+  root.querySelector("[data-avperson]").addEventListener("click", (e) => { const b = e.target.closest("button"); if (!b) return; who = b.textContent === "Du" ? "me" : "mia"; setTimeout(paint, 0); });
+  paint();
+}
+const rint = (n) => Math.floor(Math.random() * n);
+
+/* ---------- upload composer ---------- */
+function mountComposer(root) {
+  const slot = root.querySelector("[data-photo]");
+  if (!slot) return;
+  const text = root.querySelector("#up-text"), count = root.querySelector("[data-count]");
+  const snap = root.querySelector('[data-up="snap"]'), keep = root.querySelector('[data-up="keep"]');
+  let has = false;
+  const upd = () => { const t = text.value.trim().length; count.textContent = text.value.length; snap.disabled = !has || text.value.length > 140; keep.disabled = keep.hasAttribute("data-closed") || (!has && !t); };
+  slot.addEventListener("click", (e) => {
+    if (e.target.closest(".rm")) { has = false; slot.className = "m-composer-photo"; slot.innerHTML = `${ic("cam")}<b>Foto aufnehmen oder auswählen</b><span class="m-hint">Kamera oder Galerie · JPEG, PNG, HEIC</span>`; upd(); return; }
+    if (has) return;
+    has = true; slot.className = "m-composer-photo has"; slot.innerHTML = `${ph("Vorschau · IMG_2041.HEIC", "auto")}<button class="m-btn soft sm rm">Entfernen</button>`; upd();
+  });
+  text.addEventListener("input", upd);
+  snap.addEventListener("click", () => go("upload-done", "snap"));
+  keep.addEventListener("click", () => go("upload-done", "keep"));
+}
+
+/* ---------- invitation code boxes ---------- */
+function mountOtp(root) {
+  const box = root.querySelector("[data-otp]");
+  if (!box) return;
+  const ins = [...box.querySelectorAll("input")];
+  const fill = (from, text) => { const cs = text.toUpperCase().replace(/[^A-Z0-9]/g, "").split(""); let i = from; for (const c of cs) { if (i >= ins.length) break; ins[i++].value = c; } ins[Math.min(i, ins.length - 1)].focus(); };
+  ins.forEach((el, i) => {
+    el.addEventListener("input", () => { const v = el.value; el.value = ""; if (v) fill(i, v); });
+    el.addEventListener("keydown", (e) => { if (e.key === "Backspace" && !el.value && i > 0) { ins[i - 1].value = ""; ins[i - 1].focus(); e.preventDefault(); } });
+    el.addEventListener("paste", (e) => { e.preventDefault(); fill(i, (e.clipboardData || window.clipboardData).getData("text")); });
+  });
+}
+/* ---------- event screen: upload QR pops in now and then ---------- */
+function mountQrPop(root) {
+  const el = root.querySelector("[data-qrpop]");
+  if (!el) return;
+  let on = false;
+  const flip = () => { on = !on; el.classList.toggle("off", !on); t = setTimeout(flip, on ? 5000 : 5000); };
+  let t = setTimeout(flip, 1500);
+  cleanups.push(() => clearTimeout(t));
+}
+
+/* ---------- moderation ---------- */
+function mountModeration(root) {
+  const host = root.querySelector("[data-mod]");
+  if (!host) return;
+  const items = [
+    { type: "Schnappschuss", cap: "Prost auf euch zwei!", name: "Tante Erika", loc: "Apéro", t: "15:42", photo: true },
+    { type: "Andenken", cap: "Liebe Lea, lieber Jonas – ihr zwei seid das beste Team, das ich kenne. Auf viele weitere Abenteuer!", name: "Anonym", loc: "Dinner", t: "19:05", photo: false },
+    { type: "Schnappschuss", cap: "", name: "Lukas Meier", loc: "Trauung", t: "14:31", photo: true },
+    { type: "Andenken", cap: "Der schönste Apéro ever.", name: "Sara Keller", loc: "Apéro", t: "16:10", photo: true },
+  ];
+  let idx = 0, pending = 12; const hist = [];
+  const card = host.querySelector("[data-card]"), pend = host.querySelector("[data-pending]"), undo = host.querySelector("[data-undo]"), toast = host.querySelector(".m-modtoast");
+  function show() {
+    const it = items[idx % items.length];
+    card.style.transform = ""; card.classList.remove("drag");
+    card.innerHTML = `<span class="stamp yes">Frei</span><span class="stamp no">Nein</span>${it.photo ? ph("Foto", "4/3", "border-radius:0") : ""}<div class="meta"><div class="m-row2"><span class="m-tag">${it.type}</span><span class="m-tag line">${it.loc}</span><span class="m-hint" style="margin-left:auto">${it.t}</span></div>${it.cap ? `<p class="${it.photo ? "" : "m-quote"}">${it.cap}</p>` : '<p class="m-muted sm">ohne Text</p>'}<span class="m-sig">– ${it.name}</span></div>`;
+    pend.textContent = pending; undo.disabled = !hist.length;
+  }
+  let tt;
+  function flash(msg) { toast.textContent = msg; toast.hidden = false; clearTimeout(tt); tt = setTimeout(() => (toast.hidden = true), 1200); }
+  function decide(yes) {
+    card.style.transform = `translateX(${yes ? 460 : -460}px) rotate(${yes ? 18 : -18}deg)`;
+    hist.push(idx); idx++; pending = Math.max(0, pending - 1);
+    flash(yes ? "Freigegeben" : "Abgelehnt");
+    setTimeout(show, 200);
+  }
+  function back() { if (!hist.length) return; idx = hist.pop(); pending++; flash("Rückgängig gemacht"); show(); }
+  host.querySelectorAll("[data-decide]").forEach((b) => b.addEventListener("click", () => decide(b.dataset.decide === "yes")));
+  undo.addEventListener("click", back);
+  let sx = null, dxv = 0;
+  card.addEventListener("pointerdown", (e) => { sx = e.clientX; dxv = 0; card.classList.add("drag"); card.setPointerCapture(e.pointerId); });
+  card.addEventListener("pointermove", (e) => {
+    if (sx == null) return;
+    const scale = card.getBoundingClientRect().width / card.offsetWidth || 1;
+    dxv = (e.clientX - sx) / scale;
+    card.style.transform = `translateX(${dxv}px) rotate(${dxv / 20}deg)`;
+    card.querySelector(".stamp.yes").style.opacity = Math.max(0, Math.min(1, dxv / 90));
+    card.querySelector(".stamp.no").style.opacity = Math.max(0, Math.min(1, -dxv / 90));
+  });
+  const end = () => { if (sx == null) return; sx = null; card.classList.remove("drag"); if (Math.abs(dxv) > 90) decide(dxv > 0); else show(); };
+  card.addEventListener("pointerup", end); card.addEventListener("pointercancel", end);
+  const kd = (e) => { if (e.key === "ArrowRight") { decide(true); e.preventDefault(); } else if (e.key === "ArrowLeft") { decide(false); e.preventDefault(); } else if (e.key === "z" || e.key === "Z") back(); };
+  window.addEventListener("keydown", kd); cleanups.push(() => window.removeEventListener("keydown", kd));
+  const iv = setInterval(() => { pending++; pend.textContent = pending; }, 9000); cleanups.push(() => clearInterval(iv));
+  show();
+}
+
+/* ---------- generic in-mock interactions ---------- */
+function wire(root) {
+  root.addEventListener("click", (e) => {
+    const s = e.target.closest("[data-seg] > button");
+    if (s) { s.parentElement.querySelectorAll("button").forEach((b) => b.classList.toggle("on", b === s)); return; }
+    const c1 = e.target.closest("[data-single] > button");
+    if (c1) { c1.parentElement.querySelectorAll("button").forEach((b) => b.classList.toggle("on", b === c1)); }
+    const cm = e.target.closest("[data-multi] > button");
+    if (cm) { cm.classList.toggle("on"); return; }
+    const t = e.target.closest("[data-switch]");
+    if (t) { t.classList.toggle("on"); return; }
+    const g = e.target.closest("[data-go]");
+    if (g) { e.preventDefault(); go(g.dataset.go, g.dataset.variant); }
+  });
+}
+
+/* ---------- chrome / routing ---------- */
+const DEV = { phone: { w: 390, h: 844, url: true }, desktop: { w: 1280, h: 800, url: true }, tv: { w: 1280, h: 720, url: false } };
+let device = "phone";
+try { device = localStorage.getItem("zm-device") || "phone"; } catch (_) {}
+const variant = {};
+const byId = (id) => S.find((s) => s.id === id);
+let qn = 0; S.forEach((s) => s.qs.forEach((q) => { if (!q.n) q.n = ++qn; })); GLOBAL_QS.forEach((q) => { if (!q.n) q.n = ++qn; });
+[...S.flatMap((s) => s.qs), ...GLOBAL_QS].forEach((q) => { q.a = DECIDED[q.n]; });
+const openQs = (list) => list.filter((q) => !q.a).length;
+
+function go(id, v) {
+  if (v) variant[id] = v;
+  if (location.hash.slice(1) === id) render(); else location.hash = id;
+}
+
+function buildIndex() {
+  const ix = document.getElementById("index");
+  const total = S.reduce((a, s) => a + openQs(s.qs), 0) + openQs(GLOBAL_QS);
+  ix.innerHTML = `<div class="brand"><b>Zappaloo UX Mocks</b><span>Mid-fi wireframes from the spec · ${S.length} screens</span></div>
+    <div class="ix-top"><a class="ix-link" href="#overview">Overview</a><a class="ix-link" href="#questions">Questions & decisions <small class="qn">${total}</small></a></div>
+    ${GROUPS.map(([g, l]) => `<div class="ix-group"><h3>${l}</h3>${S.filter((s) => s.group === g).map((s) => `<a class="ix-link" href="#${s.id}" data-ix="${s.id}">${s.title}${openQs(s.qs) ? `<small class="qn">${openQs(s.qs)}</small>` : ""}</a>`).join("")}</div>`).join("")}`;
+  const pick = document.getElementById("pick");
+  pick.innerHTML = `<option value="overview">Overview</option><option value="questions">Questions & decisions (${total} open)</option>` + GROUPS.map(([g, l]) => `<optgroup label="${l}">${S.filter((s) => s.group === g).map((s) => `<option value="${s.id}">${s.title}</option>`).join("")}</optgroup>`).join("");
+  pick.addEventListener("change", () => (location.hash = pick.value));
+}
+
+function renderDoc(id) {
+  const tb = document.getElementById("toolbar"), vp = document.getElementById("viewport"), notes = document.getElementById("notes");
+  notes.hidden = true;
+  if (id === "questions") {
+    tb.innerHTML = `<h1>Questions & decisions</h1>`;
+    const openList = [...S.flatMap((s) => s.qs.map((q) => [s, q])), ...GLOBAL_QS.map((q) => [null, q])].filter(([, q]) => !q.a).sort((a, b) => a[1].n - b[1].n);
+    vp.innerHTML = `<div class="doc"><p>Where the spec is silent, the mocks make a proposal and the question is listed here. Answer by number, e.g. “Q3: yes”. Green cards are decided (2026-11-10) and the mocks show the decision; yellow cards are still open.</p>
+      <h2>Still open (${openList.length})</h2>
+      <div class="qlist"><div class="qgroup">${openList.map(([s, q]) => qHtml(q, s)).join("")}</div></div>
+      <h2>All questions by screen</h2>
+      <div class="qlist">${S.filter((s) => s.qs.length).map((s) => `<div class="qgroup"><h3><a href="#${s.id}">${s.title}</a></h3>${s.qs.map((q) => qHtml(q)).join("")}</div>`).join("")}
+      <div class="qgroup"><h3>General</h3>${GLOBAL_QS.map((q) => qHtml(q)).join("")}</div></div></div>`;
+  } else {
+    tb.innerHTML = `<h1>Overview</h1>`;
+    vp.innerHTML = `<div class="doc">
+      <p>Clickable mid-fi mocks of the guest website, the game shell and the admin area, drawn from spec/sw-architecture.md. Texts are German like the UI; names and places are made-up sample data. Pixel art is placeholder only (the real art comes from the project owner).</p>
+      <p>Switch between phone and desktop in the toolbar. Dashed chips above a screen switch its states. Buttons inside the mocks lead to the next screen. Every screen lists its requirement IDs and the open questions it raises.</p>
+      <div class="flows">${GROUPS.map(([g, l]) => `<div class="flow"><h3>${l}</h3><div class="chain">${S.filter((s) => s.group === g).map((s, i) => `${i ? "<span>→</span>" : ""}<a href="#${s.id}">${s.title}</a>`).join("")}</div></div>`).join("")}</div>
+      <h2>Key flows to try</h2>
+      <div class="flows">
+        <div class="flow"><h3>Invitation card to RSVP</h3><p>QR code on the card, account, waiting page, three RSVP steps, back to the waiting page.</p><div class="chain"><a href="#invite-register">Start</a></div></div>
+        <div class="flow"><h3>First entry into the world</h3><p>Avatar (with companion), say hello, then walk around and meet guests.</p><div class="chain"><a href="#onboard-avatar">Start</a></div></div>
+        <div class="flow"><h3>QR upload at the party</h3><p>Scan, photo and text, snapshot or keepsake, confirmation; then moderation and the event screen.</p><div class="chain"><a href="#upload">Start</a><span>·</span><a href="#moderation">Moderation</a><span>·</span><a href="#event-screen">Screen</a></div></div>
+      </div></div>`;
+  }
+}
+const qHtml = (q, s) => q.a
+  ? `<div class="q done"><b>Q${q.n}. ${q.q}</b><span class="dec">✓ ${q.a}</span></div>`
+  : `<div class="q">${q.n > 39 ? '<span class="new">new</span>' : ""}<b>Q${q.n}. ${q.q}</b><em>${q.p}</em>${s ? `<a class="sm" href="#${s.id}">${s.title}</a>` : ""}</div>`;
+
+function render() {
+  stopAll();
+  const id = location.hash.slice(1) || "overview";
+  document.querySelectorAll("[data-ix]").forEach((a) => a.classList.toggle("on", a.dataset.ix === id));
+  document.querySelectorAll('.ix-top a').forEach((a) => a.classList.toggle("on", a.getAttribute("href") === "#" + id));
+  const pick = document.getElementById("pick"); if (pick) pick.value = id;
+  const s = byId(id);
+  if (!s) return renderDoc(id === "questions" ? "questions" : "overview");
+  const v = variant[id] || (s.variants ? s.variants[0][0] : null);
+  const dkey = s.device || device;
+  const d = DEV[dkey];
+  const i = S.indexOf(s);
+  const prev = S[i - 1], next = S[i + 1];
+  const tb = document.getElementById("toolbar");
+  tb.innerHTML = `<h1>${s.title}</h1>
+    <div class="seg" role="group" aria-label="Device">${["phone", "desktop"].map((k) => `<button type="button" data-dev="${k}" class="${dkey === k ? "on" : ""}" ${s.device ? "disabled" : ""}>${k === "phone" ? "Phone" : "Desktop"}</button>`).join("")}</div>
+    <div class="pager">${prev ? `<a href="#${prev.id}" title="${prev.title}">← Prev</a>` : ""}${next ? `<a href="#${next.id}" title="${next.title}">Next →</a>` : ""}</div>
+    ${s.variants ? `<div class="variants" style="flex-basis:100%">State: ${s.variants.map(([k, l]) => `<button type="button" data-var="${k}" class="${k === v ? "on" : ""}">${l}</button>`).join("")}</div>` : ""}`;
+  tb.querySelectorAll("[data-dev]").forEach((b) => b.addEventListener("click", () => { device = b.dataset.dev; try { localStorage.setItem("zm-device", device); } catch (_) {} render(); }));
+  tb.querySelectorAll("[data-var]").forEach((b) => b.addEventListener("click", () => { variant[id] = b.dataset.var; render(); }));
+
+  const vp = document.getElementById("viewport");
+  const urlH = d.url ? 34 : 0;
+  const pad = dkey === "phone" ? 12 : dkey === "tv" ? 14 : 0;
+  const outerW = d.w + pad * 2, outerH = d.h + pad * 2;
+  vp.innerHTML = `<div class="dev-wrap"><div class="dev ${dkey}" style="width:${outerW}px;height:${outerH}px">${d.url ? `<div class="dev-url"><i></i><i></i><span>zappaloo.ch${s.path.replace(/ .*/, "")}</span></div>` : ""}<div class="screen" id="screen" style="height:${d.h - urlH}px">${s.render(v)}</div></div></div>`;
+  fit(outerW, outerH);
+
+  const notes = document.getElementById("notes");
+  notes.hidden = false;
+  notes.innerHTML = `<div class="nsec"><h2>${s.title}</h2><div class="path">${s.path}</div></div>
+    <div class="nsec"><h4>Requirements</h4><div class="reqs">${s.reqs.map((r) => `<span class="req">${r}</span>`).join("")}</div></div>
+    <div class="nsec"><h4>What it shows</h4><ul>${s.shows.map((x) => `<li>${x}</li>`).join("")}</ul></div>
+    ${openQs(s.qs) ? `<div class="nsec"><h4>Open questions</h4>${s.qs.filter((q) => !q.a).map((q) => qHtml(q)).join("")}</div>` : ""}
+    ${s.qs.length - openQs(s.qs) ? `<div class="nsec"><h4>Decided</h4>${s.qs.filter((q) => q.a).map((q) => qHtml(q)).join("")}</div>` : ""}`;
+
+  const scr = document.getElementById("screen");
+  scr.querySelectorAll("canvas[data-qr]").forEach(paintQr);
+  wire(scr);
+  requestAnimationFrame(() => {
+    mountGame(scr, dkey !== "phone");
+    mountDoor(scr);
+    mountAvatars(scr);
+    mountComposer(scr);
+    mountModeration(scr);
+    mountOtp(scr);
+    mountQrPop(scr);
+  });
+}
+function fit(w, h) {
+  const vp = document.getElementById("viewport");
+  const wrap = vp.querySelector(".dev-wrap"), dev = vp.querySelector(".dev");
+  if (!wrap) return;
+  const avail = vp.clientWidth;
+  const s = Math.min(1, avail / w);
+  dev.style.transform = `scale(${s})`;
+  wrap.style.width = w * s + "px"; wrap.style.height = h * s + "px";
+}
+let rt;
+window.addEventListener("resize", () => { clearTimeout(rt); rt = setTimeout(() => { const d = document.querySelector(".dev"); if (d) fit(parseFloat(d.style.width), parseFloat(d.style.height)); }, 80); });
+window.addEventListener("hashchange", render);
+buildIndex();
+render();
+})();
+</script>

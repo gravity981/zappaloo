@@ -275,25 +275,25 @@ Examples:
 - Buildings with further information.
 - Items with easter eggs.
 - Transitions to other areas.
-- Portals to minigames and website pages.
+- Clickable objects that open website pages or start minigames.
 
-Objects are defined through generic types:
+Objects are defined through generic types (decided 2026-11-10):
 
-- `portal`: leads to another map (at a spawn point), to a minigame, or to a website page (e.g. contribution upload, gallery, programme).
-- `dialog`: shows a dialogue, e.g. an NPC conversation.
-- `information`: shows a content item that is shared with the website.
+- `portal`: leads to another map (scene) at a spawn point. Shown as a wobbling arrow.
+- `clickable`: an object the player can activate, e.g. a building, an NPC, a sign or an item. Its action is one of: open a website page as an overlay (e.g. programme, RSVP, upload, table finder), show a content item shared with the website, show a dialogue (e.g. an NPC conversation), or start a minigame.
 - `decoration`: no interaction.
 
-The concrete behaviour is determined by the object type and its configuration. Objects are placed in Tiled, including their configuration such as portal targets (see section 14).
+The world of an event is drawn in Tiled and can consist of several maps (scenes). Objects and portals are placed in Tiled (see section 14). A clickable object's action can be preset in Tiled, and the admin assigns or changes it per map in the admin view "Spielwelt" without re-importing the map (MAP-15). Portal targets come only from Tiled.
 
-The game experience is the core of Zappaloo. A portal to a website page therefore does not leave the game: the page opens as an overlay above the paused game, and closing it returns the player to the same position.
+The game experience is the core of Zappaloo. A clickable object that opens a website page therefore does not leave the game: the page opens as an overlay above the paused game, and closing it returns the player to the same position.
 
 ## 3.5 Entering the Game, Controls and Movement
 
 **Entering the game.** Once the platform is open (10.4), the guest lands in the game world after sign-in (see 2.1). Many guests come mainly for practical information, so the game must not get in their way:
 
 - On the first entry into the world, the guest is guided: create the avatar (also for their accompanying persons), optionally add a profile photo and greeting, answer the RSVP in an overlay if not yet done, then play freely.
-- A bar with buttons for Programme, RSVP, Upload and Website is always visible above the game. While the RSVP is open, it shows a badge. On the event day, the Programme button shows what is happening now and next (5.5).
+- A bar with buttons for Programme, RSVP, Upload and Website is always visible at the top of the game; "Website" returns to the classic website with one click. While the RSVP is open, the RSVP button shows a badge. There are no other buttons on top of the game, and the game shows no event-day "now / next" (decided 2026-11-10).
+- Everything else is reached through the world itself: clickable objects sparkle briefly at random intervals. Clicking or tapping one walks the avatar to the object's approach point, and when it arrives the object's action runs, e.g. the church opens the programme, the restaurant the table finder. On desktop, Enter or Space activates the object in front of the avatar. Portals to other maps are shown as wobbling arrows. Clicking the own avatar opens the profile. At the first entry, a hint ("Tippe auf Dinge, die funkeln") is shown until the first object is used.
 - The game is playable quickly on a phone: the first map loads within 5 seconds over 4G, and other maps load in the background.
 
 **Movement.** Avatars move smoothly in all directions, not tile by tile.
@@ -310,7 +310,7 @@ The world is populated by the figures of all attending guests:
 - Every VIP — including accompanying persons — who has accepted the RSVP for at least one event part and has an avatar appears as a figure with a name tag. Guests who haven't answered or have declined don't appear. That is also a reason to answer the RSVP.
 - Figures walk around randomly inside the wander areas of the maps that belong to the event parts the guest attends. An aperitif-only guest walks in the garden, not in the banquet hall.
 - The signed-in user sees their own controllable avatar, not their own figure.
-- Figures and name tags are shown only to signed-in users. Guests can hide their own figure.
+- Figures and name tags are shown only to signed-in users. A guest cannot hide their own figure (decided 2026-11-10).
 - Each device only simulates the figures on the current map. Random movement doesn't need to match across devices.
 
 Accompanying persons (see 7.4) have no account, but they do get a figure: their VIP selects or designs its avatar in the avatar editor.
@@ -344,16 +344,20 @@ A treasure hunt connects the real venue with the game world:
 | GAME-02 | Avatars move smoothly in all directions and collide with the collision areas of the map; the camera follows the player's avatar. | Must |
 | GAME-03 | The world consists of several maps (areas) that are connected in a logical order via portals. | Must |
 | GAME-04 | The whole world can be explored before the event; by default no area is locked or unlocked automatically according to the real schedule. | Must |
-| GAME-05 | Interactive objects are defined through the generic types `portal`, `dialog`, `information` and `decoration`; their behaviour is determined by type and configuration. | Must |
-| GAME-06 | Interacting with an object can open a dialogue or show a content item shared with the website; a portal leads to another map at a spawn point, starts a minigame, or opens a website page. | Must |
+| GAME-05 | Map objects are defined through the generic types `portal` (leads to another map at a spawn point), `clickable` (an object the player can activate) and `decoration` (no interaction); their behaviour is determined by type and configuration (14.2, decided 2026-11-10). | Must |
+| GAME-06 | Activating a clickable object runs its action: open a website page as an overlay, show a content item shared with the website, show a dialogue, or start a minigame; a portal leads to another map at a spawn point. | Must |
 | GAME-07 | Controls and display of the game world are suitable for the intended screen sizes (desktop and smartphone). | Must |
 | GAME-08 | The world can contain easter eggs (hidden interactive objects with special content). | Could |
 | GAME-09 | On desktop, the avatar is controlled with the arrow keys; pressing two keys moves diagonally. | Must |
 | GAME-10 | On touch devices, the avatar is controlled by tap-to-move: the client computes a path around the map's collision areas and the avatar walks it. | Must |
-| GAME-11 | A portal to a website page opens the page as an overlay above the paused game; closing the overlay returns the player to the game at the same position. | Must |
+| GAME-11 | A website page opened from the game (button bar or clickable object) opens the page as an overlay above the paused game; closing the overlay returns the player to the game at the same position. | Must |
 | GAME-12 | Once the platform is open (ACS-10), the user lands in the game world after sign-in; the classic website is reachable with one click from the game; direct links (upload links, links in emails) open their target page directly. | Must |
 | GAME-13 | On the first entry into the world, the guest is guided: create the avatar (also for their accompanying persons), optionally add a profile photo and greeting, answer the RSVP in an overlay if not yet done, then play freely. | Must |
-| GAME-14 | A bar with buttons for Programme, RSVP, Upload and Website is always visible above the game; while the guest's RSVP is open, it shows a badge. | Must |
+| GAME-14 | A bar with buttons for Programme, RSVP, Upload and Website is always visible at the top of the game; while the guest's RSVP is open, it shows a badge; there are no further buttons on top of the game. | Must |
+| GAME-15 | Clickable objects sparkle briefly at random intervals, and portals are shown as wobbling arrows, so players see what they can use (decided 2026-11-10). | Must |
+| GAME-16 | Clicking or tapping a clickable object or a portal walks the avatar to the object's approach point; when it arrives, the action runs; on desktop, Enter or Space activates the object the avatar stands in front of. | Must |
+| GAME-17 | On the first entry, a short hint ("Tippe auf Dinge, die funkeln") is shown until the player activates the first object. | Should |
+| GAME-18 | Clicking or tapping the player's own avatar opens the profile as an overlay. | Could |
 | MP-01 | ~~Each map is a separate multiplayer room managed by the server.~~ (withdrawn: no multiplayer, see 3.3) | – |
 | MP-02 | ~~Players on the same map see the avatars and movements of the other players in that room in near real time.~~ (withdrawn: no multiplayer, see 3.3) | – |
 | MP-03 | ~~Passing through a portal moves the player from the current room to the target map's room at the configured target spawn point.~~ (withdrawn: no multiplayer; portals are covered by GAME-06) | – |
@@ -363,7 +367,7 @@ A treasure hunt connects the real venue with the game world:
 | PRES-01 | Every VIP (including accompanying persons) who has accepted the RSVP for at least one event part and has an avatar appears in the game world as a figure with a name tag; others don't appear; the signed-in user sees their own avatar instead of their own figure. | Must |
 | PRES-02 | Figures walk around randomly inside the wander areas (`type = wander`) of the maps whose `eventPart` the guest attends, respecting the map's collision areas. | Must |
 | PRES-03 | ~~When a guest is online, their static figure is replaced by their live avatar.~~ (withdrawn: no multiplayer, see 3.3) | – |
-| PRES-04 | Figures and name tags are shown only to signed-in users; a guest can hide their own figure in the profile. | Must |
+| PRES-04 | Figures and name tags are shown only to signed-in users (decided 2026-11-10: a guest cannot hide their own figure). | Must |
 | PRES-05 | The admin assigns guests to tables; seats are map objects (`type = seat`, property `table`) and the server places each guest on a free seat of their table. | Must |
 | PRES-06 | A signed-in guest can look up their table on the website ("Where do I sit?") and in the game world; the admin sets when the seating plan becomes visible. | Must |
 | PRES-07 | Accompanying persons get a figure whose avatar their VIP selects or designs in the avatar editor; they occupy seats in the seating plan, by default at their VIP's table (the admin can override this), and appear in the table finder. | Must |
@@ -525,9 +529,9 @@ Minigames gain most value when many guests play at the same time in the same roo
 | MG-08 | Each attempt starts with a server-issued attempt ID and a result is accepted only for an open attempt of the same user; the server checks each minigame's plausibility profile (e.g. maximum score, minimum duration); quiz answers are checked on the server and correct answers are never sent to the client. | Must |
 | MG-09 | Highscores are managed centrally: best results of the event, personal best, current rank, top players per minigame and number of attempts. | Must |
 | MG-10 | Leaderboards can be shown inside a minigame, on the website, as an information panel in the game world, and as personal statistics. | Should |
-| MG-11 | Minigames, including their content, ship with the platform code and are registered under a unique `minigameId`; portals reference a minigame by its `minigameId`. | Must |
+| MG-11 | Minigames, including their content, ship with the platform code and are registered under a unique `minigameId`; clickable objects reference a minigame by its `minigameId`. | Must |
 | MG-12 | Minigames are playable on smartphones with touch input. | Should |
-| MG-13 | A minigame can be started directly from a website page or a QR code, without walking to its portal in the game world. | Should |
+| MG-13 | A minigame can be started directly from a website page or a QR code, without walking to its object in the game world. | Should |
 
 ---
 
@@ -582,6 +586,8 @@ The event screen is a full-screen page for a projector or TV at the venue. It ne
 
 The admin chooses the active panels and the rotation interval. Only approved content appears on the screen (see 13.7).
 
+Per screen link, the admin can choose an upload link. Its QR code then appears in the bottom-right corner for 15 seconds every 2 minutes, over every panel, so guests can join in from the projector without the QR code taking space permanently (decided 2026-11-10).
+
 The screen is opened through a read-only screen link created by the admin. The link grants access to the event screen only and can be revoked. This avoids leaving an admin session open on a venue laptop.
 
 ## 5.5 Now and Next
@@ -589,7 +595,8 @@ The screen is opened through a read-only screen link created by the admin. The l
 On the event day, guests mostly want to know: what is happening now, and what comes next?
 
 - The schedule is stored as structured entries: start time, optional end time, title, place, and optionally the map that represents the place.
-- On the event day, the website start page and the Programme button above the game show the current and the next entry, in the event's timezone.
+- On the event day, the website start page shows the current and the next entry, in the event's timezone. The game world shows no "now / next" (decided 2026-11-10).
+- The programme shows a guest only the event parts they are invited to, with one line saying so.
 - Changes to the schedule by the admin are visible immediately, e.g. when dinner starts later.
 - If an entry has a map, "Go there" opens that map in the game.
 
@@ -603,8 +610,9 @@ On the event day, guests mostly want to know: what is happening now, and what co
 | WEB-04 | The website renders and is usable on smartphones, tablets and desktop computers. | Must |
 | WEB-05 | The website offers highscore and minigame overview pages. | Should |
 | WEB-06 | The website gives access to contribution upload, the gallery and the keepsake page (see PHO). | Must |
-| WEB-07 | The schedule is stored as structured entries (start time, optional end time, title, place, optional map); on the event day, the website start page and the Programme button above the game show the current and the next entry in the event's timezone, and schedule changes are visible immediately. | Should |
+| WEB-07 | The schedule is stored as structured entries (start time, optional end time, title, place, optional map); on the event day, the website start page shows the current and the next entry in the event's timezone, and schedule changes are visible immediately; the game world shows no "now / next" (decided 2026-11-10). | Should |
 | WEB-08 | A schedule entry with a map offers "Go there", which opens that map in the game. | Could |
+| WEB-09 | The programme shows a guest only the event parts they are invited to, with one line saying so. | Should |
 | LANG-01 | All UI strings are externalised through an i18n framework; German is the default and initially only UI language. | Must |
 | LANG-02 | Every content item (pages, dialogues, NPC texts, information objects) is stored with a language key; initially only German (`de`) is maintained. | Must |
 | SCR-01 | A full-screen event screen rotates between the active panels (photo wall, minigame leaderboards, treasure hunt ranking) without user interaction; the admin chooses the panels and the rotation interval. | Must |
@@ -613,6 +621,7 @@ On the event day, guests mostly want to know: what is happening now, and what co
 | SCR-04 | The event screen is opened through a read-only screen link created by the admin; the link grants access to nothing but the event screen and can be revoked. | Must |
 | SCR-05 | Minigame leaderboards on the event screen update live while guests play. | Should |
 | SCR-06 | ~~The event screen can show approved guestbook entries as a panel.~~ (withdrawn: merged into the wall, see SCR-01, PHO-15) | – |
+| SCR-07 | Per screen link, the admin can choose an upload link; the event screen then shows its QR code in the bottom-right corner over every panel for 15 seconds every 2 minutes; without a chosen link no QR code is shown. | Should |
 
 ---
 
@@ -704,6 +713,8 @@ Users can delete their own account and their own content at any time.
 
 **Rate limiting** (SEC-02). The limits per client address count only failed attempts (decided 2026-11-10): many guests share one address (the venue's Wi-Fi, a mobile network), and only failures help a guesser. Login: at most 20 failed attempts per client address and 5 per username in 15 minutes (a success clears the username's count); setting a password with a link: 10 unknown, used or expired links per client address in 15 minutes; confirming an email address: the same, with its own counter. An exceeded limit answers `429 rate_limited` with `Retry-After`. The counters live in memory (one process). The client address comes from `X-Forwarded-For` only if `TRUST_PROXY=true` (set in the Compose file, where Caddy is the only way in). Invitation redemption has its limits in 9.6.1; uploads get theirs with their feature.
 
+**Sign-in by email** (ACC-16, decided 2026-11-10). The login field takes a username or an email address. An email address signs in only if it is verified, and an address can be verified by one account only: verifying fails with `409 email_taken` if another account has already verified it. An unverified address never signs anyone in, so a typo or someone else's address cannot lock out or impersonate a guest. The email stays optional, also when redeeming an invitation, because some guests (e.g. grandparents) have none.
+
 **Login errors** do not reveal whether a username exists: unknown user and wrong password give the same `401 invalid_credentials`, after the same amount of hashing work.
 
 **One-time links.** A setup link (new account, ACC-14) or reset link (ACC-10, ACC-15) holds a random token, stored only as SHA-256 with its purpose, user, expiry (24 hours) and use; it works once. The URL is `<PUBLIC_URL>/set-password/<token>`; `PUBLIC_URL` (default `http://localhost:5173` in dev and test) is derived from `SITE_ADDRESS` and `HTTPS_PORT` in the Compose file, and only its origin is used, so the default port never appears in a link or on a printed card (`https://example.org:443` gives `https://example.org`). Using a link sets the password and ends the user's sessions. Using a link, changing the password or changing the email address marks all other open setup and reset links of the user as used (decided 2026-11-10), so a link that went to an old address, or was handed over and not needed, cannot take the account over later. The link is checked before the password is hashed. Expired sessions and used or expired links are deleted at startup and once a day, so no address is kept longer than needed.
@@ -786,6 +797,7 @@ Every signed-in guest responds to the invitation. The RSVP gives guests a reason
 | ACC-13 | Sessions stay valid for a long time (until the user logs out or the platform shuts down), so guests rarely need to sign in again. | Should |
 | ACC-14 | The CLI command `create-admin USERNAME` (optionally with `--vip`) creates an admin account and prints a one-time setup link, valid for 24 hours, where the new admin sets the password; this is how the first admin of an installation is created (23.8). | Must |
 | ACC-15 | The CLI command `reset-password USERNAME` prints a one-time password-reset link for the user, so an admin who is locked out can get back in (23.8). | Must |
+| ACC-16 | Users sign in with their username or with a verified email address; an email address can be verified by one account only, and an unverified address never signs anyone in (decided 2026-11-10). | Must |
 | AVA-01 | A signed-in user can design a pixel-art avatar in an avatar editor (skin colour, hairstyle, hair colour, clothing, clothing colours, accessories, predefined templates). | Must |
 | AVA-02 | The avatar configuration is stored with the user or their event membership. | Must |
 | AVA-03 | Avatars are composed from prepared pixel-art assets; no AI API is used. | Must |
@@ -799,6 +811,7 @@ Every signed-in guest responds to the invitation. The RSVP gives guests a reason
 | RSVP-07 | The admin can send a reminder email to guests who haven't responded. | Should |
 | RSVP-08 | A VIP can request an accompanying person who gets no account (e.g. a child or someone without a smartphone); before submitting, the VIP enters the name and answers their RSVP (attendance for the parts the VIP is invited to, menu choice, allergies); the avatar is chosen later (PRES-07). | Must |
 | RSVP-09 | The admin approves or rejects each request; an approved person is added to the event like any VIP (RSVP, figure, seat) but cannot log in, and their VIP manages their data; if the VIP's account is deleted, their accompanying persons are deleted too. | Must |
+| RSVP-10 | While a request for an accompanying person is pending, the VIP can edit or withdraw it; the request can carry an optional note for the admin (e.g. "my daughter, 6"). | Should |
 
 ---
 
@@ -1293,7 +1306,7 @@ Keepsakes are the lasting part for the hosts, separate from the snapshots of the
 - They are moderated like snapshots (13.7).
 - Keepsakes have their own page, the keepsake page, with a layout made for text and photos. In the German UI it can be called "Gästebuch". Keepsakes don't appear on the photo wall.
 - The admin can export all approved keepsakes as a printable keepsake book (PDF).
-- A portal in the game world can open the gallery, the keepsake page or the upload page.
+- A clickable object in the game world can open the gallery, the keepsake page or the upload page.
 
 ## 13.7 Moderation
 
@@ -1327,10 +1340,11 @@ Admins and staff members with `moderateContributions` can moderate.
 | PHO-12 | The gallery can be published fully or partially, at a scheduled time or by manual admin release, without redeploying the platform. | Must |
 | PHO-13 | Image processing runs in a background worker queue with limited concurrency so that uploads don't affect the responsiveness of website and game. | Must |
 | PHO-14 | Contributions can be submitted without an account through an upload link: it carries a random, revocable upload token with an optional expiry date, allows nothing but submitting contributions, and lets the contributor give an optional name. | Must |
-| PHO-15 | There are two kinds of contributions sharing upload links, upload pipeline and moderation queue: snapshots (photo with optional caption of limited length), shown in the gallery and on the photo wall; and keepsakes (photo, photo with text, or text only; text of limited length), shown on the keepsake page. | Must |
+| PHO-15 | There are two kinds of contributions sharing upload links, upload pipeline and moderation queue: snapshots (photo with an optional caption of up to 140 characters), shown in the gallery and on the photo wall; and keepsakes (photo, photo with text, or text only; text of up to 1000 characters), shown on the keepsake page. | Must |
 | PHO-16 | Keepsakes have their own page with a layout made for text and photos, separate from the gallery; keepsakes are not shown on the photo wall. | Must |
 | PHO-17 | The admin can export all approved keepsakes as a printable keepsake book (PDF), including their photos. | Must |
 | PHO-18 | Snapshot uploads and keepsake uploads are closed by default; the admin opens and closes each of them separately; while closed, no upload is accepted (signed in or through upload links), and upload links and the upload page show a notice instead of the upload form. | Must |
+| PHO-19 | In the gallery's photo viewer, signed-in guests can download a photo in full resolution. | Should |
 | GB-01 | ~~Guests can write a guestbook entry consisting of text and an optional photo, signed in or anonymously through an upload link (PHO-14).~~ (withdrawn: guestbook merged into contributions, see PHO-15) | – |
 | GB-02 | ~~A guestbook entry becomes visible only after approval by an admin or a staff member with `moderatePhotos`, who can also delete entries.~~ (withdrawn: guestbook merged into contributions, see PHO-15) | – |
 | GB-03 | ~~Reading the guestbook is a website page for signed-in users; it is not integrated into the game world, but a portal can open it.~~ (withdrawn: guestbook merged into contributions, see PHO-15) | – |
@@ -1390,12 +1404,9 @@ They define, for example:
 
 In Tiled, each object gets a `type`, a unique name and its properties. Examples:
 
-- Information point: `type = information`, `contentId = parking-info`
-- NPC: `type = dialog`, `contentId = npc-pastor`
 - Spawn point: `type = spawn`, name e.g. `entrance`
 - Portal to another map: `type = portal`, `targetMap = dinner`, `targetSpawn = entrance`
-- Portal to a minigame: `type = portal`, `minigameId = quiz-01`
-- Portal to a website page: `type = portal`, `page = gallery`
+- Clickable object: `type = clickable`, unique name e.g. `church`, optional `label` (shown in the prompt, e.g. "Programm"), optional `approach` (name of a point object where the avatar stops; default: below the object's bottom edge), optional preset action `action = page | content | dialog | minigame` with `page = programme`, `contentId = npc-pastor` or `minigameId = quiz-01`
 - Seat: `type = seat`, `table = 3` (see 3.6)
 - Wander area: `type = wander`, where guest figures walk around
 
@@ -1418,8 +1429,10 @@ The admin dashboard contains a simple map importer. Maps are drawn in Tiled, inc
 - List the event's maps, set the start map, delete a map.
 - Import a map (Tiled JSON plus tilesets) as a new map or as a new version of an existing map.
 - Validate the import: format, required layers, referenced tilesets, spawn points. An invalid import is rejected and the active version stays unchanged.
-- Report portals whose target map, spawn point, minigame or page doesn't exist as warnings. The import is still allowed, so maps can be imported one by one.
+- Report portals whose target map or spawn point doesn't exist, and clickable objects whose preset action points to a missing page, content item or minigame, as warnings. The import is still allowed, so maps can be imported one by one.
 - Keep the previous version of each map and allow rollback.
+
+Next to the importer, the admin view **"Spielwelt"** shows one tab per map. It lists the map's clickable objects with their Tiled name, label and preset, and lets the admin assign each one's action: a page as overlay, a content item, a dialogue, a minigame, or none. The assignment is stored per map and object name, is live at once and survives a new map version as long as the object keeps its name. Portals are listed read-only with their target map and spawn point (decided 2026-11-10).
 
 A new map version is used the next time a player enters the map. Cached graphics are refreshed, so improved art becomes visible without a redeployment.
 
@@ -1427,7 +1440,7 @@ A new map version is used the next time a player enters the map. Cached graphics
 
 Drawing pixel art is the main effort per event. To keep it low, the platform ships a set of template maps with matching tilesets: church, garden (aperitif), banquet hall and party area.
 
-- The typical objects are already placed: spawn points, portals, tables with seats, and wander areas.
+- The typical objects are already placed: spawn points, portals, clickable objects (with preset actions), tables with seats, and wander areas.
 - Decoration sits on separate layers. An event changes the look by editing only those layers in Tiled, without touching structure, collisions or objects.
 - In the map importer, a new installation can create its maps from the templates instead of importing its own.
 - The template art is drawn by the project owner, so it can be reused in any event.
@@ -1437,19 +1450,20 @@ Drawing pixel art is the main effort per event. To keep it low, the platform shi
 | ID | Requirement | Prio |
 |---|---|---|
 | MAP-01 | Maps are drawn in Tiled, exported as JSON and imported at runtime through the admin map importer; Tiled is not part of the running system. | Must |
-| MAP-02 | The engine supports tile layers (background, ground, decoration, objects, foreground, collision) and object layers defining spawn points, collisions, portals, NPCs, interaction points, protected zones, seats and wander areas. | Must |
-| MAP-03 | The engine interprets the object properties `type`, `contentId`, `targetMap`, `targetSpawn`, `minigameId` and `page`, and the map property `eventPart`, and executes the corresponding behaviour. | Must |
+| MAP-02 | The engine supports tile layers (background, ground, decoration, objects, foreground, collision) and object layers defining spawn points, collisions, portals, clickable objects (buildings, NPCs, signs, items), protected zones, seats and wander areas. | Must |
+| MAP-03 | The engine interprets the object properties `type`, `label`, `approach`, `action`, `contentId`, `targetMap`, `targetSpawn`, `minigameId` and `page`, and the map property `eventPart`, and executes the corresponding behaviour (14.2). | Must |
 | MAP-04 | New or changed maps and tilesets can be imported without a redeployment or code change. | Must |
 | MAP-05 | The map importer lists the event's maps and lets the admin import a new map or a new version of an existing map (Tiled JSON with tilesets), delete a map and set the start map. | Must |
 | MAP-06 | An import is validated (format, required layers, referenced tilesets, spawn points); an invalid import is rejected and the active version stays unchanged. | Must |
 | MAP-07 | ~~The admin assigns each portal's target in the level editor: another map at a spawn point, a minigame, or a website page.~~ (withdrawn: portal targets are set as Tiled properties, see MAP-03) | – |
-| MAP-08 | On import, portals whose target map, spawn point, minigame or page doesn't exist are reported as warnings; the import is still allowed. | Must |
+| MAP-08 | On import, portals whose target map or spawn point doesn't exist, and clickable objects whose preset action points to a missing page, content item or minigame, are reported as warnings; the import is still allowed. | Must |
 | MAP-09 | The previous version of each map is kept and the admin can roll back to it. | Should |
 | MAP-10 | A newly imported map version is used the next time a player enters the map; cached graphics are refreshed, so improved art becomes visible without a redeployment. | Must |
 | MAP-11 | ~~The server reads each map's collision layer on import and uses it to validate movement (MP-04).~~ (withdrawn: no server-side movement validation without multiplayer) | – |
 | MAP-12 | The platform ships a template map set (church, garden, banquet hall, party area) with tilesets, and with spawn points, portals, tables with seats and wander areas already placed. | Should |
 | MAP-13 | Decoration in the template maps is on separate layers, so the look can be changed in Tiled without touching structure, collisions or objects. | Should |
 | MAP-14 | In the map importer, the admin can create the event's maps from the templates instead of importing them. | Should |
+| MAP-15 | In the admin view "Spielwelt", each map lists its clickable objects (Tiled name and label) and its portals; the admin assigns each clickable object's action (page as overlay, content item, dialogue, minigame or none) without re-importing the map; the preset from the Tiled file applies until the admin changes it; portals are shown read-only (decided 2026-11-10). | Must |
 
 ---
 
@@ -2437,7 +2451,7 @@ Requirements: OPS-01–06, OPS-08–18, DATA-01, DATA-04, LANG-01, SEC-03, SEC-1
 - Event settings, access conditions, sign-in everywhere, server-side enforcement.
 - Admin pages for users, roles, invitations, groups and settings.
 
-Requirements: ACC, ROLE, INV, ACS (except ACS-04, ACS-10–14), GRP, CFG-02, CFG-03, CFG-05, DATA-02, DATA-03, SEC-01, SEC-02.
+Requirements: ACC (except ACC-16), ROLE, INV, ACS (except ACS-04, ACS-10–14), GRP, CFG-02, CFG-03, CFG-05, DATA-02, DATA-03, SEC-01, SEC-02.
 
 ## Stage 3 – RSVP and Waiting Page (completes Release 1)
 
@@ -2445,7 +2459,7 @@ Requirements: ACC, ROLE, INV, ACS (except ACS-04, ACS-10–14), GRP, CFG-02, CFG
 - Closed platform with teaser waiting page (door scene, texts by RSVP status, countdown); admin switch to open it, with "the door is open" email.
 - Privacy notice; allergy data visible only to admins.
 
-Requirements: RSVP, ACS-10–14, SEC-09, SEC-11.
+Requirements: RSVP, ACS-10–14, ACC-16, SEC-09, SEC-11.
 
 ## Stage 4 – Content and Website
 
@@ -2460,7 +2474,8 @@ Requirements: CNT, WEB (except WEB-05, WEB-06, WEB-08), LANG-02, CFG-01, CFG-04,
 - Map importer.
 - Smooth movement with map collisions, arrow keys and tap-to-move.
 - Interactive objects, portals, website overlays, avatars and avatar editor.
-- Landing in the game, guided first entry, button bar, loading time.
+- Landing in the game, guided first entry, button bar at the top, clickable objects that sparkle, loading time.
+- Admin view "Spielwelt": actions of the clickable objects per map.
 - Template map set.
 
 Requirements: GAME, MAP, AVA (except AVA-04), WEB-08, PERF-04.
@@ -2480,7 +2495,7 @@ Requirements: PRES, AVA-04.
 - Moderation queue with swipe view, gallery release.
 - Event screen with photo wall and read-only screen link.
 
-Requirements: PHO, MOD, ACS-04, SCR-01, SCR-02, SCR-04, WEB-06, PERF-03.
+Requirements: PHO, MOD, ACS-04, SCR-01, SCR-02, SCR-04, SCR-07, WEB-06, PERF-03.
 
 ## Stage 8 – Minigames, Treasure Hunt and Highscores
 
