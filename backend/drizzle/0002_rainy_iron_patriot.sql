@@ -1,0 +1,1 @@
+ALTER TABLE `one_time_links` ADD `email` text;

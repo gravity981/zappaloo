@@ -1,7 +1,7 @@
 import { useState } from "react";
 import type { SubmitEvent } from "react";
 import { useTranslation } from "react-i18next";
-import { Navigate } from "react-router";
+import { Link, Navigate } from "react-router";
 import { fieldText } from "../app/forms.ts";
 import { useSession } from "../app/session.ts";
 
@@ -39,6 +39,9 @@ export default function LoginPage() {
           {t("login.submit")}
         </button>
       </form>
+      <p>
+        <Link to="/forgot-password">{t("login.forgot")}</Link>
+      </p>
     </section>
   );
 }

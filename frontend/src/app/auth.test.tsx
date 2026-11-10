@@ -253,3 +253,103 @@ describe("profile", () => {
     expect(await screen.findByRole("heading", { name: "Anmelden" })).toBeInTheDocument();
   });
 });
+
+describe("email and account self-service", () => {
+  it("[ACC-03] asks for a reset link by username or address and answers the same either way", async () => {
+    const calls = fakeBackend({
+      "GET /api/session": () => anonymous,
+      "POST /api/password/forgot": () => ({ status: 204 }),
+    });
+    renderAt("/forgot-password");
+    user.type(await screen.findByLabelText("Benutzername oder E-Mail-Adresse"), "anna@example.org");
+    user.click(screen.getByRole("button", { name: "Link anfordern" }));
+    expect(await screen.findByRole("heading", { name: "Anfrage gesendet" })).toBeInTheDocument();
+    expect(calls.find((c) => c.path === "/api/password/forgot")?.body).toEqual({
+      identifier: "anna@example.org",
+    });
+  });
+
+  it("[ACC-03] the login page links to the forgotten-password page", async () => {
+    fakeBackend({ "GET /api/session": () => anonymous });
+    renderAt("/login");
+    expect(await screen.findByRole("link", { name: "Passwort vergessen?" })).toHaveAttribute(
+      "href",
+      "/forgot-password",
+    );
+  });
+
+  it("[ACC-09] requests the verification mail from the profile", async () => {
+    const withEmail = { ...anna, email: "anna@example.org" };
+    const calls = fakeBackend({
+      "GET /api/session": () => ({ status: 200, body: { user: withEmail, csrfToken: "csrf-1" } }),
+      "POST /api/profile/email/verify": () => ({ status: 204 }),
+    });
+    renderAt("/profile");
+    user.click(await screen.findByRole("button", { name: "Bestätigungslink senden" }));
+    expect(await screen.findByRole("status")).toHaveTextContent("Wir haben dir einen Link");
+    expect(calls.find((c) => c.path === "/api/profile/email/verify")?.csrf).toBe("csrf-1");
+  });
+
+  it("[ACC-09] confirms the address from the link", async () => {
+    const calls = fakeBackend({
+      "GET /api/session": () => anonymous,
+      "POST /api/email/verify": () => ({ status: 204 }),
+    });
+    renderAt("/verify-email/token-from-mail");
+    expect(await screen.findByRole("heading", { name: "Adresse bestätigt" })).toBeInTheDocument();
+    expect(calls.find((c) => c.path === "/api/email/verify")?.body).toEqual({
+      token: "token-from-mail",
+    });
+  });
+
+  it("[ACC-09] says so when the verification link is invalid", async () => {
+    fakeBackend({
+      "GET /api/session": () => anonymous,
+      "POST /api/email/verify": () => ({
+        status: 400,
+        body: { error: { code: "invalid_link", message: "x" } },
+      }),
+    });
+    renderAt("/verify-email/old");
+    expect(await screen.findByRole("alert")).toHaveTextContent("ungültig, abgelaufen");
+  });
+
+  it("[ACC-12] deletes the account after the password and signs the user out", async () => {
+    let current: { status: number; body: unknown } = signedIn;
+    const calls = fakeBackend({
+      "GET /api/session": () => current,
+      "DELETE /api/profile": () => {
+        current = anonymous;
+        return { status: 204 };
+      },
+    });
+    renderAt("/profile");
+    user.type(
+      await screen.findByLabelText("Passwort", { selector: "[name=deletePassword]" }),
+      "pw-pw-pw-pw-pw",
+    );
+    user.click(screen.getByRole("button", { name: "Konto endgültig löschen" }));
+    expect(await screen.findByRole("heading", { name: "Anmelden" })).toBeInTheDocument();
+    expect(calls.find((c) => c.method === "DELETE" && c.path === "/api/profile")).toMatchObject({
+      csrf: "csrf-1",
+      body: { password: "pw-pw-pw-pw-pw" },
+    });
+  });
+
+  it("[ACC-12] explains why the last admin cannot delete the account", async () => {
+    fakeBackend({
+      "GET /api/session": () => signedIn,
+      "DELETE /api/profile": () => ({
+        status: 409,
+        body: { error: { code: "last_admin", message: "x" } },
+      }),
+    });
+    renderAt("/profile");
+    user.type(
+      await screen.findByLabelText("Passwort", { selector: "[name=deletePassword]" }),
+      "pw-pw-pw-pw-pw",
+    );
+    user.click(screen.getByRole("button", { name: "Konto endgültig löschen" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent("letzte Admin-Person");
+  });
+});

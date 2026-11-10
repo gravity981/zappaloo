@@ -52,3 +52,8 @@ export class RateLimiter {
 export const LOGIN_PER_ADDRESS: Limit = { max: 20, windowMs: 15 * 60_000 };
 export const LOGIN_FAILURES_PER_USER: Limit = { max: 5, windowMs: 15 * 60_000 };
 export const PASSWORD_SET_PER_ADDRESS: Limit = { max: 10, windowMs: 15 * 60_000 };
+/** Password-reset requests (ACC-03) and verification mails; the mails per account are limited separately. */
+export const FORGOT_PER_ADDRESS: Limit = { max: 10, windowMs: 15 * 60_000 };
+export const VERIFY_MAIL_PER_USER: Limit = { max: 3, windowMs: 60 * 60_000 };
+export const RESET_MAILS_PER_ACCOUNT = 3;
+export const RESET_MAILS_WINDOW_MS = 60 * 60_000;

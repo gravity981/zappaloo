@@ -3,6 +3,7 @@ import type { AuthOptions } from "../api/auth.ts";
 import type { Config } from "../config.ts";
 import type { Database } from "../database/database.ts";
 import type { EventService } from "../event/service.ts";
+import type { Mailer } from "../mail/mailer.ts";
 import { AccountService } from "./accounts.ts";
 import { RateLimiter } from "./rate-limit.ts";
 import { SessionService } from "./sessions.ts";
@@ -11,6 +12,7 @@ export function createAuth(
   database: Database,
   event: EventService,
   config: Pick<Config, "SESSION_SECRET" | "SECURE_COOKIES" | "PUBLIC_URL">,
+  mailer?: Mailer,
 ): AuthOptions {
   return {
     accounts: new AccountService(database, event),
@@ -20,5 +22,6 @@ export function createAuth(
     secret: config.SESSION_SECRET,
     secureCookies: config.SECURE_COOKIES,
     publicUrl: config.PUBLIC_URL,
+    mailer,
   };
 }

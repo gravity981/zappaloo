@@ -9,6 +9,7 @@ import { openDatabase, runMigrations } from "./database/database.ts";
 import { loadEvent } from "./event/config.ts";
 import { bootstrapEvent, EventService } from "./event/service.ts";
 import { createAuth } from "./auth/setup.ts";
+import { createMailer } from "./mail/mailer.ts";
 import { resolveVersion } from "./version.ts";
 
 async function main(): Promise<void> {
@@ -29,7 +30,7 @@ async function main(): Promise<void> {
   const app = await buildApp({
     database,
     event,
-    auth: createAuth(database, event, config),
+    auth: createAuth(database, event, config, createMailer(config)),
     trustProxy: config.TRUST_PROXY,
     version,
     frontendDir: config.FRONTEND_DIR,

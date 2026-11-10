@@ -81,3 +81,29 @@ export const createUserResponseSchema = z.object({
   expiresAt: z.string(),
 });
 export type CreateUserResponse = z.infer<typeof createUserResponseSchema>;
+
+/** `POST /api/password/forgot` (ACC-03): a username or an email address. */
+export const forgotPasswordSchema = z.strictObject({
+  identifier: z.string().trim().min(1).max(254),
+});
+export type ForgotPassword = z.infer<typeof forgotPasswordSchema>;
+
+/** `POST /api/email/verify`: confirms the address with the link from the email (ACC-09). */
+export const emailVerifySchema = z.strictObject({
+  token: z.string().min(10).max(200),
+});
+export type EmailVerify = z.infer<typeof emailVerifySchema>;
+
+/** `DELETE /api/profile`: deletes the own account after confirming the password (ACC-12). */
+export const accountDeleteSchema = z.strictObject({
+  password: z.string().min(1).max(PASSWORD_MAX_LENGTH),
+});
+export type AccountDelete = z.infer<typeof accountDeleteSchema>;
+
+/** `POST /api/admin/users/:id/reset-link` (ACC-10). */
+export const resetLinkResponseSchema = z.object({
+  /** One-time link where the user sets a new password. */
+  resetUrl: z.string(),
+  expiresAt: z.string(),
+});
+export type ResetLinkResponse = z.infer<typeof resetLinkResponseSchema>;

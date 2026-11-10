@@ -6,27 +6,37 @@ import type { FastifyReply, FastifyRequest } from "fastify";
 import fp from "fastify-plugin";
 import { z } from "zod";
 import {
+  accountDeleteSchema,
   createUserRequestSchema,
   createUserResponseSchema,
+  emailVerifySchema,
+  forgotPasswordSchema,
   loginRequestSchema,
   passwordChangeSchema,
   passwordSetSchema,
   profileUpdateSchema,
+  resetLinkResponseSchema,
   sessionResponseSchema,
   userSchema,
 } from "@zappaloo/shared";
 import type { Role, User } from "@zappaloo/shared";
 import type { FastifyPluginAsyncZod } from "fastify-type-provider-zod";
-import { AccountError } from "../auth/accounts.ts";
+import { AccountError, LINK_VALIDITY_MS } from "../auth/accounts.ts";
 import type { AccountService } from "../auth/accounts.ts";
 import {
+  FORGOT_PER_ADDRESS,
   LOGIN_FAILURES_PER_USER,
   LOGIN_PER_ADDRESS,
   PASSWORD_SET_PER_ADDRESS,
+  RESET_MAILS_PER_ACCOUNT,
+  RESET_MAILS_WINDOW_MS,
+  VERIFY_MAIL_PER_USER,
 } from "../auth/rate-limit.ts";
 import type { RateLimiter } from "../auth/rate-limit.ts";
 import type { SessionService } from "../auth/sessions.ts";
 import type { EventService } from "../event/service.ts";
+import type { Mailer } from "../mail/mailer.ts";
+import { passwordResetMail, verificationMail } from "../mail/templates.ts";
 import { sendError } from "./validation.ts";
 
 export const SESSION_COOKIE = "zappaloo_session";
@@ -42,7 +52,11 @@ export interface AuthOptions {
   secureCookies: boolean;
   /** Address of the site, for the links handed out. */
   publicUrl: string;
+  /** Sends emails (ACC-11); undefined if no mail server is configured. */
+  mailer?: Mailer | undefined;
 }
+
+const LINK_VALIDITY_HOURS = LINK_VALIDITY_MS / 3_600_000;
 
 /** The signed-in user of a request; null without a valid session. */
 export interface AuthState {
@@ -280,6 +294,144 @@ const authPlugin: FastifyPluginAsyncZod<AuthOptions> = async (app, options) => {
         throw error;
       }
       return reply.status(204).send();
+    },
+  );
+
+  // Sends a link to confirm the profile's email address (ACC-09).
+  app.post(
+    "/api/profile/email/verify",
+    { preHandler: requireUser, schema: { querystring: noQuery, body: z.null().optional() } },
+    async (request, reply) => {
+      const auth = signedIn(request);
+      if (!options.mailer) {
+        return sendError(reply, 503, {
+          code: "mail_unavailable",
+          message: "This installation cannot send email.",
+        });
+      }
+      const wait = limiter.hit(`verify-mail:${String(auth.user.id)}`, VERIFY_MAIL_PER_USER);
+      if (wait !== undefined) return rateLimited(reply, wait);
+      try {
+        const { link, email } = accounts.createVerification(auth.user.id);
+        const url = `${options.publicUrl.replace(/\/+$/, "")}/verify-email/${link.token}`;
+        await options.mailer.send(
+          verificationMail(email, options.event.get().name, url, LINK_VALIDITY_HOURS),
+        );
+      } catch (error) {
+        if (error instanceof AccountError && error.code === "no_email") {
+          return sendError(reply, 409, { code: "no_unverified_email", message: error.message });
+        }
+        request.log.error({ err: error }, "sending the verification email failed");
+        return sendError(reply, 502, {
+          code: "mail_failed",
+          message: "The email could not be sent.",
+        });
+      }
+      return reply.status(204).send();
+    },
+  );
+
+  // Confirms the address with the link from the email; works once.
+  app.post(
+    "/api/email/verify",
+    { schema: { querystring: noQuery, body: emailVerifySchema } },
+    (request, reply) => {
+      const wait = limiter.hit(`password-set:ip:${request.ip}`, PASSWORD_SET_PER_ADDRESS);
+      if (wait !== undefined) return rateLimited(reply, wait);
+      try {
+        accounts.verifyEmail(request.body.token);
+      } catch (error) {
+        if (error instanceof AccountError && error.code === "invalid_link") {
+          return sendError(reply, 400, { code: "invalid_link", message: error.message });
+        }
+        throw error;
+      }
+      return reply.status(204).send();
+    },
+  );
+
+  // Forgotten password (ACC-03): a reset link by email, only to a verified address. The
+  // answer is always the same, so it does not reveal which accounts or addresses exist.
+  app.post(
+    "/api/password/forgot",
+    { schema: { querystring: noQuery, body: forgotPasswordSchema } },
+    (request, reply) => {
+      const wait = limiter.hit(`forgot:ip:${request.ip}`, FORGOT_PER_ADDRESS);
+      if (wait !== undefined) return rateLimited(reply, wait);
+      const { mailer } = options;
+      if (mailer) {
+        const eventName = options.event.get().name;
+        for (const { user, email } of accounts.findResettable(request.body.identifier)) {
+          if (
+            accounts.recentResetLinks(user.id, RESET_MAILS_WINDOW_MS) >= RESET_MAILS_PER_ACCOUNT
+          ) {
+            continue;
+          }
+          const link = accounts.createLink(user.id, "reset", `user:${String(user.id)}`);
+          const url = setPasswordUrl(options.publicUrl, link.token);
+          // Not awaited: the answer must not depend on whether a mail was sent.
+          mailer
+            .send(passwordResetMail(email, eventName, user.username, url, LINK_VALIDITY_HOURS))
+            .catch((error: unknown) => {
+              request.log.error({ err: error }, "sending the reset email failed");
+            });
+        }
+      }
+      return reply.status(204).send();
+    },
+  );
+
+  // Users delete their own account after confirming the password (ACC-12).
+  app.delete(
+    "/api/profile",
+    { preHandler: requireUser, schema: { querystring: noQuery, body: accountDeleteSchema } },
+    async (request, reply) => {
+      const auth = signedIn(request);
+      const key = `password-change:${String(auth.user.id)}`;
+      const wait = limiter.blocked(key, LOGIN_FAILURES_PER_USER);
+      if (wait !== undefined) return rateLimited(reply, wait);
+      try {
+        await accounts.deleteAccount(auth.user.id, request.body.password);
+      } catch (error) {
+        if (error instanceof AccountError && error.code === "invalid_password") {
+          limiter.hit(key, LOGIN_FAILURES_PER_USER);
+          return sendError(reply, 400, { code: "invalid_password", message: error.message });
+        }
+        if (error instanceof AccountError && error.code === "last_admin") {
+          return sendError(reply, 409, { code: "last_admin", message: error.message });
+        }
+        throw error;
+      }
+      return reply.clearCookie(SESSION_COOKIE, { path: "/" }).status(204).send();
+    },
+  );
+
+  // An admin creates a one-time password-reset link for a user and hands it over (ACC-10).
+  app.post(
+    "/api/admin/users/:id/reset-link",
+    {
+      preHandler: requireRole("admin"),
+      schema: {
+        querystring: noQuery,
+        params: z.strictObject({ id: z.coerce.number().int().positive() }),
+        body: z.null().optional(),
+        response: { 201: resetLinkResponseSchema },
+      },
+    },
+    async (request, reply) => {
+      const user = accounts.getUser(request.params.id);
+      if (!user) {
+        return sendError(reply, 404, { code: "user_not_found", message: "There is no such user." });
+      }
+      const link = accounts.createLink(
+        user.id,
+        "reset",
+        `user:${String(signedIn(request).user.id)}`,
+      );
+      return reply.status(201).send({
+        resetUrl: setPasswordUrl(options.publicUrl, link.token),
+        expiresAt: link.expiresAt.toISOString(),
+      });
     },
   );
 

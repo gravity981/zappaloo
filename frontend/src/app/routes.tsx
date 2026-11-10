@@ -1,12 +1,14 @@
 // Route table. Paths are placeholders until the website pages (stage 4) and the
 // game world (stage 5) define the real structure.
 import type { RouteObject } from "react-router";
+import ForgotPasswordPage from "../pages/ForgotPasswordPage.tsx";
 import GamePage from "../pages/GamePage.tsx";
 import HomePage from "../pages/HomePage.tsx";
 import LoginPage from "../pages/LoginPage.tsx";
 import NotFoundPage from "../pages/NotFoundPage.tsx";
 import ProfilePage from "../pages/ProfilePage.tsx";
 import SetPasswordPage from "../pages/SetPasswordPage.tsx";
+import VerifyEmailPage from "../pages/VerifyEmailPage.tsx";
 import Layout from "./Layout.tsx";
 
 export const routes: RouteObject[] = [
@@ -16,6 +18,8 @@ export const routes: RouteObject[] = [
       { index: true, element: <HomePage /> },
       { path: "game", element: <GamePage /> },
       { path: "login", element: <LoginPage /> },
+      { path: "forgot-password", element: <ForgotPasswordPage /> },
+      { path: "verify-email/:token", element: <VerifyEmailPage /> },
       { path: "set-password/:token", element: <SetPasswordPage /> },
       { path: "profile", element: <ProfilePage /> },
       { path: "*", element: <NotFoundPage /> },

@@ -127,7 +127,7 @@ export const sessions = sqliteTable(
   (table) => [index("sessions_user").on(table.userId)],
 );
 
-/** One-time setup and reset links; only the SHA-256 of the token is stored. */
+/** One-time setup, reset and email verification links; only the SHA-256 of the token is stored. */
 export const oneTimeLinks = sqliteTable(
   "one_time_links",
   {
@@ -136,7 +136,9 @@ export const oneTimeLinks = sqliteTable(
     userId: integer("user_id")
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
-    purpose: text("purpose", { enum: ["setup", "reset"] }).notNull(),
+    purpose: text("purpose", { enum: ["setup", "reset", "verify"] }).notNull(),
+    /** For `verify`: the address the link confirms; it counts only while the profile still has it. */
+    email: text("email"),
     createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull(),
     expiresAt: integer("expires_at", { mode: "timestamp_ms" }).notNull(),
     usedAt: integer("used_at", { mode: "timestamp_ms" }),

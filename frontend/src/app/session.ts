@@ -12,6 +12,8 @@ export interface SessionState {
   logout: () => Promise<void>;
   /** Takes over a changed user (profile). */
   setUser: (user: User) => void;
+  /** Forgets the user without a request (the account was deleted, the session is gone). */
+  clear: () => void;
 }
 
 export const SessionContext = createContext<SessionState | undefined>(undefined);

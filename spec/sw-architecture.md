@@ -708,6 +708,16 @@ Users can delete their own account and their own content at any time.
 
 **One-time links.** A setup link (new account, ACC-14) or reset link (ACC-10, ACC-15) holds a random token, stored only as SHA-256 with its purpose, user, expiry (24 hours) and use; it works once. The URL is `<PUBLIC_URL>/set-password/<token>`; `PUBLIC_URL` (default `http://localhost:5173` in dev and test) is derived from `SITE_ADDRESS` and `HTTPS_PORT` in the Compose file. Using a link sets the password and ends the user's sessions.
 
+**Mail** (ACC-11, decided 2026-11-10). Configured per installation by `SMTP_HOST`, `SMTP_PORT` (default 587), `SMTP_USER`, `SMTP_PASSWORD` or `SMTP_PASSWORD_FILE` (`secrets/smtp_password`) and `MAIL_FROM` (required with `SMTP_HOST` in staging and prod; empty values count as unset). Port 465 uses TLS from the start; otherwise STARTTLS, which is required when a login is configured. Without `SMTP_HOST` no email is sent: verification answers `503 mail_unavailable`, and a password-reset request answers as usual without sending. The emails are plain text.
+
+**Email verification** (ACC-09). `POST /api/profile/email/verify` mails a link `<PUBLIC_URL>/verify-email/<token>` to the profile's unverified address (3 per hour and user); the page posts the token to `POST /api/email/verify`. The link is a one-time link with purpose `verify` (24 hours, single use) that remembers the address it was sent to and counts only while the profile still has that address. A verify link cannot set a password. Changing or removing the address makes it `unverified` again.
+
+**Password reset by email** (ACC-03). `POST /api/password/forgot` takes a username or an email address and always answers `204`, so it does not reveal which accounts or addresses exist. Only accounts whose address is `verified` get a reset link by email (at most 3 mails per account and hour; 10 requests per client address in 15 minutes, `429` beyond). The mail is sent without the answer waiting for it. The link is the one of 7.1.1 (`/set-password/<token>`).
+
+**Admin reset link** (ACC-10). `POST /api/admin/users/:id/reset-link` (admin role) returns the one-time reset URL and its expiry; audit log entry `link.create`. The admin user-management page comes later; until then the endpoint serves the API.
+
+**Deleting the own account** (ACC-12). `DELETE /api/profile` with the current password deletes the user with membership, roles, sessions and links in one transaction; the audit log keeps only the user id (`user.delete`). The last admin of the event cannot delete the account (`409 last_admin`). Deleting one's own contributions is added with the contributions in stage 7; accompanying persons with stage 3.
+
 **API.** `GET /api/session` (current user or none, with the CSRF token), `POST /api/session` (login), `DELETE /api/session` (logout), `GET`/`PATCH /api/profile`, `POST /api/profile/password`, `POST /api/password/set` (with a link), `POST /api/admin/users` (admin role of the event: creates an account with roles and returns its setup link, ACC-08). Role management follows in step 2d.
 
 ## 7.2 Registration and Invitations

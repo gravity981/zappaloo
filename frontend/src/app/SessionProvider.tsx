@@ -46,9 +46,21 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     setSession((current) => ({ ...current, user }));
   }, []);
 
+  const clear = useCallback(() => {
+    setSession({ user: null, csrfToken: null });
+  }, []);
+
   const value = useMemo<SessionState>(
-    () => ({ ready, user: session.user, csrfToken: session.csrfToken, login, logout, setUser }),
-    [ready, session, login, logout, setUser],
+    () => ({
+      ready,
+      user: session.user,
+      csrfToken: session.csrfToken,
+      login,
+      logout,
+      setUser,
+      clear,
+    }),
+    [ready, session, login, logout, setUser, clear],
   );
   return <SessionContext.Provider value={value}>{children}</SessionContext.Provider>;
 }

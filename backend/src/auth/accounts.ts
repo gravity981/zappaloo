@@ -1,6 +1,6 @@
 // Accounts, event roles and one-time links (ACC-04, ACC-06, ACC-08, ACC-14,
 // ACC-15; sw-architecture.md 7.1.1).
-import { and, eq } from "drizzle-orm";
+import { and, eq, gt, or, sql } from "drizzle-orm";
 import type { ProfileUpdate, Role, User } from "@zappaloo/shared";
 import type { Database } from "../database/database.ts";
 import { membershipRoles, memberships, oneTimeLinks, users } from "../database/schema.ts";
@@ -9,7 +9,12 @@ import { hashPassword, verifyDummyPassword, verifyPassword } from "./password.ts
 import { hashToken, newToken } from "./tokens.ts";
 
 export type AccountErrorCode =
-  "username_taken" | "user_not_found" | "invalid_password" | "invalid_link";
+  | "username_taken"
+  | "user_not_found"
+  | "invalid_password"
+  | "invalid_link"
+  | "no_email"
+  | "last_admin";
 
 export class AccountError extends Error {
   override name = "AccountError";
@@ -23,7 +28,7 @@ export class AccountError extends Error {
 /** A one-time link is valid for 24 hours (sw-architecture.md 7.1.1). */
 export const LINK_VALIDITY_MS = 24 * 60 * 60 * 1000;
 
-export type LinkPurpose = "setup" | "reset";
+export type LinkPurpose = "setup" | "reset" | "verify";
 
 export interface IssuedLink {
   token: string;
@@ -174,14 +179,24 @@ export class AccountService {
       .run();
   }
 
-  /** A new one-time link for the user; older unused links stay valid until they expire. */
-  createLink(userId: number, purpose: LinkPurpose, actor: Actor): IssuedLink {
+  /**
+   * A new one-time link for the user; older unused links stay valid until they expire.
+   * A `verify` link confirms `email`.
+   */
+  createLink(userId: number, purpose: LinkPurpose, actor: Actor, email?: string): IssuedLink {
     const token = newToken();
     const now = this.#now();
     const expiresAt = new Date(now.getTime() + LINK_VALIDITY_MS);
     this.#database.db.transaction((tx) => {
       tx.insert(oneTimeLinks)
-        .values({ tokenHash: hashToken(token), userId, purpose, createdAt: now, expiresAt })
+        .values({
+          tokenHash: hashToken(token),
+          userId,
+          purpose,
+          email: email ?? null,
+          createdAt: now,
+          expiresAt,
+        })
         .run();
       this.#event.audit(actor, "link.create", { userId, purpose }, tx);
     });
@@ -201,7 +216,7 @@ export class AccountService {
         .from(oneTimeLinks)
         .where(eq(oneTimeLinks.tokenHash, hashToken(token)))
         .get();
-      if (link?.usedAt !== null || link.expiresAt <= now) {
+      if (link?.usedAt !== null || link.purpose === "verify" || link.expiresAt <= now) {
         throw new AccountError("invalid_link", "the link is unknown, expired or already used");
       }
       tx.update(oneTimeLinks).set({ usedAt: now }).where(eq(oneTimeLinks.id, link.id)).run();
@@ -212,6 +227,116 @@ export class AccountService {
         .returning()
         .get();
       return this.#toUser(row);
+    });
+  }
+
+  /**
+   * A link that confirms the user's current, still unverified address (ACC-09).
+   * Throws `no_email` if there is nothing to verify.
+   */
+  createVerification(userId: number): { link: IssuedLink; email: string } {
+    const row = this.#database.db.select().from(users).where(eq(users.id, userId)).get();
+    if (!row) throw new AccountError("user_not_found", "no such user");
+    if (row.email === null || row.emailStatus === "verified") {
+      throw new AccountError("no_email", "there is no unverified email address");
+    }
+    return {
+      link: this.createLink(userId, "verify", `user:${String(userId)}`, row.email),
+      email: row.email,
+    };
+  }
+
+  /**
+   * Confirms the address with a verification link, once. The link counts only while the
+   * profile still has the address it was sent to.
+   */
+  verifyEmail(token: string): User {
+    const now = this.#now();
+    return this.#database.db.transaction((tx) => {
+      const link = tx
+        .select()
+        .from(oneTimeLinks)
+        .where(eq(oneTimeLinks.tokenHash, hashToken(token)))
+        .get();
+      if (link?.usedAt !== null || link.purpose !== "verify" || link.expiresAt <= now) {
+        throw new AccountError("invalid_link", "the link is unknown, expired or already used");
+      }
+      tx.update(oneTimeLinks).set({ usedAt: now }).where(eq(oneTimeLinks.id, link.id)).run();
+      const row = tx.select().from(users).where(eq(users.id, link.userId)).get();
+      if (row?.email !== link.email) {
+        throw new AccountError("invalid_link", "the address has changed since the link was sent");
+      }
+      const updated = tx
+        .update(users)
+        .set({ emailStatus: "verified", updatedAt: now })
+        .where(eq(users.id, row.id))
+        .returning()
+        .get();
+      return this.#toUser(updated);
+    });
+  }
+
+  /**
+   * The accounts a forgotten password can be reset for by email (ACC-03): those whose
+   * username or email address is `identifier` and whose address is verified. Others get none,
+   * so nothing is sent to an address nobody has proven to own.
+   */
+  findResettable(identifier: string): { user: User; email: string }[] {
+    const needle = identifier.trim().toLowerCase();
+    const rows = this.#database.db
+      .select()
+      .from(users)
+      .where(
+        and(
+          eq(users.emailStatus, "verified"),
+          or(eq(users.username, needle), eq(sql`lower(${users.email})`, needle)),
+        ),
+      )
+      .all();
+    return rows.flatMap((row) =>
+      row.email === null ? [] : [{ user: this.#toUser(row), email: row.email }],
+    );
+  }
+
+  /** Reset links created for the user in the last `sinceMs` (to limit mails per account). */
+  recentResetLinks(userId: number, sinceMs: number): number {
+    return this.#database.db
+      .select({ id: oneTimeLinks.id })
+      .from(oneTimeLinks)
+      .where(
+        and(
+          eq(oneTimeLinks.userId, userId),
+          eq(oneTimeLinks.purpose, "reset"),
+          gt(oneTimeLinks.createdAt, new Date(this.#now().getTime() - sinceMs)),
+        ),
+      )
+      .all().length;
+  }
+
+  /**
+   * Deletes the account with everything that hangs on it: membership, roles, sessions
+   * and links (ACC-12). The audit log keeps only the user id. The last admin of the event
+   * cannot be deleted, so the installation always has someone who can administer it.
+   */
+  async deleteAccount(userId: number, password: string): Promise<void> {
+    const row = this.#database.db.select().from(users).where(eq(users.id, userId)).get();
+    if (!row) throw new AccountError("user_not_found", "no such user");
+    if (!row.passwordHash || !(await verifyPassword(row.passwordHash, password))) {
+      throw new AccountError("invalid_password", "the password is wrong");
+    }
+    this.#database.db.transaction((tx) => {
+      const admins = tx
+        .select({ userId: membershipRoles.userId })
+        .from(membershipRoles)
+        .where(
+          and(eq(membershipRoles.eventId, this.#event.eventId), eq(membershipRoles.role, "admin")),
+        )
+        .all();
+      if (admins.some((a) => a.userId === userId) && admins.length === 1) {
+        throw new AccountError("last_admin", "the last admin cannot delete the account");
+      }
+      tx.delete(users).where(eq(users.id, userId)).run(); // memberships, roles, sessions, links cascade
+      this.#event.audit(`user:${String(userId)}`, "user.delete", { userId }, tx);
     });
   }
 }

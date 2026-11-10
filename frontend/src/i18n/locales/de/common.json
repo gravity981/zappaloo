@@ -28,7 +28,25 @@
     "title": "Anmelden",
     "username": "Benutzername",
     "password": "Passwort",
-    "submit": "Anmelden"
+    "submit": "Anmelden",
+    "forgot": "Passwort vergessen?"
+  },
+  "forgotPassword": {
+    "title": "Passwort vergessen",
+    "hint": "Gib deinen Benutzernamen oder deine E-Mail-Adresse ein. Wenn die Adresse in deinem Profil bestätigt ist, schicken wir dir einen Link zum Zurücksetzen.",
+    "identifier": "Benutzername oder E-Mail-Adresse",
+    "submit": "Link anfordern",
+    "doneTitle": "Anfrage gesendet",
+    "doneText": "Falls ein Konto mit bestätigter E-Mail-Adresse dazu passt, haben wir einen Link geschickt. Er ist 24 Stunden gültig.",
+    "noEmail": "Keine bestätigte Adresse? Dann melde dich bei den Gastgebern: Sie können dir einen Link zum Zurücksetzen geben.",
+    "back": "Zur Anmeldung"
+  },
+  "verifyEmail": {
+    "title": "E-Mail-Adresse bestätigen",
+    "working": "Die Adresse wird bestätigt …",
+    "doneTitle": "Adresse bestätigt",
+    "doneText": "Danke! Mit dieser Adresse kannst du dein Passwort per E-Mail zurücksetzen.",
+    "toProfile": "Zum Profil"
   },
   "setPassword": {
     "title": "Passwort festlegen",
@@ -49,13 +67,19 @@
       "unverified": "Die Adresse ist noch nicht bestätigt.",
       "verified": "Die Adresse ist bestätigt."
     },
+    "verifySend": "Bestätigungslink senden",
+    "verifySent": "Wir haben dir einen Link geschickt. Er ist 24 Stunden gültig.",
     "save": "Speichern",
     "saved": "Gespeichert.",
     "passwordTitle": "Passwort ändern",
     "currentPassword": "Aktuelles Passwort",
     "newPassword": "Neues Passwort (mindestens {{min}} Zeichen)",
     "changePassword": "Passwort ändern",
-    "passwordChanged": "Das Passwort wurde geändert. Auf anderen Geräten musst du dich neu anmelden."
+    "passwordChanged": "Das Passwort wurde geändert. Auf anderen Geräten musst du dich neu anmelden.",
+    "deleteTitle": "Konto löschen",
+    "deleteHint": "Dein Konto wird mit allen Daten unwiderruflich gelöscht. Zur Bestätigung gibst du dein Passwort ein.",
+    "deletePassword": "Passwort",
+    "deleteConfirm": "Konto endgültig löschen"
   },
   "errors": {
     "unknown": "Das hat nicht geklappt. Bitte versuche es später noch einmal.",
@@ -63,6 +87,10 @@
     "rate_limited": "Zu viele Versuche. Bitte warte einen Moment und versuche es dann noch einmal.",
     "invalid_link": "Dieser Link ist ungültig, abgelaufen oder wurde schon benutzt.",
     "invalid_password": "Das aktuelle Passwort stimmt nicht.",
+    "mail_unavailable": "Auf diesem Server können keine E-Mails verschickt werden.",
+    "mail_failed": "Die E-Mail konnte nicht gesendet werden. Bitte versuche es später noch einmal.",
+    "no_unverified_email": "Es gibt keine unbestätigte E-Mail-Adresse in deinem Profil.",
+    "last_admin": "Du bist die letzte Admin-Person. Ernenne zuerst jemand anderen, dann kannst du dein Konto löschen.",
     "validation_failed": "Bitte prüfe deine Eingaben.",
     "passwords_differ": "Die beiden Passwörter sind nicht gleich.",
     "csrf_failed": "Die Sitzung ist abgelaufen. Bitte lade die Seite neu."

@@ -15,6 +15,7 @@ import { bootstrapEvent, EventService } from "./event/service.ts";
 import { BUNDLED_EVENTS_DIR } from "./config.ts";
 import type { AuthOptions } from "./api/auth.ts";
 import { createAuth } from "./auth/setup.ts";
+import { MemoryMailer } from "./mail/mailer.ts";
 
 export const TEST_VERSION = { version: "1.2.3+test", commit: "abc123" };
 
@@ -33,6 +34,8 @@ export interface TestContext {
   database: Database;
   /** The example event (events/event-muster), created in the database. */
   event: EventService;
+  /** The emails the app "sent". */
+  mailer: MemoryMailer;
   /** Accounts, sessions and rate limits behind the app. */
   auth: AuthOptions;
   paths: DataPaths;
@@ -53,11 +56,17 @@ export async function createTestApp(options: Partial<AppOptions> = {}): Promise<
   const loaded = loadEvent("event-muster", [BUNDLED_EVENTS_DIR]);
   bootstrapEvent(database, loaded.config);
   const event = new EventService(database, loaded.config.id);
-  const auth = createAuth(database, event, {
-    SESSION_SECRET: "test-secret-test-secret-test-secret-123",
-    SECURE_COOKIES: false,
-    PUBLIC_URL: "http://localhost:5173",
-  });
+  const mailer = new MemoryMailer();
+  const auth = createAuth(
+    database,
+    event,
+    {
+      SESSION_SECRET: "test-secret-test-secret-test-secret-123",
+      SECURE_COOKIES: false,
+      PUBLIC_URL: "http://localhost:5173",
+    },
+    mailer,
+  );
   let app: FastifyInstance;
   try {
     app = await buildApp({ database, event, auth, version: TEST_VERSION, ...options });
@@ -70,6 +79,7 @@ export async function createTestApp(options: Partial<AppOptions> = {}): Promise<
     app,
     database,
     event,
+    mailer,
     auth,
     paths,
     close: async () => {
