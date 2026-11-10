@@ -29,6 +29,7 @@ Zappaloo is a reusable event platform (first use: a wedding) that combines a bro
 
 - The spec is implemented in stages, each split into steps (1a, 1b, …), as planned in `spec/implementation-plan.md`. Before starting a stage, confirm its preconditions and steps with the user.
 - **The user creates branches and makes all commits. Never commit, and never create or switch branches.**
+- **Commit messages feed the release notes** (OPS-19, sw-architecture.md 23.3.1). When suggesting a commit message, write the first line for the people who use the app and start it with `feat:` (or `Add`) for something new or `fix:` (or `Fix`) for a fix; other commits are listed as changes. `chore:`, `docs:`, `test:`, `ci:` and `build:` mark housekeeping that is left out, as is a bare `step 1d`; `step 1f - Backup and restore tools` is listed as "Backup and restore tools".
 - Each stage is built on a branch named `feature/stage-<n>` or `feature/stage-<n>-<text>`. Before changing any file for a step, check:
   - `git branch --show-current` matches the current stage (exactly `n`, so `stage-1` does not match `stage-10`);
   - the working tree is clean (the previous step is committed).

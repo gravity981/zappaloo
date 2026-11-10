@@ -126,4 +126,18 @@ describe("parseStages", () => {
       { number: 2, title: "Accounts", ids: ["CD-01"] },
     ]);
   });
+
+  it("ignores the stage headings of the status reports after the stages", () => {
+    const plan = [
+      "## 3. Stages",
+      "### Stage 1 – Walking Skeleton",
+      "Requirements: AB-01.",
+      "## 4. Template",
+      "### Stage <n> – <title> (<date>)",
+      "## 5. Status reports",
+      "### Stage 1 – Walking Skeleton (2026-11-10)",
+      "Requirements: XY-01.",
+    ].join("\n");
+    expect(parseStages(plan)).toEqual([{ number: 1, title: "Walking Skeleton", ids: ["AB-01"] }]);
+  });
 });

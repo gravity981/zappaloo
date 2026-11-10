@@ -15,7 +15,8 @@ One directory per environment, e.g. `~/zappaloo-staging` or `~/zappaloo-prod`:
 
 ```sh
 mkdir -p ~/zappaloo-staging && cd ~/zappaloo-staging
-# copy compose.yaml, deploy.sh and .env.example into this directory (scp, or from the release's bundle)
+# unpack the release's bundle here (the commands are in the release notes):
+#   curl -fsSL <bundle URL> | tar -xz --strip-components=1
 cp .env.example .env
 chmod +x deploy.sh
 nano .env          # APP_ENV, COMPOSE_PROJECT_NAME, DATA_VOLUME, SITE_ADDRESS, TLS_MODE, mail settings

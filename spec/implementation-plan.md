@@ -28,8 +28,8 @@ Each release goes into production. From Release 1 on, real guest data is stored,
 
 | Stage | Content | Release | Status |
 |---|---|---|---|
-| 1 | Walking skeleton and deployment | 1 | next |
-| 2 | Accounts, roles and access | 1 | open |
+| 1 | Walking skeleton and deployment | 1 | done |
+| 2 | Accounts, roles and access | 1 | next |
 | 3 | RSVP and waiting page | 1 | open |
 | 4 | Content and website | Opening | open |
 | 5 | Game world and map importer | Opening | open |
@@ -62,7 +62,7 @@ Requirements: OPS-06, OPS-08, OPS-14.
 Requirements: OPS-01, OPS-04, OPS-15, OPS-16, OPS-18.
 
 **1e – Releases.** `release-candidate.yml` and `promote.yml` with unit-tested release rules; tag ruleset for `v*` against moving and deleting (set up by the project owner; enforced only once the repository is public, see the open points in README.md); SSE heartbeat endpoint, checked through Caddy by the deployment test; only Caddy's ports published, checked by the deployment test; staging next to prod on other ports with the HTTP→HTTPS redirect keeping the port; first release candidate built and deployed to staging (sw-architecture.md 17.1, 21.2, 21.3, 23.3).
-Requirements: OPS-03, OPS-10, OPS-11, OPS-12.
+Requirements: OPS-03, OPS-10, OPS-11, OPS-12, OPS-19 (added 2026-11-10: release notes with changelog and install/update commands, deployment bundle as one archive).
 
 **1f – Backup and restore tools.** Full backup of an environment (database and files in the data volume) and its scripted restore; staging deploys restore a prod backup provided by the operator, with mail caught and the volume deleted after verification; runbook listing everything to back up. Scheduling and off-site storage are the operator's (sw-architecture.md 22.2).
 Requirements: OPS-05, OPS-13.
@@ -270,4 +270,40 @@ After each completed stage, Claude appends a report with this structure to secti
 
 ## 5. Status reports
 
-No stage completed yet.
+### Stage 1 – Walking Skeleton and Deployment (2026-11-10)
+
+**Summary:** There are no guest features yet. The project now builds, tests and releases itself: a backend with health, version and live-update endpoints, a React app with an empty Phaser scene, versioned images, staging and prod deployment with rollback, release candidates and backup/restore tools.
+
+**Steps:** 1a Monorepo and tooling – done. 1b Backend and frontend skeleton – done. 1c Continuous integration and versioned images – done. 1d Containers and staging – done. 1e Releases – done. 1f Backup and restore tools – done (full backup as one `.tar.gz`, staging restore from `backups/`, `--teardown`).
+
+**Requirements:** 18 of 21 planned for this stage, all with passing tests (requirement report). Overall: 18 of 200 active requirements. The other three (OPS-05, OPS-12, OPS-13) have passing automated tests, but stay on the "not yet implemented" list until their manual checks are done (test-strategy.md 6.1).
+
+**Tests:** 131 Vitest results (unit, integration and the 15-test deployment test against the real image in Docker), all passing; 20 Playwright results as of the last end-to-end run (not repeated in step 1f). Manual checks: none yet; the restore drill, the tag ruleset and the staging drill are open (see below).
+
+**Spec changes and deviations:** Hosting is out of scope and step 1g was dropped (2026-11-04). Steps 1d–1f were reordered and OPS-08–18 added with the CI/CD definitions. In step 1f the full backup became one `.tar.gz` made and restored with `zappaloo backup --full` / `restore --full`, staging restores the newest `backups/*.tar.gz` (refused unless mail is caught) and `deploy.sh staging --teardown` deletes the staging data (sw-architecture.md 22.2, 23.5, 23.8; decisions table in README.md). No deviation from the spec.
+
+**Overall status:**
+
+| Stage | Content | Status |
+|---|---|---|
+| 1 | Walking skeleton and deployment | done |
+| 2 | Accounts, roles and access | next |
+| 3 | RSVP and waiting page | open |
+| 4 | Content and website | open |
+| 5 | Game world and map importer | open |
+| 6 | Living world | open |
+| 7 | Contributions and event screen | open |
+| 8 | Minigames, treasure hunt and highscores | open |
+| 9 | Event readiness | open |
+| 10 | After the event | open |
+
+**Remaining requirements by stage:** stage 1 → 3 (OPS-05, OPS-12, OPS-13: manual checks); 2 → 48; 3 → 17; 4 → 14; 5 → 31; 6 → 14; 7 → 28; 8 → 22; 9 → 1; 10 → 4. In total 182 of 200 active.
+
+**Waiting on the project owner:**
+- Restore drill with a real full backup (OPS-05) and the staging drill on the LAN server: restore a prod backup, mail caught, volume deleted afterwards (OPS-13).
+- Tag ruleset for `v*` in the GitHub repository settings (OPS-12; enforced only once the repository is public).
+- First real release candidate built and promoted (OPS-10, OPS-11), and enabling branch protection as in the plan for 1c.
+- Confirm the preconditions and steps of stage 2 before it starts.
+
+**Risks and notes:** Let's Encrypt on the production host (OPS-02) is checked only at the Release 1 go-live. Backups hold personal data and must be deleted at shutdown (SEC-08). The off-site backup storage and its schedule are the operator's.
+

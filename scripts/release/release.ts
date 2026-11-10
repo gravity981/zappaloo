@@ -112,3 +112,14 @@ export function planPromotion(candidateTag: string, tags: string[]): PromotionPl
     previousRelease: releases(tags)[0],
   };
 }
+
+/**
+ * The release before `tag` (a release or a candidate tag): the highest release
+ * below its version, for the release notes. Undefined before the first release.
+ */
+export function previousRelease(tag: string, tags: string[]): string | undefined {
+  const version = RELEASE_TAG.exec(tag)?.[1] ?? CANDIDATE_TAG.exec(tag)?.[1];
+  if (!version) throw new ReleaseError(`"${tag}" is neither a release nor a candidate tag`);
+  const wanted = semver(version);
+  return releases(tags).find((release) => compareReleases(semver(release), wanted) < 0);
+}

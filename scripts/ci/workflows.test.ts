@@ -180,9 +180,11 @@ describe("release-candidate.yml", () => {
     expect(order.every((index) => index >= 0)).toBe(true);
     expect([...order].sort((a, b) => a - b)).toEqual(order);
     expect(steps).toContain("--prerelease");
-    for (const file of ["compose.yaml", "deploy.sh", ".env.example"]) {
-      expect(steps).toContain(`infrastructure/deploy/${file}`);
-    }
+    // The bundle and the generated notes (changelog, install and update commands).
+    expect(steps).toContain("scripts/release/cli.ts bundle");
+    expect(steps).toContain("scripts/release/cli.ts notes");
+    expect(steps).toContain("--notes-file notes.md");
+    expect(steps).not.toContain("--generate-notes");
   });
 });
 
@@ -199,8 +201,11 @@ describe("promote.yml", () => {
     expect(steps).toContain("docker buildx imagetools create");
     expect(steps).toContain('git tag --annotate \\"$TAG\\"');
     expect(steps).toContain("--latest");
-    // The bundle is taken from the candidate's commit.
-    expect(steps).toContain('git show \\"$commit:infrastructure/deploy/$file\\"');
+    // The bundle is taken from the candidate's commit; the notes are generated, not GitHub's.
+    expect(steps).toContain('scripts/release/cli.ts bundle \\"$TAG\\" dist --ref \\"$commit\\"');
+    expect(steps).toContain("scripts/release/cli.ts notes");
+    expect(steps).toContain("--notes-file notes.md");
+    expect(steps).not.toContain("--generate-notes");
   });
 });
 

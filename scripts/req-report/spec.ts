@@ -185,20 +185,27 @@ export interface Stage {
 
 /**
  * Reads the stages of implementation-plan.md: each `### Stage <n> – <title>`
- * heading and the IDs on its `Requirements:` lines.
+ * heading and the IDs on its `Requirements:` lines. Only the section with the
+ * stages counts: the status reports further down repeat the headings.
  */
 export function parseStages(markdown: string): Stage[] {
   const stages: Stage[] = [];
   let current: Stage | undefined;
+  let finished = false;
 
   for (const line of markdown.split("\n")) {
+    if (finished) break;
     const heading = /^###\s+Stage\s+(\d+)\s+[–-]\s+(.+?)\s*$/.exec(line);
     if (heading) {
       current = { number: Number(heading[1]), title: heading[2] ?? "", ids: [] };
       stages.push(current);
       continue;
     }
-    if (/^##\s/.test(line)) current = undefined;
+    if (/^##\s/.test(line)) {
+      current = undefined;
+      // The first section after the stages ends them.
+      finished = stages.length > 0;
+    }
     if (current && line.startsWith("Requirements:")) {
       current.ids.push(...(line.match(new RegExp(ID, "g")) ?? []));
     }

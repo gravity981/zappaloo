@@ -34,7 +34,6 @@ jobs:
       version: ${{ steps.plan.outputs.version }}
       tag: ${{ steps.plan.outputs.tag }}
       image_tag: ${{ steps.plan.outputs.image_tag }}
-      previous_tag: ${{ steps.plan.outputs.previous_tag }}
     steps:
       - name: Only from main
         if: github.ref != 'refs/heads/main'
@@ -82,7 +81,6 @@ jobs:
       VERSION: ${{ needs.prepare.outputs.version }}
       TAG: ${{ needs.prepare.outputs.tag }}
       IMAGE_TAG: ${{ needs.prepare.outputs.image_tag }}
-      PREVIOUS_TAG: ${{ needs.prepare.outputs.previous_tag }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -127,9 +125,11 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          notes_start=()
-          if [ -n "$PREVIOUS_TAG" ]; then notes_start=(--notes-start-tag "$PREVIOUS_TAG"); fi
+          set -euo pipefail
+          bundle=$(node scripts/release/cli.ts bundle "$TAG" dist --ref "$GITHUB_SHA")
+          # Changelog from the commit messages since the previous release, and the
+          # commands to install or update staging with the bundle (OPS-19).
+          node scripts/release/cli.ts notes "$TAG" "$GITHUB_REPOSITORY" --ref "$GITHUB_SHA" \
+            --intro "Release candidate of $VERSION, image \`$IMAGE:$IMAGE_TAG\`." > notes.md
           gh release create "$TAG" --verify-tag --prerelease --title "Zappaloo $TAG" \
-            --generate-notes "${notes_start[@]}" \
-            --notes "Release candidate of $VERSION, image \`$IMAGE:$IMAGE_TAG\`. Deploy to staging: \`./deploy.sh staging $IMAGE_TAG\`." \
-            infrastructure/deploy/compose.yaml infrastructure/deploy/deploy.sh infrastructure/deploy/.env.example
+            --notes-file notes.md "$bundle"

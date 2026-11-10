@@ -56,7 +56,6 @@ jobs:
           CANDIDATE_TAG: ${{ steps.plan.outputs.candidate_tag }}
           CANDIDATE_IMAGE_TAG: ${{ steps.plan.outputs.candidate_image_tag }}
           IMAGE_TAGS: ${{ steps.plan.outputs.image_tags }}
-          PREVIOUS_TAG: ${{ steps.plan.outputs.previous_tag }}
         run: |
           set -euo pipefail
           # The candidate's image must exist; it is re-tagged, never rebuilt.
@@ -72,14 +71,11 @@ jobs:
           for tag in $IMAGE_TAGS; do targets+=(--tag "$IMAGE:$tag"); done
           docker buildx imagetools create "${targets[@]}" "$IMAGE:$CANDIDATE_IMAGE_TAG"
 
-          # The deployment bundle exactly as it was in the candidate's commit.
-          mkdir bundle
-          for file in compose.yaml deploy.sh .env.example; do
-            git show "$commit:infrastructure/deploy/$file" > "bundle/$file"
-          done
-          notes_start=()
-          if [ -n "$PREVIOUS_TAG" ]; then notes_start=(--notes-start-tag "$PREVIOUS_TAG"); fi
+          # The deployment bundle exactly as it was in the candidate's commit (OPS-19).
+          bundle=$(node scripts/release/cli.ts bundle "$TAG" dist --ref "$commit")
+          # Changelog since the previous release up to the candidate's commit, and the
+          # commands to install or update prod with the bundle.
+          node scripts/release/cli.ts notes "$TAG" "$GITHUB_REPOSITORY" --ref "$commit" \
+            --intro "Promoted from $CANDIDATE_TAG (commit $commit) without rebuilding: image \`$IMAGE:$VERSION\`." > notes.md
           gh release create "$TAG" --verify-tag --latest --title "Zappaloo $TAG" \
-            --generate-notes "${notes_start[@]}" \
-            --notes "Promoted from $CANDIDATE_TAG (commit $commit) without rebuilding. Deploy: \`./deploy.sh prod $VERSION\`." \
-            bundle/compose.yaml bundle/deploy.sh bundle/.env.example
+            --notes-file notes.md "$bundle"
