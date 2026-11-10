@@ -16,12 +16,14 @@ interface Step {
   uses?: string;
   if?: string;
   env?: Record<string, string>;
+  with?: Record<string, unknown>;
 }
 interface Job {
   needs?: string | string[];
   if?: string;
+  uses?: string;
   permissions?: Record<string, string>;
-  steps: Step[];
+  steps?: Step[];
 }
 interface Workflow {
   on: Record<string, unknown>;
@@ -30,6 +32,8 @@ interface Workflow {
 
 const ci = parse(read(".github/workflows/ci.yml")) as Workflow;
 const cleanup = parse(read(".github/workflows/cleanup-images.yml")) as Workflow;
+const candidateWorkflow = parse(read(".github/workflows/release-candidate.yml")) as Workflow;
+const promoteWorkflow = parse(read(".github/workflows/promote.yml")) as Workflow;
 const dockerfile = read("infrastructure/docker/Dockerfile");
 const packageJson = JSON.parse(read("package.json")) as { scripts: Record<string, string> };
 
@@ -72,6 +76,18 @@ describe("ci.yml", () => {
     expect(runs(report)).toContain("npm run req-report");
   });
 
+  it("caches Playwright browsers per Playwright version, installing only system packages on a hit", () => {
+    const cache = checks?.steps?.find((step) => step.uses?.startsWith("actions/cache@"));
+    expect(cache?.with?.path).toBe("~/.cache/ms-playwright");
+    expect(String(cache?.with?.key)).toContain("steps.playwright.outputs.version");
+    const install = checks?.steps?.find((step) =>
+      step.run?.includes("playwright install --with-deps"),
+    );
+    const deps = checks?.steps?.find((step) => step.run?.includes("playwright install-deps"));
+    expect(install?.if).toBe("steps.playwright-cache.outputs.cache-hit != 'true'");
+    expect(deps?.if).toBe("steps.playwright-cache.outputs.cache-hit == 'true'");
+  });
+
   it("[OPS-06] every npm script used by CI exists", () => {
     for (const command of Object.values(ci.jobs).flatMap(runs)) {
       const script = /^npm run ([\w:-]+)/.exec(command)?.[1];
@@ -80,9 +96,9 @@ describe("ci.yml", () => {
   });
 
   it("[OPS-06] pins every action to a full commit", () => {
-    for (const workflow of [ci, cleanup]) {
+    for (const workflow of [ci, cleanup, candidateWorkflow, promoteWorkflow]) {
       for (const job of Object.values(workflow.jobs)) {
-        for (const step of job.steps) {
+        for (const step of job.steps ?? []) {
           if (step.uses) expect(step.uses).toMatch(/@[0-9a-f]{40}$/);
         }
       }
@@ -94,14 +110,24 @@ describe("ci.yml", () => {
     const all = runs(image).join("\n");
     expect(all).toContain("node scripts/version/cli.ts ci --run-number");
     expect(all).toContain("github.run_number");
-    expect(all).toMatch(/--build-arg APP_VERSION="\$\{\{ steps\.version\.outputs\.version \}\}"/);
-    expect(all).toMatch(/--build-arg APP_COMMIT="\$\{\{ steps\.version\.outputs\.commit \}\}"/);
-    expect(stepIndex(image, "smoke-test-image.sh")).toBeGreaterThan(
-      stepIndex(image, "docker buildx build"),
+    const buildIndex = (image?.steps ?? []).findIndex((s) =>
+      s.uses?.startsWith("docker/build-push-action@"),
     );
+    const build = image?.steps?.[buildIndex]?.with ?? {};
+    expect(build.file).toBe("infrastructure/docker/Dockerfile");
+    expect(build["build-args"]).toBe(
+      "APP_VERSION=${{ steps.version.outputs.version }}\nAPP_COMMIT=${{ steps.version.outputs.commit }}\n",
+    );
+    expect(build.tags).toBe("${{ env.IMAGE }}:${{ steps.version.outputs.image_tag }}");
+    expect(build.load).toBe(true);
+    expect(build.push).toBe(false);
+    // Layer cache in the GitHub Actions cache.
+    expect(build["cache-from"]).toBe("type=gha");
+    expect(build["cache-to"]).toBe("type=gha,mode=max");
+    expect(stepIndex(image, "smoke-test-image.sh")).toBeGreaterThan(buildIndex);
 
     // The deployment test uses exactly the image that was built.
-    const deployTest = image?.steps.find((step) => step.run === "npm run test:deploy");
+    const deployTest = image?.steps?.find((step) => step.run === "npm run test:deploy");
     expect(deployTest?.env?.ZAPPALOO_TEST_IMAGE).toBe(
       "${{ env.IMAGE }}:${{ steps.version.outputs.image_tag }}",
     );
@@ -109,13 +135,84 @@ describe("ci.yml", () => {
       stepIndex(image, "smoke-test-image.sh"),
     );
 
-    const push = image?.steps.find((step) => step.run?.includes("docker push"));
+    const push = image?.steps?.find((step) => step.run?.includes("docker push"));
     expect(push?.if).toBe("github.event_name == 'push' && github.ref == 'refs/heads/main'");
     expect(push?.run).toContain('"$IMAGE:${{ steps.version.outputs.image_tag }}"');
     expect(push?.run).toContain('"$IMAGE:main"');
     expect(stepIndex(image, "docker push")).toBeGreaterThan(
       stepIndex(image, "npm run test:deploy"),
     );
+  });
+});
+
+describe("release-candidate.yml", () => {
+  const jobs = candidateWorkflow.jobs;
+  const all = (job?: Job) => (job?.steps ?? []).map((step) => JSON.stringify(step)).join("\n");
+
+  it("[OPS-10] is started manually with the version, only from main and only after CI passed", () => {
+    expect(candidateWorkflow.on).toHaveProperty("workflow_dispatch.inputs.version.required", true);
+    expect(Object.keys(candidateWorkflow.on)).toEqual(["workflow_dispatch"]);
+    const prepare = all(jobs.prepare);
+    expect(prepare).toContain("github.ref != 'refs/heads/main'");
+    expect(prepare).toContain("gh run list --workflow ci.yml --commit");
+    expect(prepare).toContain("node scripts/release/cli.ts candidate");
+  });
+
+  it("[OPS-10] runs the full test suite before building, pushing and tagging the candidate", () => {
+    expect(jobs.tests?.uses).toBe("./.github/workflows/ci.yml");
+    expect(ci.on).toHaveProperty("workflow_call");
+    expect(jobs.release?.needs).toEqual(["prepare", "tests"]);
+    const release = jobs.release;
+    const build = release?.steps?.find((step) =>
+      step.uses?.startsWith("docker/build-push-action@"),
+    );
+    // The image carries the version without the -rc.M suffix.
+    expect(build?.with?.["build-args"]).toBe(
+      "APP_VERSION=${{ needs.prepare.outputs.version }}\nAPP_COMMIT=${{ github.sha }}\n",
+    );
+    const steps = all(release);
+    const order = [
+      "smoke-test-image.sh",
+      "docker push",
+      "git push origin",
+      "gh release create",
+    ].map((text) => steps.indexOf(text));
+    expect(order.every((index) => index >= 0)).toBe(true);
+    expect([...order].sort((a, b) => a - b)).toEqual(order);
+    expect(steps).toContain("--prerelease");
+    for (const file of ["compose.yaml", "deploy.sh", ".env.example"]) {
+      expect(steps).toContain(`infrastructure/deploy/${file}`);
+    }
+  });
+});
+
+describe("promote.yml", () => {
+  const steps = (promoteWorkflow.jobs.promote?.steps ?? [])
+    .map((step) => JSON.stringify(step))
+    .join("\n");
+
+  it("[OPS-11] promotes a candidate without rebuilding: release tag, image tags, GitHub release", () => {
+    expect(promoteWorkflow.on).toHaveProperty("workflow_dispatch.inputs.candidate.required", true);
+    expect(steps).toContain("node scripts/release/cli.ts promote");
+    expect(steps).not.toContain("docker/build-push-action");
+    expect(steps).not.toMatch(/docker (buildx )?build /);
+    expect(steps).toContain("docker buildx imagetools create");
+    expect(steps).toContain('git tag --annotate \\"$TAG\\"');
+    expect(steps).toContain("--latest");
+    // The bundle is taken from the candidate's commit.
+    expect(steps).toContain('git show \\"$commit:infrastructure/deploy/$file\\"');
+  });
+});
+
+describe("release workflows", () => {
+  it("[OPS-10][OPS-11] never put user input directly into shell commands (no script injection)", () => {
+    for (const workflow of [candidateWorkflow, promoteWorkflow]) {
+      for (const job of Object.values(workflow.jobs)) {
+        for (const step of job.steps ?? []) {
+          expect(step.run ?? "").not.toMatch(/\$\{\{\s*(inputs|github\.event)\./);
+        }
+      }
+    }
   });
 });
 

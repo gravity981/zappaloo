@@ -5,6 +5,8 @@
 .github
 .vscode
 .devcontainer
+# The devcontainer build (context ".." ) copies its own Dockerfile
+!.devcontainer/Dockerfile
 .e2e-data
 reports
 coverage

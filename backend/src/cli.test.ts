@@ -1,6 +1,6 @@
 import { spawnSync } from "node:child_process";
-import { existsSync, writeFileSync } from "node:fs";
-import { join } from "node:path";
+import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { afterEach, describe, expect, it } from "vitest";
 import { runCli } from "./cli.ts";
@@ -82,7 +82,7 @@ describe("command-line interface", () => {
     expect((await run([])).code).toBe(1);
     const help = await run(["help"]);
     expect(help.code).toBe(0);
-    expect(help.out).toContain("restore <file|-> --force");
+    expect(help.out).toContain("restore [--full] <file|-> --force");
   });
 
   it("[OPS-17] runs as its own process, as inside the container", () => {
@@ -209,6 +209,132 @@ describe("backup and restore", () => {
       expect(result.code, file).toBe(1);
       expect(result.err, file).toMatch(/BackupError/);
     }
+    expect(guests(dataDir)).toEqual([{ name: "Anna" }]);
+  });
+});
+
+describe("full backup and restore", () => {
+  function writeFiles(dataDir: string, files: Record<string, string>): void {
+    for (const [name, content] of Object.entries(files)) {
+      mkdirSync(dirname(join(dataDir, name)), { recursive: true });
+      writeFileSync(join(dataDir, name), content);
+    }
+  }
+
+  it("[OPS-05] backup --full holds the database and the files and restore --full brings both back", async () => {
+    const { dataDir, dir } = await dataDirWithGuest("Anna");
+    writeFiles(dataDir, { "uploads/a.jpg": "photo A", "maps/town/map.json": "{}" });
+    const archive = join(dir, "full.tar.gz");
+
+    // While the app runs: a heartbeat and a held database.
+    const inUse = openDatabase(dataPaths(dataDir).database);
+    const stopHeartbeat = startHeartbeat(dataPaths(dataDir));
+    try {
+      const result = await run(["backup", "--full", archive], { DATA_DIR: dataDir });
+      expect(result).toEqual({ code: 0, out: `Full backup written to ${archive}.`, err: "" });
+      const again = await run(["backup", "--full", archive], { DATA_DIR: dataDir });
+      expect(again.code).toBe(1);
+      expect(again.err).toMatch(/already exists/);
+    } finally {
+      stopHeartbeat();
+      inUse.close();
+    }
+
+    // Later changes: another guest, a changed and a new file.
+    const database = openDatabase(dataPaths(dataDir).database);
+    database.sqlite.prepare("DELETE FROM guests").run();
+    database.close();
+    writeFiles(dataDir, { "uploads/a.jpg": "changed", "uploads/b.jpg": "new" });
+
+    const refused = await run(["restore", "--full", archive], { DATA_DIR: dataDir });
+    expect(refused.code).toBe(1);
+    expect(refused.err).toMatch(/--force/);
+
+    const restored = await run(["restore", "--full", archive, "--force"], { DATA_DIR: dataDir });
+    expect(restored.code).toBe(0);
+    expect(guests(dataDir)).toEqual([{ name: "Anna" }]);
+    expect(readFileSync(join(dataDir, "uploads/a.jpg"), "utf8")).toBe("photo A");
+    expect(existsSync(join(dataDir, "uploads/b.jpg"))).toBe(false);
+    expect(readFileSync(join(dataDir, "maps/town/map.json"), "utf8")).toBe("{}");
+    expect(readdirSync(dataDir).filter((n) => n.startsWith(".restore-"))).toEqual([]);
+  });
+
+  it("[OPS-05] restore --full refuses while the application is running", async () => {
+    const { dataDir, dir } = await dataDirWithGuest("Anna");
+    const archive = join(dir, "full.tar.gz");
+    expect((await run(["backup", "--full", archive], { DATA_DIR: dataDir })).code).toBe(0);
+    const stopHeartbeat = startHeartbeat(dataPaths(dataDir));
+    const result = await run(["restore", "--full", archive, "--force"], { DATA_DIR: dataDir });
+    stopHeartbeat();
+    expect(result.code).toBe(1);
+    expect(result.err).toMatch(/the application is running; stop it first/);
+  });
+
+  it("[OPS-05] restore --full leaves everything unchanged for an invalid archive", async () => {
+    const { dataDir, dir } = await dataDirWithGuest("Anna");
+    writeFiles(dataDir, { "uploads/a.jpg": "photo A" });
+    const env = { DATA_DIR: dataDir };
+
+    const garbage = join(dir, "garbage.tar.gz");
+    writeFileSync(garbage, "not an archive");
+    // A plain .db backup, and a tar without the database.
+    const plain = join(dir, "plain.db");
+    expect((await run(["backup", plain], env)).code).toBe(0);
+    const noDatabase = join(dir, "no-db.tar.gz");
+    mkdirSync(join(dir, "src/uploads"), { recursive: true });
+    writeFileSync(join(dir, "src/uploads/x.jpg"), "x");
+    expect(spawnSync("tar", ["-czf", noDatabase, "-C", join(dir, "src"), "uploads"]).status).toBe(
+      0,
+    );
+    // A tar with a database that is not a database.
+    const badDatabase = join(dir, "bad-db.tar.gz");
+    writeFileSync(join(dir, "src/zappaloo.db"), "nope");
+    expect(
+      spawnSync("tar", ["-czf", badDatabase, "-C", join(dir, "src"), "zappaloo.db", "uploads"])
+        .status,
+    ).toBe(0);
+
+    for (const file of [garbage, plain, noDatabase, badDatabase, join(dir, "missing.tar.gz")]) {
+      const result = await run(["restore", "--full", file, "--force"], env);
+      expect(result.code, file).toBe(1);
+      expect(result.err, file).toMatch(/BackupError/);
+    }
+    expect(guests(dataDir)).toEqual([{ name: "Anna" }]);
+    expect(readFileSync(join(dataDir, "uploads/a.jpg"), "utf8")).toBe("photo A");
+    expect(readdirSync(dataDir).filter((n) => n.startsWith(".restore-"))).toEqual([]);
+  });
+
+  it("[OPS-05] backup --full - and restore --full - stream the archive through stdout and stdin", async () => {
+    const { dataDir } = await dataDirWithGuest("Anna");
+    writeFiles(dataDir, { "uploads/a.jpg": "photo A" });
+    const cli = fileURLToPath(new URL("./cli.ts", import.meta.url));
+    const env = { PATH: process.env.PATH, DATA_DIR: dataDir };
+
+    // As in: docker compose exec -T app zappaloo backup --full - > backups/x.tar.gz
+    const backup = spawnSync(process.execPath, [cli, "backup", "--full", "-"], { env });
+    expect(backup.status).toBe(0);
+    expect(backup.stderr.toString()).toBe("Full backup written to standard output.\n");
+
+    rmSync(join(dataDir, "uploads/a.jpg"));
+    const database = openDatabase(dataPaths(dataDir).database);
+    database.sqlite.prepare("UPDATE guests SET name = 'Mallory'").run();
+    database.close();
+
+    // As in: docker compose run --rm --no-deps -T app zappaloo restore --full - --force < x.tar.gz
+    const restore = spawnSync(process.execPath, [cli, "restore", "--full", "-", "--force"], {
+      env,
+      input: backup.stdout,
+    });
+    expect(restore.stderr.toString()).toBe("");
+    expect(restore.status).toBe(0);
+    expect(guests(dataDir)).toEqual([{ name: "Anna" }]);
+    expect(readFileSync(join(dataDir, "uploads/a.jpg"), "utf8")).toBe("photo A");
+
+    const garbage = spawnSync(process.execPath, [cli, "restore", "--full", "-", "--force"], {
+      env,
+      input: "not an archive",
+    });
+    expect(garbage.status).toBe(1);
     expect(guests(dataDir)).toEqual([{ name: "Anna" }]);
   });
 });

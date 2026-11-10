@@ -7,6 +7,7 @@ import Fastify from "fastify";
 import type { FastifyInstance, FastifyServerOptions } from "fastify";
 import type { VersionResponse } from "@zappaloo/shared";
 import type { Database } from "./database/database.ts";
+import { eventRoutes } from "./api/events.ts";
 import { noIndex } from "./api/no-index.ts";
 import { systemRoutes } from "./api/system.ts";
 import { sendError, validation } from "./api/validation.ts";
@@ -25,6 +26,7 @@ export async function buildApp(options: AppOptions): Promise<FastifyInstance> {
   await app.register(validation);
   await app.register(noIndex);
   await app.register(systemRoutes, { database: options.database, version: options.version });
+  await app.register(eventRoutes);
 
   const frontendDir = options.frontendDir && resolve(options.frontendDir);
   if (frontendDir) {

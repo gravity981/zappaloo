@@ -68,5 +68,14 @@ spec/            The specification – the source of truth
 
 - Every pull request and push to `main` runs [ci.yml](.github/workflows/ci.yml): checks, all tests, the Docker image with smoke and deployment tests, and the requirement report. Images from `main` go to `ghcr.io/gravity981/zappaloo`.
 - Version scheme, releases and environments: [spec/sw-architecture.md](spec/sw-architecture.md), section 23.
-- Setting up a server, deploying, rolling back: the runbook in [infrastructure/deploy/README.md](infrastructure/deploy/README.md).
+- Hosting is out of scope: the project ships the image and the deployment bundle; the operator provides the host, network, domain and off-site backup storage ([spec/sw-architecture.md](spec/sw-architecture.md), section 21).
+- Setting up an environment, deploying, rolling back: the runbook in [infrastructure/deploy/README.md](infrastructure/deploy/README.md).
 - Build and smoke-test the image locally: `npm run build:image`.
+
+### Making a release
+
+1. `main` is green in CI.
+2. GitHub → Actions → **Release candidate** → Run workflow with the version, e.g. `0.1.0`. It runs all tests, builds the image `0.1.0-rc.1`, tags `v0.1.0-rc.1` and publishes a pre-release with the deployment bundle.
+3. On staging: `./deploy.sh staging 0.1.0-rc.1` and check it. A problem → fix on `main`, run step 2 again (`0.1.0-rc.2`).
+4. GitHub → Actions → **Promote** with the candidate tag, e.g. `v0.1.0-rc.2`. No rebuild: it tags `v0.1.0`, adds the image tags `0.1.0`, `0.1`, `0` and publishes the release.
+5. On prod: `./deploy.sh prod 0.1.0`.

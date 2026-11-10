@@ -10,6 +10,7 @@ import { pathToFileURL } from "node:url";
 import { loadConfig } from "./config.ts";
 import { dataPaths, ensureDataDirs } from "./data-dir.ts";
 import { backupDatabase, restoreDatabase } from "./database/backup.ts";
+import { backupFull, restoreFull } from "./database/full-backup.ts";
 import { openDatabase, runMigrations } from "./database/database.ts";
 import { resolveVersion } from "./version.ts";
 
@@ -63,15 +64,32 @@ const commands: Record<string, Command> = {
     },
   },
   backup: {
-    summary: "Consistent backup of the database while the app runs (- : to stdout)",
-    usage: "backup <file|->",
+    summary:
+      "Consistent backup while the app runs; --full adds the files as .tar.gz (- : to stdout)",
+    usage: "backup [--full] <file|->",
     run: async (args, io) => {
-      const { positionals } = parseArgs({ args, allowPositionals: true });
+      const { positionals, values } = parseArgs({
+        args,
+        allowPositionals: true,
+        options: { full: { type: "boolean", default: false } },
+      });
       const target = positionals[0];
-      if (!target) return usageError(io, "backup <file|->");
+      if (!target) return usageError(io, "backup [--full] <file|->");
       const paths = dataPaths(loadConfig(io.env).DATA_DIR);
       const database = openDatabase(paths.database);
       try {
+        if (values.full) {
+          if (target === "-") {
+            // e.g. docker compose exec -T app zappaloo backup --full - > backups/x.tar.gz
+            if (!io.stdout) throw new Error("no standard output available");
+            await backupFull(database.sqlite, paths, io.stdout);
+            io.err("Full backup written to standard output.");
+          } else {
+            await backupFull(database.sqlite, paths, resolve(target));
+            io.out(`Full backup written to ${resolve(target)}.`);
+          }
+          return 0;
+        }
         if (target !== "-") {
           await backupDatabase(database.sqlite, resolve(target));
           io.out(`Database backed up to ${resolve(target)}.`);
@@ -93,17 +111,31 @@ const commands: Record<string, Command> = {
     },
   },
   restore: {
-    summary: "Replace the database with a backup (app stopped; - : from stdin)",
-    usage: "restore <file|-> --force",
+    summary: "Replace the database (--full: and files) with a backup (app stopped; - : from stdin)",
+    usage: "restore [--full] <file|-> --force",
     run: async (args, io) => {
       const { positionals, values } = parseArgs({
         args,
         allowPositionals: true,
-        options: { force: { type: "boolean", default: false } },
+        options: {
+          force: { type: "boolean", default: false },
+          full: { type: "boolean", default: false },
+        },
       });
       const source = positionals[0];
-      if (!source) return usageError(io, "restore <file|-> --force");
+      if (!source) return usageError(io, "restore [--full] <file|-> --force");
       const paths = dataPaths(loadConfig(io.env).DATA_DIR);
+      if (values.full) {
+        // From stdin, e.g. docker compose run --rm --no-deps -T app zappaloo restore --full - --force < x.tar.gz
+        if (source === "-") {
+          if (!io.stdin) throw new Error("no standard input available");
+          await restoreFull(paths, io.stdin, { force: values.force });
+        } else {
+          await restoreFull(paths, resolve(source), { force: values.force });
+        }
+        io.out("Database and files restored; migrations run on the next start.");
+        return 0;
+      }
       if (source !== "-") {
         restoreDatabase(paths, resolve(source), { force: values.force });
         io.out(`Database restored from ${resolve(source)}; migrations run on the next start.`);

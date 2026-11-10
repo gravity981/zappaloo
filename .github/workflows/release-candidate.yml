@@ -1,0 +1,135 @@
+# Release candidate (sw-architecture.md 23.3, OPS-10): started manually on main
+# with the version to release. Runs the full test suite, builds the image with
+# that version, pushes it as <version>-rc.<M>, tags v<version>-rc.<M> and
+# publishes a GitHub pre-release with the deployment bundle.
+name: Release candidate
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Version to release (X.Y.Z, e.g. 0.1.0)
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+env:
+  IMAGE: ghcr.io/gravity981/zappaloo
+
+jobs:
+  prepare:
+    name: Check and plan
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      actions: read
+    outputs:
+      version: ${{ steps.plan.outputs.version }}
+      tag: ${{ steps.plan.outputs.tag }}
+      image_tag: ${{ steps.plan.outputs.image_tag }}
+      previous_tag: ${{ steps.plan.outputs.previous_tag }}
+    steps:
+      - name: Only from main
+        if: github.ref != 'refs/heads/main'
+        run: |
+          echo "Release candidates are built from main only, not from $GITHUB_REF." >&2
+          exit 1
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .node-version
+      - name: CI passed for this commit
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          passed=$(gh run list --workflow ci.yml --commit "$GITHUB_SHA" --status success --json databaseId --jq length)
+          if [ "$passed" -eq 0 ]; then
+            echo "CI has not passed for $GITHUB_SHA; wait for it or fix main first." >&2
+            exit 1
+          fi
+      - name: Plan the candidate
+        id: plan
+        env:
+          VERSION: ${{ inputs.version }}
+        run: node scripts/release/cli.ts candidate "$VERSION" --github-output
+
+  tests:
+    name: Full test suite
+    needs: prepare
+    permissions:
+      contents: read
+      packages: write
+    uses: ./.github/workflows/ci.yml
+
+  release:
+    name: Build and publish
+    needs: [prepare, tests]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    permissions:
+      contents: write
+      packages: write
+    env:
+      VERSION: ${{ needs.prepare.outputs.version }}
+      TAG: ${{ needs.prepare.outputs.tag }}
+      IMAGE_TAG: ${{ needs.prepare.outputs.image_tag }}
+      PREVIOUS_TAG: ${{ needs.prepare.outputs.previous_tag }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .node-version
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+      # The image contains the version without the -rc.M suffix (23.6).
+      - name: Build image
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: .
+          file: infrastructure/docker/Dockerfile
+          platforms: linux/amd64
+          load: true
+          push: false
+          provenance: false
+          build-args: |
+            APP_VERSION=${{ needs.prepare.outputs.version }}
+            APP_COMMIT=${{ github.sha }}
+          tags: ${{ env.IMAGE }}:${{ needs.prepare.outputs.image_tag }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+      - name: Smoke test
+        run: infrastructure/scripts/smoke-test-image.sh "$IMAGE:$IMAGE_TAG" "$VERSION" "$GITHUB_SHA"
+      - name: Log in to the registry
+        uses: docker/login-action@81c6f93d4bc991e510b342a00b419b3bb4efc5c6 # v4.7.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Push image
+        run: docker push "$IMAGE:$IMAGE_TAG"
+      - name: Tag the commit
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git tag --annotate "$TAG" --message "Release candidate $TAG" "$GITHUB_SHA"
+          git push origin "refs/tags/$TAG"
+      - name: GitHub pre-release with the deployment bundle
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          notes_start=()
+          if [ -n "$PREVIOUS_TAG" ]; then notes_start=(--notes-start-tag "$PREVIOUS_TAG"); fi
+          gh release create "$TAG" --verify-tag --prerelease --title "Zappaloo $TAG" \
+            --generate-notes "${notes_start[@]}" \
+            --notes "Release candidate of $VERSION, image \`$IMAGE:$IMAGE_TAG\`. Deploy to staging: \`./deploy.sh staging $IMAGE_TAG\`." \
+            infrastructure/deploy/compose.yaml infrastructure/deploy/deploy.sh infrastructure/deploy/.env.example

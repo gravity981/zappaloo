@@ -3,7 +3,15 @@
 // Image: $ZAPPALOO_TEST_IMAGE, default ghcr.io/gravity981/zappaloo:local
 // (infrastructure/scripts/build-image.sh). Run with `npm run test:deploy`.
 import { execFileSync, spawnSync } from "node:child_process";
-import { copyFileSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
+import {
+  copyFileSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  statSync,
+  writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -35,6 +43,9 @@ function docker(...args: string[]): string {
 
 interface Environment {
   dir: string;
+  /** Caddy's ports, the same inside and outside its container. */
+  httpPort: number;
+  httpsPort: number;
   project: string;
   deploy: (...args: string[]) => { status: number; output: string };
   compose: (...args: string[]) => string;
@@ -67,6 +78,8 @@ function createEnvironment(target: "staging" | "prod", httpsPort: number): Envir
     });
   return {
     dir,
+    httpPort: httpsPort - 1,
+    httpsPort,
     project,
     deploy: (...args) => {
       const result = spawnSync(join(dir, "deploy.sh"), [target, ...args], {
@@ -144,6 +157,28 @@ describe("staging deployment", () => {
     expect(["", ":0"]).toContain(staging.compose("port", "app", "3000").trim());
   });
 
+  it("[OPS-03] publishes only Caddy's HTTP and HTTPS ports and, on staging, Mailpit's web UI", () => {
+    const env = staging;
+    if (!env) throw new Error("staging not deployed");
+    const published = env
+      .compose("ps", "--format", "json")
+      .trim()
+      .split("\n")
+      .map(
+        (line) =>
+          JSON.parse(line) as { Service: string; Publishers: { PublishedPort: number }[] | null },
+      )
+      .flatMap((c) =>
+        (c.Publishers ?? [])
+          .filter((p) => p.PublishedPort > 0)
+          .map((p) => `${c.Service}:${p.PublishedPort}`),
+      );
+    const mailpitPort = env.httpsPort + 1;
+    expect([...new Set(published)].sort()).toEqual(
+      [`caddy:${env.httpPort}`, `caddy:${env.httpsPort}`, `mailpit:${mailpitPort}`].sort(),
+    );
+  });
+
   it("[OPS-01] Caddy serves the app over HTTPS at an IP address, like a browser without SNI", async () => {
     const env = staging;
     if (!env) throw new Error("staging not deployed");
@@ -170,7 +205,7 @@ describe("staging deployment", () => {
        const site = ${JSON.stringify(SITE_IP)};
        let ca = ""; process.stdin.on("data", (d) => (ca += d)).on("end", () => dns.lookup("caddy", (err, ip) => {
          if (err) { console.error(err.message); process.exit(1); }
-         https.get({ host: ip, port: 443, path: "/api/health", headers: { host: site }, ca,
+         https.get({ host: ip, port: ${env.httpsPort}, path: "/api/health", headers: { host: site }, ca,
                      checkServerIdentity: (_host, cert) => tls.checkServerIdentity(site, cert) }, (res) => {
            let body = ""; res.on("data", (d) => (body += d)).on("end", () =>
              console.log(JSON.stringify({ status: res.statusCode, robots: res.headers["x-robots-tag"], body })));
@@ -182,6 +217,89 @@ describe("staging deployment", () => {
     expect(parsed.status).toBe(200);
     expect(parsed.robots).toContain("noindex");
     expect(JSON.parse(parsed.body)).toMatchObject({ status: "ok" });
+  });
+
+  it("[OPS-02] live updates (Server-Sent Events) pass through Caddy one by one, not buffered", () => {
+    const env = staging;
+    if (!env) throw new Error("staging not deployed");
+    // Three events one second apart, through Caddy over HTTPS with compression
+    // negotiated, as a browser would. Each must arrive about when it is sent.
+    const arrivals = env.node(
+      `const https = require("node:https"), dns = require("node:dns"), zlib = require("node:zlib");
+       dns.lookup("caddy", (_e, ip) => {
+         const start = Date.now(), times = [];
+         https.get({ host: ip, port: ${env.httpsPort}, path: "/api/events/ping?count=3&intervalMs=1000",
+                     headers: { host: ${JSON.stringify(SITE_IP)}, accept: "text/event-stream",
+                                "accept-encoding": "gzip, zstd" },
+                     rejectUnauthorized: false }, (res) => {
+           // Decompress like a browser; flush each chunk as it arrives.
+           const encoding = res.headers["content-encoding"] ?? null;
+           const decoded = encoding === "gzip" ? res.pipe(zlib.createGunzip({ finishFlush: zlib.constants.Z_SYNC_FLUSH }))
+             : encoding === "zstd" ? res.pipe(zlib.createZstdDecompress()) : res;
+           let text = "";
+           decoded.on("data", (chunk) => {
+             text += chunk;
+             const found = (text.match(/event: ping/g) ?? []).length;
+             while (times.length < found) times.push(Date.now() - start);
+           });
+           decoded.on("end", () => console.log(JSON.stringify({ status: res.statusCode,
+             type: res.headers["content-type"], encoding, times })));
+         });
+       });`,
+    );
+    const result = JSON.parse(arrivals) as {
+      status: number;
+      type: string;
+      encoding: string | null;
+      times: number[];
+    };
+    expect(result.status).toBe(200);
+    expect(result.type).toContain("text/event-stream");
+    expect(result.times, JSON.stringify(result)).toHaveLength(3);
+    const [first = 0, , last = 0] = result.times;
+    // Unbuffered: the first event long before the last, about two seconds apart.
+    expect(first).toBeLessThan(1700);
+    expect(last - first).toBeGreaterThan(1500);
+  });
+
+  it("[OPS-01] redirects HTTP to HTTPS on the configured port (staging next to prod on one machine)", () => {
+    const env = staging;
+    if (!env) throw new Error("staging not deployed");
+    const answer = env.node(
+      `const http = require("node:http"), dns = require("node:dns");
+       dns.lookup("caddy", (_e, ip) => {
+         http.get({ host: ip, port: ${env.httpPort}, path: "/game?x=1", headers: { host: ${JSON.stringify(SITE_IP)} } },
+           (res) => {
+             res.resume();
+             console.log(JSON.stringify({ status: res.statusCode, location: res.headers.location }));
+             process.exit(0);
+           });
+       });`,
+    );
+    expect(JSON.parse(answer), answer).toEqual({
+      status: 308,
+      location: `https://${SITE_IP}:${env.httpsPort}/game?x=1`,
+    });
+  });
+
+  it("[OPS-01] answers any other host name with 421 and a clear message instead of an empty page", () => {
+    const env = staging;
+    if (!env) throw new Error("staging not deployed");
+    // E.g. a SITE_ADDRESS that does not match the address in the browser.
+    const answers = env.node(
+      `const https = require("node:https"), http = require("node:http"), dns = require("node:dns");
+       const get = (proto, ip, port) => new Promise((resolve) =>
+         proto.get({ host: ip, port, path: "/", headers: { host: "10.99.0.2" }, rejectUnauthorized: false },
+           (res) => { let b = ""; res.on("data", (d) => (b += d)).on("end", () => resolve({ status: res.statusCode, body: b })); }));
+       dns.lookup("caddy", async (_e, ip) => {
+         console.log(JSON.stringify([await get(https, ip, ${env.httpsPort}), await get(http, ip, ${env.httpPort})]));
+       });`,
+    );
+    const expected = {
+      status: 421,
+      body: `421 Misdirected Request: this server only answers to ${SITE_IP}`,
+    };
+    expect(JSON.parse(answers)).toEqual([expected, expected]);
   });
 
   it("[OPS-04] data survives redeployments and a full restart of the stack", () => {
@@ -222,6 +340,103 @@ describe("configuration changes", () => {
   });
 });
 
+describe("staging with a prod backup", () => {
+  const backupsDir = (env: Environment) => join(env.dir, "backups");
+
+  it("[OPS-13][OPS-05] a deployment restores the latest full backup into a fresh staging volume", () => {
+    const env = staging;
+    if (!env) throw new Error("staging not deployed");
+    // A full backup as the operator would provide it: made from a running environment.
+    sql(env, "CREATE TABLE IF NOT EXISTS visitors (name TEXT)");
+    sql(env, "DELETE FROM visitors");
+    sql(env, "INSERT INTO visitors VALUES ('Anna')");
+    env.compose("exec", "-T", "app", "sh", "-c", "echo from-backup > /data/uploads/restore.jpg");
+    mkdirSync(backupsDir(env), { recursive: true });
+    const archive = join(backupsDir(env), "prod-backup.tar.gz");
+    writeFileSync(
+      archive,
+      execFileSync(
+        "docker",
+        ["compose", "exec", "-T", "app", "zappaloo", "backup", "--full", "-"],
+        {
+          cwd: env.dir,
+          env: { ...process.env, SESSION_SECRET: "x" },
+          maxBuffer: 64 * 1024 * 1024,
+        },
+      ),
+    );
+
+    // The staging data has moved on; the deployment replaces it with the backup.
+    sql(env, "DELETE FROM visitors");
+    sql(env, "INSERT INTO visitors VALUES ('Mallory')");
+    env.compose(
+      "exec",
+      "-T",
+      "app",
+      "sh",
+      "-c",
+      "rm /data/uploads/restore.jpg; echo x > /data/uploads/other.jpg",
+    );
+
+    const result = env.deploy(STAGING_TAG, "--no-pull");
+    expect(result.output).toContain("with the full backup backups/prod-backup.tar.gz");
+    expect(result.status).toBe(0);
+    expect(JSON.parse(sql(env, "SELECT name FROM visitors"))).toEqual([{ name: "Anna" }]);
+    expect(env.compose("exec", "-T", "app", "cat", "/data/uploads/restore.jpg").trim()).toBe(
+      "from-backup",
+    );
+    expect(() => env.compose("exec", "-T", "app", "cat", "/data/uploads/other.jpg")).toThrow();
+  });
+
+  it("[OPS-13] --no-restore keeps the staging data", () => {
+    const env = staging;
+    if (!env) throw new Error("staging not deployed");
+    sql(env, "INSERT INTO visitors VALUES ('Ben')");
+    expect(env.deploy(STAGING_TAG, "--no-pull", "--no-restore").status).toBe(0);
+    expect(JSON.parse(sql(env, "SELECT name FROM visitors ORDER BY name"))).toEqual([
+      { name: "Anna" },
+      { name: "Ben" },
+    ]);
+  });
+
+  it("[OPS-13] refuses to restore guest data unless staging's mail is caught", () => {
+    const env = staging;
+    if (!env) throw new Error("staging not deployed");
+    const envFile = join(env.dir, ".env");
+    const original = readFileSync(envFile, "utf8");
+    writeFileSync(envFile, original.replace(/^SMTP_HOST=.*$/m, "SMTP_HOST=smtp.example.com"));
+    const result = env.deploy(STAGING_TAG, "--no-pull");
+    writeFileSync(envFile, original);
+    expect(result.status).not.toBe(0);
+    expect(result.output).toContain("no mail reaches real recipients");
+    // Nothing was touched.
+    expect(JSON.parse(sql(env, "SELECT name FROM visitors ORDER BY name"))).toEqual([
+      { name: "Anna" },
+      { name: "Ben" },
+    ]);
+  });
+
+  it("[OPS-13] --teardown stops staging and deletes its data volume, but not Caddy's CA", () => {
+    const env = staging;
+    if (!env) throw new Error("staging not deployed");
+    const volumes = () => docker("volume", "ls", "--format", "{{.Name}}").split("\n");
+    expect(volumes()).toContain(`${env.project}-data`);
+
+    // Without confirmation nothing happens.
+    const unconfirmed = env.deploy("--teardown");
+    expect(unconfirmed.status).not.toBe(0);
+    expect(unconfirmed.output).toContain("confirm with --yes");
+    expect(volumes()).toContain(`${env.project}-data`);
+
+    const result = env.deploy("--teardown", "--yes");
+    expect(result.output).toContain("volume " + env.project + "-data deleted");
+    expect(result.status).toBe(0);
+    expect(volumes()).not.toContain(`${env.project}-data`);
+    expect(volumes()).toContain(`${env.project}_caddy-data`);
+    expect(env.compose("ps", "--quiet").trim()).toBe("");
+  });
+});
+
 describe("prod deployment", () => {
   it("[OPS-15] prod accepts only release tags, and each directory only its own environment", () => {
     prod = createEnvironment("prod", 18443 + (process.pid % 500) * 3 + 1500);
@@ -239,6 +454,11 @@ describe("prod deployment", () => {
     );
     expect(wrongDirectory.status).not.toBe(0);
     expect(wrongDirectory.stderr).toContain("this directory is for APP_ENV=prod");
+
+    // Deleting data is for staging only.
+    const teardown = prod.deploy("--teardown", "--yes");
+    expect(teardown.status).not.toBe(0);
+    expect(teardown.output).toContain("--teardown is only for staging");
 
     // A registry token without its user name is reported before anything is pulled.
     writeFileSync(join(prod.dir, "ghcr-token"), "token");
