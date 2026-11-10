@@ -13,6 +13,8 @@ import type { Database } from "./database/database.ts";
 import { loadEvent } from "./event/config.ts";
 import { bootstrapEvent, EventService } from "./event/service.ts";
 import { BUNDLED_EVENTS_DIR } from "./config.ts";
+import type { Role } from "@zappaloo/shared";
+import { SESSION_COOKIE } from "./api/auth.ts";
 import type { AuthOptions } from "./api/auth.ts";
 import { createAuth } from "./auth/setup.ts";
 import { MemoryMailer } from "./mail/mailer.ts";
@@ -87,5 +89,31 @@ export async function createTestApp(options: Partial<AppOptions> = {}): Promise<
       database.close();
       dir.remove();
     },
+  };
+}
+
+/**
+ * An account with the roles, signed in: the headers to send as that user (with the CSRF
+ * token for requests that change something).
+ */
+export async function signIn(
+  ctx: Pick<TestContext, "app" | "auth">,
+  username = "tester",
+  roles: Role[] = ["vip"],
+): Promise<{ cookie: string; "x-csrf-token": string }> {
+  const password = "correct-horse-battery";
+  const user = ctx.auth.accounts.createUser({ username, roles }, "cli");
+  const link = ctx.auth.accounts.createLink(user.id, "setup", "cli");
+  await ctx.auth.accounts.useLink(link.token, password);
+  const response = await ctx.app.inject({
+    method: "POST",
+    url: "/api/session",
+    payload: { username, password },
+  });
+  const cookie = response.cookies.find((c) => c.name === SESSION_COOKIE);
+  if (!cookie) throw new Error(`sign-in of ${username} failed: ${response.body}`);
+  return {
+    cookie: `${SESSION_COOKIE}=${cookie.value}`,
+    "x-csrf-token": response.json<{ csrfToken: string }>().csrfToken,
   };
 }

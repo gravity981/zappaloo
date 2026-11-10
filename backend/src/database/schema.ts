@@ -242,3 +242,18 @@ export const invitations = sqliteTable(
   },
   (table) => [index("invitations_event").on(table.eventId)],
 );
+
+// --- Access conditions (sw-architecture.md 11) ----------------------------------------
+
+/** Manual releases an admin has switched on; a `release` condition is true while its key is here. */
+export const accessReleases = sqliteTable(
+  "access_releases",
+  {
+    eventId: text("event_id")
+      .notNull()
+      .references(() => events.id),
+    key: text("key").notNull(),
+    releasedAt: integer("released_at", { mode: "timestamp_ms" }).notNull(),
+  },
+  (table) => [primaryKey({ columns: [table.eventId, table.key] })],
+);

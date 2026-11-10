@@ -29,8 +29,8 @@ Each release goes into production. From Release 1 on, real guest data is stored,
 | Stage | Content | Release | Status |
 |---|---|---|---|
 | 1 | Walking skeleton and deployment | 1 | done |
-| 2 | Accounts, roles and access | 1 | next |
-| 3 | RSVP and waiting page | 1 | open |
+| 2 | Accounts, roles and access | 1 | done |
+| 3 | RSVP and waiting page | 1 | next |
 | 4 | Content and website | Opening | open |
 | 5 | Game world and map importer | Opening | open |
 | 6 | Living world | Opening | open |
@@ -307,3 +307,46 @@ After each completed stage, Claude appends a report with this structure to secti
 
 **Risks and notes:** Let's Encrypt on the production host (OPS-02) is checked only at the Release 1 go-live. Backups hold personal data and must be deleted at shutdown (SEC-08). The off-site backup storage and its schedule are the operator's.
 
+### Stage 2 – Accounts, Roles and Access (2026-11-10)
+
+**Summary:** Guests can redeem a personal invitation (code or link) and sign in; users manage their profile, verify their email, reset a forgotten password and delete their account. Admins create invitations and print the cards, and the API for users, roles, staff capabilities, guest groups and manual releases is in place. The whole platform needs a sign-in, and every request is checked on the server.
+
+**Steps:** 2a Event bootstrap and settings – done. 2b Accounts and sessions – done. 2c Email and account self-service – done. 2d Roles, capabilities and guest groups – done (API only). 2e Invitations – done, with the invitation page and a minimal admin page that prints the cards. 2f Access control – done.
+
+**Requirements:** 48 of 48 planned for this stage have passing automated tests (requirement report). Overall: 67 of 200 active requirements implemented. The report still shows 7 of them red (ACC-05, ACC-14, CFG-02, SEC-01, OPS-05, OPS-15, OPS-16) because of the deployment test, see risks.
+
+**Tests:** 294 Vitest results (backend 172, frontend 37, shared 9, scripts and infrastructure 76), all passing; 36 Playwright results (9 tests on 4 browser profiles), all passing. The deployment test (15 tests against the real image) could not be run, see risks. Manual checks: none new; the printed invitation cards should be checked once on a real printer or PDF (INV-14).
+
+**Spec changes and deviations:**
+- The decisions are written into sw-architecture.md: 7.1.1 (mail, verification, reset, deleting an account, roles, capabilities, groups), 9.6.1 (invitations) and 11.1.1 (sign-in everywhere, access conditions, manual releases).
+- The invitation code has 6 characters and is protected by a global limit of 100 failed attempts per hour (decision record in README.md).
+- `GET /api/event` needs a sign-in; the deployment test now reads the event with the CLI.
+- Deviation: sw-architecture.md names admin pages for users, roles, invitations, groups and settings in this stage. Only the invitation page exists; the others are API only (reset links, roles, capabilities, groups, releases). They are not assigned to a stage yet.
+
+**Overall status:**
+
+| Stage | Content | Status |
+|---|---|---|
+| 1 | Walking skeleton and deployment | done |
+| 2 | Accounts, roles and access | done |
+| 3 | RSVP and waiting page | next |
+| 4 | Content and website | open |
+| 5 | Game world and map importer | open |
+| 6 | Living world | open |
+| 7 | Contributions and event screen | open |
+| 8 | Minigames, treasure hunt and highscores | open |
+| 9 | Event readiness | open |
+| 10 | After the event | open |
+
+**Remaining requirements by stage:** stage 1 → 2 (OPS-12, OPS-13: manual checks); 3 → 17; 4 → 14; 5 → 31; 6 → 14; 7 → 28; 8 → 22; 9 → 1; 10 → 4. In total 133 of 200 active.
+
+**Waiting on the project owner:**
+- Run `npm run test:deploy` on a machine where Docker works (see risks) and send me the result, or tell me to proceed.
+- Decide where the missing admin pages (users and roles, groups, releases, settings, reset links) go: a step in stage 3, a stage of their own, or with the features that need them.
+- For stage 3: draw the door scene for the waiting page (ACS-12) and provide the event parts, menu options and RSVP deadline (at least as test data).
+- Infomaniak SMTP account and the Compose wiring for its password (`secrets/smtp_password`, not done yet).
+
+**Risks and notes:**
+- In this devcontainer Docker loses the output of every command that runs longer than about 0.3 seconds (`docker run`, `docker exec`), so the image smoke test (`npm run build:image`: the image builds, the smoke test fails on `zappaloo version` printing nothing) and `npm run test:deploy` cannot be trusted here. The deploy results in `reports/` date from before this stage and also show failures. The deployment test has not run against the stage-2 image; it needs one run in a working Docker setup before the next release candidate.
+- The Compose file does not pass `SMTP_PASSWORD_FILE` yet, so production cannot send mail with a login.
+- Redemption can be blocked for an hour by anyone who fails 100 times on purpose (accepted, see the decision record); the admin can hand a code over.

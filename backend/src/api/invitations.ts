@@ -26,6 +26,7 @@ import {
 import type { RateLimiter } from "../auth/rate-limit.ts";
 import { rateLimited, requireRole, requireUser, signedIn } from "./auth.ts";
 import type { AuthOptions } from "./auth.ts";
+import { PUBLIC } from "./access.ts";
 import { sendError } from "./validation.ts";
 
 const noQuery = z.strictObject({});
@@ -158,6 +159,7 @@ const invitationPlugin: FastifyPluginAsyncZod<AuthOptions> = (app, options) => {
   app.get(
     "/api/invitations/:code",
     {
+      config: PUBLIC,
       schema: {
         querystring: noQuery,
         params: codeParams,
@@ -179,6 +181,7 @@ const invitationPlugin: FastifyPluginAsyncZod<AuthOptions> = (app, options) => {
   app.post(
     "/api/invitations/:code/register",
     {
+      config: PUBLIC,
       schema: {
         querystring: noQuery,
         params: codeParams,

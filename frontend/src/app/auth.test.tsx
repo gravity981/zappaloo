@@ -523,3 +523,73 @@ describe("invitations", () => {
     expect(screen.queryByRole("link", { name: "Einladungen" })).not.toBeInTheDocument();
   });
 });
+
+describe("sign-in is required (ACS-09)", () => {
+  it("[ACS-09] sends a visitor from any other page to the login page, and back after signing in", async () => {
+    let current: { status: number; body: unknown } = anonymous;
+    const calls = fakeBackend({
+      "GET /api/session": () => current,
+      "POST /api/session": () => {
+        current = signedIn;
+        return signedIn;
+      },
+    });
+    renderAt("/profile");
+    expect(await screen.findByRole("heading", { name: "Anmelden" })).toBeInTheDocument();
+    user.type(screen.getByLabelText("Benutzername"), "anna");
+    user.type(screen.getByLabelText("Passwort"), "correct-horse-battery");
+    user.click(screen.getByRole("button", { name: "Anmelden" }));
+    // The visitor wanted the profile and lands there.
+    expect(await screen.findByRole("heading", { name: "Profil" })).toBeInTheDocument();
+    // The event is only asked for once there is a session.
+    expect(calls.findIndex((c) => c.path === "/api/event")).toBeGreaterThan(
+      calls.findIndex((c) => c.method === "POST" && c.path === "/api/session"),
+    );
+  });
+
+  it("[ACS-09] the start page, the game, the profile and unknown pages need a session", async () => {
+    for (const path of ["/", "/game", "/profile", "/admin/invitations", "/does/not/exist"]) {
+      const calls = fakeBackend({ "GET /api/session": () => anonymous });
+      const { unmount } = render(
+        <RouterProvider router={createMemoryRouter(routes, { initialEntries: [path] })} />,
+      );
+      expect(await screen.findByRole("heading", { name: "Anmelden" }), path).toBeInTheDocument();
+      expect(
+        calls.some((c) => c.path === "/api/event"),
+        path,
+      ).toBe(false);
+      unmount();
+    }
+  });
+
+  it("[ACS-09] login, password reset, verification and invitation pages work without a session", async () => {
+    const pages: [string, string][] = [
+      ["/login", "Anmelden"],
+      ["/forgot-password", "Passwort vergessen"],
+      ["/set-password/some-token", "Passwort festlegen"],
+      ["/invite", "Einladung einlösen"],
+    ];
+    for (const [path, heading] of pages) {
+      fakeBackend({ "GET /api/session": () => anonymous });
+      const { unmount } = render(
+        <RouterProvider router={createMemoryRouter(routes, { initialEntries: [path] })} />,
+      );
+      expect(await screen.findByRole("heading", { name: heading }), path).toBeInTheDocument();
+      unmount();
+    }
+    fakeBackend({
+      "GET /api/session": () => anonymous,
+      "POST /api/email/verify": () => ({ status: 204 }),
+      "GET /api/invitations/K7QMX4": () => ({ status: 200, body: { guestName: "Anna" } }),
+    });
+    const { unmount } = render(
+      <RouterProvider
+        router={createMemoryRouter(routes, { initialEntries: ["/verify-email/t"] })}
+      />,
+    );
+    expect(await screen.findByRole("heading", { name: "Adresse bestätigt" })).toBeInTheDocument();
+    unmount();
+    renderAt("/invite/K7QMX4");
+    expect(await screen.findByRole("heading", { name: "Willkommen, Anna!" })).toBeInTheDocument();
+  });
+});

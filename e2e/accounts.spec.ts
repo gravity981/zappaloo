@@ -1,25 +1,6 @@
-import { execFileSync } from "node:child_process";
 import { expect, test } from "@playwright/test";
+import { clientAddress, createAdmin, PASSWORD } from "./support.ts";
 import de from "../frontend/src/i18n/locales/de/common.json" with { type: "json" };
-
-const PASSWORD = "correct-horse-battery";
-
-/** A client address of its own for a test: the rate limits count per address. */
-function clientAddress(): string {
-  const part = () => Math.floor(Math.random() * 254) + 1;
-  return `10.${String(part())}.${String(part())}.${String(part())}`;
-}
-
-/** Creates an admin with the CLI, as the operator would, and returns the path of its setup link. */
-function createAdmin(username: string): string {
-  const output = execFileSync(process.execPath, ["backend/src/cli.ts", "create-admin", username], {
-    encoding: "utf8",
-    env: { ...process.env, DATA_DIR: ".e2e-data", APP_ENV: "test" },
-  });
-  const link = /^http\S*(\/set-password\/[\w-]+)$/m.exec(output)?.[1];
-  if (!link) throw new Error(`no setup link in the output of create-admin:\n${output}`);
-  return link;
-}
 
 test("[ACC-14][ACC-01][ACC-04][ACC-05] set the password with the setup link, sign in, edit the profile, sign out", async ({
   page,

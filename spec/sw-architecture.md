@@ -1127,6 +1127,14 @@ The backend must check permissions in particular for:
 
 Permissions are checked on every request, so a revoked role takes effect immediately. A revoked screen link or upload link also ends open live-update connections.
 
+### 11.1.1 Implementation (step 2f, decided 2026-11-10)
+
+**Sign-in everywhere** (ACS-09, ACS-07). One hook in the auth plugin answers `401 unauthorized` for every request under `/api/` without a valid session unless the route is marked `config: { public: true }`; unknown API paths answer `401` too, so a route added later cannot forget the check. The public routes are `GET`/`POST /api/session`, `POST /api/password/forgot`, `POST /api/password/set`, `POST /api/email/verify`, `GET /api/invitations/:code`, `POST /api/invitations/:code/register`, `GET /api/version`, `GET /api/health` and the heartbeat `GET /api/events/ping`; a test pins this list, and later steps add the routes of the privacy notice, the upload links and the event screen to it. `GET /api/event` needs a session. The built frontend (pages, scripts, images) is served to everyone: it holds no event data. In the frontend a guard sends visitors without a session from every page except login, password reset, verification and invitation pages to the login page and back after signing in; the event is loaded only with a session.
+
+**Conditions** (ACS-05, ACS-06). A condition is JSON, validated with Zod (`accessConditionSchema` in `shared/`): a leaf `{type: "role", role}`, `{type: "group", group}` (by name), `{type: "time", from?, until?}` (at least one), `{type: "release", key}` or `{type: "feature", feature}`, or `{all: [...]}` (AND) and `{any: [...]}` (explicit OR), nested at most 4 levels deep. An empty `all` is true (signed in is enough), an empty `any` is false. The treasure-hunt leaf comes with the hunt (HUNT-05). `AccessService.check(user, condition)` evaluates it against the current state and the `requireAccess(condition)` route guard answers `403 forbidden`; whatever a condition protects (map areas, content, functions) stores it as data. There is no implicit bypass: an admin or staff member passes a condition only if it says so (ROLE-08); the closed-platform rule of step 3c is a separate gate.
+
+**Manual releases** (ACS-05). The table `access_releases` holds the keys an admin has released; a `release` leaf is true while its key is there. `GET /api/admin/releases`, `PUT` and `DELETE /api/admin/releases/:key` (admin role; key 1–60 characters of `a–z 0–9 _ -`; audit log `release.set`, `release.withdraw`). There is no admin page yet.
+
 ## 11.2 Requirements (Sections 10 and 11)
 
 | ID | Requirement | Prio |

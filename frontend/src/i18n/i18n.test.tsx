@@ -1,7 +1,7 @@
 import { render, screen } from "@testing-library/react";
 import i18n from "i18next";
 import { createMemoryRouter, RouterProvider } from "react-router";
-import { beforeAll, describe, expect, it } from "vitest";
+import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import { routes } from "../app/routes.tsx";
 import { DEFAULT_LANGUAGE, initI18n, resources, SUPPORTED_LANGUAGES } from "./i18n.ts";
 import de from "./locales/de/common.json";
@@ -10,7 +10,31 @@ beforeAll(async () => {
   await initI18n();
 });
 
+afterEach(() => {
+  vi.unstubAllGlobals();
+});
+
+/** The pages need a signed-in user (ACS-09): a fake backend with a session. */
 function renderAt(path: string) {
+  const user = {
+    id: 1,
+    username: "anna",
+    displayName: "Anna",
+    email: null,
+    emailStatus: "unverified",
+    roles: ["vip"],
+    capabilities: [],
+  };
+  vi.stubGlobal(
+    "fetch",
+    vi.fn((url: string) =>
+      Promise.resolve(
+        url === "/api/session"
+          ? Response.json({ user, csrfToken: "csrf" })
+          : Response.json({ error: { code: "not_found", message: "?" } }, { status: 404 }),
+      ),
+    ),
+  );
   render(<RouterProvider router={createMemoryRouter(routes, { initialEntries: [path] })} />);
 }
 
@@ -23,16 +47,16 @@ describe("i18n", () => {
     expect(document.documentElement.lang).toBe("de");
   });
 
-  it("[LANG-01] pages show their texts from the German message file", () => {
+  it("[LANG-01] pages show their texts from the German message file", async () => {
     renderAt("/");
-    expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent(de.home.title);
+    expect(await screen.findByRole("heading", { level: 1 })).toHaveTextContent(de.home.title);
     expect(screen.getByText(de.home.placeholder)).toBeInTheDocument();
     expect(screen.getByRole("link", { name: de.nav.game })).toBeInTheDocument();
   });
 
-  it("[LANG-01] the not-found page is translated too", () => {
+  it("[LANG-01] the not-found page is translated too", async () => {
     renderAt("/does-not-exist");
-    expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent(de.notFound.title);
+    expect(await screen.findByRole("heading", { level: 1 })).toHaveTextContent(de.notFound.title);
     expect(screen.getByRole("link", { name: de.notFound.backHome })).toHaveAttribute("href", "/");
   });
 });

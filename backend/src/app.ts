@@ -8,6 +8,7 @@ import type { FastifyInstance, FastifyServerOptions } from "fastify";
 import type { VersionResponse } from "@zappaloo/shared";
 import type { Database } from "./database/database.ts";
 import type { EventService } from "./event/service.ts";
+import { routeTable } from "./api/access.ts";
 import { adminRoutes } from "./api/admin.ts";
 import { authRoutes } from "./api/auth.ts";
 import type { AuthOptions } from "./api/auth.ts";
@@ -40,9 +41,11 @@ export async function buildApp(options: AppOptions): Promise<FastifyInstance> {
 
   await app.register(validation);
   await app.register(noIndex);
+  await app.register(routeTable);
+  // The auth plugin comes first: its hook decides who may call what (ACS-09).
+  await app.register(authRoutes, options.auth);
   await app.register(systemRoutes, { database: options.database, version: options.version });
   await app.register(eventRoutes);
-  await app.register(authRoutes, options.auth);
   await app.register(adminRoutes, options.auth);
   await app.register(invitationRoutes, options.auth);
   await app.register(eventApiRoutes, { event: options.event });

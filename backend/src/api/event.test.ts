@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it } from "vitest";
 import { z } from "zod";
-import { createTestApp } from "../test-support.ts";
+import { createTestApp, signIn } from "../test-support.ts";
 import type { TestContext } from "../test-support.ts";
 import { requireFeature } from "./event.ts";
 
@@ -13,7 +13,8 @@ afterEach(async () => {
 describe("event API", () => {
   it("[CFG-05] GET /api/event returns the event with its current features and settings", async () => {
     context = await createTestApp();
-    const response = await context.app.inject("/api/event");
+    const who = await signIn(context);
+    const response = await context.app.inject({ url: "/api/event", headers: who });
     expect(response.statusCode).toBe(200);
     expect(response.json()).toMatchObject({
       id: "event-muster",
@@ -24,7 +25,7 @@ describe("event API", () => {
     });
 
     context.event.setSetting("platformOpen", true, "cli");
-    expect((await context.app.inject("/api/event")).json()).toMatchObject({
+    expect((await context.app.inject({ url: "/api/event", headers: who })).json()).toMatchObject({
       settings: { platformOpen: true },
     });
   });
@@ -45,10 +46,11 @@ describe("event API", () => {
       },
     );
 
-    expect((await app.inject("/api/gallery")).statusCode).toBe(200);
+    const who = await signIn(context);
+    expect((await app.inject({ url: "/api/gallery", headers: who })).statusCode).toBe(200);
     event.setFeature("gallery", false, "cli");
 
-    const disabled = await app.inject("/api/gallery");
+    const disabled = await app.inject({ url: "/api/gallery", headers: who });
     expect(disabled.statusCode).toBe(404);
     expect(disabled.json()).toEqual({
       error: {
@@ -59,6 +61,6 @@ describe("event API", () => {
     expect(calls).toBe(1); // the handler did not run
 
     event.setFeature("gallery", true, "cli");
-    expect((await app.inject("/api/gallery")).statusCode).toBe(200);
+    expect((await app.inject({ url: "/api/gallery", headers: who })).statusCode).toBe(200);
   });
 });

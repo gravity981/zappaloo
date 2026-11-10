@@ -13,6 +13,7 @@ export const FEATURE_NAMES = [
   "eventScreen",
 ] as const;
 export type FeatureName = (typeof FEATURE_NAMES)[number];
+export const featureNameSchema = z.enum(FEATURE_NAMES);
 
 /** Settings the admin changes at runtime (CFG-05). */
 export const SETTING_NAMES = [

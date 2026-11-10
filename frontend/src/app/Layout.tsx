@@ -26,8 +26,8 @@ function AccountNav() {
 export default function Layout() {
   const { t } = useTranslation();
   return (
-    <EventProvider>
-      <SessionProvider>
+    <SessionProvider>
+      <EventProvider>
         <div className="layout">
           <header>
             <strong>{t("app.name")}</strong>
@@ -42,7 +42,7 @@ export default function Layout() {
           </main>
           <VersionFooter />
         </div>
-      </SessionProvider>
-    </EventProvider>
+      </EventProvider>
+    </SessionProvider>
   );
 }

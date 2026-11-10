@@ -177,6 +177,7 @@ describe("data model", () => {
     expect(all.filter((name) => PERSON_TABLES.includes(name)).sort()).toEqual(PERSON_TABLES);
     const tables = all.filter((name) => !PERSON_TABLES.includes(name)).map((name) => ({ name }));
     expect(tables.map((t) => t.name).sort()).toEqual([
+      "access_releases",
       "audit_log",
       "event_features",
       "event_settings",

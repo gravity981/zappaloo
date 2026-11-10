@@ -3,6 +3,7 @@ import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import { z } from "zod";
 import { createTestApp, tempDir } from "../test-support.ts";
+import { PUBLIC } from "./access.ts";
 import type { TestContext } from "../test-support.ts";
 import { X_ROBOTS_TAG } from "./no-index.ts";
 
@@ -36,7 +37,7 @@ describe("no search engine indexing", () => {
 
   it("[SEC-10] every response carries X-Robots-Tag noindex: API, errors, pages and assets", async () => {
     ctx = await createTestApp({ frontendDir: fakeFrontend() });
-    ctx.app.get("/api/broken", { schema: { querystring: z.object({}) } }, () => {
+    ctx.app.get("/api/broken", { config: PUBLIC, schema: { querystring: z.object({}) } }, () => {
       throw new Error("boom");
     });
 
@@ -44,7 +45,7 @@ describe("no search engine indexing", () => {
       { url: "/api/health", status: 200 },
       { url: "/api/version", status: 200 },
       { url: "/api/health?unknown=1", status: 400 },
-      { url: "/api/does-not-exist", status: 404 },
+      { url: "/api/does-not-exist", status: 401 },
       { url: "/api/broken", status: 500 },
       { url: "/robots.txt", status: 200 },
       { url: "/", status: 200, html: true },

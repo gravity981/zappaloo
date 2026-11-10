@@ -33,12 +33,15 @@ import {
   VERIFY_MAIL_PER_USER,
 } from "../auth/rate-limit.ts";
 import type { RateLimiter } from "../auth/rate-limit.ts";
+import type { AccessService } from "../auth/access.ts";
 import type { GroupService } from "../auth/groups.ts";
 import type { InvitationService } from "../auth/invitations.ts";
 import type { SessionService } from "../auth/sessions.ts";
 import type { EventService } from "../event/service.ts";
 import type { Mailer } from "../mail/mailer.ts";
 import { passwordResetMail, verificationMail } from "../mail/templates.ts";
+import { needsSignIn } from "./access.ts";
+import { PUBLIC } from "./access.ts";
 import { sendError } from "./validation.ts";
 
 export const SESSION_COOKIE = "zappaloo_session";
@@ -56,6 +59,8 @@ export interface AuthOptions {
   publicUrl: string;
   /** Guest groups (GRP-01). */
   groups: GroupService;
+  /** Access conditions and manual releases (ACS-05, ACS-06). */
+  access: AccessService;
   /** Personal invitation codes (INV-01 – INV-12). */
   invitations: InvitationService;
   /** Sends emails (ACC-11); undefined if no mail server is configured. */
@@ -193,6 +198,11 @@ const authPlugin: FastifyPluginAsyncZod<AuthOptions> = async (app, options) => {
       }
     }
 
+    // Sign-in is required everywhere except the public routes (ACS-09, ACS-07).
+    if (!request.auth && needsSignIn(request)) {
+      return sendError(reply, 401, { code: "unauthorized", message: "Sign in first." });
+    }
+
     if (!UNSAFE_METHODS.has(request.method) || !request.url.startsWith("/api/")) return;
     const origin = originHost(request.headers.origin);
     const refused =
@@ -215,13 +225,17 @@ const authPlugin: FastifyPluginAsyncZod<AuthOptions> = async (app, options) => {
 
   app.get(
     "/api/session",
-    { schema: { querystring: noQuery, response: { 200: sessionResponseSchema } } },
+    {
+      config: PUBLIC,
+      schema: { querystring: noQuery, response: { 200: sessionResponseSchema } },
+    },
     (request) => session(request),
   );
 
   app.post(
     "/api/session",
     {
+      config: PUBLIC,
       schema: {
         querystring: noQuery,
         body: loginRequestSchema,
@@ -309,7 +323,7 @@ const authPlugin: FastifyPluginAsyncZod<AuthOptions> = async (app, options) => {
   // Setting the password with a one-time link (setup or reset); works once.
   app.post(
     "/api/password/set",
-    { schema: { querystring: noQuery, body: passwordSetSchema } },
+    { config: PUBLIC, schema: { querystring: noQuery, body: passwordSetSchema } },
     async (request, reply) => {
       const wait = limiter.hit(`password-set:ip:${request.ip}`, PASSWORD_SET_PER_ADDRESS);
       if (wait !== undefined) return rateLimited(reply, wait);
@@ -363,7 +377,7 @@ const authPlugin: FastifyPluginAsyncZod<AuthOptions> = async (app, options) => {
   // Confirms the address with the link from the email; works once.
   app.post(
     "/api/email/verify",
-    { schema: { querystring: noQuery, body: emailVerifySchema } },
+    { config: PUBLIC, schema: { querystring: noQuery, body: emailVerifySchema } },
     (request, reply) => {
       const wait = limiter.hit(`password-set:ip:${request.ip}`, PASSWORD_SET_PER_ADDRESS);
       if (wait !== undefined) return rateLimited(reply, wait);
@@ -383,7 +397,7 @@ const authPlugin: FastifyPluginAsyncZod<AuthOptions> = async (app, options) => {
   // answer is always the same, so it does not reveal which accounts or addresses exist.
   app.post(
     "/api/password/forgot",
-    { schema: { querystring: noQuery, body: forgotPasswordSchema } },
+    { config: PUBLIC, schema: { querystring: noQuery, body: forgotPasswordSchema } },
     (request, reply) => {
       const wait = limiter.hit(`forgot:ip:${request.ip}`, FORGOT_PER_ADDRESS);
       if (wait !== undefined) return rateLimited(reply, wait);

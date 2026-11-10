@@ -4,6 +4,8 @@ import fp from "fastify-plugin";
 import { z } from "zod";
 import {
   adminUserListSchema,
+  releaseKeySchema,
+  releaseListSchema,
   groupListSchema,
   groupRequestSchema,
   groupSchema,
@@ -45,7 +47,7 @@ function fail(reply: FastifyReply, error: unknown): FastifyReply {
   throw error;
 }
 
-const adminPlugin: FastifyPluginAsyncZod<AuthOptions> = (app, { accounts, groups }) => {
+const adminPlugin: FastifyPluginAsyncZod<AuthOptions> = (app, { accounts, groups, access }) => {
   const admin = { preHandler: requireRole("admin") };
   const actor = (request: Parameters<typeof signedIn>[0]) =>
     `user:${String(signedIn(request).user.id)}`;
@@ -171,6 +173,45 @@ const adminPlugin: FastifyPluginAsyncZod<AuthOptions> = (app, { accounts, groups
       } catch (error) {
         return fail(reply, error);
       }
+    },
+  );
+
+  // Manual releases (ACS-05): while a key is released, the areas that wait for it are open.
+  app.get(
+    "/api/admin/releases",
+    { ...admin, schema: { querystring: noQuery, response: { 200: releaseListSchema } } },
+    () => ({ releases: access.releases() }),
+  );
+
+  app.put(
+    "/api/admin/releases/:key",
+    {
+      ...admin,
+      schema: {
+        querystring: noQuery,
+        params: z.strictObject({ key: releaseKeySchema }),
+        body: noBody,
+      },
+    },
+    (request, reply) => {
+      access.release(request.params.key, actor(request));
+      return reply.status(204).send();
+    },
+  );
+
+  app.delete(
+    "/api/admin/releases/:key",
+    {
+      ...admin,
+      schema: {
+        querystring: noQuery,
+        params: z.strictObject({ key: releaseKeySchema }),
+        body: noBody,
+      },
+    },
+    (request, reply) => {
+      access.withdraw(request.params.key, actor(request));
+      return reply.status(204).send();
     },
   );
 

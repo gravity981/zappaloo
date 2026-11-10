@@ -542,12 +542,10 @@ describe("private event", () => {
       const result = env.deploy(STAGING_TAG, "--no-pull", "--no-restore");
       expect(result.status, result.output).toBe(0);
       expect(result.output).toContain("healthy, version");
-      const served = JSON.parse(
-        env.node(
-          `fetch("http://127.0.0.1:3000/api/event").then((r) => r.text()).then(console.log)`,
-        ),
-      ) as { id: string; name: string };
-      expect(served).toMatchObject({ id: "our-day", name: "Our Day" });
+      // The API needs a session (ACS-09), so the event is read with the CLI.
+      expect(env.compose("exec", "-T", "app", "zappaloo", "event", "show")).toContain(
+        "Our Day (our-day)",
+      );
       // Switched on and off at runtime with the CLI, as in the runbook.
       env.compose("exec", "-T", "app", "zappaloo", "event", "feature", "gallery", "off");
       expect(env.compose("exec", "-T", "app", "zappaloo", "event", "show")).toContain(
