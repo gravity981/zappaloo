@@ -82,6 +82,10 @@ export const eventSetupSchema = z.strictObject({
 });
 export type EventSetup = z.infer<typeof eventSetupSchema>;
 
+/** `GET /api/site` (public): only the name, for the header of the pages without sign-in. */
+export const siteResponseSchema = z.object({ name: z.string().nullable() });
+export type SiteResponse = z.infer<typeof siteResponseSchema>;
+
 /**
  * `GET /api/event`: the event with its current features and settings. Name, time zone and
  * language are null until the setup is complete (19.3.1).
@@ -107,7 +111,9 @@ export const eventUpdateSchema = z
     timezone: timezoneSchema.optional(),
     defaultLanguage: languageSchema.optional(),
     features: featuresSchema.partial().optional(),
-    settings: settingsSchema.partial().optional(),
+    // The platform opens and closes only through /api/admin/platform (ACS-14): with the email
+    // and its own audit entry.
+    settings: settingsSchema.omit({ platformOpen: true }).partial().optional(),
   })
   .refine(
     (value) =>

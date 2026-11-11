@@ -7,6 +7,10 @@ import type { Mailer } from "../mail/mailer.ts";
 import { AccountService } from "./accounts.ts";
 import { GroupService } from "./groups.ts";
 import { AccessService } from "./access.ts";
+import { ActivityService } from "../event/activity.ts";
+import { RsvpService } from "../rsvp/service.ts";
+import { WaitingService } from "../waiting/service.ts";
+import { PlatformService } from "../event/platform.ts";
 import { InvitationService } from "./invitations.ts";
 import { RateLimiter } from "./rate-limit.ts";
 import { SessionService } from "./sessions.ts";
@@ -37,15 +41,22 @@ export function createAuth(
   event: EventService,
   config: Pick<Config, "SESSION_SECRET" | "SECURE_COOKIES" | "PUBLIC_URL">,
   mailer?: Mailer,
+  /** `$DATA_DIR/events`: where an event's own door scene is (default: none). */
+  eventsDir = "",
 ): AuthOptions {
   const accounts = new AccountService(database, event);
   const groups = new GroupService(database, event);
+  const rsvp = new RsvpService(database, event);
   return {
     accounts,
     sessions: new SessionService(database),
     groups,
     access: new AccessService(database, event, groups),
     invitations: new InvitationService(database, event, accounts),
+    rsvp,
+    platform: new PlatformService(database, event, mailer, config.PUBLIC_URL),
+    waiting: new WaitingService(database, event, rsvp, eventsDir),
+    activity: new ActivityService(database, event),
     limiter: new RateLimiter(),
     event,
     secret: config.SESSION_SECRET,

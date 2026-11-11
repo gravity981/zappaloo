@@ -16,12 +16,12 @@ This plan breaks the stages of [sw-architecture.md](sw-architecture.md), section
 
 | Release | After stage | What guests get |
 |---|---|---|
-| **Release 1 (early)** | 3 | Redeem invitation, answer the RSVP, waiting page with the door scene. The platform is closed. |
+| **Release 1 (early)** | 3.5 | Redeem invitation, answer the RSVP, waiting page with the door scene, add the site to the home screen as an app. The platform is closed. |
 | **Opening** | 6 | The admin opens the platform: website, game world, wandering figures, speech bubbles, table finder. |
 | **Event-ready** | 9 | Contributions, photo wall, moderation, minigames, treasure hunt; load test passed and release checklist done. |
 | **After the event** | 10 | Export, shutdown notice and deletion (mandatory, ready before the shutdown date). |
 
-Each release goes into production. From Release 1 on, real guest data is stored, so backups (stage 1) and the privacy notice (stage 3) are in place before Release 1.
+Each release goes into production. From Release 1 on, real guest data is stored, so backups (stage 1), the privacy notice (stage 3) and the installable app (stage 3.5) are in place before Release 1.
 
 ## 3. Stages and steps
 
@@ -31,7 +31,8 @@ Each release goes into production. From Release 1 on, real guest data is stored,
 |---|---|---|---|
 | 1 | Walking skeleton and deployment | 1 | done |
 | 2 | Accounts, roles and access | 1 | done |
-| 3 | RSVP and waiting page | 1 | next |
+| 3 | RSVP and waiting page | – | next |
+| 3.5 | Installable app (home screen icon, no browser chrome) | 1 | open |
 | 4 | Content and website | Opening | open |
 | 5 | Game world and map importer | Opening | open |
 | 6 | Living world | Opening | open |
@@ -102,7 +103,7 @@ Requirements: none new (the pages for ACC-08, ACC-10, ROLE-01, ROLE-06, ROLE-07,
 **2i – Event setup in the admin area** (added 2026-11-11, replaces the bootstrap from `events/<slug>/`, 19.3.1). `EVENT_SLUG`, `EVENTS_DIR`, the event folder and `event.json` are removed; the first start creates the event record with the fixed id `event1`; setup form (name, time zone, default language) as the first content of the admin area, with a UX mock; `PATCH /api/admin/event` also takes name, time zone and language; "not set up yet" page for other users and `409 setup_incomplete` for feature routes; CLI `event seed-example`; `theme.json` and static graphics move to `$DATA_DIR/events/event1/` (the folder is named by the event id, as backup `--full` already covers `events/`); deployment bundle, runbook, deploy tests, e2e tests (global setup seeds, one test runs the real setup) and release notes lose the slug. Migration check: the database schema may change (event row without name), squashed into the one migration as long as no release holds a database.
 Requirements: CFG-02 (replaced), CFG-05 (reworded), CFG-06, CFG-07.
 
-### Stage 3 – RSVP and Waiting Page (completes Release 1)
+### Stage 3 – RSVP and Waiting Page
 
 **Before the stage starts:**
 - The project owner draws the door scene for the waiting page (ACS-12).
@@ -127,8 +128,8 @@ Requirements: CFG-02 (replaced), CFG-05 (reworded), CFG-06, CFG-07.
 - Invited parts per invitation: "Eingeladen zu" chips at batch creation, "Teile" column, editable per row (UX decision 31); "Eingeladen zu" in the account panel for admin-created VIPs.
 - Three-step wizard (attendance → food → song), deadline shown up front, declining every part skips to the summary; summary page, read-only after the deadline; no confirmation email (UX decision 12).
 - Rückmeldungen (new nav entry): totals per part (yes / no), menus of the meal part, guest table with the admin-only allergy column, song wishes, CSV export, "Erinnern (n)" reminder email to guests without an answer who have a verified address; a row opens the wizard in admin mode.
-- Übersicht: KPI "Rückmeldungen x / y, n ohne Antwort". The mock's "Zuletzt" activity card is not backed by a requirement and is left out (proposal; to confirm).
-Requirements: RSVP-01, RSVP-02, RSVP-03, RSVP-04, RSVP-05, RSVP-06, RSVP-07, SEC-11.
+- Übersicht: KPI "Rückmeldungen x / y, n ohne Antwort", and the card "Zuletzt" (decided 2026-11-11, DATA-05): the latest 5 audit-log entries about guests and about settings and content, names resolved on display, no logins or role changes. 3a audits RSVP answers and changes and event-part and RSVP-setting changes; 3b adds companion requests and decisions, 3c and 3d the waiting-page texts, opening and the privacy notice; invitations created and redeemed are already audited.
+Requirements: RSVP-01, RSVP-02, RSVP-03, RSVP-04, RSVP-05, RSVP-06, RSVP-07, SEC-11, DATA-05 (added 2026-11-11).
 
 **3b – Accompanying persons.** Mock screens: `rsvp-companion` (overview and request form), `rsvp-people` (one card per person), `rsvp-done`, `admin-rsvp` (requests card), `admin-home` (KPI Begleitpersonen, nav badge).
 - Request form: name, optional note, attendance for the VIP's own parts, menu, allergies with the lock note; the avatar comes later (PRES-07).
@@ -150,7 +151,59 @@ Requirements: ACS-14, SEC-09.
 **3e – Sign-in by email** (added 2026-11-10). The login accepts a verified email address as well as the username; an address can be verified by one account only (`409 email_taken`).
 Requirements: ACC-16.
 
-**3f – Release 1 go-live.** First release promoted and deployed to production on the operator's host; Let's Encrypt and live updates through Caddy checked there (manual test protocol); invitation print export checked end to end, privacy notice reviewed, manual checks from the release checklist that apply to Release 1.
+**3g – Guest pages in the mock style** (added 2026-11-11 after an audit of Release 1 against the mocks; built before the go-live; the pages without a mock are drawn in 3g and built in 3h). Every page a guest sees before the opening is built from its mock (layout, flow, texts, UX decisions in mocks/README.md); until now only the waiting page, the RSVP content and the admin area follow the mocks, the pages of stage 2 are plain forms.
+- **Shared look:** one stylesheet with the mock's neutral tokens (colours, type, spacing, buttons, fields, cards, tags) for the guest-facing pages, so stage 4's `theme.json` replaces values in one place; the RSVP wizard and the waiting page use it instead of borrowing the admin look. Two shells from the mock: `bare` (brand header with event name and date, one column, "Datenschutz" link below) and `flow` (close button, title, step counter and progress bar, sticky action bar).
+- **Pages and their mock screens:**
+  - `/login` → `login` (field "Benutzername oder E-Mail" with its hint, "Passwort vergessen?", card "Noch kein Konto? Einladung einlösen", Datenschutz link).
+  - `/invite` → `invite-code` (code field, QR tip, "Schon ein Konto? Anmelden").
+  - `/invite/:code` → `invite-register` with its variants: valid code (greeting by guest name, invitation card with the code), already redeemed, expired / revoked / replaced, and the signed-in user without `vip` who only redeems.
+  - `/forgot-password` → `forgot` (form, "Schau in dein Postfach" after submitting, hint about the hosts' reset link).
+  - `/datenschutz` → `privacy` (bare shell, Markdown text styled like the mock's `m-md`, "Zurück").
+  - `/rsvp` and `/admin/rsvp/guests/:id` → `rsvp-parts`, `rsvp-people`, `rsvp-companion`, `rsvp-done` in the flow shell (the admin mode keeps the notice).
+  - `/profile` → `profile`, the account part for Release 1 (username, email with verification tag and "Bestätigen", "Passwort ändern", "Abmelden", "Konto löschen" with a second step); the person switcher, photo, greeting, figure, finds and contributions come with their features. For restricted guests the header has no website navigation and a way back to the waiting page (decided 2026-11-11).
+  - `/set-password/:token`, `/verify-email/:token`, the 404 page and the "not set up yet" page (mock `admin-setup`, variant "everyone else"): the first three have no mock yet; Claude draws them into `zappaloo-mocks.html` first (setup link and reset link variants with the finished state, verification success and failure, not found) and the project owner confirms them before they are built.
+- **Differences between the mock and the built forms to settle before building** (the requirement wins and the mock is fixed, CLAUDE.md): the registration form (mock: display name, username suggested from the guest name, password, optional email, no repeated password; built: username, display name, password and a repeat; UX decision 45 first proposed the email as required when redeeming; decided: optional, no repeated password, mocks/README.md decisions 2, 45 and 57) and the sign-in field text before 3e makes email sign-in work.
+- Tests: the existing component tests keep their requirement IDs and follow the new texts; end-to-end tests use the texts from `common.json`; a test per page checks the Datenschutz link (SEC-09) and a narrow-viewport run checks that nothing is cut off (iPhone and Pixel profiles).
+Requirements: none new.
+Re-verified (requirements of earlier steps, not planned here again): ACC-01, ACC-03, ACC-04, ACC-07, ACC-09, INV-03, INV-04, INV-07, SEC-09, RSVP-01 and the other requirements of these pages.
+
+**3h – Set-password, confirm-email and not-found pages** (added 2026-11-11). Built from the three mock screens drawn in 3g (`set-password` with setup, reset, saved and invalid-link variants; `verify-email` with ready, confirmed, invalid and address-taken variants; `not-found`) after the project owner has confirmed them; UX decision 57 (one password field with an eye button, no repeated field) applies to the set-password page. The pages sit in the `bare` frame already; this step gives them their content and styling and updates their tests.
+Requirements: none new.
+Re-verified: ACC-03, ACC-08, ACC-09, ACC-10, ACC-14, ACC-15, ACC-16.
+
+**3i – Fixes from the stage-3 review** (added 2026-11-11, before 3f). Answers stay in line with the invitation whichever way it changes (invitation row, account panel, deleted part), a part added later is not answered yet, and a lost last yes resets to "ohne Antwort"; revoking `vip` deletes the RSVP and companions after a second click (sw-architecture.md 7.4.1). The closed-platform list matches whole route names and a test walks every route (10.4); the platform opens only through its own route; one reminder round per event every 10 minutes; one login lockout per account (7.1.1); the Markdown renderer removes forms, styles and images from other sites (SEC-05). Also: stale companion edits in the wizard, missing styles, the badge and the waiting page read counts instead of the whole overview, the "Zuletzt" card lists invited-part changes, the mock's "Konto anlegen" has no part chips (UX decision 53), and the tests 3g asked for (Datenschutz link on every page, phone widths, the door glimpse).
+Requirements: none new.
+Re-verified: RSVP-02, RSVP-05, RSVP-07, RSVP-09, RSVP-10, ACS-10, ACS-12, ACS-14, ACC-16, SEC-02, SEC-09, SEC-11, DATA-05.
+
+**3f – Release 1 go-live** moved to stage 3.5 (step 3.5f, decided 2026-11-11): Release 1 now includes the installable app.
+
+### Stage 3.5 – Installable App (completes Release 1)
+
+Added 2026-11-11. Guests add the site to the home screen of iOS and Android with the event's icon and open it like a native app, without browser bars (sw-architecture.md 19.5, PWA-01 – PWA-05). Numbered 3.5 so that stages 4–10 keep their numbers. Branch `feature/stage-3.5` (CLAUDE.md compares the stage number exactly, so `stage-3` does not match).
+
+**Before the stage starts:**
+- Stage 3 is complete (3a – 3e, 3g, 3h committed).
+- The project owner provides the event's icons (19.5: `icon-192.png`, `icon-512.png`, optional `icon-maskable-512.png`, `apple-touch-icon.png`), or accepts the built-in default icon for Release 1.
+- To confirm with the project owner: icons are supplied as finished PNGs (no image processing, no new dependency); the manifest colours are neutral defaults until `theme.json` exists (stage 4); no service worker, so no offline cache (19.5).
+
+**Steps:**
+
+**3.5a – Manifest and icons.** `GET /manifest.webmanifest` (public, also while the platform is closed, outside `/api`) with the event's name, `display: "standalone"`, `start_url` and `scope` `/`, language, colours and icons; `GET /app-icons/<file>` serves the event's icons from `$DATA_DIR/events/event1/icons/` with validation (PNG, exact size) and a built-in default set when a file is missing or invalid. Both routes are reachable through Caddy (deployment test). Tests: manifest content, icon fallback, access while closed and without sign-in.
+Requirements: PWA-01, PWA-02.
+
+**3.5b – Page head and safe areas.** `index.html` gets `apple-touch-icon`, `theme-color`, the iOS app title, `apple-mobile-web-app-capable`, the status bar style and `viewport-fit=cover`; the guest shells (`bare`, `flow`), the waiting page with its door scene, the profile and the admin area respect `env(safe-area-inset-*)`; in standalone mode every page offers a way back, because there is no browser back button. Playwright checks the tags and, with standalone display mode emulated, that no content sits under the insets.
+Requirements: PWA-03, PWA-04.
+
+**3.5c – Install hint.** A UX mock first (a card on `waiting` and `profile`, decision in mocks/README.md), then the build: a dismissible hint "Zum Startbildschirm hinzufügen" in the mobile browser, never in standalone mode; on Android a button that triggers the browser's install prompt, on iOS the steps in the Share menu; a note that the app asks for the password once more (iOS keeps separate storage for it).
+Requirements: PWA-05.
+
+**3.5d – Footer with copyright and license notice** (added 2026-11-11, sw-architecture.md 19.6). UX mock first (the footer on `login`, `waiting`, `profile` and the admin area; card "Fusszeile" in `admin-settings`; the `/license` page), decision in mocks/README.md. Then: copyright line in the database with a default of `© <year> <event name>`, edited in Einstellungen and audited without the text; `GET /api/site` gains `copyright` and `sourceUrl`; the footer shows the line, the AGPL-3.0 sentence (language keys) and "Source code" / "License" below "Datenschutz · Version"; public page `/license` with the `LICENSE` file, copied into the image; `SOURCE_URL` in the deployment bundle's `.env`, the runbook and the deployment test. The repository must be public before the go-live (open point "Make the repository public", OPS-12), otherwise the "Source code" link leads nowhere.
+Requirements: LIC-01, LIC-02, LIC-03.
+
+**3.5e – Device check.** Manual test protocol on real devices (test-strategy.md, section 6.1): iOS Safari and Android Chrome add the site, show the event's icon and name, open without browser bars; sign-in after the install; safe areas on a device with a notch.
+Requirements: PWA-03, PWA-04 (verified on devices).
+
+**3.5f – Release 1 go-live** (after 3.5a – 3.5e; formerly 3f). First release promoted and deployed to production on the operator's host; Let's Encrypt and live updates through Caddy checked there (manual test protocol); invitation print export checked end to end, privacy notice reviewed, home screen install checked on the production host, manual checks from the release checklist that apply to Release 1.
 Requirements: OPS-02.
 
 ### Stage 4 – Content and Website

@@ -16,6 +16,7 @@ import {
   text,
   uniqueIndex,
 } from "drizzle-orm/sqlite-core";
+import { sql } from "drizzle-orm";
 import type { AnySQLiteColumn } from "drizzle-orm/sqlite-core";
 
 /**
@@ -79,20 +80,29 @@ export const auditLog = sqliteTable(
 // Accounts, sessions and links belong to a person, not to an event: they carry no
 // event_id. Only the event membership and its roles do (DATA-02).
 
-export const users = sqliteTable("users", {
-  id: integer("id").primaryKey({ autoIncrement: true }),
-  /** Login name, lower case, never changes. */
-  username: text("username").notNull().unique(),
-  displayName: text("display_name").notNull(),
-  email: text("email"),
-  emailStatus: text("email_status", { enum: ["unverified", "verified"] })
-    .notNull()
-    .default("unverified"),
-  /** argon2id hash string; null until the owner sets a password with a one-time link. */
-  passwordHash: text("password_hash"),
-  createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull(),
-  updatedAt: integer("updated_at", { mode: "timestamp_ms" }).notNull(),
-});
+export const users = sqliteTable(
+  "users",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    /** Login name, lower case, never changes. */
+    username: text("username").notNull().unique(),
+    displayName: text("display_name").notNull(),
+    email: text("email"),
+    emailStatus: text("email_status", { enum: ["unverified", "verified"] })
+      .notNull()
+      .default("unverified"),
+    /** argon2id hash string; null until the owner sets a password with a one-time link. */
+    passwordHash: text("password_hash"),
+    createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull(),
+    updatedAt: integer("updated_at", { mode: "timestamp_ms" }).notNull(),
+  },
+  (table) => [
+    // An address can be verified by one account only (ACC-16); unverified ones may repeat.
+    uniqueIndex("users_verified_email")
+      .on(sql`lower(${table.email})`)
+      .where(sql`${table.emailStatus} = 'verified'`),
+  ],
+);
 
 /** A user's membership of an event; the roles are in `membership_roles`. */
 export const memberships = sqliteTable(
@@ -289,3 +299,210 @@ export const accessReleases = sqliteTable(
   },
   (table) => [primaryKey({ columns: [table.eventId, table.key] })],
 );
+
+// --- RSVP (sw-architecture.md 7.4, 7.4.1) -------------------------------------------------
+
+/** Event parts: ceremony, aperitif, dinner, party (RSVP-02). At most one has the meal. */
+export const eventParts = sqliteTable(
+  "event_parts",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    eventId: text("event_id")
+      .notNull()
+      .references(() => events.id),
+    name: text("name").notNull(),
+    startsAt: integer("starts_at", { mode: "timestamp_ms" }).notNull(),
+    place: text("place"),
+    hasMeal: integer("has_meal", { mode: "boolean" }).notNull().default(false),
+    createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull(),
+  },
+  (table) => [
+    index("event_parts_event").on(table.eventId),
+    uniqueIndex("event_parts_meal")
+      .on(table.eventId)
+      .where(sql`${table.hasMeal} = 1`),
+  ],
+);
+
+/** The one list of menu options for everyone (RSVP-03). */
+export const menuOptions = sqliteTable(
+  "menu_options",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    eventId: text("event_id")
+      .notNull()
+      .references(() => events.id),
+    name: text("name").notNull(),
+    createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull(),
+  },
+  (table) => [index("menu_options_event").on(table.eventId)],
+);
+
+/** RSVP settings of the event; for now the deadline (RSVP-04). */
+export const rsvpConfig = sqliteTable("rsvp_config", {
+  eventId: text("event_id")
+    .primaryKey()
+    .references(() => events.id),
+  /** The last day guests can change their RSVP, as `YYYY-MM-DD` in the event's time zone. */
+  deadline: text("deadline"),
+  /** Whether the RSVP asks for a song wish (RSVP-06); the admin switches it. */
+  songEnabled: integer("song_enabled", { mode: "boolean" }).notNull().default(true),
+});
+
+/** The parts an invitation is for; copied to the membership when the code is redeemed. */
+export const invitationParts = sqliteTable(
+  "invitation_parts",
+  {
+    eventId: text("event_id")
+      .notNull()
+      .references(() => events.id),
+    invitationId: integer("invitation_id")
+      .notNull()
+      .references(() => invitations.id, { onDelete: "cascade" }),
+    partId: integer("part_id")
+      .notNull()
+      .references(() => eventParts.id, { onDelete: "cascade" }),
+  },
+  (table) => [primaryKey({ columns: [table.invitationId, table.partId] })],
+);
+
+/** The parts a `vip` is invited to (RSVP-02). */
+export const membershipParts = sqliteTable(
+  "membership_parts",
+  {
+    eventId: text("event_id")
+      .notNull()
+      .references(() => events.id),
+    userId: integer("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    partId: integer("part_id")
+      .notNull()
+      .references(() => eventParts.id, { onDelete: "cascade" }),
+  },
+  (table) => [
+    primaryKey({ columns: [table.eventId, table.userId, table.partId] }),
+    ofMembership(table),
+  ],
+);
+
+/** The RSVP of a guest: one row once they have answered (RSVP-01, RSVP-03, RSVP-06). */
+export const rsvpAnswers = sqliteTable(
+  "rsvp_answers",
+  {
+    eventId: text("event_id")
+      .notNull()
+      .references(() => events.id),
+    userId: integer("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    menuId: integer("menu_id").references(() => menuOptions.id, { onDelete: "set null" }),
+    /** Health data: only admins read it (SEC-11). */
+    allergies: text("allergies"),
+    songWish: text("song_wish"),
+    answeredAt: integer("answered_at", { mode: "timestamp_ms" }).notNull(),
+  },
+  (table) => [primaryKey({ columns: [table.eventId, table.userId] }), ofMembership(table)],
+);
+
+/** Yes or no per invited part (RSVP-01). */
+export const rsvpAttendance = sqliteTable(
+  "rsvp_attendance",
+  {
+    eventId: text("event_id")
+      .notNull()
+      .references(() => events.id),
+    userId: integer("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    partId: integer("part_id")
+      .notNull()
+      .references(() => eventParts.id, { onDelete: "cascade" }),
+    attending: integer("attending", { mode: "boolean" }).notNull(),
+  },
+  (table) => [
+    primaryKey({ columns: [table.eventId, table.userId, table.partId] }),
+    ofMembership(table),
+  ],
+);
+
+// --- Accompanying persons (sw-architecture.md 7.4, 7.4.1; RSVP-08 – RSVP-10) ---------------
+
+/**
+ * A person a guest asks to bring: no account, the guest manages the data. The guest's own
+ * membership owns the row, so it goes when the guest's account is deleted (RSVP-09).
+ */
+export const companions = sqliteTable(
+  "companions",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    eventId: text("event_id")
+      .notNull()
+      .references(() => events.id),
+    hostUserId: integer("host_user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    name: text("name").notNull(),
+    /** An optional note for the admin, e.g. "my daughter, 6" (RSVP-10). */
+    note: text("note"),
+    status: text("status", { enum: ["pending", "approved", "rejected"] })
+      .notNull()
+      .default("pending"),
+    menuId: integer("menu_id").references(() => menuOptions.id, { onDelete: "set null" }),
+    /** Health data: only admins and the guest read it (SEC-11). */
+    allergies: text("allergies"),
+    createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull(),
+    decidedAt: integer("decided_at", { mode: "timestamp_ms" }),
+  },
+  (table) => [
+    index("companions_host").on(table.hostUserId),
+    foreignKey({
+      columns: [table.eventId, table.hostUserId],
+      foreignColumns: [memberships.eventId, memberships.userId],
+    }).onDelete("cascade"),
+  ],
+);
+
+/** Yes or no per part for a companion, for the parts the guest is invited to. */
+export const companionAttendance = sqliteTable(
+  "companion_attendance",
+  {
+    eventId: text("event_id")
+      .notNull()
+      .references(() => events.id),
+    companionId: integer("companion_id")
+      .notNull()
+      .references(() => companions.id, { onDelete: "cascade" }),
+    partId: integer("part_id")
+      .notNull()
+      .references(() => eventParts.id, { onDelete: "cascade" }),
+    attending: integer("attending", { mode: "boolean" }).notNull(),
+  },
+  (table) => [primaryKey({ columns: [table.companionId, table.partId] })],
+);
+
+// --- Waiting page (sw-architecture.md 10.4; ACS-11, ACS-13) -------------------------------
+
+/** The waiting page's settings: opening date, countdown switch and the admin's own texts. */
+export const waitingConfig = sqliteTable("waiting_config", {
+  eventId: text("event_id")
+    .primaryKey()
+    .references(() => events.id),
+  openingAt: integer("opening_at", { mode: "timestamp_ms" }),
+  countdownEnabled: integer("countdown_enabled", { mode: "boolean" }).notNull().default(false),
+  /** Null: the default text. */
+  textNone: text("text_none"),
+  textAttending: text("text_attending"),
+  textDeclined: text("text_declined"),
+});
+
+// --- Privacy notice (sw-architecture.md 24; SEC-09) ---------------------------------------
+
+/** The admin's own privacy notice as Markdown; without a row the default text is used. */
+export const privacyNotice = sqliteTable("privacy_notice", {
+  eventId: text("event_id")
+    .primaryKey()
+    .references(() => events.id),
+  markdown: text("markdown").notNull(),
+  updatedAt: integer("updated_at", { mode: "timestamp_ms" }).notNull(),
+});

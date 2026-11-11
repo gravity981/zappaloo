@@ -10,12 +10,15 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
+/** The event with the platform still closed, as before the opening. */
+const closedEvent = { ...event, settings: { ...event.settings, platformOpen: false } };
+
 const admin = { ...anna, id: 9, username: "lea", displayName: "Lea", roles: ["admin"] };
 const asAdmin = { status: 200, body: { user: admin, csrfToken: "csrf-1" } };
 
 /** An account as `GET /api/admin/users` lists it. */
 function account(changes: Record<string, unknown> = {}) {
-  return { ...anna, vipAssignment: "invitation_code", groups: [], ...changes };
+  return { ...anna, vipAssignment: "invitation_code", groups: [], invitedPartIds: [], ...changes };
 }
 
 describe("admin area", () => {
@@ -29,7 +32,10 @@ describe("admin area", () => {
   });
 
   it("[ROLE-07] an admin reaches the admin area from the website and sees its pages", async () => {
-    fakeBackend({ "GET /api/session": () => asAdmin });
+    fakeBackend({
+      "GET /api/session": () => asAdmin,
+      "GET /api/event": () => ({ status: 200, body: closedEvent }),
+    });
     renderAt("/");
     user.click(await screen.findByRole("link", { name: "Verwaltung" }));
     expect(await screen.findByRole("heading", { name: "Übersicht" })).toBeInTheDocument();
@@ -38,7 +44,7 @@ describe("admin area", () => {
       within(nav)
         .getAllByRole("link")
         .map((link) => link.textContent),
-    ).toEqual(["Übersicht", "Einladungen", "Konten & Rollen", "Einstellungen"]);
+    ).toEqual(["Übersicht", "Einladungen", "Rückmeldungen", "Konten & Rollen", "Einstellungen"]);
     expect(await screen.findByText("Plattform geschlossen")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Zur Website" })).toHaveAttribute("href", "/");
   });
@@ -47,7 +53,7 @@ describe("admin area", () => {
 describe("features and settings", () => {
   /** The event on the fake server; PATCH changes it like the real one. */
   function eventBackend() {
-    let current = structuredClone(event);
+    let current = structuredClone(closedEvent);
     const calls = fakeBackend({
       "GET /api/session": () => asAdmin,
       "GET /api/event": () => ({ status: 200, body: current }),
@@ -131,6 +137,7 @@ describe("invitations", () => {
     createdAt: "2026-11-10T10:00:00.000Z",
     redeemedAt: null,
     redeemedBy: null,
+    partIds: [],
   };
 
   it("[INV-01][INV-04][INV-14] an admin creates invitations and gets cards with code and QR code", async () => {

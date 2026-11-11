@@ -5,4 +5,8 @@ export * from "./api/system.ts";
 export * from "./event.ts";
 export * from "./groups.ts";
 export * from "./invitations.ts";
+export * from "./rsvp.ts";
 export * from "./version.ts";
+export * from "./time.ts";
+export * from "./waiting.ts";
+export * from "./platform.ts";

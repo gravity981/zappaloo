@@ -47,9 +47,51 @@ test("[CFG-02][CFG-06] a fresh installation: the operator creates the admin, the
     .getByRole("link", { name: de.admin.nav.settings })
     .click();
   await page.getByLabel(de.admin.identity.name).fill("Anna und Ben");
-  await page.getByRole("button", { name: de.admin.identity.save }).click();
-  await expect(page.getByText(de.admin.identity.saved)).toBeVisible();
+  await page
+    .getByRole("region", { name: de.admin.identity.title })
+    .getByRole("button", { name: de.admin.identity.save })
+    .click();
+  await expect(page.getByText(de.admin.identity.saved, { exact: true })).toBeVisible();
   expect(await (await page.request.get("/api/event")).json()).toMatchObject({
     name: "Anna und Ben",
   });
+
+  // The privacy notice (SEC-09): the default text names the event and the allergies; the admin
+  // edits it, and everyone reads it without signing in.
+  await page
+    .getByLabel(de.admin.privacy.label)
+    .fill("# Unser Datenschutz\n\nNichts wird weitergegeben.");
+  const privacyCard = page.getByRole("region", { name: de.admin.privacy.title });
+  await privacyCard.getByRole("button", { name: de.admin.privacy.save }).click();
+  await expect(privacyCard.getByRole("status")).toHaveText(de.admin.privacy.saved);
+  const visitor = await page.context().browser()?.newContext({ baseURL: "http://localhost:4174" });
+  if (!visitor) throw new Error("no browser");
+  const anonymous = await visitor.newPage();
+  await anonymous.goto("/datenschutz");
+  await expect(anonymous.getByRole("heading", { name: "Unser Datenschutz" })).toBeVisible();
+  await expect(anonymous.getByText("Nichts wird weitergegeben.")).toBeVisible();
+  await privacyCard.getByRole("button", { name: de.admin.privacy.reset }).click();
+  await anonymous.reload();
+  await expect(anonymous.getByText(/Fest «Anna und Ben»/)).toBeVisible();
+  await expect(anonymous.getByText(/Gesundheitsdaten/)).toBeVisible();
+  await visitor.close();
+
+  const platformOpen = async () =>
+    (
+      (await (await page.request.get("/api/event")).json()) as {
+        settings: { platformOpen: boolean };
+      }
+    ).settings.platformOpen;
+
+  // Opening the platform: there is no guest to mail yet, so the email cannot be chosen. The
+  // state shows at once, and the admin can close it again.
+  const opening = page.getByRole("region", { name: de.admin.waiting.openingTitle });
+  await expect(opening.getByRole("checkbox")).toBeDisabled();
+  await opening.getByRole("button", { name: de.admin.waiting.openNow }).click();
+  await expect(opening.getByText(de.admin.waiting.opened, { exact: true })).toBeVisible();
+  await expect(page.locator(".admin-head .tag")).toHaveText(de.admin.platformOpen);
+  expect(await platformOpen()).toBe(true);
+  await opening.getByRole("button", { name: de.admin.waiting.closeAgain }).click();
+  await expect(opening.getByText(de.admin.waiting.closed)).toBeVisible();
+  expect(await platformOpen()).toBe(false);
 });

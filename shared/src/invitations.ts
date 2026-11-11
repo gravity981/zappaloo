@@ -1,6 +1,12 @@
 // Personal invitations (sw-architecture.md 9): the schemas of the invitation API.
 import { z } from "zod";
-import { displayNameSchema, passwordSchema, usernameSchema, userSchema } from "./account.ts";
+import {
+  displayNameSchema,
+  emailSchema,
+  passwordSchema,
+  usernameSchema,
+  userSchema,
+} from "./account.ts";
 
 /** What an admin sees of a code; `expired` is derived from the expiry date (INV-06). */
 export const INVITATION_STATUSES = [
@@ -23,6 +29,8 @@ export const invitationSchema = z.object({
   redeemedAt: z.string().nullable(),
   /** The account that redeemed the code, while it exists. */
   redeemedBy: z.number().int().nullable(),
+  /** The event parts the guest is invited to (RSVP-02). */
+  partIds: z.array(z.number().int()),
 });
 export type Invitation = z.infer<typeof invitationSchema>;
 export const invitationListSchema = z.object({ invitations: z.array(invitationSchema) });
@@ -49,6 +57,8 @@ export const createInvitationsRequestSchema = z.strictObject({
     .max(200),
   /** ISO date-time; without it the codes do not expire. */
   expiresAt: z.iso.datetime().optional(),
+  /** The parts all these guests are invited to; without it, every part (RSVP-02). */
+  partIds: z.array(z.number().int().positive()).min(1).max(50).optional(),
 });
 export type CreateInvitationsRequest = z.infer<typeof createInvitationsRequestSchema>;
 export const createInvitationsResponseSchema = z.object({
@@ -64,6 +74,8 @@ export const registerRequestSchema = z.strictObject({
   username: usernameSchema,
   displayName: displayNameSchema.optional(),
   password: passwordSchema,
+  /** Optional: for news and a forgotten password; verified later in the profile (7.1.1). */
+  email: emailSchema.optional(),
 });
 export type RegisterRequest = z.infer<typeof registerRequestSchema>;
 

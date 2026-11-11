@@ -8,6 +8,7 @@ import {
   invitationListSchema,
   invitationPreviewSchema,
   invitationSchema,
+  invitedPartsRequestSchema,
   issuedInvitationSchema,
   redeemResponseSchema,
   registerRequestSchema,
@@ -44,6 +45,8 @@ const STATUSES: Partial<Record<string, number>> = {
   already_vip: 409,
   not_regenerable: 409,
   not_revocable: 409,
+  part_not_found: 404,
+  parts_not_editable: 409,
 };
 
 /** Answers an invitation error; `failure` counts it against the address and everyone. */
@@ -101,19 +104,47 @@ const invitationPlugin: FastifyPluginAsyncZod<AuthOptions> = (app, options) => {
       },
     },
     async (request, reply) => {
-      const { guests, expiresAt } = request.body;
+      const { guests, expiresAt, partIds } = request.body;
       if (expiresAt !== undefined && new Date(expiresAt) <= new Date()) {
         return sendError(reply, 400, {
           code: "validation_failed",
           message: "The expiry date must be in the future.",
         });
       }
-      const created = invitations.create(
-        guests,
-        expiresAt === undefined ? undefined : new Date(expiresAt),
-        actor(request),
-      );
-      return reply.status(201).send({ invitations: created.map(issued) });
+      try {
+        const created = invitations.create(
+          guests,
+          expiresAt === undefined ? undefined : new Date(expiresAt),
+          actor(request),
+          partIds,
+        );
+        return await reply.status(201).send({ invitations: created.map(issued) });
+      } catch (error) {
+        return fail(reply, error);
+      }
+    },
+  );
+
+  // The parts an invitation is for (RSVP-02, UX decision 31).
+  app.put(
+    "/api/admin/invitations/:id/parts",
+    {
+      ...admin,
+      schema: {
+        querystring: noQuery,
+        params: idParams,
+        body: invitedPartsRequestSchema,
+        response: { 200: invitationSchema },
+      },
+    },
+    async (request, reply) => {
+      try {
+        return await reply.send(
+          invitations.setParts(request.params.id, request.body.partIds, actor(request)),
+        );
+      } catch (error) {
+        return fail(reply, error);
+      }
     },
   );
 

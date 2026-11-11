@@ -1,12 +1,14 @@
 // Accounts, event roles and one-time links (ACC-04, ACC-06, ACC-08, ACC-14,
 // ACC-15; sw-architecture.md 7.1.1).
-import { and, eq, inArray, isNotNull, isNull, lte, or, sql } from "drizzle-orm";
+import { and, eq, inArray, isNotNull, isNull, lte, ne, or, sql } from "drizzle-orm";
 import type { AdminUser, Capability, ProfileUpdate, Role, User } from "@zappaloo/shared";
 import type { Database } from "../database/database.ts";
 import {
+  eventParts,
   guestGroupMembers,
   guestGroups,
   membershipCapabilities,
+  membershipParts,
   membershipRoles,
   memberships,
   oneTimeLinks,
@@ -14,6 +16,7 @@ import {
 } from "../database/schema.ts";
 import { SELF_ACTOR } from "../event/service.ts";
 import type { Actor, EventService } from "../event/service.ts";
+import { forgetGuest } from "../rsvp/cleanup.ts";
 import { hashPassword, verifyDummyPassword, verifyPassword } from "./password.ts";
 import { hashToken, newToken } from "./tokens.ts";
 
@@ -25,7 +28,8 @@ export type AccountErrorCode =
   | "no_email"
   | "last_admin"
   | "not_staff"
-  | "password_is_username";
+  | "password_is_username"
+  | "email_taken";
 
 export class AccountError extends Error {
   override name = "AccountError";
@@ -70,6 +74,22 @@ export class AccountService {
     this.#database = database;
     this.#event = event;
     this.#now = now;
+  }
+
+  /** A `vip` without an invitation (admin promotion) starts invited to every part (RSVP-02). */
+  #inviteToAllParts(tx: Tx, userId: number): void {
+    const eventId = this.#event.eventId;
+    const parts = tx
+      .select({ id: eventParts.id })
+      .from(eventParts)
+      .where(eq(eventParts.eventId, eventId))
+      .all();
+    for (const { id } of parts) {
+      tx.insert(membershipParts)
+        .values({ eventId, userId, partId: id })
+        .onConflictDoNothing()
+        .run();
+    }
   }
 
   /** The user as the API shows it, with the roles in this installation's event. */
@@ -135,6 +155,8 @@ export class AccountService {
       passwordHash?: string;
       /** The invitation that grants `vip`; without it `vip` is an admin promotion (INV-11). */
       invitationId?: number;
+      /** An address given at registration; it stays unverified until the guest verifies it. */
+      email?: string | undefined;
     },
     actor: Actor,
     /** Inside the transaction of the caller. */
@@ -152,6 +174,7 @@ export class AccountService {
           username,
           displayName: input.displayName ?? username,
           passwordHash: input.passwordHash ?? null,
+          email: input.email ?? null,
           createdAt: now,
           updatedAt: now,
         })
@@ -175,6 +198,9 @@ export class AccountService {
         tx.insert(membershipRoles)
           .values({ eventId: this.#event.eventId, userId: row.id, role })
           .run();
+      }
+      if (input.roles.includes("vip") && input.invitationId === undefined) {
+        this.#inviteToAllParts(tx, row.id);
       }
       this.#event.audit(
         actor === SELF_ACTOR ? `user:${String(row.id)}` : actor,
@@ -212,13 +238,38 @@ export class AccountService {
     });
   }
 
-  /** Checks username and password; always does the hashing work, also for unknown users. */
-  async verifyLogin(username: string, password: string): Promise<User | undefined> {
-    const row = this.#database.db
+  /**
+   * The account a sign-in names: by username, or by a verified email address (ACC-16). An
+   * unverified address never matches, so a typo or someone else's address signs nobody in.
+   * Usernames have no `@`, so the two cannot be confused.
+   */
+  #findForLogin(identifier: string): UserRow | undefined {
+    const needle = identifier.trim().toLowerCase();
+    const { db } = this.#database;
+    if (!needle.includes("@"))
+      return db.select().from(users).where(eq(users.username, needle)).get();
+    return db
       .select()
       .from(users)
-      .where(eq(users.username, username.trim().toLowerCase()))
+      .where(and(eq(users.emailStatus, "verified"), eq(sql`lower(${users.email})`, needle)))
       .get();
+  }
+
+  /**
+   * The key the failed sign-ins of this identifier are counted under (SEC-02): the account, so
+   * username and email address share one lockout; the identifier itself if it names nobody.
+   */
+  loginKey(identifier: string): string {
+    const row = this.#findForLogin(identifier);
+    return row ? `user:${String(row.id)}` : `name:${identifier.trim().toLowerCase()}`;
+  }
+
+  /**
+   * Checks username or verified email address and the password; always does the hashing work,
+   * also for unknown users and unverified addresses, so the answer and the time reveal nothing.
+   */
+  async verifyLogin(identifier: string, password: string): Promise<User | undefined> {
+    const row = this.#findForLogin(identifier);
     if (!row?.passwordHash) {
       await verifyDummyPassword(password);
       return undefined;
@@ -329,6 +380,24 @@ export class AccountService {
   }
 
   /**
+   * What a setup or reset link is for, if it can still be used: it lets the page greet the new
+   * account or say that the link is dead before anyone types a password. An unknown, used or
+   * expired link is refused like for `useLink`.
+   */
+  previewLink(token: string): { purpose: "setup" | "reset"; username: string } {
+    const link = this.#usableLink(this.#database.db, token);
+    const owner = this.#database.db
+      .select({ username: users.username })
+      .from(users)
+      .where(eq(users.id, link.userId))
+      .get();
+    if (!owner || link.purpose === "verify") {
+      throw new AccountError("invalid_link", "the link is unknown, expired or already used");
+    }
+    return { purpose: link.purpose, username: owner.username };
+  }
+
+  /**
    * Sets the password with a one-time link, once: an unknown, used or expired link is refused.
    * The link is checked before the (expensive) hashing and again in the transaction. All other
    * open links of the user become invalid. Returns the user, whose sessions the caller ends.
@@ -390,8 +459,24 @@ export class AccountService {
       }
       tx.update(oneTimeLinks).set({ usedAt: now }).where(eq(oneTimeLinks.id, link.id)).run();
       const row = tx.select().from(users).where(eq(users.id, link.userId)).get();
-      if (row?.email !== link.email) {
+      if (!row?.email || row.email !== link.email) {
         throw new AccountError("invalid_link", "the address has changed since the link was sent");
+      }
+      // An address can be verified by one account only (ACC-16). The link stays unused: the
+      // transaction ends here and rolls the use back.
+      const taken = tx
+        .select({ id: users.id })
+        .from(users)
+        .where(
+          and(
+            eq(users.emailStatus, "verified"),
+            eq(sql`lower(${users.email})`, row.email.toLowerCase()),
+            ne(users.id, row.id),
+          ),
+        )
+        .get();
+      if (taken) {
+        throw new AccountError("email_taken", "another account has verified this address");
       }
       const updated = tx
         .update(users)
@@ -489,9 +574,18 @@ export class AccountService {
       .where(eq(guestGroups.eventId, this.#event.eventId))
       .orderBy(guestGroups.name)
       .all();
+    const invited = db
+      .select({ userId: membershipParts.userId, partId: membershipParts.partId })
+      .from(membershipParts)
+      .where(eq(membershipParts.eventId, this.#event.eventId))
+      .all();
     return rows.map(({ user, vipAssignment }) => ({
       ...this.#toUser(user),
       vipAssignment,
+      invitedPartIds: invited
+        .filter((p) => p.userId === user.id)
+        .map((p) => p.partId)
+        .sort((a, b) => a - b),
       groups: groups.filter((g) => g.userId === user.id).map(({ id, name }) => ({ id, name })),
     }));
   }
@@ -527,6 +621,9 @@ export class AccountService {
       }
       // Direct promotion needs no code; revoking vip forgets how it was granted (INV-11).
       const gainedVip = wanted.includes("vip") && !current.includes("vip");
+      if (gainedVip) this.#inviteToAllParts(tx, userId);
+      // Revoking vip also deletes the RSVP: answer, allergies and companions (7.4.1, SEC-11).
+      if (!wanted.includes("vip") && current.includes("vip")) forgetGuest(tx, eventId, userId);
       if (gainedVip || (!wanted.includes("vip") && current.includes("vip"))) {
         tx.update(memberships)
           .set(

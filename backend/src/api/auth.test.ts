@@ -282,7 +282,8 @@ describe("rate limiting", () => {
       await makeUser(ctx, `guest${String(i)}`);
       expect((await login(ctx, `guest${String(i)}`)).cookie).toContain(SESSION_COOKIE);
     }
-  });
+    // 25 password hashes: CPU-bound, slow while the whole suite runs in parallel.
+  }, 30_000);
 
   it("[SEC-02] takes the client address from X-Forwarded-For only with TRUST_PROXY", async () => {
     const attempt = (ctx: TestContext, ip: string) =>

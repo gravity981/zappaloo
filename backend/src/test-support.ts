@@ -72,6 +72,7 @@ export async function createTestApp(
       PUBLIC_URL: "http://localhost:5173",
     },
     mailer,
+    paths.events,
   );
   let app: FastifyInstance;
   try {

@@ -103,6 +103,8 @@
   - [19.2 Event Files](#192-event-files)
   - [19.3 Event Data](#193-event-data)
   - [19.4 Configurability](#194-configurability)
+  - [19.5 Installable App (PWA, decided 2026-11-11, stage 3.5)](#195-installable-app-pwa-decided-2026-11-11-stage-35)
+  - [19.6 Footer: Copyright and License Notice (decided 2026-11-11, stage 3.5)](#196-footer-copyright-and-license-notice-decided-2026-11-11-stage-35)
 - [20. Installation and Operating Model](#20-installation-and-operating-model)
   - [20.1 Later Multi-Event Extension](#201-later-multi-event-extension)
   - [20.2 Requirements (Sections 19 and 20)](#202-requirements-sections-19-and-20)
@@ -132,10 +134,11 @@
 - [26. Proposed Project Structure](#26-proposed-project-structure)
 - [27. Summary of Architecture Decisions](#27-summary-of-architecture-decisions)
 - [28. Development Strategy and Order of Work](#28-development-strategy-and-order-of-work)
-  - [Release 1 (early): Invitations and RSVP — Stages 1–3](#release-1-early-invitations-and-rsvp--stages-13)
+  - [Release 1 (early): Invitations and RSVP — Stages 1–3.5](#release-1-early-invitations-and-rsvp--stages-135)
   - [Stage 1 – Walking Skeleton and Deployment](#stage-1--walking-skeleton-and-deployment)
   - [Stage 2 – Accounts, Roles and Access](#stage-2--accounts-roles-and-access)
-  - [Stage 3 – RSVP and Waiting Page (completes Release 1)](#stage-3--rsvp-and-waiting-page-completes-release-1)
+  - [Stage 3 – RSVP and Waiting Page](#stage-3--rsvp-and-waiting-page)
+  - [Stage 3.5 – Installable App (completes Release 1)](#stage-35--installable-app-completes-release-1)
   - [Stage 4 – Content and Website](#stage-4--content-and-website)
   - [Stage 5 – Game World and Map Importer](#stage-5--game-world-and-map-importer)
   - [Stage 6 – Living World](#stage-6--living-world)
@@ -711,9 +714,11 @@ Users can delete their own account and their own content at any time.
 
 **CSRF** (SEC-01). Every session has a CSRF token, returned by `GET /api/session`; every `POST`, `PUT`, `PATCH` and `DELETE` with a session must send it in the header `X-CSRF-Token`. Independently, a request with an `Origin` header whose host differs from the `Host` header is refused. Both failures answer `403 csrf_failed`.
 
-**Rate limiting** (SEC-02). The limits per client address count only failed attempts (decided 2026-11-10): many guests share one address (the venue's Wi-Fi, a mobile network), and only failures help a guesser. Login: at most 20 failed attempts per client address and 5 per username in 15 minutes (a success clears the username's count); setting a password with a link: 10 unknown, used or expired links per client address in 15 minutes; confirming an email address: the same, with its own counter. An exceeded limit answers `429 rate_limited` with `Retry-After`. The counters live in memory (one process). The client address comes from `X-Forwarded-For` only if `TRUST_PROXY=true` (set in the Compose file, where Caddy is the only way in). Invitation redemption has its limits in 9.6.1; uploads get theirs with their feature.
+**Rate limiting** (SEC-02). The limits per client address count only failed attempts (decided 2026-11-10): many guests share one address (the venue's Wi-Fi, a mobile network), and only failures help a guesser. Login: at most 20 failed attempts per client address and 5 per account in 15 minutes, whether it is named by username or by email address (ACC-16; a name that matches no account has its own count; a success clears the account's count); setting a password with a link: 10 unknown, used or expired links per client address in 15 minutes; confirming an email address: the same, with its own counter. An exceeded limit answers `429 rate_limited` with `Retry-After`. The counters live in memory (one process). The client address comes from `X-Forwarded-For` only if `TRUST_PROXY=true` (set in the Compose file, where Caddy is the only way in). Invitation redemption has its limits in 9.6.1; uploads get theirs with their feature.
 
 **Sign-in by email** (ACC-16, decided 2026-11-10). The login field takes a username or an email address. An email address signs in only if it is verified, and an address can be verified by one account only: verifying fails with `409 email_taken` if another account has already verified it. An unverified address never signs anyone in, so a typo or someone else's address cannot lock out or impersonate a guest. The email stays optional, also when redeeming an invitation, because some guests (e.g. grandparents) have none.
+
+*Implementation (step 3e):* `POST /api/session` keeps the field name `username`, which holds a username or an address (up to 254 characters). The address is compared in lower case after trimming; usernames never contain `@`, so the two cannot be mixed up. An unknown name, an unverified address and a wrong password all give the same `401 invalid_credentials` after the same hashing work. The limits count failures under the typed name (five per name and 15 minutes, 20 per client address), so an address and a username of one account are counted separately. Uniqueness is checked when the address is verified (`POST /api/email/verify`: `409 email_taken`, the link stays unused and works again once the address is free) and enforced by a unique index on the lower-cased address of verified accounts (`users_verified_email`); unverified addresses may repeat. Changing or removing an address makes it unverified again, so it stops signing in; deleting the account frees it. Sending the verification mail does not check for another account, so nobody can probe whether an address is taken without owning its mailbox.
 
 **Login errors** do not reveal whether a username exists: unknown user and wrong password give the same `401 invalid_credentials`, after the same amount of hashing work.
 
@@ -788,6 +793,20 @@ Every signed-in guest responds to the invitation. The RSVP gives guests a reason
 - **Accompanying persons:** while a request is pending, the VIP can edit or withdraw it. After approval the VIP changes the person's attendance, menu and allergies in the wizard like their own, until the deadline, without a new approval; the name of an approved person is changed by the admin. Approved persons count in the totals, menus and the guest table.
 - **Reminder and other emails** go only to verified addresses (7.1.1); the count on the button ("Erinnern (n)") counts guests without an answer who have one.
 
+**Implementation decisions of step 3a** (2026-11-11):
+
+- **Deadline** (RSVP-04): a calendar day set in Einstellungen; guests can answer and change until that day ends in the event's time zone (`rsvp_config.deadline`, `YYYY-MM-DD`). Without a deadline the RSVP stays open. Part start times are entered and shown in the event's time zone and stored as instants (`shared/src/time.ts`).
+- **Menu** (RSVP-03): a person who attends the meal part must choose a menu while menus exist; a person who does not attend it has none (a chosen one is dropped). A guest who declines every part keeps no menu, allergies or song wish.
+- **Invited parts** (RSVP-02): stored per membership (`membership_parts`); an invitation carries its own list (`invitation_parts`, all parts by default) and copies it to the account when redeemed. After redemption the invitation row and the account panel show and change the same list. Admin promotion to `vip` (role change, account created by an admin, CLI `--vip`) invites to all parts that exist then; revoking `vip` clears the list. A part created later is not added to existing invitations. Deleting a part also removes the answers for it; deleting a menu option leaves its guests without a menu choice. Removing a part from a guest's invitation removes their answer for it, whichever way it is changed (invitation row, account panel, deleting the part).
+- **Answers after the invitation changed** (decided 2026-11-11 after the stage-3 review): a part added to a guest's invitation after they answered is *not answered yet* for them and their companions: it counts in neither yes nor no, its CSV cell is empty, the summary marks it "Noch offen" and the wizard starts at the attendance step and asks for it. A guest who declined every other part is "ohne Antwort" again until they answer it (so "Erinnern" reaches them). A guest or companion whose last yes disappears (the part was deleted or removed from the invitation) goes back to "ohne Antwort": their answer (menu, allergies, song wish) is removed and the wizard asks again. The status rule (`rsvpStatus`) and the menu rule (`menuRequired`) live in `shared/src/rsvp.ts`; answers carry `attendingPartIds` and `declinedPartIds`.
+- **Revoking `vip`** (decided 2026-11-11): deletes the guest's RSVP with it: invited parts, answer with allergies, and all accompanying persons (SEC-11: no health data is kept for someone who is no longer a guest). The role chip asks first ("vip entziehen", a second click).
+- **Answers** are one row per guest (`rsvp_answers`) and one yes/no per invited part (`rsvp_attendance`); every invited part must be answered, once. Only `vip` accounts answer. Companions follow in step 3b.
+- **API:** `GET`/`PUT /api/rsvp` (guest); `GET /api/admin/rsvp` (overview), `GET /api/admin/rsvp/export` (CSV, `;` separated, cells that start with `=`, `+`, `-` or `@` are prefixed so spreadsheets do not run them), `POST /api/admin/rsvp/remind` (one round per event every 10 minutes, counted before the first mail, so a double click or a second admin never mails the same guests twice), `GET /api/admin/rsvp/pending` (the count for the navigation badge), `GET`/`PUT /api/admin/rsvp/guests/:id` (admin mode, ignores the deadline); `GET /api/admin/rsvp/config`, `PUT /api/admin/rsvp/deadline`, `POST`/`PATCH`/`DELETE /api/admin/rsvp/parts[/:id]` and `/menus[/:id]`; `PUT /api/admin/invitations/:id/parts`, `PUT /api/admin/users/:id/parts`. All RSVP routes of guests and the overview are unavailable (404 `feature_disabled`) while the feature `rsvp` is off; the configuration stays editable.
+- **Allergies** (SEC-11) are returned only to the guest's own wizard and to admins; they never enter the audit log or the card "Zuletzt". The audit log records `rsvp.answer` / `rsvp.admin_answer` with the guest's id.
+- **Accompanying persons** (step 3b, decided 2026-11-11): a guest has at most 10 (pending and approved together; a rejected request does not count). A request carries the name, an optional note and the person's own RSVP for the guest's invited parts (same rules as the guest's: menu for the meal part, allergies only for an attending person). Statuses `pending`, `approved`, `rejected`; the admin decides once. A pending request is changed in the request form or withdrawn; a rejected one stays visible with the tag "abgelehnt" until the guest removes it (and can then ask again); an approved one is changed in wizard steps 1 and 2 (attendance, menu, allergies; the guest's `PUT /api/rsvp` carries `companions`) and only the admin renames it (`PATCH /api/admin/rsvp/companions/:id`). After the RSVP deadline guests can no longer request, change, withdraw or remove; admins can always change attendance (admin mode) and decide. Approved persons count in the totals per part, the menus and the guest table (under their guest, "↳ name") and the CSV; pending and rejected ones do not. They are invited to the same parts as their guest and lose an answer for a part that is removed from the guest's invitation. They have no account; the guest's account deletion removes them (`companions`, `companion_attendance`). The navigation entry "Rückmeldungen" shows the number of pending requests and Übersicht a tile "Begleitpersonen". Audit actions: `companion.request`, `companion.approve`, `companion.reject`, `companion.withdraw`, `companion.rename` (ids only, in the card "Zuletzt" with the person's name while they exist). Routes: `POST /api/rsvp/companions`, `PUT`/`DELETE /api/rsvp/companions/:id`, `POST /api/admin/rsvp/companions/:id/approve` and `/reject`.
+- **Song wish** (RSVP-06, decided 2026-11-11): Einstellungen › Rückmeldung has a switch "Songwunsch fragen" (`rsvp_config.song_enabled`, on by default, `PUT /api/admin/rsvp/song`, audited as `rsvp.song`). While it is off the wizard does not ask, the server takes no new wish, the summary, the guest table and the CSV leave the song out, and wishes already given stay stored and come back when it is switched on again.
+- **Example data:** `event seed-example` also creates the parts Trauung, Apéro, Dinner (meal) and Party, the menus Fleisch, Vegetarisch, Vegan and Kindermenü, and the deadline 2027-05-01.
+
 ## 7.5 Requirements
 
 | ID | Requirement | Prio |
@@ -817,7 +836,7 @@ Every signed-in guest responds to the invitation. The RSVP gives guests a reason
 | RSVP-03 | For each attending person (guest and accompanying persons), the RSVP records the name, a menu choice from admin-defined options, and allergies or dietary requirements. | Must |
 | RSVP-04 | Guests can change their RSVP until a deadline set by the admin; afterwards only admins can change it. | Must |
 | RSVP-05 | The admin sees an RSVP overview with totals per event part, menu choice and allergies, and can export it as CSV. | Must |
-| RSVP-06 | The RSVP can include an optional song wish. | Should |
+| RSVP-06 | The RSVP can include an optional song wish; the admin switches the question on or off in Einstellungen (on by default). | Should |
 | RSVP-07 | The admin can send a reminder email to guests who haven't responded. | Should |
 | RSVP-08 | A VIP can request an accompanying person who gets no account (e.g. a child or someone without a smartphone); before submitting, the VIP enters the name and answers their RSVP (attendance for the parts the VIP is invited to, menu choice, allergies); the avatar is chosen later (PRES-07). | Must |
 | RSVP-09 | The admin approves or rejects each request; an approved person is added to the event like any VIP (RSVP, figure, seat) but cannot log in, and their VIP manages their data; if the VIP's account is deleted, their accompanying persons are deleted too. | Must |
@@ -885,7 +904,7 @@ These include:
 
 **The admin area** (`/admin`, step 2h, decided 2026-11-10) follows the admin mocks ([mocks/](mocks/README.md)). It has its own shell: a dark header with "Verwaltung", the platform state (open or closed) and a link back to the website; a side navigation on desktop that becomes a row of scrollable entries on phones. The navigation lists only the pages that exist; each later step adds its page and entry (Rückmeldungen, Sitzplan, Inhalte, Spielwelt, Moderation). Pages from stage 2:
 
-- **Übersicht** (`/admin`): the platform state, and the switches for snapshot and keepsake uploads. Further status tiles come with their features.
+- **Übersicht** (`/admin`): the platform state, and the switches for snapshot and keepsake uploads. Further status tiles come with their features. The card **Zuletzt** (DATA-05, decided 2026-11-11) lists the latest 5 entries of the audit log that concern guests (RSVP answered or changed, companion requested, approved or rejected, invitations created or redeemed) or settings and content (event settings, event parts, texts, website content as these features arrive); logins, sign-outs and role changes are left out. The audit log keeps ids only (7.1.1), so the endpoint `GET /api/admin/activity` (admin role) resolves guest names and part names when it answers; an entry whose guest was deleted shows no name. Entries are shown with a relative time ("vor 2 Std") and a short German sentence per action; actions that are not on the list never appear. Each step that audits a new listed action adds its sentence.
 - **Einladungen** (`/admin/invitations`): batch creation, the print view right after creation, the list with a status filter, regenerate and revoke.
 - **Konten & Rollen** (`/admin/users`): the accounts with role chips (vip, staff, admin) and their capabilities; a panel per account changes roles, staff capabilities and groups and creates a reset link to hand over; "Konto anlegen" creates an account and shows its setup link. Beside it the guest groups; a panel per group renames or deletes it and adds or removes members.
 - **Einstellungen** (`/admin/settings`): one page with sections; in stage 2 the feature switches. Opening the platform (ACS-10, ACS-14) and the other sections come with their steps.
@@ -1097,6 +1116,20 @@ Invitations and RSVP must work early, long before the world and the website are 
 - **Closing again** (decided 2026-11-11): the admin can close an open platform again ("Wieder schliessen"); no email is sent.
 - **While closed, guests reach** the waiting page, the RSVP wizard, their profile (without the website navigation, with a way back to the waiting page) and the public pages, the privacy notice included. The server enforces this too (ACS-07).
 
+**Implementation decisions of step 3c** (2026-11-11):
+
+- **Server gate** (ACS-10, ACS-07): while the platform is closed, a signed-in user without `staff` or `admin` can call only these routes: `/api/session`, `/api/password/*`, `/api/email/*`, `/api/profile[/*]`, `/api/rsvp[/*]`, `/api/waiting[/*]`, `/api/privacy`, `/api/site`, `/api/event`, `/api/events/ping`, `/api/health`, `/api/version`, `/api/invitations/*` and `/api/admin/*` (which keep their own admin check). An entry matches itself and the routes below it, never a longer name (`/api/profile` does not open `/api/profiles`). Everything else under `/api`, including every route a later feature adds and the live feeds under `/api/events/`, answers `403 platform_closed` until the admin opens the platform; a test walks every registered route. The state is read on every request. Unknown paths stay a plain 404.
+- **Front end:** a restricted guest lands on the waiting page at `/` (full screen, no website navigation); `/rsvp` and `/profile` keep the page header with only "Warteseite", "Rückmeldung", "Profil" and "Abmelden"; the game world and the other platform pages send them back to the waiting page.
+- **Settings** (`waiting_config`, `GET`/`PATCH /api/admin/waiting`, audited as `waiting.set` with the names of the fields, never the texts): opening date (an instant; entered and shown in the event's time zone), countdown switch (default off), three texts (each can go back to its default). A text has at most 1000 characters. The countdown needs the switch and a date.
+- **Placeholders:** `{name}` is the display name; `{waitingCount}` counts the guests who have accepted (at least one part) and the approved companions who attend, without the viewing guest; `{openingDate}` is the date in the event's language and time zone, or "bald" while none is announced. An unknown `{word}` stays as written. The page data (`GET /api/waiting`) carries the finished text.
+- **Door scene** (ACS-12): the built-in scene is drawn in code at a low resolution and scaled without smoothing: a door slightly ajar, warm light, figures that carry a plank, a lantern and a brush behind the gap, light dust; a tap on the door opens the gap wider for 3.5 seconds. With "reduce motion" the figures stand still. An event replaces it with a **sprite sheet** in `$DATA_DIR/events/<eventId>/`: `door.png` (`frames` equally sized frames side by side), `door.json` (`{ "frameWidth", "frameHeight", "frames", "fps", "gap"? }`; sizes 16–2048 px, 1–64 frames, 0.5–30 fps; `gap` is an optional rectangle in fractions of a frame, `{ x, y, width, height }`) and an optional `door-glimpse.png` (one picture) that a tap on the gap shows for 3.5 seconds. The sheet fills the screen like a cover (cropped at the edges), without smoothing. A missing or invalid `door.json`, an unknown key or a missing `door.png` means the built-in scene; a file that fails to load falls back to it on the page. `GET /api/waiting/door` tells which one, `GET /api/waiting/door/sheet` and `/glimpse` serve the files (sign-in required); a version in the answer makes a replaced file load again.
+
+**Implementation decisions of step 3d** (2026-11-11):
+
+- **Opening** (ACS-10, ACS-14): the card "Plattform öffnen" in Einstellungen has "Jetzt öffnen" with the choice "E-Mail «Die Tür ist offen» an alle Gäste mit bestätigter Adresse senden (n)" (on while at least one guest can receive it; the count is the number of `vip` accounts with a verified address, staff and admins who are not guests do not count) and, once open, "Wieder schliessen" (no email). `GET /api/admin/platform` (state and count), `POST /api/admin/platform/open` with `{ sendEmail }`, `POST /api/admin/platform/close`; opening an open or closing a closed platform answers `409 already_open` / `already_closed`. The platform is open as soon as the switch is set: a mail that fails does not undo it, the answer counts `sent` and `failed` (the mails are sent one after the other, failures are logged). Without a mail server `sendEmail` answers `503 mail_unavailable` and nothing changes. At most 3 openings with email per admin and hour. The mail has the subject "<event>: Die Tür ist offen" and a link to `/login`. Audit: `platform.open` (with whether mail was chosen), `platform.open_mail` (counts) and `platform.close`; the first and the last are on the card "Zuletzt". The Übersicht tile "Plattform" offers "Öffnen …" while closed. The generic `PATCH /api/admin/event` does not take `platformOpen` (400): the platform opens and closes only here, with the email choice and its own audit entries (decided 2026-11-11). The CLI (`event setting platformOpen on|off`) stays for the operator.
+- **Privacy notice** (SEC-09, SEC-11; `privacy_notice`): public `GET /api/privacy` (no sign-in, also while the platform is closed) returns the Markdown with `{eventName}` replaced by the event's name ("dieses Fest" before the setup); the frontend page `/datenschutz` renders it. The admin edits the Markdown (at most 20 000 characters) in Einstellungen › Datenschutz (`GET`/`PUT /api/admin/privacy`, `null` goes back to the default; audited as `privacy.set` without the text). The default text is a German draft (which data is stored, allergies as health data seen only by admins, purposes, who sees what, deletion, contact); it still needs the legal review (24). The link "Datenschutz" is in the footer of every page of the website and the admin area, on the waiting page and on the login page.
+- **Markdown** (SEC-05): rendered in the browser with `marked` (GitHub-flavoured) and sanitised with `DOMPurify` (HTML profile; scripts, event handlers and `javascript:` links are removed; links get `rel="noopener noreferrer"`; forms and their fields, `<style>` and `style` attributes are removed, so a text cannot imitate a sign-in or cover the page; images from other sites are removed, so nobody learns who reads the page). Website content (stage 4) uses the same renderer (`frontend/src/app/markdown.ts`).
+
 **The waiting page is a teaser, not a "closed" sign.** It should make guests curious and make them want to come back:
 
 - **Scene:** a full-screen pixel-art scene of a closed door, slightly ajar, with warm light coming through the gap. Behind it, small animated figures are building the world: carrying a table, painting a sign, hanging up lanterns. Tapping the gap shows a slightly bigger glimpse, as a small easter egg. A default scene ships with the platform, and an event can replace it with its own art.
@@ -1164,6 +1197,10 @@ The backend must check permissions in particular for:
 Permissions are checked on every request, so a revoked role takes effect immediately. A revoked screen link or upload link also ends open live-update connections.
 
 ### 11.1.1 Implementation (step 2f, decided 2026-11-10)
+
+**The page behind a setup or reset link** (step 3h, decided 2026-11-11). `/set-password/:token` first asks `GET /api/password/link/:token` (public): for a link that can still be used it answers `{ purpose: "setup" | "reset", username }`, so the page greets a new account with its username (setup) or says "Neues Passwort festlegen" (reset); an unknown, used or expired link and a verification link answer the same `400 invalid_link`, and the page then says so before anyone types a password. Looking up does not use the link up; dead lookups count against the same limit per client address as setting the password (10 failures in 15 minutes, then `429`). The page has one password field with an eye button and no repeated field (UX decision 57); a password equal to the username is explained. `/verify-email/:token` shows the ready, confirmed, invalid-link and address-taken states of the mock `verify-email`; the 404 page for a signed-in user follows the mock `not-found`.
+
+**Guest pages in the mock style** (step 3g, decided 2026-11-11). The pages a guest sees before the opening follow their UX mocks ([mocks/](mocks/README.md), decisions 57–59): the frames `bare` (brand header, one column; login, enter code, register, forgot password, set password, confirm email, privacy notice, not-set-up page) and `flow` (close button, title, progress, sticky actions; the RSVP) and, for the signed-in pages, a header with the event's name and the account links. One shared stylesheet (`frontend/src/app/ui.css`) carries the tokens and components of the guest pages and the admin area. The brand header of the pages without sign-in shows the event's name, read from the public `GET /api/site` (only `{ name }`, added to the public routes of ACS-09 and to what a guest reaches while the platform is closed). The invitation code is entered in six boxes (typing jumps on, pasting fills all six); the registration form has display name, a username suggested from the guest's name on the invitation, one password field with an eye button (no repeated field) and an optional email (`POST /api/invitations/:code/register` takes `email`; it is stored unverified, so it signs nobody in until it is verified in the profile, ACC-16). The profile shows the account part for Release 1: name and email in a card, the account card with username, address and its verification state, "Passwort ändern" and "Konto löschen" as second steps.
 
 **Sign-in everywhere** (ACS-09, ACS-07). One hook in the auth plugin answers `401 unauthorized` for every request under `/api/` without a valid session unless the route is marked `config: { public: true }`; unknown API paths answer `401` too, so a route added later cannot forget the check. Whether a request is an API request is decided by the route that matched or by the decoded path, never by the raw URL: the router decodes percent-encoded paths (`/%61pi/event` reaches `/api/event`), and the CSRF check (7.1.1) uses the same rule (decided 2026-11-10). The public routes are `GET`/`POST /api/session`, `POST /api/password/forgot`, `POST /api/password/set`, `POST /api/email/verify`, `GET /api/invitations/:code`, `POST /api/invitations/:code/register`, `GET /api/version`, `GET /api/health` and the heartbeat `GET /api/events/ping`; a test pins this list, and later steps add the routes of the privacy notice, the upload links and the event screen to it. `GET /api/event` needs a session. The built frontend (pages, scripts, images) is served to everyone: it holds no event data. In the frontend a guard sends visitors without a session from every page except login, password reset, verification and invitation pages to the login page and back after signing in; the event is loaded only with a session. An API answer `401 unauthorized` (the session ended on another device, after a password change or deletion) signs the user out in the frontend, so the guard shows the login page; a lost connection shows an error instead of leaving a form waiting.
 
@@ -1721,6 +1758,7 @@ These include in particular:
 | DATA-02 | Every event-related record (memberships, roles, groups, permissions, content, maps, contributions, albums, RSVPs, accompanying persons, seating, minigame results, treasure hunt finds, settings) carries an `eventId`. | Must |
 | DATA-03 | Administrative actions are recorded in an audit log (who, what, when). | Must |
 | DATA-04 | Database schema changes are applied through versioned migrations that preserve existing data. | Must |
+| DATA-05 | The admin overview shows the latest guest-related changes and changes to settings and content, read from the audit log (DATA-03) with names resolved only when displayed; sign-ins and role changes are not listed. | Should |
 
 ---
 
@@ -1823,6 +1861,41 @@ Event-specific content and settings are controlled through data and configuratio
 
 This prevents the platform from becoming unnecessarily complex through too many freely definable options.
 
+## 19.5 Installable App (PWA, decided 2026-11-11, stage 3.5)
+
+Guests can add the site to the home screen of iOS and Android and open it like a native app, without browser bars and with the event's icon. The platform is a Progressive Web App without a service worker.
+
+- **Manifest:** `GET /manifest.webmanifest` is built from the event record: `name` and `short_name` from the event's name, `lang` from the default language, `display: "standalone"`, `start_url` and `scope` `/`, `theme_color` and `background_color` (neutral defaults of the shared stylesheet until `theme.json` sets them, stage 4) and the icons. It is public: no sign-in, and it answers while the platform is closed (ACS-09, ACS-10). It lives outside `/api`.
+- **Icons:** the files sit in `$DATA_DIR/events/event1/icons/` (19.2, covered by the full backup): `icon-192.png` (192×192), `icon-512.png` (512×512), optional `icon-maskable-512.png` (512×512, content inside the central 80 %) and `apple-touch-icon.png` (180×180). They are supplied as finished PNGs; the platform does not resize images. `GET /app-icons/<file>` serves exactly these four names; a file that is missing, not a PNG or of the wrong size is replaced by the built-in default icon, so the install always works.
+- **Page head:** `index.html` carries `<link rel="manifest">`, `<link rel="apple-touch-icon" href="/app-icons/apple-touch-icon.png">`, `theme-color`, the iOS tags (`apple-mobile-web-app-capable`, `apple-mobile-web-app-title`, `apple-mobile-web-app-status-bar-style`) and `viewport-fit=cover`.
+- **Standalone layout:** no browser chrome means no address bar and no back button. Every page offers its own way back, and the guest shells, the waiting page with its door scene and the admin area respect the safe areas (`env(safe-area-inset-*)`).
+- **Install hint:** a dismissible hint in the mobile browser (never in standalone mode) explains how to add the site: on Android a button for the browser's install prompt, on iOS the Share-menu steps. The hint also says that the app asks for the password once more, because iOS stores a home screen app's cookies separately from Safari.
+- **No service worker:** the app needs a connection and caches nothing, so a new release is never hidden behind a stale cache. Offline support, push notifications and a store listing are out of scope.
+
+| ID | Requirement | Prio |
+|---|---|---|
+| PWA-01 | `GET /manifest.webmanifest` returns a web app manifest built from the event (name, language, `display: "standalone"`, start URL and scope `/`, colours, icons); it is reachable without sign-in and while the platform is closed. | Must |
+| PWA-02 | The event's app icons (`icon-192.png`, `icon-512.png`, optional `icon-maskable-512.png`, `apple-touch-icon.png`) are read from `$DATA_DIR/events/event1/icons/` and served under `/app-icons/`; a missing or invalid file is replaced by a built-in default icon. | Must |
+| PWA-03 | The page head carries the tags iOS and Android need to install the site as an app with its icon and name, and `viewport-fit=cover`. | Must |
+| PWA-04 | Opened from the home screen, every page is usable without browser chrome: content stays clear of the safe areas, and each page offers a way back. | Must |
+| PWA-05 | Guests on a mobile browser see a dismissible hint on how to add the site to the home screen (Android: install button; iOS: Share-menu steps); it never appears in standalone mode. | Should |
+
+## 19.6 Footer: Copyright and License Notice (decided 2026-11-11, stage 3.5)
+
+Below the line "Datenschutz · Version x.y.z" (OPS-08, SEC-09), every page that shows this footer carries a copyright and license notice in three parts:
+
+1. **Copyright line**, centred, the largest text of the block. The admin edits it in Einstellungen (card "Fusszeile"): plain text of 1–120 characters, no Markdown or HTML; saving an empty text hides the line; "Zurücksetzen" goes back to the default `© <year> <event name>` (the current year, the event's name; the line is empty until the event is set up). The admin writes the whole line, so a holder and "All rights reserved." are theirs to add.
+2. **License sentence**, fixed and not editable: "This project is free software licensed under the GNU Affero General Public License v3.0 (AGPL-3.0)." (German interface: the same sentence in German, language keys, LANG-01.)
+3. **Two links:** "Source code" and "License". Source code opens the project's repository, the address comes from the operator's setting `SOURCE_URL` (default: the project's GitHub repository), so the source of the running version is offered to every user of the service (AGPL-3.0 §13). License opens the public page `/license` with the full license text; the `LICENSE` file is baked into the image at build time.
+
+The notice comes with the public `GET /api/site` (name, `copyright`, `sourceUrl`; ACS-09), so it is shown on pages without sign-in and while the platform is closed. The text is saved in the database like the privacy notice; every change is audited without the text (like `privacy.set`, SEC-04). The footer of the game world follows with its own UI (stage 5); until then the notice appears wherever the version footer appears today.
+
+| ID | Requirement | Prio |
+|---|---|---|
+| LIC-01 | Under "Datenschutz · Version", every page with the footer shows the copyright line, the fixed AGPL-3.0 sentence and the links "Source code" and "License", also without sign-in and while the platform is closed. | Must |
+| LIC-02 | The admin edits the copyright line in Einstellungen (plain text, 1–120 characters; empty hides it; reset restores the default `© <year> <event name>`); each change is audited without the text. | Must |
+| LIC-03 | "Source code" links to the repository address configured by the operator (`SOURCE_URL`); "License" opens the public page `/license` with the full AGPL-3.0 text from the image. | Must |
+
 ---
 
 # 20. Installation and Operating Model
@@ -1871,7 +1944,7 @@ A global user account could later be assigned to several events, with different 
 | CFG-04 | Each installation serves exactly one event with its own domain, database, uploads, users, content, maps and configuration; all installations share the same codebase. | Must |
 | CFG-05 | Event settings (feature toggles, platform open, snapshot uploads open, keepsake uploads open) start with defaults and can be changed by the admin at runtime without a redeployment. | Must |
 | CFG-06 | The admin can change the event's name, time zone and default language at any time after the setup; each change is audited. | Must |
-| CFG-07 | The CLI command `zappaloo event seed-example` completes the setup of an empty installation with the example event and refuses an installation that is already set up (dev and test only). | Must |
+| CFG-07 | The CLI command `zappaloo event seed-example` completes the setup of an empty installation with the example event (including example event parts, menu options and an RSVP deadline) and refuses an installation that is already set up (dev and test only). | Must |
 
 Multi-event operation in one installation (section 20.1) is out of scope for the first version (see section 30).
 
@@ -2436,9 +2509,9 @@ The concrete steps of each stage are agreed before the stage starts (see CLAUDE.
 
 The spec is approved (2026-11-04). The steps of each stage and the status reports are in [implementation-plan.md](implementation-plan.md).
 
-## Release 1 (early): Invitations and RSVP — Stages 1–3
+## Release 1 (early): Invitations and RSVP — Stages 1–3.5
 
-Invitations and RSVP must work early. Stages 1–3 therefore form Release 1, which goes into production with real guest data while the platform is still closed (10.4). Because real personal data is collected from then on, backups, the privacy notice and the protection of health data are part of Release 1.
+Invitations and RSVP must work early. Stages 1–3.5 therefore form Release 1, which goes into production with real guest data while the platform is still closed (10.4). Because real personal data is collected from then on, backups, the privacy notice and the protection of health data are part of Release 1.
 
 ## Stage 1 – Walking Skeleton and Deployment
 
@@ -2463,13 +2536,23 @@ Requirements: OPS-01–06, OPS-08–18, DATA-01, DATA-04, LANG-01, SEC-03, SEC-1
 
 Requirements: ACC (except ACC-16), ROLE, INV, ACS (except ACS-04, ACS-10–14), GRP, CFG-02, CFG-03, CFG-05, CFG-06, CFG-07, DATA-02, DATA-03, SEC-01, SEC-02.
 
-## Stage 3 – RSVP and Waiting Page (completes Release 1)
+## Stage 3 – RSVP and Waiting Page
 
 - RSVP with event parts, accompanying persons, deadline, overview, CSV export, reminders.
 - Closed platform with teaser waiting page (door scene, texts by RSVP status, optional countdown); admin switch to open it, with "the door is open" email, and to close it again.
 - Privacy notice; allergy data visible only to admins.
 
-Requirements: RSVP, ACS-10–14, ACC-16, SEC-09, SEC-11.
+Requirements: RSVP, ACS-10–14, ACC-16, SEC-09, SEC-11, DATA-05.
+
+## Stage 3.5 – Installable App (completes Release 1)
+
+- Web app manifest and per-event icons in the data volume (19.5).
+- Page head tags for iOS and Android, safe areas and a way back on every page for the standalone mode.
+- Install hint for guests in the mobile browser.
+- Footer with an admin-editable copyright line, the AGPL-3.0 sentence and links to the source and the license text (19.6).
+- Device check on iOS and Android, then the Release 1 go-live.
+
+Requirements: PWA, LIC.
 
 ## Stage 4 – Content and Website
 

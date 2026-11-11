@@ -2,18 +2,32 @@
 // and the way back to the website, navigation with the pages that exist. Only admins get in;
 // the server refuses everyone else's calls anyway. Until the event is set up (CFG-02) the area
 // shows only the setup form.
-import "./admin.css";
+import "../app/ui.css";
 import { useTranslation } from "react-i18next";
 import { Link, Navigate, NavLink, Outlet } from "react-router";
 import { useEvent } from "../app/event.ts";
 import { useSession } from "../app/session.ts";
 import VersionFooter from "../app/VersionFooter.tsx";
+import { usePendingRequests } from "./pending.ts";
 import AdminSetupPage from "./AdminSetupPage.tsx";
+
+/** The number of companion requests waiting for a decision, next to "Rückmeldungen" (RSVP-09). */
+function PendingBadge() {
+  const { t } = useTranslation();
+  const count = usePendingRequests();
+  if (!count) return null;
+  return (
+    <span className="badge" role="img" aria-label={t("admin.nav.rsvpBadge", { count })}>
+      {count}
+    </span>
+  );
+}
 
 /** Later steps add their pages here (Rückmeldungen, Sitzplan, Inhalte, Spielwelt, Moderation). */
 const PAGES = [
   { to: "/admin", label: "admin.nav.home", end: true },
   { to: "/admin/invitations", label: "admin.nav.invitations", end: false },
+  { to: "/admin/rsvp", label: "admin.nav.rsvp", end: false },
   { to: "/admin/users", label: "admin.nav.users", end: false },
   { to: "/admin/settings", label: "admin.nav.settings", end: false },
 ] as const;
@@ -56,6 +70,7 @@ export default function AdminLayout() {
         {PAGES.map((page) => (
           <NavLink key={page.to} to={page.to} end={page.end}>
             {t(page.label)}
+            {page.to === "/admin/rsvp" && event?.features.rsvp && <PendingBadge />}
           </NavLink>
         ))}
       </nav>

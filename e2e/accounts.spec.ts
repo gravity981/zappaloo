@@ -10,19 +10,24 @@ test("[ACC-14][ACC-01][ACC-04][ACC-05] set the password with the setup link, sig
   const link = createAdmin(username);
   await context.setExtraHTTPHeaders({ "x-forwarded-for": clientAddress() });
 
-  // The one-time link sets the password.
+  // The one-time link sets the password: the page greets the new account by its username, has
+  // one password field with an eye button and no repeated field.
   await page.goto(link);
-  await page.getByLabel(de.setPassword.password, { exact: true }).fill(PASSWORD);
-  await page.getByLabel(de.setPassword.repeat).fill(PASSWORD);
+  await expect(
+    page.getByText(de.setPassword.hintSetup.replace("{{username}}", username)),
+  ).toBeVisible();
+  await expect(page.getByLabel(/wiederholen/)).toHaveCount(0);
+  const password = page.getByLabel(de.setPassword.password, { exact: true });
+  await password.fill(PASSWORD);
+  await page.getByRole("button", { name: de.guest.showPassword }).click();
+  await expect(password).toHaveAttribute("type", "text");
   await page.getByRole("button", { name: de.setPassword.submit }).click();
   await expect(page.getByRole("heading", { name: de.setPassword.doneTitle })).toBeVisible();
 
-  // The link works once.
+  // The link works once: a used link says so at once, before a password is typed.
   await page.goto(link);
-  await page.getByLabel(de.setPassword.password, { exact: true }).fill(PASSWORD);
-  await page.getByLabel(de.setPassword.repeat).fill(PASSWORD);
-  await page.getByRole("button", { name: de.setPassword.submit }).click();
-  await expect(page.getByRole("alert")).toHaveText(de.errors.invalid_link);
+  await expect(page.getByRole("alert")).toHaveText(de.setPassword.invalidTitle);
+  await expect(page.getByLabel(de.setPassword.password, { exact: true })).toHaveCount(0);
 
   // A wrong password is refused; the right one signs in.
   await page.goto("/login");
@@ -48,8 +53,8 @@ test("[ACC-14][ACC-01][ACC-04][ACC-05] set the password with the setup link, sig
   await expect(page.getByLabel(de.profile.displayName)).toHaveValue("E2E Admin");
 
   // Signing out ends the session: the profile is no longer reachable.
-  await page.getByRole("button", { name: de.nav.logout }).click();
-  await expect(page.getByRole("link", { name: de.nav.login })).toBeVisible();
+  await page.locator(".guest-site-head").getByRole("button", { name: de.nav.logout }).click();
+  await expect(page.getByRole("heading", { name: de.login.title })).toBeVisible();
   await page.goto("/profile");
   await expect(page.getByRole("heading", { name: de.login.title })).toBeVisible();
 });

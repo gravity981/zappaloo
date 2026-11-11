@@ -1,0 +1,1 @@
+ALTER TABLE `rsvp_config` ADD `song_enabled` integer DEFAULT true NOT NULL;

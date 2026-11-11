@@ -15,6 +15,8 @@ export default function ProfilePage() {
   const [passwordMessage, setPasswordMessage] = useState<{ ok: boolean; text: string }>();
   const [verifyMessage, setVerifyMessage] = useState<{ ok: boolean; text: string }>();
   const [deleteMessage, setDeleteMessage] = useState<string>();
+  /** The second step of changing the password and of deleting the account. */
+  const [panel, setPanel] = useState<"password" | "delete">();
 
   if (!session.ready) return null;
   if (!session.user) return <Navigate to="/login" replace />;
@@ -93,67 +95,190 @@ export default function ProfilePage() {
   }
 
   return (
-    <section>
-      <h1>{t("profile.title")}</h1>
-      <p>{t("profile.username", { username: user.username })}</p>
-      <form onSubmit={(event) => void saveProfile(event)}>
-        <label>
-          {t("profile.displayName")}
-          <input name="displayName" defaultValue={user.displayName} required maxLength={100} />
-        </label>
-        <label>
-          {t("profile.email")}
-          <input name="email" type="email" defaultValue={user.email ?? ""} />
-        </label>
-        {user.email && <p>{t(`profile.emailStatus.${user.emailStatus}`)}</p>}
-        {user.email && user.emailStatus === "unverified" && (
-          <>
-            <button type="button" onClick={() => void sendVerification()}>
-              {t("profile.verifySend")}
-            </button>
-            {verifyMessage && (
-              <p role={verifyMessage.ok ? "status" : "alert"}>{verifyMessage.text}</p>
+    <div className="stack">
+      <h1 className="h1">{t("profile.title")}</h1>
+      <div className="grid-2">
+        <section className="card" aria-labelledby="profile-card">
+          <b id="profile-card">{t("profile.cardProfile")}</b>
+          <form className="stack" onSubmit={(event) => void saveProfile(event)}>
+            <div className="field">
+              <label htmlFor="profile-name">
+                <span>{t("profile.displayName")}</span>
+              </label>
+              <input
+                id="profile-name"
+                className="input"
+                name="displayName"
+                defaultValue={user.displayName}
+                required
+                maxLength={100}
+              />
+            </div>
+            <div className="field">
+              <label htmlFor="profile-email">
+                <span>{t("profile.email")}</span>
+              </label>
+              <input
+                id="profile-email"
+                className="input"
+                name="email"
+                type="email"
+                defaultValue={user.email ?? ""}
+                maxLength={254}
+              />
+            </div>
+            {profileMessage && (
+              <p
+                role={profileMessage.ok ? "status" : "alert"}
+                className={profileMessage.ok ? "hint" : "error"}
+              >
+                {profileMessage.text}
+              </p>
             )}
-          </>
-        )}
-        {profileMessage && (
-          <p role={profileMessage.ok ? "status" : "alert"}>{profileMessage.text}</p>
-        )}
-        <button type="submit">{t("profile.save")}</button>
-      </form>
+            <button type="submit" className="btn soft sm">
+              {t("profile.save")}
+            </button>
+          </form>
+        </section>
 
-      <h2>{t("profile.passwordTitle")}</h2>
-      <form onSubmit={(event) => void changePassword(event)}>
-        <label>
-          {t("profile.currentPassword")}
-          <input name="currentPassword" type="password" autoComplete="current-password" required />
-        </label>
-        <label>
-          {t("profile.newPassword", { min: PASSWORD_MIN_LENGTH })}
-          <input
-            name="newPassword"
-            type="password"
-            autoComplete="new-password"
-            required
-            minLength={PASSWORD_MIN_LENGTH}
-          />
-        </label>
-        {passwordMessage && (
-          <p role={passwordMessage.ok ? "status" : "alert"}>{passwordMessage.text}</p>
-        )}
-        <button type="submit">{t("profile.changePassword")}</button>
-      </form>
+        <section className="card" aria-labelledby="account-card">
+          <b id="account-card">{t("profile.accountTitle")}</b>
+          <ul className="list">
+            <li className="li">
+              <div className="grow">
+                <span className="hint">{t("profile.usernameLabel")}</span>
+                <b>{user.username}</b>
+              </div>
+            </li>
+            <li className="li">
+              <div className="grow">
+                <span className="hint">{t("profile.emailLabel")}</span>
+                <b>{user.email ?? t("profile.noEmail")}</b>
+                {user.email && (
+                  <span className="hint">{t(`profile.emailStatus.${user.emailStatus}`)}</span>
+                )}
+              </div>
+              {user.email && (
+                <span className={user.emailStatus === "verified" ? "tag ok" : "tag warn"}>
+                  {t(`profile.emailTag.${user.emailStatus}`)}
+                </span>
+              )}
+              {user.email && user.emailStatus === "unverified" && (
+                <button
+                  type="button"
+                  className="btn soft sm"
+                  onClick={() => void sendVerification()}
+                >
+                  {t("profile.verifySend")}
+                </button>
+              )}
+            </li>
+          </ul>
+          {verifyMessage && (
+            <p
+              role={verifyMessage.ok ? "status" : "alert"}
+              className={verifyMessage.ok ? "hint" : "error"}
+            >
+              {verifyMessage.text}
+            </p>
+          )}
 
-      <h2>{t("profile.deleteTitle")}</h2>
-      <p>{t("profile.deleteHint")}</p>
-      <form onSubmit={(event) => void deleteAccount(event)}>
-        <label>
-          {t("profile.deletePassword")}
-          <input name="deletePassword" type="password" autoComplete="current-password" required />
-        </label>
-        {deleteMessage && <p role="alert">{deleteMessage}</p>}
-        <button type="submit">{t("profile.deleteConfirm")}</button>
-      </form>
-    </section>
+          <button
+            type="button"
+            className="btn ghost sm"
+            aria-expanded={panel === "password"}
+            onClick={() => {
+              setPanel(panel === "password" ? undefined : "password");
+            }}
+          >
+            {t("profile.passwordTitle")}
+          </button>
+          {panel === "password" && (
+            <form className="stack card flat" onSubmit={(event) => void changePassword(event)}>
+              <div className="field">
+                <label htmlFor="profile-current">
+                  <span>{t("profile.currentPassword")}</span>
+                </label>
+                <input
+                  id="profile-current"
+                  className="input"
+                  name="currentPassword"
+                  type="password"
+                  autoComplete="current-password"
+                  required
+                />
+              </div>
+              <div className="field">
+                <label htmlFor="profile-new">
+                  <span>{t("profile.newPassword", { min: PASSWORD_MIN_LENGTH })}</span>
+                </label>
+                <input
+                  id="profile-new"
+                  className="input"
+                  name="newPassword"
+                  type="password"
+                  autoComplete="new-password"
+                  required
+                  minLength={PASSWORD_MIN_LENGTH}
+                />
+              </div>
+              {passwordMessage && (
+                <p
+                  role={passwordMessage.ok ? "status" : "alert"}
+                  className={passwordMessage.ok ? "hint" : "error"}
+                >
+                  {passwordMessage.text}
+                </p>
+              )}
+              <button type="submit" className="btn sm">
+                {t("profile.changePassword")}
+              </button>
+            </form>
+          )}
+
+          <div className="row">
+            <button type="button" className="btn ghost sm" onClick={() => void session.logout()}>
+              {t("nav.logout")}
+            </button>
+            <button
+              type="button"
+              className="btn danger sm"
+              aria-expanded={panel === "delete"}
+              onClick={() => {
+                setPanel(panel === "delete" ? undefined : "delete");
+              }}
+            >
+              {t("profile.deleteTitle")}
+            </button>
+          </div>
+          {panel === "delete" && (
+            <form className="stack card flat" onSubmit={(event) => void deleteAccount(event)}>
+              <p className="sm">{t("profile.deleteHint")}</p>
+              <div className="field">
+                <label htmlFor="profile-delete">
+                  <span>{t("profile.deletePassword")}</span>
+                </label>
+                <input
+                  id="profile-delete"
+                  className="input"
+                  name="deletePassword"
+                  type="password"
+                  autoComplete="current-password"
+                  required
+                />
+              </div>
+              {deleteMessage && (
+                <p role="alert" className="error">
+                  {deleteMessage}
+                </p>
+              )}
+              <button type="submit" className="btn danger sm">
+                {t("profile.deleteConfirm")}
+              </button>
+            </form>
+          )}
+        </section>
+      </div>
+    </div>
   );
 }

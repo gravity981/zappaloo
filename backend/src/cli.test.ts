@@ -9,6 +9,7 @@ import { dataPaths } from "./data-dir.ts";
 import { AccountService } from "./auth/accounts.ts";
 import { ensureEvent, EventService, EXAMPLE_EVENT } from "./event/service.ts";
 import { startHeartbeat } from "./database/backup.ts";
+import { RsvpService } from "./rsvp/service.ts";
 import { openDatabase } from "./database/database.ts";
 import { tempDir } from "./test-support.ts";
 
@@ -473,7 +474,7 @@ describe("event setup commands", () => {
     const result = await run(["event", "seed-example"], { DATA_DIR: dataDir, APP_ENV: "test" });
     expect(result).toEqual({
       code: 0,
-      out: 'The example event "Event Muster" is set up.',
+      out: 'The example event "Event Muster" is set up, with event parts, menus and an RSVP deadline.',
       err: "",
     });
     const shown = await run(["event", "show"], { DATA_DIR: dataDir });
@@ -481,11 +482,23 @@ describe("event setup commands", () => {
     // Audited as cli.
     const database = openDatabase(dataPaths(dataDir).database);
     try {
+      const service = EventService.forInstallation(database);
       expect(
-        EventService.forInstallation(database)
+        service
           .auditEntries()
-          .map((e) => [e.actor, e.action]),
-      ).toEqual([["cli", "event.setup"]]);
+          .map((e) => [e.actor, e.action])
+          .reverse()[0],
+      ).toEqual(["cli", "event.setup"]);
+      const config = new RsvpService(database, service).config();
+      expect(config.parts.map((p) => p.name)).toEqual(["Trauung", "Apéro", "Dinner", "Party"]);
+      expect(config.parts.filter((p) => p.hasMeal).map((p) => p.name)).toEqual(["Dinner"]);
+      expect(config.menus.map((m) => m.name)).toEqual([
+        "Fleisch",
+        "Vegetarisch",
+        "Vegan",
+        "Kindermenü",
+      ]);
+      expect(config.deadline).toBe("2027-05-01");
     } finally {
       database.close();
     }

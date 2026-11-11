@@ -7,9 +7,10 @@ import {
   createUserResponseSchema,
   resetLinkResponseSchema,
   ROLES,
+  rsvpConfigSchema,
 } from "@zappaloo/shared";
 import type { AdminUser, Capability, Group, Role } from "@zappaloo/shared";
-import { useAdminCall } from "./data.ts";
+import { useAdminCall, useAdminData } from "./data.ts";
 import { HandOverLink, Panel, ToggleChip } from "./ui.tsx";
 import { useToggleRole, useUsersErrorText } from "./users.ts";
 
@@ -19,6 +20,32 @@ function Alert({ text }: { text: string | undefined }) {
       {text}
     </p>
   ) : null;
+}
+
+/** The second step before `vip` is revoked: the guest's RSVP is deleted with it (7.4.1). */
+export function RevokeVipConfirm({
+  user,
+  onConfirm,
+  onCancel,
+}: {
+  user: AdminUser;
+  onConfirm: () => void;
+  onCancel: () => void;
+}) {
+  const { t } = useTranslation();
+  return (
+    <div className="card flat" role="alertdialog" aria-labelledby="revoke-vip">
+      <span id="revoke-vip">{t("admin.users.revokeVip", { name: user.displayName })}</span>
+      <div className="row">
+        <button type="button" className="btn danger sm" onClick={onConfirm}>
+          {t("admin.users.revokeVipFinal")}
+        </button>
+        <button type="button" className="btn ghost sm" onClick={onCancel}>
+          {t("admin.cancel")}
+        </button>
+      </div>
+    </div>
+  );
 }
 
 /** One account: roles, staff capabilities, groups and a reset link (ROLE-01, ROLE-06, GRP-01, ACC-10). */
@@ -38,9 +65,11 @@ export function AccountPanel({
   const { t } = useTranslation();
   const call = useAdminCall();
   const errorText = useUsersErrorText();
-  const toggleRole = useToggleRole(onChanged);
+  const { toggleRole, revoking, confirmRevoke, cancelRevoke } = useToggleRole(onChanged);
   const [link, setLink] = useState<{ url: string; expiresAt: string }>();
+  const { data: rsvpConfig } = useAdminData("/api/admin/rsvp/config", rsvpConfigSchema);
   const isStaff = user.roles.includes("staff");
+  const isVip = user.roles.includes("vip");
   const inGroup = (group: Group) => user.groups.some((g) => g.id === group.id);
 
   async function toggleCapability(capability: Capability) {
@@ -56,6 +85,14 @@ export function AccountPanel({
   async function toggleGroup(group: Group) {
     const path = `/api/admin/groups/${String(group.id)}/members/${String(user.id)}`;
     const result = await call(inGroup(group) ? "DELETE" : "PUT", path);
+    onChanged(result.ok ? undefined : errorText(result.errorCode));
+  }
+
+  async function toggleInvitedPart(partId: number) {
+    const partIds = user.invitedPartIds.includes(partId)
+      ? user.invitedPartIds.filter((id) => id !== partId)
+      : [...user.invitedPartIds, partId].sort((a, b) => a - b);
+    const result = await call("PUT", `/api/admin/users/${String(user.id)}/parts`, { partIds });
     onChanged(result.ok ? undefined : errorText(result.errorCode));
   }
 
@@ -94,6 +131,13 @@ export function AccountPanel({
         {user.vipAssignment && (
           <span className="hint">{t(`admin.users.vipAssignment.${user.vipAssignment}`)}</span>
         )}
+        {revoking && (
+          <RevokeVipConfirm
+            user={revoking}
+            onConfirm={() => void confirmRevoke()}
+            onCancel={cancelRevoke}
+          />
+        )}
       </section>
 
       <section className="stack" aria-labelledby="account-capabilities">
@@ -131,6 +175,33 @@ export function AccountPanel({
           </div>
         )}
       </section>
+
+      {isVip && (
+        <section className="stack" aria-labelledby="account-parts">
+          <b id="account-parts">{t("admin.users.invitedTo")}</b>
+          {rsvpConfig?.parts.length === 0 ? (
+            <span className="hint">{t("admin.users.invitedNone")}</span>
+          ) : (
+            <div className="chips">
+              {(rsvpConfig?.parts ?? []).map((part) => (
+                <ToggleChip
+                  key={part.id}
+                  pressed={user.invitedPartIds.includes(part.id)}
+                  disabled={user.vipAssignment === "invitation_code"}
+                  onToggle={() => void toggleInvitedPart(part.id)}
+                >
+                  {part.name}
+                </ToggleChip>
+              ))}
+            </div>
+          )}
+          <span className="hint">
+            {user.vipAssignment === "invitation_code"
+              ? t("admin.users.invitedHintInvitation")
+              : t("admin.users.invitedHintPromotion")}
+          </span>
+        </section>
+      )}
 
       <section className="stack" aria-labelledby="account-password">
         <b id="account-password">{t("admin.users.password")}</b>

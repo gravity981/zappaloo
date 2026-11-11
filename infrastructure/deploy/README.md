@@ -120,6 +120,38 @@ Staging holds a copy of real guest data while a candidate is verified, so it run
 3. Verify the candidate on the LAN (`https://<LAN IP>:8443`; caught mail in Mailpit at port 8025).
 4. `./deploy.sh staging --teardown` stops staging and deletes its data volume after a confirmation (`--yes` skips the question). Caddy's volumes stay, so test devices keep trusting the same certificate. Delete the backup copy from `backups/` too.
 
+## Pilot on prod, then reset
+
+To try the whole thing with a few trusted people before the real guests are invited (real DNS, Let's Encrypt, real mail, live updates), you can run a pilot on prod and then start again with an empty installation. The spec only forbids real mail from **staging**; prod is meant for real mail. Nothing in the tooling resets prod for you, on purpose: the steps below are manual.
+
+**Before the pilot**
+
+- Tell the pilot guests that this is a test and that **everything they enter is deleted afterwards**: accounts, RSVPs, allergies, companions, email addresses. It is real personal data until then, and the privacy notice (`/datenschutz`) says it is deleted after the event.
+- Do not print or send the real invitation cards yet. Every invitation code, setup link and session of the pilot dies with the reset.
+- Use the real SMTP account (`.env`: `COMPOSE_PROFILES` empty, `SMTP_*`, `secrets/smtp_password`). Reminder mails and "Die Tür ist offen" go to every verified address in the pilot, so invite only people who know about it.
+- Decide which version the pilot runs. Prod accepts release tags only; a pilot on the first release uses that tag. If you want the real start on `v1.0.0`, run the pilot on a release candidate that has been promoted, and promote the final release after the reset.
+- Nothing from the pilot needs a backup. If a file is worth keeping (e.g. the event's theme files in `/data/events/event1/`), copy it out of the volume before the reset.
+
+**Run the pilot** as in "The event": deploy, `create-admin`, set the event up in the admin area, invite the pilot guests, open the platform when you want to test the game world.
+
+**Reset after the pilot** (in the prod directory, e.g. `~/zappaloo-prod`):
+
+```sh
+docker compose down                                  # removes the containers, keeps the volumes
+docker volume rm "$(grep '^DATA_VOLUME=' .env | cut -d= -f2)"    # the data: database, uploads, maps, event files
+rm -f backups/*                                      # the pre-deploy backups and full backups hold pilot data
+./deploy.sh prod <X.Y.Z>                             # the version for the real start
+```
+
+`deploy.sh` finds no running app, skips the pre-deploy backup, creates a new empty data volume and starts the stack. Caddy's volumes stay, so the Let's Encrypt certificate is kept; `secrets/` and `.env` stay too (the session secret only signs cookies, and there are no sessions left). Then:
+
+1. Create the first admin again with `docker compose exec app zappaloo create-admin <username> --vip` and complete the event setup in the admin area.
+2. Check that the installation is empty: Konten & Rollen shows only the admin, Einladungen and Rückmeldungen are empty, the platform is closed.
+3. Delete pilot copies outside the host as well: off-site backups of the pilot, exported CSV files, mails you forwarded. Ask the pilot guests to delete the test mails.
+4. Create the real invitations and print the cards.
+
+`docker volume rm` and `rm backups/*` cannot be undone. Check that you are in the **prod** directory (`grep APP_ENV .env` shows `APP_ENV=prod`) before you run them.
+
 ## Stop, start, restart
 
 In the environment's directory (`~/zappaloo-staging` or `~/zappaloo-prod`):

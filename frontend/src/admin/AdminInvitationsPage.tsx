@@ -1,7 +1,7 @@
 // Einladungen (sw-architecture.md 8.3, 9): the admin creates personal invitations in a batch,
 // revokes and replaces them, and prints the cards (INV-01, INV-04, INV-05, INV-14). The plain
 // code exists only in the response that creates or regenerates it, so the print view comes
-// right away and not again. Invited parts per invitation come with the RSVP (step 3a).
+// right away and not again. Each invitation states the event parts it is for (RSVP-02).
 import { useState } from "react";
 import type { SubmitEvent } from "react";
 import { useTranslation } from "react-i18next";
@@ -10,11 +10,13 @@ import {
   INVITATION_STATUSES,
   invitationListSchema,
   issuedInvitationSchema,
+  rsvpConfigSchema,
 } from "@zappaloo/shared";
 import type { InvitationStatus, IssuedInvitation } from "@zappaloo/shared";
 import { fieldText } from "../app/forms.ts";
 import QrCode from "../app/QrCode.tsx";
 import { useAdminCall, useAdminData, useErrorText } from "./data.ts";
+import { ToggleChip } from "./ui.tsx";
 
 const STATUS_TAG: Record<InvitationStatus, string> = {
   active: "tag",
@@ -77,6 +79,11 @@ export default function AdminInvitationsPage() {
   const call = useAdminCall();
   const errorText = useErrorText();
   const { data, reload } = useAdminData("/api/admin/invitations", invitationListSchema);
+  const { data: config } = useAdminData("/api/admin/rsvp/config", rsvpConfigSchema);
+  const parts = config?.parts ?? [];
+  /** The parts chosen for the new batch; every part until the admin chooses. */
+  const [chosen, setChosen] = useState<number[]>();
+  const batchParts = chosen ?? parts.map((part) => part.id);
   const [cards, setCards] = useState<IssuedInvitation[]>([]);
   const [names, setNames] = useState("");
   const [filter, setFilter] = useState<InvitationStatus>();
@@ -88,6 +95,7 @@ export default function AdminInvitationsPage() {
     const expires = fieldText(form, "expiresAt");
     const result = await call("POST", "/api/admin/invitations", {
       guests: guestNames(names).map((name) => ({ name })),
+      ...(parts.length > 0 ? { partIds: batchParts } : {}),
       // Valid through the chosen day, in the admin's time zone.
       ...(expires === "" ? {} : { expiresAt: new Date(`${expires}T23:59:59`).toISOString() }),
     });
@@ -100,6 +108,12 @@ export default function AdminInvitationsPage() {
     } else {
       setError(errorText(result.errorCode));
     }
+  }
+
+  async function setParts(id: number, partIds: number[]) {
+    const result = await call("PUT", `/api/admin/invitations/${String(id)}/parts`, { partIds });
+    setError(result.ok ? undefined : errorText(result.errorCode));
+    reload();
   }
 
   async function revoke(id: number) {
@@ -159,11 +173,39 @@ export default function AdminInvitationsPage() {
             }}
           />
         </label>
+        <div className="field" role="group" aria-label={t("admin.invitations.parts")}>
+          <span>{t("admin.invitations.parts")}</span>
+          {parts.length === 0 ? (
+            <span className="hint">{t("admin.invitations.partsNone")}</span>
+          ) : (
+            <div className="chips">
+              {parts.map((part) => (
+                <ToggleChip
+                  key={part.id}
+                  pressed={batchParts.includes(part.id)}
+                  onToggle={() => {
+                    setChosen(
+                      batchParts.includes(part.id)
+                        ? batchParts.filter((id) => id !== part.id)
+                        : [...batchParts, part.id],
+                    );
+                  }}
+                >
+                  {part.name}
+                </ToggleChip>
+              ))}
+            </div>
+          )}
+        </div>
         <label className="field">
           <span>{t("admin.invitations.expiresAt")}</span>
           <input className="input auto" name="expiresAt" type="date" />
         </label>
-        <button type="submit" className="btn" disabled={guests === 0}>
+        <button
+          type="submit"
+          className="btn"
+          disabled={guests === 0 || (parts.length > 0 && batchParts.length === 0)}
+        >
           {guests === 0
             ? t("admin.invitations.createNone")
             : t("admin.invitations.create", { count: guests })}
@@ -200,6 +242,7 @@ export default function AdminInvitationsPage() {
               <tr>
                 <th>{t("admin.invitations.guest")}</th>
                 <th>{t("admin.invitations.status")}</th>
+                <th>{t("admin.invitations.partsColumn")}</th>
                 <th>
                   <span className="visually-hidden">{t("admin.invitations.actions")}</span>
                 </th>
@@ -225,6 +268,31 @@ export default function AdminInvitationsPage() {
                     <span className={STATUS_TAG[invitation.status]}>
                       {t(`admin.invitations.statuses.${invitation.status}`)}
                     </span>
+                  </td>
+                  <td>
+                    <div className="chips">
+                      {parts.map((part) => (
+                        <ToggleChip
+                          key={part.id}
+                          small
+                          pressed={invitation.partIds.includes(part.id)}
+                          disabled={
+                            invitation.status === "revoked" || invitation.status === "replaced"
+                          }
+                          label={`${part.name}: ${invitation.guestName}`}
+                          onToggle={() => {
+                            void setParts(
+                              invitation.id,
+                              invitation.partIds.includes(part.id)
+                                ? invitation.partIds.filter((id) => id !== part.id)
+                                : [...invitation.partIds, part.id].sort((a, b) => a - b),
+                            );
+                          }}
+                        >
+                          {part.name}
+                        </ToggleChip>
+                      ))}
+                    </div>
                   </td>
                   <td className="actions">
                     {(invitation.status === "active" || invitation.status === "expired") && (

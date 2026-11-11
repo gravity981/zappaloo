@@ -32,6 +32,8 @@ export const adminUserSchema = userSchema.extend({
   /** How `vip` was granted (INV-11); null without the role. */
   vipAssignment: z.enum(["invitation_code", "admin_promotion"]).nullable(),
   groups: z.array(z.object({ id: z.number().int(), name: z.string() })),
+  /** The event parts a `vip` is invited to (RSVP-02); empty without the role. */
+  invitedPartIds: z.array(z.number().int()),
 });
 export type AdminUser = z.infer<typeof adminUserSchema>;
 export const adminUserListSchema = z.object({ users: z.array(adminUserSchema) });

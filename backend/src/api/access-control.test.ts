@@ -17,6 +17,9 @@ afterEach(async () => {
 
 async function setup(): Promise<TestContext> {
   context = await createTestApp();
+  // The routes of these tests stand for features of the open platform (ACS-10 closes them for
+  // guests while it is closed; see closed-platform.test.ts).
+  context.event.setSetting("platformOpen", true, "cli");
   return context;
 }
 
@@ -34,12 +37,15 @@ function protect(ctx: TestContext, path: string, condition: AccessCondition): vo
 
 describe("sign-in is required everywhere (ACS-09, ACS-07)", () => {
   // The routes anyone may call. Adding to this list is a deliberate decision (ACS-09): the
-  // privacy notice, upload links and screen links add their routes in their own steps.
+  // privacy notice (SEC-09) is on the list; upload links and screen links add their routes in their own steps.
   const PUBLIC_ROUTES = [
     "GET /api/events/ping",
     "GET /api/health",
     "GET /api/invitations/:code",
+    "GET /api/password/link/:token",
+    "GET /api/privacy",
     "GET /api/session",
+    "GET /api/site",
     "GET /api/version",
     "POST /api/email/verify",
     "POST /api/invitations/:code/register",

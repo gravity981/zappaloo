@@ -23,7 +23,7 @@ async function main(): Promise<void> {
   ensureEvent(database);
 
   const event = EventService.forInstallation(database);
-  const auth = createAuth(database, event, config, createMailer(config));
+  const auth = createAuth(database, event, config, createMailer(config), paths.events);
   const app = await buildApp({
     database,
     event,

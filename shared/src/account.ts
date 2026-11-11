@@ -47,8 +47,9 @@ export const sessionResponseSchema = z.object({
 });
 export type SessionResponse = z.infer<typeof sessionResponseSchema>;
 
+/** `POST /api/session`: `username` is a username or a verified email address (ACC-16). */
 export const loginRequestSchema = z.strictObject({
-  username: z.string().min(1).max(100),
+  username: z.string().min(1).max(254),
   password: z.string().min(1).max(PASSWORD_MAX_LENGTH),
 });
 export type LoginRequest = z.infer<typeof loginRequestSchema>;
@@ -72,6 +73,17 @@ export const passwordSetSchema = z.strictObject({
   newPassword: passwordSchema,
 });
 export type PasswordSet = z.infer<typeof passwordSetSchema>;
+
+/**
+ * `GET /api/password/link/:token`: what the set-password page needs to know about a link that
+ * can still be used (a new account's setup link or a reset link).
+ */
+export const passwordLinkResponseSchema = z.object({
+  purpose: z.enum(["setup", "reset"]),
+  /** The login name the password is for, shown on the page of a setup link. */
+  username: z.string(),
+});
+export type PasswordLinkResponse = z.infer<typeof passwordLinkResponseSchema>;
 
 /** `POST /api/admin/users` (ACC-08). */
 export const createUserRequestSchema = z.strictObject({

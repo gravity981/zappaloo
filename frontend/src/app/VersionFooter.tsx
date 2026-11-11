@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { Link } from "react-router";
 import { versionResponseSchema } from "@zappaloo/shared";
 import { displayVersion } from "./version.ts";
 
@@ -24,7 +25,10 @@ export default function VersionFooter() {
 
   return (
     <footer className="version-footer">
-      {t("footer.version", { version: displayVersion(__APP_VERSION__, serverVersion) })}
+      <Link to="/datenschutz">{t("footer.privacy")}</Link>{" "}
+      <span>
+        {t("footer.version", { version: displayVersion(__APP_VERSION__, serverVersion) })}
+      </span>
     </footer>
   );
 }

@@ -8,24 +8,51 @@
     "login": "Anmelden",
     "profile": "Profil",
     "logout": "Abmelden",
-    "admin": "Verwaltung"
+    "admin": "Verwaltung",
+    "rsvp": "Rückmeldung",
+    "waiting": "Warteseite"
   },
   "invite": {
     "title": "Einladung einlösen",
-    "enterHint": "Gib den Code von deiner Einladungskarte ein.",
+    "enterHint": "Den Code findest du auf deiner Einladungskarte.",
     "code": "Einladungscode",
     "next": "Weiter",
     "checking": "Der Code wird geprüft …",
     "tryAnother": "Anderen Code eingeben",
-    "welcome": "Willkommen, {{name}}!",
-    "registerHint": "Lege dein Konto an. Das Passwort braucht mindestens {{min}} Zeichen.",
+    "welcome": "Schön, dass du da bist, {{name}}!",
+    "registerHint": "Lege dein Konto an. Damit kommst du auch später wieder hinein.",
     "username": "Benutzername",
     "displayName": "Anzeigename",
     "register": "Konto anlegen",
-    "haveAccount": "Du hast schon ein Konto? Melde dich an und öffne den Link noch einmal:",
+    "haveAccount": "Du hast schon ein Konto?",
     "redeemHint": "Du bist als {{user}} angemeldet. Mit der Einladung bekommt dein Konto Zugang zum Fest.",
     "redeem": "Einladung einlösen",
-    "alreadyVip": "Dein Konto ist schon eingeladen. Diese Einladung wird nicht gebraucht."
+    "alreadyVip": "Dein Konto ist schon eingeladen. Diese Einladung wird nicht gebraucht.",
+    "qrTip": "Tipp: Scanne den QR-Code auf der Karte – dann ist der Code schon ausgefüllt.",
+    "haveAccountShort": "Schon ein Konto?",
+    "personal": "Persönliche Einladung",
+    "displayNameHint": "So sehen dich die anderen Gäste.",
+    "usernameHint": "Zum Anmelden. Lässt sich später nicht ändern.",
+    "passwordHint": "Mindestens {{min}} Zeichen.",
+    "passwordPlaceholder": "Mindestens {{min}} Zeichen",
+    "email": "E-Mail (optional)",
+    "emailPlaceholder": "du@beispiel.ch",
+    "emailHint": "Für Nachrichten zum Fest und «Passwort vergessen». Bestätigen kannst du sie später im Profil.",
+    "loginAndRedeem": "Anmelden und Einladung einlösen",
+    "problem": {
+      "redeemed": {
+        "title": "Diese Einladung wurde schon eingelöst.",
+        "text": "Wenn du das warst: melde dich einfach an. Sonst melde dich bei den Gastgebern – sie schicken dir eine neue Karte."
+      },
+      "expired": {
+        "title": "Diese Einladung ist nicht mehr gültig.",
+        "text": "Der Code ist abgelaufen oder wurde ersetzt. Melde dich bei den Gastgebern, dann bekommst du einen neuen."
+      },
+      "invalid": {
+        "title": "Dieser Code ist nicht gültig.",
+        "text": "Prüfe die Eingabe. Auf der Karte stehen sechs Zeichen."
+      }
+    }
   },
   "admin": {
     "title": "Verwaltung",
@@ -41,7 +68,9 @@
       "home": "Übersicht",
       "invitations": "Einladungen",
       "users": "Konten & Rollen",
-      "settings": "Einstellungen"
+      "settings": "Einstellungen",
+      "rsvp": "Rückmeldungen",
+      "rsvpBadge": "{{count}} offene Anfragen"
     },
     "home": {
       "title": "Übersicht",
@@ -51,7 +80,20 @@
       "uploads": "Hochladen",
       "snapshots": "Schnappschüsse",
       "keepsakes": "Andenken",
-      "featureOff": "Funktion ausgeschaltet"
+      "featureOff": "Funktion ausgeschaltet",
+      "rsvp": "Rückmeldungen",
+      "rsvpValue": "{{answered}} / {{total}}",
+      "rsvpHint_one": "{{count}} ohne Antwort",
+      "rsvpHint_other": "{{count}} ohne Antwort",
+      "rsvpOpen": "Ansehen",
+      "activity": "Zuletzt",
+      "activityNone": "Noch nichts passiert.",
+      "companions": "Begleitpersonen",
+      "companionsValue_one": "{{count}} Anfrage",
+      "companionsValue_other": "{{count}} Anfragen",
+      "companionsNone": "Keine Anfragen",
+      "companionsDecide": "Entscheiden",
+      "openLink": "Öffnen …"
     },
     "settings": {
       "title": "Einstellungen",
@@ -104,7 +146,11 @@
         "expired": "Abgelaufen",
         "revoked": "Widerrufen",
         "replaced": "Ersetzt"
-      }
+      },
+      "parts": "Eingeladen zu",
+      "partsColumn": "Teile",
+      "noParts": "keine",
+      "partsNone": "Lege in den Einstellungen zuerst die Teile an."
     },
     "users": {
       "title": "Konten & Rollen",
@@ -135,7 +181,13 @@
       "displayName": "Anzeigename (optional)",
       "createSubmit": "Konto anlegen",
       "createdTitle": "Konto für {{name}} angelegt",
-      "setupLink": "Link zum Festlegen des Passworts"
+      "setupLink": "Link zum Festlegen des Passworts",
+      "invitedTo": "Eingeladen zu",
+      "invitedHintInvitation": "Aus der Einladung, änderbar unter Einladungen.",
+      "invitedHintPromotion": "Dieses Konto hat vip ohne Einladung: Wähle die Teile hier.",
+      "invitedNone": "Noch keine Teile angelegt.",
+      "revokeVip": "{{name}} verliert die Rolle vip. Die Rückmeldung mit Allergien und alle Begleitpersonen werden gelöscht.",
+      "revokeVipFinal": "vip entziehen"
     },
     "groups": {
       "title": "Gästegruppen",
@@ -173,11 +225,194 @@
       },
       "save": "Speichern",
       "saved": "Gespeichert."
+    },
+    "activity": {
+      "changes_one": "{{count}} Änderung",
+      "changes_other": "{{count}} Änderungen",
+      "rsvp_answer": "{{name}} hat die Rückmeldung abgegeben",
+      "rsvp_answer_unnamed": "Eine Rückmeldung wurde abgegeben",
+      "rsvp_admin_answer": "Rückmeldung von {{name}} im Admin-Modus geändert",
+      "rsvp_admin_answer_unnamed": "Eine Rückmeldung wurde im Admin-Modus geändert",
+      "rsvp_remind_one": "Erinnerung an {{count}} Gast gesendet",
+      "rsvp_remind_other": "Erinnerung an {{count}} Gäste gesendet",
+      "rsvp_deadline": "Rückmeldefrist geändert",
+      "rsvp_part_create": "Teil «{{name}}» angelegt",
+      "rsvp_part_create_unnamed": "Ein Teil wurde angelegt",
+      "rsvp_part_update": "Teil «{{name}}» geändert",
+      "rsvp_part_update_unnamed": "Ein Teil wurde geändert",
+      "rsvp_part_delete": "Teil «{{name}}» gelöscht",
+      "rsvp_part_delete_unnamed": "Ein Teil wurde gelöscht",
+      "rsvp_menu_create": "Menü «{{name}}» angelegt",
+      "rsvp_menu_create_unnamed": "Ein Menü wurde angelegt",
+      "rsvp_menu_update": "Menü «{{name}}» geändert",
+      "rsvp_menu_update_unnamed": "Ein Menü wurde geändert",
+      "rsvp_menu_delete": "Menü «{{name}}» gelöscht",
+      "rsvp_menu_delete_unnamed": "Ein Menü wurde gelöscht",
+      "invitation_create": "Einladung für {{name}} erstellt",
+      "invitation_create_unnamed": "Eine Einladung wurde erstellt",
+      "invitation_create_many": "{{count}} Einladungen erstellt",
+      "invitation_redeem": "{{name}} hat die Einladung eingelöst",
+      "invitation_redeem_unnamed": "Eine Einladung wurde eingelöst",
+      "invitation_redeem_many": "{{count}} Einladungen eingelöst",
+      "invitation_regenerate": "Einladung für {{name}} neu erzeugt",
+      "invitation_regenerate_unnamed": "Eine Einladung wurde neu erzeugt",
+      "invitation_regenerate_many": "{{count}} Einladungen neu erzeugt",
+      "invitation_revoke": "Einladung für {{name}} widerrufen",
+      "invitation_revoke_unnamed": "Eine Einladung wurde widerrufen",
+      "invitation_revoke_many": "{{count}} Einladungen widerrufen",
+      "invitation_parts": "Teile der Einladung für {{name}} geändert",
+      "invitation_parts_unnamed": "Die Teile einer Einladung wurden geändert",
+      "user_parts": "Eingeladene Teile von {{name}} geändert",
+      "user_parts_unnamed": "Die eingeladenen Teile eines Kontos wurden geändert",
+      "event_setup": "Veranstaltung eingerichtet",
+      "setting": "«{{name}}» geändert",
+      "setting_unnamed": "Eine Einstellung wurde geändert",
+      "settingNames": {
+        "name": "Name",
+        "timezone": "Zeitzone",
+        "defaultLanguage": "Standardsprache",
+        "platformOpen": "Plattform",
+        "snapshotUploadsOpen": "Schnappschuss-Uploads",
+        "keepsakeUploadsOpen": "Andenken-Uploads"
+      },
+      "companion_request": "Begleitperson «{{name}}» beantragt",
+      "companion_request_unnamed": "Eine Begleitperson wurde beantragt",
+      "companion_approve": "Begleitperson «{{name}}» angenommen",
+      "companion_approve_unnamed": "Eine Begleitperson wurde angenommen",
+      "companion_reject": "Begleitperson «{{name}}» abgelehnt",
+      "companion_reject_unnamed": "Eine Begleitperson wurde abgelehnt",
+      "companion_withdraw": "Begleitanfrage «{{name}}» zurückgezogen",
+      "companion_withdraw_unnamed": "Eine Begleitanfrage wurde zurückgezogen",
+      "companion_rename": "Begleitperson «{{name}}» umbenannt",
+      "companion_rename_unnamed": "Eine Begleitperson wurde umbenannt",
+      "rsvp_song": "Songwunsch in der Rückmeldung ein- oder ausgeschaltet",
+      "waiting_set": "Warteseite geändert",
+      "waiting_set_unnamed": "Warteseite geändert",
+      "platform_open": "Plattform geöffnet",
+      "platform_open_unnamed": "Plattform geöffnet",
+      "platform_close": "Plattform wieder geschlossen",
+      "platform_close_unnamed": "Plattform wieder geschlossen",
+      "privacy_set": "Datenschutzerklärung geändert",
+      "privacy_set_unnamed": "Datenschutzerklärung geändert"
+    },
+    "rsvp": {
+      "title": "Rückmeldungen",
+      "csv": "CSV",
+      "remind": "Erinnern ({{count}})",
+      "reminded_one": "Erinnerung an {{count}} Gast gesendet.",
+      "reminded_other": "Erinnerung an {{count}} Gäste gesendet.",
+      "remindConfirm": "Erinnerung an {{count}} Gäste ohne Antwort senden?",
+      "perPart": "Pro Teil",
+      "yesNo": "{{yes}} ja · {{no}} nein",
+      "noParts": "Noch keine Teile. Lege sie in den Einstellungen an.",
+      "menus": "Menüs ({{part}})",
+      "menusNoMeal": "Menüs",
+      "noMealPart": "Kein Teil hat das Essen: Markiere es in den Einstellungen.",
+      "noChoice": "ohne Wahl",
+      "guests": "Gäste",
+      "filter": "Nach Status filtern",
+      "all": "Alle",
+      "statuses": {
+        "attending": "zugesagt",
+        "declined": "abgesagt",
+        "none": "ohne Antwort"
+      },
+      "name": "Name",
+      "status": "Status",
+      "parts": "Teile",
+      "menu": "Menü",
+      "song": "Songwunsch",
+      "allergies": "Allergien · nur Admins",
+      "edit": "Bearbeiten",
+      "none": "–",
+      "noGuests": "Noch keine Gäste.",
+      "hint": "Bearbeiten öffnet die Rückmeldung im Admin-Modus, auch nach der Frist. Jede Änderung steht im Audit-Log.",
+      "backToList": "Zurück zu den Rückmeldungen",
+      "guestTitle": "Rückmeldung von {{name}}",
+      "requests": "Begleitpersonen-Anfragen ({{count}})",
+      "requestFrom": "von {{name}}",
+      "approve": "Annehmen",
+      "reject": "Ablehnen",
+      "companionOf": "von {{name}}",
+      "companionStatus": {
+        "pending": "beantragt",
+        "approved": "bestätigt",
+        "rejected": "abgelehnt"
+      }
+    },
+    "rsvpSettings": {
+      "title": "Rückmeldung",
+      "deadline": "Frist (letzter Tag)",
+      "deadlineHint": "Bis zum Ende dieses Tages (Zeit der Veranstaltung) können Gäste antworten und ändern.",
+      "saveDeadline": "Frist festlegen",
+      "clearDeadline": "Frist entfernen",
+      "parts": "Teile",
+      "partsHint": "Ein Teil hat Name, Beginn und Ort. Ein Teil kann das Essen haben: Nur dafür wird das Menü gefragt.",
+      "partName": "Name",
+      "partStart": "Beginn",
+      "partPlace": "Ort (optional)",
+      "partMeal": "Hier gibt es das Essen",
+      "mealTag": "Essen",
+      "addPart": "Teil hinzufügen",
+      "noParts": "Noch keine Teile.",
+      "save": "Speichern",
+      "cancel": "Abbrechen",
+      "edit": "Bearbeiten",
+      "delete": "Löschen",
+      "confirmDelete": "Wirklich löschen?",
+      "deleteHint": "Beim Löschen gehen auch die Antworten für diesen Teil verloren.",
+      "menus": "Menüs (für alle)",
+      "menusHint": "Eine Liste für alle Gäste, auch das Kindermenü. Gefragt wird nur bei dem Teil mit dem Essen.",
+      "menuName": "Bezeichnung des Menüs",
+      "addMenu": "Menü hinzufügen",
+      "noMenus": "Noch keine Menüs.",
+      "saved": "Gespeichert.",
+      "song": "Songwunsch fragen",
+      "songHint": "Die Rückmeldung fragt nach einem Lieblingslied. Schaltest du es aus, wird nichts gefragt; bisherige Wünsche bleiben gespeichert."
+    },
+    "waiting": {
+      "openingTitle": "Plattform öffnen",
+      "openingHint": "Bis zur Öffnung sehen Gäste nur die Warteseite und die Rückmeldung. Staff und Admins haben vollen Zugang.",
+      "openingAt": "Angekündigtes Öffnungsdatum (optional)",
+      "openingAtHint": "Erscheint im Platzhalter {openingDate}. Uhrzeit in der Zeit der Veranstaltung.",
+      "saveOpening": "Datum speichern",
+      "countdown": "Countdown auf der Warteseite zeigen",
+      "countdownHint": "Zählt bis zum Öffnungsdatum und verschwindet bei null.",
+      "textsTitle": "Warteseite-Texte",
+      "placeholders": "Platzhalter: {{list}}",
+      "texts": {
+        "none": "Noch nicht geantwortet",
+        "attending": "Zugesagt",
+        "declined": "Abgesagt"
+      },
+      "reset": "Standardtext",
+      "saveTexts": "Texte speichern",
+      "saved": "Gespeichert.",
+      "openNow": "Jetzt öffnen",
+      "closeAgain": "Wieder schliessen",
+      "sendEmail": "E-Mail «Die Tür ist offen» an alle Gäste mit bestätigter Adresse senden ({{count}})",
+      "closeHint": "Die Plattform ist offen. Beim Schliessen wird keine E-Mail gesendet.",
+      "opened": "Die Plattform ist offen.",
+      "openedMails_one": "Die Plattform ist offen. {{count}} E-Mail wurde gesendet.",
+      "openedMails_other": "Die Plattform ist offen. {{count}} E-Mails wurden gesendet.",
+      "mailsFailed_one": "{{count}} E-Mail konnte nicht gesendet werden.",
+      "mailsFailed_other": "{{count}} E-Mails konnten nicht gesendet werden.",
+      "closed": "Die Plattform ist wieder geschlossen."
+    },
+    "privacy": {
+      "title": "Datenschutz",
+      "hint": "Markdown. Öffentlich unter /datenschutz und auf jeder Seite verlinkt. Der Standardtext nennt die Allergien als Gesundheitsdaten. {eventName} wird durch den Namen der Veranstaltung ersetzt.",
+      "view": "Ansehen",
+      "label": "Text der Datenschutzerklärung",
+      "save": "Speichern",
+      "reset": "Standardtext",
+      "saved": "Gespeichert."
     }
   },
   "home": {
     "title": "Willkommen bei Zappaloo",
-    "placeholder": "Hier entsteht die Plattform für unser Fest. Schau bald wieder vorbei!"
+    "placeholder": "Hier entsteht die Plattform für unser Fest. Schau bald wieder vorbei!",
+    "rsvp": "Zur Rückmeldung"
   },
   "game": {
     "loading": "Die Spielwelt wird geladen …",
@@ -185,27 +420,35 @@
   },
   "notFound": {
     "title": "Seite nicht gefunden",
-    "backHome": "Zur Startseite"
+    "backHome": "Zur Startseite",
+    "text": "Diese Seite gibt es nicht (mehr)."
   },
   "footer": {
-    "version": "Version {{version}}"
+    "version": "Version {{version}}",
+    "privacy": "Datenschutz"
   },
   "login": {
     "title": "Anmelden",
-    "username": "Benutzername",
+    "username": "Benutzername oder E-Mail",
     "password": "Passwort",
     "submit": "Anmelden",
-    "forgot": "Passwort vergessen?"
+    "forgot": "Passwort vergessen?",
+    "usernameHint": "E-Mail nur, wenn du sie im Profil bestätigt hast.",
+    "noAccountTitle": "Noch kein Konto?",
+    "noAccountText": "Du brauchst deine Einladungskarte.",
+    "redeem": "Einladung einlösen"
   },
   "forgotPassword": {
     "title": "Passwort vergessen",
-    "hint": "Gib deinen Benutzernamen oder deine E-Mail-Adresse ein. Wenn die Adresse in deinem Profil bestätigt ist, schicken wir dir einen Link zum Zurücksetzen.",
-    "identifier": "Benutzername oder E-Mail-Adresse",
+    "hint": "Wir schicken dir einen Link, mit dem du ein neues Passwort setzt.",
+    "identifier": "Benutzername oder E-Mail",
     "submit": "Link anfordern",
-    "doneTitle": "Anfrage gesendet",
-    "doneText": "Falls ein Konto mit bestätigter E-Mail-Adresse dazu passt, haben wir einen Link geschickt. Er ist 24 Stunden gültig.",
-    "noEmail": "Keine bestätigte Adresse? Dann melde dich bei den Gastgebern: Sie können dir einen Link zum Zurücksetzen geben.",
-    "back": "Zur Anmeldung"
+    "doneTitle": "Schau in dein Postfach",
+    "doneText": "Wenn zu diesem Konto eine bestätigte E-Mail-Adresse gehört, ist ein Link unterwegs. Er gilt 24 Stunden.",
+    "noEmail": "Dann ist keine bestätigte Adresse hinterlegt. Frag die Gastgeber – sie können dir einen Link zum Zurücksetzen geben.",
+    "back": "Zurück zur Anmeldung",
+    "onlyVerified": "Klappt nur mit einer bestätigten E-Mail-Adresse.",
+    "noMailTitle": "Keine E-Mail bekommen?"
   },
   "verifyEmail": {
     "title": "E-Mail-Adresse bestätigen",
@@ -213,8 +456,16 @@
     "confirm": "Adresse bestätigen",
     "working": "Die Adresse wird bestätigt …",
     "doneTitle": "Adresse bestätigt",
-    "doneText": "Danke! Mit dieser Adresse kannst du dein Passwort per E-Mail zurücksetzen.",
-    "toProfile": "Zum Profil"
+    "doneText": "Danke! Mit dieser Adresse kannst du dich anmelden und dein Passwort per E-Mail zurücksetzen.",
+    "toProfile": "Zum Profil",
+    "invalid": {
+      "title": "Dieser Link ist nicht mehr gültig.",
+      "text": "Er ist abgelaufen, wurde schon benutzt oder die Adresse hat sich geändert. Fordere im Profil einen neuen Link an."
+    },
+    "taken": {
+      "title": "Diese Adresse ist schon vergeben.",
+      "text": "Sie ist bei einem anderen Konto bestätigt. Trage im Profil eine andere Adresse ein."
+    }
   },
   "setPassword": {
     "title": "Passwort festlegen",
@@ -223,17 +474,25 @@
     "repeat": "Passwort wiederholen",
     "submit": "Passwort speichern",
     "doneTitle": "Passwort gespeichert",
-    "doneText": "Du kannst dich jetzt anmelden.",
-    "toLogin": "Zur Anmeldung"
+    "doneText": "Du kannst dich jetzt anmelden. Auf anderen Geräten musst du dich neu anmelden.",
+    "toLogin": "Zur Anmeldung",
+    "titleSetup": "Willkommen! Lege dein Passwort fest",
+    "titleReset": "Neues Passwort festlegen",
+    "hintSetup": "Damit meldest du dich ab jetzt an. Dein Benutzername: {{username}}",
+    "hintReset": "Mit dem neuen Passwort meldest du dich ab jetzt an.",
+    "passwordHint": "Mindestens {{min}} Zeichen. Nicht gleich wie dein Benutzername.",
+    "placeholder": "Mindestens {{min}} Zeichen",
+    "invalidTitle": "Dieser Link ist nicht mehr gültig.",
+    "invalidText": "Er ist abgelaufen oder wurde schon benutzt. Melde dich bei den Gastgebern, dann bekommst du einen neuen."
   },
   "profile": {
-    "title": "Profil",
+    "title": "Mein Profil",
     "username": "Benutzername: {{username}}",
     "displayName": "Anzeigename",
     "email": "E-Mail-Adresse (optional)",
     "emailStatus": {
       "unverified": "Die Adresse ist noch nicht bestätigt.",
-      "verified": "Die Adresse ist bestätigt."
+      "verified": "Die Adresse ist bestätigt. Du kannst dich damit auch anmelden."
     },
     "verifySend": "Bestätigungslink senden",
     "verifySent": "Wir haben dir einen Link geschickt. Er ist 24 Stunden gültig.",
@@ -242,12 +501,21 @@
     "passwordTitle": "Passwort ändern",
     "currentPassword": "Aktuelles Passwort",
     "newPassword": "Neues Passwort (mindestens {{min}} Zeichen)",
-    "changePassword": "Passwort ändern",
+    "changePassword": "Passwort speichern",
     "passwordChanged": "Das Passwort wurde geändert. Auf anderen Geräten musst du dich neu anmelden.",
     "deleteTitle": "Konto löschen",
     "deleteHint": "Dein Konto wird mit allen Daten unwiderruflich gelöscht. Zur Bestätigung gibst du dein Passwort ein.",
     "deletePassword": "Passwort",
-    "deleteConfirm": "Konto endgültig löschen"
+    "deleteConfirm": "Konto endgültig löschen",
+    "cardProfile": "Profil",
+    "accountTitle": "Konto",
+    "usernameLabel": "Benutzername",
+    "emailLabel": "E-Mail",
+    "noEmail": "keine angegeben",
+    "emailTag": {
+      "unverified": "nicht bestätigt",
+      "verified": "bestätigt"
+    }
   },
   "errors": {
     "unknown": "Das hat nicht geklappt. Bitte versuche es später noch einmal.",
@@ -283,10 +551,114 @@
     "group_not_found": "Diese Gruppe gibt es nicht.",
     "not_staff": "Fähigkeiten gibt es nur für Personen mit der Rolle Staff.",
     "already_set_up": "Die Veranstaltung ist schon eingerichtet.",
-    "setup_incomplete": "Die Veranstaltung ist noch nicht eingerichtet."
+    "setup_incomplete": "Die Veranstaltung ist noch nicht eingerichtet.",
+    "part_not_found": "Diesen Teil gibt es nicht.",
+    "menu_not_found": "Dieses Menü gibt es nicht.",
+    "not_a_guest": "Nur Gäste können eine Rückmeldung geben.",
+    "rsvp_closed": "Die Frist für die Rückmeldung ist vorbei. Melde dich bei den Gastgebern.",
+    "invalid_attendance": "Bitte antworte für jeden Teil mit Ja oder Nein.",
+    "menu_required": "Bitte wähle ein Menü.",
+    "invalid_menu": "Dieses Menü gibt es nicht.",
+    "parts_not_editable": "Diese Einladung kann nicht mehr geändert werden.",
+    "companion_not_found": "Diese Begleitperson gibt es nicht.",
+    "companion_not_editable": "Diese Begleitperson kann nicht mehr so geändert werden. Ändere Teilnahme, Menü und Allergien in den Schritten 1 und 2.",
+    "companion_decided": "Über diese Anfrage ist schon entschieden.",
+    "companion_limit": "Du kannst höchstens {{count}} Begleitpersonen anmelden.",
+    "platform_closed": "Die Tür ist noch zu. Sobald sie aufgeht, sagen wir dir Bescheid.",
+    "already_open": "Die Plattform ist schon offen.",
+    "already_closed": "Die Plattform ist schon geschlossen.",
+    "email_taken": "Diese E-Mail-Adresse ist schon bei einem anderen Konto bestätigt. Trage im Profil eine andere ein."
   },
   "notSetUp": {
     "title": "Noch nicht eingerichtet",
     "text": "Diese Seite wird gerade vorbereitet. Schau bald wieder vorbei."
+  },
+  "rsvp": {
+    "title": "Rückmeldung",
+    "step": "Schritt {{current}} von {{total}}",
+    "loadFailed": "Die Rückmeldung konnte nicht geladen werden.",
+    "greeting": "Bist du dabei, {{name}}?",
+    "intro": "Sag uns für jeden Teil, ob du kommst.",
+    "deadline": "Du kannst deine Antwort bis {{date}} ändern.",
+    "adminMode": "Admin-Modus: Die Frist gilt hier nicht. Jede Änderung steht im Audit-Log.",
+    "noParts": "Für dich sind noch keine Teile festgelegt. Melde dich bei den Gastgebern.",
+    "partWhen": "{{time}} · {{place}}",
+    "attending": "Dabei",
+    "notAttending": "Nicht dabei",
+    "openPart": "Noch offen",
+    "answerFor": "Antwort für {{part}}",
+    "next": "Weiter",
+    "back": "Zurück",
+    "send": "Antwort senden",
+    "sending": "Wird gesendet …",
+    "food": {
+      "title": "Essen & Allergien"
+    },
+    "you": "Du",
+    "menu": "Menü ({{part}})",
+    "menuNone": "Menü",
+    "allergies": "Allergien oder Unverträglichkeiten",
+    "allergiesPlaceholder": "z. B. Nüsse, laktosefrei",
+    "allergiesLock": "Sieht nur das Organisationsteam.",
+    "songTitle": "Musik",
+    "song": "Songwunsch (optional)",
+    "songHint": "Dieses Lied bringt dich auf die Tanzfläche.",
+    "done": "Danke, {{name}}! Deine Antwort ist angekommen.",
+    "declined": "Schade, dass du nicht dabei sein kannst, {{name}}. Danke für deine Antwort!",
+    "editUntil": "Änderbar bis {{date}}.",
+    "closed": "Die Frist ist vorbei. Für Änderungen melde dich bei den Gastgebern.",
+    "change": "Ändern",
+    "finish": "Fertig",
+    "allergiesGiven": "Allergien angegeben",
+    "songWish": "Songwunsch",
+    "notAnswered": "Noch keine Antwort",
+    "companions": {
+      "title": "Begleitpersonen",
+      "stepTitle": "Begleitpersonen & Musik",
+      "formTitle": "Begleitperson beantragen",
+      "formHint": "Für Personen ohne eigenes Konto, z. B. Kinder. Du verwaltest ihre Angaben. Ihre Figur wählst du, sobald die Spielwelt offen ist.",
+      "name": "Name",
+      "note": "Notiz für die Gastgeber (optional)",
+      "attendance": "Teilnahme",
+      "thePerson": "Begleitperson",
+      "cancel": "Abbrechen",
+      "save": "Speichern",
+      "request": "Beantragen",
+      "new": "Begleitperson beantragen",
+      "edit": "Bearbeiten",
+      "withdraw": "Zurückziehen",
+      "remove": "Entfernen",
+      "rename": "Umbenennen",
+      "approvedHint": "Teilnahme, Menü und Allergien bestätigter Personen änderst du in den Schritten 1 und 2.",
+      "ownInvitation": "Wer ein eigenes Handy hat, bekommt besser eine eigene Einladung. Frag dafür die Gastgeber.",
+      "limit": "Mehr als {{count}} Begleitpersonen sind nicht möglich.",
+      "status": {
+        "pending": "Wartet auf Bestätigung",
+        "approved": "Bestätigt",
+        "rejected": "Abgelehnt"
+      }
+    },
+    "close": "Schliessen"
+  },
+  "waiting": {
+    "sceneLabel": "Eine angelehnte Tür mit warmem Licht; dahinter bauen kleine Figuren an der Welt.",
+    "countdown": "Zeit bis zur Öffnung",
+    "units": {
+      "days": "Tage",
+      "hours": "Std",
+      "minutes": "Min",
+      "seconds": "Sek"
+    },
+    "answer": "Rückmeldung geben",
+    "change": "Rückmeldung ändern"
+  },
+  "privacy": {
+    "back": "Zurück"
+  },
+  "guest": {
+    "showPassword": "Anzeigen",
+    "hidePassword": "Verbergen",
+    "codeChar": "Zeichen {{n}} von {{total}}",
+    "codeHint": "{{total}} Zeichen. Einfügen füllt alle Felder auf einmal."
   }
 }

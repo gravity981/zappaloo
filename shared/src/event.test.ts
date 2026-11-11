@@ -42,7 +42,13 @@ describe("event update", () => {
     expect(eventUpdateSchema.safeParse({ timezone: "UTC", defaultLanguage: "en" }).success).toBe(
       true,
     );
-    expect(eventUpdateSchema.safeParse({ settings: { platformOpen: true } }).success).toBe(true);
+    expect(eventUpdateSchema.safeParse({ settings: { snapshotUploadsOpen: true } }).success).toBe(
+      true,
+    );
+  });
+
+  it("[ACS-14] the generic update does not open the platform: that goes through its own route", () => {
+    expect(eventUpdateSchema.safeParse({ settings: { platformOpen: true } }).success).toBe(false);
   });
 
   it("[CFG-06] needs at least one value and checks each", () => {

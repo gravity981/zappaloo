@@ -13,6 +13,7 @@ import {
   forgotPasswordSchema,
   loginRequestSchema,
   passwordChangeSchema,
+  passwordLinkResponseSchema,
   passwordSetSchema,
   profileUpdateSchema,
   resetLinkResponseSchema,
@@ -37,6 +38,10 @@ import type { RateLimiter } from "../auth/rate-limit.ts";
 import type { AccessService } from "../auth/access.ts";
 import type { GroupService } from "../auth/groups.ts";
 import type { InvitationService } from "../auth/invitations.ts";
+import type { ActivityService } from "../event/activity.ts";
+import type { RsvpService } from "../rsvp/service.ts";
+import type { WaitingService } from "../waiting/service.ts";
+import type { PlatformService } from "../event/platform.ts";
 import type { SessionService } from "../auth/sessions.ts";
 import type { EventService } from "../event/service.ts";
 import type { Mailer } from "../mail/mailer.ts";
@@ -63,6 +68,14 @@ export interface AuthOptions {
   access: AccessService;
   /** Personal invitation codes (INV-01 – INV-12). */
   invitations: InvitationService;
+  /** The RSVP, event parts and menus (RSVP-01 – RSVP-07). */
+  rsvp: RsvpService;
+  /** Opening and closing the platform, and the privacy notice (ACS-14, SEC-09). */
+  platform: PlatformService;
+  /** The waiting page of a closed platform (ACS-10 – ACS-13). */
+  waiting: WaitingService;
+  /** The latest changes for the admin overview (DATA-05). */
+  activity: ActivityService;
   /** Sends emails (ACC-11); undefined if no mail server is configured. */
   mailer?: Mailer | undefined;
 }
@@ -81,6 +94,45 @@ declare module "fastify" {
   interface FastifyRequest {
     auth: AuthState | null;
   }
+}
+
+/**
+ * What a signed-in guest can call while the platform is closed (ACS-10): sign-in and account,
+ * RSVP, the waiting page, the event, system routes and invitation redemption. Everything else
+ * under /api that a later feature adds is closed by default. Admin routes keep their own role check.
+ */
+export const OPEN_WHILE_CLOSED = [
+  "/api/session",
+  "/api/password",
+  "/api/email",
+  "/api/profile",
+  "/api/rsvp",
+  "/api/waiting",
+  "/api/privacy",
+  "/api/site",
+  "/api/event",
+  // The live channel only answers its ping while closed; the game world's feeds stay closed.
+  "/api/events/ping",
+  "/api/health",
+  "/api/version",
+  "/api/invitations",
+  // Every admin route checks the admin role itself; capabilities belong to staff, who pass.
+  "/api/admin",
+];
+
+/** The route is an entry of the list or below it: `/api/profile/password`, not `/api/profiles`. */
+function openWhileClosed(route: string): boolean {
+  return OPEN_WHILE_CLOSED.some((entry) => route === entry || route.startsWith(`${entry}/`));
+}
+
+/** True if the request is refused because the platform is closed for this user (ACS-10). */
+function closedFor(user: User, request: FastifyRequest, event: EventService): boolean {
+  const route = request.routeOptions.url ?? "";
+  // Unknown paths and the frontend's files are not the API's business (404, static files).
+  if (!route.startsWith("/api/")) return false;
+  if (openWhileClosed(route)) return false;
+  if (user.roles.includes("staff") || user.roles.includes("admin")) return false;
+  return !event.get().settings.platformOpen;
 }
 
 const UNSAFE_METHODS = new Set(["POST", "PUT", "PATCH", "DELETE"]);
@@ -203,6 +255,15 @@ const authPlugin: FastifyPluginAsyncZod<AuthOptions> = async (app, options) => {
       return sendError(reply, 401, { code: "unauthorized", message: "Sign in first." });
     }
 
+    // While the platform is closed, guests reach only the waiting page, the RSVP, their profile
+    // and the public pages (ACS-10, ACS-07); staff and admins reach everything.
+    if (request.auth && closedFor(request.auth.user, request, options.event)) {
+      return sendError(reply, 403, {
+        code: "platform_closed",
+        message: "The platform is not open yet.",
+      });
+    }
+
     if (!UNSAFE_METHODS.has(request.method) || !isApiRequest(request)) return;
     const origin = originHost(request.headers.origin);
     const refused =
@@ -243,8 +304,10 @@ const authPlugin: FastifyPluginAsyncZod<AuthOptions> = async (app, options) => {
       },
     },
     async (request, reply) => {
+      // "username" holds a username or a verified email address (ACC-16).
       const username = request.body.username.trim().toLowerCase();
-      const userKey = `login:user:${username}`;
+      // One lockout per account, whether it is named by username or by email address.
+      const userKey = `login:${accounts.loginKey(username)}`;
       const addressKey = `login:ip:${request.ip}`;
       // Only failures count, so guests sharing one address are not blocked by each other.
       const wait =
@@ -326,6 +389,34 @@ const authPlugin: FastifyPluginAsyncZod<AuthOptions> = async (app, options) => {
     },
   );
 
+  // What a setup or reset link is for, before the password is typed. Looking up dead links counts
+  // against the same limit as setting the password with one.
+  app.get(
+    "/api/password/link/:token",
+    {
+      config: PUBLIC,
+      schema: {
+        querystring: noQuery,
+        params: z.strictObject({ token: z.string().min(10).max(200) }),
+        response: { 200: passwordLinkResponseSchema },
+      },
+    },
+    async (request, reply) => {
+      const key = `password-set:ip:${request.ip}`;
+      const wait = limiter.blocked(key, PASSWORD_SET_FAILURES_PER_ADDRESS);
+      if (wait !== undefined) return rateLimited(reply, wait);
+      try {
+        return await reply.send(accounts.previewLink(request.params.token));
+      } catch (error) {
+        if (error instanceof AccountError && error.code === "invalid_link") {
+          limiter.hit(key, PASSWORD_SET_FAILURES_PER_ADDRESS);
+          return sendError(reply, 400, { code: "invalid_link", message: error.message });
+        }
+        throw error;
+      }
+    },
+  );
+
   // Setting the password with a one-time link (setup or reset); works once.
   app.post(
     "/api/password/set",
@@ -399,6 +490,10 @@ const authPlugin: FastifyPluginAsyncZod<AuthOptions> = async (app, options) => {
         if (error instanceof AccountError && error.code === "invalid_link") {
           limiter.hit(key, EMAIL_VERIFY_FAILURES_PER_ADDRESS);
           return sendError(reply, 400, { code: "invalid_link", message: error.message });
+        }
+        // Someone else has verified this address already (ACC-16).
+        if (error instanceof AccountError && error.code === "email_taken") {
+          return sendError(reply, 409, { code: "email_taken", message: error.message });
         }
         throw error;
       }
