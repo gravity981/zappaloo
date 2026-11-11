@@ -47,8 +47,8 @@ test("[CFG-02][CFG-06] a fresh installation: the operator creates the admin, the
     .getByRole("link", { name: de.admin.nav.settings })
     .click();
   await page.getByLabel(de.admin.identity.name).fill("Anna und Ben");
-  await page.getByRole("button", { name: de.admin.identity.save }).click();
-  await expect(page.getByText(de.admin.identity.saved)).toBeVisible();
+  await page.getByRole("button", { name: de.admin.identity.save, exact: true }).click();
+  await expect(page.getByText(de.admin.identity.saved, { exact: true })).toBeVisible();
   expect(await (await page.request.get("/api/event")).json()).toMatchObject({
     name: "Anna und Ben",
   });

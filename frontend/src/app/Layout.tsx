@@ -1,6 +1,7 @@
 import { useTranslation } from "react-i18next";
-import { NavLink, Outlet } from "react-router";
+import { NavLink, Outlet, useLocation } from "react-router";
 import { useFeature } from "./event.ts";
+import { useRestricted } from "./restricted.ts";
 import { useSession } from "./session.ts";
 import VersionFooter from "./VersionFooter.tsx";
 
@@ -25,13 +26,25 @@ function AccountNav() {
 /** The shell of the website pages. */
 export default function Layout() {
   const { t } = useTranslation();
+  const restricted = useRestricted();
+  const { pathname } = useLocation();
+  // The waiting page is a full-screen scene of its own.
+  if (restricted && pathname === "/") return <Outlet />;
   return (
     <div className="layout">
       <header>
         <strong>{t("app.name")}</strong>
         <nav>
-          <NavLink to="/">{t("nav.home")}</NavLink>
-          <NavLink to="/game">{t("nav.game")}</NavLink>
+          {restricted ? (
+            <NavLink to="/" end>
+              {t("nav.waiting")}
+            </NavLink>
+          ) : (
+            <>
+              <NavLink to="/">{t("nav.home")}</NavLink>
+              <NavLink to="/game">{t("nav.game")}</NavLink>
+            </>
+          )}
           <AccountNav />
         </nav>
       </header>

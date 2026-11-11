@@ -214,6 +214,7 @@ describe("data model", () => {
       "rsvp_answers",
       "rsvp_attendance",
       "rsvp_config",
+      "waiting_config",
     ]);
     for (const { name } of tables) {
       const columns = database.sqlite.prepare(`PRAGMA table_info(${name})`).all() as {

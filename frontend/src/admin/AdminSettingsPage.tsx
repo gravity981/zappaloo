@@ -12,6 +12,7 @@ import EventIdentityForm from "./EventIdentityForm.tsx";
 import { identityOf } from "./identity.ts";
 import type { EventIdentity } from "./identity.ts";
 import RsvpSettingsCard from "./RsvpSettingsCard.tsx";
+import WaitingSettingsCards from "./WaitingSettingsCards.tsx";
 import { Switch } from "./ui.tsx";
 
 export default function AdminSettingsPage() {
@@ -58,6 +59,7 @@ export default function AdminSettingsPage() {
           />
         </section>
       )}
+      {event?.setupComplete && <WaitingSettingsCards />}
       {event && (
         <div className="grid-2">
           <RsvpSettingsCard />

@@ -1,0 +1,103 @@
+/* The waiting page (ACS-10 – ACS-13), after the UX mock: a full-screen scene with a card. */
+.waiting {
+  position: fixed;
+  inset: 0;
+  overflow: hidden;
+  background: #2d2832;
+  color: #fff;
+  font:
+    14px/1.45 system-ui,
+    sans-serif;
+}
+.waiting .door-scene {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+.waiting-top {
+  position: absolute;
+  top: 12px;
+  left: 14px;
+  right: 14px;
+  z-index: 2;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  font-size: 12px;
+}
+.waiting-top b {
+  font-size: 15px;
+}
+.waiting-menu {
+  display: flex;
+  gap: 8px;
+}
+.waiting-menu a,
+.waiting-menu button {
+  background: rgba(255, 255, 255, 0.16);
+  color: #fff;
+  border: 0;
+  border-radius: 999px;
+  padding: 8px 14px;
+  font: inherit;
+  text-decoration: none;
+  cursor: pointer;
+}
+.waiting-card {
+  position: absolute;
+  left: 14px;
+  right: 14px;
+  bottom: 16px;
+  margin-inline: auto;
+  max-width: 460px;
+  z-index: 2;
+  background: #fffaf0;
+  color: #2a2420;
+  border-radius: 16px;
+  padding: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
+}
+.waiting-card p {
+  margin: 0;
+  font-size: 15px;
+  line-height: 1.5;
+}
+.waiting-card .error {
+  color: #a3321f;
+}
+.waiting-button {
+  display: block;
+  text-align: center;
+  background: #2a2420;
+  color: #fff;
+  text-decoration: none;
+  border-radius: 10px;
+  padding: 13px 18px;
+  font-weight: 600;
+}
+.countdown {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+}
+.countdown div {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-width: 52px;
+}
+.countdown b {
+  font-size: 26px;
+  font-variant-numeric: tabular-nums;
+}
+.countdown small {
+  font-size: 11px;
+  opacity: 0.7;
+}

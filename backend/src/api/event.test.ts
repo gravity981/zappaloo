@@ -34,6 +34,8 @@ describe("event API", () => {
   it("[CFG-03] a disabled feature is unavailable in the API, and available again once enabled", async () => {
     context = await createTestApp();
     const { app, event } = context;
+    // A feature route of the open platform (while it is closed, guests reach only the waiting page).
+    event.setSetting("platformOpen", true, "cli");
     let calls = 0;
     app.get(
       "/api/gallery",

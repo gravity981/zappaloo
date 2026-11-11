@@ -19,6 +19,7 @@ import RsvpPage from "../pages/RsvpPage.tsx";
 import SetPasswordPage from "../pages/SetPasswordPage.tsx";
 import VerifyEmailPage from "../pages/VerifyEmailPage.tsx";
 import Layout from "./Layout.tsx";
+import RequireOpen from "./RequireOpen.tsx";
 import RequireSignIn from "./RequireSignIn.tsx";
 import Root from "./Root.tsx";
 
@@ -42,7 +43,11 @@ export const routes: RouteObject[] = [
             element: <RequireSignIn />,
             children: [
               { index: true, element: <HomePage /> },
-              { path: "game", element: <GamePage /> },
+              {
+                // Pages of the open platform; guests wait at the front door until it opens.
+                element: <RequireOpen />,
+                children: [{ path: "game", element: <GamePage /> }],
+              },
               { path: "profile", element: <ProfilePage /> },
               { path: "rsvp", element: <RsvpPage /> },
               { path: "*", element: <NotFoundPage /> },

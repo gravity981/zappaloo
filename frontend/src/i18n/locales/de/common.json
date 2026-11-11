@@ -9,7 +9,8 @@
     "profile": "Profil",
     "logout": "Abmelden",
     "admin": "Verwaltung",
-    "rsvp": "Rückmeldung"
+    "rsvp": "Rückmeldung",
+    "waiting": "Warteseite"
   },
   "invite": {
     "title": "Einladung einlösen",
@@ -254,7 +255,9 @@
       "companion_withdraw_unnamed": "Eine Begleitanfrage wurde zurückgezogen",
       "companion_rename": "Begleitperson «{{name}}» umbenannt",
       "companion_rename_unnamed": "Eine Begleitperson wurde umbenannt",
-      "rsvp_song": "Songwunsch in der Rückmeldung ein- oder ausgeschaltet"
+      "rsvp_song": "Songwunsch in der Rückmeldung ein- oder ausgeschaltet",
+      "waiting_set": "Warteseite geändert",
+      "waiting_set_unnamed": "Warteseite geändert"
     },
     "rsvp": {
       "title": "Rückmeldungen",
@@ -330,6 +333,25 @@
       "saved": "Gespeichert.",
       "song": "Songwunsch fragen",
       "songHint": "Die Rückmeldung fragt nach einem Lieblingslied. Schaltest du es aus, wird nichts gefragt; bisherige Wünsche bleiben gespeichert."
+    },
+    "waiting": {
+      "openingTitle": "Plattform öffnen",
+      "openingHint": "Bis zur Öffnung sehen Gäste nur die Warteseite und die Rückmeldung. Staff und Admins haben vollen Zugang.",
+      "openingAt": "Angekündigtes Öffnungsdatum (optional)",
+      "openingAtHint": "Erscheint im Platzhalter {openingDate}. Uhrzeit in der Zeit der Veranstaltung.",
+      "saveOpening": "Datum speichern",
+      "countdown": "Countdown auf der Warteseite zeigen",
+      "countdownHint": "Zählt bis zum Öffnungsdatum und verschwindet bei null.",
+      "textsTitle": "Warteseite-Texte",
+      "placeholders": "Platzhalter: {{list}}",
+      "texts": {
+        "none": "Noch nicht geantwortet",
+        "attending": "Zugesagt",
+        "declined": "Abgesagt"
+      },
+      "reset": "Standardtext",
+      "saveTexts": "Texte speichern",
+      "saved": "Gespeichert."
     }
   },
   "home": {
@@ -453,7 +475,8 @@
     "companion_not_found": "Diese Begleitperson gibt es nicht.",
     "companion_not_editable": "Diese Begleitperson kann nicht mehr so geändert werden. Ändere Teilnahme, Menü und Allergien in den Schritten 1 und 2.",
     "companion_decided": "Über diese Anfrage ist schon entschieden.",
-    "companion_limit": "Du kannst höchstens {{count}} Begleitpersonen anmelden."
+    "companion_limit": "Du kannst höchstens {{count}} Begleitpersonen anmelden.",
+    "platform_closed": "Die Tür ist noch zu. Sobald sie aufgeht, sagen wir dir Bescheid."
   },
   "notSetUp": {
     "title": "Noch nicht eingerichtet",
@@ -523,5 +546,17 @@
         "rejected": "Abgelehnt"
       }
     }
+  },
+  "waiting": {
+    "sceneLabel": "Eine angelehnte Tür mit warmem Licht; dahinter bauen kleine Figuren an der Welt.",
+    "countdown": "Zeit bis zur Öffnung",
+    "units": {
+      "days": "Tage",
+      "hours": "Std",
+      "minutes": "Min",
+      "seconds": "Sek"
+    },
+    "answer": "Rückmeldung geben",
+    "change": "Rückmeldung ändern"
   }
 }

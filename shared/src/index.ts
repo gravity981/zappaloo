@@ -8,3 +8,4 @@ export * from "./invitations.ts";
 export * from "./rsvp.ts";
 export * from "./version.ts";
 export * from "./time.ts";
+export * from "./waiting.ts";

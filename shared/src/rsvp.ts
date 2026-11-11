@@ -222,6 +222,7 @@ export const ACTIVITY_ACTIONS = [
   "rsvp.remind",
   "rsvp.deadline",
   "rsvp.song",
+  "waiting.set",
   "rsvp.part.create",
   "rsvp.part.update",
   "rsvp.part.delete",

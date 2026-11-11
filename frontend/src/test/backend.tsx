@@ -28,7 +28,7 @@ export const event = {
     treasureHunt: true,
     eventScreen: true,
   },
-  settings: { platformOpen: false, snapshotUploadsOpen: false, keepsakeUploadsOpen: false },
+  settings: { platformOpen: true, snapshotUploadsOpen: false, keepsakeUploadsOpen: false },
 };
 
 export interface Call {

@@ -18,6 +18,7 @@ import { eventRoutes } from "./api/events.ts";
 import { noIndex } from "./api/no-index.ts";
 import { rsvpRoutes } from "./api/rsvp.ts";
 import { systemRoutes } from "./api/system.ts";
+import { waitingRoutes } from "./api/waiting.ts";
 import { sendError, validation } from "./api/validation.ts";
 
 export interface AppOptions {
@@ -81,6 +82,7 @@ export async function buildApp(options: AppOptions): Promise<FastifyInstance> {
   await app.register(adminRoutes, options.auth);
   await app.register(invitationRoutes, options.auth);
   await app.register(rsvpRoutes, options.auth);
+  await app.register(waitingRoutes, options.auth);
   await app.register(eventApiRoutes, { event: options.event });
 
   const frontendDir = options.frontendDir && resolve(options.frontendDir);

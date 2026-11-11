@@ -10,6 +10,9 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
+/** The event with the platform still closed, as before the opening. */
+const closedEvent = { ...event, settings: { ...event.settings, platformOpen: false } };
+
 const admin = { ...anna, id: 9, username: "lea", displayName: "Lea", roles: ["admin"] };
 const asAdmin = { status: 200, body: { user: admin, csrfToken: "csrf-1" } };
 
@@ -29,7 +32,10 @@ describe("admin area", () => {
   });
 
   it("[ROLE-07] an admin reaches the admin area from the website and sees its pages", async () => {
-    fakeBackend({ "GET /api/session": () => asAdmin });
+    fakeBackend({
+      "GET /api/session": () => asAdmin,
+      "GET /api/event": () => ({ status: 200, body: closedEvent }),
+    });
     renderAt("/");
     user.click(await screen.findByRole("link", { name: "Verwaltung" }));
     expect(await screen.findByRole("heading", { name: "Übersicht" })).toBeInTheDocument();
@@ -47,7 +53,7 @@ describe("admin area", () => {
 describe("features and settings", () => {
   /** The event on the fake server; PATCH changes it like the real one. */
   function eventBackend() {
-    let current = structuredClone(event);
+    let current = structuredClone(closedEvent);
     const calls = fakeBackend({
       "GET /api/session": () => asAdmin,
       "GET /api/event": () => ({ status: 200, body: current }),

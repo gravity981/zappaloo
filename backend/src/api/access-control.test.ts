@@ -17,6 +17,9 @@ afterEach(async () => {
 
 async function setup(): Promise<TestContext> {
   context = await createTestApp();
+  // The routes of these tests stand for features of the open platform (ACS-10 closes them for
+  // guests while it is closed; see closed-platform.test.ts).
+  context.event.setSetting("platformOpen", true, "cli");
   return context;
 }
 

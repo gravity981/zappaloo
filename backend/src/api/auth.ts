@@ -39,6 +39,7 @@ import type { GroupService } from "../auth/groups.ts";
 import type { InvitationService } from "../auth/invitations.ts";
 import type { ActivityService } from "../event/activity.ts";
 import type { RsvpService } from "../rsvp/service.ts";
+import type { WaitingService } from "../waiting/service.ts";
 import type { SessionService } from "../auth/sessions.ts";
 import type { EventService } from "../event/service.ts";
 import type { Mailer } from "../mail/mailer.ts";
@@ -67,6 +68,8 @@ export interface AuthOptions {
   invitations: InvitationService;
   /** The RSVP, event parts and menus (RSVP-01 – RSVP-07). */
   rsvp: RsvpService;
+  /** The waiting page of a closed platform (ACS-10 – ACS-13). */
+  waiting: WaitingService;
   /** The latest changes for the admin overview (DATA-05). */
   activity: ActivityService;
   /** Sends emails (ACC-11); undefined if no mail server is configured. */
@@ -87,6 +90,37 @@ declare module "fastify" {
   interface FastifyRequest {
     auth: AuthState | null;
   }
+}
+
+/**
+ * What a signed-in guest can call while the platform is closed (ACS-10): sign-in and account,
+ * RSVP, the waiting page, the event, system routes and invitation redemption. Everything else
+ * under /api that a later feature adds is closed by default. Admin routes keep their own role check.
+ */
+const OPEN_WHILE_CLOSED = [
+  "/api/session",
+  "/api/password/",
+  "/api/email/",
+  "/api/profile",
+  "/api/rsvp",
+  "/api/waiting",
+  "/api/event",
+  "/api/events/",
+  "/api/health",
+  "/api/version",
+  "/api/invitations/",
+  "/api/admin/",
+];
+
+/** True if the request is refused because the platform is closed for this user (ACS-10). */
+function closedFor(user: User, request: FastifyRequest, event: EventService): boolean {
+  const route = request.routeOptions.url ?? "";
+  // Unknown paths and the frontend's files are not the API's business (404, static files).
+  if (!route.startsWith("/api/")) return false;
+  if (OPEN_WHILE_CLOSED.some((prefix) => route === prefix || route.startsWith(prefix)))
+    return false;
+  if (user.roles.includes("staff") || user.roles.includes("admin")) return false;
+  return !event.get().settings.platformOpen;
 }
 
 const UNSAFE_METHODS = new Set(["POST", "PUT", "PATCH", "DELETE"]);
@@ -207,6 +241,15 @@ const authPlugin: FastifyPluginAsyncZod<AuthOptions> = async (app, options) => {
     // Sign-in is required everywhere except the public routes (ACS-09, ACS-07).
     if (!request.auth && needsSignIn(request)) {
       return sendError(reply, 401, { code: "unauthorized", message: "Sign in first." });
+    }
+
+    // While the platform is closed, guests reach only the waiting page, the RSVP, their profile
+    // and the public pages (ACS-10, ACS-07); staff and admins reach everything.
+    if (request.auth && closedFor(request.auth.user, request, options.event)) {
+      return sendError(reply, 403, {
+        code: "platform_closed",
+        message: "The platform is not open yet.",
+      });
     }
 
     if (!UNSAFE_METHODS.has(request.method) || !isApiRequest(request)) return;

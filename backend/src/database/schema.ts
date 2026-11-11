@@ -471,3 +471,18 @@ export const companionAttendance = sqliteTable(
   },
   (table) => [primaryKey({ columns: [table.companionId, table.partId] })],
 );
+
+// --- Waiting page (sw-architecture.md 10.4; ACS-11, ACS-13) -------------------------------
+
+/** The waiting page's settings: opening date, countdown switch and the admin's own texts. */
+export const waitingConfig = sqliteTable("waiting_config", {
+  eventId: text("event_id")
+    .primaryKey()
+    .references(() => events.id),
+  openingAt: integer("opening_at", { mode: "timestamp_ms" }),
+  countdownEnabled: integer("countdown_enabled", { mode: "boolean" }).notNull().default(false),
+  /** Null: the default text. */
+  textNone: text("text_none"),
+  textAttending: text("text_attending"),
+  textDeclined: text("text_declined"),
+});
