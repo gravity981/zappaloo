@@ -369,6 +369,13 @@
 :is(.admin, .guest) .card.tight {
   padding: 4px 8px;
 }
+/* The title row and the note of a card with a table keep their distance from the border */
+:is(.admin, .guest) .card.tight > .tight-head {
+  padding: 8px 6px 0;
+}
+:is(.admin, .guest) .card.tight > .tight-foot {
+  padding: 0 6px 8px;
+}
 /* the card that asks for something: requests to decide, opening the platform */
 :is(.admin, .guest) .card.strong {
   border: 2px solid var(--a-ink);

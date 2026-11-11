@@ -43,7 +43,7 @@ describe("the page head (PWA-03)", () => {
   });
 
   it("[PWA-03] uses the whole screen: viewport-fit=cover", () => {
-    expect(tags).toMatch(/<meta name="viewport" content="[^"]*viewport-fit=cover/);
+    expect(tags).toMatch(/<meta\s+name="viewport"\s+content="[^"]*viewport-fit=cover/);
   });
 
   it("[PWA-03] names the page and the home screen icon after the event", async () => {
@@ -65,7 +65,9 @@ describe("the page head (PWA-03)", () => {
 
 describe("no zoom (PWA-04)", () => {
   it("[PWA-04] the page cannot be scaled: maximum-scale=1 in the viewport", () => {
-    expect(read("index.html")).toMatch(/<meta name="viewport" content="[^"]*maximum-scale=1\.0/);
+    expect(read("index.html")).toMatch(
+      /<meta\s+name="viewport"\s+content="[^"]*maximum-scale=1\.0/,
+    );
   });
 
   it("[PWA-04] fields are 16px on touch screens, so iOS does not zoom in when one gets the focus", () => {

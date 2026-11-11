@@ -174,7 +174,7 @@ export default function AdminRsvpPage() {
       </div>
 
       <section className="card tight" aria-labelledby="rsvp-guests">
-        <div className="row">
+        <div className="row tight-head">
           <b id="rsvp-guests" className="grow">
             {t("admin.rsvp.guests")}
           </b>
@@ -205,12 +205,15 @@ export default function AdminRsvpPage() {
                 <th>{t("admin.rsvp.menu")}</th>
                 {data.songEnabled && <th>{t("admin.rsvp.song")}</th>}
                 <th>🔒 {t("admin.rsvp.allergies")}</th>
+                <th>
+                  <span className="visually-hidden">{t("admin.rsvp.edit")}</span>
+                </th>
               </tr>
             </thead>
             <tbody>
               {shown.length === 0 && (
                 <tr>
-                  <td colSpan={data.songEnabled ? 6 : 5}>{t("admin.rsvp.noGuests")}</td>
+                  <td colSpan={data.songEnabled ? 7 : 6}>{t("admin.rsvp.noGuests")}</td>
                 </tr>
               )}
               {shown.map((guest) => (
@@ -218,14 +221,6 @@ export default function AdminRsvpPage() {
                   <tr>
                     <td>
                       <b>{guest.name}</b>
-                      <br />
-                      <Link
-                        className="btn soft sm"
-                        to={`/admin/rsvp/guests/${String(guest.userId)}`}
-                        aria-label={`${t("admin.rsvp.edit")}: ${guest.name}`}
-                      >
-                        {t("admin.rsvp.edit")}
-                      </Link>
                     </td>
                     <td>
                       <span className={STATUS_TAG[guest.status]}>
@@ -242,6 +237,15 @@ export default function AdminRsvpPage() {
                     </td>
                     {data.songEnabled && <td>{guest.songWish ?? t("admin.rsvp.none")}</td>}
                     <td>{guest.allergies ?? t("admin.rsvp.none")}</td>
+                    <td className="actions">
+                      <Link
+                        className="btn soft sm"
+                        to={`/admin/rsvp/guests/${String(guest.userId)}`}
+                        aria-label={`${t("admin.rsvp.edit")}: ${guest.name}`}
+                      >
+                        {t("admin.rsvp.edit")}
+                      </Link>
+                    </td>
                   </tr>
                   {data.companions
                     .filter((c) => c.hostUserId === guest.userId && c.status === "approved")
@@ -267,6 +271,7 @@ export default function AdminRsvpPage() {
                         </td>
                         {data.songEnabled && <td>{t("admin.rsvp.none")}</td>}
                         <td>{c.allergies ?? t("admin.rsvp.none")}</td>
+                        <td />
                       </tr>
                     ))}
                 </Fragment>
@@ -274,7 +279,7 @@ export default function AdminRsvpPage() {
             </tbody>
           </table>
         </div>
-        <span className="hint">{t("admin.rsvp.hint")}</span>
+        <span className="hint tight-foot">{t("admin.rsvp.hint")}</span>
       </section>
     </>
   );
