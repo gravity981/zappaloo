@@ -27,9 +27,17 @@ describe("password hashing", () => {
       await check();
       return performance.now() - start;
     };
-    const realTime = await time(() => verifyPassword(real, "wrong-password"));
-    const dummyTime = await time(() => verifyDummyPassword("wrong-password"));
-    // Without hashing it would take far under a millisecond; argon2id takes tens.
+    // One measurement is at the mercy of a busy machine (a shared CI runner can slow a single
+    // check down threefold), so compare the fastest of several: the work itself, without noise.
+    const fastest = async (check: () => Promise<unknown>) => {
+      const times: number[] = [];
+      for (let i = 0; i < 7; i += 1) times.push(await time(check));
+      return Math.min(...times);
+    };
+    const realTime = await fastest(() => verifyPassword(real, "wrong-password"));
+    const dummyTime = await fastest(() => verifyDummyPassword("wrong-password"));
+    // Without hashing it would take far under a millisecond; argon2id takes about ten.
     expect(dummyTime).toBeGreaterThan(realTime / 3);
+    expect(dummyTime).toBeGreaterThan(1);
   });
 });
