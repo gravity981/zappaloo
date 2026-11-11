@@ -9,6 +9,7 @@ import { useAdminData, useErrorText } from "../admin/data.ts";
 import { useSession } from "../app/session.ts";
 import Countdown from "./Countdown.tsx";
 import DoorScene from "./DoorScene.tsx";
+import InstallHint from "./InstallHint.tsx";
 
 export default function WaitingPage() {
   const { t } = useTranslation();
@@ -29,6 +30,7 @@ export default function WaitingPage() {
           </button>
         </span>
       </header>
+      <InstallHint eventName={page?.eventName ?? t("app.name")} />
       <section className="waiting-card" aria-live="polite">
         {failed && (
           <p role="alert" className="error">

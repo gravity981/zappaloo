@@ -988,3 +988,34 @@
   width: 100%;
   align-self: stretch;
 }
+
+/* The install page (PWA-05): the app's tile and the numbered steps */
+.guest .install-tile {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.guest .install-tile img {
+  border-radius: 14px;
+  flex: none;
+}
+.guest .install-tile > div {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.guest .steps {
+  margin: 0;
+  padding-left: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.guest .steps li {
+  padding-left: 4px;
+}
+.guest .inline-icon {
+  width: 18px;
+  height: 18px;
+  vertical-align: -4px;
+}

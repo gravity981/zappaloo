@@ -11,6 +11,7 @@ import AdminUsersPage from "../admin/AdminUsersPage.tsx";
 import ForgotPasswordPage from "../pages/ForgotPasswordPage.tsx";
 import GamePage from "../pages/GamePage.tsx";
 import HomePage from "../pages/HomePage.tsx";
+import InstallPage from "../pages/InstallPage.tsx";
 import InvitePage from "../pages/InvitePage.tsx";
 import LoginPage from "../pages/LoginPage.tsx";
 import NotFoundPage from "../pages/NotFoundPage.tsx";
@@ -45,6 +46,8 @@ export const routes: RouteObject[] = [
             children: [
               // The RSVP is a flow of its own, without the page header.
               { path: "rsvp", element: <RsvpPage /> },
+              // Add to the home screen: a flow of its own, like the RSVP (PWA-05).
+              { path: "install", element: <InstallPage /> },
               {
                 element: <Layout />,
                 children: [
