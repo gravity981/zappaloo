@@ -43,6 +43,13 @@
       "when": 1794396773107,
       "tag": "0005_groovy_namora",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "6",
+      "when": 1794398621387,
+      "tag": "0006_tiresome_virginia_dare",
+      "breakpoints": true
     }
   ]
 }

@@ -27,7 +27,7 @@ describe("signing in", () => {
       },
     });
     renderAt("/login");
-    user.type(await screen.findByLabelText("Benutzername"), "anna");
+    user.type(await screen.findByLabelText("Benutzername oder E-Mail"), "anna");
     user.type(screen.getByLabelText("Passwort"), "correct-horse-battery");
     user.click(screen.getByRole("button", { name: "Anmelden" }));
 
@@ -55,7 +55,7 @@ describe("signing in", () => {
       }),
     });
     renderAt("/login");
-    user.type(await screen.findByLabelText("Benutzername"), "anna");
+    user.type(await screen.findByLabelText("Benutzername oder E-Mail"), "anna");
     user.type(screen.getByLabelText("Passwort"), "wrong-password");
     user.click(screen.getByRole("button", { name: "Anmelden" }));
     expect(await screen.findByRole("alert")).toHaveTextContent(
@@ -237,6 +237,57 @@ describe("email and account self-service", () => {
     expect(await screen.findByRole("alert")).toHaveTextContent("ungültig, abgelaufen");
   });
 
+  it("[ACC-16] says so when the address is already verified by another account", async () => {
+    fakeBackend({
+      "GET /api/session": () => anonymous,
+      "POST /api/email/verify": () => ({
+        status: 409,
+        body: { error: { code: "email_taken", message: "x" } },
+      }),
+    });
+    renderAt("/verify-email/token");
+    fireEvent.click(await screen.findByRole("button", { name: "Adresse bestätigen" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "schon bei einem anderen Konto bestätigt",
+    );
+  });
+
+  it("[ACC-16] the login field takes a username or an email address, and sends what was typed", async () => {
+    const calls = fakeBackend({
+      "GET /api/session": () => anonymous,
+      "POST /api/session": () => signedIn,
+    });
+    renderAt("/login");
+    const field = await screen.findByLabelText("Benutzername oder E-Mail");
+    expect(field).toHaveAccessibleDescription("E-Mail nur, wenn du sie im Profil bestätigt hast.");
+    user.type(field, "anna@example.ch");
+    user.type(screen.getByLabelText("Passwort"), "correct-horse-battery");
+    user.click(screen.getByRole("button", { name: "Anmelden" }));
+    await waitFor(() => {
+      expect(calls.some((c) => c.method === "POST")).toBe(true);
+    });
+    expect(calls.find((c) => c.method === "POST")?.body).toEqual({
+      username: "anna@example.ch",
+      password: "correct-horse-battery",
+    });
+  });
+
+  it("[ACC-16] the profile tells that a verified address also signs in", async () => {
+    fakeBackend({
+      "GET /api/session": () => ({
+        status: 200,
+        body: {
+          user: { ...anna, email: "anna@example.ch", emailStatus: "verified" },
+          csrfToken: "csrf-1",
+        },
+      }),
+    });
+    renderAt("/profile");
+    expect(
+      await screen.findByText("Die Adresse ist bestätigt. Du kannst dich damit auch anmelden."),
+    ).toBeInTheDocument();
+  });
+
   it("[ACC-12] deletes the account after the password and signs the user out", async () => {
     let current: { status: number; body: unknown } = signedIn;
     const calls = fakeBackend({
@@ -383,7 +434,7 @@ describe("sign-in is required (ACS-09)", () => {
     });
     renderAt("/profile");
     expect(await screen.findByRole("heading", { name: "Anmelden" })).toBeInTheDocument();
-    user.type(screen.getByLabelText("Benutzername"), "anna");
+    user.type(screen.getByLabelText("Benutzername oder E-Mail"), "anna");
     user.type(screen.getByLabelText("Passwort"), "correct-horse-battery");
     user.click(screen.getByRole("button", { name: "Anmelden" }));
     // The visitor wanted the profile and lands there.
@@ -453,7 +504,7 @@ describe("ended sessions and lost connections", () => {
     });
     renderAt("/profile");
     user.click(await screen.findByRole("button", { name: "Speichern" }));
-    expect(await screen.findByLabelText("Benutzername")).toBeInTheDocument();
+    expect(await screen.findByLabelText("Benutzername oder E-Mail")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Anmelden" })).toBeInTheDocument();
   });
 
@@ -467,7 +518,7 @@ describe("ended sessions and lost connections", () => {
       },
     });
     renderAt("/login");
-    user.type(await screen.findByLabelText("Benutzername"), "anna");
+    user.type(await screen.findByLabelText("Benutzername oder E-Mail"), "anna");
     user.type(screen.getByLabelText("Passwort"), "correct-horse-battery");
     const submit = screen.getByRole("button", { name: "Anmelden" });
     user.click(submit);

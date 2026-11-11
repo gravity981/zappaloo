@@ -80,20 +80,29 @@ export const auditLog = sqliteTable(
 // Accounts, sessions and links belong to a person, not to an event: they carry no
 // event_id. Only the event membership and its roles do (DATA-02).
 
-export const users = sqliteTable("users", {
-  id: integer("id").primaryKey({ autoIncrement: true }),
-  /** Login name, lower case, never changes. */
-  username: text("username").notNull().unique(),
-  displayName: text("display_name").notNull(),
-  email: text("email"),
-  emailStatus: text("email_status", { enum: ["unverified", "verified"] })
-    .notNull()
-    .default("unverified"),
-  /** argon2id hash string; null until the owner sets a password with a one-time link. */
-  passwordHash: text("password_hash"),
-  createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull(),
-  updatedAt: integer("updated_at", { mode: "timestamp_ms" }).notNull(),
-});
+export const users = sqliteTable(
+  "users",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    /** Login name, lower case, never changes. */
+    username: text("username").notNull().unique(),
+    displayName: text("display_name").notNull(),
+    email: text("email"),
+    emailStatus: text("email_status", { enum: ["unverified", "verified"] })
+      .notNull()
+      .default("unverified"),
+    /** argon2id hash string; null until the owner sets a password with a one-time link. */
+    passwordHash: text("password_hash"),
+    createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull(),
+    updatedAt: integer("updated_at", { mode: "timestamp_ms" }).notNull(),
+  },
+  (table) => [
+    // An address can be verified by one account only (ACC-16); unverified ones may repeat.
+    uniqueIndex("users_verified_email")
+      .on(sql`lower(${table.email})`)
+      .where(sql`${table.emailStatus} = 'verified'`),
+  ],
+);
 
 /** A user's membership of an event; the roles are in `membership_roles`. */
 export const memberships = sqliteTable(

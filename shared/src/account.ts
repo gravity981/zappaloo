@@ -47,8 +47,9 @@ export const sessionResponseSchema = z.object({
 });
 export type SessionResponse = z.infer<typeof sessionResponseSchema>;
 
+/** `POST /api/session`: `username` is a username or a verified email address (ACC-16). */
 export const loginRequestSchema = z.strictObject({
-  username: z.string().min(1).max(100),
+  username: z.string().min(1).max(254),
   password: z.string().min(1).max(PASSWORD_MAX_LENGTH),
 });
 export type LoginRequest = z.infer<typeof loginRequestSchema>;

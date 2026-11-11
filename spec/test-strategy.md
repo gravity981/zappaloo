@@ -100,8 +100,7 @@ All active requirements are listed here until their stage is delivered. Shrink t
 | OPS | OPS-02, OPS-12, OPS-13 | 3 |
 | SEC | SEC-04 – SEC-08 | 5 |
 | PERF | PERF-01, PERF-03, PERF-04 | 3 |
-| ACC | ACC-16 | 1 |
-| **Total** | | **126** |
+| **Total** | | **125** |
 
 The stage each requirement belongs to is listed in `sw-architecture.md`, section 28.
 

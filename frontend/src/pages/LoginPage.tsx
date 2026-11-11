@@ -33,8 +33,15 @@ export default function LoginPage() {
       <form onSubmit={(event) => void submit(event)}>
         <label>
           {t("login.username")}
-          <input name="username" autoComplete="username" required autoCapitalize="none" />
+          <input
+            name="username"
+            autoComplete="username"
+            required
+            autoCapitalize="none"
+            aria-describedby="login-username-hint"
+          />
         </label>
+        <p id="login-username-hint">{t("login.usernameHint")}</p>
         <label>
           {t("login.password")}
           <input name="password" type="password" autoComplete="current-password" required />

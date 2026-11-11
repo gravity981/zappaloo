@@ -296,6 +296,7 @@ const authPlugin: FastifyPluginAsyncZod<AuthOptions> = async (app, options) => {
       },
     },
     async (request, reply) => {
+      // "username" holds a username or a verified email address (ACC-16).
       const username = request.body.username.trim().toLowerCase();
       const userKey = `login:user:${username}`;
       const addressKey = `login:ip:${request.ip}`;
@@ -452,6 +453,10 @@ const authPlugin: FastifyPluginAsyncZod<AuthOptions> = async (app, options) => {
         if (error instanceof AccountError && error.code === "invalid_link") {
           limiter.hit(key, EMAIL_VERIFY_FAILURES_PER_ADDRESS);
           return sendError(reply, 400, { code: "invalid_link", message: error.message });
+        }
+        // Someone else has verified this address already (ACC-16).
+        if (error instanceof AccountError && error.code === "email_taken") {
+          return sendError(reply, 409, { code: "email_taken", message: error.message });
         }
         throw error;
       }

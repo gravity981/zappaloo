@@ -1,6 +1,6 @@
 // Accounts, event roles and one-time links (ACC-04, ACC-06, ACC-08, ACC-14,
 // ACC-15; sw-architecture.md 7.1.1).
-import { and, eq, inArray, isNotNull, isNull, lte, or, sql } from "drizzle-orm";
+import { and, eq, inArray, isNotNull, isNull, lte, ne, or, sql } from "drizzle-orm";
 import type { AdminUser, Capability, ProfileUpdate, Role, User } from "@zappaloo/shared";
 import type { Database } from "../database/database.ts";
 import {
@@ -27,7 +27,8 @@ export type AccountErrorCode =
   | "no_email"
   | "last_admin"
   | "not_staff"
-  | "password_is_username";
+  | "password_is_username"
+  | "email_taken";
 
 export class AccountError extends Error {
   override name = "AccountError";
@@ -233,13 +234,29 @@ export class AccountService {
     });
   }
 
-  /** Checks username and password; always does the hashing work, also for unknown users. */
-  async verifyLogin(username: string, password: string): Promise<User | undefined> {
-    const row = this.#database.db
+  /**
+   * The account a sign-in names: by username, or by a verified email address (ACC-16). An
+   * unverified address never matches, so a typo or someone else's address signs nobody in.
+   * Usernames have no `@`, so the two cannot be confused.
+   */
+  #findForLogin(identifier: string): UserRow | undefined {
+    const needle = identifier.trim().toLowerCase();
+    const { db } = this.#database;
+    if (!needle.includes("@"))
+      return db.select().from(users).where(eq(users.username, needle)).get();
+    return db
       .select()
       .from(users)
-      .where(eq(users.username, username.trim().toLowerCase()))
+      .where(and(eq(users.emailStatus, "verified"), eq(sql`lower(${users.email})`, needle)))
       .get();
+  }
+
+  /**
+   * Checks username or verified email address and the password; always does the hashing work,
+   * also for unknown users and unverified addresses, so the answer and the time reveal nothing.
+   */
+  async verifyLogin(identifier: string, password: string): Promise<User | undefined> {
+    const row = this.#findForLogin(identifier);
     if (!row?.passwordHash) {
       await verifyDummyPassword(password);
       return undefined;
@@ -411,8 +428,24 @@ export class AccountService {
       }
       tx.update(oneTimeLinks).set({ usedAt: now }).where(eq(oneTimeLinks.id, link.id)).run();
       const row = tx.select().from(users).where(eq(users.id, link.userId)).get();
-      if (row?.email !== link.email) {
+      if (!row?.email || row.email !== link.email) {
         throw new AccountError("invalid_link", "the address has changed since the link was sent");
+      }
+      // An address can be verified by one account only (ACC-16). The link stays unused: the
+      // transaction ends here and rolls the use back.
+      const taken = tx
+        .select({ id: users.id })
+        .from(users)
+        .where(
+          and(
+            eq(users.emailStatus, "verified"),
+            eq(sql`lower(${users.email})`, row.email.toLowerCase()),
+            ne(users.id, row.id),
+          ),
+        )
+        .get();
+      if (taken) {
+        throw new AccountError("email_taken", "another account has verified this address");
       }
       const updated = tx
         .update(users)

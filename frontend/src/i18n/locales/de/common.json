@@ -399,10 +399,11 @@
   },
   "login": {
     "title": "Anmelden",
-    "username": "Benutzername",
+    "username": "Benutzername oder E-Mail",
     "password": "Passwort",
     "submit": "Anmelden",
-    "forgot": "Passwort vergessen?"
+    "forgot": "Passwort vergessen?",
+    "usernameHint": "E-Mail nur, wenn du sie im Profil bestätigt hast."
   },
   "forgotPassword": {
     "title": "Passwort vergessen",
@@ -420,7 +421,7 @@
     "confirm": "Adresse bestätigen",
     "working": "Die Adresse wird bestätigt …",
     "doneTitle": "Adresse bestätigt",
-    "doneText": "Danke! Mit dieser Adresse kannst du dein Passwort per E-Mail zurücksetzen.",
+    "doneText": "Danke! Mit dieser Adresse kannst du dich anmelden und dein Passwort per E-Mail zurücksetzen.",
     "toProfile": "Zum Profil"
   },
   "setPassword": {
@@ -440,7 +441,7 @@
     "email": "E-Mail-Adresse (optional)",
     "emailStatus": {
       "unverified": "Die Adresse ist noch nicht bestätigt.",
-      "verified": "Die Adresse ist bestätigt."
+      "verified": "Die Adresse ist bestätigt. Du kannst dich damit auch anmelden."
     },
     "verifySend": "Bestätigungslink senden",
     "verifySent": "Wir haben dir einen Link geschickt. Er ist 24 Stunden gültig.",
@@ -505,7 +506,8 @@
     "companion_limit": "Du kannst höchstens {{count}} Begleitpersonen anmelden.",
     "platform_closed": "Die Tür ist noch zu. Sobald sie aufgeht, sagen wir dir Bescheid.",
     "already_open": "Die Plattform ist schon offen.",
-    "already_closed": "Die Plattform ist schon geschlossen."
+    "already_closed": "Die Plattform ist schon geschlossen.",
+    "email_taken": "Diese E-Mail-Adresse ist schon bei einem anderen Konto bestätigt. Trage im Profil eine andere ein."
   },
   "notSetUp": {
     "title": "Noch nicht eingerichtet",

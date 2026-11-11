@@ -1,0 +1,1 @@
+CREATE UNIQUE INDEX `users_verified_email` ON `users` (lower("email")) WHERE "users"."email_status" = 'verified';
