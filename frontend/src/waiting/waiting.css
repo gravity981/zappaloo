@@ -19,9 +19,9 @@
 }
 .waiting-top {
   position: absolute;
-  top: 12px;
-  left: 14px;
-  right: 14px;
+  top: calc(12px + env(safe-area-inset-top, 0px));
+  left: max(14px, env(safe-area-inset-left, 0px));
+  right: max(14px, env(safe-area-inset-right, 0px));
   z-index: 2;
   display: flex;
   justify-content: space-between;
@@ -49,9 +49,9 @@
 }
 .waiting-card {
   position: absolute;
-  left: 14px;
-  right: 14px;
-  bottom: 16px;
+  left: max(14px, env(safe-area-inset-left, 0px));
+  right: max(14px, env(safe-area-inset-right, 0px));
+  bottom: calc(16px + env(safe-area-inset-bottom, 0px));
   margin-inline: auto;
   max-width: 460px;
   z-index: 2;

@@ -100,9 +100,9 @@ All active requirements are listed here until their stage is delivered. Shrink t
 | OPS | OPS-02, OPS-12, OPS-13 | 3 |
 | SEC | SEC-04 – SEC-08 | 5 |
 | PERF | PERF-01, PERF-03, PERF-04 | 3 |
-| PWA | PWA-03 – PWA-05 | 3 |
+| PWA | PWA-05 | 1 |
 | LIC | LIC-01 – LIC-03 | 3 |
-| **Total** | | **131** |
+| **Total** | | **129** |
 
 The stage each requirement belongs to is listed in `sw-architecture.md`, section 28.
 
