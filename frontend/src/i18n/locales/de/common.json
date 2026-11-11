@@ -253,7 +253,8 @@
       "companion_withdraw": "Begleitanfrage «{{name}}» zurückgezogen",
       "companion_withdraw_unnamed": "Eine Begleitanfrage wurde zurückgezogen",
       "companion_rename": "Begleitperson «{{name}}» umbenannt",
-      "companion_rename_unnamed": "Eine Begleitperson wurde umbenannt"
+      "companion_rename_unnamed": "Eine Begleitperson wurde umbenannt",
+      "rsvp_song": "Songwunsch in der Rückmeldung ein- oder ausgeschaltet"
     },
     "rsvp": {
       "title": "Rückmeldungen",
@@ -326,7 +327,9 @@
       "menuName": "Bezeichnung des Menüs",
       "addMenu": "Menü hinzufügen",
       "noMenus": "Noch keine Menüs.",
-      "saved": "Gespeichert."
+      "saved": "Gespeichert.",
+      "song": "Songwunsch fragen",
+      "songHint": "Die Rückmeldung fragt nach einem Lieblingslied. Schaltest du es aus, wird nichts gefragt; bisherige Wünsche bleiben gespeichert."
     }
   },
   "home": {

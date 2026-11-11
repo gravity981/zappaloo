@@ -31,6 +31,7 @@ function state(changes: Record<string, unknown> = {}) {
     name: "Erika",
     deadline: "2027-05-01",
     closed: false,
+    songEnabled: true,
     parts: PARTS,
     menus: MENUS,
     answer: null,
@@ -315,6 +316,7 @@ describe("the wizard in admin mode", () => {
 describe("Rückmeldungen", () => {
   const overview = {
     deadline: "2027-05-01",
+    songEnabled: true,
     parts: PARTS,
     menus: MENUS,
     totals: [
@@ -433,7 +435,7 @@ describe("Rückmeldungen", () => {
 });
 
 describe("Einstellungen › Rückmeldung", () => {
-  const config = { deadline: "2027-05-01", parts: PARTS, menus: MENUS };
+  const config = { deadline: "2027-05-01", songEnabled: true, parts: PARTS, menus: MENUS };
 
   it("[RSVP-02] the admin adds a part; the start is entered in the event's time zone", async () => {
     const calls = fakeBackend({
@@ -526,7 +528,7 @@ describe("Einstellungen › Rückmeldung", () => {
 });
 
 describe("invited parts", () => {
-  const config = { deadline: null, parts: PARTS, menus: [] };
+  const config = { deadline: null, songEnabled: true, parts: PARTS, menus: [] };
   const invitation = (changes: Record<string, unknown> = {}) => ({
     id: 1,
     guestName: "Anna Muster",
@@ -632,6 +634,7 @@ describe("invited parts", () => {
 describe("Übersicht", () => {
   const overview = {
     deadline: null,
+    songEnabled: true,
     parts: PARTS,
     menus: MENUS,
     totals: [],
@@ -701,5 +704,86 @@ describe("Übersicht", () => {
     });
     renderAt("/admin");
     expect(await screen.findByText("Noch nichts passiert.")).toBeInTheDocument();
+  });
+});
+
+describe("the song wish switch", () => {
+  it("[RSVP-06] the wizard asks for no song wish while the admin has switched it off", async () => {
+    const calls = fakeBackend({
+      "GET /api/session": () => asGuest,
+      "GET /api/rsvp": () => ({
+        status: 200,
+        body: state({ songEnabled: false, answer: answered([1], { songWish: "ABBA" }) }),
+      }),
+      "PUT /api/rsvp": () => ({
+        status: 200,
+        body: state({ songEnabled: false, answer: answered([1]) }),
+      }),
+    });
+    renderAt("/rsvp");
+    // The summary does not show an earlier wish.
+    await screen.findByRole("button", { name: "Ändern" });
+    expect(screen.queryByText("ABBA")).not.toBeInTheDocument();
+    user.click(screen.getByRole("button", { name: "Ändern" }));
+    user.click(await screen.findByRole("button", { name: "Weiter" }));
+    user.click(await screen.findByRole("button", { name: "Weiter" }));
+    await screen.findByRole("heading", { name: "Begleitpersonen & Musik" });
+    expect(screen.queryByLabelText("Songwunsch (optional)")).not.toBeInTheDocument();
+    user.click(screen.getByRole("button", { name: "Antwort senden" }));
+    await waitFor(() => {
+      expect(calls.some((c) => c.method === "PUT")).toBe(true);
+    });
+    expect(calls.find((c) => c.method === "PUT")?.body).not.toHaveProperty("songWish");
+  });
+
+  it("[RSVP-06] the admin switches the song wish in Einstellungen", async () => {
+    const calls = fakeBackend({
+      "GET /api/session": () => asAdmin,
+      "GET /api/admin/rsvp/config": () => ({
+        status: 200,
+        body: { deadline: null, songEnabled: true, parts: PARTS, menus: MENUS },
+      }),
+      "PUT /api/admin/rsvp/song": () => ({ status: 204 }),
+    });
+    renderAt("/admin/settings");
+    const toggle = await screen.findByRole("switch", { name: "Songwunsch fragen" });
+    expect(toggle).toHaveAttribute("aria-checked", "true");
+    user.click(toggle);
+    await waitFor(() => {
+      expect(calls.some((c) => c.method === "PUT")).toBe(true);
+    });
+    expect(calls.find((c) => c.method === "PUT")).toMatchObject({
+      csrf: "csrf-9",
+      body: { enabled: false },
+    });
+  });
+
+  it("[RSVP-06] the guest table has no song column while it is off", async () => {
+    fakeBackend({
+      "GET /api/session": () => asAdmin,
+      "GET /api/admin/rsvp": () => ({
+        status: 200,
+        body: {
+          deadline: null,
+          songEnabled: false,
+          parts: PARTS,
+          menus: MENUS,
+          totals: [],
+          menuTotals: [],
+          guests: [],
+          companions: [],
+          pendingCount: 0,
+          answered: 0,
+          total: 0,
+          reminderCount: 0,
+        },
+      }),
+    });
+    renderAt("/admin/rsvp");
+    const table = await screen.findByRole("table");
+    expect(
+      within(table).queryByRole("columnheader", { name: "Songwunsch" }),
+    ).not.toBeInTheDocument();
+    expect(within(table).getByRole("columnheader", { name: /Allergien/ })).toBeInTheDocument();
   });
 });

@@ -45,6 +45,7 @@ function state(changes: Record<string, unknown> = {}) {
     name: "Erika",
     deadline: "2027-05-01",
     closed: false,
+    songEnabled: true,
     parts: PARTS,
     menus: MENUS,
     answer: {
@@ -387,6 +388,7 @@ describe("accompanying persons in the wizard", () => {
 describe("Rückmeldungen: companion requests", () => {
   const overview = (changes: Record<string, unknown> = {}) => ({
     deadline: null,
+    songEnabled: true,
     parts: PARTS,
     menus: MENUS,
     totals: [],

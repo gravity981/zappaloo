@@ -125,7 +125,9 @@ function WizardForm({
     setSending(true);
     const body: RsvpAnswerRequest = {
       ...answerOf(own, parts, menus),
-      ...(attendsAny(own) ? { songWish: songWish.trim() === "" ? null : songWish.trim() } : {}),
+      ...(state.songEnabled && attendsAny(own)
+        ? { songWish: songWish.trim() === "" ? null : songWish.trim() }
+        : {}),
       companions: companions.map((c) => ({
         companionId: c.id,
         ...answerOf(valueOf(c), parts, menus),
@@ -215,7 +217,9 @@ function WizardForm({
                 ))}
               </ul>
             </div>
-            {(attending || state.companions.length > 0 || answer.songWish) && (
+            {(attending ||
+              state.companions.length > 0 ||
+              (state.songEnabled && answer.songWish)) && (
               <div className="card">
                 <ul className="list">
                   {attending && (
@@ -259,7 +263,7 @@ function WizardForm({
                       </span>
                     </li>
                   ))}
-                  {answer.songWish && (
+                  {state.songEnabled && answer.songWish && (
                     <li className="li">
                       <div className="grow">
                         <b>{t("rsvp.songWish")}</b>
@@ -434,7 +438,7 @@ function WizardForm({
         onChanged={onSaved}
         onRefresh={onRefresh}
       />
-      {attendsAny(own) && (
+      {state.songEnabled && attendsAny(own) && (
         <div className="card">
           <label className="field">
             <span>{t("rsvp.song")}</span>

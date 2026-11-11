@@ -195,14 +195,14 @@ export default function AdminRsvpPage() {
                 <th>{t("admin.rsvp.status")}</th>
                 <th>{t("admin.rsvp.parts")}</th>
                 <th>{t("admin.rsvp.menu")}</th>
-                <th>{t("admin.rsvp.song")}</th>
+                {data.songEnabled && <th>{t("admin.rsvp.song")}</th>}
                 <th>🔒 {t("admin.rsvp.allergies")}</th>
               </tr>
             </thead>
             <tbody>
               {shown.length === 0 && (
                 <tr>
-                  <td colSpan={6}>{t("admin.rsvp.noGuests")}</td>
+                  <td colSpan={data.songEnabled ? 6 : 5}>{t("admin.rsvp.noGuests")}</td>
                 </tr>
               )}
               {shown.map((guest) => (
@@ -232,7 +232,7 @@ export default function AdminRsvpPage() {
                         ? menuName(guest.menuId)
                         : t("admin.rsvp.none")}
                     </td>
-                    <td>{guest.songWish ?? t("admin.rsvp.none")}</td>
+                    {data.songEnabled && <td>{guest.songWish ?? t("admin.rsvp.none")}</td>}
                     <td>{guest.allergies ?? t("admin.rsvp.none")}</td>
                   </tr>
                   {data.companions
@@ -257,7 +257,7 @@ export default function AdminRsvpPage() {
                             ? menuName(c.menuId)
                             : t("admin.rsvp.none")}
                         </td>
-                        <td>{t("admin.rsvp.none")}</td>
+                        {data.songEnabled && <td>{t("admin.rsvp.none")}</td>}
                         <td>{c.allergies ?? t("admin.rsvp.none")}</td>
                       </tr>
                     ))}

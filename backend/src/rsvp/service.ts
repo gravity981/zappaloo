@@ -116,6 +116,16 @@ export class RsvpService {
       .all();
   }
 
+  #songEnabled(reader: Reader = this.#database.db): boolean {
+    return (
+      reader
+        .select({ songEnabled: rsvpConfig.songEnabled })
+        .from(rsvpConfig)
+        .where(eq(rsvpConfig.eventId, this.#event.eventId))
+        .get()?.songEnabled ?? true
+    );
+  }
+
   #deadline(reader: Reader = this.#database.db): string | null {
     return (
       reader
@@ -127,7 +137,12 @@ export class RsvpService {
   }
 
   config(): RsvpConfig {
-    return { deadline: this.#deadline(), parts: this.#parts(), menus: this.#menus() };
+    return {
+      deadline: this.#deadline(),
+      songEnabled: this.#songEnabled(),
+      parts: this.#parts(),
+      menus: this.#menus(),
+    };
   }
 
   /** True once the deadline day is over in the event's time zone (RSVP-04). */
@@ -147,6 +162,18 @@ export class RsvpService {
         .onConflictDoUpdate({ target: rsvpConfig.eventId, set: { deadline } })
         .run();
       this.#event.audit(actor, "rsvp.deadline", { from: before, to: deadline }, tx);
+    });
+  }
+
+  /** Switches the song wish on or off (RSVP-06); answers already given are kept. */
+  setSongEnabled(enabled: boolean, actor: Actor): void {
+    this.#database.db.transaction((tx) => {
+      if (this.#songEnabled(tx) === enabled) return;
+      tx.insert(rsvpConfig)
+        .values({ eventId: this.#event.eventId, songEnabled: enabled })
+        .onConflictDoUpdate({ target: rsvpConfig.eventId, set: { songEnabled: enabled } })
+        .run();
+      this.#event.audit(actor, "rsvp.song", { to: enabled }, tx);
     });
   }
 
@@ -393,6 +420,7 @@ export class RsvpService {
       name: guest.displayName,
       deadline: this.#deadline(),
       closed: this.isClosed(),
+      songEnabled: this.#songEnabled(),
       parts: this.#parts().filter((part) => invited.has(part.id)),
       menus: this.#menus(),
       answer: this.#answer(db, userId),
@@ -641,8 +669,8 @@ export class RsvpService {
 
   /**
    * Saves the answer of a guest (RSVP-01, RSVP-03, RSVP-06): yes or no for every invited part;
-   * a menu choice for a person who attends the meal part while menus exist; allergies and song
-   * wish optionally. A guest who declines every part keeps no menu, allergies or song wish.
+   * a menu choice for a person who attends the meal part while menus exist; allergies and, while
+   * the admin has switched it on, a song wish optionally. A guest who declines every part keeps no menu, allergies or song wish.
    * After the deadline only an admin can change it (`admin`, RSVP-04).
    */
   answer(userId: number, input: RsvpAnswerRequest, actor: Actor, admin = false): RsvpState {
@@ -665,7 +693,10 @@ export class RsvpService {
       const values = {
         menuId,
         allergies: anyAttending ? (input.allergies ?? null) : null,
-        songWish: anyAttending ? (input.songWish ?? null) : null,
+        // While the song wish is off, nothing is asked and an earlier wish stays as it is.
+        ...(this.#songEnabled(tx)
+          ? { songWish: anyAttending ? (input.songWish ?? null) : null }
+          : {}),
         answeredAt: this.#now(),
       };
       tx.insert(rsvpAnswers)
@@ -841,7 +872,7 @@ export class RsvpService {
       "Status",
       ...overview.parts.map((part) => part.name),
       "Menü",
-      "Songwunsch",
+      ...(overview.songEnabled ? ["Songwunsch"] : []),
       "Allergien",
     ];
     const status = { attending: "zugesagt", declined: "abgesagt", none: "ohne Antwort" } as const;
@@ -859,7 +890,7 @@ export class RsvpService {
                 : "nein",
         ),
         menuName(guest.menuId),
-        guest.songWish ?? "",
+        ...(overview.songEnabled ? [guest.songWish ?? ""] : []),
         guest.allergies ?? "",
       ],
       // Approved companions follow their guest, marked with an arrow.
@@ -876,7 +907,7 @@ export class RsvpService {
                 : "nein",
           ),
           menuName(c.menuId),
-          "",
+          ...(overview.songEnabled ? [""] : []),
           c.allergies ?? "",
         ]),
     ]);

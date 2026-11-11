@@ -336,6 +336,8 @@ export const rsvpConfig = sqliteTable("rsvp_config", {
     .references(() => events.id),
   /** The last day guests can change their RSVP, as `YYYY-MM-DD` in the event's time zone. */
   deadline: text("deadline"),
+  /** Whether the RSVP asks for a song wish (RSVP-06); the admin switches it. */
+  songEnabled: integer("song_enabled", { mode: "boolean" }).notNull().default(true),
 });
 
 /** The parts an invitation is for; copied to the membership when the code is redeemed. */

@@ -18,6 +18,7 @@ import {
   rsvpAnswerRequestSchema,
   rsvpConfigSchema,
   rsvpOverviewSchema,
+  songEnabledRequestSchema,
   rsvpStateSchema,
 } from "@zappaloo/shared";
 import type { FastifyReply } from "fastify";
@@ -215,6 +216,15 @@ const rsvpPlugin: FastifyPluginAsyncZod<AuthOptions> = (app, options) => {
     { ...admin, schema: { querystring: noQuery, body: deadlineRequestSchema } },
     async (request, reply) => {
       rsvp.setDeadline(request.body.deadline, actor(request));
+      return await reply.status(204).send();
+    },
+  );
+
+  app.put(
+    "/api/admin/rsvp/song",
+    { ...admin, schema: { querystring: noQuery, body: songEnabledRequestSchema } },
+    async (request, reply) => {
+      rsvp.setSongEnabled(request.body.enabled, actor(request));
       return await reply.status(204).send();
     },
   );

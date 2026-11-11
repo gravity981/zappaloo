@@ -52,9 +52,14 @@ export type MenuRequest = z.infer<typeof menuRequestSchema>;
 export const deadlineRequestSchema = z.strictObject({ deadline: dateSchema.nullable() });
 export type DeadlineRequest = z.infer<typeof deadlineRequestSchema>;
 
+/** `PUT /api/admin/rsvp/song`: switches the song wish on or off. */
+export const songEnabledRequestSchema = z.strictObject({ enabled: z.boolean() });
+
 /** `GET /api/admin/rsvp/config`: deadline, parts and menus (Einstellungen › Rückmeldung). */
 export const rsvpConfigSchema = z.object({
   deadline: dateSchema.nullable(),
+  /** Whether the RSVP asks for a song wish (RSVP-06). */
+  songEnabled: z.boolean(),
   parts: z.array(eventPartSchema),
   menus: z.array(menuOptionSchema),
 });
@@ -135,6 +140,8 @@ export const rsvpStateSchema = z.object({
   deadline: dateSchema.nullable(),
   /** True once the deadline has passed (the guest cannot change anything any more). */
   closed: z.boolean(),
+  /** Whether the wizard asks for a song wish (RSVP-06). */
+  songEnabled: z.boolean(),
   /** The parts the guest is invited to. */
   parts: z.array(eventPartSchema),
   menus: z.array(menuOptionSchema),
@@ -172,6 +179,8 @@ export type RsvpCompanion = z.infer<typeof rsvpCompanionSchema>;
 /** `GET /api/admin/rsvp`: the overview. */
 export const rsvpOverviewSchema = z.object({
   deadline: dateSchema.nullable(),
+  /** Whether the song wish is asked; the table shows its column only then. */
+  songEnabled: z.boolean(),
   parts: z.array(eventPartSchema),
   menus: z.array(menuOptionSchema),
   /** Per part: guests who answered yes and no (invited and answered, not attending). */
@@ -212,6 +221,7 @@ export const ACTIVITY_ACTIONS = [
   "rsvp.admin_answer",
   "rsvp.remind",
   "rsvp.deadline",
+  "rsvp.song",
   "rsvp.part.create",
   "rsvp.part.update",
   "rsvp.part.delete",

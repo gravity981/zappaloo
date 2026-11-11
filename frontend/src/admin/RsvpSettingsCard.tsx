@@ -9,8 +9,10 @@ import type { EventPart } from "@zappaloo/shared";
 import { fieldText } from "../app/forms.ts";
 import { useEventFormat } from "../rsvp/format.ts";
 import { useAdminCall, useAdminData, useErrorText } from "./data.ts";
+import { Switch } from "./ui.tsx";
 
 const PARTS_PATH = "/api/admin/rsvp/parts";
+const SONG_PATH = "/api/admin/rsvp/song";
 
 /** The form of one part; `part` undefined is a new one. */
 function PartForm({
@@ -151,6 +153,18 @@ export default function RsvpSettingsCard() {
           )}
         </div>
       </form>
+
+      <div className="setrow">
+        <div className="grow">
+          <b className="sm">{t("admin.rsvpSettings.song")}</b>
+          <span className="hint">{t("admin.rsvpSettings.songHint")}</span>
+        </div>
+        <Switch
+          checked={data.songEnabled}
+          label={t("admin.rsvpSettings.song")}
+          onChange={(enabled) => void run("PUT", SONG_PATH, { enabled })}
+        />
+      </div>
 
       <b className="sm">{t("admin.rsvpSettings.parts")}</b>
       <span className="hint">{t("admin.rsvpSettings.partsHint")}</span>

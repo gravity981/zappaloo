@@ -1264,6 +1264,7 @@ add({
       <span class="m-hint">Ist die Plattform offen, steht hier «Wieder schliessen» (ohne E-Mail).</span></div>
     <div class="m-grid-d2">
       <div class="m-card"><b>Rückmeldung</b>${field("Frist", inp("as-dl", "2027-05-01", 'type="date" style="width:auto"'))}
+        <div class="m-setrow"><div class="grow"><b class="sm">Songwunsch fragen</b><span class="m-hint">Die Rückmeldung fragt nach einem Lieblingslied (decided 2026-11-11).</span></div>${sw(true)}</div>
         <span class="m-eyebrow">Teile</span><div class="m-chips">${PARTS.map((p) => `<span class="m-chip">${p[0]} · ${p[1]}${p[0] === "Dinner" ? " · Essen" : ""}</span>`).join("")}<button class="m-chip">${ic("plus")}</button></div>
         <span class="m-hint">Ein Teil hat Name, Uhrzeit und Ort. Ein Teil kann das Essen haben: Nur dafür wird das Menü gefragt.</span>
         <span class="m-eyebrow">Menüs (für alle)</span><div class="m-chips">${MENUS.map((p) => `<span class="m-chip">${p}</span>`).join("")}<button class="m-chip">${ic("plus")}</button></div></div>

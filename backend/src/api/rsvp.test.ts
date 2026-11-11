@@ -833,3 +833,66 @@ describe("the activity card", () => {
     expect((await ctx.app.inject({ url: "/api/admin/activity" })).statusCode).toBe(401);
   });
 });
+
+describe("the song wish switch", () => {
+  it("[RSVP-06] the song wish is on by default; the admin switches it off and on, only admins", async () => {
+    const { root, call, get, guest } = await setup();
+    const anna = await guest("anna");
+    expect(
+      (await get<{ songEnabled: boolean }>(root, "/api/admin/rsvp/config")).body.songEnabled,
+    ).toBe(true);
+    expect((await call(anna, "PUT", "/api/admin/rsvp/song", { enabled: false })).status).toBe(403);
+    expect((await call(root, "PUT", "/api/admin/rsvp/song", { enabled: "no" })).status).toBe(400);
+    expect((await call(root, "PUT", "/api/admin/rsvp/song", { enabled: false })).status).toBe(204);
+    expect(
+      (await get<{ songEnabled: boolean }>(root, "/api/admin/rsvp/config")).body.songEnabled,
+    ).toBe(false);
+    expect(
+      (await get<RsvpState & { songEnabled: boolean }>(anna, "/api/rsvp")).body.songEnabled,
+    ).toBe(false);
+    expect((await call(root, "PUT", "/api/admin/rsvp/song", { enabled: true })).status).toBe(204);
+    expect(
+      (await get<RsvpState & { songEnabled: boolean }>(anna, "/api/rsvp")).body.songEnabled,
+    ).toBe(true);
+  });
+
+  it("[RSVP-06] while it is off no song wish is taken, an earlier one stays, and it is not exported", async () => {
+    const { get, call, parts, guest, root } = await setup();
+    const anna = await guest("anna");
+    const ben = await guest("ben");
+    await call(anna, "PUT", "/api/rsvp", { attendance: yes(parts, "Trauung"), songWish: "ABBA" });
+    await call(root, "PUT", "/api/admin/rsvp/song", { enabled: false });
+
+    // Ben cannot slip a wish in; Anna changes her answer and keeps hers.
+    await call(ben, "PUT", "/api/rsvp", { attendance: yes(parts, "Trauung"), songWish: "Queen" });
+    await call(anna, "PUT", "/api/rsvp", { attendance: yes(parts, "Trauung", "Party") });
+    const overview = (await get<RsvpOverview>(root, "/api/admin/rsvp")).body;
+    expect(overview.songEnabled).toBe(false);
+    expect(overview.guests.map((g) => [g.name, g.songWish])).toEqual([
+      ["anna", "ABBA"],
+      ["ben", null],
+    ]);
+    const header = (await get(root, "/api/admin/rsvp/export")).raw.body.split("\r\n")[0];
+    expect(header).toBe("Name;Status;Trauung;Apéro;Dinner;Party;Menü;Allergien");
+
+    // Switched on again, the wish is there and can be changed.
+    await call(root, "PUT", "/api/admin/rsvp/song", { enabled: true });
+    expect((await get<RsvpState>(anna, "/api/rsvp")).body.answer?.songWish).toBe("ABBA");
+    expect((await get(root, "/api/admin/rsvp/export")).raw.body.split("\r\n")[0]).toContain(
+      "Songwunsch",
+    );
+  });
+
+  it("[DATA-05] switching the song wish is audited and shows on the card Zuletzt", async () => {
+    const { ctx, root, call } = await setup();
+    await call(root, "PUT", "/api/admin/rsvp/song", { enabled: false });
+    // Switching to the same value changes and logs nothing.
+    await call(root, "PUT", "/api/admin/rsvp/song", { enabled: false });
+    expect(ctx.event.auditEntries().filter((e) => e.action === "rsvp.song")).toHaveLength(1);
+    const response = await ctx.app.inject({
+      url: "/api/admin/activity",
+      headers: { cookie: root.cookie },
+    });
+    expect(response.json<{ entries: ActivityEntry[] }>().entries[0]?.action).toBe("rsvp.song");
+  });
+});
