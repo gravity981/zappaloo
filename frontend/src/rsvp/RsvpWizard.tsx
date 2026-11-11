@@ -7,14 +7,14 @@ import "../app/ui.css";
 import { useState } from "react";
 import type { ReactNode } from "react";
 import { useTranslation } from "react-i18next";
-import { rsvpStateSchema } from "@zappaloo/shared";
+import { rsvpStateSchema, rsvpStatus } from "@zappaloo/shared";
 import type { Companion, EventPart, RsvpAnswerRequest, RsvpState } from "@zappaloo/shared";
 import { apiRequest } from "../app/api.ts";
 import { useSession } from "../app/session.ts";
 import { useAdminData, useErrorText } from "../admin/data.ts";
 import { FlowShell } from "../guest/Shells.tsx";
 import { CompanionForm, CompanionsCard, MenuFields, PartsBlock } from "./Companions.tsx";
-import { answerOf, attendsAny, needsMenu, personOf } from "./person.ts";
+import { answerOf, answeredAll, attendanceOf, attendsAny, needsMenu, personOf } from "./person.ts";
 import type { PersonValue } from "./person.ts";
 import { useEventFormat } from "./format.ts";
 
@@ -123,17 +123,17 @@ function WizardForm({
   const errorText = useErrorText();
   const format = useEventFormat();
   const answer = state.answer;
-  const [step, setStep] = useState<Step>(answer ? "summary" : 1);
-  const [view, setView] = useState<View>(WIZARD);
-  const [own, setOwn] = useState<PersonValue>(() => ({
-    attendance: answer
-      ? Object.fromEntries(
-          state.parts.map((part) => [part.id, answer.attendingPartIds.includes(part.id)]),
-        )
-      : {},
+  const initial: PersonValue = {
+    attendance: answer ? attendanceOf(answer, state.parts) : {},
     menuId: answer?.menuId ?? null,
     allergies: answer?.allergies ?? "",
-  }));
+  };
+  // A part added after the answer is open: the wizard starts at the attendance again.
+  const [step, setStep] = useState<Step>(
+    answer && (state.closed || answeredAll(initial, state.parts)) ? "summary" : 1,
+  );
+  const [view, setView] = useState<View>(WIZARD);
+  const [own, setOwn] = useState<PersonValue>(initial);
   const [songWish, setSongWish] = useState(answer?.songWish ?? "");
   /** What the guest changed about companions in the steps; the rest is as the server has it. */
   const [edits, setEdits] = useState<Record<number, PersonValue>>({});
@@ -154,7 +154,9 @@ function WizardForm({
   /** Persons the RSVP is about: the guest and the companions that are not rejected. */
   const companions = state.companions.filter((c) => c.status !== "rejected");
   const attendingCompanions = companions.filter((c) => attendsAny(valueOf(c)));
-  const ownAnswered = parts.every((part) => own.attendance[part.id] !== undefined);
+  // The guest and the approved companions answer every part in step 1.
+  const ownAnswered =
+    answeredAll(own, parts) && approved.every((c) => answeredAll(valueOf(c), parts));
   const nobody = !attendsAny(own) && attendingCompanions.length === 0;
   const menuMissing =
     (attendsAny(own) && needsMenu(own, parts, menus) && own.menuId === null) ||
@@ -170,10 +172,13 @@ function WizardForm({
       ...(state.songEnabled && attendsAny(own)
         ? { songWish: songWish.trim() === "" ? null : songWish.trim() }
         : {}),
-      companions: companions.map((c) => ({
-        companionId: c.id,
-        ...answerOf(valueOf(c), parts, menus),
-      })),
+      // A pending request with an open part keeps its answer; it is completed in its own form.
+      companions: companions
+        .filter((c) => answeredAll(valueOf(c), parts))
+        .map((c) => ({
+          companionId: c.id,
+          ...answerOf(valueOf(c), parts, menus),
+        })),
     };
     const result = await apiRequest("PUT", path, { body, csrfToken: session.csrfToken });
     setSending(false);
@@ -232,7 +237,14 @@ function WizardForm({
           setView(WIZARD);
         }}
         onSaved={(next) => {
-          // Companions change on their own; the guest's own answer stays as typed.
+          // Companions change on their own; the guest's own answer stays as typed. What the
+          // steps held for this companion is out of date now: the saved request wins.
+          const savedId = view.companion?.id;
+          if (savedId !== undefined) {
+            setEdits((current) =>
+              Object.fromEntries(Object.entries(current).filter(([id]) => Number(id) !== savedId)),
+            );
+          }
           onSaved(next);
           setView(WIZARD);
         }}
@@ -242,7 +254,13 @@ function WizardForm({
 
   // --- Summary ---------------------------------------------------------------------------
   if (step === "summary" || (locked && !answer)) {
-    const attending = answer ? answer.attendingPartIds.length > 0 : false;
+    const status = rsvpStatus(
+      answer !== null,
+      parts.map((part) => part.id),
+      answer?.attendingPartIds ?? [],
+      answer?.declinedPartIds ?? [],
+    );
+    const attending = status === "attending";
     const menuName = (id: number | null) => menus.find((menu) => menu.id === id)?.name;
     return (
       <Frame
@@ -272,15 +290,13 @@ function WizardForm({
         }
       >
         {admin && <p className="hint">{t("rsvp.adminMode")}</p>}
-        {answer ? (
-          <h1 className="h1">
-            {attending
-              ? t("rsvp.done", { name: state.name })
-              : t("rsvp.declined", { name: state.name })}
-          </h1>
-        ) : (
-          <h1 className="h1">{t("rsvp.notAnswered")}</h1>
-        )}
+        <h1 className="h1">
+          {status === "attending"
+            ? t("rsvp.done", { name: state.name })
+            : status === "declined"
+              ? t("rsvp.declined", { name: state.name })
+              : t("rsvp.notAnswered")}
+        </h1>
         {answer && (
           <>
             <div className="card">
@@ -288,11 +304,13 @@ function WizardForm({
                 {parts.map((part) => (
                   <li key={part.id} className="li">
                     <b className="grow">{part.name}</b>
-                    <span className={answer.attendingPartIds.includes(part.id) ? "tag ok" : "tag"}>
-                      {answer.attendingPartIds.includes(part.id)
-                        ? t("rsvp.attending")
-                        : t("rsvp.notAttending")}
-                    </span>
+                    {answer.attendingPartIds.includes(part.id) ? (
+                      <span className="tag ok">{t("rsvp.attending")}</span>
+                    ) : answer.declinedPartIds.includes(part.id) ? (
+                      <span className="tag">{t("rsvp.notAttending")}</span>
+                    ) : (
+                      <span className="tag warn">{t("rsvp.openPart")}</span>
+                    )}
                   </li>
                 ))}
               </ul>

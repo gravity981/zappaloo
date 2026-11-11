@@ -72,6 +72,31 @@ describe("the pages without sign-in", () => {
     }
   });
 
+  it("[SEC-09] so do the invitation, the profile, the website and the not-found page", async () => {
+    const pages: [string, Record<string, () => { status: number; body?: unknown }>][] = [
+      [
+        "/invite/K7QMX4",
+        {
+          "GET /api/session": () => anonymous,
+          "GET /api/invitations/K7QMX4": () => ({ status: 200, body: { guestName: "Erika" } }),
+        },
+      ],
+      ["/gibt-es-nicht", { "GET /api/session": () => anonymous }],
+      ["/profile", { "GET /api/session": () => asGuest }],
+      ["/", { "GET /api/session": () => asGuest }],
+    ];
+    for (const [path, handlers] of pages) {
+      fakeBackend(handlers);
+      renderAt(path);
+      expect(
+        (await screen.findAllByRole("link", { name: "Datenschutz" }))[0],
+        path,
+      ).toHaveAttribute("href", "/datenschutz");
+      vi.unstubAllGlobals();
+      document.body.innerHTML = "";
+    }
+  });
+
   it("[ACC-01] the login page offers the way to redeem an invitation, as a card", async () => {
     fakeBackend({ "GET /api/session": () => anonymous });
     renderAt("/login");

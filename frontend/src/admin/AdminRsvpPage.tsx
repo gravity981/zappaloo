@@ -28,9 +28,13 @@ export default function AdminRsvpPage() {
   const { data, failed, reload } = useAdminData("/api/admin/rsvp", rsvpOverviewSchema);
   const [filter, setFilter] = useState<RsvpStatus>();
   const [message, setMessage] = useState<{ ok: boolean; text: string }>();
+  /** While a request runs its buttons are off, so a double click sends nothing twice. */
+  const [busy, setBusy] = useState<"remind" | number>();
 
   async function decide(id: number, decision: "approve" | "reject") {
+    setBusy(id);
     const result = await call("POST", `/api/admin/rsvp/companions/${String(id)}/${decision}`);
+    setBusy(undefined);
     setMessage(result.ok ? undefined : { ok: false, text: errorText(result.errorCode) });
     reload();
     notifyRsvpChanged();
@@ -38,7 +42,9 @@ export default function AdminRsvpPage() {
 
   async function remind() {
     if (!data) return;
+    setBusy("remind");
     const result = await call("POST", "/api/admin/rsvp/remind");
+    setBusy(undefined);
     const parsed = remindResponseSchema.safeParse(result.body);
     if (result.ok && parsed.success) {
       setMessage({ ok: true, text: t("admin.rsvp.reminded", { count: parsed.data.sent }) });
@@ -84,7 +90,7 @@ export default function AdminRsvpPage() {
         <button
           type="button"
           className="btn sm"
-          disabled={data.reminderCount === 0}
+          disabled={data.reminderCount === 0 || busy === "remind"}
           onClick={() => void remind()}
         >
           {t("admin.rsvp.remind", { count: data.reminderCount })}
@@ -115,6 +121,7 @@ export default function AdminRsvpPage() {
                     type="button"
                     className="btn ghost sm"
                     aria-label={`${t("admin.rsvp.reject")}: ${c.name}`}
+                    disabled={busy === c.id}
                     onClick={() => void decide(c.id, "reject")}
                   >
                     {t("admin.rsvp.reject")}
@@ -123,6 +130,7 @@ export default function AdminRsvpPage() {
                     type="button"
                     className="btn sm"
                     aria-label={`${t("admin.rsvp.approve")}: ${c.name}`}
+                    disabled={busy === c.id}
                     onClick={() => void decide(c.id, "approve")}
                   >
                     {t("admin.rsvp.approve")}

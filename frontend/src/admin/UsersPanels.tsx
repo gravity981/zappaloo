@@ -22,6 +22,32 @@ function Alert({ text }: { text: string | undefined }) {
   ) : null;
 }
 
+/** The second step before `vip` is revoked: the guest's RSVP is deleted with it (7.4.1). */
+export function RevokeVipConfirm({
+  user,
+  onConfirm,
+  onCancel,
+}: {
+  user: AdminUser;
+  onConfirm: () => void;
+  onCancel: () => void;
+}) {
+  const { t } = useTranslation();
+  return (
+    <div className="card flat" role="alertdialog" aria-labelledby="revoke-vip">
+      <span id="revoke-vip">{t("admin.users.revokeVip", { name: user.displayName })}</span>
+      <div className="row">
+        <button type="button" className="btn danger sm" onClick={onConfirm}>
+          {t("admin.users.revokeVipFinal")}
+        </button>
+        <button type="button" className="btn ghost sm" onClick={onCancel}>
+          {t("admin.cancel")}
+        </button>
+      </div>
+    </div>
+  );
+}
+
 /** One account: roles, staff capabilities, groups and a reset link (ROLE-01, ROLE-06, GRP-01, ACC-10). */
 export function AccountPanel({
   user,
@@ -39,7 +65,7 @@ export function AccountPanel({
   const { t } = useTranslation();
   const call = useAdminCall();
   const errorText = useUsersErrorText();
-  const toggleRole = useToggleRole(onChanged);
+  const { toggleRole, revoking, confirmRevoke, cancelRevoke } = useToggleRole(onChanged);
   const [link, setLink] = useState<{ url: string; expiresAt: string }>();
   const { data: rsvpConfig } = useAdminData("/api/admin/rsvp/config", rsvpConfigSchema);
   const isStaff = user.roles.includes("staff");
@@ -104,6 +130,13 @@ export function AccountPanel({
         </div>
         {user.vipAssignment && (
           <span className="hint">{t(`admin.users.vipAssignment.${user.vipAssignment}`)}</span>
+        )}
+        {revoking && (
+          <RevokeVipConfirm
+            user={revoking}
+            onConfirm={() => void confirmRevoke()}
+            onCancel={cancelRevoke}
+          />
         )}
       </section>
 

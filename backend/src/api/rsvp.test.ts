@@ -723,16 +723,31 @@ describe("reminders", () => {
     expect(ctx.mailer.sent[0]?.text).toContain("2999-05-01");
   });
 
-  it("[RSVP-07] a failing mail does not stop the others, and the admin cannot send reminders in a loop", async () => {
+  it("[RSVP-07] a failing mail does not stop the others", async () => {
     const { ctx, call, guest, root } = await setup();
     for (const name of ["anna", "ben"]) verify(ctx, (await guest(name)).id, `${name}@example.ch`);
     ctx.mailer.failWith = new Error("smtp down");
     expect((await call<{ sent: number }>(root, "POST", "/api/admin/rsvp/remind")).body).toEqual({
       sent: 0,
     });
-    ctx.mailer.failWith = undefined;
-    for (let i = 0; i < 4; i += 1) await call(root, "POST", "/api/admin/rsvp/remind");
-    expect((await call(root, "POST", "/api/admin/rsvp/remind")).status).toBe(429);
+  });
+
+  it("[RSVP-07] a double click or a second admin never mails the same guests twice", async () => {
+    const { ctx, call, guest, root } = await setup();
+    verify(ctx, (await guest("anna")).id, "anna@example.ch");
+    const lea = await makeUser(ctx, "lea", ["admin"]);
+    // Both requests arrive before the first one has sent its mails.
+    const [first, second] = await Promise.all([
+      call(root, "POST", "/api/admin/rsvp/remind"),
+      call(root, "POST", "/api/admin/rsvp/remind"),
+    ]);
+    expect([first.status, second.status].sort()).toEqual([200, 429]);
+    expect((await call(lea, "POST", "/api/admin/rsvp/remind")).status).toBe(429);
+    expect(ctx.mailer.sent).toHaveLength(1);
+    // After the window the next round goes out.
+    ctx.auth.limiter.reset("rsvp-remind:event1");
+    expect((await call(lea, "POST", "/api/admin/rsvp/remind")).status).toBe(200);
+    expect(ctx.mailer.sent).toHaveLength(2);
   });
 
   it("[RSVP-07] only an admin sends reminders", async () => {
@@ -788,7 +803,12 @@ describe("the activity card", () => {
     const actions = entries.map((e) => e.action);
     expect(actions).not.toContain("user.roles");
     expect(actions).not.toContain("session.login");
-    expect(actions.every((a) => !a.startsWith("user.") && !a.startsWith("session."))).toBe(true);
+    // Of the account entries only the invited parts are listed: they are about the guest.
+    expect(
+      actions.every(
+        (a) => a === "user.parts" || (!a.startsWith("user.") && !a.startsWith("session.")),
+      ),
+    ).toBe(true);
   });
 
   it("[DATA-05] a batch of invitations is one entry with a count; a redeemed one names the guest", async () => {
@@ -894,5 +914,178 @@ describe("the song wish switch", () => {
       headers: { cookie: root.cookie },
     });
     expect(response.json<{ entries: ActivityEntry[] }>().entries[0]?.action).toBe("rsvp.song");
+  });
+});
+
+describe("answers after the invitation changes (7.4.1, decided 2026-11-11)", () => {
+  const guestRow = (overview: RsvpOverview, userId: number) =>
+    must(overview.guests.find((g) => g.userId === userId));
+  const total = (overview: RsvpOverview, partId: number | undefined) =>
+    must(overview.totals.find((t) => t.partId === partId));
+
+  it("[RSVP-02] removing a part from a redeemed invitation removes the answer for it", async () => {
+    const { ctx, root, call, get, parts } = await setup();
+    const zora = await makeUser(ctx, "zora", []);
+    const [issued] = ctx.auth.invitations.create([{ name: "Zora" }], undefined, "cli");
+    const invitation = must(issued);
+    ctx.auth.invitations.redeemForUser(invitation.code, zora.id);
+    await call(zora, "PUT", "/api/rsvp", {
+      attendance: yes(parts, "Trauung", "Party"),
+    });
+    const [trauung, , , party] = ids(parts, "Trauung", "Apéro", "Dinner", "Party");
+
+    const changed = await call(
+      root,
+      "PUT",
+      `/api/admin/invitations/${String(invitation.invitation.id)}/parts`,
+      { partIds: ids(parts, "Trauung", "Apéro") },
+    );
+    expect(changed.status).toBe(200);
+    const overview = (await get<RsvpOverview>(root, "/api/admin/rsvp")).body;
+    expect(guestRow(overview, zora.id).attendingPartIds).toEqual([trauung]);
+    expect(total(overview, party)).toEqual({ partId: party, yes: 0, no: 0 });
+    const state = (await get<RsvpState>(zora, "/api/rsvp")).body;
+    expect(state.answer?.attendingPartIds).toEqual([trauung]);
+  });
+
+  it("[RSVP-02][RSVP-05] a part added after the answer is not answered yet: no totals, an empty CSV cell", async () => {
+    const { root, call, get, parts, guest } = await setup();
+    const [trauung, apero] = ids(parts, "Trauung", "Apéro");
+    const anna = await guest("anna", [must(trauung)]);
+    const ben = await guest("ben", [must(trauung)]);
+    await call(anna, "PUT", "/api/rsvp", { attendance: [{ partId: trauung, attending: true }] });
+    await call(ben, "PUT", "/api/rsvp", { attendance: [{ partId: trauung, attending: false }] });
+    for (const who of [anna, ben]) {
+      await call(root, "PUT", `/api/admin/users/${String(who.id)}/parts`, {
+        partIds: [trauung, apero],
+      });
+    }
+
+    const overview = (await get<RsvpOverview>(root, "/api/admin/rsvp")).body;
+    expect(total(overview, apero)).toEqual({ partId: apero, yes: 0, no: 0 });
+    // Anna still attends; Ben declined the rest and has no answer for the new part.
+    expect(guestRow(overview, anna.id)).toMatchObject({
+      status: "attending",
+      declinedPartIds: [],
+    });
+    expect(guestRow(overview, ben.id)).toMatchObject({
+      status: "none",
+      declinedPartIds: [trauung],
+    });
+    const csv = (await get(root, "/api/admin/rsvp/export")).raw.body.split("\r\n");
+    expect(csv.find((line) => line.startsWith("anna;"))).toMatch(/^anna;zugesagt;ja;;;;/);
+    expect(csv.find((line) => line.startsWith("ben;"))).toMatch(/^ben;ohne Antwort;nein;;;;/);
+    // The guest's state tells the wizard which part is open.
+    const state = (await get<RsvpState>(ben, "/api/rsvp")).body;
+    expect(state.answer).toMatchObject({ attendingPartIds: [], declinedPartIds: [trauung] });
+  });
+
+  it("[RSVP-02] a guest whose only yes disappears goes back to no answer", async () => {
+    const { root, call, get, parts, menus, guest } = await setup();
+    const [trauung, dinner] = ids(parts, "Trauung", "Dinner");
+    const anna = await guest("anna", [must(trauung), must(dinner)]);
+    await call(anna, "PUT", "/api/rsvp", {
+      attendance: [
+        { partId: trauung, attending: false },
+        { partId: dinner, attending: true },
+      ],
+      menuId: menus[0]?.id,
+      allergies: "Nüsse",
+    });
+    // The part is deleted: the guest attends nothing they answered with yes.
+    expect((await call(root, "DELETE", `/api/admin/rsvp/parts/${String(dinner)}`)).status).toBe(
+      204,
+    );
+    const overview = (await get<RsvpOverview>(root, "/api/admin/rsvp")).body;
+    expect(guestRow(overview, anna.id)).toMatchObject({
+      status: "none",
+      attendingPartIds: [],
+      declinedPartIds: [],
+      menuId: null,
+      allergies: null,
+    });
+    expect((await get<RsvpState>(anna, "/api/rsvp")).body.answer).toBeNull();
+  });
+
+  it("[RSVP-09] a companion whose only yes is removed from the invitation goes back to no answer", async () => {
+    const { root, call, get, parts, guest } = await setup();
+    const [trauung, party] = ids(parts, "Trauung", "Party");
+    const anna = await guest("anna", [must(trauung), must(party)]);
+    const attendance = [
+      { partId: trauung, attending: true },
+      { partId: party, attending: false },
+    ];
+    await call(anna, "PUT", "/api/rsvp", { attendance });
+    const made = await call<RsvpState>(anna, "POST", "/api/rsvp/companions", {
+      name: "Mia",
+      attendance: [
+        { partId: trauung, attending: false },
+        { partId: party, attending: true },
+      ],
+      allergies: "Laktose",
+    });
+    const mia = must(made.body?.companions[0]);
+    await call(root, "PUT", `/api/admin/users/${String(anna.id)}/parts`, { partIds: [trauung] });
+    const state = (await get<RsvpState>(anna, "/api/rsvp")).body;
+    // Anna keeps her yes; Mia's answer is gone, so the wizard asks for it again.
+    expect(state.answer?.attendingPartIds).toEqual([trauung]);
+    expect(state.companions.find((c) => c.id === mia.id)).toMatchObject({
+      attendingPartIds: [],
+      declinedPartIds: [],
+      allergies: null,
+    });
+  });
+
+  it("[RSVP-02][SEC-11] revoking vip deletes the answer, the allergies and the companions", async () => {
+    const { ctx, root, call, get, parts, guest } = await setup();
+    const anna = await guest("anna");
+    await call(anna, "PUT", "/api/rsvp", {
+      attendance: yes(parts, "Trauung"),
+      allergies: "Nüsse",
+    });
+    await call(anna, "POST", "/api/rsvp/companions", {
+      name: "Mia",
+      attendance: yes(parts, "Trauung"),
+      allergies: "Laktose",
+    });
+    const revoked = await call(root, "PUT", `/api/admin/users/${String(anna.id)}/roles`, {
+      roles: [],
+    });
+    expect(revoked.status).toBe(200);
+    const count = (table: string) =>
+      (
+        ctx.database.sqlite.prepare(`SELECT COUNT(*) AS n FROM ${table}`).get() as {
+          n: number;
+        }
+      ).n;
+    for (const table of [
+      "rsvp_answers",
+      "rsvp_attendance",
+      "companions",
+      "companion_attendance",
+      "membership_parts",
+    ]) {
+      expect(count(table), table).toBe(0);
+    }
+    const overview = (await get<RsvpOverview>(root, "/api/admin/rsvp")).body;
+    expect(overview.pendingCount).toBe(0);
+    // Made a guest again, the account starts without an answer.
+    await call(root, "PUT", `/api/admin/users/${String(anna.id)}/roles`, { roles: ["vip"] });
+    expect((await get<RsvpState>(anna, "/api/rsvp")).body).toMatchObject({
+      answer: null,
+      companions: [],
+    });
+  });
+
+  it("[RSVP-09] the navigation badge reads the number of pending requests alone", async () => {
+    const { root, call, get, parts, guest } = await setup();
+    const anna = await guest("anna");
+    await call(anna, "POST", "/api/rsvp/companions", {
+      name: "Mia",
+      attendance: yes(parts, "Trauung"),
+    });
+    const pending = await get<{ pendingCount: number }>(root, "/api/admin/rsvp/pending");
+    expect(pending.body).toEqual({ pendingCount: 1 });
+    expect((await get(anna, "/api/admin/rsvp/pending")).status).toBe(403);
   });
 });

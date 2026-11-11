@@ -81,13 +81,23 @@ describe("sign-in by email (ACC-16)", () => {
     expect((await login(ctx, "ben")).statusCode).toBe(200);
   });
 
-  it("[ACC-16] a wrong password by email is refused like by username, and counts against the identifier", async () => {
+  it("[ACC-16][SEC-02] a wrong password by email is refused like by username, and counts against the account", async () => {
     const ctx = await setup();
     await account(ctx, "anna", "anna@example.ch");
     for (let i = 0; i < 5; i += 1) {
       expect((await login(ctx, "anna@example.ch", "falsch-falsch-falsch")).statusCode).toBe(401);
     }
-    // Five failures lock this identifier for a while, even with the right password.
+    // Five failures lock the account for a while, even with the right password.
+    expect((await login(ctx, "anna@example.ch")).statusCode).toBe(429);
+  });
+
+  it("[ACC-16][SEC-02] username and address share one lockout: switching between them gives no extra guesses", async () => {
+    const ctx = await setup();
+    await account(ctx, "anna", "anna@example.ch");
+    for (const identifier of ["anna", "anna@example.ch", "ANNA", "Anna@Example.ch", "anna"]) {
+      expect((await login(ctx, identifier, "falsch-falsch-falsch")).statusCode).toBe(401);
+    }
+    expect((await login(ctx, "anna")).statusCode).toBe(429);
     expect((await login(ctx, "anna@example.ch")).statusCode).toBe(429);
   });
 

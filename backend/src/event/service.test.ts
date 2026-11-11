@@ -84,10 +84,10 @@ describe("event in the database", () => {
 
   it("[CFG-02] changes before the setup are refused", () => {
     const event = freshInstallation();
-    expect(() => event.update({ settings: { platformOpen: true } }, "user:1")).toThrow(
+    expect(() => event.update({ settings: { snapshotUploadsOpen: true } }, "user:1")).toThrow(
       /not set up yet/,
     );
-    expect(event.settings().platformOpen).toBe(false);
+    expect(event.settings().snapshotUploadsOpen).toBe(false);
   });
 
   it("[CFG-05] the admin's changes survive restarts; a key missing in the database is filled in", () => {

@@ -8,6 +8,7 @@ import {
   DEFAULT_WAITING_TEXTS,
   doorSheetSchema,
   fillWaitingText,
+  rsvpStatus,
   WAITING_TEXT_KEYS,
 } from "@zappaloo/shared";
 import type {
@@ -89,26 +90,19 @@ export class WaitingService {
     return this.config();
   }
 
-  /** The statuses of every guest, and how many persons have accepted (guests and approved companions). */
-  #accepted(viewerId: number): number {
-    const overview = this.#rsvp.overview();
-    const guests = overview.guests.filter(
-      (guest) => guest.status === "attending" && guest.userId !== viewerId,
-    ).length;
-    const companions = overview.companions.filter(
-      (companion) => companion.status === "approved" && companion.attendingPartIds.length > 0,
-    ).length;
-    return guests + companions;
-  }
-
   /** What the waiting page shows to this user (ACS-11, ACS-13). */
   page(userId: number, isGuest: boolean): WaitingPage {
     const event = this.#event.get();
     const settings = this.config();
     let status: RsvpStatus = "none";
     if (isGuest) {
-      const answer = this.#rsvp.state(userId).answer;
-      status = !answer ? "none" : answer.attendingPartIds.length > 0 ? "attending" : "declined";
+      const { answer, parts } = this.#rsvp.state(userId);
+      status = rsvpStatus(
+        answer !== null,
+        parts.map((part) => part.id),
+        answer?.attendingPartIds ?? [],
+        answer?.declinedPartIds ?? [],
+      );
     }
     const name =
       this.#database.db
@@ -131,7 +125,8 @@ export class WaitingService {
       status,
       text: fillWaitingText(settings.texts[key], {
         name,
-        waitingCount: String(status === "attending" ? this.#accepted(userId) : this.#accepted(-1)),
+        // The others who have accepted: an attending guest does not count themselves.
+        waitingCount: String(this.#rsvp.acceptedCount(status === "attending" ? userId : undefined)),
         openingDate,
       }),
       countdownTo: settings.countdownEnabled ? settings.openingAt : null,

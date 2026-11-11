@@ -111,7 +111,9 @@ export const eventUpdateSchema = z
     timezone: timezoneSchema.optional(),
     defaultLanguage: languageSchema.optional(),
     features: featuresSchema.partial().optional(),
-    settings: settingsSchema.partial().optional(),
+    // The platform opens and closes only through /api/admin/platform (ACS-14): with the email
+    // and its own audit entry.
+    settings: settingsSchema.omit({ platformOpen: true }).partial().optional(),
   })
   .refine(
     (value) =>

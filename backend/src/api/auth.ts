@@ -101,30 +101,36 @@ declare module "fastify" {
  * RSVP, the waiting page, the event, system routes and invitation redemption. Everything else
  * under /api that a later feature adds is closed by default. Admin routes keep their own role check.
  */
-const OPEN_WHILE_CLOSED = [
+export const OPEN_WHILE_CLOSED = [
   "/api/session",
-  "/api/password/",
-  "/api/email/",
+  "/api/password",
+  "/api/email",
   "/api/profile",
   "/api/rsvp",
   "/api/waiting",
   "/api/privacy",
   "/api/site",
   "/api/event",
-  "/api/events/",
+  // The live channel only answers its ping while closed; the game world's feeds stay closed.
+  "/api/events/ping",
   "/api/health",
   "/api/version",
-  "/api/invitations/",
-  "/api/admin/",
+  "/api/invitations",
+  // Every admin route checks the admin role itself; capabilities belong to staff, who pass.
+  "/api/admin",
 ];
+
+/** The route is an entry of the list or below it: `/api/profile/password`, not `/api/profiles`. */
+function openWhileClosed(route: string): boolean {
+  return OPEN_WHILE_CLOSED.some((entry) => route === entry || route.startsWith(`${entry}/`));
+}
 
 /** True if the request is refused because the platform is closed for this user (ACS-10). */
 function closedFor(user: User, request: FastifyRequest, event: EventService): boolean {
   const route = request.routeOptions.url ?? "";
   // Unknown paths and the frontend's files are not the API's business (404, static files).
   if (!route.startsWith("/api/")) return false;
-  if (OPEN_WHILE_CLOSED.some((prefix) => route === prefix || route.startsWith(prefix)))
-    return false;
+  if (openWhileClosed(route)) return false;
   if (user.roles.includes("staff") || user.roles.includes("admin")) return false;
   return !event.get().settings.platformOpen;
 }
@@ -300,7 +306,8 @@ const authPlugin: FastifyPluginAsyncZod<AuthOptions> = async (app, options) => {
     async (request, reply) => {
       // "username" holds a username or a verified email address (ACC-16).
       const username = request.body.username.trim().toLowerCase();
-      const userKey = `login:user:${username}`;
+      // One lockout per account, whether it is named by username or by email address.
+      const userKey = `login:${accounts.loginKey(username)}`;
       const addressKey = `login:ip:${request.ip}`;
       // Only failures count, so guests sharing one address are not blocked by each other.
       const wait =

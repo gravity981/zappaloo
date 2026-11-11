@@ -1,7 +1,7 @@
 // The number of companion requests waiting for a decision (RSVP-09), for the badge in the
 // navigation. A page that changes it tells the badge with `notifyRsvpChanged`.
 import { useEffect } from "react";
-import { rsvpOverviewSchema } from "@zappaloo/shared";
+import { rsvpPendingSchema } from "@zappaloo/shared";
 import { useAdminData } from "./data.ts";
 
 const CHANGED = "zappaloo:rsvp-changed";
@@ -13,7 +13,7 @@ export function notifyRsvpChanged(): void {
 
 /** The pending requests; undefined while loading. */
 export function usePendingRequests(): number | undefined {
-  const { data, reload } = useAdminData("/api/admin/rsvp", rsvpOverviewSchema);
+  const { data, reload } = useAdminData("/api/admin/rsvp/pending", rsvpPendingSchema);
   useEffect(() => {
     window.addEventListener(CHANGED, reload);
     return () => {

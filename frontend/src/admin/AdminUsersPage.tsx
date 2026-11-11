@@ -4,7 +4,7 @@
 import { useCallback, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { adminUserListSchema, groupListSchema, groupSchema, ROLES } from "@zappaloo/shared";
-import { AccountPanel, CreateAccountPanel, GroupPanel } from "./UsersPanels.tsx";
+import { AccountPanel, CreateAccountPanel, GroupPanel, RevokeVipConfirm } from "./UsersPanels.tsx";
 import { useAdminCall, useAdminData, useErrorText } from "./data.ts";
 import { ToggleChip } from "./ui.tsx";
 import { useToggleRole } from "./users.ts";
@@ -34,7 +34,7 @@ export default function AdminUsersPage() {
     },
     [reload],
   );
-  const toggleRole = useToggleRole(changed);
+  const { toggleRole, revoking, confirmRevoke, cancelRevoke } = useToggleRole(changed);
   const close = useCallback(() => {
     setOpen(undefined);
   }, []);
@@ -74,6 +74,13 @@ export default function AdminUsersPage() {
         <p role="alert" className="error">
           {error}
         </p>
+      )}
+      {revoking && (
+        <RevokeVipConfirm
+          user={revoking}
+          onConfirm={() => void confirmRevoke()}
+          onCancel={cancelRevoke}
+        />
       )}
       <div className="grid-2">
         <div className="card tight">

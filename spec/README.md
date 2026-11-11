@@ -49,32 +49,32 @@ Status values: **specified** (requirements written, not implemented) · **in pro
 
 | Prefix | Topic | Section in sw-architecture.md | Reqs (active) | Stage | Status |
 |---|---|---|---|---|---|
-| GAME | Game world: entry, guided start, controls, movement, objects | 3 | 14 | 5 | specified |
+| GAME | Game world: entry, guided start, controls, movement, objects | 3 | 18 | 5 | specified |
 | PRES | Guest presence (wandering figures, speech bubble with profile) and seating | 3.6 | 13 (2 withdrawn) | 6 | specified |
 | HUNT | Treasure hunt | 3.7 | 7 | 8 | specified |
 | MG | Minigames, results, highscores | 4 | 13 | 8 | specified |
-| WEB | Classic website | 5 | 8 | 4, 5, 7, 8 | specified |
+| WEB | Classic website | 5 | 9 | 4, 5, 7, 8 | specified |
 | LANG | Language and i18n | 5.3 | 2 | 1, 4 | in progress |
-| SCR | Event screen (photo wall, live rankings) | 5.4 | 4 (2 withdrawn) | 7, 8 | specified |
+| SCR | Event screen (photo wall, live rankings) | 5.4 | 5 (2 withdrawn) | 7, 8 | specified |
 | CNT | Shared content base, Markdown editing | 6 | 5 | 4 | specified |
-| ACC | User accounts, authentication, email | 7, 23.8 | 14 (1 withdrawn) | 2 | specified |
+| ACC | User accounts, authentication, email | 7, 23.8 | 15 (1 withdrawn) | 2, 3 | implemented |
 | AVA | Avatars | 7.3 | 4 | 5, 6 | specified |
-| RSVP | RSVP, event parts, accompanying persons | 7.4 | 9 | 3 | specified |
-| ROLE | Roles (vip, staff, admin) and staff capabilities | 8 | 8 (2 withdrawn) | 2 | specified |
-| INV | VIP invitations | 9 | 13 (6 withdrawn) | 2 | specified |
-| ACS | Sign-in, opening the platform, waiting page, upload links, access control | 10, 11 | 10 (4 withdrawn) | 2, 3, 7 | specified |
-| GRP | Guest groups | 12 | 2 | 2 | specified |
-| PHO | Contributions: snapshots (gallery, photo wall) and keepsakes (keepsake page, printable book) | 13 | 17 (1 withdrawn) | 7 | specified |
+| RSVP | RSVP, event parts, accompanying persons | 7.4 | 10 | 3 | implemented |
+| ROLE | Roles (vip, staff, admin) and staff capabilities | 8 | 8 (2 withdrawn) | 2 | implemented |
+| INV | VIP invitations | 9 | 13 (6 withdrawn) | 2 | implemented |
+| ACS | Sign-in, opening the platform, waiting page, upload links, access control | 10, 11 | 10 (4 withdrawn) | 2, 3, 7 | in progress |
+| GRP | Guest groups | 12 | 2 | 2 | implemented |
+| PHO | Contributions: snapshots (gallery, photo wall) and keepsakes (keepsake page, printable book) | 13 | 18 (1 withdrawn) | 7 | specified |
 | MOD | Moderation (swipe view) | 13.7 | 5 | 7 | specified |
-| MAP | Tiled maps, map importer, template maps | 14 | 12 (2 withdrawn) | 5 | specified |
-| DATA | Database and data model | 18 | 4 | 1, 2 | in progress |
-| CFG | Event configuration, installation model | 19, 20 | 5 | 2, 4 | specified |
-| OPS | Deployment, backup tools, CI/CD, versioning and releases (hosting out of scope) | 21–23 | 16 (2 withdrawn) | 1, 3 | in progress |
+| MAP | Tiled maps, map importer, template maps | 14 | 13 (2 withdrawn) | 5 | specified |
+| DATA | Database and data model | 18 | 5 | 1, 2, 3 | implemented |
+| CFG | Event configuration, installation model | 19, 20 | 7 | 2, 4 | in progress |
+| OPS | Deployment, backup tools, CI/CD, versioning and releases (hosting out of scope) | 21–23 | 17 (2 withdrawn) | 1, 3 | in progress |
 | SEC | Security and privacy (Swiss FADP) | 24 | 11 | 1, 2, 3, 4, 10 | in progress |
 | PERF | Performance and load | 25 | 3 (1 withdrawn) | 5, 7, 9 | specified |
 | MP | Multiplayer — removed | 3.3 | 0 (6 withdrawn) | – | withdrawn |
 | GB | Guestbook — merged into PHO | 13.6 | 0 (4 withdrawn) | – | withdrawn |
-| | **Total** | | **199** (232 IDs, 33 withdrawn) | | |
+| | **Total** | | **213** (246 IDs, 33 withdrawn) | | |
 
 Sections with no requirement table describe architecture and technology choices: 15 (stack), 16 (frontend), 17 (backend), 26 (project structure), 27 (decision summary), 28 (stages) and 29 (principles). Section 30 lists what is out of scope for the first version.
 

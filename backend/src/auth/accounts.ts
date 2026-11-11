@@ -16,6 +16,7 @@ import {
 } from "../database/schema.ts";
 import { SELF_ACTOR } from "../event/service.ts";
 import type { Actor, EventService } from "../event/service.ts";
+import { forgetGuest } from "../rsvp/cleanup.ts";
 import { hashPassword, verifyDummyPassword, verifyPassword } from "./password.ts";
 import { hashToken, newToken } from "./tokens.ts";
 
@@ -252,6 +253,15 @@ export class AccountService {
       .from(users)
       .where(and(eq(users.emailStatus, "verified"), eq(sql`lower(${users.email})`, needle)))
       .get();
+  }
+
+  /**
+   * The key the failed sign-ins of this identifier are counted under (SEC-02): the account, so
+   * username and email address share one lockout; the identifier itself if it names nobody.
+   */
+  loginKey(identifier: string): string {
+    const row = this.#findForLogin(identifier);
+    return row ? `user:${String(row.id)}` : `name:${identifier.trim().toLowerCase()}`;
   }
 
   /**
@@ -612,11 +622,8 @@ export class AccountService {
       // Direct promotion needs no code; revoking vip forgets how it was granted (INV-11).
       const gainedVip = wanted.includes("vip") && !current.includes("vip");
       if (gainedVip) this.#inviteToAllParts(tx, userId);
-      if (!wanted.includes("vip") && current.includes("vip")) {
-        tx.delete(membershipParts)
-          .where(and(eq(membershipParts.eventId, eventId), eq(membershipParts.userId, userId)))
-          .run();
-      }
+      // Revoking vip also deletes the RSVP: answer, allergies and companions (7.4.1, SEC-11).
+      if (!wanted.includes("vip") && current.includes("vip")) forgetGuest(tx, eventId, userId);
       if (gainedVip || (!wanted.includes("vip") && current.includes("vip"))) {
         tx.update(memberships)
           .set(

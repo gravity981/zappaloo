@@ -87,3 +87,30 @@ describe("the figures behind the door (ACS-12)", () => {
     }
   });
 });
+
+describe("the gap in the door (ACS-12)", () => {
+  /** The rectangles of a frame 400 ms after `time`, with an optional tap at `tapAt` then. */
+  function frame(time: number, tapAt?: [number, number]) {
+    const { canvas, rects } = recordingCanvas();
+    const scene = createDefaultScene(canvas, false);
+    if (!scene) throw new Error("no scene");
+    scene.draw(time - 1);
+    const hit = tapAt ? scene.tap(tapAt[0], tapAt[1], time - 1) : false;
+    // The gap eases open over a few frames.
+    for (let t = time; t < time + 400; t += 16) scene.draw(t);
+    rects.length = 0;
+    scene.draw(time + 400);
+    return { hit, rects: JSON.stringify(rects) };
+  }
+
+  it("[ACS-12] a tap on the door opens the gap wider for a moment; a tap beside it does nothing", () => {
+    // The door stands in the middle of the 320 × 180 scene.
+    const onDoor = frame(1000, [160, 90]);
+    const beside = frame(1000, [5, 5]);
+    const untouched = frame(1000);
+    expect(onDoor.hit).toBe(true);
+    expect(beside.hit).toBe(false);
+    expect(onDoor.rects).not.toBe(untouched.rects);
+    expect(beside.rects).toBe(untouched.rects);
+  });
+});

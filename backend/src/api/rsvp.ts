@@ -18,13 +18,13 @@ import {
   rsvpAnswerRequestSchema,
   rsvpConfigSchema,
   rsvpOverviewSchema,
+  rsvpPendingSchema,
   songEnabledRequestSchema,
   rsvpStateSchema,
 } from "@zappaloo/shared";
 import type { FastifyReply } from "fastify";
 import type { FastifyPluginAsyncZod } from "fastify-type-provider-zod";
-import { RSVP_REMIND_PER_ADMIN } from "../auth/rate-limit.ts";
-import { rsvpReminderMail } from "../mail/templates.ts";
+import { RSVP_REMIND_PER_EVENT } from "../auth/rate-limit.ts";
 import { RsvpError } from "../rsvp/service.ts";
 import { requireFeature } from "./event.ts";
 import { rateLimited, requireRole, signedIn } from "./auth.ts";
@@ -357,6 +357,13 @@ const rsvpPlugin: FastifyPluginAsyncZod<AuthOptions> = (app, options) => {
     () => rsvp.overview(),
   );
 
+  // The badge of the admin navigation: a count, without loading the guest table.
+  app.get(
+    "/api/admin/rsvp/pending",
+    { ...adminFeature, schema: { querystring: noQuery, response: { 200: rsvpPendingSchema } } },
+    () => ({ pendingCount: rsvp.pendingCount() }),
+  );
+
   app.get(
     "/api/admin/rsvp/export",
     { ...adminFeature, schema: { querystring: noQuery } },
@@ -384,33 +391,13 @@ const rsvpPlugin: FastifyPluginAsyncZod<AuthOptions> = (app, options) => {
           message: "This installation cannot send email.",
         });
       }
-      const wait = limiter.hit(
-        `rsvp-remind:${String(signedIn(request).user.id)}`,
-        RSVP_REMIND_PER_ADMIN,
-      );
+      // Counted before the first mail, per event: a double click or a second admin is refused.
+      const wait = limiter.hit(`rsvp-remind:${event.eventId}`, RSVP_REMIND_PER_EVENT);
       if (wait !== undefined) return rateLimited(reply, wait);
-      const { name: eventName } = event.get();
-      const { deadline } = rsvp.config();
-      const url = `${publicUrl.replace(/\/+$/, "")}/rsvp`;
-      let sent = 0;
-      for (const recipient of rsvp.reminderRecipients()) {
-        try {
-          await mailer.send(
-            rsvpReminderMail(
-              recipient.email,
-              eventName ?? "Zappaloo",
-              recipient.name,
-              deadline,
-              url,
-            ),
-          );
-          sent += 1;
-        } catch (error) {
-          request.log.error({ err: error }, "sending a reminder failed");
-        }
-      }
-      event.audit(actor(request), "rsvp.remind", { sent });
-      return await reply.send({ sent });
+      const result = await rsvp.remind(mailer, publicUrl, actor(request), (error) => {
+        request.log.error({ err: error }, "sending a reminder failed");
+      });
+      return await reply.send(result);
     },
   );
 

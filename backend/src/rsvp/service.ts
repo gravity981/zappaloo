@@ -2,7 +2,7 @@
 // (RSVP-01 – RSVP-07, SEC-11; sw-architecture.md 7.4, 7.4.1). Allergies are health data: only
 // the admin overview and the guest's own answer ever return them (SEC-11).
 import { and, asc, eq, inArray } from "drizzle-orm";
-import { MAX_COMPANIONS } from "@zappaloo/shared";
+import { MAX_COMPANIONS, menuRequired, rsvpStatus } from "@zappaloo/shared";
 import type {
   Companion,
   CompanionRequest,
@@ -17,7 +17,6 @@ import type {
   RsvpGuest,
   RsvpOverview,
   RsvpState,
-  RsvpStatus,
 } from "@zappaloo/shared";
 import type { Database } from "../database/database.ts";
 import {
@@ -33,6 +32,9 @@ import {
   users,
 } from "../database/schema.ts";
 import type { Actor, EventService } from "../event/service.ts";
+import type { Mailer } from "../mail/mailer.ts";
+import { rsvpReminderMail } from "../mail/templates.ts";
+import { attendingNow, pruneAnswers } from "./cleanup.ts";
 import { closesAt } from "./deadline.ts";
 
 export type RsvpErrorCode =
@@ -77,6 +79,52 @@ const toPart = (row: PartRow): EventPart => ({
   place: row.place,
   hasMeal: row.hasMeal,
 });
+
+/** The parts answered with yes (or with no), sorted. */
+function partIdsOf(rows: { partId: number; attending: boolean }[], attending: boolean): number[] {
+  return rows
+    .filter((row) => row.attending === attending)
+    .map((row) => row.partId)
+    .sort((a, b) => a - b);
+}
+
+type CompanionRow = typeof companions.$inferSelect;
+
+function toCompanion(
+  row: CompanionRow,
+  attendance: { companionId: number; partId: number; attending: boolean }[],
+): Companion {
+  const mine = attendance.filter((a) => a.companionId === row.id);
+  return {
+    id: row.id,
+    name: row.name,
+    note: row.note,
+    status: row.status,
+    attendingPartIds: partIdsOf(mine, true),
+    declinedPartIds: partIdsOf(mine, false),
+    menuId: row.menuId,
+    allergies: row.allergies,
+  };
+}
+
+/** The guest table row as the admin gets it: the address is only for the reminder mails. */
+function withoutEmail(guest: RsvpGuest & { email: string | null }): RsvpGuest {
+  const row: Partial<typeof guest> = { ...guest };
+  delete row.email;
+  return row as RsvpGuest;
+}
+
+/** A reminder reaches a guest without an answer who has a verified address (RSVP-07). */
+const isReminded = (guest: RsvpGuest): boolean => guest.status === "none" && guest.verifiedEmail;
+
+/** One cell per part of the CSV export: ja, nein, or empty when not invited or not answered. */
+function partCell(
+  person: { attendingPartIds: number[]; declinedPartIds: number[] },
+  partId: number,
+): string {
+  if (person.attendingPartIds.includes(partId)) return "ja";
+  return person.declinedPartIds.includes(partId) ? "nein" : "";
+}
 
 /** A cell of the CSV export; a leading `=`, `+`, `-` or `@` would be run as a formula. */
 function csvCell(value: string): string {
@@ -235,11 +283,22 @@ export class RsvpService {
     });
   }
 
-  /** Deleting a part also removes the invitations' parts and the answers for it. */
+  /**
+   * Deleting a part also removes the invitations' parts and the answers for it; a guest or
+   * companion whose only yes it was goes back to "no answer" (`pruneAnswers`).
+   */
   deletePart(id: number, actor: Actor): void {
     this.#database.db.transaction((tx) => {
       this.#part(tx, id);
+      const eventId = this.#event.eventId;
+      const affected = tx
+        .select({ userId: membershipParts.userId })
+        .from(membershipParts)
+        .where(and(eq(membershipParts.eventId, eventId), eq(membershipParts.partId, id)))
+        .all()
+        .map(({ userId }) => ({ userId, before: attendingNow(tx, eventId, userId) }));
       tx.delete(eventParts).where(eq(eventParts.id, id)).run();
+      for (const { userId, before } of affected) pruneAnswers(tx, eventId, userId, before);
       this.#event.audit(actor, "rsvp.part.delete", { partId: id }, tx);
     });
   }
@@ -309,7 +368,8 @@ export class RsvpService {
 
   /**
    * Replaces the parts a `vip` is invited to (RSVP-02). Answers for parts that are no longer
-   * invited are removed, so the guest table never shows an answer for a part without invitation.
+   * invited are removed (`pruneAnswers`), so the guest table never shows an answer for a part
+   * without invitation; a part added later is not answered yet.
    */
   setInvitedParts(userId: number, partIds: number[], actor: Actor): number[] {
     const wanted = [...new Set(partIds)].sort((a, b) => a - b);
@@ -320,38 +380,14 @@ export class RsvpService {
         throw new RsvpError("part_not_found", "no such event part");
       }
       const eventId = this.#event.eventId;
+      const before = attendingNow(tx, eventId, userId);
       tx.delete(membershipParts)
         .where(and(eq(membershipParts.eventId, eventId), eq(membershipParts.userId, userId)))
         .run();
       for (const partId of wanted) {
         tx.insert(membershipParts).values({ eventId, userId, partId }).run();
       }
-      const dropped = this.#attendance(tx, userId).filter((a) => !wanted.includes(a.partId));
-      for (const { partId } of dropped) {
-        tx.delete(rsvpAttendance)
-          .where(
-            and(
-              eq(rsvpAttendance.eventId, eventId),
-              eq(rsvpAttendance.userId, userId),
-              eq(rsvpAttendance.partId, partId),
-            ),
-          )
-          .run();
-      }
-      // The guest's companions are invited to the same parts.
-      const mine = this.#companionRows(tx, userId).map((c) => c.id);
-      if (mine.length > 0) {
-        for (const partId of this.allPartIds(tx).filter((id) => !wanted.includes(id))) {
-          tx.delete(companionAttendance)
-            .where(
-              and(
-                inArray(companionAttendance.companionId, mine),
-                eq(companionAttendance.partId, partId),
-              ),
-            )
-            .run();
-        }
-      }
+      pruneAnswers(tx, eventId, userId, before);
       this.#event.audit(actor, "user.parts", { userId, partIds: wanted }, tx);
       return wanted;
     });
@@ -399,11 +435,10 @@ export class RsvpService {
       .where(and(eq(rsvpAnswers.eventId, this.#event.eventId), eq(rsvpAnswers.userId, userId)))
       .get();
     if (!row) return null;
+    const attendance = this.#attendance(reader, userId);
     return {
-      attendingPartIds: this.#attendance(reader, userId)
-        .filter((a) => a.attending)
-        .map((a) => a.partId)
-        .sort((a, b) => a - b),
+      attendingPartIds: partIdsOf(attendance, true),
+      declinedPartIds: partIdsOf(attendance, false),
       menuId: row.menuId,
       allergies: row.allergies,
       songWish: row.songWish,
@@ -456,11 +491,9 @@ export class RsvpService {
       );
     }
     const attending = input.attendance.filter((a) => a.attending).map((a) => a.partId);
-    const mealPart = this.#parts(tx).find((part) => part.hasMeal);
     const menus = this.#menus(tx);
-    const attendsMeal = mealPart !== undefined && attending.includes(mealPart.id);
     let menuId: number | null = null;
-    if (attendsMeal && menus.length > 0) {
+    if (menuRequired(this.#parts(tx), menus.length, attending)) {
       if (input.menuId === undefined || input.menuId === null) {
         throw new RsvpError("menu_required", "choose a menu");
       }
@@ -504,18 +537,7 @@ export class RsvpService {
           )
           .all()
       : [];
-    return rows.map((row) => ({
-      id: row.id,
-      name: row.name,
-      note: row.note,
-      status: row.status,
-      attendingPartIds: attendance
-        .filter((a) => a.companionId === row.id && a.attending)
-        .map((a) => a.partId)
-        .sort((x, y) => x - y),
-      menuId: row.menuId,
-      allergies: row.allergies,
-    }));
+    return rows.map((row) => toCompanion(row, attendance));
   }
 
   /** A companion of this guest; a stranger's id is "not found". */
@@ -722,7 +744,8 @@ export class RsvpService {
 
   // --- Overview for the admin ---------------------------------------------------------------
 
-  #guests(): RsvpGuest[] {
+  /** Every guest (`vip`) of the event with their answer; the email stays inside the service. */
+  #guests(): (RsvpGuest & { email: string | null })[] {
     const { db } = this.#database;
     const eventId = this.#event.eventId;
     const rows = db
@@ -739,40 +762,69 @@ export class RsvpService {
       .all();
     const ids = rows.map((row) => row.id);
     const invited = ids.length
-      ? db.select().from(membershipParts).where(inArray(membershipParts.userId, ids)).all()
+      ? db
+          .select()
+          .from(membershipParts)
+          .where(and(eq(membershipParts.eventId, eventId), inArray(membershipParts.userId, ids)))
+          .all()
       : [];
     const attendance = ids.length
-      ? db.select().from(rsvpAttendance).where(inArray(rsvpAttendance.userId, ids)).all()
+      ? db
+          .select()
+          .from(rsvpAttendance)
+          .where(and(eq(rsvpAttendance.eventId, eventId), inArray(rsvpAttendance.userId, ids)))
+          .all()
       : [];
     const answers = ids.length
-      ? db.select().from(rsvpAnswers).where(inArray(rsvpAnswers.userId, ids)).all()
+      ? db
+          .select()
+          .from(rsvpAnswers)
+          .where(and(eq(rsvpAnswers.eventId, eventId), inArray(rsvpAnswers.userId, ids)))
+          .all()
       : [];
     return rows.map((row) => {
       const answer = answers.find((a) => a.userId === row.id);
-      const attendingPartIds = attendance
-        .filter((a) => a.userId === row.id && a.attending)
-        .map((a) => a.partId)
+      const mine = attendance.filter((a) => a.userId === row.id);
+      const invitedPartIds = invited
+        .filter((p) => p.userId === row.id)
+        .map((p) => p.partId)
         .sort((a, b) => a - b);
-      const status: RsvpStatus = !answer
-        ? "none"
-        : attendingPartIds.length > 0
-          ? "attending"
-          : "declined";
+      const attendingPartIds = partIdsOf(mine, true);
+      const declinedPartIds = partIdsOf(mine, false);
+      const verified = row.emailStatus === "verified" && row.email !== null;
       return {
         userId: row.id,
         name: row.displayName,
-        status,
-        invitedPartIds: invited
-          .filter((p) => p.userId === row.id)
-          .map((p) => p.partId)
-          .sort((a, b) => a - b),
+        status: rsvpStatus(answer !== undefined, invitedPartIds, attendingPartIds, declinedPartIds),
+        invitedPartIds,
         attendingPartIds,
+        declinedPartIds,
         menuId: answer?.menuId ?? null,
         songWish: answer?.songWish ?? null,
         allergies: answer?.allergies ?? null,
-        verifiedEmail: row.emailStatus === "verified" && row.email !== null,
+        verifiedEmail: verified,
+        email: verified ? row.email : null,
       };
     });
+  }
+
+  /** Every companion of the event, with the name of the guest who asked. */
+  #allCompanions(guests: RsvpGuest[]): RsvpCompanion[] {
+    const { db } = this.#database;
+    const rows = this.#companionRows(db);
+    const attendance = rows.length
+      ? db
+          .select()
+          .from(companionAttendance)
+          .where(eq(companionAttendance.eventId, this.#event.eventId))
+          .all()
+      : [];
+    const names = new Map(guests.map((g) => [g.userId, g.name]));
+    return rows.map((row) => ({
+      ...toCompanion(row, attendance),
+      hostUserId: row.hostUserId,
+      hostName: names.get(row.hostUserId) ?? "",
+    }));
   }
 
   /** Totals per part and menu, and the guest table (RSVP-05). Admin only: it holds allergies. */
@@ -780,51 +832,24 @@ export class RsvpService {
     const config = this.config();
     const guests = this.#guests();
     const answered = guests.filter((g) => g.status !== "none");
-    const rows = this.#companionRows(this.#database.db);
-    const attendance = rows.length
-      ? this.#database.db.select().from(companionAttendance).all()
-      : [];
-    const names = new Map(guests.map((g) => [g.userId, g.name]));
-    const everyone: RsvpCompanion[] = rows.map((row) => ({
-      id: row.id,
-      name: row.name,
-      note: row.note,
-      status: row.status,
-      attendingPartIds: attendance
-        .filter((a) => a.companionId === row.id && a.attending)
-        .map((a) => a.partId)
-        .sort((x, y) => x - y),
-      menuId: row.menuId,
-      allergies: row.allergies,
-      hostUserId: row.hostUserId,
-      hostName: names.get(row.hostUserId) ?? "",
-    }));
+    const everyone = this.#allCompanions(guests);
     // Approved companions count like guests; they are invited to their guest's parts.
     const approved = everyone
       .filter((c) => c.status === "approved")
       .flatMap((c) => {
         const host = guests.find((g) => g.userId === c.hostUserId);
-        return host ? [{ ...c, invitedPartIds: host.invitedPartIds }] : [];
+        return host ? [c] : [];
       });
+    const people = [...guests, ...approved];
     const totals = config.parts.map((part) => ({
       partId: part.id,
-      yes:
-        answered.filter((g) => g.attendingPartIds.includes(part.id)).length +
-        approved.filter((c) => c.attendingPartIds.includes(part.id)).length,
-      no:
-        answered.filter(
-          (g) => g.invitedPartIds.includes(part.id) && !g.attendingPartIds.includes(part.id),
-        ).length +
-        approved.filter(
-          (c) => c.invitedPartIds.includes(part.id) && !c.attendingPartIds.includes(part.id),
-        ).length,
+      yes: people.filter((p) => p.attendingPartIds.includes(part.id)).length,
+      no: people.filter((p) => p.declinedPartIds.includes(part.id)).length,
     }));
     const meal = config.parts.find((part) => part.hasMeal);
     const counts = new Map<number | null, number>();
     if (meal) {
-      for (const person of [...guests, ...approved].filter((p) =>
-        p.attendingPartIds.includes(meal.id),
-      )) {
+      for (const person of people.filter((p) => p.attendingPartIds.includes(meal.id))) {
         counts.set(person.menuId, (counts.get(person.menuId) ?? 0) + 1);
       }
     }
@@ -832,34 +857,109 @@ export class RsvpService {
       ...config,
       totals,
       menuTotals: [...counts].map(([menuId, count]) => ({ menuId, count })),
-      guests,
+      guests: guests.map(withoutEmail),
       companions: everyone,
       pendingCount: everyone.filter((c) => c.status === "pending").length,
       answered: answered.length,
       total: guests.length,
-      reminderCount: this.reminderRecipients().length,
+      reminderCount: guests.filter(isReminded).length,
     };
+  }
+
+  /** Requests waiting for a decision: the badge of the admin navigation (RSVP-09). */
+  pendingCount(): number {
+    return this.#database.db
+      .select({ id: companions.id })
+      .from(companions)
+      .innerJoin(
+        membershipRoles,
+        and(
+          eq(membershipRoles.eventId, companions.eventId),
+          eq(membershipRoles.userId, companions.hostUserId),
+          eq(membershipRoles.role, "vip"),
+        ),
+      )
+      .where(and(eq(companions.eventId, this.#event.eventId), eq(companions.status, "pending")))
+      .all().length;
+  }
+
+  /**
+   * How many persons attend at least one part: guests and approved companions (the waiting
+   * page's `{waitingCount}`, ACS-11). Counts only, no answers leave the service.
+   */
+  acceptedCount(exceptUserId?: number): number {
+    const { db } = this.#database;
+    const eventId = this.#event.eventId;
+    const guests = new Set(
+      db
+        .select({ userId: rsvpAttendance.userId })
+        .from(rsvpAttendance)
+        .innerJoin(
+          membershipRoles,
+          and(
+            eq(membershipRoles.eventId, rsvpAttendance.eventId),
+            eq(membershipRoles.userId, rsvpAttendance.userId),
+            eq(membershipRoles.role, "vip"),
+          ),
+        )
+        .where(and(eq(rsvpAttendance.eventId, eventId), eq(rsvpAttendance.attending, true)))
+        .all()
+        .map((row) => row.userId)
+        .filter((id) => id !== exceptUserId),
+    );
+    const persons = new Set(
+      db
+        .select({ id: companionAttendance.companionId })
+        .from(companionAttendance)
+        .innerJoin(companions, eq(companions.id, companionAttendance.companionId))
+        .where(
+          and(
+            eq(companionAttendance.eventId, eventId),
+            eq(companionAttendance.attending, true),
+            eq(companions.status, "approved"),
+          ),
+        )
+        .all()
+        .map((row) => row.id),
+    );
+    return guests.size + persons.size;
   }
 
   /** Guests without an answer who have a verified address (RSVP-07). */
   reminderRecipients(): { userId: number; name: string; email: string }[] {
-    const { db } = this.#database;
-    const pending = this.#guests().filter((g) => g.status === "none" && g.verifiedEmail);
-    if (pending.length === 0) return [];
-    const rows = db
-      .select({ id: users.id, email: users.email })
-      .from(users)
-      .where(
-        inArray(
-          users.id,
-          pending.map((g) => g.userId),
-        ),
-      )
-      .all();
-    return pending.flatMap((guest) => {
-      const email = rows.find((row) => row.id === guest.userId)?.email;
-      return email ? [{ userId: guest.userId, name: guest.name, email }] : [];
-    });
+    return this.#guests().flatMap((guest) =>
+      isReminded(guest) && guest.email !== null
+        ? [{ userId: guest.userId, name: guest.name, email: guest.email }]
+        : [],
+    );
+  }
+
+  /**
+   * Sends the reminder to every guest without an answer who has a verified address (RSVP-07).
+   * A mail that fails does not stop the others; the answer says how many were sent.
+   */
+  async remind(
+    mailer: Mailer,
+    publicUrl: string,
+    actor: Actor,
+    log: (error: unknown) => void,
+  ): Promise<{ sent: number }> {
+    const eventName = this.#event.get().name ?? "Zappaloo";
+    const deadline = this.#deadline();
+    const url = `${publicUrl.replace(/\/+$/, "")}/rsvp`;
+    let sent = 0;
+    for (const recipient of this.reminderRecipients()) {
+      try {
+        await mailer.send(
+          rsvpReminderMail(recipient.email, eventName, recipient.name, deadline, url),
+        );
+        sent += 1;
+      } catch (error) {
+        log(error);
+      }
+    }
+    this.#event.audit(actor, "rsvp.remind", { sent });
+    return { sent };
   }
 
   /** The guest table as CSV for the hosts (RSVP-05); contains allergies, so admins only. */
@@ -880,15 +980,7 @@ export class RsvpService {
       [
         guest.name,
         status[guest.status],
-        ...overview.parts.map((part) =>
-          !guest.invitedPartIds.includes(part.id)
-            ? ""
-            : guest.status === "none"
-              ? ""
-              : guest.attendingPartIds.includes(part.id)
-                ? "ja"
-                : "nein",
-        ),
+        ...overview.parts.map((part) => partCell(guest, part.id)),
         menuName(guest.menuId),
         ...(overview.songEnabled ? [guest.songWish ?? ""] : []),
         guest.allergies ?? "",
@@ -899,13 +991,7 @@ export class RsvpService {
         .map((c) => [
           `↳ ${c.name}`,
           "bestätigt",
-          ...overview.parts.map((part) =>
-            !guest.invitedPartIds.includes(part.id)
-              ? ""
-              : c.attendingPartIds.includes(part.id)
-                ? "ja"
-                : "nein",
-          ),
+          ...overview.parts.map((part) => partCell(c, part.id)),
           menuName(c.menuId),
           ...(overview.songEnabled ? [""] : []),
           c.allergies ?? "",

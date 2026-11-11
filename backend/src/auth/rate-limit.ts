@@ -73,8 +73,11 @@ export const REDEEM_FAILURES_PER_ADDRESS: Limit = { max: 20, windowMs: 15 * 60_0
 export const REDEEM_FAILURES_GLOBAL: Limit = { max: 100, windowMs: 60 * 60_000 };
 export const REDEEM_GLOBAL_KEY = "redeem:failures";
 
-/** Reminder emails to guests without an RSVP, per admin (RSVP-07): a double click sends nothing twice. */
-export const RSVP_REMIND_PER_ADMIN: Limit = { max: 5, windowMs: 60 * 60_000 };
+/**
+ * Reminder emails to guests without an RSVP (RSVP-07): one round per event every 10 minutes,
+ * so a double click or two admins at once never mail the same guests twice.
+ */
+export const RSVP_REMIND_PER_EVENT: Limit = { max: 1, windowMs: 10 * 60_000 };
 
 /** Opening the platform with the email, per admin: a double click cannot mail everyone twice (ACS-14). */
 export const OPEN_PLATFORM_PER_ADMIN: Limit = { max: 3, windowMs: 60 * 60_000 };

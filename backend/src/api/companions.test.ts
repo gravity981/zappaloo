@@ -137,6 +137,9 @@ describe("requesting an accompanying person", () => {
         note: "Meine Tochter, 6 Jahre",
         status: "pending",
         attendingPartIds: [id(parts, "Trauung"), id(parts, "Dinner")],
+        declinedPartIds: parts
+          .map((part) => part.id)
+          .filter((partId) => partId !== id(parts, "Trauung") && partId !== id(parts, "Dinner")),
         menuId: menus[1]?.id,
         allergies: "Nüsse",
       },

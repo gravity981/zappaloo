@@ -15,6 +15,7 @@ import {
 } from "../database/schema.ts";
 import { SELF_ACTOR } from "../event/service.ts";
 import type { Actor, EventService } from "../event/service.ts";
+import { attendingNow, pruneAnswers } from "../rsvp/cleanup.ts";
 import { assertPasswordAllowed } from "./accounts.ts";
 import type { AccountService } from "./accounts.ts";
 import { hashPassword } from "./password.ts";
@@ -301,6 +302,7 @@ export class InvitationService {
         tx.insert(invitationParts).values({ eventId, invitationId: id, partId }).run();
       }
       if (row.status === "redeemed" && row.redeemedBy !== null) {
+        const before = attendingNow(tx, eventId, row.redeemedBy);
         tx.delete(membershipParts)
           .where(
             and(eq(membershipParts.eventId, eventId), eq(membershipParts.userId, row.redeemedBy)),
@@ -309,6 +311,8 @@ export class InvitationService {
         for (const partId of parts) {
           tx.insert(membershipParts).values({ eventId, userId: row.redeemedBy, partId }).run();
         }
+        // Answers for parts no longer invited go, as with the account panel (7.4.1).
+        pruneAnswers(tx, eventId, row.redeemedBy, before);
       }
       this.#event.audit(actor, "invitation.parts", { invitationId: id, partIds: parts }, tx);
       return this.#toInvitation(row, this.#partIds(tx, row));

@@ -41,6 +41,7 @@ function state(changes: Record<string, unknown> = {}) {
 }
 const answered = (partIds: number[], extra: Record<string, unknown> = {}) => ({
   attendingPartIds: partIds,
+  declinedPartIds: PARTS.map((part) => part.id).filter((id) => !partIds.includes(id)),
   menuId: null,
   allergies: null,
   songWish: null,
@@ -187,6 +188,47 @@ describe("the RSVP wizard", () => {
       "aria-pressed",
       "true",
     );
+  });
+
+  it("[RSVP-02] a part added after the answer is open: the summary says so and the wizard asks for it", async () => {
+    fakeBackend({
+      "GET /api/session": () => asGuest,
+      "GET /api/rsvp": () => ({
+        status: 200,
+        // Dinner was added to the invitation after Erika answered.
+        body: state({ answer: answered([1], { declinedPartIds: [2] }) }),
+      }),
+    });
+    renderAt("/rsvp");
+    // The wizard starts at the attendance, with what was answered pre-filled.
+    expect(await screen.findByRole("button", { name: "Trauung: Dabei" })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+    expect(screen.getByRole("button", { name: "Apéro: Nicht dabei" })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+    for (const name of ["Dinner: Dabei", "Dinner: Nicht dabei"]) {
+      expect(screen.getByRole("button", { name })).toHaveAttribute("aria-pressed", "false");
+    }
+    expect(screen.getByRole("button", { name: "Weiter" })).toBeDisabled();
+    user.click(screen.getByRole("button", { name: "Dinner: Nicht dabei" }));
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "Weiter" })).toBeEnabled();
+    });
+  });
+
+  it("[RSVP-02] after the deadline an open part is shown as such in the summary", async () => {
+    fakeBackend({
+      "GET /api/session": () => asGuest,
+      "GET /api/rsvp": () => ({
+        status: 200,
+        body: state({ closed: true, answer: answered([1], { declinedPartIds: [2] }) }),
+      }),
+    });
+    renderAt("/rsvp");
+    expect(await screen.findByText("Noch offen")).toBeInTheDocument();
   });
 
   it("[RSVP-04] after the deadline the summary is read-only with a hint to contact the hosts", async () => {
@@ -336,6 +378,7 @@ describe("Rückmeldungen", () => {
         status: "attending",
         invitedPartIds: [1, 2, 3],
         attendingPartIds: [1, 3],
+        declinedPartIds: [2],
         menuId: 2,
         songWish: "ABBA",
         allergies: "Nüsse",
@@ -347,6 +390,7 @@ describe("Rückmeldungen", () => {
         status: "declined",
         invitedPartIds: [1, 2, 3],
         attendingPartIds: [],
+        declinedPartIds: [1, 2, 3],
         menuId: null,
         songWish: null,
         allergies: null,
@@ -358,6 +402,7 @@ describe("Rückmeldungen", () => {
         status: "none",
         invitedPartIds: [1],
         attendingPartIds: [],
+        declinedPartIds: [],
         menuId: null,
         songWish: null,
         allergies: null,
@@ -629,6 +674,48 @@ describe("invited parts", () => {
     });
     expect(calls.find((c) => c.method === "PUT")?.body).toEqual({ partIds: [1, 2, 3] });
     expect(within(panel).getByText(/vip ohne Einladung/)).toBeInTheDocument();
+  });
+});
+
+describe("revoking vip (7.4.1, decided 2026-11-11)", () => {
+  it("[RSVP-02][SEC-11] revoking vip needs a second click, because the RSVP is deleted with it", async () => {
+    const calls = fakeBackend({
+      "GET /api/session": () => asAdmin,
+      "GET /api/admin/groups": () => ({ status: 200, body: { groups: [] } }),
+      "GET /api/admin/users": () => ({
+        status: 200,
+        body: {
+          users: [
+            {
+              ...anna,
+              id: 1,
+              username: "oma",
+              displayName: "Oma",
+              roles: ["vip", "staff"],
+              vipAssignment: "admin_promotion",
+              groups: [],
+              invitedPartIds: [1],
+            },
+          ],
+        },
+      }),
+      "PUT /api/admin/users/1/roles": () => ({ status: 200, body: anna }),
+    });
+    renderAt("/admin/users");
+    user.click(await screen.findByRole("button", { name: "vip für Oma" }));
+    const confirm = await screen.findByRole("alertdialog");
+    expect(confirm).toHaveTextContent(/Oma verliert die Rolle vip/);
+    expect(calls.some((c) => c.method === "PUT")).toBe(false);
+    // Cancelling changes nothing.
+    user.click(within(confirm).getByRole("button", { name: "Abbrechen" }));
+    await waitFor(() => {
+      expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument();
+    });
+    user.click(screen.getByRole("button", { name: "vip für Oma" }));
+    user.click(await screen.findByRole("button", { name: "vip entziehen" }));
+    await waitFor(() => {
+      expect(calls.find((c) => c.method === "PUT")?.body).toEqual({ roles: ["staff"] });
+    });
   });
 });
 

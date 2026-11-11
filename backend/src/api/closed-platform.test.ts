@@ -13,7 +13,7 @@ import type {
 } from "@zappaloo/shared";
 import { createTestApp } from "../test-support.ts";
 import type { TestContext } from "../test-support.ts";
-import { SESSION_COOKIE } from "./auth.ts";
+import { OPEN_WHILE_CLOSED, SESSION_COOKIE } from "./auth.ts";
 
 let context: TestContext | undefined;
 afterEach(async () => {
@@ -53,6 +53,25 @@ async function makeUser(
   };
 }
 
+/** The routes of `printRoutes`: each line adds its segment to the path of its parent line. */
+function routeTable(tree: string): { url: string; method: string }[] {
+  const stack: string[] = [];
+  const routes: { url: string; method: string }[] = [];
+  for (const line of tree.split("\n")) {
+    const match = /^([│ ]*)[├└]── (\S+)(?: \(([^)]+)\))?/.exec(line);
+    if (!match) continue;
+    const depth = (match[1] ?? "").length / 4;
+    const url = (stack[depth - 1] ?? "") + (match[2] ?? "");
+    stack.splice(depth, stack.length, url);
+    for (const method of (match[3] ?? "").split(", ").filter((m) => m !== "" && m !== "HEAD")) {
+      if (url.startsWith("/api/")) routes.push({ url, method });
+    }
+  }
+  return routes;
+}
+
+const NEAR_MISSES = ["/api/profiles/:id", "/api/eventlog", "/api/events/figures", "/api/sitemap"];
+
 async function setup() {
   const ctx = await createTestApp();
   context = ctx;
@@ -60,6 +79,11 @@ async function setup() {
   ctx.app.get("/api/gallery", { schema: { querystring: z.strictObject({}) } }, () => ({
     photos: [],
   }));
+  // Routes a later stage might add, with names close to the open ones.
+  for (const url of NEAR_MISSES) {
+    const params = url.includes(":id") ? { params: z.strictObject({ id: z.string() }) } : {};
+    ctx.app.get(url, { schema: { querystring: z.strictObject({}), ...params } }, () => ({}));
+  }
   const root = await makeUser(ctx, "root", ["admin"]);
   // eslint-disable-next-line @typescript-eslint/no-unnecessary-type-parameters -- the caller names the body's type
   const get = async <T>(who: SignedIn, url: string) => {
@@ -120,6 +144,37 @@ describe("the closed platform (ACS-10)", () => {
         })
       ).statusCode,
     ).toBe(200);
+  });
+
+  it("[ACS-10] the list of open routes matches whole names: every other route of the app is closed", async () => {
+    const { ctx } = await setup();
+    const anna = await makeUser(ctx, "anna", ["vip"]);
+    // Every route the app has, read from its route table: a tree of path segments.
+    const routes = routeTable(ctx.app.printRoutes({ commonPrefix: false }));
+    expect(routes.length).toBeGreaterThan(40);
+    const open = (url: string) =>
+      OPEN_WHILE_CLOSED.some((entry) => url === entry || url.startsWith(`${entry}/`));
+    const closed = routes.filter(({ url }) => !open(url));
+    expect(closed.map((r) => r.url)).toEqual(
+      expect.arrayContaining([
+        "/api/profiles/:id",
+        "/api/eventlog",
+        "/api/events/figures",
+        "/api/sitemap",
+        "/api/gallery",
+      ]),
+    );
+    for (const { url, method } of closed) {
+      const response = await ctx.app.inject({
+        method: method as "GET",
+        url: url.replaceAll(/:[a-zA-Z]+/g, "1"),
+        headers: as(anna),
+      });
+      expect(
+        [response.statusCode, response.json<{ error?: { code: string } }>().error?.code],
+        `${method} ${url}`,
+      ).toEqual([403, "platform_closed"]);
+    }
   });
 
   it("[ACS-10] an open platform is open to guests, and closing it again takes effect at once", async () => {

@@ -185,7 +185,9 @@
       "invitedTo": "Eingeladen zu",
       "invitedHintInvitation": "Aus der Einladung, änderbar unter Einladungen.",
       "invitedHintPromotion": "Dieses Konto hat vip ohne Einladung: Wähle die Teile hier.",
-      "invitedNone": "Noch keine Teile angelegt."
+      "invitedNone": "Noch keine Teile angelegt.",
+      "revokeVip": "{{name}} verliert die Rolle vip. Die Rückmeldung mit Allergien und alle Begleitpersonen werden gelöscht.",
+      "revokeVipFinal": "vip entziehen"
     },
     "groups": {
       "title": "Gästegruppen",
@@ -260,6 +262,8 @@
       "invitation_revoke_many": "{{count}} Einladungen widerrufen",
       "invitation_parts": "Teile der Einladung für {{name}} geändert",
       "invitation_parts_unnamed": "Die Teile einer Einladung wurden geändert",
+      "user_parts": "Eingeladene Teile von {{name}} geändert",
+      "user_parts_unnamed": "Die eingeladenen Teile eines Kontos wurden geändert",
       "event_setup": "Veranstaltung eingerichtet",
       "setting": "«{{name}}» geändert",
       "setting_unnamed": "Eine Einstellung wurde geändert",
@@ -581,6 +585,7 @@
     "partWhen": "{{time}} · {{place}}",
     "attending": "Dabei",
     "notAttending": "Nicht dabei",
+    "openPart": "Noch offen",
     "answerFor": "Antwort für {{part}}",
     "next": "Weiter",
     "back": "Zurück",

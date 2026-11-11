@@ -29,16 +29,23 @@ const MENUS = [
   { id: 4, name: "Kindermenü" },
 ];
 
-const companion = (changes: Record<string, unknown> = {}) => ({
-  id: 7,
-  name: "Mia Huber",
-  note: "Meine Tochter, 6 Jahre",
-  status: "pending",
-  attendingPartIds: [1, 3],
-  menuId: 4,
-  allergies: null,
-  ...changes,
-});
+const companion = (changes: Record<string, unknown> = {}) => {
+  const value = {
+    id: 7,
+    name: "Mia Huber",
+    note: "Meine Tochter, 6 Jahre",
+    status: "pending",
+    attendingPartIds: [1, 3] as number[],
+    menuId: 4,
+    allergies: null,
+    ...changes,
+  };
+  // Every part the person does not attend is answered with no, unless the test says otherwise.
+  return {
+    declinedPartIds: PARTS.map((p) => p.id).filter((id) => !value.attendingPartIds.includes(id)),
+    ...value,
+  };
+};
 
 function state(changes: Record<string, unknown> = {}) {
   return {
@@ -50,6 +57,7 @@ function state(changes: Record<string, unknown> = {}) {
     menus: MENUS,
     answer: {
       attendingPartIds: [1],
+      declinedPartIds: [3],
       menuId: null,
       allergies: null,
       songWish: null,
@@ -221,6 +229,44 @@ describe("accompanying persons in the wizard", () => {
     );
   });
 
+  it("[RSVP-10] a request saved in its form wins over what the steps held for that person", async () => {
+    const answer = {
+      attendingPartIds: [1, 3],
+      declinedPartIds: [],
+      menuId: 1,
+      allergies: null,
+      songWish: null,
+      answeredAt: "2027-01-01T10:00:00.000Z",
+    };
+    const mia = companion();
+    const calls = fakeBackend({
+      "GET /api/session": () => asGuest,
+      "GET /api/rsvp": () => ({ status: 200, body: state({ answer, companions: [mia] }) }),
+      "PUT /api/rsvp/companions/7": () => ({
+        status: 200,
+        body: state({ answer, companions: [mia] }),
+      }),
+      "PUT /api/rsvp": () => ({ status: 200, body: state({ answer, companions: [mia] }) }),
+    });
+    renderAt("/rsvp");
+    user.click(await screen.findByRole("button", { name: "Ändern" }));
+    user.click(await screen.findByRole("button", { name: "Weiter" }));
+    // Step 2: the guest picks another menu for Mia ...
+    user.click(await screen.findByRole("button", { name: "Mia Huber: Fleisch" }));
+    user.click(screen.getByRole("button", { name: "Weiter" }));
+    // ... then saves Mia’s request in its form, with the children’s menu.
+    user.click(await screen.findByRole("button", { name: "Bearbeiten: Mia Huber" }));
+    user.click(await screen.findByRole("button", { name: "Speichern" }));
+    user.click(await screen.findByRole("button", { name: "Antwort senden" }));
+    await waitFor(() => {
+      expect(calls.some((c) => c.method === "PUT" && c.path === "/api/rsvp")).toBe(true);
+    });
+    const sent = calls.find((c) => c.method === "PUT" && c.path === "/api/rsvp")?.body as {
+      companions: { companionId: number; menuId?: number }[];
+    };
+    expect(sent.companions).toEqual([expect.objectContaining({ companionId: 7, menuId: 4 })]);
+  });
+
   it("[RSVP-09] approved persons are answered in the steps like the guest, with their own menu and allergies", async () => {
     const noah = companion({
       id: 8,
@@ -284,6 +330,7 @@ describe("accompanying persons in the wizard", () => {
         body: state({
           answer: {
             attendingPartIds: [],
+            declinedPartIds: [1, 3],
             menuId: null,
             allergies: null,
             songWish: null,
@@ -401,6 +448,7 @@ describe("Rückmeldungen: companion requests", () => {
         status: "attending",
         invitedPartIds: [1, 3],
         attendingPartIds: [1],
+        declinedPartIds: [3],
         menuId: null,
         songWish: null,
         allergies: null,
@@ -469,6 +517,8 @@ describe("Rückmeldungen: companion requests", () => {
     fakeBackend({
       "GET /api/session": () => asAdmin,
       "GET /api/admin/rsvp": () => ({ status: 200, body: overview({ pendingCount: 3 }) }),
+      // The badge asks for the count alone, not for the guest table.
+      "GET /api/admin/rsvp/pending": () => ({ status: 200, body: { pendingCount: 3 } }),
       "GET /api/admin/activity": () => ({ status: 200, body: { entries: [] } }),
     });
     renderAt("/admin");

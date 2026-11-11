@@ -79,12 +79,12 @@ describe("admin: features and settings", () => {
     const admin = await signIn(context, "boss", ["admin"]);
     const response = await patch(admin, {
       features: { gallery: false },
-      settings: { platformOpen: true },
+      settings: { snapshotUploadsOpen: true },
     });
     expect(response.statusCode, response.body).toBe(200);
     expect(response.json()).toMatchObject({
       features: { gallery: false, minigames: true },
-      settings: { platformOpen: true, snapshotUploadsOpen: false },
+      settings: { platformOpen: false, snapshotUploadsOpen: true, keepsakeUploadsOpen: false },
     });
     // Every request reads the new state at once.
     expect(context.event.isFeatureEnabled("gallery")).toBe(false);
@@ -96,7 +96,7 @@ describe("admin: features and settings", () => {
     expect(actions).toEqual(
       expect.arrayContaining([
         ["feature.set", { name: "gallery", from: true, to: false }],
-        ["setting.set", { name: "platformOpen", from: false, to: true }],
+        ["setting.set", { name: "snapshotUploadsOpen", from: false, to: true }],
       ]),
     );
     // An unchanged value is not logged again.
@@ -108,18 +108,21 @@ describe("admin: features and settings", () => {
   it("[CFG-05][ROLE-08] needs the admin role and known names; nothing changes on a refused request", async () => {
     context = await createTestApp();
     const staff = await signIn(context, "helper", ["staff", "vip"]);
-    expect((await patch(staff, { settings: { platformOpen: true } })).statusCode).toBe(403);
+    expect((await patch(staff, { settings: { snapshotUploadsOpen: true } })).statusCode).toBe(403);
     const admin = await signIn(context, "boss", ["admin"]);
     for (const payload of [
       {},
       { features: {} },
       { features: { unknownFeature: true } },
-      { settings: { platformOpen: "yes" } },
+      { settings: { snapshotUploadsOpen: "yes" } },
+      // The platform opens only through /api/admin/platform/open (ACS-14).
+      { settings: { platformOpen: true } },
       { features: { gallery: false }, extra: 1 },
     ]) {
       expect((await patch(admin, payload)).statusCode, JSON.stringify(payload)).toBe(400);
     }
     expect(context.event.get().settings.platformOpen).toBe(false);
+    expect(context.event.get().settings.snapshotUploadsOpen).toBe(false);
     expect(context.event.isFeatureEnabled("gallery")).toBe(true);
   });
 });
@@ -195,7 +198,7 @@ describe("setup", () => {
       method: "PATCH",
       url: "/api/admin/event",
       headers: admin,
-      payload: { settings: { platformOpen: true } },
+      payload: { settings: { snapshotUploadsOpen: true } },
     });
     expect(change.statusCode).toBe(409);
     expect(change.json()).toMatchObject({ error: { code: "setup_incomplete" } });

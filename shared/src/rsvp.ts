@@ -78,6 +78,8 @@ export const companionSchema = z.object({
   note: z.string().nullable(),
   status: z.enum(COMPANION_STATUSES),
   attendingPartIds: z.array(idSchema),
+  /** The parts answered with no; an invited part in neither list is not answered yet. */
+  declinedPartIds: z.array(idSchema),
   menuId: idSchema.nullable(),
   allergies: z.string().nullable(),
 });
@@ -125,6 +127,11 @@ export type RsvpAnswerRequest = z.infer<typeof rsvpAnswerRequestSchema>;
 export const rsvpAnswerSchema = z.object({
   /** The parts the person attends. */
   attendingPartIds: z.array(idSchema),
+  /**
+   * The parts answered with no. An invited part in neither list is not answered yet: it was
+   * added to the invitation after the answer (7.4.1).
+   */
+  declinedPartIds: z.array(idSchema),
   menuId: idSchema.nullable(),
   allergies: z.string().nullable(),
   songWish: z.string().nullable(),
@@ -154,6 +161,32 @@ export type RsvpState = z.infer<typeof rsvpStateSchema>;
 export const RSVP_STATUSES = ["attending", "declined", "none"] as const;
 export type RsvpStatus = (typeof RSVP_STATUSES)[number];
 
+/**
+ * The status of a guest's RSVP (7.4.1): attending once they attend a part; declined once they
+ * have answered every invited part with no; otherwise no answer (also when a part was added to
+ * the invitation after they declined the others).
+ */
+export function rsvpStatus(
+  answered: boolean,
+  invitedPartIds: readonly number[],
+  attendingPartIds: readonly number[],
+  declinedPartIds: readonly number[],
+): RsvpStatus {
+  if (!answered) return "none";
+  if (attendingPartIds.some((id) => invitedPartIds.includes(id))) return "attending";
+  return invitedPartIds.every((id) => declinedPartIds.includes(id)) ? "declined" : "none";
+}
+
+/** A person attending the part with the meal chooses a menu, as long as menus exist (RSVP-03). */
+export function menuRequired(
+  parts: readonly Pick<EventPart, "id" | "hasMeal">[],
+  menuCount: number,
+  attendingPartIds: readonly number[],
+): boolean {
+  const meal = parts.find((part) => part.hasMeal);
+  return meal !== undefined && menuCount > 0 && attendingPartIds.includes(meal.id);
+}
+
 /** One row of the guest table (RSVP-04, RSVP-05); `allergies` is for admins only (SEC-11). */
 export const rsvpGuestSchema = z.object({
   userId: idSchema,
@@ -161,6 +194,8 @@ export const rsvpGuestSchema = z.object({
   status: z.enum(RSVP_STATUSES),
   invitedPartIds: z.array(idSchema),
   attendingPartIds: z.array(idSchema),
+  /** The parts answered with no; an invited part in neither list is not answered yet. */
+  declinedPartIds: z.array(idSchema),
   menuId: idSchema.nullable(),
   songWish: z.string().nullable(),
   allergies: z.string().nullable(),
@@ -183,7 +218,7 @@ export const rsvpOverviewSchema = z.object({
   songEnabled: z.boolean(),
   parts: z.array(eventPartSchema),
   menus: z.array(menuOptionSchema),
-  /** Per part: guests who answered yes and no (invited and answered, not attending). */
+  /** Per part: persons who answered yes and who answered no; a part not answered yet counts in neither. */
   totals: z.array(z.object({ partId: idSchema, yes: z.number().int(), no: z.number().int() })),
   /** Menu choices of the persons attending the meal part; menuId null = no choice made. */
   menuTotals: z.array(z.object({ menuId: idSchema.nullable(), count: z.number().int() })),
@@ -198,6 +233,9 @@ export const rsvpOverviewSchema = z.object({
   reminderCount: z.number().int(),
 });
 export type RsvpOverview = z.infer<typeof rsvpOverviewSchema>;
+
+/** `GET /api/admin/rsvp/pending`: requests waiting for a decision, for the navigation badge. */
+export const rsvpPendingSchema = z.object({ pendingCount: z.number().int() });
 
 /** `GET /api/admin/rsvp/guests/:id`: the wizard in admin mode (deadline ignored). */
 export const rsvpAdminStateSchema = rsvpStateSchema;
@@ -237,6 +275,7 @@ export const ACTIVITY_ACTIONS = [
   "invitation.regenerate",
   "invitation.revoke",
   "invitation.parts",
+  "user.parts",
   "companion.request",
   "companion.approve",
   "companion.reject",

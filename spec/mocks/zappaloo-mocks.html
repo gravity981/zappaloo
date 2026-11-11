@@ -1207,14 +1207,14 @@ add({
   id: "admin-users", group: "admin", title: "Accounts, roles & groups", path: "/admin/users", reqs: ["ACC-08", "ACC-10", "ROLE-01", "ROLE-06", "ROLE-09", "INV-11", "GRP-01", "PRES-14"],
   variants: [["list", "List"], ["account", "Account panel"], ["create", "New account"], ["group", "Group panel"]],
   shows: ["Accounts with role toggles (vip / staff / admin) and their capabilities; guest groups beside the table.", "“…” opens the account panel (decided 2026-11-10): roles, staff capabilities (only with staff), groups as chips, and a reset link to hand over, shown once with copy and expiry.", "“Konto anlegen” opens a panel; the setup link is shown once afterwards.", "A group opens its panel: rename, members (add, remove), delete with a second click.", "The panel is a side sheet on desktop and full screen on phones. Removing profile data (PRES-14) joins the account panel in stage 6."],
-  qs: [{ n: 53, q: "An account that gets vip from an admin has no invitation, so no invited parts. How does it get them?", p: "Proposal: “Eingeladen zu” chips in the account panel (and when creating the account); a new account is invited to all parts." }],
+  qs: [{ n: 53, q: "An account that gets vip from an admin has no invitation, so no invited parts. How does it get them?", p: "Decided: “Eingeladen zu” chips in the account panel; a new account is invited to all parts, without chips when it is created (2026-11-11)." }],
   render: (v) => {
     const panel = (title, body) => `<div style="position:absolute;inset:0;z-index:8;background:rgba(18,18,18,.45);display:flex;justify-content:flex-end"><div style="background:var(--w-bg);width:100%;max-width:440px;height:100%;overflow:auto;display:flex;flex-direction:column"><div class="m-sheethead"><b>${title}</b><button class="m-iconbtn" data-go="admin-users" data-variant="list" aria-label="Schliessen">${ic("x")}</button></div><div class="m-sheetbody">${body}</div></div></div>`;
     const chipsOn = (items, on, dis = false) => `<div class="m-chips">${items.map((x, i) => `<button class="m-chip ${on[i] ? "on" : ""}" ${dis ? 'disabled style="opacity:.4"' : ""}>${x}</button>`).join("")}</div>`;
     const link = (label, url) => `<div class="m-card flat"><b class="sm">${label}</b><div class="m-row2"><input class="m-input" style="flex:1 1 200px;font:12.5px ui-monospace,monospace" readonly value="${url}"><button class="m-btn ghost sm">Kopieren</button></div><span class="m-hint">Gültig bis 12.11.2026, 18:00, einmal verwendbar. Der Link wird nur jetzt angezeigt.</span></div>`;
     let over = "";
     if (v === "account") over = panel("Erika Huber", `<span class="m-hint">erika.huber · erika@example.ch (bestätigt)</span>
-      <b>Rollen</b>${chipsOn(["vip", "staff", "admin"], [1, 0, 0])}<span class="m-hint">vip per Einladungscode</span>
+      <b>Rollen</b>${chipsOn(["vip", "staff", "admin"], [1, 0, 0])}<span class="m-hint">vip per Einladungscode</span><span class="m-hint">vip entziehen braucht einen zweiten Klick («vip entziehen»): die Rückmeldung mit Allergien und die Begleitpersonen werden gelöscht.</span>
       <b>Fähigkeiten</b>${chipsOn(["Inhalte", "Moderation"], [0, 0], true)}<span class="m-hint">Fähigkeiten gibt es nur mit der Rolle staff.</span>
       <b>Gästegruppen</b>${chipsOn(["Trauzeugen", "Familie", "Kinder"], [0, 1, 0])}
       <b>Eingeladen zu</b>${chipsOn(PARTS.map((p) => p[0]), [1, 1, 1, 0], true)}<span class="m-hint">Aus der Einladung, änderbar unter Einladungen. Hat ein Konto vip ohne Einladung, wählst du die Teile hier.</span>
@@ -1222,7 +1222,7 @@ add({
       ${link("Link zum Zurücksetzen", "https://zappaloo.ch/set-password/q8Zr…")}`);
     if (v === "create") over = panel("Konto anlegen", `${field("Benutzername", inp("au-user", "oma.erika"))}<span class="m-hint">3–32 Zeichen: a–z, 0–9, Punkt, Unterstrich, Bindestrich. Lässt sich nicht mehr ändern.</span>
       ${field("Anzeigename (optional)", inp("au-name", "Oma Erika"))}<b class="sm">Rollen</b>${chipsOn(["vip", "staff", "admin"], [1, 0, 0])}
-      <b class="sm">Eingeladen zu</b>${chipsOn(PARTS.map((p) => p[0]), [1, 1, 1, 1])}<span class="m-hint">Nur mit vip. Ein neues Konto ist zu allen Teilen eingeladen.</span>
+      <span class="m-hint">Ein neues Konto mit vip ist zu allen Teilen eingeladen; die Teile änderst du danach im Konto.</span>
       <button class="m-btn" style="align-self:flex-start">Konto anlegen</button>
       <span class="m-eyebrow">Danach</span>${link("Link zum Festlegen des Passworts", "https://zappaloo.ch/set-password/Hk3p…")}`);
     if (v === "group") over = panel("Trauzeugen", `<div class="m-row2" style="align-items:flex-end"><div style="flex:1">${field("Name der Gruppe", inp("ag-name", "Trauzeugen"))}</div><button class="m-btn soft sm">Umbenennen</button></div>
@@ -1440,7 +1440,7 @@ const DECIDED = {
   50: "The allergies card becomes the guest table; allergies are a column only admins see. A row opens the RSVP wizard in admin mode.",
   51: "Tied to the meal part; one menu list for everyone.",
   52: "Yes, without a new approval, until the deadline.",
-  53: "“Eingeladen zu” chips in the account panel for vip accounts without an invitation; a new account is invited to all parts.",
+  53: "“Eingeladen zu” chips in the account panel for vip accounts without an invitation; a new account is invited to all parts (no chips in “Konto anlegen”, 2026-11-11).",
   54: "Einstellungen only.",
   55: "Claude drafts a German default; the admin edits it as Markdown in Einstellungen.",
   56: "Hidden at zero; the platform can be closed again, without an email.",
