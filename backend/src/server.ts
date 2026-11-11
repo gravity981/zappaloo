@@ -28,6 +28,7 @@ async function main(): Promise<void> {
     database,
     event,
     auth,
+    eventsDir: paths.events,
     trustProxy: config.TRUST_PROXY,
     version,
     frontendDir: config.FRONTEND_DIR,

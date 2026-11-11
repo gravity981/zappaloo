@@ -202,6 +202,7 @@ describe("data model", () => {
       "event_features",
       "event_parts",
       "event_settings",
+      "footer_notice",
       "guest_group_members",
       "guest_groups",
       "invitation_parts",

@@ -194,22 +194,25 @@ Requirements: PWA-01, PWA-02.
 **3.5b – Page head and safe areas.** `index.html` gets `apple-touch-icon`, `theme-color`, the iOS app title, `apple-mobile-web-app-capable`, the status bar style and `viewport-fit=cover`; the guest shells (`bare`, `flow`), the waiting page with its door scene, the profile and the admin area respect `env(safe-area-inset-*)`; in standalone mode every page offers a way back, because there is no browser back button. Playwright checks the tags and, with standalone display mode emulated, that no content sits under the insets.
 Requirements: PWA-03, PWA-04.
 
-**3.5c – Install hint.** A UX mock first (a card on `waiting` and `profile`, decision in mocks/README.md), then the build: a dismissible hint "Zum Startbildschirm hinzufügen" in the mobile browser, never in standalone mode; on Android a button that triggers the browser's install prompt, on iOS the steps in the Share menu; a note that the app asks for the password once more (iOS keeps separate storage for it).
+**3.5c – Install hint.** UX mock first (screens `install` and `waiting` variant "Install hint", card "App" in `profile`; UX decision 60, confirmed 2026-11-11), then the build: the strip on the waiting page (hidden with × on this device), the card in the profile and the page `/install`, only in a mobile browser and never in the installed app; on Android a button that triggers the browser's install prompt (the browser menu steps without one), on iOS the steps of the Share menu; a note that the app asks for the password once more (iOS keeps separate storage for it).
 Requirements: PWA-05.
 
 **3.5d – Footer with copyright and license notice** (added 2026-11-11, sw-architecture.md 19.6). UX mock first (the footer on `login`, `waiting`, `profile` and the admin area; card "Fusszeile" in `admin-settings`; the `/license` page), decision in mocks/README.md. Then: copyright line in the database with a default of `© <year> <event name>`, edited in Einstellungen and audited without the text; `GET /api/site` gains `copyright` and `sourceUrl`; the footer shows the line, the AGPL-3.0 sentence (language keys) and "Source code" / "License" below "Datenschutz · Version"; public page `/license` with the `LICENSE` file, copied into the image; `SOURCE_URL` in the deployment bundle's `.env`, the runbook and the deployment test. The repository must be public before the go-live (open point "Make the repository public", OPS-12), otherwise the "Source code" link leads nowhere.
 Requirements: LIC-01, LIC-02, LIC-03.
 
-**3.5e – Device check.** Manual test protocol on real devices (test-strategy.md, section 6.1): iOS Safari and Android Chrome add the site, show the event's icon and name, open without browser bars; sign-in after the install; safe areas on a device with a notch.
-Requirements: PWA-03, PWA-04 (verified on devices).
+**3.5e – Device check** with the first release candidate on staging (decided 2026-11-11). Manual test protocol on real devices (test-strategy.md, section 6.1): iOS Safari and Android Chrome add the site, show the event's icon and name, open without browser bars; sign-in after the install; safe areas on a device with a notch.
+Also: manifest and icons through Caddy on staging (the deployment test). The result is recorded in the manual test protocol; until then PWA-01 – PWA-05 are on the "not yet tested" list in test-strategy.md, section 5.
+Requirements: PWA-01 – PWA-05 (verified on staging and on devices).
 
 **3.5f – Release 1 go-live** (after 3.5a – 3.5e; formerly 3f). First release promoted and deployed to production on the operator's host; Let's Encrypt and live updates through Caddy checked there (manual test protocol); invitation print export checked end to end, privacy notice reviewed, home screen install checked on the production host, manual checks from the release checklist that apply to Release 1.
-Requirements: OPS-02.
+Checked with the released version on prod (decided 2026-11-11): LIC-03 and OPS-02 stay on the "not yet tested" list until then. When Release 1 works on prod and stage 4 starts, the lists are cleared (test-strategy.md, section 5).
+Requirements: OPS-02, LIC-03 (verified on prod).
 
 ### Stage 4 – Content and Website
 
 **Before the stage starts:**
 - Texts for the first event's pages (at least drafts).
+- Release 1 runs on prod and works. The checks of stage 3.5 (devices on staging, prod) are recorded as `pass` rows in the manual test protocol, and the "not yet tested" list in test-strategy.md, section 5, is cleared, OPS-02 included.
 
 **Steps:**
 

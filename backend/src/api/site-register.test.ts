@@ -18,16 +18,23 @@ function issue(ctx: TestContext, name: string): IssuedInvitation {
 }
 
 describe("the brand of the pages without sign-in (ACS-09, SEC-09)", () => {
-  it("[ACS-09] GET /api/site gives only the event's name, without a sign-in", async () => {
+  it("[ACS-09] GET /api/site gives the name and the footer's texts, without a sign-in", async () => {
     context = await createTestApp();
     const response = await context.app.inject("/api/site");
     expect(response.statusCode).toBe(200);
-    expect(response.json()).toEqual({ name: "Event Muster" });
+    expect(response.json()).toEqual({
+      name: "Event Muster",
+      copyright: expect.stringMatching(/^© \d{4} Event Muster$/) as string,
+      sourceUrl: "https://github.com/gravity981/zappaloo",
+    });
   });
 
-  it("[ACS-09] before the setup the name is null", async () => {
+  it("[ACS-09] before the setup the name and the copyright line are null", async () => {
     context = await createTestApp({ setup: false });
-    expect((await context.app.inject("/api/site")).json()).toEqual({ name: null });
+    expect((await context.app.inject("/api/site")).json()).toMatchObject({
+      name: null,
+      copyright: null,
+    });
   });
 });
 

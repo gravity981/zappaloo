@@ -10,7 +10,9 @@ import { AccessService } from "./access.ts";
 import { ActivityService } from "../event/activity.ts";
 import { RsvpService } from "../rsvp/service.ts";
 import { WaitingService } from "../waiting/service.ts";
+import { FooterService } from "../event/footer.ts";
 import { PlatformService } from "../event/platform.ts";
+import { DEFAULT_SOURCE_URL } from "../config.ts";
 import { InvitationService } from "./invitations.ts";
 import { RateLimiter } from "./rate-limit.ts";
 import { SessionService } from "./sessions.ts";
@@ -39,7 +41,8 @@ export function startHousekeeping(
 export function createAuth(
   database: Database,
   event: EventService,
-  config: Pick<Config, "SESSION_SECRET" | "SECURE_COOKIES" | "PUBLIC_URL">,
+  config: Pick<Config, "SESSION_SECRET" | "SECURE_COOKIES" | "PUBLIC_URL"> &
+    Partial<Pick<Config, "SOURCE_URL">>,
   mailer?: Mailer,
   /** `$DATA_DIR/events`: where an event's own door scene is (default: none). */
   eventsDir = "",
@@ -56,6 +59,7 @@ export function createAuth(
     rsvp,
     platform: new PlatformService(database, event, mailer, config.PUBLIC_URL),
     waiting: new WaitingService(database, event, rsvp, eventsDir),
+    footer: new FooterService(database, event, config.SOURCE_URL ?? DEFAULT_SOURCE_URL),
     activity: new ActivityService(database, event),
     limiter: new RateLimiter(),
     event,

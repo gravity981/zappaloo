@@ -7,6 +7,9 @@ import { z } from "zod";
 const optional = <T extends z.ZodType>(schema: T) =>
   z.preprocess((value) => (value === "" ? undefined : value), schema.optional());
 
+/** The project's repository: the "Quellcode" link of the footer unless the operator sets SOURCE_URL (LIC-03). */
+export const DEFAULT_SOURCE_URL = "https://github.com/gravity981/zappaloo";
+
 const configSchema = z
   .object({
     APP_ENV: z.enum(["dev", "test", "staging", "prod"]).default("dev"),
@@ -28,6 +31,13 @@ const configSchema = z
      * so the default port disappears (`https://example.org:443` gives `https://example.org`).
      */
     PUBLIC_URL: z.url().optional(),
+    /**
+     * Where the source of the running version is offered (AGPL-3.0 §13): the "Quellcode" link of
+     * the footer (LIC-03). Only http and https, so the link can never run a script.
+     */
+    SOURCE_URL: optional(
+      z.url().refine((url) => /^https?:\/\//i.test(url), "must be an http(s) address"),
+    ),
     /** Mail server (ACC-11); without it no email is sent. Mailpit in dev, staging and tests. */
     SMTP_HOST: optional(z.string().min(1)),
     /** Default 587. 465 uses TLS from the start; otherwise STARTTLS, required when a login is used. */
@@ -70,6 +80,7 @@ const configSchema = z
   .transform((value) => ({
     ...value,
     PUBLIC_URL: new URL(value.PUBLIC_URL ?? "http://localhost:5173").origin,
+    SOURCE_URL: value.SOURCE_URL ?? DEFAULT_SOURCE_URL,
     MAIL_FROM: value.MAIL_FROM ?? "zappaloo@localhost",
   }));
 

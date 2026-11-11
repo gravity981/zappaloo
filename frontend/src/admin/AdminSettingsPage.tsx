@@ -11,6 +11,7 @@ import { useErrorText, useEventUpdate } from "./data.ts";
 import EventIdentityForm from "./EventIdentityForm.tsx";
 import { identityOf } from "./identity.ts";
 import type { EventIdentity } from "./identity.ts";
+import FooterSettingsCard from "./FooterSettingsCard.tsx";
 import PrivacySettingsCard from "./PrivacySettingsCard.tsx";
 import RsvpSettingsCard from "./RsvpSettingsCard.tsx";
 import WaitingSettingsCards from "./WaitingSettingsCards.tsx";
@@ -62,6 +63,7 @@ export default function AdminSettingsPage() {
       )}
       {event?.setupComplete && <WaitingSettingsCards />}
       {event?.setupComplete && <PrivacySettingsCard />}
+      {event?.setupComplete && <FooterSettingsCard />}
       {event && (
         <div className="grid-2">
           <RsvpSettingsCard />

@@ -82,8 +82,15 @@ export const eventSetupSchema = z.strictObject({
 });
 export type EventSetup = z.infer<typeof eventSetupSchema>;
 
-/** `GET /api/site` (public): only the name, for the header of the pages without sign-in. */
-export const siteResponseSchema = z.object({ name: z.string().nullable() });
+/**
+ * `GET /api/site` (public): what the pages without sign-in show of the event: the name for the
+ * header, the copyright line (null: hidden) and the repository address for the footer (19.6).
+ */
+export const siteResponseSchema = z.object({
+  name: z.string().nullable(),
+  copyright: z.string().nullable(),
+  sourceUrl: z.string(),
+});
 export type SiteResponse = z.infer<typeof siteResponseSchema>;
 
 /**

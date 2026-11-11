@@ -407,6 +407,16 @@
       "save": "Speichern",
       "reset": "Standardtext",
       "saved": "Gespeichert."
+    },
+    "footer": {
+      "title": "Fusszeile",
+      "hint": "Die erste Zeile unter «Datenschutz · Version» auf jeder Seite, zum Beispiel Copyright und Namen. Der Lizenzhinweis und die Links «Quellcode» und «Lizenz» darunter sind fest.",
+      "label": "Copyright-Zeile",
+      "fieldHint": "Einfacher Text, höchstens {{max}} Zeichen. Leer lassen blendet die Zeile aus.",
+      "preview": "Vorschau",
+      "save": "Speichern",
+      "reset": "Zurücksetzen",
+      "saved": "Gespeichert."
     }
   },
   "home": {
@@ -426,6 +436,50 @@
   "footer": {
     "version": "Version {{version}}",
     "privacy": "Datenschutz"
+  },
+  "install": {
+    "title": "Als App installieren",
+    "close": "Schliessen",
+    "intro": "Öffne die Seite wie eine App: mit eigenem Symbol auf dem Startbildschirm und ohne Browserleiste.",
+    "tileHint": "Startbildschirm-Symbol des Events",
+    "install": "Installieren",
+    "later": "Später",
+    "understood": "Verstanden",
+    "android": {
+      "title": "So geht's",
+      "step1": "Tippe unten auf <b>Installieren</b>.",
+      "step2": "Bestätige im Dialog deines Browsers.",
+      "menu1": "Öffne das Menü ⋮ deines Browsers.",
+      "menu2": "Wähle <b>App installieren</b> oder <b>Zum Startbildschirm hinzufügen</b>.",
+      "hint": "Kein Dialog? Öffne das Menü ⋮ des Browsers und wähle «App installieren» oder «Zum Startbildschirm hinzufügen»."
+    },
+    "ios": {
+      "title": "So geht's in Safari",
+      "step1": "Tippe unten auf <icon/> <b>Teilen</b>.",
+      "step2": "Wähle <icon/> <b>Zum Home-Bildschirm</b>.",
+      "step3": "Tippe auf <b>Hinzufügen</b>.",
+      "hint": "Am besten in Safari: andere Browser bieten «Zum Home-Bildschirm» nicht immer an."
+    },
+    "noteTitle": "Hinweis",
+    "noteIos": "Beim ersten Öffnen der App meldest du dich einmal neu an: iOS speichert die Anmeldung der App getrennt vom Browser.",
+    "noteAndroid": "Beim ersten Öffnen der App meldest du dich einmal neu an: dein Gerät kann die Anmeldung der App getrennt vom Browser speichern.",
+    "hintLabel": "App installieren",
+    "hint": "{{name}} als App auf dem Startbildschirm?",
+    "howTo": "So geht's",
+    "dismiss": "Ausblenden",
+    "cardTitle": "App",
+    "cardText": "Die Seite wie eine App öffnen: mit eigenem Symbol, ohne Browserleiste. Nur im Browser sichtbar, nicht in der installierten App.",
+    "cardButton": "Auf den Startbildschirm"
+  },
+  "legal": {
+    "license": "Dieses Projekt ist freie Software unter der GNU Affero General Public License v3.0 (AGPL-3.0).",
+    "source": "Quellcode",
+    "licensePage": "Lizenz"
+  },
+  "license": {
+    "title": "Lizenz",
+    "intro": "Diese Plattform ist freie Software unter der GNU Affero General Public License v3.0. Du darfst sie nutzen, ändern und weitergeben; der Quellcode der laufenden Version ist für alle Nutzer einsehbar.",
+    "viewSource": "Quellcode ansehen"
   },
   "login": {
     "title": "Anmelden",

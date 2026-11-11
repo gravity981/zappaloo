@@ -2,7 +2,18 @@
 <html lang="de">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <!-- viewport-fit=cover: the page uses the whole screen; the stylesheets keep content clear of
+         the safe areas (PWA-03, PWA-04) -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <!-- Add to home screen (PWA-03, sw-architecture.md 19.5): the manifest and the icons are the
+         event's (served by the backend); the app title is replaced by the event's name at runtime -->
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <link rel="apple-touch-icon" href="/app-icons/apple-touch-icon.png" />
+    <meta name="theme-color" content="#2a2a28" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-title" content="Zappaloo" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
     <!-- SEC-10: never indexed; the server also sends X-Robots-Tag on every response -->
     <meta name="robots" content="noindex, nofollow" />
     <title>Zappaloo</title>

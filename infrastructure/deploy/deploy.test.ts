@@ -219,6 +219,37 @@ describe("staging deployment", () => {
     expect(JSON.parse(parsed.body)).toMatchObject({ status: "ok" });
   });
 
+  it("[PWA-01][PWA-02] the manifest and the app icons pass through Caddy without a sign-in", () => {
+    const env = staging;
+    if (!env) throw new Error("staging not deployed");
+    const result = env.node(
+      `const https = require("node:https"), dns = require("node:dns");
+       const get = (ip, path) => new Promise((resolve, reject) =>
+         https.get({ host: ip, port: ${env.httpsPort}, path, rejectUnauthorized: false,
+                     headers: { host: ${JSON.stringify(SITE_IP)} } }, (res) => {
+           const chunks = []; res.on("data", (d) => chunks.push(d)).on("end", () => {
+             const body = Buffer.concat(chunks);
+             resolve({ status: res.statusCode, type: res.headers["content-type"], size: body.length,
+                       png: body.subarray(1, 4).toString("latin1"),
+                       name: path.endsWith("webmanifest") ? JSON.parse(body.toString()).display : undefined });
+           });
+         }).on("error", reject));
+       dns.lookup("caddy", async (_e, ip) => {
+         console.log(JSON.stringify([await get(ip, "/manifest.webmanifest"), await get(ip, "/app-icons/icon-192.png")]));
+       });`,
+    );
+    const [manifest, icon] = JSON.parse(result) as {
+      status: number;
+      type: string;
+      size: number;
+      png: string;
+      name?: string;
+    }[];
+    expect(manifest).toMatchObject({ status: 200, name: "standalone" });
+    expect(manifest?.type).toContain("application/manifest+json");
+    expect(icon).toMatchObject({ status: 200, type: "image/png", png: "PNG" });
+  });
+
   it("[OPS-02] live updates (Server-Sent Events) pass through Caddy one by one, not buffered", () => {
     const env = staging;
     if (!env) throw new Error("staging not deployed");

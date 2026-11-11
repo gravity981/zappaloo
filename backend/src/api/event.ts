@@ -6,23 +6,30 @@ import type { FastifyPluginCallbackZod } from "fastify-type-provider-zod";
 import { z } from "zod";
 import { eventResponseSchema, siteResponseSchema } from "@zappaloo/shared";
 import type { FeatureName } from "@zappaloo/shared";
+import type { FooterService } from "../event/footer.ts";
 import type { EventService } from "../event/service.ts";
 import { PUBLIC } from "./access.ts";
 import { sendError } from "./validation.ts";
 
 export interface EventApiOptions {
   event: EventService;
+  footer: FooterService;
 }
 
 export const eventApiRoutes: FastifyPluginCallbackZod<EventApiOptions> = (app, options, done) => {
-  // The name of the event, for the brand header of the pages without sign-in (login, invitation).
+  // The name of the event for the brand header of the pages without sign-in (login, invitation), and
+  // the footer's copyright line and repository address (LIC-01, LIC-03).
   app.get(
     "/api/site",
     {
       config: PUBLIC,
       schema: { querystring: z.strictObject({}), response: { 200: siteResponseSchema } },
     },
-    () => ({ name: options.event.get().name }),
+    () => ({
+      name: options.event.get().name,
+      copyright: options.footer.copyright(),
+      sourceUrl: options.footer.sourceUrl,
+    }),
   );
 
   app.get(

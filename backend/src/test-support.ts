@@ -76,7 +76,14 @@ export async function createTestApp(
   );
   let app: FastifyInstance;
   try {
-    app = await buildApp({ database, event, auth, version: TEST_VERSION, ...appOptions });
+    app = await buildApp({
+      database,
+      event,
+      auth,
+      eventsDir: paths.events,
+      version: TEST_VERSION,
+      ...appOptions,
+    });
   } catch (error) {
     database.close();
     dir.remove();

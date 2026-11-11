@@ -2,10 +2,11 @@
 import { useState } from "react";
 import type { SubmitEvent } from "react";
 import { useTranslation } from "react-i18next";
-import { Navigate } from "react-router";
+import { Link, Navigate } from "react-router";
 import { PASSWORD_MIN_LENGTH, userSchema } from "@zappaloo/shared";
 import { apiRequest } from "../app/api.ts";
 import { fieldText } from "../app/forms.ts";
+import { useInstall } from "../app/install.ts";
 import { useSession } from "../app/session.ts";
 
 export default function ProfilePage() {
@@ -15,6 +16,7 @@ export default function ProfilePage() {
   const [passwordMessage, setPasswordMessage] = useState<{ ok: boolean; text: string }>();
   const [verifyMessage, setVerifyMessage] = useState<{ ok: boolean; text: string }>();
   const [deleteMessage, setDeleteMessage] = useState<string>();
+  const { available: canInstall } = useInstall();
   /** The second step of changing the password and of deleting the account. */
   const [panel, setPanel] = useState<"password" | "delete">();
 
@@ -141,6 +143,15 @@ export default function ProfilePage() {
           </form>
         </section>
 
+        {canInstall && (
+          <section className="card" aria-labelledby="app-card">
+            <b id="app-card">{t("install.cardTitle")}</b>
+            <span className="hint">{t("install.cardText")}</span>
+            <Link className="btn soft sm" to="/install">
+              {t("install.cardButton")}
+            </Link>
+          </section>
+        )}
         <section className="card" aria-labelledby="account-card">
           <b id="account-card">{t("profile.accountTitle")}</b>
           <ul className="list">
