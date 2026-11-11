@@ -506,3 +506,15 @@ export const privacyNotice = sqliteTable("privacy_notice", {
   markdown: text("markdown").notNull(),
   updatedAt: integer("updated_at", { mode: "timestamp_ms" }).notNull(),
 });
+
+/**
+ * The copyright line of the footer (LIC-02; sw-architecture.md 19.6). No row means the default
+ * `© <year> <event name>`; an empty text hides the line.
+ */
+export const footerNotice = sqliteTable("footer_notice", {
+  eventId: text("event_id")
+    .primaryKey()
+    .references(() => events.id),
+  copyright: text("copyright").notNull(),
+  updatedAt: integer("updated_at", { mode: "timestamp_ms" }).notNull(),
+});

@@ -2,7 +2,7 @@
 import { act, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { initI18n } from "../i18n/i18n.ts";
-import { anna, event, fakeBackend, renderAt, user } from "../test/backend.tsx";
+import { anna, event, fakeBackend, renderAt, SITE, user } from "../test/backend.tsx";
 import { detectPlatform } from "./install.ts";
 
 const IPHONE =
@@ -32,7 +32,7 @@ function backend() {
   fakeBackend({
     "GET /api/session": () => ({ status: 200, body: { user: guest, csrfToken: "csrf-1" } }),
     "GET /api/event": () => ({ status: 200, body: closedEvent }),
-    "GET /api/site": () => ({ status: 200, body: { name: "Lea & Jonas" } }),
+    "GET /api/site": () => ({ status: 200, body: SITE }),
     "GET /api/waiting": () => ({
       status: 200,
       body: {

@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Link } from "react-router";
 import { versionResponseSchema } from "@zappaloo/shared";
+import LegalNotice from "./LegalNotice.tsx";
 import { displayVersion } from "./version.ts";
 
 export default function VersionFooter() {
@@ -29,6 +30,7 @@ export default function VersionFooter() {
       <span>
         {t("footer.version", { version: displayVersion(__APP_VERSION__, serverVersion) })}
       </span>
+      <LegalNotice />
     </footer>
   );
 }

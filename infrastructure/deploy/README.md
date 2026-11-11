@@ -31,6 +31,7 @@ If the image is private, create a GitHub token with only `read:packages`, store 
 | `HTTP_PORT` / `HTTPS_PORT` | `8080` / `8443` (open `https://<LAN IP>:8443`) | `80` / `443` |
 | `TLS_MODE` | `internal` (Caddy's local CA) | contact email for Let's Encrypt |
 | `COMPOSE_PROFILES` | `mailpit` (all mail is caught) | empty |
+| `SOURCE_URL` | empty (the project's repository) | empty, or the address of your own fork: the footer link "Quellcode" |
 | SMTP settings | `SMTP_HOST=mailpit`, `SMTP_PORT=1025` | the real SMTP account: `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `MAIL_FROM`; the password in `secrets/smtp_password` (mode 600) |
 
 ## The event

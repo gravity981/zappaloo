@@ -407,6 +407,16 @@
       "save": "Speichern",
       "reset": "Standardtext",
       "saved": "Gespeichert."
+    },
+    "footer": {
+      "title": "Fusszeile",
+      "hint": "Die erste Zeile unter «Datenschutz · Version» auf jeder Seite, zum Beispiel Copyright und Namen. Der Lizenzhinweis und die Links «Quellcode» und «Lizenz» darunter sind fest.",
+      "label": "Copyright-Zeile",
+      "fieldHint": "Einfacher Text, höchstens {{max}} Zeichen. Leer lassen blendet die Zeile aus.",
+      "preview": "Vorschau",
+      "save": "Speichern",
+      "reset": "Zurücksetzen",
+      "saved": "Gespeichert."
     }
   },
   "home": {
@@ -460,6 +470,16 @@
     "cardTitle": "App",
     "cardText": "Die Seite wie eine App öffnen: mit eigenem Symbol, ohne Browserleiste. Nur im Browser sichtbar, nicht in der installierten App.",
     "cardButton": "Auf den Startbildschirm"
+  },
+  "legal": {
+    "license": "Dieses Projekt ist freie Software unter der GNU Affero General Public License v3.0 (AGPL-3.0).",
+    "source": "Quellcode",
+    "licensePage": "Lizenz"
+  },
+  "license": {
+    "title": "Lizenz",
+    "intro": "Diese Plattform ist freie Software unter der GNU Affero General Public License v3.0. Du darfst sie nutzen, ändern und weitergeben; der Quellcode der laufenden Version ist für alle Nutzer einsehbar.",
+    "viewSource": "Quellcode ansehen"
   },
   "login": {
     "title": "Anmelden",

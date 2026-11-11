@@ -16,6 +16,8 @@ services:
       SESSION_SECRET_FILE: /run/secrets/session_secret
       # Address of the site, for the one-time links the CLI prints (7.1.1).
       PUBLIC_URL: https://${SITE_ADDRESS:?set SITE_ADDRESS in .env}:${HTTPS_PORT:-443}
+      # Where the source of the running version is offered: the footer link "Quellcode" (LIC-03).
+      SOURCE_URL: ${SOURCE_URL:-}
       # Caddy is the only way in: the client address comes from X-Forwarded-For.
       TRUST_PROXY: "true"
       SMTP_HOST: ${SMTP_HOST:-}

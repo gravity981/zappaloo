@@ -1019,3 +1019,47 @@
   height: 18px;
   vertical-align: -4px;
 }
+
+/* The notice under "Datenschutz · Version": copyright line, license sentence, links (LIC-01) */
+.legal {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  text-align: center;
+  border-top: 1px solid var(--a-line);
+  padding-top: 14px;
+  margin-top: 10px;
+  color: var(--a-muted);
+}
+.legal b {
+  font:
+    500 12.5px/1.3 system-ui,
+    sans-serif;
+  color: var(--a-ink);
+}
+.legal > span {
+  font-size: 12px;
+  line-height: 1.4;
+  max-width: 420px;
+}
+.legal-links {
+  display: flex;
+  gap: 14px;
+}
+.legal-links a {
+  color: var(--a-muted);
+  text-decoration: underline;
+}
+.license-text {
+  white-space: pre-wrap;
+  font:
+    11.5px/1.45 ui-monospace,
+    monospace;
+  background: var(--a-fill);
+  border-radius: 10px;
+  padding: 12px;
+  margin: 0;
+  max-height: 60vh;
+  overflow: auto;
+}

@@ -41,6 +41,7 @@ import type { InvitationService } from "../auth/invitations.ts";
 import type { ActivityService } from "../event/activity.ts";
 import type { RsvpService } from "../rsvp/service.ts";
 import type { WaitingService } from "../waiting/service.ts";
+import type { FooterService } from "../event/footer.ts";
 import type { PlatformService } from "../event/platform.ts";
 import type { SessionService } from "../auth/sessions.ts";
 import type { EventService } from "../event/service.ts";
@@ -74,6 +75,8 @@ export interface AuthOptions {
   platform: PlatformService;
   /** The waiting page of a closed platform (ACS-10 – ACS-13). */
   waiting: WaitingService;
+  /** The footer: copyright line, repository address, license text (LIC-01 – LIC-03). */
+  footer: FooterService;
   /** The latest changes for the admin overview (DATA-05). */
   activity: ActivityService;
   /** Sends emails (ACC-11); undefined if no mail server is configured. */
@@ -109,6 +112,7 @@ export const OPEN_WHILE_CLOSED = [
   "/api/rsvp",
   "/api/waiting",
   "/api/privacy",
+  "/api/license",
   "/api/site",
   "/api/event",
   // The live channel only answers its ping while closed; the game world's feeds stay closed.

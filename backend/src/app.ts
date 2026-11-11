@@ -14,6 +14,7 @@ import { authRoutes } from "./api/auth.ts";
 import type { AuthOptions } from "./api/auth.ts";
 import { invitationRoutes } from "./api/invitations.ts";
 import { eventApiRoutes } from "./api/event.ts";
+import { footerRoutes } from "./api/footer.ts";
 import { eventRoutes } from "./api/events.ts";
 import { noIndex } from "./api/no-index.ts";
 import { platformRoutes } from "./api/platform.ts";
@@ -89,7 +90,8 @@ export async function buildApp(options: AppOptions): Promise<FastifyInstance> {
   await app.register(rsvpRoutes, options.auth);
   await app.register(waitingRoutes, options.auth);
   await app.register(platformRoutes, options.auth);
-  await app.register(eventApiRoutes, { event: options.event });
+  await app.register(footerRoutes, options.auth);
+  await app.register(eventApiRoutes, { event: options.event, footer: options.auth.footer });
   await app.register(pwaRoutes, {
     event: options.event,
     icons: new AppIcons(options.eventsDir),

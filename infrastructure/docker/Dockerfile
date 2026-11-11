@@ -44,6 +44,8 @@ COPY shared/src shared/src
 COPY backend/package.json backend/
 COPY backend/src backend/src
 COPY backend/drizzle backend/drizzle
+# The license text the page /license shows (LIC-03)
+COPY LICENSE LICENSE
 COPY --from=frontend /app/frontend/dist frontend/dist
 COPY --chmod=755 infrastructure/docker/zappaloo /usr/local/bin/zappaloo
 

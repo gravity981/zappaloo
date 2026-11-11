@@ -5,7 +5,7 @@ import { screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import { resetSiteNameCache } from "../guest/site.ts";
 import { initI18n } from "../i18n/i18n.ts";
-import { fakeBackend, renderAt } from "../test/backend.tsx";
+import { fakeBackend, renderAt, SITE } from "../test/backend.tsx";
 
 const frontend = join(import.meta.dirname, "..", "..");
 const read = (path: string) => readFileSync(join(frontend, path), "utf8");
@@ -51,7 +51,7 @@ describe("the page head (PWA-03)", () => {
       '<meta name="apple-mobile-web-app-title" content="Zappaloo" /><title>Zappaloo</title>';
     fakeBackend({
       "GET /api/session": () => ({ status: 200, body: { user: null, csrfToken: null } }),
-      "GET /api/site": () => ({ status: 200, body: { name: "Lea & Jonas" } }),
+      "GET /api/site": () => ({ status: 200, body: SITE }),
     });
     renderAt("/login");
     await waitFor(() => {
@@ -102,7 +102,7 @@ describe("safe areas (PWA-04)", () => {
 
 describe("a way back without the browser's buttons (PWA-04)", () => {
   const anonymous = { status: 200, body: { user: null, csrfToken: null } };
-  const site = () => ({ status: 200, body: { name: "Lea & Jonas" } });
+  const site = () => ({ status: 200, body: SITE });
 
   it.each(["/login", "/forgot-password", "/invite", "/datenschutz", "/no/such/page"])(
     "[PWA-04] %s offers a link out of the page",

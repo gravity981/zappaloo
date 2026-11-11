@@ -1835,6 +1835,7 @@ The event is a database record with these fields:
 | Settings (`platformOpen`, `snapshotUploadsOpen`, `keepsakeUploadsOpen`) | defaults, all off | yes, by the admin |
 | RSVP and waiting page (event parts, menu options, deadline, opening date, countdown switch, waiting-page texts; stage 3, 7.4.1, 10.4) | none, default texts, countdown off | yes, by the admin |
 | Privacy notice (Markdown; stage 3, 24) | German default text | yes, by the admin |
+| Footer copyright line (stage 3.5, 19.6) | `© <year> <event name>` | yes, by the admin; empty hides it |
 
 The event has no slug and no configurable id: its `eventId` is the fixed value `event1`, because an installation serves exactly one event (CFG-04).
 
@@ -1884,17 +1885,17 @@ Guests can add the site to the home screen of iOS and Android and open it like a
 
 Below the line "Datenschutz · Version x.y.z" (OPS-08, SEC-09), every page that shows this footer carries a copyright and license notice in three parts:
 
-1. **Copyright line**, centred, the largest text of the block. The admin edits it in Einstellungen (card "Fusszeile"): plain text of 1–120 characters, no Markdown or HTML; saving an empty text hides the line; "Zurücksetzen" goes back to the default `© <year> <event name>` (the current year, the event's name; the line is empty until the event is set up). The admin writes the whole line, so a holder and "All rights reserved." are theirs to add.
+1. **Copyright line**, centred, small (only slightly stronger than the rest of the block). The admin edits it in Einstellungen (card "Fusszeile"): plain text of 1–120 characters, no Markdown or HTML; saving an empty text hides the line; "Zurücksetzen" goes back to the default `© <year> <event name>` (the current year, the event's name; the line is empty until the event is set up). The admin writes the whole line, so a holder and "All rights reserved." are theirs to add.
 2. **License sentence**, fixed and not editable: "This project is free software licensed under the GNU Affero General Public License v3.0 (AGPL-3.0)." (German interface: the same sentence in German, language keys, LANG-01.)
-3. **Two links:** "Source code" and "License". Source code opens the project's repository, the address comes from the operator's setting `SOURCE_URL` (default: the project's GitHub repository), so the source of the running version is offered to every user of the service (AGPL-3.0 §13). License opens the public page `/license` with the full license text; the `LICENSE` file is baked into the image at build time.
+3. **Two links:** "Quellcode" and "Lizenz" (language keys; "Source code" and "License" in English). Quellcode opens the project's repository, the address comes from the operator's setting `SOURCE_URL` (default: the project's GitHub repository), so the source of the running version is offered to every user of the service (AGPL-3.0 §13). Lizenz opens the public page `/license` with the full license text; the `LICENSE` file is baked into the image at build time.
 
-The notice comes with the public `GET /api/site` (name, `copyright`, `sourceUrl`; ACS-09), so it is shown on pages without sign-in and while the platform is closed. The text is saved in the database like the privacy notice; every change is audited without the text (like `privacy.set`, SEC-04). The footer of the game world follows with its own UI (stage 5); until then the notice appears wherever the version footer appears today.
+The notice comes with the public `GET /api/site` (`name`, `copyright` or `null`, `sourceUrl`; ACS-09), so it is shown on pages without sign-in and while the platform is closed (`/api/license` and `/api/site` are on the list of routes a guest reaches while it is closed, ACS-10). **Implementation (step 3.5d):** the line is stored in `footer_notice` (one row per event: no row means the default, an empty text hides the line); `GET`/`PUT /api/admin/footer` (admin; `PUT { copyright }` with a text of 0–120 characters, no control characters, trimmed, or `null` for the default) answer `{ copyright, custom, defaultCopyright }`; `GET /api/license` (public) gives `{ text }`, the `LICENSE` file that the image carries next to `backend/`; `SOURCE_URL` (optional, http or https only, so the link can never run a script) is read at startup and defaults to the project's repository `https://github.com/gravity981/zappaloo`; the "Quellcode" link opens in a new tab with `rel="noopener noreferrer"`. The year of the default is the current year in the event's time zone. The text is saved in the database like the privacy notice; every change is audited without the text (like `privacy.set`, SEC-04). The notice appears wherever the version footer appears today (UX decision 61): the public pages, the RSVP, the profile and the admin area. The waiting page, a full-screen scene with only its "Datenschutz" link, does not carry it; guests reach it through their profile. The footer of the game world follows with its own UI (stage 5).
 
 | ID | Requirement | Prio |
 |---|---|---|
-| LIC-01 | Under "Datenschutz · Version", every page with the footer shows the copyright line, the fixed AGPL-3.0 sentence and the links "Source code" and "License", also without sign-in and while the platform is closed. | Must |
+| LIC-01 | Under "Datenschutz · Version", every page with the footer shows the copyright line, the fixed AGPL-3.0 sentence and the links "Quellcode" and "Lizenz", also without sign-in and while the platform is closed. | Must |
 | LIC-02 | The admin edits the copyright line in Einstellungen (plain text, 1–120 characters; empty hides it; reset restores the default `© <year> <event name>`); each change is audited without the text. | Must |
-| LIC-03 | "Source code" links to the repository address configured by the operator (`SOURCE_URL`); "License" opens the public page `/license` with the full AGPL-3.0 text from the image. | Must |
+| LIC-03 | "Quellcode" links to the repository address configured by the operator (`SOURCE_URL`); "Lizenz" opens the public page `/license` with the full AGPL-3.0 text from the image. | Must |
 
 ---
 

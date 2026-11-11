@@ -3,6 +3,7 @@ export * from "./access.ts";
 export * from "./account.ts";
 export * from "./api/system.ts";
 export * from "./event.ts";
+export * from "./footer.ts";
 export * from "./groups.ts";
 export * from "./invitations.ts";
 export * from "./rsvp.ts";

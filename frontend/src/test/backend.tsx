@@ -89,3 +89,10 @@ export const user = {
 
 export const anonymous = { status: 200, body: { user: null, csrfToken: null } };
 export const signedIn = { status: 200, body: { user: anna, csrfToken: "csrf-1" } };
+
+/** What `GET /api/site` answers: the name, the footer's copyright line and the repository address. */
+export const SITE = {
+  name: "Lea & Jonas",
+  copyright: "© 2027 Lea & Jonas",
+  sourceUrl: "https://example.org/zappaloo-source",
+};

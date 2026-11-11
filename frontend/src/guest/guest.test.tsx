@@ -1,7 +1,7 @@
 import { fireEvent, screen, within } from "@testing-library/react";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import { initI18n } from "../i18n/i18n.ts";
-import { anna, fakeBackend, renderAt, user } from "../test/backend.tsx";
+import { anna, fakeBackend, renderAt, SITE, user } from "../test/backend.tsx";
 import { cleanCode } from "./code.ts";
 import { resetSiteNameCache } from "./site.ts";
 import { suggestUsername } from "./username.ts";
@@ -16,7 +16,7 @@ afterEach(() => {
 
 const anonymous = { status: 200, body: { user: null, csrfToken: null } };
 const asGuest = { status: 200, body: { user: anna, csrfToken: "csrf-1" } };
-const site = () => ({ status: 200, body: { name: "Lea & Jonas" } });
+const site = () => ({ status: 200, body: SITE });
 
 describe("username suggestion", () => {
   it("[INV-07] suggests a username from the guest's name that fits the rules", () => {

@@ -423,6 +423,14 @@ select.m-input { appearance: auto; }
 .m-steps li { padding-left: 4px; }
 .m-steps svg.i { width: 18px; height: 18px; vertical-align: -4px; margin: 0 2px; }
 
+/* legal notice under "Datenschutz · Version" (step 3.5d) */
+.m-legal { display: flex; flex-direction: column; align-items: center; gap: 8px; text-align: center; border-top: 1px solid var(--w-line); padding-top: 14px; margin-top: 6px; color: var(--w-muted); width: 100%; }
+.m-legal > b { font: 500 12.5px/1.3 var(--f-text); color: var(--w-ink); }
+.m-legal > span { font-size: 12px; line-height: 1.4; max-width: 420px; }
+.m-legal-links { display: flex; gap: 14px; font-size: 12px; }
+.m-legal-links a { color: var(--w-muted); text-decoration: underline; cursor: pointer; }
+.m-license { white-space: pre-wrap; font: 11.5px/1.45 ui-monospace, monospace; background: var(--w-fill); border-radius: 10px; padding: 12px; margin: 0 0 8px; max-height: 220px; overflow: auto; }
+
 /* moderation */
 .m-mod { height: 100%; display: flex; flex-direction: column; background: #1c1c1e; color: #f2f2f2; }
 .m-modhead { display: flex; align-items: center; gap: 10px; padding: 12px 14px; }
@@ -578,14 +586,16 @@ function site(tab, body, opts = {}) {
     ${opts.noTabs ? "" : `<nav class="m-tabbar">${tabsHtml("m-tab")}</nav>`}
   </div>`;
 }
+/** Copyright line (the admin's text), license sentence and links, below "Datenschutz · Version" (LIC-01). */
+const legal = () => `<div class="m-legal"><b>© 2027 Lea & Jonas</b><span>Dieses Projekt ist freie Software unter der GNU Affero General Public License v3.0 (AGPL-3.0).</span><span class="m-legal-links"><a data-go="license">Quellcode</a><a data-go="license">Lizenz</a></span></div>`;
 function bare(body) {
-  return `<div class="m-bare"><div class="m-bare-brand">${EVENT.couple}<small>${EVENT.date}</small></div><div class="m-bare-inner">${body}</div></div>`;
+  return `<div class="m-bare"><div class="m-bare-brand">${EVENT.couple}<small>${EVENT.date}</small></div><div class="m-bare-inner">${body}</div>${legal()}</div>`;
 }
 function flow(title, step, total, body, foot, closeTo = "waiting") {
   const bars = total ? `<div class="m-progress">${Array.from({ length: total }, (_, i) => `<i class="${i < step ? "on" : ""}"></i>`).join("")}</div>` : `<div style="height:2px"></div>`;
   return `<div class="m-flow">
     <div class="m-flowhead"><div class="top"><button class="m-iconbtn" data-go="${closeTo}" aria-label="Schliessen">${ic("x")}</button><b>${title}</b><span class="m-muted sm" style="width:34px;text-align:right">${total ? step + "/" + total : ""}</span></div>${bars}</div>
-    <div class="m-flowbody">${body}<a class="sm m-muted" style="text-align:center" data-go="privacy">Datenschutz</a></div>
+    <div class="m-flowbody">${body}<a class="sm m-muted" style="text-align:center" data-go="privacy">Datenschutz</a>${legal()}</div>
     ${foot ? `<div class="m-flowfoot"><div class="m-flowfoot-in">${foot}</div></div>` : ""}
   </div>`;
 }
@@ -594,7 +604,7 @@ function admin(active, body) {
   return `<div class="m-admin">
     <header class="m-ahead"><b>Verwaltung</b><span class="m-tag">Plattform geschlossen</span><a data-go="home">Zur Website</a></header>
     <nav class="m-anav">${ANAV.map(([id, l, c]) => `<button type="button" class="${id === active ? "on" : ""}" data-go="${id}"><span>${l}</span>${c ? `<span class="cnt">${c}</span>` : ""}</button>`).join("")}</nav>
-    <div class="m-amain">${body}<a class="sm m-muted" data-go="privacy">Datenschutz</a></div>
+    <div class="m-amain">${body}<a class="sm m-muted" data-go="privacy">Datenschutz</a>${legal()}</div>
   </div>`;
 }
 function gameShell(v, overlay = "") {
@@ -809,6 +819,25 @@ add({
       <h2>Fragen</h2>
       <p>Melde dich bei ${EVENT.couple}.</p>
     </div>
+    <a class="sm" data-go="login">Zurück</a>`),
+});
+add({
+  id: "license", group: "access", title: "License", path: "/license", reqs: ["LIC-03"],
+  shows: ["Public page, also without sign-in, opened by “Lizenz” in the footer (step 3.5d, proposed 2026-11-11).", "The full AGPL-3.0 text from the LICENSE file of the image, with a short sentence on what it means for guests and a link to the source code.", "“Quellcode” in the footer opens the project's repository (the operator's SOURCE_URL), which the license asks us to offer to every user of the service."],
+  qs: [{ n: 61, q: "Footer notice: where does it show, and what does it say?", p: "Proposal as drawn: under “Datenschutz · Version” on the pages with the footer (login and the other public pages, RSVP, profile, admin area) in three parts: the admin's copyright line, a fixed license sentence, and the links “Quellcode” and “Lizenz” (German interface; the links read “Source code” and “License” in English). Not on the waiting page, which stays a scene with its own “Datenschutz” link; guests reach it through the profile." }],
+  render: () => bare(`
+    <h1 class="m-h1">Lizenz</h1>
+    <div class="m-md">
+      <p>Diese Plattform ist freie Software unter der GNU Affero General Public License v3.0. Du darfst sie nutzen, ändern und weitergeben; der Quellcode der laufenden Version ist für alle Nutzer einsehbar.</p>
+      <p><a data-go="license">Quellcode ansehen</a></p>
+    </div>
+    <pre class="m-license">                    GNU AFFERO GENERAL PUBLIC LICENSE
+                       Version 3, 19 November 2007
+
+ Copyright (C) 2007 Free Software Foundation, Inc. <https://fsf.org/>
+ Everyone is permitted to copy and distribute verbatim copies
+ of this license document, but changing it is not allowed.
+ …</pre>
     <a class="sm" data-go="login">Zurück</a>`),
 });
 add({
@@ -1118,7 +1147,7 @@ add({
     const rows = [["Das Fest", "info"], ["Orte", "info"], ["Anreise & Parkieren", "info"], ["Unterkunft", "info"], ["FAQ", "info"], ["Kontakt", "info"], ["Wo sitze ich?", "seating"], ["Spiele & Ranglisten", "highscores"], ["Mein Profil", "profile"]];
     return site("more", `<h1 class="m-h1">Mehr</h1><div class="m-card" style="padding:4px 16px"><div class="m-list">${rows.map(([l, g]) => `<div class="m-li link" data-go="${g}"><div class="grow"><b>${l}</b></div>${ic("next")}</div>`).join("")}</div></div>
       <div class="m-card" style="padding:4px 16px"><div class="m-list"><div class="m-li link" data-go="admin-home"><div class="grow"><b>Verwaltung</b><span class="m-hint">nur für Admins</span></div>${ic("next")}</div><div class="m-li link" data-go="moderation"><div class="grow"><b>Moderation</b><span class="m-hint">12 offen</span></div>${ic("next")}</div></div></div>
-      <div class="m-row2"><a class="sm m-muted" data-go="privacy">Datenschutz</a><a class="sm m-muted" data-go="login">Abmelden</a></div>`);
+      <div class="m-row2"><a class="sm m-muted" data-go="privacy">Datenschutz</a><a class="sm m-muted" data-go="login">Abmelden</a></div>${legal()}`);
   },
 });
 add({
@@ -1372,6 +1401,10 @@ add({
     <div class="m-card"><div class="m-row2"><b class="grow" style="flex:1">Datenschutz</b><a class="sm" data-go="privacy">Ansehen</a></div><span class="m-hint">Markdown. Öffentlich unter /datenschutz und auf jeder Seite verlinkt. Der Standardtext nennt die Allergien als Gesundheitsdaten.</span>
       ${area("as-priv", "# Datenschutz\n\nDiese Seite gehört zum Fest von Lea & Jonas. Wir speichern nur, was wir dafür brauchen. …", 'style="min-height:80px"')}
       <button class="m-btn soft sm" style="align-self:flex-start">Speichern</button></div>
+    <div class="m-card"><b>Fusszeile</b><span class="m-hint">Die erste Zeile unter «Datenschutz · Version» auf jeder Seite, zum Beispiel Copyright und Namen. Der Lizenzhinweis und die Links «Quellcode» und «Lizenz» darunter sind fest.</span>
+      ${field("Copyright-Zeile", inp("as-copy", "© 2027 Lea & Jonas", 'maxlength="120"'), "Einfacher Text, höchstens 120 Zeichen. Leer lassen blendet die Zeile aus.")}
+      <span class="m-eyebrow">Vorschau</span>${legal()}
+      <div class="m-row2"><button class="m-btn soft sm">Speichern</button><button class="m-btn ghost sm">Zurücksetzen</button></div></div>
     <div class="m-grid-d2">
       <div class="m-card"><b>Upload-Links</b><div class="m-list">${[["Apéro", "aktiv"], ["Dinner", "aktiv"], ["Allgemein", "abgelaufen"]].map(([n, s]) => `<div class="m-li">${qr()}<div class="grow"><b>${n}</b><span class="m-hint">?location=${n.toLowerCase()}</span></div><span class="m-tag ${s === "aktiv" ? "ok" : "warn"}">${s}</span><button class="m-btn ghost sm">Widerrufen</button></div>`).join("")}</div><button class="m-btn soft sm" style="align-self:flex-start">${ic("plus")} Upload-Link</button></div>
       <div class="m-card"><b>Eventscreen-Links</b><div class="m-list"><div class="m-li"><div class="grow"><b>Beamer Saal</b><span class="m-hint">Fotowand, Paar-Quiz · Wechsel alle 20 s</span></div><button class="m-btn ghost sm">Widerrufen</button></div></div><button class="m-btn soft sm" style="align-self:flex-start">${ic("plus")} Screen-Link</button>
@@ -1487,6 +1520,7 @@ const DECIDED = {
   53: "“Eingeladen zu” chips in the account panel for vip accounts without an invitation; a new account is invited to all parts (no chips in “Konto anlegen”, 2026-11-11).",
   54: "Einstellungen only.",
   55: "Claude drafts a German default; the admin edits it as Markdown in Einstellungen.",
+  61: "Footer notice under “Datenschutz · Version” on the pages with the footer (public pages, RSVP, profile, admin area), not on the waiting page: the admin's copyright line (small, only slightly stronger than the rest), a fixed license sentence, and the links “Quellcode” / “Lizenz” (translated); card “Fusszeile” in Einstellungen (confirmed 2026-11-11).",
   56: "Hidden at zero; the platform can be closed again, without an email.",
   57: "No repeated field: one password field with an eye button, so a typo is visible; a guest who loses the password gets a new link from the hosts (confirmed 2026-11-11).",
   60: "A slim dismissible strip on the waiting page and a card “App” in the profile; both only in a mobile browser, never in the installed app (confirmed 2026-11-11).",
