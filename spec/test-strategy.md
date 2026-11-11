@@ -100,7 +100,9 @@ All active requirements are listed here until their stage is delivered. Shrink t
 | OPS | OPS-02, OPS-12, OPS-13 | 3 |
 | SEC | SEC-04 – SEC-08 | 5 |
 | PERF | PERF-01, PERF-03, PERF-04 | 3 |
-| **Total** | | **125** |
+| PWA | PWA-01 – PWA-05 | 5 |
+| LIC | LIC-01 – LIC-03 | 3 |
+| **Total** | | **133** |
 
 The stage each requirement belongs to is listed in `sw-architecture.md`, section 28.
 
@@ -120,6 +122,7 @@ These requirements need a production environment, real devices or real time to v
 - OPS-02 (Let's Encrypt and live updates on the production host, at the Release 1 go-live), OPS-05 (restore drill with a real full backup)
 - OPS-12 (tag ruleset in the GitHub repository settings), OPS-10 and OPS-11 (first real release candidate and promotion), OPS-13 (staging on the LAN restored from the off-site backup, mail caught, volume deleted afterwards), OPS-14 (image cleanup run), OPS-15 and OPS-16 (deployment to prod and a rollback drill with `deploy.sh`)
 - PHO-03 (camera capture on real iOS and Android devices)
+- PWA-03, PWA-04 (add to home screen on real iOS and Android devices: icon, name, no browser bars, safe areas, sign-in after install; step 3.5e)
 - PERF-01 (load test on the production host)
 
 Decision:

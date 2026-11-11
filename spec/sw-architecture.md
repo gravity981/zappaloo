@@ -103,6 +103,8 @@
   - [19.2 Event Files](#192-event-files)
   - [19.3 Event Data](#193-event-data)
   - [19.4 Configurability](#194-configurability)
+  - [19.5 Installable App (PWA, decided 2026-11-11, stage 3.5)](#195-installable-app-pwa-decided-2026-11-11-stage-35)
+  - [19.6 Footer: Copyright and License Notice (decided 2026-11-11, stage 3.5)](#196-footer-copyright-and-license-notice-decided-2026-11-11-stage-35)
 - [20. Installation and Operating Model](#20-installation-and-operating-model)
   - [20.1 Later Multi-Event Extension](#201-later-multi-event-extension)
   - [20.2 Requirements (Sections 19 and 20)](#202-requirements-sections-19-and-20)
@@ -132,10 +134,11 @@
 - [26. Proposed Project Structure](#26-proposed-project-structure)
 - [27. Summary of Architecture Decisions](#27-summary-of-architecture-decisions)
 - [28. Development Strategy and Order of Work](#28-development-strategy-and-order-of-work)
-  - [Release 1 (early): Invitations and RSVP — Stages 1–3](#release-1-early-invitations-and-rsvp--stages-13)
+  - [Release 1 (early): Invitations and RSVP — Stages 1–3.5](#release-1-early-invitations-and-rsvp--stages-135)
   - [Stage 1 – Walking Skeleton and Deployment](#stage-1--walking-skeleton-and-deployment)
   - [Stage 2 – Accounts, Roles and Access](#stage-2--accounts-roles-and-access)
-  - [Stage 3 – RSVP and Waiting Page (completes Release 1)](#stage-3--rsvp-and-waiting-page-completes-release-1)
+  - [Stage 3 – RSVP and Waiting Page](#stage-3--rsvp-and-waiting-page)
+  - [Stage 3.5 – Installable App (completes Release 1)](#stage-35--installable-app-completes-release-1)
   - [Stage 4 – Content and Website](#stage-4--content-and-website)
   - [Stage 5 – Game World and Map Importer](#stage-5--game-world-and-map-importer)
   - [Stage 6 – Living World](#stage-6--living-world)
@@ -1858,6 +1861,41 @@ Event-specific content and settings are controlled through data and configuratio
 
 This prevents the platform from becoming unnecessarily complex through too many freely definable options.
 
+## 19.5 Installable App (PWA, decided 2026-11-11, stage 3.5)
+
+Guests can add the site to the home screen of iOS and Android and open it like a native app, without browser bars and with the event's icon. The platform is a Progressive Web App without a service worker.
+
+- **Manifest:** `GET /manifest.webmanifest` is built from the event record: `name` and `short_name` from the event's name, `lang` from the default language, `display: "standalone"`, `start_url` and `scope` `/`, `theme_color` and `background_color` (neutral defaults of the shared stylesheet until `theme.json` sets them, stage 4) and the icons. It is public: no sign-in, and it answers while the platform is closed (ACS-09, ACS-10). It lives outside `/api`.
+- **Icons:** the files sit in `$DATA_DIR/events/event1/icons/` (19.2, covered by the full backup): `icon-192.png` (192×192), `icon-512.png` (512×512), optional `icon-maskable-512.png` (512×512, content inside the central 80 %) and `apple-touch-icon.png` (180×180). They are supplied as finished PNGs; the platform does not resize images. `GET /app-icons/<file>` serves exactly these four names; a file that is missing, not a PNG or of the wrong size is replaced by the built-in default icon, so the install always works.
+- **Page head:** `index.html` carries `<link rel="manifest">`, `<link rel="apple-touch-icon" href="/app-icons/apple-touch-icon.png">`, `theme-color`, the iOS tags (`apple-mobile-web-app-capable`, `apple-mobile-web-app-title`, `apple-mobile-web-app-status-bar-style`) and `viewport-fit=cover`.
+- **Standalone layout:** no browser chrome means no address bar and no back button. Every page offers its own way back, and the guest shells, the waiting page with its door scene and the admin area respect the safe areas (`env(safe-area-inset-*)`).
+- **Install hint:** a dismissible hint in the mobile browser (never in standalone mode) explains how to add the site: on Android a button for the browser's install prompt, on iOS the Share-menu steps. The hint also says that the app asks for the password once more, because iOS stores a home screen app's cookies separately from Safari.
+- **No service worker:** the app needs a connection and caches nothing, so a new release is never hidden behind a stale cache. Offline support, push notifications and a store listing are out of scope.
+
+| ID | Requirement | Prio |
+|---|---|---|
+| PWA-01 | `GET /manifest.webmanifest` returns a web app manifest built from the event (name, language, `display: "standalone"`, start URL and scope `/`, colours, icons); it is reachable without sign-in and while the platform is closed. | Must |
+| PWA-02 | The event's app icons (`icon-192.png`, `icon-512.png`, optional `icon-maskable-512.png`, `apple-touch-icon.png`) are read from `$DATA_DIR/events/event1/icons/` and served under `/app-icons/`; a missing or invalid file is replaced by a built-in default icon. | Must |
+| PWA-03 | The page head carries the tags iOS and Android need to install the site as an app with its icon and name, and `viewport-fit=cover`. | Must |
+| PWA-04 | Opened from the home screen, every page is usable without browser chrome: content stays clear of the safe areas, and each page offers a way back. | Must |
+| PWA-05 | Guests on a mobile browser see a dismissible hint on how to add the site to the home screen (Android: install button; iOS: Share-menu steps); it never appears in standalone mode. | Should |
+
+## 19.6 Footer: Copyright and License Notice (decided 2026-11-11, stage 3.5)
+
+Below the line "Datenschutz · Version x.y.z" (OPS-08, SEC-09), every page that shows this footer carries a copyright and license notice in three parts:
+
+1. **Copyright line**, centred, the largest text of the block. The admin edits it in Einstellungen (card "Fusszeile"): plain text of 1–120 characters, no Markdown or HTML; saving an empty text hides the line; "Zurücksetzen" goes back to the default `© <year> <event name>` (the current year, the event's name; the line is empty until the event is set up). The admin writes the whole line, so a holder and "All rights reserved." are theirs to add.
+2. **License sentence**, fixed and not editable: "This project is free software licensed under the GNU Affero General Public License v3.0 (AGPL-3.0)." (German interface: the same sentence in German, language keys, LANG-01.)
+3. **Two links:** "Source code" and "License". Source code opens the project's repository, the address comes from the operator's setting `SOURCE_URL` (default: the project's GitHub repository), so the source of the running version is offered to every user of the service (AGPL-3.0 §13). License opens the public page `/license` with the full license text; the `LICENSE` file is baked into the image at build time.
+
+The notice comes with the public `GET /api/site` (name, `copyright`, `sourceUrl`; ACS-09), so it is shown on pages without sign-in and while the platform is closed. The text is saved in the database like the privacy notice; every change is audited without the text (like `privacy.set`, SEC-04). The footer of the game world follows with its own UI (stage 5); until then the notice appears wherever the version footer appears today.
+
+| ID | Requirement | Prio |
+|---|---|---|
+| LIC-01 | Under "Datenschutz · Version", every page with the footer shows the copyright line, the fixed AGPL-3.0 sentence and the links "Source code" and "License", also without sign-in and while the platform is closed. | Must |
+| LIC-02 | The admin edits the copyright line in Einstellungen (plain text, 1–120 characters; empty hides it; reset restores the default `© <year> <event name>`); each change is audited without the text. | Must |
+| LIC-03 | "Source code" links to the repository address configured by the operator (`SOURCE_URL`); "License" opens the public page `/license` with the full AGPL-3.0 text from the image. | Must |
+
 ---
 
 # 20. Installation and Operating Model
@@ -2471,9 +2509,9 @@ The concrete steps of each stage are agreed before the stage starts (see CLAUDE.
 
 The spec is approved (2026-11-04). The steps of each stage and the status reports are in [implementation-plan.md](implementation-plan.md).
 
-## Release 1 (early): Invitations and RSVP — Stages 1–3
+## Release 1 (early): Invitations and RSVP — Stages 1–3.5
 
-Invitations and RSVP must work early. Stages 1–3 therefore form Release 1, which goes into production with real guest data while the platform is still closed (10.4). Because real personal data is collected from then on, backups, the privacy notice and the protection of health data are part of Release 1.
+Invitations and RSVP must work early. Stages 1–3.5 therefore form Release 1, which goes into production with real guest data while the platform is still closed (10.4). Because real personal data is collected from then on, backups, the privacy notice and the protection of health data are part of Release 1.
 
 ## Stage 1 – Walking Skeleton and Deployment
 
@@ -2498,13 +2536,23 @@ Requirements: OPS-01–06, OPS-08–18, DATA-01, DATA-04, LANG-01, SEC-03, SEC-1
 
 Requirements: ACC (except ACC-16), ROLE, INV, ACS (except ACS-04, ACS-10–14), GRP, CFG-02, CFG-03, CFG-05, CFG-06, CFG-07, DATA-02, DATA-03, SEC-01, SEC-02.
 
-## Stage 3 – RSVP and Waiting Page (completes Release 1)
+## Stage 3 – RSVP and Waiting Page
 
 - RSVP with event parts, accompanying persons, deadline, overview, CSV export, reminders.
 - Closed platform with teaser waiting page (door scene, texts by RSVP status, optional countdown); admin switch to open it, with "the door is open" email, and to close it again.
 - Privacy notice; allergy data visible only to admins.
 
 Requirements: RSVP, ACS-10–14, ACC-16, SEC-09, SEC-11, DATA-05.
+
+## Stage 3.5 – Installable App (completes Release 1)
+
+- Web app manifest and per-event icons in the data volume (19.5).
+- Page head tags for iOS and Android, safe areas and a way back on every page for the standalone mode.
+- Install hint for guests in the mobile browser.
+- Footer with an admin-editable copyright line, the AGPL-3.0 sentence and links to the source and the license text (19.6).
+- Device check on iOS and Android, then the Release 1 go-live.
+
+Requirements: PWA, LIC.
 
 ## Stage 4 – Content and Website
 
