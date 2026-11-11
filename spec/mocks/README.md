@@ -14,7 +14,7 @@
 
 | Area | Screens |
 |---|---|
-| Release 1: invitation and RSVP | Enter invitation code, redeem and create account, login, forgot password, waiting page, RSVP (attendance, food and allergies, companions and song, summary), profile |
+| Release 1: invitation and RSVP | Enter invitation code, redeem and create account, login, forgot password, privacy notice, waiting page, RSVP (attendance, food and allergies, companions and song, summary), profile |
 | Game world | First entry (avatar, say hello), game world, page overlay over the game, table finder |
 | Website | Start, programme, content page, more, where do I sit, upload, upload confirmation, gallery with photo viewer, keepsake page, games and rankings, treasure found |
 | Admin | Event setup, overview, invitations, accounts and roles, RSVP overview, seating plan, content editor, game world (objects and portals, maps and import), settings, moderation, event screen |
@@ -82,3 +82,18 @@ The decisions behind the mocks, by question number in the prototype's "Questions
 | Setup form (48) | On a fresh installation an admin sees only the setup form in the admin area: name, time zone (a text field with a list of IANA names) and default language (Deutsch only for now). Saving completes the setup and opens the normal admin area; no navigation before. The mock's "Event setup" screen shows it (CFG-02). |
 | Not set up yet | Everyone else who signs in sees a neutral "Noch nicht eingerichtet" page with Abmelden. |
 | Change later | Einstellungen has a card "Veranstaltung" at the top with the same three fields and Speichern (CFG-06). |
+
+## UX decisions for stage 3 (2026-11-11, plan review)
+
+Written into sw-architecture.md 7.4.1, 10.4 and 24 as well.
+
+| Q | Topic | Decision |
+|---|---|---|
+| 49 | Countdown | Optional: a switch "Countdown auf der Warteseite zeigen" in the card "Plattform öffnen", separate from the opening date (which `{openingDate}` shows), default off. The countdown disappears at zero; the text stays (ACS-13). |
+| 50 | Admin changes an RSVP | The allergies card in Rückmeldungen becomes a guest table (name, status, parts, menu, song wish, allergies as a column only admins see, status filter). "Bearbeiten" opens the RSVP wizard in admin mode, also after the deadline (RSVP-04). |
+| 51 | Menu | Tied to the meal part, which the admin marks among the event parts (name, time, place); asked only for persons attending it. One menu list for everyone, children's menu included. |
+| 52 | Approved companions | Their VIP changes attendance, menu and allergies in the wizard until the deadline, without a new approval; the name only the admin. Pending requests: edit or withdraw (Q10). |
+| 53 | Invited parts without an invitation | "Eingeladen zu" chips in the account panel and in "Konto anlegen" for vip accounts without an invitation; a new account is invited to all parts. With an invitation, its parts apply (changed under Einladungen). |
+| 54 | Waiting-page texts | Edited in Einstellungen only; the content editor has no "Warteseite" page. |
+| 55 | Privacy notice | Public page `/datenschutz` (new screen), linked on every page: login, waiting page, RSVP wizard, website "Mehr", admin area. German default text; the admin edits it as Markdown in Einstellungen (SEC-09). |
+| 56 | Closing again | Once open, the card "Plattform öffnen" offers "Wieder schliessen", without an email. The "Die Tür ist offen" email and the RSVP reminder go to verified addresses only; their counts count those. |

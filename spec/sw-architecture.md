@@ -778,6 +778,16 @@ Every signed-in guest responds to the invitation. The RSVP gives guests a reason
 - Guests can change their RSVP until a deadline set by the admin.
 - The admin sees an overview with totals per part, menu choice and allergies, can export it as CSV, and can send a reminder email to guests who haven't responded.
 
+### 7.4.1 RSVP Details (decided 2026-11-11)
+
+- **Event parts** are created in stage 3, in Einstellungen › Rückmeldung: name, time, place, and whether the part has the meal. At most one part is the meal part (e.g. Dinner). The programme (stage 4) builds on these parts.
+- **Invited parts:** an invitation states its parts (set per batch when creating invitations, editable per invitation, UX decision 31). An account that gets `vip` from an admin (9.4) has no invitation; its account panel shows "Eingeladen zu" chips, and such an account starts invited to all parts.
+- **Menu:** one list of menu options for everyone, the children's menu included. The menu is asked only for persons who attend the meal part; persons who don't attend it have no menu choice.
+- **Form:** a three-step wizard: attendance → food and allergies (one card per attending person) → accompanying persons and song wish; declining every part skips to the summary. The summary page confirms the answer; there is no confirmation email. After the deadline the summary is read-only with a hint to contact the hosts.
+- **Admin changes** (RSVP-04): the Rückmeldungen page has a guest table (name, status, parts, menu, song wish, and allergies as an admin-only column); a row opens the same wizard in admin mode, which ignores the deadline. Each admin change is audited.
+- **Accompanying persons:** while a request is pending, the VIP can edit or withdraw it. After approval the VIP changes the person's attendance, menu and allergies in the wizard like their own, until the deadline, without a new approval; the name of an approved person is changed by the admin. Approved persons count in the totals, menus and the guest table.
+- **Reminder and other emails** go only to verified addresses (7.1.1); the count on the button ("Erinnern (n)") counts guests without an answer who have one.
+
 ## 7.5 Requirements
 
 | ID | Requirement | Prio |
@@ -1083,13 +1093,17 @@ Invitations and RSVP must work early, long before the world and the website are 
 
 - **While closed:** after sign-in, guests see the waiting page. They can answer and change the RSVP and manage their accompanying persons, but they can't enter the game world or the website.
 - Staff and admins have full access while the platform is closed, so they can prepare content and maps.
-- **When the admin opens the platform,** guests land in the game world after sign-in (3.5). The admin can send all guests an email that the door is now open.
+- **When the admin opens the platform,** guests land in the game world after sign-in (3.5). The admin can send all guests an email that the door is now open (to verified addresses only, 7.1.1).
+- **Closing again** (decided 2026-11-11): the admin can close an open platform again ("Wieder schliessen"); no email is sent.
+- **While closed, guests reach** the waiting page, the RSVP wizard, their profile (without the website navigation, with a way back to the waiting page) and the public pages, the privacy notice included. The server enforces this too (ACS-07).
 
 **The waiting page is a teaser, not a "closed" sign.** It should make guests curious and make them want to come back:
 
 - **Scene:** a full-screen pixel-art scene of a closed door, slightly ajar, with warm light coming through the gap. Behind it, small animated figures are building the world: carrying a table, painting a sign, hanging up lanterns. Tapping the gap shows a slightly bigger glimpse, as a small easter egg. A default scene ships with the platform, and an event can replace it with its own art.
 - **Text by RSVP status:** the text speaks to the guest by name and depends on whether they have answered. The admin can edit each text. Placeholders: `{name}`, `{waitingCount}` (number of guests who have accepted), `{openingDate}`.
-- **Countdown:** if the admin announces an opening date, the page shows it as a countdown.
+- **Countdown** (optional, decided 2026-11-11): the admin can announce an opening date, which the `{openingDate}` placeholder shows. A separate switch "Countdown auf der Warteseite zeigen" (default off) decides whether the page also shows a countdown to that date. The countdown disappears when it reaches zero, even if the platform is still closed; the text stays.
+- **Editing:** the opening date, the countdown switch and the three texts are edited in Einstellungen (cards "Plattform öffnen" and "Warteseite-Texte"), not in the content editor.
+- **Header:** the event name, Profil and Abmelden; the page also links the privacy notice (SEC-09).
 - **Button:** "Answer RSVP" while no answer has been given, otherwise "Change my RSVP".
 
 Default texts (German UI, English for reference):
@@ -1173,7 +1187,7 @@ Permissions are checked on every request, so a revoked role takes effect immedia
 | ACS-10 | The admin opens the platform for guests; until then, signed-in users without the `staff` or `admin` role see only the waiting page, where they can answer and change their RSVP and manage accompanying persons; staff and admins have full access. | Must |
 | ACS-11 | The waiting page shows a text that depends on the guest's RSVP status (not answered, attending, declined) and addresses the guest by name; the platform ships curiosity-raising default texts, the admin can edit each text, and the placeholders `{name}`, `{waitingCount}` and `{openingDate}` are supported; a button leads to answering or changing the RSVP. | Must |
 | ACS-12 | The waiting page shows a full-screen pixel-art scene of a closed door, slightly ajar, with animated figures building the world behind it; tapping the gap shows a bigger glimpse; a default scene ships with the platform and can be replaced per event. | Should |
-| ACS-13 | If the admin announces an opening date, the waiting page shows a countdown to it. | Could |
+| ACS-13 | If the admin announces an opening date and switches the countdown on, the waiting page shows a countdown to it, which disappears when it reaches zero (changed 2026-11-11: the countdown is optional, separate from the date). | Could |
 | ACS-14 | When opening the platform, the admin can send all guests an email that the platform is now open, with a link to sign in. | Should |
 
 ---
@@ -1781,6 +1795,8 @@ The event is a database record with these fields:
 | Default language | setup | yes, by the admin |
 | Features (`minigames`, `snapshots`, `gallery`, `keepsakes`, `rsvp`, `treasureHunt`, `eventScreen`) | defaults, all on | yes, by the admin |
 | Settings (`platformOpen`, `snapshotUploadsOpen`, `keepsakeUploadsOpen`) | defaults, all off | yes, by the admin |
+| RSVP and waiting page (event parts, menu options, deadline, opening date, countdown switch, waiting-page texts; stage 3, 7.4.1, 10.4) | none, default texts, countdown off | yes, by the admin |
+| Privacy notice (Markdown; stage 3, 24) | German default text | yes, by the admin |
 
 The event has no slug and no configurable id: its `eventId` is the fixed value `event1`, because an installation serves exactly one event (CFG-04).
 
@@ -1791,7 +1807,7 @@ The event has no slug and no configurable id: its `eventId` is the fixed value `
 - **Not set up yet:** the first start of a fresh database creates the event record (`eventId` `event1`, features and settings with defaults) without name, time zone and language, so accounts and the CLI have an event to refer to; the setup fills these in. The application starts anyway. Until the setup is complete, an admin sees the setup form as the only content of the admin area, and every other signed-in user sees a neutral "not set up yet" page; sign-in, the setup link and the admin area's setup work. Routes of features that need the event answer `409` with the code `setup_incomplete`. The closed-platform behaviour (ACS-10, ACS-14, stage 3) comes on top once the event is set up.
 - **Setup form:** name, time zone, default language, validated like every admin input (a valid IANA time zone, a language the platform ships). Saving (`POST /api/admin/event/setup`, once; a second call answers `409 already_set_up`; audited with the admin as actor) completes the setup. Features and settings start with their defaults (19.3) and are changed in Einstellungen and Übersicht (8.3), as before.
 - **Changing later:** name, time zone and default language stay editable in the admin area (`PATCH /api/admin/event` takes them next to `features` and `settings`, and answers `409 setup_incomplete` before the setup; all or nothing; each change audited with the admin as actor, an unchanged value is not). Changing the time zone changes how stored times are displayed, not the stored times.
-- **Content and game world** are not part of the setup. They are managed at runtime in their own admin areas: website content, schedule and event parts (stage 4), maps, start map and clickable objects (map importer and "Spielwelt", stage 5), guest groups and invitations (stage 2). A fresh installation starts with no maps; MAP-14 creates them from the templates.
+- **Content and game world** are not part of the setup. They are managed at runtime in their own admin areas: website content and schedule (stage 4; event parts are created with the RSVP in stage 3, 7.4.1), maps, start map and clickable objects (map importer and "Spielwelt", stage 5), guest groups and invitations (stage 2). A fresh installation starts with no maps; MAP-14 creates them from the templates.
 - **Dev and test seed:** `zappaloo event seed-example` completes the setup of an empty installation with the example event "Event Muster" (Europe/Zurich, de). It refuses an installation that is already set up. Dev and e2e tests use it; one e2e test runs the real setup from an empty database.
 - **Runtime reads:** name, time zone, language, features and settings are read from the database on every request, so a change applies at once, in every process. The operator can also use the CLI (`zappaloo event feature|setting <name> on|off`, 23.8, actor `cli`). `GET /api/event` returns the event with its features and settings and whether the setup is complete; the frontend loads it again whenever the page becomes visible, so a changed value shows up without a reload.
 - **Disabled features** (CFG-03): the API answers `404` with the code `feature_disabled` for a disabled feature (a guard every feature route uses), and the frontend hides it (`useFeature`, `FeatureGate`).
@@ -2154,6 +2170,7 @@ The platform follows the Swiss Federal Act on Data Protection (FADP / revDSG):
 
 - Only personal data needed for operation is stored.
 - A privacy notice is reachable from every page, also without sign-in.
+- **Privacy notice page** (decided 2026-11-11): public page `/datenschutz`, linked from every page (login, invitation, waiting page, RSVP, website, admin area). The platform ships a German default text (which data is kept and why, allergies as health data, who sees what, deletion at shutdown); the admin edits it as Markdown in Einstellungen.
 - Users can delete their own account and content at any time (ACC-12).
 - The whole site is excluded from search engines.
 - Website content written in Markdown is sanitised before rendering.
@@ -2447,7 +2464,7 @@ Requirements: ACC (except ACC-16), ROLE, INV, ACS (except ACS-04, ACS-10–14), 
 ## Stage 3 – RSVP and Waiting Page (completes Release 1)
 
 - RSVP with event parts, accompanying persons, deadline, overview, CSV export, reminders.
-- Closed platform with teaser waiting page (door scene, texts by RSVP status, countdown); admin switch to open it, with "the door is open" email.
+- Closed platform with teaser waiting page (door scene, texts by RSVP status, optional countdown); admin switch to open it, with "the door is open" email, and to close it again.
 - Privacy notice; allergy data visible only to admins.
 
 Requirements: RSVP, ACS-10–14, ACC-16, SEC-09, SEC-11.

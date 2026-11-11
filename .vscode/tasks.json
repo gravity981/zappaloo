@@ -42,6 +42,22 @@
           "endsPattern": "ready in"
         }
       }
+    },
+    {
+      "label": "mocks",
+      "detail": "UX mocks (spec/mocks) on port 5174: http://localhost:5174/zappaloo-mocks.html (reload after a change)",
+      "type": "npm",
+      "script": "mocks",
+      "isBackground": true,
+      "presentation": { "panel": "dedicated", "clear": true },
+      "problemMatcher": {
+        "owner": "zappaloo-mocks",
+        "pattern": { "regexp": "^__never_matches__$" },
+        "background": {
+          "beginsPattern": "^",
+          "endsPattern": "UX mocks: http"
+        }
+      }
     }
   ]
 }

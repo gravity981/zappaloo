@@ -1,3 +1,8 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Zappaloo UX Mocks</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -479,6 +484,8 @@ select.m-input { appearance: auto; }
 }
 @media (prefers-reduced-motion: reduce) { .m-modcard, .m-switch::after { transition: none; } }
 </style>
+</head>
+<body>
 
 <div class="app">
   <aside class="index" id="index"></aside>
@@ -538,6 +545,7 @@ const PARTS = [
   ["Dinner", "18:30", "Landgasthof Linde"],
   ["Party", "22:00", "Linde, Saal"],
 ];
+const MENUS = ["Fleisch", "Vegetarisch", "Vegan", "Kindermenü"]; // one list for everyone, asked for the meal part only (Q51)
 const HOW = ["Familie Braut", "Familie Bräutigam", "Freunde Braut", "Freunde Bräutigam", "Freunde beider", "Arbeit"];
 
 /* ---------- shells ---------- */
@@ -564,7 +572,7 @@ function flow(title, step, total, body, foot, closeTo = "waiting") {
   const bars = total ? `<div class="m-progress">${Array.from({ length: total }, (_, i) => `<i class="${i < step ? "on" : ""}"></i>`).join("")}</div>` : `<div style="height:2px"></div>`;
   return `<div class="m-flow">
     <div class="m-flowhead"><div class="top"><button class="m-iconbtn" data-go="${closeTo}" aria-label="Schliessen">${ic("x")}</button><b>${title}</b><span class="m-muted sm" style="width:34px;text-align:right">${total ? step + "/" + total : ""}</span></div>${bars}</div>
-    <div class="m-flowbody">${body}</div>
+    <div class="m-flowbody">${body}<a class="sm m-muted" style="text-align:center" data-go="privacy">Datenschutz</a></div>
     ${foot ? `<div class="m-flowfoot"><div class="m-flowfoot-in">${foot}</div></div>` : ""}
   </div>`;
 }
@@ -573,7 +581,7 @@ function admin(active, body) {
   return `<div class="m-admin">
     <header class="m-ahead"><b>Verwaltung</b><span class="m-tag">Plattform geschlossen</span><a data-go="home">Zur Website</a></header>
     <nav class="m-anav">${ANAV.map(([id, l, c]) => `<button type="button" class="${id === active ? "on" : ""}" data-go="${id}"><span>${l}</span>${c ? `<span class="cnt">${c}</span>` : ""}</button>`).join("")}</nav>
-    <div class="m-amain">${body}</div>
+    <div class="m-amain">${body}<a class="sm m-muted" data-go="privacy">Datenschutz</a></div>
   </div>`;
 }
 function gameShell(v, overlay = "") {
@@ -700,7 +708,7 @@ add({
     <a class="sm" data-go="forgot">Passwort vergessen?</a>
     <hr class="m-hr">
     <div class="m-card flat"><b>Noch kein Konto?</b><span class="m-muted sm">Du brauchst deine Einladungskarte.</span><button class="m-btn ghost sm" data-go="invite-code" style="align-self:flex-start">Einladung einlösen</button></div>
-    <a class="sm m-muted" style="text-align:center">Datenschutz</a>`),
+    <a class="sm m-muted" style="text-align:center" data-go="privacy">Datenschutz</a>`),
 });
 add({
   id: "forgot", group: "access", title: "Forgot password", path: "/forgot-password", reqs: ["ACC-03", "ACC-10"],
@@ -721,10 +729,30 @@ add({
     <a class="sm" data-go="login">Zurück zur Anmeldung</a>`),
 });
 add({
+  id: "privacy", group: "access", title: "Privacy notice", path: "/datenschutz", reqs: ["SEC-09", "SEC-11"],
+  shows: ["Public page, also without sign-in; linked from every page (login, invitation, waiting page, RSVP wizard, website “Mehr”, admin area).", "German default text shipped with the platform; the admin edits it as Markdown in Einstellungen (decided 2026-11-11).", "Names allergies and dietary requirements as health data that only the organisers see (SEC-11)."],
+  qs: [{ n: 55, q: "Where does the privacy notice text come from, and can the admin change it?", p: "Proposal: Claude drafts a German default; the admin edits it as Markdown in Einstellungen." }],
+  render: () => bare(`
+    <h1 class="m-h1">Datenschutz</h1>
+    <div class="m-md">
+      <p>Diese Seite gehört zum Fest von ${EVENT.couple}. Wir speichern nur, was wir dafür brauchen.</p>
+      <h2>Was wir speichern</h2>
+      <ul><li>Dein Konto: Benutzername, Anzeigename, Passwort (nur verschlüsselt) und deine E-Mail-Adresse, falls du sie angibst.</li>
+      <li>Deine Rückmeldung: Teilnahme, Menü, Songwunsch und deine Begleitpersonen.</li>
+      <li>Allergien und Unverträglichkeiten. Das sind Gesundheitsdaten: Nur das Organisationsteam sieht sie.</li></ul>
+      <h2>Löschen</h2>
+      <p>Du kannst dein Konto jederzeit im Profil löschen. Nach dem Fest löschen wir alle Daten.</p>
+      <h2>Fragen</h2>
+      <p>Melde dich bei ${EVENT.couple}.</p>
+    </div>
+    <a class="sm" data-go="login">Zurück</a>`),
+});
+add({
   id: "waiting", group: "access", title: "Waiting page", path: "/ (platform closed)", reqs: ["ACS-10", "ACS-11", "ACS-12", "ACS-13"],
   variants: [["open", "RSVP open"], ["yes", "Attending"], ["no", "Declined"]],
-  shows: ["Full-screen door scene (placeholder pixel art): tap the door gap for a bigger glimpse.", "Text by RSVP status with {name}, {waitingCount}, {openingDate}.", "Countdown when an opening date is set.", "Button: “Rückmeldung geben” or “Rückmeldung ändern”."],
+  shows: ["Full-screen door scene (placeholder pixel art): tap the door gap for a bigger glimpse.", "Top bar: the event name, Profil and Abmelden; a Datenschutz link under the button.", "Text by RSVP status with {name}, {waitingCount}, {openingDate}.", "Countdown only when the admin switched it on in Einstellungen (separate from the opening date); it disappears at zero, the text stays (ACS-13, decided 2026-11-11).", "Button: “Rückmeldung geben” or “Rückmeldung ändern”."],
   qs: [
+    { n: 49, q: "Should the countdown be optional, independent of the opening date?", p: "Proposal: a switch “Countdown auf der Warteseite zeigen” next to the opening date, default off; the countdown disappears at zero." },
     { q: "What else is reachable from the waiting page?", p: "Mock: a small top-right menu with Profil and Abmelden. No website, no gallery." },
     { q: "Show a teaser of the programme or the date/venue on the waiting page?", p: "Mock: no, only the date in the header, so the page stays a teaser." },
   ],
@@ -741,13 +769,14 @@ add({
         <div class="m-count" data-countdown><div><b>12</b><small>Tage</small></div><div><b>04</b><small>Std</small></div><div><b>31</b><small>Min</small></div><div><b>09</b><small>Sek</small></div></div>
         <p>${txt}</p>
         <button class="m-btn block" data-go="${v === "open" ? "rsvp-parts" : "rsvp-done"}">${v === "open" ? "Rückmeldung geben" : "Rückmeldung ändern"}</button>
+        <a class="sm" style="text-align:center;opacity:.75" data-go="privacy">Datenschutz</a>
       </div>
     </div>`;
   },
 });
 add({
   id: "rsvp-parts", group: "access", title: "RSVP 1 · Attendance", path: "/rsvp", reqs: ["RSVP-01", "RSVP-02", "RSVP-04"],
-  shows: ["Only the event parts this invitation covers; yes/no per part.", "Deadline shown up front.", "Declining every part skips straight to the summary."],
+  shows: ["Only the event parts this invitation covers; yes/no per part.", "Approved companions get their own yes/no block below the guest's (step 3b, decided 2026-11-11).", "Deadline shown up front.", "Declining every part skips straight to the summary.", "Opened by an admin from Rückmeldungen, the same wizard runs in admin mode, also after the deadline."],
   qs: [
     { q: "RSVP as a three-step wizard (attendance → food → companions & song), or one long page?", p: "Mock: wizard, because it feels light on a phone and reuses well inside the game overlay." },
     { q: "Add a shortcut like “Ich bin überall dabei”?", p: "Mock: not shown. Could be a link above the parts." },
@@ -759,16 +788,19 @@ add({
 });
 add({
   id: "rsvp-people", group: "access", title: "RSVP 2 · Food & allergies", path: "/rsvp", reqs: ["RSVP-03", "SEC-11"],
-  shows: ["One card per attending person: the guest plus companions.", "Menu choice from admin-defined options.", "Allergies marked as visible only to the organisers (health data)."],
-  qs: [{ q: "How should the privacy note on allergies be worded? “Organisationsteam” or “nur Lea & Jonas”?", p: "Mock: “Sieht nur das Organisationsteam” (admins see it; a technical admin may not be the couple)." }],
+  shows: ["One card per attending person: the guest plus companions (pending and approved).", "Menu choice from one admin-defined list, asked only for persons who attend the meal part (here Dinner); without it the card shows allergies only.", "Allergies marked as visible only to the organisers (health data)."],
+  qs: [
+    { q: "How should the privacy note on allergies be worded? “Organisationsteam” or “nur Lea & Jonas”?", p: "Mock: “Sieht nur das Organisationsteam” (admins see it; a technical admin may not be the couple)." },
+    { n: 51, q: "Is the menu tied to one event part, and is there one menu list for everyone?", p: "Proposal: the admin marks the meal part; the menu is asked only for persons attending it; one list, children's menu included." },
+  ],
   render: () => flow("Rückmeldung", 2, 3, `
     <h1 class="m-h1">Essen & Allergien</h1>
     <div class="m-card"><div class="m-row2"><b>Erika Huber</b><span class="m-tag">Du</span></div>
-      ${field("Menü", chips(["Fleisch", "Vegetarisch", "Vegan"], [1]))}
+      ${field("Menü (Dinner)", chips(MENUS, [1]))}
       ${field("Allergien oder Unverträglichkeiten", area("rp-all-1", "Nüsse", 'placeholder="z. B. Nüsse, laktosefrei" style="min-height:60px"'))}
       <div class="m-lock">${ic("lock")} Sieht nur das Organisationsteam.</div></div>
     <div class="m-card"><div class="m-row2"><b>Mia Huber</b><span class="m-tag warn">Begleitperson · beantragt</span></div>
-      ${field("Menü", chips(["Fleisch", "Vegetarisch", "Kindermenü"], [2]))}
+      ${field("Menü (Dinner)", chips(MENUS, [3]))}
       ${field("Allergien oder Unverträglichkeiten", area("rp-all-2", "", 'placeholder="keine" style="min-height:60px"'))}
       <div class="m-lock">${ic("lock")} Sieht nur das Organisationsteam.</div></div>`,
     `<button class="m-btn ghost" data-go="rsvp-parts">Zurück</button><button class="m-btn" data-go="rsvp-companion">Weiter</button>`),
@@ -776,8 +808,9 @@ add({
 add({
   id: "rsvp-companion", group: "access", title: "RSVP 3 · Companions & song", path: "/rsvp", reqs: ["RSVP-08", "RSVP-09", "RSVP-10", "RSVP-06"],
   variants: [["list", "Overview"], ["form", "Request companion"]],
-  shows: ["Existing companions with their request status (pending / approved / rejected).", "Request form: name, attendance for the guest's own parts, menu and allergies; avatar comes later.", "Optional song wish."],
+  shows: ["Existing companions with their request status (pending / approved / rejected).", "Pending: “Bearbeiten” and “Zurückziehen”. Approved: attendance, menu and allergies are changed in steps 1 and 2 until the deadline, without a new approval; the name only by the admin (decided 2026-11-11).", "Request form: name, attendance for the guest's own parts, menu (meal part only) and allergies; avatar comes later.", "Optional song wish."],
   qs: [
+    { n: 52, q: "After approval, can the VIP still change a companion's attendance, menu and allergies?", p: "Proposal: yes, in the wizard like their own, until the deadline, without a new approval." },
     { q: "Can a guest edit or withdraw a companion request while it is still pending?", p: "Mock: yes, “Bearbeiten” and “Zurückziehen” on pending requests." },
     { q: "Should the guest give a reason, e.g. “Kind, 6 Jahre”?", p: "Mock: optional note field for the admin." },
   ],
@@ -787,7 +820,7 @@ add({
     ${field("Notiz fürs Brautpaar (optional)", inp("cp-note", "Meine Tochter, 6 Jahre"))}
     <b class="sm">Teilnahme</b>
     ${partsBlock([0, 0, 0, 1])}
-    ${field("Menü", chips(["Fleisch", "Vegetarisch", "Kindermenü"], [2]))}
+    ${field("Menü (Dinner)", chips(MENUS, [3]))}
     ${field("Allergien oder Unverträglichkeiten", area("cp-all", "", 'style="min-height:60px"'))}
     <div class="m-lock">${ic("lock")} Sieht nur das Organisationsteam.</div>`,
     `<button class="m-btn ghost" data-go="rsvp-companion" data-variant="list">Abbrechen</button><button class="m-btn" data-go="rsvp-companion" data-variant="list">Beantragen</button>`, "rsvp-companion")
@@ -796,6 +829,8 @@ add({
     <div class="m-card"><b>Begleitpersonen</b>
       <div class="m-list"><div class="m-li"><div class="m-av">MH</div><div class="grow"><b>Mia Huber</b><span class="m-muted sm">Trauung, Apéro, Dinner · Kindermenü</span></div><span class="m-tag warn">Wartet auf Bestätigung</span></div></div>
       <div class="m-row2"><button class="m-btn soft sm" data-go="rsvp-companion" data-variant="form">Bearbeiten</button><button class="m-btn ghost sm">Zurückziehen</button></div>
+      <div class="m-list"><div class="m-li"><div class="m-av">NH</div><div class="grow"><b>Noah Huber</b><span class="m-muted sm">Apéro, Dinner · Kindermenü</span></div><span class="m-tag ok">Bestätigt</span></div></div>
+      <span class="m-hint">Teilnahme, Menü und Allergien von Noah änderst du in den Schritten 1 und 2.</span>
       <button class="m-btn ghost sm" style="align-self:flex-start" data-go="rsvp-companion" data-variant="form">${ic("plus")} Begleitperson beantragen</button>
       <p class="m-hint">Wer ein eigenes Handy hat, bekommt besser eine eigene Einladung. Frag dafür Lea & Jonas.</p></div>
     <div class="m-card">${field("Songwunsch (optional)", inp("rp-song", "ABBA – Dancing Queen"), "Dieses Lied bringt dich auf die Tanzfläche.")}</div>`,
@@ -988,7 +1023,7 @@ add({
     const rows = [["Das Fest", "info"], ["Orte", "info"], ["Anreise & Parkieren", "info"], ["Unterkunft", "info"], ["FAQ", "info"], ["Kontakt", "info"], ["Wo sitze ich?", "seating"], ["Spiele & Ranglisten", "highscores"], ["Mein Profil", "profile"]];
     return site("more", `<h1 class="m-h1">Mehr</h1><div class="m-card" style="padding:4px 16px"><div class="m-list">${rows.map(([l, g]) => `<div class="m-li link" data-go="${g}"><div class="grow"><b>${l}</b></div>${ic("next")}</div>`).join("")}</div></div>
       <div class="m-card" style="padding:4px 16px"><div class="m-list"><div class="m-li link" data-go="admin-home"><div class="grow"><b>Verwaltung</b><span class="m-hint">nur für Admins</span></div>${ic("next")}</div><div class="m-li link" data-go="moderation"><div class="grow"><b>Moderation</b><span class="m-hint">12 offen</span></div>${ic("next")}</div></div></div>
-      <div class="m-row2"><a class="sm m-muted">Datenschutz</a><a class="sm m-muted" data-go="login">Abmelden</a></div>`);
+      <div class="m-row2"><a class="sm m-muted" data-go="privacy">Datenschutz</a><a class="sm m-muted" data-go="login">Abmelden</a></div>`);
   },
 });
 add({
@@ -1120,7 +1155,7 @@ add({
   id: "admin-users", group: "admin", title: "Accounts, roles & groups", path: "/admin/users", reqs: ["ACC-08", "ACC-10", "ROLE-01", "ROLE-06", "ROLE-09", "INV-11", "GRP-01", "PRES-14"],
   variants: [["list", "List"], ["account", "Account panel"], ["create", "New account"], ["group", "Group panel"]],
   shows: ["Accounts with role toggles (vip / staff / admin) and their capabilities; guest groups beside the table.", "“…” opens the account panel (decided 2026-11-10): roles, staff capabilities (only with staff), groups as chips, and a reset link to hand over, shown once with copy and expiry.", "“Konto anlegen” opens a panel; the setup link is shown once afterwards.", "A group opens its panel: rename, members (add, remove), delete with a second click.", "The panel is a side sheet on desktop and full screen on phones. Removing profile data (PRES-14) joins the account panel in stage 6."],
-  qs: [],
+  qs: [{ n: 53, q: "An account that gets vip from an admin has no invitation, so no invited parts. How does it get them?", p: "Proposal: “Eingeladen zu” chips in the account panel (and when creating the account); a new account is invited to all parts." }],
   render: (v) => {
     const panel = (title, body) => `<div style="position:absolute;inset:0;z-index:8;background:rgba(18,18,18,.45);display:flex;justify-content:flex-end"><div style="background:var(--w-bg);width:100%;max-width:440px;height:100%;overflow:auto;display:flex;flex-direction:column"><div class="m-sheethead"><b>${title}</b><button class="m-iconbtn" data-go="admin-users" data-variant="list" aria-label="Schliessen">${ic("x")}</button></div><div class="m-sheetbody">${body}</div></div></div>`;
     const chipsOn = (items, on, dis = false) => `<div class="m-chips">${items.map((x, i) => `<button class="m-chip ${on[i] ? "on" : ""}" ${dis ? 'disabled style="opacity:.4"' : ""}>${x}</button>`).join("")}</div>`;
@@ -1130,10 +1165,12 @@ add({
       <b>Rollen</b>${chipsOn(["vip", "staff", "admin"], [1, 0, 0])}<span class="m-hint">vip per Einladungscode</span>
       <b>Fähigkeiten</b>${chipsOn(["Inhalte", "Moderation"], [0, 0], true)}<span class="m-hint">Fähigkeiten gibt es nur mit der Rolle staff.</span>
       <b>Gästegruppen</b>${chipsOn(["Trauzeugen", "Familie", "Kinder"], [0, 1, 0])}
+      <b>Eingeladen zu</b>${chipsOn(PARTS.map((p) => p[0]), [1, 1, 1, 0], true)}<span class="m-hint">Aus der Einladung, änderbar unter Einladungen. Hat ein Konto vip ohne Einladung, wählst du die Teile hier.</span>
       <b>Passwort</b><span class="m-hint">Für Gäste ohne bestätigte E-Mail-Adresse: Erstelle einen Link und gib ihn weiter. Damit setzt die Person ein neues Passwort.</span>
       ${link("Link zum Zurücksetzen", "https://zappaloo.ch/set-password/q8Zr…")}`);
     if (v === "create") over = panel("Konto anlegen", `${field("Benutzername", inp("au-user", "oma.erika"))}<span class="m-hint">3–32 Zeichen: a–z, 0–9, Punkt, Unterstrich, Bindestrich. Lässt sich nicht mehr ändern.</span>
       ${field("Anzeigename (optional)", inp("au-name", "Oma Erika"))}<b class="sm">Rollen</b>${chipsOn(["vip", "staff", "admin"], [1, 0, 0])}
+      <b class="sm">Eingeladen zu</b>${chipsOn(PARTS.map((p) => p[0]), [1, 1, 1, 1])}<span class="m-hint">Nur mit vip. Ein neues Konto ist zu allen Teilen eingeladen.</span>
       <button class="m-btn" style="align-self:flex-start">Konto anlegen</button>
       <span class="m-eyebrow">Danach</span>${link("Link zum Festlegen des Passworts", "https://zappaloo.ch/set-password/Hk3p…")}`);
     if (v === "group") over = panel("Trauzeugen", `<div class="m-row2" style="align-items:flex-end"><div style="flex:1">${field("Name der Gruppe", inp("ag-name", "Trauzeugen"))}</div><button class="m-btn soft sm">Umbenennen</button></div>
@@ -1149,13 +1186,16 @@ add({
 });
 add({
   id: "admin-rsvp", group: "admin", title: "RSVP overview", path: "/admin/rsvp", reqs: ["RSVP-05", "RSVP-07", "RSVP-09", "SEC-11"],
-  shows: ["Totals per part and per menu; allergies (admins only); song wishes.", "CSV export and reminder email to guests who haven't answered.", "Companion requests to approve or reject."],
-  qs: [],
-  render: () => admin("admin-rsvp", `<div class="m-sethead"><h1 class="m-h1 grow">Rückmeldungen</h1><button class="m-btn soft sm">${ic("dl")} CSV</button><button class="m-btn sm">${ic("mail")} Erinnern (36)</button></div>
+  shows: ["Totals per part and the menus of the meal part.", "Guest table (decided 2026-11-11): name, status, parts, menu, song wish, and allergies as a column only admins see; status filter. A row opens the RSVP wizard in admin mode, also after the deadline (RSVP-04).", "CSV export; “Erinnern (n)” mails guests without an answer who have a verified address.", "Companion requests to approve or reject; approved companions appear in the table under their VIP."],
+  qs: [{ n: 50, q: "How does an admin change a guest's RSVP after the deadline (RSVP-04)?", p: "Decided: the allergies card becomes a guest table with an admin-only allergy column; a row opens the RSVP wizard in admin mode." }],
+  render: () => admin("admin-rsvp", `<div class="m-sethead"><h1 class="m-h1 grow">Rückmeldungen</h1><button class="m-btn soft sm">${ic("dl")} CSV</button><button class="m-btn sm">${ic("mail")} Erinnern (31)</button></div>
     <div class="m-card strong"><b>Begleitpersonen-Anfragen (3)</b><div class="m-list">${[["Mia Huber", "von Erika Huber · «Meine Tochter, 6 Jahre»"], ["Noah Brunner", "von Familie Brunner"], ["Hans Graf", "von Peter Graf · «Mein Vater, ohne Handy»"]].map(([n, b]) => `<div class="m-li"><div class="grow"><b>${n}</b><span class="m-hint">${b}</span></div><button class="m-btn ghost sm">Ablehnen</button><button class="m-btn sm">Annehmen</button></div>`).join("")}</div></div>
     <div class="m-grid-d2"><div class="m-card"><b>Pro Teil</b><div class="m-bars">${[["Trauung", 72, 6], ["Apéro", 96, 4], ["Dinner", 68, 8], ["Party", 74, 10]].map(([n, y, no]) => `<div class="m-bar-row"><span>${n}</span><div class="track"><i style="width:${y / 1.2}%;background:var(--w-dark)"></i><i style="width:${no / 1.2}%;background:var(--w-line)"></i></div><span class="num sm">${y} ja · ${no} nein</span></div>`).join("")}</div></div>
     <div class="m-card"><b>Menüs (Dinner)</b><div class="m-bars">${[["Fleisch", 38], ["Vegetarisch", 22], ["Vegan", 3], ["Kinder", 5]].map(([n, c]) => `<div class="m-bar-row"><span>${n}</span><div class="track"><i style="width:${c * 2.4}%;background:var(--w-dark)"></i></div><span class="num sm">${c}</span></div>`).join("")}</div></div></div>
-    <div class="m-card"><div class="m-row2"><b>Allergien</b><span class="m-lock">${ic("lock")} nur Admins</span></div><div class="m-list sm">${[["Erika Huber", "Nüsse"], ["Tom Brunner", "Laktose"], ["Nina Roth", "Zöliakie (glutenfrei)"]].map(([n, a]) => `<div class="m-li"><div class="grow"><b>${n}</b></div><span>${a}</span></div>`).join("")}</div></div>`),
+    <div class="m-card" style="padding:4px 8px"><div class="m-row2" style="padding:8px 6px 0"><b class="grow" style="flex:1">Gäste</b>${chips(["Alle 120", "Zugesagt 78", "Abgesagt 6", "Ohne Antwort 36"], [0])}</div>
+      <div class="m-scroll"><table class="m-table"><thead><tr><th>Name</th><th>Status</th><th>Teile</th><th>Menü</th><th>Songwunsch</th><th><span class="m-lock">${ic("lock")} Allergien · nur Admins</span></th><th></th></tr></thead><tbody>
+      ${[["Erika Huber", "ok", "zugesagt", "T A D", "Vegetarisch", "ABBA – Dancing Queen", "Nüsse"], ["↳ Noah Huber", "ok", "bestätigt", "A D", "Kindermenü", "–", "–"], ["Tom Brunner", "ok", "zugesagt", "A D P", "Fleisch", "–", "Laktose"], ["Nina Roth", "ok", "zugesagt", "T A", "–", "Queen – Don't Stop Me Now", "Zöliakie (glutenfrei)"], ["Peter Graf", "bad", "abgesagt", "–", "–", "–", "–"], ["Lukas Meier", "", "ohne Antwort", "–", "–", "–", "–"]].map(([n, c, s, p, m, song, a]) => `<tr><td><b>${n}</b></td><td><span class="m-tag ${c}">${s}</span></td><td class="m-muted">${p}</td><td>${m}</td><td class="sm">${song}</td><td class="sm">${a}</td><td style="text-align:right"><button class="m-btn soft sm" data-go="rsvp-parts">Bearbeiten</button></td></tr>`).join("")}
+      </tbody></table></div><span class="m-hint" style="padding:0 6px 8px">Bearbeiten öffnet die Rückmeldung im Admin-Modus, auch nach der Frist. Jede Änderung steht im Audit-Log.</span></div>`),
 });
 add({
   id: "admin-seating", group: "admin", title: "Seating plan", path: "/admin/seating", reqs: ["PRES-05", "PRES-06", "PRES-07"],
@@ -1171,7 +1211,7 @@ add({
   shows: ["Page list (order and visibility = navigation under “Mehr”).", "Markdown editor with live preview; publish is live at once.", "Programme as structured entries, not Markdown."],
   qs: [{ q: "Need drafts (save without publishing), or is publish-on-save fine?", p: "Spec: changes are live at once. Mock: one “Veröffentlichen” button." }],
   render: () => admin("admin-content", `<div class="m-sethead"><h1 class="m-h1 grow">Inhalte</h1><button class="m-btn soft sm">${ic("plus")} Seite</button></div>
-    ${chips(["Start", "Das Fest", "Programm", "Anreise & Parkieren", "Unterkunft", "FAQ", "Kontakt", "Warteseite"], [3])}
+    ${chips(["Start", "Das Fest", "Programm", "Anreise & Parkieren", "Unterkunft", "FAQ", "Kontakt"], [3])}
     <div class="m-mdsplit"><div class="m-stack">${field("Titel", inp("ac-title", "Anreise & Parkieren"))}${area("ac-md", "# Anreise & Parkieren\n\n## Mit dem ÖV\nAb Bern HB mit der S-Bahn bis Muri bei Bern (12 Min.), dann 5 Minuten zu Fuss zur Kirche.\n\n## Mit dem Auto\nParkplätze hat es beim **Landgasthof Linde**.\n\n- Kirche Muri, Kirchstrasse 1\n- Landgasthof Linde, Dorfstrasse 20")}</div>
     <div class="m-card"><span class="m-eyebrow">Vorschau</span><div class="m-md"><h1>Anreise & Parkieren</h1><h2>Mit dem ÖV</h2><p>Ab Bern HB mit der S-Bahn bis Muri bei Bern (12 Min.), dann 5 Minuten zu Fuss zur Kirche.</p><h2>Mit dem Auto</h2><p>Parkplätze hat es beim <b>Landgasthof Linde</b>.</p><ul><li>Kirche Muri, Kirchstrasse 1</li><li>Landgasthof Linde, Dorfstrasse 20</li></ul></div></div></div>
     <div class="m-row2"><button class="m-btn">Veröffentlichen</button><span class="m-hint">Sprache: Deutsch (de) · In «Mehr» sichtbar ${sw(true)}</span></div>`),
@@ -1203,8 +1243,12 @@ add({
 });
 add({
   id: "admin-settings", group: "admin", title: "Settings & opening", path: "/admin/settings", reqs: ["ACS-10", "ACS-11", "ACS-13", "ACS-14", "PHO-18", "RSVP-04", "PRES-15", "CFG-02", "CFG-03", "SCR-04", "SCR-07", "PHO-14"],
-  shows: ["One page with sections.", "Opening the platform with an optional “Die Tür ist offen” email and an opening date (countdown).", "Uploads, RSVP deadline, event parts and menus.", "Waiting page texts with placeholders.", "Features; upload links and screen links (create, QR, revoke; per screen link: show the upload QR now and then).", "Guest profiles: the “Wie kennst du das Paar?” list, in its own section."],
-  qs: [{ q: "One long settings page, or split into tabs (Öffnung · Rückmeldung · Funktionen · Links)?", p: "Mock: one page with sections. Splitting is easy later." }],
+  shows: ["One page with sections.", "Opening the platform with an optional “Die Tür ist offen” email (verified addresses only); an optional opening date and, separately, the switch for the countdown (decided 2026-11-11). Once open, the card offers “Wieder schliessen” (no email).", "RSVP deadline, event parts (name, time, place; one part marked as the meal part) and one menu list.", "Waiting page texts with placeholders (only here, not in Inhalte).", "Privacy notice as Markdown (SEC-09).", "Features; upload links and screen links (create, QR, revoke; per screen link: show the upload QR now and then).", "Guest profiles: the “Wie kennst du das Paar?” list, in its own section."],
+  qs: [
+    { q: "One long settings page, or split into tabs (Öffnung · Rückmeldung · Funktionen · Links)?", p: "Mock: one page with sections. Splitting is easy later." },
+    { n: 54, q: "Where are the waiting-page texts edited: Einstellungen or the content editor?", p: "Proposal: Einstellungen only; the content editor has no “Warteseite” page." },
+    { n: 56, q: "When the countdown reaches zero before the platform opens, and after opening: what happens?", p: "Proposal: the countdown disappears at zero (the text stays); the admin can close the platform again, without an email." },
+  ],
   render: () => admin("admin-settings", `<h1 class="m-h1">Einstellungen</h1>
     <div class="m-card"><b>Veranstaltung</b><span class="m-hint">Name, Zeitzone und Sprache lassen sich jederzeit ändern. Die Zeitzone bestimmt, wie Zeiten angezeigt werden, nicht die gespeicherten Zeiten.</span>
       <div class="m-grid-d2">${field("Name", inp("as-name", "Anna & Ben"))}${field("Zeitzone", inp("as-tz", "Europe/Zurich", 'list="tz-list"'))}</div>
@@ -1212,19 +1256,25 @@ add({
       <button class="m-btn" style="align-self:flex-start">Speichern</button></div>
     <div class="m-card strong"><div class="m-row2"><b class="m-h2" style="flex:1">Plattform öffnen</b><span class="m-tag warn">Geschlossen</span></div>
       <p class="m-muted sm">Bis zur Öffnung sehen Gäste nur die Warteseite und die Rückmeldung. Staff und Admins haben vollen Zugang.</p>
-      ${field("Angekündigtes Öffnungsdatum (für den Countdown)", inp("as-open", "2027-05-15T18:00", 'type="datetime-local" style="width:auto"'))}
-      <label class="m-row2 sm"><input type="checkbox" id="as-mail" checked> E-Mail «Die Tür ist offen» an alle Gäste mit Adresse senden (84)</label>
-      <button class="m-btn" style="align-self:flex-start">Jetzt öffnen</button></div>
+      ${field("Angekündigtes Öffnungsdatum (optional)", inp("as-open", "2027-05-15T18:00", 'type="datetime-local" style="width:auto"'), "Erscheint im Platzhalter {openingDate}.")}
+      <div class="m-setrow"><div class="grow"><b class="sm">Countdown auf der Warteseite zeigen</b><span class="m-hint">Zählt bis zum Öffnungsdatum und verschwindet bei null.</span></div>${sw(false)}</div>
+      <label class="m-row2 sm"><input type="checkbox" id="as-mail" checked> E-Mail «Die Tür ist offen» an alle Gäste mit bestätigter Adresse senden (71)</label>
+      <button class="m-btn" style="align-self:flex-start">Jetzt öffnen</button>
+      <span class="m-hint">Ist die Plattform offen, steht hier «Wieder schliessen» (ohne E-Mail).</span></div>
     <div class="m-grid-d2">
       <div class="m-card"><b>Rückmeldung</b>${field("Frist", inp("as-dl", "2027-05-01", 'type="date" style="width:auto"'))}
-        <span class="m-eyebrow">Teile</span><div class="m-chips">${PARTS.map((p) => `<span class="m-chip">${p[0]}</span>`).join("")}<button class="m-chip">${ic("plus")}</button></div>
-        <span class="m-eyebrow">Menüs</span><div class="m-chips">${["Fleisch", "Vegetarisch", "Vegan", "Kindermenü"].map((p) => `<span class="m-chip">${p}</span>`).join("")}<button class="m-chip">${ic("plus")}</button></div></div>
+        <span class="m-eyebrow">Teile</span><div class="m-chips">${PARTS.map((p) => `<span class="m-chip">${p[0]} · ${p[1]}${p[0] === "Dinner" ? " · Essen" : ""}</span>`).join("")}<button class="m-chip">${ic("plus")}</button></div>
+        <span class="m-hint">Ein Teil hat Name, Uhrzeit und Ort. Ein Teil kann das Essen haben: Nur dafür wird das Menü gefragt.</span>
+        <span class="m-eyebrow">Menüs (für alle)</span><div class="m-chips">${MENUS.map((p) => `<span class="m-chip">${p}</span>`).join("")}<button class="m-chip">${ic("plus")}</button></div></div>
       <div class="m-card"><b>Funktionen</b>${[["Minigames", 1], ["Schnappschüsse", 1], ["Galerie", 1], ["Gästebuch", 1], ["Schatzsuche", 1], ["Eventscreen", 1], ["Galerie für Gäste freigegeben", 0]].map(([n, o]) => `<div class="m-setrow"><div class="grow"><b class="sm">${n}</b></div>${sw(o)}</div>`).join("")}</div>
     </div>
     <div class="m-card"><b>Warteseite-Texte</b><span class="m-hint">Platzhalter: {name}, {waitingCount}, {openingDate}</span>
       ${field("Noch nicht geantwortet", area("as-w1", "Psst, {name} … hinter dieser Tür entsteht gerade etwas. Bevor sie aufgeht, verrate uns: Bist du dabei?", 'style="min-height:60px"'))}
       ${field("Zugesagt", area("as-w2", "Danke, {name}, deine Zusage ist angekommen! … für dich und {waitingCount} weitere Gäste.", 'style="min-height:60px"'))}
       ${field("Abgesagt", area("as-w3", "Schade, dass du nicht dabei sein kannst, {name} – danke für deine Antwort!", 'style="min-height:60px"'))}</div>
+    <div class="m-card"><div class="m-row2"><b class="grow" style="flex:1">Datenschutz</b><a class="sm" data-go="privacy">Ansehen</a></div><span class="m-hint">Markdown. Öffentlich unter /datenschutz und auf jeder Seite verlinkt. Der Standardtext nennt die Allergien als Gesundheitsdaten.</span>
+      ${area("as-priv", "# Datenschutz\n\nDiese Seite gehört zum Fest von Lea & Jonas. Wir speichern nur, was wir dafür brauchen. …", 'style="min-height:80px"')}
+      <button class="m-btn soft sm" style="align-self:flex-start">Speichern</button></div>
     <div class="m-grid-d2">
       <div class="m-card"><b>Upload-Links</b><div class="m-list">${[["Apéro", "aktiv"], ["Dinner", "aktiv"], ["Allgemein", "abgelaufen"]].map(([n, s]) => `<div class="m-li">${qr()}<div class="grow"><b>${n}</b><span class="m-hint">?location=${n.toLowerCase()}</span></div><span class="m-tag ${s === "aktiv" ? "ok" : "warn"}">${s}</span><button class="m-btn ghost sm">Widerrufen</button></div>`).join("")}</div><button class="m-btn soft sm" style="align-self:flex-start">${ic("plus")} Upload-Link</button></div>
       <div class="m-card"><b>Eventscreen-Links</b><div class="m-list"><div class="m-li"><div class="grow"><b>Beamer Saal</b><span class="m-hint">Fotowand, Paar-Quiz · Wechsel alle 20 s</span></div><button class="m-btn ghost sm">Widerrufen</button></div></div><button class="m-btn soft sm" style="align-self:flex-start">${ic("plus")} Screen-Link</button>
@@ -1283,7 +1333,7 @@ add({
 });
 
 /* ---------- global open questions ---------- */
-/* answers given on 2026-11-10, keyed by question number */
+/* answers given on 2026-11-10 (48 and later: 2026-11-11), keyed by question number */
 const DECIDED = {
   1: "Six separate character boxes.",
   2: "Yes, offered at registration but optional (revised with Q45: grandparents without email); it serves news and “Passwort vergessen”, verified later in the profile.",
@@ -1332,6 +1382,15 @@ const DECIDED = {
   45: "Email stays optional, also at registration (grandparents).",
   46: "As proposed: one upload link per screen link (or none), 15 s every 2 minutes, bottom right.",
   47: "Yes, drop it: PRES-04 becomes “Figures and name tags are shown only to signed-in users.”",
+  48: "Only the form; the navigation appears after the setup.",
+  49: "Yes: a switch separate from the opening date, default off; the countdown disappears at zero.",
+  50: "The allergies card becomes the guest table; allergies are a column only admins see. A row opens the RSVP wizard in admin mode.",
+  51: "Tied to the meal part; one menu list for everyone.",
+  52: "Yes, without a new approval, until the deadline.",
+  53: "“Eingeladen zu” chips in the account panel for vip accounts without an invitation; a new account is invited to all parts.",
+  54: "Einstellungen only.",
+  55: "Claude drafts a German default; the admin edits it as Markdown in Einstellungen.",
+  56: "Hidden at zero; the platform can be closed again, without an email.",
 };
 const GLOBAL_QS = [
   { q: "Visual theme: when do we decide the look (colours, fonts, pixel style of the UI)?", p: "These mocks are deliberately neutral. theme.json fields are specified in stage 4." },
@@ -2025,3 +2084,5 @@ buildIndex();
 render();
 })();
 </script>
+</body>
+</html>

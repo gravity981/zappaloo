@@ -51,6 +51,7 @@ Zappaloo is a reusable event platform (first use: a wedding) that combines a bro
 | Command | Does |
 |---|---|
 | `npm run dev:backend` / `npm run dev:frontend` | Backend on port 3000 (restarts on change; migrates `DATA_DIR` on start) / Vite on port 5173, proxying `/api` to the backend |
+| `npm run mocks` | UX mocks on `http://localhost:5174/zappaloo-mocks.html` (VS Code task "mocks"; works in the Simple Browser) |
 | `npm run build` | Production build of the frontend (`frontend/dist`) |
 | `npm run cli -- <command>` | The `zappaloo` CLI from source (`version`, `migrate`, …) |
 | `npm run db:generate -w backend` | New Drizzle migration after a change of `backend/src/database/schema.ts` |

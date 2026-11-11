@@ -107,7 +107,7 @@ Requirements: CFG-02 (replaced), CFG-05 (reworded), CFG-06, CFG-07.
 **Before the stage starts:**
 - The project owner draws the door scene for the waiting page (ACS-12).
 - Event parts (name, time, place, which part has the meal), menu options and the RSVP deadline of the first event are known, at least as test data.
-- The decisions below (plan review of 2026-11-11) are written into sw-architecture.md and the mocks (`zappaloo-mocks.html`, mocks/README.md) before step 3a starts. They were not written there yet because step 2i had uncommitted changes in the same files.
+- The decisions below (plan review of 2026-11-11) are written into sw-architecture.md (7.4.1, 10.4, 24, ACS-13), test-strategy.md and the mocks (questions 49–56 in `zappaloo-mocks.html` and mocks/README.md).
 
 **Decisions from the plan review (2026-11-11):**
 - **Countdown optional** (ACS-13 changes): the opening date stays a setting of its own (used by `{openingDate}`); a separate switch "Countdown auf der Warteseite zeigen" (default off) decides whether the countdown appears. The countdown disappears when it reaches zero; the text stays.

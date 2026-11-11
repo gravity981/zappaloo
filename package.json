@@ -25,6 +25,7 @@
     "check": "npm run lint && npm run format:check && npm run typecheck && npm run migration-check && npm run build && npm run test && npm run test:e2e && npm run build:image && npm run test:deploy && npm run req-report",
     "dev:backend": "npm run dev -w backend",
     "dev:frontend": "npm run dev -w frontend",
+    "mocks": "node scripts/serve-mocks/cli.ts",
     "build": "npm run build -w frontend",
     "cli": "node backend/src/cli.ts",
     "migration-check": "node scripts/migration-check/cli.ts",
