@@ -96,6 +96,9 @@ Requirements: ACS-05, ACS-06, ACS-07, ACS-09.
 **2g – Review fixes** (added 2026-11-10 after the stage review). Sign-in and CSRF checks also for percent-encoded paths; admin API for feature toggles and settings (`PATCH /api/admin/event`); deployment bundle ready for prod mail (`secrets/smtp_password`, `EVENT_SLUG` without default, links without the default port); password must not equal the username; open setup and reset links voided by a password or email change; per-address limits count only failures; codes and tokens kept out of the logs, `Referrer-Policy`; audit log with ids only; cleanup of expired sessions and links; frontend handles ended sessions and lost connections, email verification with a button; migrations squashed into one before the first release with a database; partially implemented requirements tied to later steps (test-strategy.md 5).
 Requirements: none new (strengthens CFG-05, SEC-01, SEC-02, ACC-03, ACC-06, ACC-11, ACC-12, INV-02, INV-05, ACS-07 and ACS-09).
 
+**2h – Admin area** (added 2026-11-10, built from the admin mocks in [mocks/](mocks/README.md)). Admin shell at `/admin` (header with the platform state and "Zur Website", side navigation on desktop, scrollable entries on phones); the navigation lists only the pages that exist, and later steps add theirs. Übersicht (platform state, upload switches), Einladungen in the mock's layout, Konten & Rollen (accounts with role chips, a detail panel per account for staff capabilities, groups and a reset link, "Konto anlegen" with the setup link, guest groups with a panel for renaming, deleting and members), Einstellungen (feature switches). Opening the platform stays with 3c/3d; manual releases get their page with the first feature that stores conditions.
+Requirements: none new (the pages for ACC-08, ACC-10, ROLE-01, ROLE-06, ROLE-07, ROLE-09, GRP-01, CFG-05, INV-01, INV-04, INV-05).
+
 ### Stage 3 – RSVP and Waiting Page (completes Release 1)
 
 **Before the stage starts:**
@@ -131,7 +134,7 @@ Requirements: OPS-02.
 
 **4a – Content model and editing.** Central content base with language keys; content items referenced from website and game; Markdown editing with preview; sanitised rendering.
 Requirements: CNT-01, CNT-02, CNT-03, CNT-04, CNT-05, LANG-02, SEC-05.
-Follow-up from stage 2: the content routes use `requireCapability("editWebsiteContent")` and get `[ROLE-06]` tests.
+Follow-up from stage 2: the content routes use `requireCapability("editWebsiteContent")` and get `[ROLE-06]` tests. If content items carry access conditions, the admin page for manual releases (ACS-05, sw-architecture.md 8.3) comes with this step.
 
 **4b – Website.** Website pages, configurable per event, responsive, usable without the game; generic platform core with one event per installation.
 Requirements: WEB-01, WEB-02, WEB-03, WEB-04, CFG-01, CFG-04.
@@ -151,7 +154,7 @@ Requirements: GAME-01, GAME-03, MAP-02.
 
 **5b – Map importer.** Import of Tiled JSON with tilesets at runtime, validation, warnings for missing portal targets, versions with rollback, refreshed graphics on next map entry.
 Requirements: MAP-01, MAP-04, MAP-05, MAP-06, MAP-08, MAP-09, MAP-10.
-Follow-up from stage 2: map loading and protected game areas checked on the server, with `[ACS-07]` tests.
+Follow-up from stage 2: map loading and protected game areas checked on the server, with `[ACS-07]` tests. The admin page for manual releases (ACS-05, sw-architecture.md 8.3), unless 4a built it.
 
 **5c – Movement and controls.** Smooth movement with map collisions, arrow keys on desktop, tap-to-move with pathfinding on touch devices, suitable for all screen sizes.
 Requirements: GAME-02, GAME-07, GAME-09, GAME-10.
@@ -322,19 +325,19 @@ After each completed stage, Claude appends a report with this structure to secti
 
 ### Stage 2 – Accounts, Roles and Access (2026-11-10)
 
-**Summary:** Guests can redeem a personal invitation (code or link) and sign in; users manage their profile, verify their email, reset a forgotten password and delete their account. Admins create invitations and print the cards, and the API for users, roles, staff capabilities, guest groups, manual releases, feature toggles and settings is in place. The whole platform needs a sign-in, and every request is checked on the server.
+**Summary:** Guests can redeem a personal invitation (code or link) and sign in; users manage their profile, verify their email, reset a forgotten password and delete their account. Admins work in an admin area (Übersicht, Einladungen, Konten & Rollen, Einstellungen): they create invitations and print the cards, create accounts and hand over setup and reset links, change roles, staff capabilities and guest groups, and switch features and uploads. Manual releases have an API; their page comes with the first feature that uses them. The whole platform needs a sign-in, and every request is checked on the server.
 
-**Steps:** 2a Event bootstrap and settings – done. 2b Accounts and sessions – done. 2c Email and account self-service – done. 2d Roles, capabilities and guest groups – done (API only). 2e Invitations – done, with the invitation page and a minimal admin page that prints the cards. 2f Access control – done. 2g Review fixes – added after the stage review and done (see spec changes).
+**Steps:** 2a Event bootstrap and settings – done. 2b Accounts and sessions – done. 2c Email and account self-service – done. 2d Roles, capabilities and guest groups – done (API only). 2e Invitations – done, with the invitation page and a minimal admin page that prints the cards. 2f Access control – done. 2g Review fixes – added after the stage review and done (see spec changes). 2h Admin area – added after the mock review and done.
 
 **Requirements:** 48 of 48 planned for this stage have passing automated tests (requirement report). Overall: 67 of 200 active requirements implemented. The report still shows 7 of them red (ACC-05, ACC-14, CFG-02, SEC-01, OPS-05, OPS-15, OPS-16) because of the deployment test, see risks. ACS-05, ACS-07, ROLE-06 and ROLE-07 are partially implemented: their remaining parts are tied to later steps (test-strategy.md 5).
 
-**Tests:** 323 Vitest results (backend 198, frontend 40, shared 9, scripts and infrastructure 76), all passing; 36 Playwright results (9 tests on 4 browser profiles), all passing in two runs after 2g. The deployment test (16 tests against the real image, one added in 2g) could not be run, see risks. Manual checks: none new; the printed invitation cards should be checked once on a real printer or PDF (INV-14).
+**Tests:** 332 Vitest results (backend 198, frontend 49, shared 9, scripts and infrastructure 76), all passing; 40 Playwright results (10 tests on 4 browser profiles), all passing. The deployment test (16 tests against the real image, one added in 2g) could not be run, see risks. Manual checks: none new; the printed invitation cards should be checked once on a real printer or PDF (INV-14).
 
 **Spec changes and deviations:**
 - The decisions are written into sw-architecture.md: 7.1.1 (mail, verification, reset, deleting an account, roles, capabilities, groups), 9.6.1 (invitations) and 11.1.1 (sign-in everywhere, access conditions, manual releases).
 - The invitation code has 6 characters and is protected by a global limit of 100 failed attempts per hour (decision record in README.md).
 - `GET /api/event` needs a sign-in; the deployment test now reads the event with the CLI.
-- Deviation: sw-architecture.md names admin pages for users, roles, invitations, groups and settings in this stage. Only the invitation page exists; the others are API only (reset links, roles, capabilities, groups, releases, features and settings). They are not assigned to a stage yet.
+- The admin pages named for this stage were missing after 2f (only a minimal invitation page existed); step 2h builds them from the admin mocks (sw-architecture.md 8.3, mocks/README.md). The account and group panels are not in the original mocks; they were decided on 2026-11-10 and added to the mock. Manual releases get their page with the first feature that stores access conditions (follow-up on 4a and 5b).
 - Step 2g, after the stage review (all written into sw-architecture.md 7.1.1, 9.6.1, 11.1.1, 19.3.1, 23.5 and 23.8):
   - Security: percent-encoded paths (`/%61pi/event`) passed the sign-in and CSRF checks; both now use the matched route or the decoded path. Invitation codes and link tokens are kept out of the request log, and responses carry `Referrer-Policy: same-origin`.
   - CFG-05: the admin API for features and settings (`PATCH /api/admin/event`) was missing; added. The frontend reloads the event when the page becomes visible.
@@ -364,7 +367,6 @@ After each completed stage, Claude appends a report with this structure to secti
 
 **Waiting on the project owner:**
 - Run `npm run test:deploy` on a machine where Docker works (see risks) and send me the result, or tell me to proceed.
-- Decide where the missing admin pages (users and roles, groups, releases, settings, reset links) go: a step in stage 3, a stage of their own, or with the features that need them.
 - For stage 3: draw the door scene for the waiting page (ACS-12) and provide the event parts, menu options and RSVP deadline (at least as test data).
 - Infomaniak SMTP account (the bundle now takes its password in `secrets/smtp_password`).
 - Recreate the dev database once: the squashed migration does not apply on top of the six old ones (`docker volume rm zappaloo-data-dev`, or delete `/var/lib/zappaloo/zappaloo.db*`, then restart the backend).

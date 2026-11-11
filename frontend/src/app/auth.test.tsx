@@ -3,6 +3,7 @@ import { createMemoryRouter, RouterProvider } from "react-router";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import { initI18n } from "../i18n/i18n.ts";
 import { routes } from "./routes.tsx";
+import { anna, anonymous, fakeBackend, renderAt, signedIn, user } from "../test/backend.tsx";
 
 beforeAll(async () => {
   await initI18n();
@@ -10,91 +11,6 @@ beforeAll(async () => {
 afterEach(() => {
   vi.unstubAllGlobals();
 });
-
-const anna = {
-  id: 1,
-  username: "anna",
-  displayName: "Anna",
-  email: null,
-  emailStatus: "unverified",
-  roles: ["vip"],
-  capabilities: [],
-};
-const event = {
-  id: "event-muster",
-  name: "Event Muster",
-  slug: "event-muster",
-  timezone: "Europe/Zurich",
-  defaultLanguage: "de",
-  features: {
-    minigames: true,
-    snapshots: true,
-    gallery: true,
-    keepsakes: true,
-    rsvp: true,
-    treasureHunt: true,
-    eventScreen: true,
-  },
-  settings: { platformOpen: false, snapshotUploadsOpen: false, keepsakeUploadsOpen: false },
-};
-
-interface Call {
-  method: string;
-  path: string;
-  body: unknown;
-  csrf: string | null;
-}
-
-/** A fake backend: `handlers` map "METHOD /path" to a status and body. */
-function fakeBackend(handlers: Record<string, () => { status: number; body?: unknown }>) {
-  const calls: Call[] = [];
-  vi.stubGlobal(
-    "fetch",
-    vi.fn((path: string, init?: RequestInit) => {
-      const method = init?.method ?? "GET";
-      const headers = new Headers(init?.headers);
-      calls.push({
-        method,
-        path,
-        body: typeof init?.body === "string" ? JSON.parse(init.body) : undefined,
-        csrf: headers.get("x-csrf-token"),
-      });
-      if (path === "/api/version")
-        return Promise.resolve(Response.json({ version: "0.0.0", commit: "x" }));
-      if (path === "/api/event") return Promise.resolve(Response.json(event));
-      const handler = handlers[`${method} ${path}`];
-      if (!handler)
-        return Promise.resolve(
-          Response.json({ error: { code: "not_found", message: "?" } }, { status: 404 }),
-        );
-      const { status, body } = handler();
-      return Promise.resolve(
-        status === 204 ? new Response(null, { status }) : Response.json(body, { status }),
-      );
-    }),
-  );
-  return calls;
-}
-
-function renderAt(path: string) {
-  render(<RouterProvider router={createMemoryRouter(routes, { initialEntries: [path] })} />);
-}
-
-/** Fills a field and clicks buttons like a user (no extra dependency needed). */
-const user = {
-  type(field: HTMLElement, text: string) {
-    fireEvent.change(field, { target: { value: text } });
-  },
-  clear(field: HTMLElement) {
-    fireEvent.change(field, { target: { value: "" } });
-  },
-  click(element: HTMLElement) {
-    fireEvent.click(element);
-  },
-};
-
-const anonymous = { status: 200, body: { user: null, csrfToken: null } };
-const signedIn = { status: 200, body: { user: anna, csrfToken: "csrf-1" } };
 
 describe("signing in", () => {
   it("[ACC-01] logs in with username and password and then offers profile and logout", async () => {
@@ -452,81 +368,6 @@ describe("invitations", () => {
     expect(
       await screen.findByRole("heading", { name: "Willkommen bei Zappaloo" }),
     ).toBeInTheDocument();
-  });
-
-  const admin = { ...anna, roles: ["admin"] };
-  const asAdmin = { status: 200, body: { user: admin, csrfToken: "csrf-1" } };
-  const row = {
-    id: 1,
-    guestName: "Anna Muster",
-    note: null,
-    status: "active",
-    expiresAt: null,
-    createdAt: "2026-11-10T10:00:00.000Z",
-    redeemedAt: null,
-    redeemedBy: null,
-  };
-
-  it("[INV-01][INV-14] an admin creates invitations and gets cards with code and QR code", async () => {
-    const calls = fakeBackend({
-      "GET /api/session": () => asAdmin,
-      "GET /api/admin/invitations": () => ({ status: 200, body: { invitations: [] } }),
-      "POST /api/admin/invitations": () => ({
-        status: 201,
-        body: {
-          invitations: [{ ...row, code: "K7QMX4", url: "http://localhost:5173/invite/K7QMX4" }],
-        },
-      }),
-    });
-    renderAt("/admin/invitations");
-    user.type(await screen.findByLabelText("Gäste (ein Name pro Zeile)"), "Anna Muster\nBen");
-    user.click(screen.getByRole("button", { name: "Einladungen erstellen" }));
-
-    expect(await screen.findByText("K7QMX4")).toBeInTheDocument();
-    expect(
-      await screen.findByRole("img", { name: "QR-Code der Einladung für Anna Muster" }),
-    ).toHaveAttribute("src", expect.stringContaining("data:image/svg+xml"));
-    expect(screen.getByRole("button", { name: "Karten drucken" })).toBeInTheDocument();
-    const post = calls.find((c) => c.method === "POST");
-    expect(post?.csrf).toBe("csrf-1");
-    expect(post?.body).toEqual({ guests: [{ name: "Anna Muster" }, { name: "Ben" }] });
-  });
-
-  it("[INV-05] an admin revokes and regenerates a code from the list", async () => {
-    const calls = fakeBackend({
-      "GET /api/session": () => asAdmin,
-      "GET /api/admin/invitations": () => ({ status: 200, body: { invitations: [row] } }),
-      "POST /api/admin/invitations/1/revoke": () => ({
-        status: 200,
-        body: { ...row, status: "revoked" },
-      }),
-      "POST /api/admin/invitations/1/regenerate": () => ({
-        status: 201,
-        body: {
-          ...row,
-          id: 2,
-          code: "AAAABB",
-          url: "http://localhost:5173/invite/AAAABB",
-        },
-      }),
-    });
-    renderAt("/admin/invitations");
-    expect(await screen.findByText("Offen")).toBeInTheDocument();
-    user.click(screen.getByRole("button", { name: "Neu erstellen" }));
-    expect(await screen.findByText("AAAABB")).toBeInTheDocument();
-    user.click(screen.getByRole("button", { name: "Widerrufen" }));
-    await waitFor(() => {
-      expect(calls.some((c) => c.path === "/api/admin/invitations/1/revoke")).toBe(true);
-    });
-  });
-
-  it("[INV-01] the admin page is not for other users", async () => {
-    fakeBackend({ "GET /api/session": () => signedIn });
-    renderAt("/admin/invitations");
-    expect(
-      await screen.findByRole("heading", { name: "Willkommen bei Zappaloo" }),
-    ).toBeInTheDocument();
-    expect(screen.queryByRole("link", { name: "Einladungen" })).not.toBeInTheDocument();
   });
 });
 

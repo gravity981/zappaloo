@@ -108,10 +108,10 @@ The stage each requirement belongs to is listed in `sw-architecture.md`, section
 
 **Partially implemented** (decided 2026-11-10). These requirements count as implemented from stage 2 on, because their mechanism exists and is tested, but parts of them belong to features of later stages. Each part is a "Follow-up from stage 2" line of the step that builds the feature in `implementation-plan.md`, and that step adds tests tagged with the ID:
 
-- ACS-05: the treasure-hunt condition (step 8d).
+- ACS-05: the treasure-hunt condition (step 8d); the admin page for manual releases, with the first step that stores access conditions (4a or 5b).
 - ACS-07: server checks for map loading and protected game areas (5b), contribution upload (7b), moderation (7c), minigame start and result submission (8b).
 - ROLE-06: the capabilities in use: `editWebsiteContent` (4a), `moderateContributions` (7c). Until then only test routes use them.
-- ROLE-07: every step that adds an administration function guards it with the admin role and adds a `[ROLE-07]` test that a user without it is refused. The admin pages for users, roles, groups, releases and settings are not assigned to a stage yet (open point in the stage 2 status report).
+- ROLE-07: every step that adds an administration function guards it with the admin role and adds a `[ROLE-07]` test that a user without it is refused. The admin pages of stage 2 are built in step 2h; each later admin page adds its own `[ROLE-07]` test.
 
 ## 6. Verification beyond CI, and open decisions
 

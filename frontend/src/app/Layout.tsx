@@ -1,7 +1,5 @@
 import { useTranslation } from "react-i18next";
 import { NavLink, Outlet } from "react-router";
-import { EventProvider } from "./EventProvider.tsx";
-import { SessionProvider } from "./SessionProvider.tsx";
 import { useSession } from "./session.ts";
 import VersionFooter from "./VersionFooter.tsx";
 
@@ -12,9 +10,7 @@ function AccountNav() {
   if (!session.user) return <NavLink to="/login">{t("nav.login")}</NavLink>;
   return (
     <>
-      {session.user.roles.includes("admin") && (
-        <NavLink to="/admin/invitations">{t("nav.invitations")}</NavLink>
-      )}
+      {session.user.roles.includes("admin") && <NavLink to="/admin">{t("nav.admin")}</NavLink>}
       <NavLink to="/profile">{t("nav.profile")}</NavLink>
       <button type="button" onClick={() => void session.logout()}>
         {t("nav.logout")}
@@ -23,26 +19,23 @@ function AccountNav() {
   );
 }
 
+/** The shell of the website pages. */
 export default function Layout() {
   const { t } = useTranslation();
   return (
-    <SessionProvider>
-      <EventProvider>
-        <div className="layout">
-          <header>
-            <strong>{t("app.name")}</strong>
-            <nav>
-              <NavLink to="/">{t("nav.home")}</NavLink>
-              <NavLink to="/game">{t("nav.game")}</NavLink>
-              <AccountNav />
-            </nav>
-          </header>
-          <main>
-            <Outlet />
-          </main>
-          <VersionFooter />
-        </div>
-      </EventProvider>
-    </SessionProvider>
+    <div className="layout">
+      <header>
+        <strong>{t("app.name")}</strong>
+        <nav>
+          <NavLink to="/">{t("nav.home")}</NavLink>
+          <NavLink to="/game">{t("nav.game")}</NavLink>
+          <AccountNav />
+        </nav>
+      </header>
+      <main>
+        <Outlet />
+      </main>
+      <VersionFooter />
+    </div>
   );
 }

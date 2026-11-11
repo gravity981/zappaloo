@@ -26,9 +26,11 @@ export default defineConfig({
     // Fail instead of moving to another port that is not forwarded.
     strictPort: true,
     headers: noIndexHeaders,
+    // The Host header stays the browser's (localhost:5173): the backend refuses a
+    // state-changing request whose Origin differs from its Host (SEC-01).
     proxy: {
-      "/api": "http://localhost:3000",
-      "/robots.txt": "http://localhost:3000",
+      "/api": { target: "http://localhost:3000", changeOrigin: false },
+      "/robots.txt": { target: "http://localhost:3000", changeOrigin: false },
     },
   },
   preview: { headers: noIndexHeaders },

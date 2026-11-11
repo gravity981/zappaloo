@@ -7,7 +7,7 @@ import type { ReactNode } from "react";
 import { eventResponseSchema } from "@zappaloo/shared";
 import type { EventResponse } from "@zappaloo/shared";
 import { apiRequest } from "./api.ts";
-import { EventContext } from "./event.ts";
+import { EventContext, SetEventContext } from "./event.ts";
 import { useSession } from "./session.ts";
 
 export function EventProvider({ children }: { children: ReactNode }) {
@@ -36,6 +36,10 @@ export function EventProvider({ children }: { children: ReactNode }) {
   }, [signedIn]);
 
   return (
-    <EventContext.Provider value={signedIn ? loaded : undefined}>{children}</EventContext.Provider>
+    <SetEventContext.Provider value={setLoaded}>
+      <EventContext.Provider value={signedIn ? loaded : undefined}>
+        {children}
+      </EventContext.Provider>
+    </SetEventContext.Provider>
   );
 }

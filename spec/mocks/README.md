@@ -63,3 +63,14 @@ The decisions behind the mocks, by question number in the prototype's "Questions
 | 37, 46 | Upload QR on the event screen | Not a fixed column: slides in bottom right for 15 s every 2 minutes; the admin picks the upload link per screen link (SCR-07). |
 | 38 | Visual theme | The mock style is fine as a base. Website theme: colours and fonts. Pixel style of the game UI: later. |
 | 39 | Website style | Calm and classic; pixel accents only in game-related places. |
+
+## UX decisions for the admin area of stage 2 (2026-11-10, step 2h)
+
+| Topic | Decision |
+|---|---|
+| Admin navigation | Lists only the pages that exist; each later step adds its entry with its page. The mock shows the complete navigation. |
+| Account panel | "…" in Konten & Rollen opens a panel per account: roles, staff capabilities (only with staff), groups as chips, and a reset link. "Konto anlegen" and a group (rename, members, delete with a second click) open panels too. Side sheet on desktop, full screen on phones. Variants in the mock's "Accounts, roles & groups" screen. |
+| Links to hand over | Setup and reset links are shown once, with a copy button and their expiry. |
+| Opening the platform | Stage 2 shows only the state (header, Übersicht); the opening card in Einstellungen comes with steps 3c and 3d. |
+| Manual releases | No page until a feature stores access conditions (step 4a or 5b). |
+| Invitation expiry | A date, not a time: the code is valid through that day, in the admin's time zone. Invited parts per invitation come with step 3a. |

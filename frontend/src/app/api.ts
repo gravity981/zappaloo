@@ -32,7 +32,7 @@ export function onSessionEnded(listener: () => void): () => void {
  * `network_error`, so no form waits forever.
  */
 export async function apiRequest(
-  method: "GET" | "POST" | "PATCH" | "DELETE",
+  method: "GET" | "POST" | "PUT" | "PATCH" | "DELETE",
   path: string,
   options: { body?: unknown; csrfToken?: string | null } = {},
 ): Promise<ApiResult> {

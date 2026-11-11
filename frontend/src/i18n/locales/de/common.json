@@ -8,7 +8,7 @@
     "login": "Anmelden",
     "profile": "Profil",
     "logout": "Abmelden",
-    "invitations": "Einladungen"
+    "admin": "Verwaltung"
   },
   "invite": {
     "title": "Einladung einlösen",
@@ -27,25 +27,132 @@
     "redeem": "Einladung einlösen",
     "alreadyVip": "Dein Konto ist schon eingeladen. Diese Einladung wird nicht gebraucht."
   },
-  "adminInvitations": {
-    "title": "Einladungen",
-    "names": "Gäste (ein Name pro Zeile)",
-    "expiresAt": "Gültig bis (optional)",
-    "create": "Einladungen erstellen",
-    "cardsHint": "Der Code wird nur jetzt angezeigt. Drucke die Karten, bevor du die Seite verlässt.",
-    "print": "Karten drucken",
-    "qrLabel": "QR-Code der Einladung für {{name}}",
-    "guest": "Gast",
-    "status": "Status",
-    "expires": "Gültig bis",
-    "regenerate": "Neu erstellen",
-    "revoke": "Widerrufen",
-    "statuses": {
-      "active": "Offen",
-      "redeemed": "Eingelöst",
-      "expired": "Abgelaufen",
-      "revoked": "Widerrufen",
-      "replaced": "Ersetzt"
+  "admin": {
+    "title": "Verwaltung",
+    "toWebsite": "Zur Website",
+    "platformOpen": "Plattform offen",
+    "platformClosed": "Plattform geschlossen",
+    "close": "Schliessen",
+    "cancel": "Abbrechen",
+    "copy": "Kopieren",
+    "copied": "Kopiert",
+    "linkHint": "Gültig bis {{date}}, einmal verwendbar. Der Link wird nur jetzt angezeigt.",
+    "nav": {
+      "home": "Übersicht",
+      "invitations": "Einladungen",
+      "users": "Konten & Rollen",
+      "settings": "Einstellungen"
+    },
+    "home": {
+      "title": "Übersicht",
+      "platform": "Plattform",
+      "open": "Offen",
+      "closed": "Geschlossen",
+      "uploads": "Hochladen",
+      "snapshots": "Schnappschüsse",
+      "keepsakes": "Andenken",
+      "featureOff": "Funktion ausgeschaltet"
+    },
+    "settings": {
+      "title": "Einstellungen",
+      "features": "Funktionen",
+      "featuresHint": "Ausgeschaltete Funktionen sind für alle verborgen. Änderungen gelten sofort."
+    },
+    "features": {
+      "minigames": "Minispiele",
+      "snapshots": "Schnappschüsse",
+      "gallery": "Galerie",
+      "keepsakes": "Andenken",
+      "rsvp": "Rückmeldung",
+      "treasureHunt": "Schatzsuche",
+      "eventScreen": "Eventscreen"
+    },
+    "roles": {
+      "vip": "vip",
+      "staff": "staff",
+      "admin": "admin"
+    },
+    "capabilities": {
+      "editWebsiteContent": "Inhalte",
+      "moderateContributions": "Moderation"
+    },
+    "invitations": {
+      "title": "Einladungen",
+      "new": "Neue Einladungen",
+      "names": "Gäste (ein Name pro Zeile)",
+      "expiresAt": "Ablaufdatum (optional)",
+      "createNone": "Einladungen erstellen",
+      "create_one": "{{count}} Einladung erstellen",
+      "create_other": "{{count}} Einladungen erstellen",
+      "created_one": "{{count}} Einladung erstellt",
+      "created_other": "{{count}} Einladungen erstellt",
+      "cardsHint": "Die Codes sind nur jetzt sichtbar. Drucke die Karten, bevor du die Seite verlässt.",
+      "print": "Karten drucken",
+      "done": "Fertig",
+      "qrLabel": "QR-Code der Einladung für {{name}}",
+      "filter": "Nach Status filtern",
+      "all": "Alle",
+      "guest": "Gast",
+      "status": "Status",
+      "actions": "Aktionen",
+      "validUntil": "gültig bis {{date}}",
+      "regenerate": "Neu erzeugen",
+      "revoke": "Widerrufen",
+      "statuses": {
+        "active": "Aktiv",
+        "redeemed": "Eingelöst",
+        "expired": "Abgelaufen",
+        "revoked": "Widerrufen",
+        "replaced": "Ersetzt"
+      }
+    },
+    "users": {
+      "title": "Konten & Rollen",
+      "create": "+ Konto anlegen",
+      "name": "Name",
+      "roles": "Rollen",
+      "capabilities": "Fähigkeiten",
+      "actions": "Aktionen",
+      "roleOf": "{{role}} für {{name}}",
+      "edit": "Konto {{name}} bearbeiten",
+      "lastAdmin": "Es braucht immer mindestens eine Admin-Person. Ernenne zuerst jemand anderen.",
+      "emailStatus": {
+        "unverified": "nicht bestätigt",
+        "verified": "bestätigt"
+      },
+      "vipAssignment": {
+        "invitation_code": "vip per Einladungscode",
+        "admin_promotion": "vip durch eine Admin-Person"
+      },
+      "capabilitiesOnlyStaff": "Fähigkeiten gibt es nur mit der Rolle staff.",
+      "password": "Passwort",
+      "resetHint": "Für Gäste ohne bestätigte E-Mail-Adresse: Erstelle einen Link und gib ihn weiter. Damit setzt die Person ein neues Passwort.",
+      "createResetLink": "Link zum Zurücksetzen erstellen",
+      "resetLink": "Link zum Zurücksetzen",
+      "createTitle": "Konto anlegen",
+      "username": "Benutzername",
+      "usernameHint": "3–32 Zeichen: a–z, 0–9, Punkt, Unterstrich, Bindestrich. Lässt sich nicht mehr ändern.",
+      "displayName": "Anzeigename (optional)",
+      "createSubmit": "Konto anlegen",
+      "createdTitle": "Konto für {{name}} angelegt",
+      "setupLink": "Link zum Festlegen des Passworts"
+    },
+    "groups": {
+      "title": "Gästegruppen",
+      "new": "+ Neu",
+      "name": "Name der Gruppe",
+      "add": "Hinzufügen",
+      "none": "Noch keine Gruppen.",
+      "members_one": "{{count}} Person",
+      "members_other": "{{count}} Personen",
+      "rename": "Umbenennen",
+      "remove": "Entfernen",
+      "removeMember": "{{name}} aus der Gruppe entfernen",
+      "addMember": "Person hinzufügen",
+      "choose": "Bitte wählen",
+      "delete": "Gruppe löschen",
+      "deleteConfirm": "Die Gruppe «{{name}}» wird gelöscht. Die Konten bleiben bestehen.",
+      "deleteFinal": "Endgültig löschen"
     }
   },
   "home": {
