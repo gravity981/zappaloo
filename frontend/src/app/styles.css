@@ -12,11 +12,13 @@ body {
   display: flex;
   gap: 1rem;
   align-items: center;
+  flex-wrap: wrap;
   padding: 0.75rem 1rem;
 }
 
 .layout nav {
   display: flex;
+  flex-wrap: wrap;
   gap: 0.75rem;
 }
 
