@@ -813,16 +813,16 @@
 }
 
 /* A card that says something happened (redeemed, expired, sent): icon, title, text */
-.guest .notice {
+:is(.admin, .guest) .notice {
   align-items: center;
   text-align: center;
   gap: 12px;
   padding: 28px 18px;
 }
-.guest .notice .h1 {
+:is(.admin, .guest) .notice .h1 {
   font-size: 20px;
 }
-.guest .avatar {
+:is(.admin, .guest) .avatar {
   width: 72px;
   height: 72px;
   border-radius: 50%;
@@ -832,7 +832,7 @@
   place-items: center;
   font-size: 26px;
 }
-.guest .check {
+:is(.admin, .guest) .check {
   width: 72px;
   height: 72px;
   border-radius: 50%;

@@ -13,6 +13,7 @@ import {
   forgotPasswordSchema,
   loginRequestSchema,
   passwordChangeSchema,
+  passwordLinkResponseSchema,
   passwordSetSchema,
   profileUpdateSchema,
   resetLinkResponseSchema,
@@ -378,6 +379,34 @@ const authPlugin: FastifyPluginAsyncZod<AuthOptions> = async (app, options) => {
       limiter.reset(key);
       sessions.destroyForUser(auth.user.id, auth.token); // other devices sign in again
       return reply.status(204).send();
+    },
+  );
+
+  // What a setup or reset link is for, before the password is typed. Looking up dead links counts
+  // against the same limit as setting the password with one.
+  app.get(
+    "/api/password/link/:token",
+    {
+      config: PUBLIC,
+      schema: {
+        querystring: noQuery,
+        params: z.strictObject({ token: z.string().min(10).max(200) }),
+        response: { 200: passwordLinkResponseSchema },
+      },
+    },
+    async (request, reply) => {
+      const key = `password-set:ip:${request.ip}`;
+      const wait = limiter.blocked(key, PASSWORD_SET_FAILURES_PER_ADDRESS);
+      if (wait !== undefined) return rateLimited(reply, wait);
+      try {
+        return await reply.send(accounts.previewLink(request.params.token));
+      } catch (error) {
+        if (error instanceof AccountError && error.code === "invalid_link") {
+          limiter.hit(key, PASSWORD_SET_FAILURES_PER_ADDRESS);
+          return sendError(reply, 400, { code: "invalid_link", message: error.message });
+        }
+        throw error;
+      }
     },
   );
 

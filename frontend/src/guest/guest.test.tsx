@@ -289,3 +289,48 @@ describe("the RSVP in the flow frame (UX mock rsvp-parts)", () => {
     expect(screen.getByRole("link", { name: "Datenschutz" })).toBeInTheDocument();
   });
 });
+
+describe("the page for an unknown path (UX mock not-found)", () => {
+  it("[ACS-09] a signed-in user sees a card and the way to the start page", async () => {
+    fakeBackend({ "GET /api/session": () => asGuest });
+    renderAt("/gibt/es/nicht");
+    expect(
+      await screen.findByRole("heading", { name: "Seite nicht gefunden" }),
+    ).toBeInTheDocument();
+    expect(screen.getByText("Diese Seite gibt es nicht (mehr).")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Zur Startseite" })).toHaveAttribute("href", "/");
+  });
+});
+
+describe("confirming the email address (UX mock verify-email)", () => {
+  it("[ACC-09] shows the button first, then the confirmation with the way to the profile", async () => {
+    fakeBackend({
+      "GET /api/session": () => anonymous,
+      "POST /api/email/verify": () => ({ status: 204 }),
+    });
+    renderAt("/verify-email/token");
+    expect(
+      await screen.findByRole("heading", { name: "E-Mail-Adresse bestätigen" }),
+    ).toBeInTheDocument();
+    user.click(screen.getByRole("button", { name: "Adresse bestätigen" }));
+    expect(await screen.findByRole("heading", { name: "Adresse bestätigt" })).toBeInTheDocument();
+    expect(
+      screen.getByText(/dich anmelden und dein Passwort per E-Mail zurücksetzen/),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Zum Profil" })).toHaveAttribute("href", "/profile");
+  });
+
+  it("[ACC-09] any other failure is shown with its message", async () => {
+    fakeBackend({
+      "GET /api/session": () => anonymous,
+      "POST /api/email/verify": () => ({
+        status: 429,
+        body: { error: { code: "rate_limited", message: "x" } },
+      }),
+    });
+    renderAt("/verify-email/token");
+    user.click(await screen.findByRole("button", { name: "Adresse bestätigen" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent("E-Mail-Adresse bestätigen");
+    expect(screen.getByText(/Zu viele Versuche/)).toBeInTheDocument();
+  });
+});

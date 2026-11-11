@@ -42,6 +42,7 @@ describe("sign-in is required everywhere (ACS-09, ACS-07)", () => {
     "GET /api/events/ping",
     "GET /api/health",
     "GET /api/invitations/:code",
+    "GET /api/password/link/:token",
     "GET /api/privacy",
     "GET /api/session",
     "GET /api/site",

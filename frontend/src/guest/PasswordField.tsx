@@ -7,10 +7,13 @@ export default function PasswordField({
   label,
   hint,
   placeholder,
+  minLength,
 }: {
   label: string;
   hint?: string;
   placeholder?: string;
+  /** The shortest password the browser accepts (the server checks it anyway). */
+  minLength?: number;
 }) {
   const { t } = useTranslation();
   const [shown, setShown] = useState(false);
@@ -29,6 +32,7 @@ export default function PasswordField({
           autoComplete="new-password"
           required
           {...(placeholder ? { placeholder } : {})}
+          {...(minLength ? { minLength } : {})}
           {...(hint ? { "aria-describedby": hintId } : {})}
         />
         <button

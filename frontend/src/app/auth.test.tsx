@@ -79,49 +79,103 @@ describe("signing in", () => {
 });
 
 describe("setting a password with a link", () => {
-  it("[ACC-14] sends the token from the link with the new password, then points to the login", async () => {
+  const setupLink = { status: 200, body: { purpose: "setup", username: "erika.huber" } };
+  const resetLink = { status: 200, body: { purpose: "reset", username: "anna" } };
+
+  it("[ACC-14] a setup link greets the new account with its username; the password goes with the token, then the page points to the login", async () => {
     const calls = fakeBackend({
       "GET /api/session": () => anonymous,
+      "GET /api/password/link/the-token-from-the-link": () => setupLink,
       "POST /api/password/set": () => ({ status: 204 }),
     });
     renderAt("/set-password/the-token-from-the-link");
-    user.type(await screen.findByLabelText("Passwort"), "a-long-enough-password");
-    user.type(screen.getByLabelText("Passwort wiederholen"), "a-long-enough-password");
+    expect(
+      await screen.findByRole("heading", { name: "Willkommen! Lege dein Passwort fest" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText("Damit meldest du dich ab jetzt an. Dein Benutzername: erika.huber"),
+    ).toBeInTheDocument();
+    // One password field with an eye button, no repeated field (UX decision 57).
+    expect(screen.queryByLabelText("Passwort wiederholen")).not.toBeInTheDocument();
+    const password = screen.getByLabelText("Passwort");
+    expect(password).toHaveAttribute("minlength", "10");
+    user.type(password, "a-long-enough-password");
+    user.click(screen.getByRole("button", { name: "Anzeigen" }));
+    expect(password).toHaveAttribute("type", "text");
     user.click(screen.getByRole("button", { name: "Passwort speichern" }));
     expect(
       await screen.findByRole("heading", { name: "Passwort gespeichert" }),
     ).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Zur Anmeldung" })).toHaveAttribute("href", "/login");
     expect(calls.find((c) => c.path === "/api/password/set")?.body).toEqual({
       token: "the-token-from-the-link",
       newPassword: "a-long-enough-password",
     });
   });
 
-  it("[ACC-14] does not send two different passwords, and reports an invalid link", async () => {
+  it("[ACC-15][ACC-10] a reset link has its own heading and text", async () => {
+    fakeBackend({
+      "GET /api/session": () => anonymous,
+      "GET /api/password/link/reset-token-1": () => resetLink,
+    });
+    renderAt("/set-password/reset-token-1");
+    expect(
+      await screen.findByRole("heading", { name: "Neues Passwort festlegen" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText("Mit dem neuen Passwort meldest du dich ab jetzt an."),
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/Dein Benutzername/)).not.toBeInTheDocument();
+  });
+
+  it("[ACC-14] a dead link says so before anyone types a password, and names the hosts", async () => {
     const calls = fakeBackend({
       "GET /api/session": () => anonymous,
-      "POST /api/password/set": () => ({
+      "GET /api/password/link/old-token-12345": () => ({
         status: 400,
         body: { error: { code: "invalid_link", message: "x" } },
       }),
     });
-    renderAt("/set-password/old-token");
-    user.type(await screen.findByLabelText("Passwort"), "a-long-enough-password");
-    user.type(screen.getByLabelText("Passwort wiederholen"), "something-different-1");
+    renderAt("/set-password/old-token-12345");
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "Dieser Link ist nicht mehr gültig.",
+    );
+    expect(screen.getByText(/Melde dich bei den Gastgebern/)).toBeInTheDocument();
+    expect(screen.queryByLabelText("Passwort")).not.toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Zur Anmeldung" })).toHaveAttribute("href", "/login");
+    expect(calls.some((c) => c.method === "POST")).toBe(false);
+  });
+
+  it("[ACC-14] a link that died while the page was open is reported after sending, a password equal to the username is explained", async () => {
+    fakeBackend({
+      "GET /api/session": () => anonymous,
+      "GET /api/password/link/the-token-12345": () => setupLink,
+      "POST /api/password/set": () => ({
+        status: 400,
+        body: { error: { code: "password_is_username", message: "x" } },
+      }),
+    });
+    renderAt("/set-password/the-token-12345");
+    user.type(await screen.findByLabelText("Passwort"), "erika.huber");
     user.click(screen.getByRole("button", { name: "Passwort speichern" }));
     expect(await screen.findByRole("alert")).toHaveTextContent(
-      "Die beiden Passwörter sind nicht gleich.",
+      "Das Passwort darf nicht gleich wie der Benutzername sein.",
     );
-    expect(calls.some((c) => c.path === "/api/password/set")).toBe(false);
+  });
 
-    user.clear(screen.getByLabelText("Passwort wiederholen"));
-    user.type(screen.getByLabelText("Passwort wiederholen"), "a-long-enough-password");
-    user.click(screen.getByRole("button", { name: "Passwort speichern" }));
-    await waitFor(() => {
-      expect(screen.getByRole("alert")).toHaveTextContent(
-        "ungültig, abgelaufen oder wurde schon benutzt",
-      );
+  it("[ACC-14] too many lookups from one address are reported", async () => {
+    fakeBackend({
+      "GET /api/session": () => anonymous,
+      "GET /api/password/link/the-token-12345": () => ({
+        status: 429,
+        body: { error: { code: "rate_limited", message: "x" } },
+      }),
     });
+    renderAt("/set-password/the-token-12345");
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "Dieser Link ist nicht mehr gültig.",
+    );
+    expect(screen.getByText(/Zu viele Versuche/)).toBeInTheDocument();
   });
 });
 
@@ -238,7 +292,10 @@ describe("email and account self-service", () => {
     });
     renderAt("/verify-email/old");
     fireEvent.click(await screen.findByRole("button", { name: "Adresse bestätigen" }));
-    expect(await screen.findByRole("alert")).toHaveTextContent("ungültig, abgelaufen");
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "Dieser Link ist nicht mehr gültig.",
+    );
+    expect(screen.getByText(/Fordere im Profil einen neuen Link an/)).toBeInTheDocument();
   });
 
   it("[ACC-16] says so when the address is already verified by another account", async () => {
@@ -251,9 +308,9 @@ describe("email and account self-service", () => {
     });
     renderAt("/verify-email/token");
     fireEvent.click(await screen.findByRole("button", { name: "Adresse bestätigen" }));
-    expect(await screen.findByRole("alert")).toHaveTextContent(
-      "schon bei einem anderen Konto bestätigt",
-    );
+    expect(await screen.findByRole("alert")).toHaveTextContent("Diese Adresse ist schon vergeben.");
+    expect(screen.getByText(/bei einem anderen Konto bestätigt/)).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Zum Profil" })).toHaveAttribute("href", "/profile");
   });
 
   it("[ACC-16] the login field takes a username or an email address, and sends what was typed", async () => {
@@ -472,7 +529,7 @@ describe("sign-in is required (ACS-09)", () => {
     const pages: [string, string][] = [
       ["/login", "Anmelden"],
       ["/forgot-password", "Passwort vergessen"],
-      ["/set-password/some-token", "Passwort festlegen"],
+
       ["/invite", "Einladung einlösen"],
     ];
     for (const [path, heading] of pages) {

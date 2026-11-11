@@ -370,6 +370,24 @@ export class AccountService {
   }
 
   /**
+   * What a setup or reset link is for, if it can still be used: it lets the page greet the new
+   * account or say that the link is dead before anyone types a password. An unknown, used or
+   * expired link is refused like for `useLink`.
+   */
+  previewLink(token: string): { purpose: "setup" | "reset"; username: string } {
+    const link = this.#usableLink(this.#database.db, token);
+    const owner = this.#database.db
+      .select({ username: users.username })
+      .from(users)
+      .where(eq(users.id, link.userId))
+      .get();
+    if (!owner || link.purpose === "verify") {
+      throw new AccountError("invalid_link", "the link is unknown, expired or already used");
+    }
+    return { purpose: link.purpose, username: owner.username };
+  }
+
+  /**
    * Sets the password with a one-time link, once: an unknown, used or expired link is refused.
    * The link is checked before the (expensive) hashing and again in the transaction. All other
    * open links of the user become invalid. Returns the user, whose sessions the caller ends.

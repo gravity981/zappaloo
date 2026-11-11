@@ -416,7 +416,8 @@
   },
   "notFound": {
     "title": "Seite nicht gefunden",
-    "backHome": "Zur Startseite"
+    "backHome": "Zur Startseite",
+    "text": "Diese Seite gibt es nicht (mehr)."
   },
   "footer": {
     "version": "Version {{version}}",
@@ -452,7 +453,15 @@
     "working": "Die Adresse wird bestätigt …",
     "doneTitle": "Adresse bestätigt",
     "doneText": "Danke! Mit dieser Adresse kannst du dich anmelden und dein Passwort per E-Mail zurücksetzen.",
-    "toProfile": "Zum Profil"
+    "toProfile": "Zum Profil",
+    "invalid": {
+      "title": "Dieser Link ist nicht mehr gültig.",
+      "text": "Er ist abgelaufen, wurde schon benutzt oder die Adresse hat sich geändert. Fordere im Profil einen neuen Link an."
+    },
+    "taken": {
+      "title": "Diese Adresse ist schon vergeben.",
+      "text": "Sie ist bei einem anderen Konto bestätigt. Trage im Profil eine andere Adresse ein."
+    }
   },
   "setPassword": {
     "title": "Passwort festlegen",
@@ -461,8 +470,16 @@
     "repeat": "Passwort wiederholen",
     "submit": "Passwort speichern",
     "doneTitle": "Passwort gespeichert",
-    "doneText": "Du kannst dich jetzt anmelden.",
-    "toLogin": "Zur Anmeldung"
+    "doneText": "Du kannst dich jetzt anmelden. Auf anderen Geräten musst du dich neu anmelden.",
+    "toLogin": "Zur Anmeldung",
+    "titleSetup": "Willkommen! Lege dein Passwort fest",
+    "titleReset": "Neues Passwort festlegen",
+    "hintSetup": "Damit meldest du dich ab jetzt an. Dein Benutzername: {{username}}",
+    "hintReset": "Mit dem neuen Passwort meldest du dich ab jetzt an.",
+    "passwordHint": "Mindestens {{min}} Zeichen. Nicht gleich wie dein Benutzername.",
+    "placeholder": "Mindestens {{min}} Zeichen",
+    "invalidTitle": "Dieser Link ist nicht mehr gültig.",
+    "invalidText": "Er ist abgelaufen oder wurde schon benutzt. Melde dich bei den Gastgebern, dann bekommst du einen neuen."
   },
   "profile": {
     "title": "Mein Profil",
