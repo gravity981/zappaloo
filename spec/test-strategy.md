@@ -111,6 +111,15 @@ The stage each requirement belongs to is listed in `sw-architecture.md`, section
 - ROLE-06: the capabilities in use: `editWebsiteContent` (4a), `moderateContributions` (7c). Until then only test routes use them.
 - ROLE-07: every step that adds an administration function guards it with the admin role and adds a `[ROLE-07]` test that a user without it is refused. The admin pages of stage 2 are built in step 2h; each later admin page adds its own `[ROLE-07]` test.
 
+**Not yet tested** (decided 2026-11-11). These requirements are implemented and their automated tests pass, but the check in a real environment that completes them has not been done. They stay on this list until it has been done and recorded in the manual test protocol. The requirement report does not read this list; it is kept by hand.
+
+- PWA-01, PWA-02: manifest and icons through Caddy (the deployment test of step 3.5a could not run in the devcontainer). Where and when: the first release candidate on staging (step 3.5e).
+- PWA-03, PWA-04, PWA-05: add to the home screen on a real iPhone (Safari) and a real Android phone (Chrome): icon, name, no browser bars, safe areas, sign-in after the install, the install prompt and the hint. Where and when: the first release candidate on staging (step 3.5e).
+- LIC-03: the link "Quellcode" opens a public repository, and the license page shows the AGPL. Where and when: the released version on prod (step 3.5f); the repository must be public by then.
+- OPS-02: Let's Encrypt and live updates through Caddy on the production host. Where and when: the released version on prod (step 3.5f).
+
+**When this list is done:** once Release 1 runs on prod and works, and stage 4 starts, the checks are recorded as `pass` rows in [manual-test-protocol.md](manual-test-protocol.md) (environment: staging or prod), OPS-02 leaves the "not yet implemented" list, and these rows are deleted.
+
 ## 6. Verification beyond CI, and open decisions
 
 ### 6.1 Verifying requirements that can't be fully automated in CI (decided)
@@ -120,7 +129,7 @@ These requirements need a production environment, real devices or real time to v
 - OPS-02 (Let's Encrypt and live updates on the production host, at the Release 1 go-live), OPS-05 (restore drill with a real full backup)
 - OPS-12 (tag ruleset in the GitHub repository settings), OPS-10 and OPS-11 (first real release candidate and promotion), OPS-13 (staging on the LAN restored from the off-site backup, mail caught, volume deleted afterwards), OPS-14 (image cleanup run), OPS-15 and OPS-16 (deployment to prod and a rollback drill with `deploy.sh`)
 - PHO-03 (camera capture on real iOS and Android devices)
-- PWA-03, PWA-04 (add to home screen on real iOS and Android devices: icon, name, no browser bars, safe areas, sign-in after install; step 3.5e)
+- PWA-01 – PWA-05 (add to home screen on real iOS and Android devices with a release candidate on staging: manifest and icons through Caddy, icon, name, no browser bars, safe areas, install prompt and hint, sign-in after install; step 3.5e), LIC-03 (the source link and the license page on prod; step 3.5f)
 - PERF-01 (load test on the production host)
 
 Decision:

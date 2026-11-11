@@ -200,16 +200,19 @@ Requirements: PWA-05.
 **3.5d – Footer with copyright and license notice** (added 2026-11-11, sw-architecture.md 19.6). UX mock first (the footer on `login`, `waiting`, `profile` and the admin area; card "Fusszeile" in `admin-settings`; the `/license` page), decision in mocks/README.md. Then: copyright line in the database with a default of `© <year> <event name>`, edited in Einstellungen and audited without the text; `GET /api/site` gains `copyright` and `sourceUrl`; the footer shows the line, the AGPL-3.0 sentence (language keys) and "Source code" / "License" below "Datenschutz · Version"; public page `/license` with the `LICENSE` file, copied into the image; `SOURCE_URL` in the deployment bundle's `.env`, the runbook and the deployment test. The repository must be public before the go-live (open point "Make the repository public", OPS-12), otherwise the "Source code" link leads nowhere.
 Requirements: LIC-01, LIC-02, LIC-03.
 
-**3.5e – Device check.** Manual test protocol on real devices (test-strategy.md, section 6.1): iOS Safari and Android Chrome add the site, show the event's icon and name, open without browser bars; sign-in after the install; safe areas on a device with a notch.
-Requirements: PWA-03, PWA-04 (verified on devices).
+**3.5e – Device check** with the first release candidate on staging (decided 2026-11-11). Manual test protocol on real devices (test-strategy.md, section 6.1): iOS Safari and Android Chrome add the site, show the event's icon and name, open without browser bars; sign-in after the install; safe areas on a device with a notch.
+Also: manifest and icons through Caddy on staging (the deployment test). The result is recorded in the manual test protocol; until then PWA-01 – PWA-05 are on the "not yet tested" list in test-strategy.md, section 5.
+Requirements: PWA-01 – PWA-05 (verified on staging and on devices).
 
 **3.5f – Release 1 go-live** (after 3.5a – 3.5e; formerly 3f). First release promoted and deployed to production on the operator's host; Let's Encrypt and live updates through Caddy checked there (manual test protocol); invitation print export checked end to end, privacy notice reviewed, home screen install checked on the production host, manual checks from the release checklist that apply to Release 1.
-Requirements: OPS-02.
+Checked with the released version on prod (decided 2026-11-11): LIC-03 and OPS-02 stay on the "not yet tested" list until then. When Release 1 works on prod and stage 4 starts, the lists are cleared (test-strategy.md, section 5).
+Requirements: OPS-02, LIC-03 (verified on prod).
 
 ### Stage 4 – Content and Website
 
 **Before the stage starts:**
 - Texts for the first event's pages (at least drafts).
+- Release 1 runs on prod and works. The checks of stage 3.5 (devices on staging, prod) are recorded as `pass` rows in the manual test protocol, and the "not yet tested" list in test-strategy.md, section 5, is cleared, OPS-02 included.
 
 **Steps:**
 
