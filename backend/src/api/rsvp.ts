@@ -5,6 +5,8 @@ import fp from "fastify-plugin";
 import { z } from "zod";
 import {
   activityResponseSchema,
+  companionRenameSchema,
+  companionRequestSchema,
   deadlineRequestSchema,
   eventPartRequestSchema,
   eventPartSchema,
@@ -41,6 +43,10 @@ const STATUSES: Record<string, number> = {
   invalid_attendance: 400,
   menu_required: 400,
   invalid_menu: 400,
+  companion_not_found: 404,
+  companion_not_editable: 409,
+  companion_decided: 409,
+  companion_limit: 409,
 };
 
 function fail(reply: FastifyReply, error: unknown): FastifyReply {
@@ -89,6 +95,108 @@ const rsvpPlugin: FastifyPluginAsyncZod<AuthOptions> = (app, options) => {
       try {
         const userId = signedIn(request).user.id;
         return await reply.send(rsvp.answer(userId, request.body, actor(request)));
+      } catch (error) {
+        return fail(reply, error);
+      }
+    },
+  );
+
+  // --- Accompanying persons of the guest (RSVP-08 – RSVP-10) --------------------------------
+  app.post(
+    "/api/rsvp/companions",
+    {
+      ...guest,
+      schema: {
+        querystring: noQuery,
+        body: companionRequestSchema,
+        response: { 201: rsvpStateSchema },
+      },
+    },
+    async (request, reply) => {
+      try {
+        const userId = signedIn(request).user.id;
+        return await reply
+          .status(201)
+          .send(rsvp.requestCompanion(userId, request.body, actor(request)));
+      } catch (error) {
+        return fail(reply, error);
+      }
+    },
+  );
+
+  app.put(
+    "/api/rsvp/companions/:id",
+    {
+      ...guest,
+      schema: {
+        querystring: noQuery,
+        params: idParams,
+        body: companionRequestSchema,
+        response: { 200: rsvpStateSchema },
+      },
+    },
+    async (request, reply) => {
+      try {
+        const userId = signedIn(request).user.id;
+        return await reply.send(
+          rsvp.updateCompanion(userId, request.params.id, request.body, actor(request)),
+        );
+      } catch (error) {
+        return fail(reply, error);
+      }
+    },
+  );
+
+  app.delete(
+    "/api/rsvp/companions/:id",
+    {
+      ...guest,
+      schema: {
+        querystring: noQuery,
+        params: idParams,
+        body: noBody,
+        response: { 200: rsvpStateSchema },
+      },
+    },
+    async (request, reply) => {
+      try {
+        const userId = signedIn(request).user.id;
+        return await reply.send(rsvp.withdrawCompanion(userId, request.params.id, actor(request)));
+      } catch (error) {
+        return fail(reply, error);
+      }
+    },
+  );
+
+  // --- The admin decides (RSVP-09) ----------------------------------------------------------
+  for (const [path, decision] of [
+    ["approve", "approved"],
+    ["reject", "rejected"],
+  ] as const) {
+    app.post(
+      `/api/admin/rsvp/companions/:id/${path}`,
+      { ...adminFeature, schema: { querystring: noQuery, params: idParams, body: noBody } },
+      async (request, reply) => {
+        try {
+          rsvp.decideCompanion(request.params.id, decision, actor(request));
+          return await reply.status(204).send();
+        } catch (error) {
+          return fail(reply, error);
+        }
+      },
+    );
+  }
+
+  app.patch(
+    "/api/admin/rsvp/companions/:id",
+    {
+      ...adminFeature,
+      schema: { querystring: noQuery, params: idParams, body: companionRenameSchema },
+    },
+    async (request, reply) => {
+      try {
+        rsvp.renameCompanion(request.params.id, request.body.name, actor(request));
+        return await reply.status(204).send();
       } catch (error) {
         return fail(reply, error);
       }

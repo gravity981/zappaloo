@@ -21,20 +21,37 @@ function RsvpKpi() {
   const { t } = useTranslation();
   const { data } = useAdminData("/api/admin/rsvp", rsvpOverviewSchema);
   return (
-    <div className="kpi">
-      <span className="eyebrow">{t("admin.home.rsvp")}</span>
-      <b>
-        {data ? t("admin.home.rsvpValue", { answered: data.answered, total: data.total }) : "–"}
-      </b>
-      {data && (
-        <span className="hint">
-          {t("admin.home.rsvpHint", { count: data.total - data.answered })}
-        </span>
-      )}
-      <Link className="sm" to="/admin/rsvp">
-        {t("admin.home.rsvpOpen")}
-      </Link>
-    </div>
+    <>
+      <div className="kpi">
+        <span className="eyebrow">{t("admin.home.rsvp")}</span>
+        <b>
+          {data ? t("admin.home.rsvpValue", { answered: data.answered, total: data.total }) : "–"}
+        </b>
+        {data && (
+          <span className="hint">
+            {t("admin.home.rsvpHint", { count: data.total - data.answered })}
+          </span>
+        )}
+        <Link className="sm" to="/admin/rsvp">
+          {t("admin.home.rsvpOpen")}
+        </Link>
+      </div>
+      <div className={data?.pendingCount ? "kpi alert" : "kpi"}>
+        <span className="eyebrow">{t("admin.home.companions")}</span>
+        <b>
+          {data
+            ? data.pendingCount > 0
+              ? t("admin.home.companionsValue", { count: data.pendingCount })
+              : t("admin.home.companionsNone")
+            : "–"}
+        </b>
+        {data && data.pendingCount > 0 && (
+          <Link className="sm" to="/admin/rsvp">
+            {t("admin.home.companionsDecide")}
+          </Link>
+        )}
+      </div>
+    </>
   );
 }
 

@@ -2,13 +2,17 @@
 // (RSVP-01 – RSVP-07, SEC-11; sw-architecture.md 7.4, 7.4.1). Allergies are health data: only
 // the admin overview and the guest's own answer ever return them (SEC-11).
 import { and, asc, eq, inArray } from "drizzle-orm";
+import { MAX_COMPANIONS } from "@zappaloo/shared";
 import type {
+  Companion,
+  CompanionRequest,
   EventPart,
   EventPartRequest,
   EventPartUpdate,
   MenuOption,
   RsvpAnswer,
   RsvpAnswerRequest,
+  RsvpCompanion,
   RsvpConfig,
   RsvpGuest,
   RsvpOverview,
@@ -17,6 +21,8 @@ import type {
 } from "@zappaloo/shared";
 import type { Database } from "../database/database.ts";
 import {
+  companionAttendance,
+  companions,
   eventParts,
   membershipParts,
   membershipRoles,
@@ -37,7 +43,11 @@ export type RsvpErrorCode =
   | "rsvp_closed"
   | "invalid_attendance"
   | "menu_required"
-  | "invalid_menu";
+  | "invalid_menu"
+  | "companion_not_found"
+  | "companion_not_editable"
+  | "companion_decided"
+  | "companion_limit";
 
 export class RsvpError extends Error {
   override name = "RsvpError";
@@ -46,6 +56,14 @@ export class RsvpError extends Error {
     super(message);
     this.code = code;
   }
+}
+
+/** One person's answer after the checks of `#checkPerson`. */
+interface CheckedPerson {
+  attendance: { partId: number; attending: boolean }[];
+  attending: number[];
+  menuId: number | null;
+  allergies: string | null;
 }
 
 type Tx = Parameters<Parameters<Database["db"]["transaction"]>[0]>[0];
@@ -293,6 +311,20 @@ export class RsvpService {
           )
           .run();
       }
+      // The guest's companions are invited to the same parts.
+      const mine = this.#companionRows(tx, userId).map((c) => c.id);
+      if (mine.length > 0) {
+        for (const partId of this.allPartIds(tx).filter((id) => !wanted.includes(id))) {
+          tx.delete(companionAttendance)
+            .where(
+              and(
+                inArray(companionAttendance.companionId, mine),
+                eq(companionAttendance.partId, partId),
+              ),
+            )
+            .run();
+        }
+      }
       this.#event.audit(actor, "user.parts", { userId, partIds: wanted }, tx);
       return wanted;
     });
@@ -364,7 +396,247 @@ export class RsvpService {
       parts: this.#parts().filter((part) => invited.has(part.id)),
       menus: this.#menus(),
       answer: this.#answer(db, userId),
+      companions: this.#companionsOf(db, userId),
     };
+  }
+
+  // --- Accompanying persons (RSVP-08 – RSVP-10) ---------------------------------------------
+
+  /**
+   * Checks the answer of one person against the invited parts and the meal rules, the same for
+   * a guest and for a companion: yes or no for every invited part, a menu for a person who
+   * attends the meal part while menus exist, allergies only for someone who attends.
+   */
+  #checkPerson(
+    tx: Reader,
+    invited: number[],
+    input: {
+      attendance: { partId: number; attending: boolean }[];
+      menuId?: number | null | undefined;
+      allergies?: string | null | undefined;
+    },
+  ): CheckedPerson {
+    const given = input.attendance.map((a) => a.partId);
+    if (
+      new Set(given).size !== given.length ||
+      given.length !== invited.length ||
+      given.some((id) => !invited.includes(id))
+    ) {
+      throw new RsvpError(
+        "invalid_attendance",
+        "answer yes or no for every part you are invited to, once each",
+      );
+    }
+    const attending = input.attendance.filter((a) => a.attending).map((a) => a.partId);
+    const mealPart = this.#parts(tx).find((part) => part.hasMeal);
+    const menus = this.#menus(tx);
+    const attendsMeal = mealPart !== undefined && attending.includes(mealPart.id);
+    let menuId: number | null = null;
+    if (attendsMeal && menus.length > 0) {
+      if (input.menuId === undefined || input.menuId === null) {
+        throw new RsvpError("menu_required", "choose a menu");
+      }
+      if (!menus.some((menu) => menu.id === input.menuId)) {
+        throw new RsvpError("invalid_menu", "no such menu option");
+      }
+      menuId = input.menuId;
+    }
+    return {
+      attendance: input.attendance,
+      attending,
+      menuId,
+      allergies: attending.length > 0 ? (input.allergies ?? null) : null,
+    };
+  }
+
+  #companionRows(reader: Reader, hostUserId?: number) {
+    return reader
+      .select()
+      .from(companions)
+      .where(
+        hostUserId === undefined
+          ? eq(companions.eventId, this.#event.eventId)
+          : and(eq(companions.eventId, this.#event.eventId), eq(companions.hostUserId, hostUserId)),
+      )
+      .orderBy(asc(companions.id))
+      .all();
+  }
+
+  #companionsOf(reader: Reader, hostUserId: number): Companion[] {
+    const rows = this.#companionRows(reader, hostUserId);
+    const attendance = rows.length
+      ? reader
+          .select()
+          .from(companionAttendance)
+          .where(
+            inArray(
+              companionAttendance.companionId,
+              rows.map((row) => row.id),
+            ),
+          )
+          .all()
+      : [];
+    return rows.map((row) => ({
+      id: row.id,
+      name: row.name,
+      note: row.note,
+      status: row.status,
+      attendingPartIds: attendance
+        .filter((a) => a.companionId === row.id && a.attending)
+        .map((a) => a.partId)
+        .sort((x, y) => x - y),
+      menuId: row.menuId,
+      allergies: row.allergies,
+    }));
+  }
+
+  /** A companion of this guest; a stranger's id is "not found". */
+  #companion(tx: Reader, id: number, hostUserId: number) {
+    const row = tx
+      .select()
+      .from(companions)
+      .where(
+        and(
+          eq(companions.id, id),
+          eq(companions.hostUserId, hostUserId),
+          eq(companions.eventId, this.#event.eventId),
+        ),
+      )
+      .get();
+    if (!row) throw new RsvpError("companion_not_found", "no such accompanying person");
+    return row;
+  }
+
+  #saveCompanionAnswer(tx: Tx, companionId: number, person: CheckedPerson): void {
+    const eventId = this.#event.eventId;
+    tx.delete(companionAttendance).where(eq(companionAttendance.companionId, companionId)).run();
+    for (const { partId, attending } of person.attendance) {
+      tx.insert(companionAttendance).values({ eventId, companionId, partId, attending }).run();
+    }
+    tx.update(companions)
+      .set({ menuId: person.menuId, allergies: person.allergies })
+      .where(eq(companions.id, companionId))
+      .run();
+  }
+
+  /** Guests change companions only until the deadline; admins always (RSVP-04). */
+  #assertOpen(admin: boolean): void {
+    if (!admin && this.isClosed()) {
+      throw new RsvpError("rsvp_closed", "the deadline for the RSVP has passed");
+    }
+  }
+
+  /**
+   * A guest asks to bring a person without an account (RSVP-08): name, optional note and the
+   * person's RSVP. At most ten (pending and approved) per guest.
+   */
+  requestCompanion(userId: number, input: CompanionRequest, actor: Actor): RsvpState {
+    this.#database.db.transaction((tx) => {
+      this.#guest(tx, userId);
+      this.#assertOpen(false);
+      const open = this.#companionRows(tx, userId).filter((c) => c.status !== "rejected");
+      if (open.length >= MAX_COMPANIONS) {
+        throw new RsvpError(
+          "companion_limit",
+          `at most ${String(MAX_COMPANIONS)} accompanying persons per guest`,
+        );
+      }
+      const person = this.#checkPerson(tx, this.invitedPartIds(userId, tx), input);
+      const row = tx
+        .insert(companions)
+        .values({
+          eventId: this.#event.eventId,
+          hostUserId: userId,
+          name: input.name,
+          note: input.note ?? null,
+          createdAt: this.#now(),
+        })
+        .returning({ id: companions.id })
+        .get();
+      this.#saveCompanionAnswer(tx, row.id, person);
+      this.#event.audit(actor, "companion.request", { companionId: row.id }, tx);
+    });
+    return this.state(userId);
+  }
+
+  /** While a request is pending, the guest changes name, note and the person's answer (RSVP-10). */
+  updateCompanion(userId: number, id: number, input: CompanionRequest, actor: Actor): RsvpState {
+    this.#database.db.transaction((tx) => {
+      this.#guest(tx, userId);
+      this.#assertOpen(false);
+      const row = this.#companion(tx, id, userId);
+      if (row.status !== "pending") {
+        throw new RsvpError(
+          "companion_not_editable",
+          "only a pending request can be changed; change the answer of an approved person in the RSVP",
+        );
+      }
+      const person = this.#checkPerson(tx, this.invitedPartIds(userId, tx), input);
+      tx.update(companions)
+        .set({ name: input.name, note: input.note ?? null })
+        .where(eq(companions.id, id))
+        .run();
+      this.#saveCompanionAnswer(tx, id, person);
+      this.#event.audit(actor, "companion.request", { companionId: id }, tx);
+    });
+    return this.state(userId);
+  }
+
+  /** A pending request is withdrawn, a rejected one removed; an approved person stays (7.4.1). */
+  withdrawCompanion(userId: number, id: number, actor: Actor): RsvpState {
+    this.#database.db.transaction((tx) => {
+      this.#guest(tx, userId);
+      this.#assertOpen(false);
+      const row = this.#companion(tx, id, userId);
+      if (row.status === "approved") {
+        throw new RsvpError(
+          "companion_not_editable",
+          "an approved person is changed or removed by the hosts",
+        );
+      }
+      tx.delete(companions).where(eq(companions.id, id)).run();
+      this.#event.audit(actor, "companion.withdraw", { companionId: id }, tx);
+    });
+    return this.state(userId);
+  }
+
+  /** The admin approves or rejects a pending request (RSVP-09), also after the deadline. */
+  decideCompanion(id: number, decision: "approved" | "rejected", actor: Actor): void {
+    this.#database.db.transaction((tx) => {
+      const row = tx
+        .select()
+        .from(companions)
+        .where(and(eq(companions.id, id), eq(companions.eventId, this.#event.eventId)))
+        .get();
+      if (!row) throw new RsvpError("companion_not_found", "no such accompanying person");
+      if (row.status !== "pending") {
+        throw new RsvpError("companion_decided", "this request has been decided already");
+      }
+      tx.update(companions)
+        .set({ status: decision, decidedAt: this.#now() })
+        .where(eq(companions.id, id))
+        .run();
+      this.#event.audit(
+        actor,
+        decision === "approved" ? "companion.approve" : "companion.reject",
+        { companionId: id },
+        tx,
+      );
+    });
+  }
+
+  /** The name of an approved person is changed by the admin only (7.4.1). */
+  renameCompanion(id: number, name: string, actor: Actor): void {
+    this.#database.db.transaction((tx) => {
+      const row = tx
+        .select()
+        .from(companions)
+        .where(and(eq(companions.id, id), eq(companions.eventId, this.#event.eventId)))
+        .get();
+      if (!row) throw new RsvpError("companion_not_found", "no such accompanying person");
+      tx.update(companions).set({ name }).where(eq(companions.id, id)).run();
+      this.#event.audit(actor, "companion.rename", { companionId: id }, tx);
+    });
   }
 
   /**
@@ -380,33 +652,9 @@ export class RsvpService {
         throw new RsvpError("rsvp_closed", "the deadline for the RSVP has passed");
       }
       const invited = this.invitedPartIds(userId, tx);
-      const given = input.attendance.map((a) => a.partId);
-      if (
-        new Set(given).size !== given.length ||
-        given.length !== invited.length ||
-        given.some((id) => !invited.includes(id))
-      ) {
-        throw new RsvpError(
-          "invalid_attendance",
-          "answer yes or no for every part you are invited to, once each",
-        );
-      }
-      const attending = input.attendance.filter((a) => a.attending).map((a) => a.partId);
-      const parts = this.#parts(tx);
-      const mealPart = parts.find((part) => part.hasMeal);
-      const menus = this.#menus(tx);
-      const attendsMeal = mealPart !== undefined && attending.includes(mealPart.id);
-      let menuId: number | null = null;
-      if (attendsMeal && menus.length > 0) {
-        if (input.menuId === undefined || input.menuId === null) {
-          throw new RsvpError("menu_required", "choose a menu");
-        }
-        if (!menus.some((menu) => menu.id === input.menuId)) {
-          throw new RsvpError("invalid_menu", "no such menu option");
-        }
-        menuId = input.menuId;
-      }
-      const anyAttending = attending.length > 0;
+      const person = this.#checkPerson(tx, invited, input);
+      const { menuId } = person;
+      const anyAttending = person.attending.length > 0;
       const eventId = this.#event.eventId;
       tx.delete(rsvpAttendance)
         .where(and(eq(rsvpAttendance.eventId, eventId), eq(rsvpAttendance.userId, userId)))
@@ -424,6 +672,17 @@ export class RsvpService {
         .values({ eventId, userId, ...values })
         .onConflictDoUpdate({ target: [rsvpAnswers.eventId, rsvpAnswers.userId], set: values })
         .run();
+      for (const companionAnswer of input.companions ?? []) {
+        const companion = this.#companion(tx, companionAnswer.companionId, userId);
+        if (companion.status === "rejected") {
+          throw new RsvpError("companion_not_editable", "a rejected request cannot be changed");
+        }
+        this.#saveCompanionAnswer(
+          tx,
+          companion.id,
+          this.#checkPerson(tx, invited, companionAnswer),
+        );
+      }
       // Ids only: the allergies are health data and stay out of the log (SEC-04, SEC-11).
       this.#event.audit(actor, admin ? "rsvp.admin_answer" : "rsvp.answer", { userId }, tx);
     });
@@ -490,18 +749,52 @@ export class RsvpService {
     const config = this.config();
     const guests = this.#guests();
     const answered = guests.filter((g) => g.status !== "none");
+    const rows = this.#companionRows(this.#database.db);
+    const attendance = rows.length
+      ? this.#database.db.select().from(companionAttendance).all()
+      : [];
+    const names = new Map(guests.map((g) => [g.userId, g.name]));
+    const everyone: RsvpCompanion[] = rows.map((row) => ({
+      id: row.id,
+      name: row.name,
+      note: row.note,
+      status: row.status,
+      attendingPartIds: attendance
+        .filter((a) => a.companionId === row.id && a.attending)
+        .map((a) => a.partId)
+        .sort((x, y) => x - y),
+      menuId: row.menuId,
+      allergies: row.allergies,
+      hostUserId: row.hostUserId,
+      hostName: names.get(row.hostUserId) ?? "",
+    }));
+    // Approved companions count like guests; they are invited to their guest's parts.
+    const approved = everyone
+      .filter((c) => c.status === "approved")
+      .flatMap((c) => {
+        const host = guests.find((g) => g.userId === c.hostUserId);
+        return host ? [{ ...c, invitedPartIds: host.invitedPartIds }] : [];
+      });
     const totals = config.parts.map((part) => ({
       partId: part.id,
-      yes: answered.filter((g) => g.attendingPartIds.includes(part.id)).length,
-      no: answered.filter(
-        (g) => g.invitedPartIds.includes(part.id) && !g.attendingPartIds.includes(part.id),
-      ).length,
+      yes:
+        answered.filter((g) => g.attendingPartIds.includes(part.id)).length +
+        approved.filter((c) => c.attendingPartIds.includes(part.id)).length,
+      no:
+        answered.filter(
+          (g) => g.invitedPartIds.includes(part.id) && !g.attendingPartIds.includes(part.id),
+        ).length +
+        approved.filter(
+          (c) => c.invitedPartIds.includes(part.id) && !c.attendingPartIds.includes(part.id),
+        ).length,
     }));
     const meal = config.parts.find((part) => part.hasMeal);
     const counts = new Map<number | null, number>();
     if (meal) {
-      for (const guest of guests.filter((g) => g.attendingPartIds.includes(meal.id))) {
-        counts.set(guest.menuId, (counts.get(guest.menuId) ?? 0) + 1);
+      for (const person of [...guests, ...approved].filter((p) =>
+        p.attendingPartIds.includes(meal.id),
+      )) {
+        counts.set(person.menuId, (counts.get(person.menuId) ?? 0) + 1);
       }
     }
     return {
@@ -509,6 +802,8 @@ export class RsvpService {
       totals,
       menuTotals: [...counts].map(([menuId, count]) => ({ menuId, count })),
       guests,
+      companions: everyone,
+      pendingCount: everyone.filter((c) => c.status === "pending").length,
       answered: answered.length,
       total: guests.length,
       reminderCount: this.reminderRecipients().length,
@@ -550,21 +845,40 @@ export class RsvpService {
       "Allergien",
     ];
     const status = { attending: "zugesagt", declined: "abgesagt", none: "ohne Antwort" } as const;
-    const lines = overview.guests.map((guest) => [
-      guest.name,
-      status[guest.status],
-      ...overview.parts.map((part) =>
-        !guest.invitedPartIds.includes(part.id)
-          ? ""
-          : guest.status === "none"
+    const lines = overview.guests.flatMap((guest) => [
+      [
+        guest.name,
+        status[guest.status],
+        ...overview.parts.map((part) =>
+          !guest.invitedPartIds.includes(part.id)
             ? ""
-            : guest.attendingPartIds.includes(part.id)
-              ? "ja"
-              : "nein",
-      ),
-      menuName(guest.menuId),
-      guest.songWish ?? "",
-      guest.allergies ?? "",
+            : guest.status === "none"
+              ? ""
+              : guest.attendingPartIds.includes(part.id)
+                ? "ja"
+                : "nein",
+        ),
+        menuName(guest.menuId),
+        guest.songWish ?? "",
+        guest.allergies ?? "",
+      ],
+      // Approved companions follow their guest, marked with an arrow.
+      ...overview.companions
+        .filter((c) => c.hostUserId === guest.userId && c.status === "approved")
+        .map((c) => [
+          `↳ ${c.name}`,
+          "bestätigt",
+          ...overview.parts.map((part) =>
+            !guest.invitedPartIds.includes(part.id)
+              ? ""
+              : c.attendingPartIds.includes(part.id)
+                ? "ja"
+                : "nein",
+          ),
+          menuName(c.menuId),
+          "",
+          c.allergies ?? "",
+        ]),
     ]);
     return [header, ...lines].map((row) => row.map(csvCell).join(";")).join("\r\n") + "\r\n";
   }

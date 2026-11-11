@@ -5,7 +5,14 @@ import { desc, eq, inArray, and } from "drizzle-orm";
 import { ACTIVITY_ACTIONS } from "@zappaloo/shared";
 import type { ActivityAction, ActivityEntry } from "@zappaloo/shared";
 import type { Database } from "../database/database.ts";
-import { auditLog, eventParts, invitations, menuOptions, users } from "../database/schema.ts";
+import {
+  auditLog,
+  companions,
+  eventParts,
+  invitations,
+  menuOptions,
+  users,
+} from "../database/schema.ts";
 import type { EventService } from "./service.ts";
 
 /**
@@ -106,6 +113,16 @@ export class ActivityService {
           .select({ name: invitations.guestName })
           .from(invitations)
           .where(eq(invitations.id, invitationId))
+          .get()?.name ?? null
+      );
+    }
+    const companionId = num(row.details.companionId);
+    if (companionId !== undefined) {
+      return (
+        db
+          .select({ name: companions.name })
+          .from(companions)
+          .where(eq(companions.id, companionId))
           .get()?.name ?? null
       );
     }

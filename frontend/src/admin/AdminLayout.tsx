@@ -8,7 +8,20 @@ import { Link, Navigate, NavLink, Outlet } from "react-router";
 import { useEvent } from "../app/event.ts";
 import { useSession } from "../app/session.ts";
 import VersionFooter from "../app/VersionFooter.tsx";
+import { usePendingRequests } from "./pending.ts";
 import AdminSetupPage from "./AdminSetupPage.tsx";
+
+/** The number of companion requests waiting for a decision, next to "Rückmeldungen" (RSVP-09). */
+function PendingBadge() {
+  const { t } = useTranslation();
+  const count = usePendingRequests();
+  if (!count) return null;
+  return (
+    <span className="badge" role="img" aria-label={t("admin.nav.rsvpBadge", { count })}>
+      {count}
+    </span>
+  );
+}
 
 /** Later steps add their pages here (Rückmeldungen, Sitzplan, Inhalte, Spielwelt, Moderation). */
 const PAGES = [
@@ -57,6 +70,7 @@ export default function AdminLayout() {
         {PAGES.map((page) => (
           <NavLink key={page.to} to={page.to} end={page.end}>
             {t(page.label)}
+            {page.to === "/admin/rsvp" && event?.features.rsvp && <PendingBadge />}
           </NavLink>
         ))}
       </nav>

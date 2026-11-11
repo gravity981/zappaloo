@@ -34,6 +34,7 @@ function state(changes: Record<string, unknown> = {}) {
     parts: PARTS,
     menus: MENUS,
     answer: null,
+    companions: [],
     ...changes,
   };
 }
@@ -103,6 +104,7 @@ describe("the RSVP wizard", () => {
       menuId: 2,
       allergies: "Nüsse",
       songWish: "ABBA",
+      companions: [],
     });
     // The summary shows what was answered; the allergies are only named, not repeated.
     expect(screen.getByText("Vegetarisch · Allergien angegeben")).toBeInTheDocument();
@@ -134,6 +136,7 @@ describe("the RSVP wizard", () => {
       ],
       allergies: null,
       songWish: null,
+      companions: [],
     });
   });
 
@@ -157,6 +160,7 @@ describe("the RSVP wizard", () => {
     expect(screen.queryByLabelText("Allergien oder Unverträglichkeiten")).not.toBeInTheDocument();
     expect(calls.find((c) => c.method === "PUT")?.body).toEqual({
       attendance: PARTS.map((part) => ({ partId: part.id, attending: false })),
+      companions: [],
     });
   });
 
@@ -357,6 +361,8 @@ describe("Rückmeldungen", () => {
         verifiedEmail: true,
       },
     ],
+    companions: [],
+    pendingCount: 0,
     answered: 2,
     total: 3,
     reminderCount: 1,
@@ -631,6 +637,8 @@ describe("Übersicht", () => {
     totals: [],
     menuTotals: [],
     guests: [],
+    companions: [],
+    pendingCount: 0,
     answered: 84,
     total: 120,
     reminderCount: 30,

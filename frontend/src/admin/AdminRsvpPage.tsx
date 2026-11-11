@@ -1,15 +1,19 @@
 // Rückmeldungen (RSVP-05, RSVP-07, SEC-11; sw-architecture.md 8.3, 7.4.1): totals per part,
 // the menus of the meal part, the guest table with the admin-only allergy column, the CSV
 // export and reminders. A row opens the RSVP wizard in admin mode.
-import { useState } from "react";
+import { Fragment, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Link } from "react-router";
 import { remindResponseSchema, rsvpOverviewSchema } from "@zappaloo/shared";
 import type { RsvpStatus } from "@zappaloo/shared";
 import { useAdminCall, useAdminData, useErrorText } from "./data.ts";
+import { notifyRsvpChanged } from "./pending.ts";
 
 /** The filter chips: all guests, or one status. */
 const FILTERS: (RsvpStatus | undefined)[] = [undefined, "attending", "declined", "none"];
+
+/** Marks a companion's row under their guest. */
+const ARROW = "↳";
 
 const STATUS_TAG: Record<RsvpStatus, string> = {
   attending: "tag ok",
@@ -24,6 +28,13 @@ export default function AdminRsvpPage() {
   const { data, failed, reload } = useAdminData("/api/admin/rsvp", rsvpOverviewSchema);
   const [filter, setFilter] = useState<RsvpStatus>();
   const [message, setMessage] = useState<{ ok: boolean; text: string }>();
+
+  async function decide(id: number, decision: "approve" | "reject") {
+    const result = await call("POST", `/api/admin/rsvp/companions/${String(id)}/${decision}`);
+    setMessage(result.ok ? undefined : { ok: false, text: errorText(result.errorCode) });
+    reload();
+    notifyRsvpChanged();
+  }
 
   async function remind() {
     if (!data) return;
@@ -83,6 +94,43 @@ export default function AdminRsvpPage() {
         <p role={message.ok ? "status" : "alert"} className={message.ok ? "hint" : "error"}>
           {message.text}
         </p>
+      )}
+
+      {data.pendingCount > 0 && (
+        <section className="card strong" aria-labelledby="rsvp-requests">
+          <b id="rsvp-requests">{t("admin.rsvp.requests", { count: data.pendingCount })}</b>
+          <ul className="list">
+            {data.companions
+              .filter((c) => c.status === "pending")
+              .map((c) => (
+                <li key={c.id} className="li">
+                  <div className="grow">
+                    <b>{c.name}</b>
+                    <span className="hint">
+                      {t("admin.rsvp.requestFrom", { name: c.hostName })}
+                      {c.note && ` · «${c.note}»`}
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    className="btn ghost sm"
+                    aria-label={`${t("admin.rsvp.reject")}: ${c.name}`}
+                    onClick={() => void decide(c.id, "reject")}
+                  >
+                    {t("admin.rsvp.reject")}
+                  </button>
+                  <button
+                    type="button"
+                    className="btn sm"
+                    aria-label={`${t("admin.rsvp.approve")}: ${c.name}`}
+                    onClick={() => void decide(c.id, "approve")}
+                  >
+                    {t("admin.rsvp.approve")}
+                  </button>
+                </li>
+              ))}
+          </ul>
+        </section>
       )}
 
       <div className="grid-2">
@@ -158,32 +206,62 @@ export default function AdminRsvpPage() {
                 </tr>
               )}
               {shown.map((guest) => (
-                <tr key={guest.userId}>
-                  <td>
-                    <b>{guest.name}</b>
-                    <br />
-                    <Link
-                      className="btn soft sm"
-                      to={`/admin/rsvp/guests/${String(guest.userId)}`}
-                      aria-label={`${t("admin.rsvp.edit")}: ${guest.name}`}
-                    >
-                      {t("admin.rsvp.edit")}
-                    </Link>
-                  </td>
-                  <td>
-                    <span className={STATUS_TAG[guest.status]}>
-                      {t(`admin.rsvp.statuses.${guest.status}`)}
-                    </span>
-                  </td>
-                  <td>{guest.attendingPartIds.map(partName).join(", ") || t("admin.rsvp.none")}</td>
-                  <td>
-                    {meal && guest.attendingPartIds.includes(meal.id)
-                      ? menuName(guest.menuId)
-                      : t("admin.rsvp.none")}
-                  </td>
-                  <td>{guest.songWish ?? t("admin.rsvp.none")}</td>
-                  <td>{guest.allergies ?? t("admin.rsvp.none")}</td>
-                </tr>
+                <Fragment key={guest.userId}>
+                  <tr>
+                    <td>
+                      <b>{guest.name}</b>
+                      <br />
+                      <Link
+                        className="btn soft sm"
+                        to={`/admin/rsvp/guests/${String(guest.userId)}`}
+                        aria-label={`${t("admin.rsvp.edit")}: ${guest.name}`}
+                      >
+                        {t("admin.rsvp.edit")}
+                      </Link>
+                    </td>
+                    <td>
+                      <span className={STATUS_TAG[guest.status]}>
+                        {t(`admin.rsvp.statuses.${guest.status}`)}
+                      </span>
+                    </td>
+                    <td>
+                      {guest.attendingPartIds.map(partName).join(", ") || t("admin.rsvp.none")}
+                    </td>
+                    <td>
+                      {meal && guest.attendingPartIds.includes(meal.id)
+                        ? menuName(guest.menuId)
+                        : t("admin.rsvp.none")}
+                    </td>
+                    <td>{guest.songWish ?? t("admin.rsvp.none")}</td>
+                    <td>{guest.allergies ?? t("admin.rsvp.none")}</td>
+                  </tr>
+                  {data.companions
+                    .filter((c) => c.hostUserId === guest.userId && c.status === "approved")
+                    .map((c) => (
+                      <tr key={`c${String(c.id)}`}>
+                        <td>
+                          {ARROW} <b>{c.name}</b>
+                          <br />
+                          <span className="hint">
+                            {t("admin.rsvp.companionOf", { name: guest.name })}
+                          </span>
+                        </td>
+                        <td>
+                          <span className="tag ok">{t("admin.rsvp.companionStatus.approved")}</span>
+                        </td>
+                        <td>
+                          {c.attendingPartIds.map(partName).join(", ") || t("admin.rsvp.none")}
+                        </td>
+                        <td>
+                          {meal && c.attendingPartIds.includes(meal.id)
+                            ? menuName(c.menuId)
+                            : t("admin.rsvp.none")}
+                        </td>
+                        <td>{t("admin.rsvp.none")}</td>
+                        <td>{c.allergies ?? t("admin.rsvp.none")}</td>
+                      </tr>
+                    ))}
+                </Fragment>
               ))}
             </tbody>
           </table>

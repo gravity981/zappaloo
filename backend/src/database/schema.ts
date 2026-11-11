@@ -414,3 +414,58 @@ export const rsvpAttendance = sqliteTable(
     ofMembership(table),
   ],
 );
+
+// --- Accompanying persons (sw-architecture.md 7.4, 7.4.1; RSVP-08 – RSVP-10) ---------------
+
+/**
+ * A person a guest asks to bring: no account, the guest manages the data. The guest's own
+ * membership owns the row, so it goes when the guest's account is deleted (RSVP-09).
+ */
+export const companions = sqliteTable(
+  "companions",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    eventId: text("event_id")
+      .notNull()
+      .references(() => events.id),
+    hostUserId: integer("host_user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    name: text("name").notNull(),
+    /** An optional note for the admin, e.g. "my daughter, 6" (RSVP-10). */
+    note: text("note"),
+    status: text("status", { enum: ["pending", "approved", "rejected"] })
+      .notNull()
+      .default("pending"),
+    menuId: integer("menu_id").references(() => menuOptions.id, { onDelete: "set null" }),
+    /** Health data: only admins and the guest read it (SEC-11). */
+    allergies: text("allergies"),
+    createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull(),
+    decidedAt: integer("decided_at", { mode: "timestamp_ms" }),
+  },
+  (table) => [
+    index("companions_host").on(table.hostUserId),
+    foreignKey({
+      columns: [table.eventId, table.hostUserId],
+      foreignColumns: [memberships.eventId, memberships.userId],
+    }).onDelete("cascade"),
+  ],
+);
+
+/** Yes or no per part for a companion, for the parts the guest is invited to. */
+export const companionAttendance = sqliteTable(
+  "companion_attendance",
+  {
+    eventId: text("event_id")
+      .notNull()
+      .references(() => events.id),
+    companionId: integer("companion_id")
+      .notNull()
+      .references(() => companions.id, { onDelete: "cascade" }),
+    partId: integer("part_id")
+      .notNull()
+      .references(() => eventParts.id, { onDelete: "cascade" }),
+    attending: integer("attending", { mode: "boolean" }).notNull(),
+  },
+  (table) => [primaryKey({ columns: [table.companionId, table.partId] })],
+);

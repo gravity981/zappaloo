@@ -60,6 +60,45 @@ export const rsvpConfigSchema = z.object({
 });
 export type RsvpConfig = z.infer<typeof rsvpConfigSchema>;
 
+/** At most this many accompanying persons per guest, pending and approved together. */
+export const MAX_COMPANIONS = 10;
+
+export const COMPANION_STATUSES = ["pending", "approved", "rejected"] as const;
+export type CompanionStatus = (typeof COMPANION_STATUSES)[number];
+
+/** An accompanying person as their guest sees them (RSVP-08 – RSVP-10). */
+export const companionSchema = z.object({
+  id: idSchema,
+  name: z.string(),
+  note: z.string().nullable(),
+  status: z.enum(COMPANION_STATUSES),
+  attendingPartIds: z.array(idSchema),
+  menuId: idSchema.nullable(),
+  allergies: z.string().nullable(),
+});
+export type Companion = z.infer<typeof companionSchema>;
+
+export const companionNameSchema = z.string().trim().min(1).max(100);
+export const companionNoteSchema = z.string().trim().min(1).max(500);
+
+/** The attendance, menu and allergies of one person, as in the wizard. */
+const personAnswerShape = {
+  attendance: z.array(z.strictObject({ partId: idSchema, attending: z.boolean() })).max(50),
+  menuId: idSchema.nullable().optional(),
+  allergies: z.string().trim().min(1).max(500).nullable().optional(),
+};
+
+/** `POST`/`PUT /api/rsvp/companions`: a request, or the change of a pending one (RSVP-08, RSVP-10). */
+export const companionRequestSchema = z.strictObject({
+  name: companionNameSchema,
+  note: companionNoteSchema.nullable().optional(),
+  ...personAnswerShape,
+});
+export type CompanionRequest = z.infer<typeof companionRequestSchema>;
+
+/** `PATCH /api/admin/rsvp/companions/:id`: the name of an approved person (7.4.1). */
+export const companionRenameSchema = z.strictObject({ name: companionNameSchema });
+
 /** The answer of one person: attendance per invited part, menu, allergies. */
 export const attendanceSchema = z.object({ partId: idSchema, attending: z.boolean() });
 
@@ -70,6 +109,11 @@ export const rsvpAnswerRequestSchema = z.strictObject({
   menuId: idSchema.nullable().optional(),
   allergies: allergiesSchema.nullable().optional(),
   songWish: songWishSchema.nullable().optional(),
+  /** Attendance, menu and allergies of companions (pending or approved), by id (RSVP-09). */
+  companions: z
+    .array(z.strictObject({ companionId: idSchema, ...personAnswerShape }))
+    .max(MAX_COMPANIONS)
+    .optional(),
 });
 export type RsvpAnswerRequest = z.infer<typeof rsvpAnswerRequestSchema>;
 
@@ -95,6 +139,8 @@ export const rsvpStateSchema = z.object({
   parts: z.array(eventPartSchema),
   menus: z.array(menuOptionSchema),
   answer: rsvpAnswerSchema.nullable(),
+  /** The guest's accompanying persons, all statuses. */
+  companions: z.array(companionSchema),
 });
 export type RsvpState = z.infer<typeof rsvpStateSchema>;
 
@@ -116,6 +162,13 @@ export const rsvpGuestSchema = z.object({
 });
 export type RsvpGuest = z.infer<typeof rsvpGuestSchema>;
 
+/** A companion in the admin overview, with the guest who asked. */
+export const rsvpCompanionSchema = companionSchema.extend({
+  hostUserId: idSchema,
+  hostName: z.string(),
+});
+export type RsvpCompanion = z.infer<typeof rsvpCompanionSchema>;
+
 /** `GET /api/admin/rsvp`: the overview. */
 export const rsvpOverviewSchema = z.object({
   deadline: dateSchema.nullable(),
@@ -126,6 +179,10 @@ export const rsvpOverviewSchema = z.object({
   /** Menu choices of the persons attending the meal part; menuId null = no choice made. */
   menuTotals: z.array(z.object({ menuId: idSchema.nullable(), count: z.number().int() })),
   guests: z.array(rsvpGuestSchema),
+  /** Every companion request; approved ones count in totals, menus and the table (RSVP-09). */
+  companions: z.array(rsvpCompanionSchema),
+  /** Requests waiting for a decision. */
+  pendingCount: z.number().int(),
   answered: z.number().int(),
   total: z.number().int(),
   /** Guests without an answer who have a verified address: the "Erinnern (n)" count. */
@@ -166,6 +223,11 @@ export const ACTIVITY_ACTIONS = [
   "invitation.regenerate",
   "invitation.revoke",
   "invitation.parts",
+  "companion.request",
+  "companion.approve",
+  "companion.reject",
+  "companion.withdraw",
+  "companion.rename",
   "event.setup",
   "event.set",
   "feature.set",

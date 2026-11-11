@@ -1,28 +1,35 @@
 // The RSVP wizard (sw-architecture.md 7.4, 7.4.1; UX mocks rsvp-parts, rsvp-people,
-// rsvp-companion, rsvp-done): attendance → food and allergies → song wish, then a summary.
-// Declining every part skips to the summary. After the deadline the summary is read-only. The
-// same wizard runs in admin mode for a guest (RSVP-04): the deadline does not apply there.
+// rsvp-companion, rsvp-done): attendance → food and allergies → accompanying persons and song
+// wish, then a summary. Declining every part (for the guest and the approved companions) skips
+// to the summary. After the deadline the summary is read-only. The same wizard runs in admin
+// mode for a guest (RSVP-04): the deadline does not apply there.
 import "../admin/admin.css";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { rsvpStateSchema } from "@zappaloo/shared";
-import type { RsvpAnswerRequest, RsvpState } from "@zappaloo/shared";
+import type { Companion, EventPart, RsvpAnswerRequest, RsvpState } from "@zappaloo/shared";
 import { apiRequest } from "../app/api.ts";
 import { useSession } from "../app/session.ts";
 import { useAdminData, useErrorText } from "../admin/data.ts";
+import { CompanionForm, CompanionsCard, MenuFields, PartsBlock } from "./Companions.tsx";
+import { answerOf, attendsAny, needsMenu, personOf } from "./person.ts";
+import type { PersonValue } from "./person.ts";
 import { useEventFormat } from "./format.ts";
 
 type Mode = { kind: "guest" } | { kind: "admin"; userId: number };
 type Step = 1 | 2 | 3 | "summary";
+/** The wizard, or the form of a companion request (a new one, or a pending one to change). */
+type View = { kind: "wizard" } | { kind: "form"; companion?: Companion };
 
 const TOTAL_STEPS = 3;
+const WIZARD: View = { kind: "wizard" };
 
 /** Loads the guest's RSVP; the form below starts from it and is rebuilt after each save. */
 export default function RsvpWizard({ mode, onFinish }: { mode: Mode; onFinish?: () => void }) {
   const errorText = useErrorText();
   const path =
     mode.kind === "admin" ? `/api/admin/rsvp/guests/${String(mode.userId)}` : "/api/rsvp";
-  const { data, failed } = useAdminData(path, rsvpStateSchema);
+  const { data, failed, reload } = useAdminData(path, rsvpStateSchema);
   /** The state a save answered with; it replaces the loaded one. */
   const [saved, setSaved] = useState<{ path: string; state: RsvpState }>();
   const state = saved?.path === path ? saved.state : data;
@@ -36,12 +43,18 @@ export default function RsvpWizard({ mode, onFinish }: { mode: Mode; onFinish?: 
   if (!state) return null;
   return (
     <WizardForm
+      // The answer's time changes with every save of the guest's own answer; a change of the
+      // companions alone keeps the form, so nothing the guest typed is lost.
       key={`${path}-${state.answer?.answeredAt ?? "new"}`}
       mode={mode}
       path={path}
       state={state}
       onSaved={(next) => {
         setSaved({ path, state: next });
+      }}
+      onRefresh={() => {
+        setSaved(undefined);
+        reload();
       }}
       {...(onFinish ? { onFinish } : {})}
     />
@@ -53,12 +66,14 @@ function WizardForm({
   path,
   state,
   onSaved,
+  onRefresh,
   onFinish,
 }: {
   mode: Mode;
   path: string;
   state: RsvpState;
   onSaved: (state: RsvpState) => void;
+  onRefresh: () => void;
   onFinish?: () => void;
 }) {
   const { t } = useTranslation();
@@ -67,41 +82,54 @@ function WizardForm({
   const format = useEventFormat();
   const answer = state.answer;
   const [step, setStep] = useState<Step>(answer ? "summary" : 1);
-  const [attendance, setAttendance] = useState<Record<number, boolean>>(() =>
-    answer
+  const [view, setView] = useState<View>(WIZARD);
+  const [own, setOwn] = useState<PersonValue>(() => ({
+    attendance: answer
       ? Object.fromEntries(
           state.parts.map((part) => [part.id, answer.attendingPartIds.includes(part.id)]),
         )
       : {},
-  );
-  const [menuId, setMenuId] = useState<number | null>(answer?.menuId ?? null);
-  const [allergies, setAllergies] = useState(answer?.allergies ?? "");
+    menuId: answer?.menuId ?? null,
+    allergies: answer?.allergies ?? "",
+  }));
   const [songWish, setSongWish] = useState(answer?.songWish ?? "");
+  /** What the guest changed about companions in the steps; the rest is as the server has it. */
+  const [edits, setEdits] = useState<Record<number, PersonValue>>({});
   const [error, setError] = useState<string>();
   const [sending, setSending] = useState(false);
 
   const admin = mode.kind === "admin";
   const locked = state.closed && !admin;
-  const mealPart = state.parts.find((part) => part.hasMeal);
-  const attendingIds = state.parts.filter((part) => attendance[part.id]).map((part) => part.id);
-  const answeredAll = state.parts.every((part) => attendance[part.id] !== undefined);
-  const attendsMeal = mealPart !== undefined && attendingIds.includes(mealPart.id);
-  const needsMenu = attendsMeal && state.menus.length > 0;
+  const { parts, menus } = state;
+  const time = (part: EventPart) =>
+    part.place
+      ? t("rsvp.partWhen", { time: format.time(part.startsAt), place: part.place })
+      : format.time(part.startsAt);
+
+  const valueOf = (companion: Companion): PersonValue =>
+    edits[companion.id] ?? personOf(companion, parts);
+  const approved = state.companions.filter((c) => c.status === "approved");
+  /** Persons the RSVP is about: the guest and the companions that are not rejected. */
+  const companions = state.companions.filter((c) => c.status !== "rejected");
+  const attendingCompanions = companions.filter((c) => attendsAny(valueOf(c)));
+  const ownAnswered = parts.every((part) => own.attendance[part.id] !== undefined);
+  const nobody = !attendsAny(own) && attendingCompanions.length === 0;
+  const menuMissing =
+    (attendsAny(own) && needsMenu(own, parts, menus) && own.menuId === null) ||
+    attendingCompanions.some((c) => {
+      const value = valueOf(c);
+      return needsMenu(value, parts, menus) && value.menuId === null;
+    });
 
   async function submit() {
     setSending(true);
     const body: RsvpAnswerRequest = {
-      attendance: state.parts.map((part) => ({
-        partId: part.id,
-        attending: attendance[part.id] === true,
+      ...answerOf(own, parts, menus),
+      ...(attendsAny(own) ? { songWish: songWish.trim() === "" ? null : songWish.trim() } : {}),
+      companions: companions.map((c) => ({
+        companionId: c.id,
+        ...answerOf(valueOf(c), parts, menus),
       })),
-      ...(attendingIds.length > 0
-        ? {
-            ...(needsMenu && menuId !== null ? { menuId } : {}),
-            allergies: allergies.trim() === "" ? null : allergies.trim(),
-            songWish: songWish.trim() === "" ? null : songWish.trim(),
-          }
-        : {}),
     };
     const result = await apiRequest("PUT", path, { body, csrfToken: session.csrfToken });
     setSending(false);
@@ -112,6 +140,11 @@ function WizardForm({
     } else {
       setError(errorText(result.errorCode ?? "unknown"));
     }
+  }
+
+  /** Opens the companion form: a new request, or the change of a pending one. */
+  function openForm(companion?: Companion) {
+    setView(companion ? { kind: "form", companion } : { kind: "form" });
   }
 
   const header = (current: number) => (
@@ -129,9 +162,31 @@ function WizardForm({
     <p className="muted sm">{t("rsvp.deadline", { date: format.day(state.deadline) })}</p>
   );
 
+  // --- The request form of a companion -----------------------------------------------------
+  if (view.kind === "form") {
+    return (
+      <CompanionForm
+        key={view.companion?.id ?? "new"}
+        parts={parts}
+        menus={menus}
+        time={time}
+        {...(view.companion ? { companion: view.companion } : {})}
+        onCancel={() => {
+          setView(WIZARD);
+        }}
+        onSaved={(next) => {
+          // Companions change on their own; the guest's own answer stays as typed.
+          onSaved(next);
+          setView(WIZARD);
+        }}
+      />
+    );
+  }
+
   // --- Summary ---------------------------------------------------------------------------
-  if (step === "summary" || (locked && !state.answer)) {
+  if (step === "summary" || (locked && !answer)) {
     const attending = answer ? answer.attendingPartIds.length > 0 : false;
+    const menuName = (id: number | null) => menus.find((menu) => menu.id === id)?.name;
     return (
       <div className="stack">
         {admin && <p className="hint">{t("rsvp.adminMode")}</p>}
@@ -148,7 +203,7 @@ function WizardForm({
           <>
             <div className="card">
               <ul className="list">
-                {state.parts.map((part) => (
+                {parts.map((part) => (
                   <li key={part.id} className="li">
                     <b className="grow">{part.name}</b>
                     <span className={answer.attendingPartIds.includes(part.id) ? "tag ok" : "tag"}>
@@ -160,22 +215,50 @@ function WizardForm({
                 ))}
               </ul>
             </div>
-            {attending && (
+            {(attending || state.companions.length > 0 || answer.songWish) && (
               <div className="card">
                 <ul className="list">
-                  <li className="li">
-                    <div className="grow">
-                      <b>{state.name}</b>
-                      <span className="muted sm">
-                        {[
-                          state.menus.find((menu) => menu.id === answer.menuId)?.name,
-                          answer.allergies ? t("rsvp.allergiesGiven") : undefined,
-                        ]
-                          .filter(Boolean)
-                          .join(" · ")}
+                  {attending && (
+                    <li className="li">
+                      <div className="grow">
+                        <b>{state.name}</b>
+                        <span className="muted sm">
+                          {[
+                            menuName(answer.menuId),
+                            answer.allergies ? t("rsvp.allergiesGiven") : undefined,
+                          ]
+                            .filter(Boolean)
+                            .join(" · ")}
+                        </span>
+                      </div>
+                    </li>
+                  )}
+                  {state.companions.map((companion) => (
+                    <li key={companion.id} className="li">
+                      <div className="grow">
+                        <b>{companion.name}</b>
+                        <span className="muted sm">
+                          {[
+                            menuName(companion.menuId),
+                            companion.allergies ? t("rsvp.allergiesGiven") : undefined,
+                          ]
+                            .filter(Boolean)
+                            .join(" · ")}
+                        </span>
+                      </div>
+                      <span
+                        className={
+                          companion.status === "approved"
+                            ? "tag ok"
+                            : companion.status === "pending"
+                              ? "tag warn"
+                              : "tag bad"
+                        }
+                      >
+                        {t(`rsvp.companions.status.${companion.status}`)}
                       </span>
-                    </div>
-                  </li>
+                    </li>
+                  ))}
                   {answer.songWish && (
                     <li className="li">
                       <div className="grow">
@@ -197,7 +280,7 @@ function WizardForm({
           )
         )}
         <div className="rsvp-actions">
-          {!locked && state.parts.length > 0 && (
+          {!locked && parts.length > 0 && (
             <button
               type="button"
               className="btn ghost"
@@ -224,46 +307,33 @@ function WizardForm({
       <div className="stack">
         {header(1)}
         <h1 className="h1">{t("rsvp.greeting", { name: state.name })}</h1>
-        {state.parts.length === 0 ? (
+        {parts.length === 0 ? (
           <p className="muted">{t("rsvp.noParts")}</p>
         ) : (
           <>
             <p className="muted">{t("rsvp.intro")}</p>
             {deadline}
-            <div className="card">
-              {state.parts.map((part) => (
-                <div key={part.id} className="rsvp-part" role="group" aria-label={part.name}>
-                  <div className="grow">
-                    <b>{part.name}</b>
-                    <span className="muted sm">
-                      {" "}
-                      {part.place
-                        ? t("rsvp.partWhen", {
-                            time: format.time(part.startsAt),
-                            place: part.place,
-                          })
-                        : format.time(part.startsAt)}
-                    </span>
-                  </div>
-                  <div className="chips">
-                    {[true, false].map((yes) => (
-                      <button
-                        key={String(yes)}
-                        type="button"
-                        className="chip"
-                        aria-pressed={attendance[part.id] === yes}
-                        aria-label={`${part.name}: ${yes ? t("rsvp.attending") : t("rsvp.notAttending")}`}
-                        onClick={() => {
-                          setAttendance({ ...attendance, [part.id]: yes });
-                        }}
-                      >
-                        {yes ? t("rsvp.attending") : t("rsvp.notAttending")}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              ))}
-            </div>
+            <PartsBlock
+              parts={parts}
+              value={own.attendance}
+              time={time}
+              onChange={(attendance) => {
+                setOwn({ ...own, attendance });
+              }}
+            />
+            {approved.map((companion) => (
+              <div key={companion.id} className="stack">
+                <b className="sm">{companion.name}</b>
+                <PartsBlock
+                  parts={parts}
+                  value={valueOf(companion).attendance}
+                  time={time}
+                  onChange={(attendance) => {
+                    setEdits({ ...edits, [companion.id]: { ...valueOf(companion), attendance } });
+                  }}
+                />
+              </div>
+            ))}
           </>
         )}
         {alert}
@@ -272,14 +342,14 @@ function WizardForm({
           <button
             type="button"
             className="btn"
-            disabled={!answeredAll || state.parts.length === 0 || sending}
+            disabled={!ownAnswered || parts.length === 0 || sending}
             onClick={() => {
               // Declining every part skips to the summary.
-              if (attendingIds.length === 0) void submit();
+              if (nobody) void submit();
               else setStep(2);
             }}
           >
-            {attendingIds.length === 0 && answeredAll ? t("rsvp.send") : t("rsvp.next")}
+            {nobody && ownAnswered ? t("rsvp.send") : t("rsvp.next")}
           </button>
         </div>
       </div>
@@ -292,49 +362,34 @@ function WizardForm({
       <div className="stack">
         {header(2)}
         <h1 className="h1">{t("rsvp.food.title")}</h1>
-        <div className="card">
-          <div className="row">
-            <b>{state.name}</b>
-            <span className="tag">{t("rsvp.you")}</span>
-          </div>
-          {needsMenu && (
-            <div
-              className="field"
-              role="group"
-              aria-label={t("rsvp.menu", { part: mealPart.name })}
-            >
-              <span>{t("rsvp.menu", { part: mealPart.name })}</span>
-              <div className="chips">
-                {state.menus.map((menu) => (
-                  <button
-                    key={menu.id}
-                    type="button"
-                    className="chip"
-                    aria-pressed={menuId === menu.id}
-                    onClick={() => {
-                      setMenuId(menu.id);
-                    }}
-                  >
-                    {menu.name}
-                  </button>
-                ))}
-              </div>
+        {attendsAny(own) && (
+          <div className="card">
+            <div className="row">
+              <b>{state.name}</b>
+              <span className="tag">{t("rsvp.you")}</span>
             </div>
-          )}
-          <label className="field">
-            <span>{t("rsvp.allergies")}</span>
-            <textarea
-              className="input"
-              value={allergies}
-              maxLength={500}
-              placeholder={t("rsvp.allergiesPlaceholder")}
-              onChange={(event) => {
-                setAllergies(event.target.value);
+            <MenuFields value={own} onChange={setOwn} parts={parts} menus={menus} />
+          </div>
+        )}
+        {attendingCompanions.map((companion) => (
+          <div key={companion.id} className="card">
+            <div className="row">
+              <b>{companion.name}</b>
+              <span className={companion.status === "approved" ? "tag ok" : "tag warn"}>
+                {t(`rsvp.companions.status.${companion.status}`)}
+              </span>
+            </div>
+            <MenuFields
+              value={valueOf(companion)}
+              onChange={(next) => {
+                setEdits({ ...edits, [companion.id]: next });
               }}
+              parts={parts}
+              menus={menus}
+              label={companion.name}
             />
-          </label>
-          <span className="lock">🔒 {t("rsvp.allergiesLock")}</span>
-        </div>
+          </div>
+        ))}
         {alert}
         <div className="rsvp-actions">
           <button
@@ -349,7 +404,7 @@ function WizardForm({
           <button
             type="button"
             className="btn"
-            disabled={needsMenu && menuId === null}
+            disabled={menuMissing}
             onClick={() => {
               setStep(3);
             }}
@@ -361,25 +416,40 @@ function WizardForm({
     );
   }
 
-  // --- Step 3: song wish -------------------------------------------------------------------
+  // --- Step 3: companions and song wish ----------------------------------------------------
   return (
     <div className="stack">
       {header(3)}
-      <h1 className="h1">{t("rsvp.songTitle")}</h1>
-      <div className="card">
-        <label className="field">
-          <span>{t("rsvp.song")}</span>
-          <input
-            className="input"
-            value={songWish}
-            maxLength={200}
-            onChange={(event) => {
-              setSongWish(event.target.value);
-            }}
-          />
-        </label>
-        <span className="hint">{t("rsvp.songHint")}</span>
-      </div>
+      <h1 className="h1">{t("rsvp.companions.stepTitle")}</h1>
+      <CompanionsCard
+        companions={state.companions}
+        parts={parts}
+        menus={menus}
+        admin={admin}
+        locked={locked}
+        onEdit={openForm}
+        onNew={() => {
+          openForm();
+        }}
+        onChanged={onSaved}
+        onRefresh={onRefresh}
+      />
+      {attendsAny(own) && (
+        <div className="card">
+          <label className="field">
+            <span>{t("rsvp.song")}</span>
+            <input
+              className="input"
+              value={songWish}
+              maxLength={200}
+              onChange={(event) => {
+                setSongWish(event.target.value);
+              }}
+            />
+          </label>
+          <span className="hint">{t("rsvp.songHint")}</span>
+        </div>
+      )}
       {alert}
       <div className="rsvp-actions">
         <button

@@ -43,7 +43,8 @@
       "invitations": "Einladungen",
       "users": "Konten & Rollen",
       "settings": "Einstellungen",
-      "rsvp": "Rückmeldungen"
+      "rsvp": "Rückmeldungen",
+      "rsvpBadge": "{{count}} offene Anfragen"
     },
     "home": {
       "title": "Übersicht",
@@ -60,7 +61,12 @@
       "rsvpHint_other": "{{count}} ohne Antwort",
       "rsvpOpen": "Ansehen",
       "activity": "Zuletzt",
-      "activityNone": "Noch nichts passiert."
+      "activityNone": "Noch nichts passiert.",
+      "companions": "Begleitpersonen",
+      "companionsValue_one": "{{count}} Anfrage",
+      "companionsValue_other": "{{count}} Anfragen",
+      "companionsNone": "Keine Anfragen",
+      "companionsDecide": "Entscheiden"
     },
     "settings": {
       "title": "Einstellungen",
@@ -237,7 +243,17 @@
         "platformOpen": "Plattform",
         "snapshotUploadsOpen": "Schnappschuss-Uploads",
         "keepsakeUploadsOpen": "Andenken-Uploads"
-      }
+      },
+      "companion_request": "Begleitperson «{{name}}» beantragt",
+      "companion_request_unnamed": "Eine Begleitperson wurde beantragt",
+      "companion_approve": "Begleitperson «{{name}}» angenommen",
+      "companion_approve_unnamed": "Eine Begleitperson wurde angenommen",
+      "companion_reject": "Begleitperson «{{name}}» abgelehnt",
+      "companion_reject_unnamed": "Eine Begleitperson wurde abgelehnt",
+      "companion_withdraw": "Begleitanfrage «{{name}}» zurückgezogen",
+      "companion_withdraw_unnamed": "Eine Begleitanfrage wurde zurückgezogen",
+      "companion_rename": "Begleitperson «{{name}}» umbenannt",
+      "companion_rename_unnamed": "Eine Begleitperson wurde umbenannt"
     },
     "rsvp": {
       "title": "Rückmeldungen",
@@ -272,7 +288,17 @@
       "noGuests": "Noch keine Gäste.",
       "hint": "Bearbeiten öffnet die Rückmeldung im Admin-Modus, auch nach der Frist. Jede Änderung steht im Audit-Log.",
       "backToList": "Zurück zu den Rückmeldungen",
-      "guestTitle": "Rückmeldung von {{name}}"
+      "guestTitle": "Rückmeldung von {{name}}",
+      "requests": "Begleitpersonen-Anfragen ({{count}})",
+      "requestFrom": "von {{name}}",
+      "approve": "Annehmen",
+      "reject": "Ablehnen",
+      "companionOf": "von {{name}}",
+      "companionStatus": {
+        "pending": "beantragt",
+        "approved": "bestätigt",
+        "rejected": "abgelehnt"
+      }
     },
     "rsvpSettings": {
       "title": "Rückmeldung",
@@ -420,7 +446,11 @@
     "invalid_attendance": "Bitte antworte für jeden Teil mit Ja oder Nein.",
     "menu_required": "Bitte wähle ein Menü.",
     "invalid_menu": "Dieses Menü gibt es nicht.",
-    "parts_not_editable": "Diese Einladung kann nicht mehr geändert werden."
+    "parts_not_editable": "Diese Einladung kann nicht mehr geändert werden.",
+    "companion_not_found": "Diese Begleitperson gibt es nicht.",
+    "companion_not_editable": "Diese Begleitperson kann nicht mehr so geändert werden. Ändere Teilnahme, Menü und Allergien in den Schritten 1 und 2.",
+    "companion_decided": "Über diese Anfrage ist schon entschieden.",
+    "companion_limit": "Du kannst höchstens {{count}} Begleitpersonen anmelden."
   },
   "notSetUp": {
     "title": "Noch nicht eingerichtet",
@@ -463,6 +493,32 @@
     "finish": "Fertig",
     "allergiesGiven": "Allergien angegeben",
     "songWish": "Songwunsch",
-    "notAnswered": "Noch keine Antwort"
+    "notAnswered": "Noch keine Antwort",
+    "companions": {
+      "title": "Begleitpersonen",
+      "stepTitle": "Begleitpersonen & Musik",
+      "formTitle": "Begleitperson beantragen",
+      "formHint": "Für Personen ohne eigenes Konto, z. B. Kinder. Du verwaltest ihre Angaben. Ihre Figur wählst du, sobald die Spielwelt offen ist.",
+      "name": "Name",
+      "note": "Notiz für die Gastgeber (optional)",
+      "attendance": "Teilnahme",
+      "thePerson": "Begleitperson",
+      "cancel": "Abbrechen",
+      "save": "Speichern",
+      "request": "Beantragen",
+      "new": "Begleitperson beantragen",
+      "edit": "Bearbeiten",
+      "withdraw": "Zurückziehen",
+      "remove": "Entfernen",
+      "rename": "Umbenennen",
+      "approvedHint": "Teilnahme, Menü und Allergien bestätigter Personen änderst du in den Schritten 1 und 2.",
+      "ownInvitation": "Wer ein eigenes Handy hat, bekommt besser eine eigene Einladung. Frag dafür die Gastgeber.",
+      "limit": "Mehr als {{count}} Begleitpersonen sind nicht möglich.",
+      "status": {
+        "pending": "Wartet auf Bestätigung",
+        "approved": "Bestätigt",
+        "rejected": "Abgelehnt"
+      }
+    }
   }
 }

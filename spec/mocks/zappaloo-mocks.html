@@ -808,7 +808,7 @@ add({
 add({
   id: "rsvp-companion", group: "access", title: "RSVP 3 · Companions & song", path: "/rsvp", reqs: ["RSVP-08", "RSVP-09", "RSVP-10", "RSVP-06"],
   variants: [["list", "Overview"], ["form", "Request companion"]],
-  shows: ["Existing companions with their request status (pending / approved / rejected).", "Pending: “Bearbeiten” and “Zurückziehen”. Approved: attendance, menu and allergies are changed in steps 1 and 2 until the deadline, without a new approval; the name only by the admin (decided 2026-11-11).", "Request form: name, attendance for the guest's own parts, menu (meal part only) and allergies; avatar comes later.", "Optional song wish."],
+  shows: ["Existing companions with their request status (pending / approved / rejected).", "Pending: “Bearbeiten” and “Zurückziehen”. Rejected (decided 2026-11-11): stays visible with “Entfernen”. In admin mode (RSVP-04) an approved person can be renamed; requests, edits and withdrawals are for the guest only. At most 10 persons per guest. Approved: attendance, menu and allergies are changed in steps 1 and 2 until the deadline, without a new approval; the name only by the admin (decided 2026-11-11).", "Request form: name, attendance for the guest's own parts, menu (meal part only) and allergies; avatar comes later.", "Optional song wish."],
   qs: [
     { n: 52, q: "After approval, can the VIP still change a companion's attendance, menu and allergies?", p: "Proposal: yes, in the wizard like their own, until the deadline, without a new approval." },
     { q: "Can a guest edit or withdraw a companion request while it is still pending?", p: "Mock: yes, “Bearbeiten” and “Zurückziehen” on pending requests." },

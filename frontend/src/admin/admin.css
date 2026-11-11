@@ -391,6 +391,9 @@
   flex-direction: column;
   gap: 2px;
 }
+.admin .li .grow {
+  flex: 1 1 11rem;
+}
 .admin .list {
   display: flex;
   flex-direction: column;
@@ -400,8 +403,9 @@
 }
 .admin .li {
   display: flex;
+  flex-wrap: wrap; /* on a phone the tag and buttons go below the text instead of squeezing it */
   align-items: center;
-  gap: 12px;
+  gap: 8px 12px;
   padding: 12px 0;
   border-bottom: 1px solid var(--a-line);
   min-width: 0;
@@ -665,6 +669,19 @@
   grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr));
   gap: 10px;
   align-items: end;
+}
+.admin .badge {
+  display: inline-block;
+  margin-left: 6px;
+  min-width: 18px;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: var(--a-badge);
+  color: #fff;
+  font-size: 11px;
+  line-height: 18px;
+  text-align: center;
+  font-weight: 700;
 }
 .admin a.btn {
   text-decoration: none;

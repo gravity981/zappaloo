@@ -197,6 +197,8 @@ describe("data model", () => {
     expect(tables.map((t) => t.name).sort()).toEqual([
       "access_releases",
       "audit_log",
+      "companion_attendance",
+      "companions",
       "event_features",
       "event_parts",
       "event_settings",
