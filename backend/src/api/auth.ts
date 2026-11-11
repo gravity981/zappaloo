@@ -369,7 +369,7 @@ const authPlugin: FastifyPluginAsyncZod<AuthOptions> = async (app, options) => {
         const { link, email } = accounts.createVerification(auth.user.id);
         const url = `${options.publicUrl.replace(/\/+$/, "")}/verify-email/${link.token}`;
         await options.mailer.send(
-          verificationMail(email, options.event.get().name, url, LINK_VALIDITY_HOURS),
+          verificationMail(email, options.event.get().name ?? "Zappaloo", url, LINK_VALIDITY_HOURS),
         );
       } catch (error) {
         if (error instanceof AccountError && error.code === "no_email") {
@@ -416,7 +416,7 @@ const authPlugin: FastifyPluginAsyncZod<AuthOptions> = async (app, options) => {
       if (wait !== undefined) return rateLimited(reply, wait);
       const { mailer } = options;
       if (mailer) {
-        const eventName = options.event.get().name;
+        const eventName = options.event.get().name ?? "Zappaloo";
         for (const { user, email } of accounts.findResettable(request.body.identifier)) {
           // Only the mails count: links an admin or the CLI hands out do not use up the quota.
           if (limiter.hit(`reset-mail:${String(user.id)}`, RESET_MAILS_PER_ACCOUNT) !== undefined) {

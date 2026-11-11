@@ -154,7 +154,7 @@ export async function restoreFull(
 
     // Validated: replace the files, then the database.
     for (const dir of FILE_DIRS) {
-      // Backups made before stage 2 have no events/: keep the installation's private event,
+      // Backups made before stage 2 have no events/: keep the installation's event files,
       // or it would not start any more (19.3.1).
       if (dir === "events" && !entries.includes(dir)) continue;
       rmSync(paths[dir], { recursive: true, force: true });

@@ -44,8 +44,6 @@ COPY shared/src shared/src
 COPY backend/package.json backend/
 COPY backend/src backend/src
 COPY backend/drizzle backend/drizzle
-# The example event; the installation's event is chosen with EVENT_SLUG (sw-architecture.md 19.3.1).
-COPY events events
 COPY --from=frontend /app/frontend/dist frontend/dist
 COPY --chmod=755 infrastructure/docker/zappaloo /usr/local/bin/zappaloo
 

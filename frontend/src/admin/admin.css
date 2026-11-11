@@ -61,6 +61,17 @@
   margin-left: auto;
   font-size: 12.5px;
 }
+.admin-head button.link {
+  background: none;
+  border: 0;
+  padding: 0;
+  color: #fff;
+  margin-left: auto;
+  font: inherit;
+  font-size: 12.5px;
+  text-decoration: underline;
+  cursor: pointer;
+}
 .admin-nav {
   display: flex;
   gap: 6px;
@@ -513,6 +524,13 @@
   .admin {
     grid-template-columns: 210px minmax(0, 1fr);
     grid-template-rows: auto 1fr;
+  }
+  /* Event setup: no navigation yet, the form alone (CFG-02). */
+  .admin.setup {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .admin.setup .admin-main {
+    max-width: 640px;
   }
   .admin-head {
     grid-column: 1 / -1;

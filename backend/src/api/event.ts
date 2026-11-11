@@ -23,8 +23,8 @@ export const eventApiRoutes: FastifyPluginCallbackZod<EventApiOptions> = (app, o
 };
 
 /**
- * `preHandler` for the routes of a feature: answers 404 `feature_disabled` while
- * the feature is switched off. The state is read on every request, so a change
+ * `preHandler` for the routes of a feature: answers 409 `setup_incomplete` before the
+ * setup and 404 `feature_disabled` while the feature is switched off. The state is read on every request, so a change
  * at runtime applies at once.
  */
 export function requireFeature(event: EventService, name: FeatureName) {
@@ -32,6 +32,12 @@ export function requireFeature(event: EventService, name: FeatureName) {
     _request: FastifyRequest,
     reply: FastifyReply,
   ): Promise<FastifyReply | undefined> => {
+    if (!event.get().setupComplete) {
+      return sendError(reply, 409, {
+        code: "setup_incomplete",
+        message: "The event is not set up yet.",
+      });
+    }
     if (event.isFeatureEnabled(name)) return undefined;
     // Returning the reply ends the request here: the handler is not called.
     return sendError(reply, 404, {

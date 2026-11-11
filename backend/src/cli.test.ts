@@ -5,11 +5,9 @@ import { fileURLToPath } from "node:url";
 import { afterEach, describe, expect, it } from "vitest";
 import { runCli } from "./cli.ts";
 import type { CliIo } from "./cli.ts";
-import { BUNDLED_EVENTS_DIR } from "./config.ts";
 import { dataPaths } from "./data-dir.ts";
-import { loadEvent } from "./event/config.ts";
 import { AccountService } from "./auth/accounts.ts";
-import { bootstrapEvent, EventService } from "./event/service.ts";
+import { ensureEvent, EventService, EXAMPLE_EVENT } from "./event/service.ts";
 import { startHeartbeat } from "./database/backup.ts";
 import { openDatabase } from "./database/database.ts";
 import { tempDir } from "./test-support.ts";
@@ -237,7 +235,7 @@ describe("full backup and restore", () => {
     writeFiles(dataDir, {
       "uploads/a.jpg": "photo A",
       "maps/town/map.json": "{}",
-      "events/our-day/event.json": "{}",
+      "events/event1/theme.json": "{}",
     });
     const archive = join(dir, "full.tar.gz");
 
@@ -271,14 +269,14 @@ describe("full backup and restore", () => {
     expect(readFileSync(join(dataDir, "uploads/a.jpg"), "utf8")).toBe("photo A");
     expect(existsSync(join(dataDir, "uploads/b.jpg"))).toBe(false);
     expect(readFileSync(join(dataDir, "maps/town/map.json"), "utf8")).toBe("{}");
-    // A private event in the data volume is part of the backup.
-    expect(readFileSync(join(dataDir, "events/our-day/event.json"), "utf8")).toBe("{}");
+    // The event's theme and graphics in the data volume are part of the backup.
+    expect(readFileSync(join(dataDir, "events/event1/theme.json"), "utf8")).toBe("{}");
     expect(readdirSync(dataDir).filter((n) => n.startsWith(".restore-"))).toEqual([]);
   });
 
-  it("[OPS-05][CFG-02] restoring an older archive without events/ keeps the installation's event", async () => {
+  it("[OPS-05][CFG-02] restoring an older archive without events/ keeps the installation's event files", async () => {
     const { dataDir, dir } = await dataDirWithGuest("Anna");
-    writeFiles(dataDir, { "uploads/a.jpg": "photo A", "events/our-day/event.json": "{}" });
+    writeFiles(dataDir, { "uploads/a.jpg": "photo A", "events/event1/theme.json": "{}" });
     // An archive as stage 1 made it: database, uploads and maps only.
     const old = join(dir, "old.tar.gz");
     const src = join(dir, "src");
@@ -294,7 +292,7 @@ describe("full backup and restore", () => {
     expect(restored.code, restored.err).toBe(0);
     expect(existsSync(join(dataDir, "uploads/a.jpg"))).toBe(false);
     expect(readFileSync(join(dataDir, "uploads/old.jpg"), "utf8")).toBe("old photo");
-    expect(readFileSync(join(dataDir, "events/our-day/event.json"), "utf8")).toBe("{}");
+    expect(readFileSync(join(dataDir, "events/event1/theme.json"), "utf8")).toBe("{}");
   });
 
   it("[OPS-05] restore --full refuses while the application is running", async () => {
@@ -389,7 +387,8 @@ describe("event commands", () => {
     const dataDir = join(dir.path, "data");
     expect((await run(["migrate"], { DATA_DIR: dataDir })).code).toBe(0);
     const database = openDatabase(dataPaths(dataDir).database);
-    bootstrapEvent(database, loadEvent("event-muster", [BUNDLED_EVENTS_DIR]).config);
+    ensureEvent(database);
+    EventService.forInstallation(database).setup(EXAMPLE_EVENT, "cli");
     database.close();
     return dataDir;
   }
@@ -398,7 +397,7 @@ describe("event commands", () => {
     const dataDir = await dataDirWithEvent();
     const result = await run(["event", "show"], { DATA_DIR: dataDir });
     expect(result.code).toBe(0);
-    expect(result.out).toContain("Event Muster (event-muster), Europe/Zurich, de");
+    expect(result.out).toContain("Event Muster (event1), Europe/Zurich, de");
     expect(result.out).toContain("  minigames: on");
     expect(result.out).toContain("  platformOpen: off");
   });
@@ -423,7 +422,9 @@ describe("event commands", () => {
     expect(shown).toContain("  platformOpen: on");
 
     const database = openDatabase(dataPaths(dataDir).database);
-    const log = EventService.forInstallation(database).auditEntries();
+    const log = EventService.forInstallation(database)
+      .auditEntries()
+      .filter((e) => e.action !== "event.setup");
     database.close();
     expect(log.map((e) => [e.actor, e.action, e.details])).toEqual([
       ["cli", "setting.set", { name: "platformOpen", from: false, to: true }],
@@ -460,6 +461,76 @@ describe("event commands", () => {
   });
 });
 
+describe("event setup commands", () => {
+  function emptyDataDir(): string {
+    const dir = tempDir();
+    cleanups.push(dir.remove);
+    return join(dir.path, "data");
+  }
+
+  it("[CFG-07] seed-example sets up an empty installation that never started, in dev and test", async () => {
+    const dataDir = emptyDataDir();
+    const result = await run(["event", "seed-example"], { DATA_DIR: dataDir, APP_ENV: "test" });
+    expect(result).toEqual({
+      code: 0,
+      out: 'The example event "Event Muster" is set up.',
+      err: "",
+    });
+    const shown = await run(["event", "show"], { DATA_DIR: dataDir });
+    expect(shown.out).toContain("Event Muster (event1), Europe/Zurich, de");
+    // Audited as cli.
+    const database = openDatabase(dataPaths(dataDir).database);
+    try {
+      expect(
+        EventService.forInstallation(database)
+          .auditEntries()
+          .map((e) => [e.actor, e.action]),
+      ).toEqual([["cli", "event.setup"]]);
+    } finally {
+      database.close();
+    }
+  });
+
+  it("[CFG-07] seed-example refuses an installation that is already set up", async () => {
+    const dataDir = emptyDataDir();
+    expect((await run(["event", "seed-example"], { DATA_DIR: dataDir })).code).toBe(0);
+    const again = await run(["event", "seed-example"], { DATA_DIR: dataDir });
+    expect(again.code).toBe(1);
+    expect(again.err).toMatch(/already set up/);
+  });
+
+  it("[CFG-07] seed-example refuses staging and prod", async () => {
+    for (const APP_ENV of ["staging", "prod"]) {
+      const dataDir = emptyDataDir();
+      const result = await run(["event", "seed-example"], {
+        DATA_DIR: dataDir,
+        APP_ENV,
+        PUBLIC_URL: "https://example.org",
+        SESSION_SECRET: "x".repeat(32),
+      });
+      expect(result.code, APP_ENV).toBe(1);
+      expect(result.err).toMatch(/dev and test only/);
+    }
+  });
+
+  it("[CFG-02] before the setup, event show says so and feature and setting are refused", async () => {
+    const dataDir = emptyDataDir();
+    const env = { DATA_DIR: dataDir };
+    expect((await run(["migrate"], env)).code).toBe(0);
+    const database = openDatabase(dataPaths(dataDir).database);
+    ensureEvent(database);
+    database.close();
+    expect(await run(["event", "show"], env)).toEqual({
+      code: 0,
+      out: "The event is not set up yet.",
+      err: "",
+    });
+    const refused = await run(["event", "feature", "gallery", "off"], env);
+    expect(refused.code).toBe(1);
+    expect(refused.err).toMatch(/not set up yet/);
+  });
+});
+
 describe("account commands", () => {
   async function dataDirWithEvent(): Promise<string> {
     const dir = tempDir();
@@ -467,7 +538,8 @@ describe("account commands", () => {
     const dataDir = join(dir.path, "data");
     expect((await run(["migrate"], { DATA_DIR: dataDir })).code).toBe(0);
     const database = openDatabase(dataPaths(dataDir).database);
-    bootstrapEvent(database, loadEvent("event-muster", [BUNDLED_EVENTS_DIR]).config);
+    ensureEvent(database);
+    EventService.forInstallation(database).setup(EXAMPLE_EVENT, "cli");
     database.close();
     return dataDir;
   }
@@ -508,7 +580,12 @@ describe("account commands", () => {
       await expect(
         accounts.useLink(linkToken(result.out), "another-long-password"),
       ).rejects.toThrow();
-      expect(event.auditEntries().map((e) => [e.actor, e.action])).toEqual([
+      expect(
+        event
+          .auditEntries()
+          .filter((e) => e.action !== "event.setup")
+          .map((e) => [e.actor, e.action]),
+      ).toEqual([
         ["cli", "link.create"],
         ["cli", "user.create"],
       ]);

@@ -6,6 +6,7 @@ import { z } from "zod";
 import {
   adminUserListSchema,
   eventResponseSchema,
+  eventSetupSchema,
   eventUpdateSchema,
   releaseKeySchema,
   releaseListSchema,
@@ -20,6 +21,7 @@ import type { FastifyReply } from "fastify";
 import type { FastifyPluginAsyncZod } from "fastify-type-provider-zod";
 import { AccountError } from "../auth/accounts.ts";
 import { GroupError } from "../auth/groups.ts";
+import { EventError } from "../event/service.ts";
 import { requireRole, signedIn } from "./auth.ts";
 import type { AuthOptions } from "./auth.ts";
 import { sendError } from "./validation.ts";
@@ -35,6 +37,9 @@ const memberParams = z.strictObject({
 
 /** Answers the known account and group errors; rethrows anything else. */
 function fail(reply: FastifyReply, error: unknown): FastifyReply {
+  if (error instanceof EventError && error.code !== undefined) {
+    return sendError(reply, 409, { code: error.code, message: error.message });
+  }
   if (error instanceof AccountError || error instanceof GroupError) {
     const statuses: Partial<Record<string, number>> = {
       user_not_found: 404,
@@ -58,7 +63,28 @@ const adminPlugin: FastifyPluginAsyncZod<AuthOptions> = (
   const actor = (request: Parameters<typeof signedIn>[0]) =>
     `user:${String(signedIn(request).user.id)}`;
 
-  // Feature toggles and settings, changed at runtime without a redeployment (CFG-03, CFG-05).
+  // The one-time setup of the event: name, time zone and default language (CFG-02).
+  app.post(
+    "/api/admin/event/setup",
+    {
+      ...admin,
+      schema: {
+        querystring: noQuery,
+        body: eventSetupSchema,
+        response: { 200: eventResponseSchema },
+      },
+    },
+    async (request, reply) => {
+      try {
+        return await reply.send(event.setup(request.body, actor(request)));
+      } catch (error) {
+        return fail(reply, error);
+      }
+    },
+  );
+
+  // Identity, feature toggles and settings, changed at runtime without a redeployment
+  // (CFG-03, CFG-05, CFG-06).
   app.patch(
     "/api/admin/event",
     {
@@ -69,7 +95,13 @@ const adminPlugin: FastifyPluginAsyncZod<AuthOptions> = (
         response: { 200: eventResponseSchema },
       },
     },
-    (request) => event.update(request.body, actor(request)),
+    async (request, reply) => {
+      try {
+        return await reply.send(event.update(request.body, actor(request)));
+      } catch (error) {
+        return fail(reply, error);
+      }
+    },
   );
 
   app.get(

@@ -386,3 +386,105 @@ describe("accounts, roles and groups", () => {
     expect(await screen.findByText("Noch keine Gruppen.")).toBeInTheDocument();
   });
 });
+
+describe("event setup", () => {
+  const fresh = {
+    ...event,
+    name: null,
+    timezone: null,
+    defaultLanguage: null,
+    setupComplete: false,
+  };
+
+  /** A fresh installation; POST /setup completes it like the real server. */
+  function freshBackend(session: unknown) {
+    let current: Record<string, unknown> = fresh;
+    const calls = fakeBackend({
+      "GET /api/session": () => session as { status: number; body: unknown },
+      "GET /api/event": () => ({ status: 200, body: current }),
+      "POST /api/admin/event/setup": () => {
+        current = { ...event, ...(calls.at(-1)?.body as object), setupComplete: true };
+        return { status: 200, body: current };
+      },
+    });
+    return calls;
+  }
+
+  it("[CFG-02] on a fresh installation an admin sees only the setup form; saving opens the admin area", async () => {
+    const calls = freshBackend(asAdmin);
+    renderAt("/admin/users");
+    expect(
+      await screen.findByRole("heading", { name: "Veranstaltung einrichten" }),
+    ).toBeInTheDocument();
+    expect(screen.queryByRole("navigation", { name: "Verwaltung" })).not.toBeInTheDocument();
+    expect(screen.getByLabelText("Zeitzone")).toHaveValue("Europe/Zurich");
+
+    user.type(screen.getByLabelText("Name"), "Anna & Ben");
+    user.click(screen.getByRole("button", { name: "Einrichtung abschliessen" }));
+
+    expect(await screen.findByRole("navigation", { name: "Verwaltung" })).toBeInTheDocument();
+    expect(calls.find((c) => c.method === "POST" && c.path.endsWith("/setup"))).toMatchObject({
+      csrf: "csrf-1",
+      body: { name: "Anna & Ben", timezone: "Europe/Zurich", defaultLanguage: "de" },
+    });
+  });
+
+  it("[CFG-02] an admin on the website is sent to the setup", async () => {
+    freshBackend(asAdmin);
+    renderAt("/");
+    expect(
+      await screen.findByRole("heading", { name: "Veranstaltung einrichten" }),
+    ).toBeInTheDocument();
+  });
+
+  it("[CFG-02] everyone else sees the 'not set up yet' page and can sign out", async () => {
+    freshBackend(signedIn);
+    renderAt("/");
+    expect(
+      await screen.findByRole("heading", { name: "Noch nicht eingerichtet" }),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Abmelden" })).toBeInTheDocument();
+    expect(
+      screen.queryByRole("heading", { name: "Willkommen bei Zappaloo" }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("[CFG-02] an invalid input is reported and the form stays", async () => {
+    fakeBackend({
+      "GET /api/session": () => asAdmin,
+      "GET /api/event": () => ({ status: 200, body: fresh }),
+      "POST /api/admin/event/setup": () => ({
+        status: 400,
+        body: { error: { code: "validation_failed", message: "x" } },
+      }),
+    });
+    renderAt("/admin");
+    user.type(await screen.findByLabelText("Name"), "Anna & Ben");
+    user.click(screen.getByRole("button", { name: "Einrichtung abschliessen" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent("Bitte prüfe deine Eingaben.");
+    expect(screen.getByRole("heading", { name: "Veranstaltung einrichten" })).toBeInTheDocument();
+  });
+
+  it("[CFG-06] Einstellungen changes name and time zone later and sends only what changed", async () => {
+    let current: Record<string, unknown> = event;
+    const calls = fakeBackend({
+      "GET /api/session": () => asAdmin,
+      "GET /api/event": () => ({ status: 200, body: current }),
+      "PATCH /api/admin/event": () => {
+        current = { ...current, ...(calls.at(-1)?.body as object) };
+        return { status: 200, body: current };
+      },
+    });
+    renderAt("/admin/settings");
+    const name = await screen.findByLabelText("Name");
+    expect(name).toHaveValue("Event Muster");
+    user.type(name, "Anna & Ben");
+    user.type(screen.getByLabelText("Zeitzone"), "Europe/Berlin");
+    user.click(screen.getByRole("button", { name: "Speichern" }));
+    expect(await screen.findByText("Gespeichert.")).toBeInTheDocument();
+    expect(calls.find((c) => c.method === "PATCH")?.body).toEqual({
+      name: "Anna & Ben",
+      timezone: "Europe/Berlin",
+    });
+  });
+});

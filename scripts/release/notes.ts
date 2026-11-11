@@ -111,8 +111,8 @@ export function buildInstallNotes(tag: string, repository: string): string {
   const directory = `~/zappaloo-${environment}`;
   const hint =
     environment === "prod"
-      ? "set APP_ENV=prod, COMPOSE_PROJECT_NAME=zappaloo, DATA_VOLUME=zappaloo-data-prod, EVENT_SLUG (the private event in the data volume, see the runbook), SITE_ADDRESS, TLS_MODE, HTTP_PORT=80, HTTPS_PORT=443, COMPOSE_PROFILES=, SMTP_*, MAIL_FROM; the SMTP password goes into secrets/smtp_password"
-      : "set EVENT_SLUG; SITE_ADDRESS is the LAN IP; the other defaults fit staging";
+      ? "set APP_ENV=prod, COMPOSE_PROJECT_NAME=zappaloo, DATA_VOLUME=zappaloo-data-prod, SITE_ADDRESS, TLS_MODE, HTTP_PORT=80, HTTPS_PORT=443, COMPOSE_PROFILES=, SMTP_*, MAIL_FROM; the SMTP password goes into secrets/smtp_password"
+      : "SITE_ADDRESS is the LAN IP; the other defaults fit staging";
   const restore =
     environment === "staging"
       ? "\n# Staging starts from the newest full backup of prod: copy it to backups/*.tar.gz first"

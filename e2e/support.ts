@@ -10,11 +10,14 @@ export function clientAddress(): string {
   return `10.${String(part())}.${String(part())}.${String(part())}`;
 }
 
-/** Creates an admin with the CLI, as the operator would, and returns the path of its setup link. */
-export function createAdmin(username: string): string {
+/**
+ * Creates an admin with the CLI, as the operator would, and returns the path of its setup link.
+ * `dataDir` is the installation's: the main test installation by default.
+ */
+export function createAdmin(username: string, dataDir = ".e2e-data"): string {
   const output = execFileSync(process.execPath, ["backend/src/cli.ts", "create-admin", username], {
     encoding: "utf8",
-    env: { ...process.env, DATA_DIR: ".e2e-data", APP_ENV: "test" },
+    env: { ...process.env, DATA_DIR: dataDir, APP_ENV: "test" },
   });
   const link = /^http\S*(\/set-password\/[\w-]+)$/m.exec(output)?.[1];
   if (!link) throw new Error(`no setup link in the output of create-admin:\n${output}`);

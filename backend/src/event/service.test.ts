@@ -1,12 +1,11 @@
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
-import { FEATURE_NAMES, SETTING_NAMES } from "@zappaloo/shared";
-import type { EventConfig } from "@zappaloo/shared";
+import { DEFAULT_FEATURES, DEFAULT_SETTINGS, FEATURE_NAMES, SETTING_NAMES } from "@zappaloo/shared";
 import { dataPaths, ensureDataDirs } from "../data-dir.ts";
 import { openDatabase, runMigrations } from "../database/database.ts";
 import type { Database } from "../database/database.ts";
 import { tempDir } from "../test-support.ts";
-import { bootstrapEvent, CLI_ACTOR, EventError, EventService } from "./service.ts";
+import { CLI_ACTOR, ensureEvent, EventError, EventService } from "./service.ts";
 
 const cleanups: (() => void)[] = [];
 afterEach(() => {
@@ -28,93 +27,112 @@ function migratedDatabase(): Database {
   return database;
 }
 
-const config = (changes: Partial<EventConfig> = {}): EventConfig => ({
-  id: "my-event",
-  name: "My Event",
-  slug: "my-event",
-  timezone: "Europe/Zurich",
-  defaultLanguage: "de",
-  theme: { config: "theme.json" },
-  features: {
-    minigames: true,
-    snapshots: true,
-    gallery: false,
-    keepsakes: true,
-    rsvp: true,
-    treasureHunt: false,
-    eventScreen: true,
-  },
-  settings: { platformOpen: false, snapshotUploadsOpen: false, keepsakeUploadsOpen: true },
-  ...changes,
-});
+const SETUP = { name: "My Event", timezone: "Europe/Zurich", defaultLanguage: "de" };
+
+/** A started installation: the event exists, the admin has not set it up yet. */
+function freshInstallation(): EventService {
+  const database = migratedDatabase();
+  ensureEvent(database);
+  return EventService.forInstallation(database);
+}
 
 describe("event in the database", () => {
-  it("[CFG-05] features and settings are initialised from event.json", () => {
-    const database = migratedDatabase();
-    bootstrapEvent(database, config());
-    const event = EventService.forInstallation(database);
-    expect(event.eventId).toBe("my-event");
+  it("[CFG-02] the first start creates the event without name, time zone and language, with the defaults", () => {
+    const event = freshInstallation();
+    expect(event.eventId).toBe("event1");
     expect(event.get()).toEqual({
-      id: "my-event",
-      name: "My Event",
-      slug: "my-event",
-      timezone: "Europe/Zurich",
-      defaultLanguage: "de",
-      features: config().features,
-      settings: config().settings,
+      id: "event1",
+      name: null,
+      timezone: null,
+      defaultLanguage: null,
+      setupComplete: false,
+      features: DEFAULT_FEATURES,
+      settings: DEFAULT_SETTINGS,
     });
   });
 
-  it("[CFG-05] the admin's changes survive restarts; the identity is refreshed, new keys are filled in", () => {
+  it("[CFG-02] the setup fills in name, time zone and language once and is audited", () => {
+    const event = freshInstallation();
+    const done = event.setup(SETUP, "user:1");
+    expect(done).toMatchObject({ ...SETUP, setupComplete: true });
+    expect(event.auditEntries().map((e) => [e.actor, e.action, e.details])).toEqual([
+      ["user:1", "event.setup", SETUP],
+    ]);
+    expect(() => event.setup(SETUP, "user:1")).toThrow(/already set up/);
+    expect(() => event.setup(SETUP, "user:1")).toThrow(EventError);
+    expect(event.get().name).toBe("My Event");
+  });
+
+  it("[CFG-06] name, time zone and language stay editable; each change is audited, an unchanged value is not", () => {
+    const event = freshInstallation();
+    event.setup(SETUP, "user:1");
+    const changed = event.update(
+      { name: "Renamed", timezone: "Europe/Berlin", defaultLanguage: "de" },
+      "user:2",
+    );
+    expect(changed).toMatchObject({ name: "Renamed", timezone: "Europe/Berlin" });
+    expect(
+      event
+        .auditEntries()
+        .filter((e) => e.action === "event.set")
+        .map((e) => [e.actor, e.details]),
+    ).toEqual([
+      ["user:2", { name: "timezone", from: "Europe/Zurich", to: "Europe/Berlin" }],
+      ["user:2", { name: "name", from: "My Event", to: "Renamed" }],
+    ]);
+  });
+
+  it("[CFG-02] changes before the setup are refused", () => {
+    const event = freshInstallation();
+    expect(() => event.update({ settings: { platformOpen: true } }, "user:1")).toThrow(
+      /not set up yet/,
+    );
+    expect(event.settings().platformOpen).toBe(false);
+  });
+
+  it("[CFG-05] the admin's changes survive restarts; a key missing in the database is filled in", () => {
     const database = migratedDatabase();
-    bootstrapEvent(database, config());
+    ensureEvent(database);
     const event = EventService.forInstallation(database);
-    event.setFeature("gallery", true, CLI_ACTOR);
+    event.setup(SETUP, CLI_ACTOR);
+    event.setFeature("gallery", false, CLI_ACTOR);
     event.setSetting("platformOpen", true, CLI_ACTOR);
 
-    // The next start: event.json changed its name, and says other initial values.
-    bootstrapEvent(
-      database,
-      config({
-        name: "Renamed",
-        timezone: "Europe/Berlin",
-        features: { ...config().features, gallery: false, minigames: false },
-        settings: { ...config().settings, platformOpen: false },
-      }),
-    );
-    const after = event.get();
-    expect(after.name).toBe("Renamed");
-    expect(after.timezone).toBe("Europe/Berlin");
-    expect(after.features.gallery).toBe(true); // changed at runtime: kept
-    expect(after.features.minigames).toBe(true); // initial value only used once
-    expect(after.settings.platformOpen).toBe(true);
+    // The next start: nothing is overwritten.
+    ensureEvent(database);
+    expect(event.get()).toMatchObject({ ...SETUP, setupComplete: true });
+    expect(event.features().gallery).toBe(false);
+    expect(event.settings().platformOpen).toBe(true);
 
-    // A key that is missing in the database (a toggle added by a later version) is filled in.
+    // A toggle added by a later version gets its default.
     database.sqlite.prepare("DELETE FROM event_features WHERE name = 'treasureHunt'").run();
-    bootstrapEvent(database, config({ features: { ...config().features, treasureHunt: true } }));
+    ensureEvent(database);
     expect(event.features().treasureHunt).toBe(true);
   });
 
   it("an installation serves exactly one event", () => {
     const database = migratedDatabase();
     expect(() => EventService.forInstallation(database)).toThrow(/no event yet/);
-    bootstrapEvent(database, config());
+    ensureEvent(database);
+    database.sqlite
+      .prepare("INSERT INTO events (id, created_at, updated_at) VALUES ('other', 1, 1)")
+      .run();
     expect(() => {
-      bootstrapEvent(database, config({ id: "other", slug: "other" }));
+      ensureEvent(database);
     }).toThrow(EventError);
     expect(() => {
-      bootstrapEvent(database, config({ id: "other", slug: "other" }));
-    }).toThrow(/belongs to the event "my-event"/);
+      ensureEvent(database);
+    }).toThrow(/belongs to the event "other"/);
   });
 
   it("[CFG-03][CFG-05] changes apply at once, in every service reading the database", () => {
     const database = migratedDatabase();
-    bootstrapEvent(database, config());
+    ensureEvent(database);
     const server = EventService.forInstallation(database);
     const cli = EventService.forInstallation(database);
-    expect(server.isFeatureEnabled("gallery")).toBe(false);
-    expect(cli.setFeature("gallery", true, CLI_ACTOR)).toBe(true);
     expect(server.isFeatureEnabled("gallery")).toBe(true);
+    expect(cli.setFeature("gallery", false, CLI_ACTOR)).toBe(true);
+    expect(server.isFeatureEnabled("gallery")).toBe(false);
     expect(cli.setSetting("snapshotUploadsOpen", true, CLI_ACTOR)).toBe(true);
     expect(server.settings().snapshotUploadsOpen).toBe(true);
   });
@@ -123,14 +141,14 @@ describe("event in the database", () => {
 describe("audit log", () => {
   it("[DATA-03] records who changed what and when, and nothing when nothing changed", () => {
     const database = migratedDatabase();
-    bootstrapEvent(database, config());
+    ensureEvent(database);
     const times = [new Date("2026-11-10T10:00:00Z"), new Date("2026-11-10T10:05:00Z")];
     const event = EventService.forInstallation(database, () => times.shift() ?? new Date(0));
 
-    expect(event.setFeature("gallery", true, "cli")).toBe(true);
+    expect(event.setFeature("gallery", false, "cli")).toBe(true);
     expect(event.setSetting("platformOpen", true, "user:7")).toBe(true);
-    // Already on: no change, no entry.
-    expect(event.setFeature("gallery", true, "cli")).toBe(false);
+    // Already off: no change, no entry.
+    expect(event.setFeature("gallery", false, "cli")).toBe(false);
 
     const entries = event.auditEntries();
     expect(entries.map((e) => [e.actor, e.action, e.details, e.createdAt.toISOString()])).toEqual([
@@ -143,20 +161,20 @@ describe("audit log", () => {
       [
         "cli",
         "feature.set",
-        { name: "gallery", from: false, to: true },
+        { name: "gallery", from: true, to: false },
         "2026-11-10T10:00:00.000Z",
       ],
     ]);
-    expect(entries.every((e) => e.eventId === "my-event")).toBe(true);
+    expect(entries.every((e) => e.eventId === "event1")).toBe(true);
   });
 
   it("[DATA-03] a failed change leaves no audit entry and no change", () => {
     const database = migratedDatabase();
-    bootstrapEvent(database, config());
+    ensureEvent(database);
     const event = EventService.forInstallation(database);
     database.sqlite.exec("DROP TABLE audit_log");
-    expect(() => event.setFeature("gallery", true, "cli")).toThrow();
-    expect(event.features().gallery).toBe(false);
+    expect(() => event.setFeature("gallery", false, "cli")).toThrow();
+    expect(event.features().gallery).toBe(true);
   });
 });
 
@@ -213,9 +231,9 @@ describe("data model", () => {
     for (const id of ["one", "two"]) {
       sqlite
         .prepare(
-          "INSERT INTO events (id, slug, name, timezone, default_language, created_at, updated_at) VALUES (?, ?, ?, 'UTC', 'de', ?, ?)",
+          "INSERT INTO events (id, name, timezone, default_language, created_at, updated_at) VALUES (?, ?, 'UTC', 'de', ?, ?)",
         )
-        .run(id, id, id, now, now);
+        .run(id, id, now, now);
     }
     sqlite
       .prepare(

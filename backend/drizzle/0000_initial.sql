@@ -35,15 +35,13 @@ CREATE TABLE `event_settings` (
 --> statement-breakpoint
 CREATE TABLE `events` (
 	`id` text PRIMARY KEY NOT NULL,
-	`slug` text NOT NULL,
-	`name` text NOT NULL,
-	`timezone` text NOT NULL,
-	`default_language` text NOT NULL,
+	`name` text,
+	`timezone` text,
+	`default_language` text,
 	`created_at` integer NOT NULL,
 	`updated_at` integer NOT NULL
 );
 --> statement-breakpoint
-CREATE UNIQUE INDEX `events_slug_unique` ON `events` (`slug`);--> statement-breakpoint
 CREATE TABLE `guest_group_members` (
 	`event_id` text NOT NULL,
 	`group_id` integer NOT NULL,

@@ -17,7 +17,7 @@
 | Release 1: invitation and RSVP | Enter invitation code, redeem and create account, login, forgot password, waiting page, RSVP (attendance, food and allergies, companions and song, summary), profile |
 | Game world | First entry (avatar, say hello), game world, page overlay over the game, table finder |
 | Website | Start, programme, content page, more, where do I sit, upload, upload confirmation, gallery with photo viewer, keepsake page, games and rankings, treasure found |
-| Admin | Overview, invitations, accounts and roles, RSVP overview, seating plan, content editor, game world (objects and portals, maps and import), settings, moderation, event screen |
+| Admin | Event setup, overview, invitations, accounts and roles, RSVP overview, seating plan, content editor, game world (objects and portals, maps and import), settings, moderation, event screen |
 
 ## UX decisions (2026-11-10)
 
@@ -74,3 +74,11 @@ The decisions behind the mocks, by question number in the prototype's "Questions
 | Opening the platform | Stage 2 shows only the state (header, Übersicht); the opening card in Einstellungen comes with steps 3c and 3d. |
 | Manual releases | No page until a feature stores access conditions (step 4a or 5b). |
 | Invitation expiry | A date, not a time: the code is valid through that day, in the admin's time zone. Invited parts per invitation come with step 3a. |
+
+## UX decisions for the event setup (2026-11-11, step 2i)
+
+| Topic | Decision |
+|---|---|
+| Setup form (48) | On a fresh installation an admin sees only the setup form in the admin area: name, time zone (a text field with a list of IANA names) and default language (Deutsch only for now). Saving completes the setup and opens the normal admin area; no navigation before. The mock's "Event setup" screen shows it (CFG-02). |
+| Not set up yet | Everyone else who signs in sees a neutral "Noch nicht eingerichtet" page with Abmelden. |
+| Change later | Einstellungen has a card "Veranstaltung" at the top with the same three fields and Speichern (CFG-06). |

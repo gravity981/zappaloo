@@ -14,3 +14,4 @@ playwright-report/
 
 # End-to-end test data (fresh per run)
 .e2e-data/
+.e2e-data-fresh/

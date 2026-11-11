@@ -482,6 +482,7 @@ select.m-input { appearance: auto; }
 
 <div class="app">
   <aside class="index" id="index"></aside>
+<datalist id="tz-list"><option value="Europe/Zurich"><option value="Europe/Berlin"><option value="Europe/Vienna"><option value="Europe/London"><option value="UTC"></datalist>
   <main class="stage" id="stage">
     <div class="mobile-pick"><select id="pick" aria-label="Screen"></select></div>
     <div class="toolbar" id="toolbar"></div>
@@ -1205,6 +1206,10 @@ add({
   shows: ["One page with sections.", "Opening the platform with an optional “Die Tür ist offen” email and an opening date (countdown).", "Uploads, RSVP deadline, event parts and menus.", "Waiting page texts with placeholders.", "Features; upload links and screen links (create, QR, revoke; per screen link: show the upload QR now and then).", "Guest profiles: the “Wie kennst du das Paar?” list, in its own section."],
   qs: [{ q: "One long settings page, or split into tabs (Öffnung · Rückmeldung · Funktionen · Links)?", p: "Mock: one page with sections. Splitting is easy later." }],
   render: () => admin("admin-settings", `<h1 class="m-h1">Einstellungen</h1>
+    <div class="m-card"><b>Veranstaltung</b><span class="m-hint">Name, Zeitzone und Sprache lassen sich jederzeit ändern. Die Zeitzone bestimmt, wie Zeiten angezeigt werden, nicht die gespeicherten Zeiten.</span>
+      <div class="m-grid-d2">${field("Name", inp("as-name", "Anna & Ben"))}${field("Zeitzone", inp("as-tz", "Europe/Zurich", 'list="tz-list"'))}</div>
+      ${field("Standardsprache", `<select class="m-input" id="as-lang" style="width:auto"><option selected>Deutsch</option></select>`)}
+      <button class="m-btn" style="align-self:flex-start">Speichern</button></div>
     <div class="m-card strong"><div class="m-row2"><b class="m-h2" style="flex:1">Plattform öffnen</b><span class="m-tag warn">Geschlossen</span></div>
       <p class="m-muted sm">Bis zur Öffnung sehen Gäste nur die Warteseite und die Rückmeldung. Staff und Admins haben vollen Zugang.</p>
       ${field("Angekündigtes Öffnungsdatum (für den Countdown)", inp("as-open", "2027-05-15T18:00", 'type="datetime-local" style="width:auto"'))}
@@ -1226,6 +1231,22 @@ add({
         <div class="m-setrow"><div class="grow"><b class="sm">Upload-QR einblenden</b><span class="m-hint">Link «Allgemein» · 15 s alle 2 Min, unten rechts</span></div>${sw(true)}</div></div>
     </div>
     <div class="m-card"><b>Gästeprofile</b><span class="m-hint">Auswahl für «Wie kennst du das Paar?» in Profil und Sprechblase.</span><div class="m-chips">${HOW.map((h) => `<span class="m-chip">${h}</span>`).join("")}<button class="m-chip">${ic("plus")}</button></div></div>`),
+});
+add({
+  id: "admin-setup", group: "admin", title: "Event setup (first start)", path: "/admin (event not set up yet)", reqs: ["CFG-02", "CFG-06", "CFG-07"],
+  variants: [["form", "Setup form (admin)"], ["guest", "Not set up yet (everyone else)"]],
+  shows: ["A fresh installation: the operator created the first admin with the CLI; the admin signs in and sees only the setup form.", "Name, time zone and default language; saving completes the setup and opens the normal admin area.", "Everyone else who signs in meanwhile sees a neutral “not set up yet” page, with the way to sign out."],
+  qs: [{ n: 48, q: "What does the admin see during the setup: only the form, or the whole admin area?", p: "Mock: only the form, with a short explanation. The navigation appears once the setup is saved, so nothing can be opened before the event has a name." }],
+  render: (v) => v === "guest"
+    ? `<div class="m-page" style="padding:48px 20px;max-width:520px;margin:auto;display:flex;flex-direction:column;gap:14px;text-align:center"><h1 class="m-h1">Noch nicht eingerichtet</h1><p class="m-muted">Diese Seite wird gerade vorbereitet. Schau bald wieder vorbei.</p><button class="m-btn ghost" data-go="login" style="align-self:center">Abmelden</button></div>`
+    : `<div class="m-admin">
+    <header class="m-ahead"><b>Verwaltung</b><span class="m-tag warn">Noch nicht eingerichtet</span><a data-go="login">Abmelden</a></header>
+    <div class="m-amain"><h1 class="m-h1">Veranstaltung einrichten</h1>
+      <div class="m-card strong"><p class="m-muted sm">Zuerst bekommt die Veranstaltung einen Namen. Danach geht die Verwaltung auf; Inhalte und Spielwelt kommen später in ihren eigenen Bereichen.</p>
+        ${field("Name", inp("su-name", "", 'placeholder="z. B. Anna & Ben"'))}
+        ${field("Zeitzone", inp("su-tz", "Europe/Zurich", 'list="tz-list"'), "Aus der Liste wählen oder eintippen, z. B. Europe/Zurich.")}
+        ${field("Standardsprache", `<select class="m-input" id="su-lang" style="width:auto"><option selected>Deutsch</option></select>`)}
+        <button class="m-btn" style="align-self:flex-start" data-go="admin-home">Einrichtung abschliessen</button></div></div></div>`,
 });
 add({
   id: "moderation", group: "admin", title: "Moderation (swipe)", path: "/moderation", reqs: ["MOD-01", "MOD-02", "MOD-03", "MOD-04", "MOD-05", "PHO-11"],

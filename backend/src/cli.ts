@@ -12,7 +12,15 @@ import { dataPaths, ensureDataDirs } from "./data-dir.ts";
 import { backupDatabase, restoreDatabase } from "./database/backup.ts";
 import { backupFull, restoreFull } from "./database/full-backup.ts";
 import { openDatabase, runMigrations } from "./database/database.ts";
-import { CLI_ACTOR, EventService, isFeatureName, isSettingName } from "./event/service.ts";
+import {
+  CLI_ACTOR,
+  ensureEvent,
+  EventError,
+  EventService,
+  EXAMPLE_EVENT,
+  isFeatureName,
+  isSettingName,
+} from "./event/service.ts";
 import { FEATURE_NAMES, SETTING_NAMES } from "@zappaloo/shared";
 import { setPasswordUrl } from "./api/auth.ts";
 import { AccountError, AccountService } from "./auth/accounts.ts";
@@ -208,24 +216,60 @@ const commands: Record<string, Command> = {
     },
   },
   event: {
-    summary: "Show the event, or switch a feature or setting on or off (audited)",
-    usage: "event show | feature <name> on|off | setting <name> on|off",
+    summary:
+      "Show the event, switch a feature or setting on or off (audited), or set up the example event (dev and test)",
+    usage: "event show | feature <name> on|off | setting <name> on|off | seed-example",
     run: (args, io) => {
       const [action, name, state] = args;
-      const usageText = "event show | feature <name> on|off | setting <name> on|off";
-      const paths = dataPaths(loadConfig(io.env).DATA_DIR);
+      const usageText = "event show | feature <name> on|off | setting <name> on|off | seed-example";
+      const config = loadConfig(io.env);
+      const paths = dataPaths(config.DATA_DIR);
+      ensureDataDirs(paths);
       const database = openDatabase(paths.database);
       try {
+        if (action === "seed-example" && args.length === 1) {
+          if (config.APP_ENV === "staging" || config.APP_ENV === "prod") {
+            io.err(
+              `seed-example is for dev and test only; APP_ENV is ${config.APP_ENV}. Set the event up in the admin area.`,
+            );
+            return 1;
+          }
+          // Works on an installation that never started: the schema and the event come first.
+          runMigrations(database);
+          ensureEvent(database);
+          const seeded = EventService.forInstallation(database);
+          try {
+            seeded.setup(EXAMPLE_EVENT, CLI_ACTOR);
+          } catch (error) {
+            if (error instanceof EventError && error.code === "already_set_up") {
+              io.err(
+                "The event is already set up; seed-example only sets up an empty installation.",
+              );
+              return 1;
+            }
+            throw error;
+          }
+          io.out(`The example event "${EXAMPLE_EVENT.name}" is set up.`);
+          return 0;
+        }
         const event = EventService.forInstallation(database);
+        if (action !== "show" && !event.get().setupComplete) {
+          io.err("The event is not set up yet: the admin completes the setup in the admin area.");
+          return 1;
+        }
         if (action === "show" && args.length === 1) {
           const current = event.get();
+          if (!current.setupComplete) {
+            io.out("The event is not set up yet.");
+            return 0;
+          }
           const line = (flags: Record<string, boolean>) =>
             Object.entries(flags)
               .map(([key, on]) => `  ${key}: ${on ? "on" : "off"}`)
               .join("\n");
           io.out(
             [
-              `${current.name} (${current.id}), ${current.timezone}, ${current.defaultLanguage}`,
+              `${current.name ?? ""} (${current.id}), ${current.timezone ?? ""}, ${current.defaultLanguage ?? ""}`,
               "Features:",
               line(current.features),
               "Settings:",

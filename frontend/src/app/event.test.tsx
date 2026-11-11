@@ -10,9 +10,9 @@ afterEach(() => {
 });
 
 const event = (gallery: boolean) => ({
-  id: "event-muster",
+  id: "event1",
   name: "Event Muster",
-  slug: "event-muster",
+  setupComplete: true,
   timezone: "Europe/Zurich",
   defaultLanguage: "de",
   features: {

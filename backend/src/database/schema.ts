@@ -18,13 +18,15 @@ import {
 } from "drizzle-orm/sqlite-core";
 import type { AnySQLiteColumn } from "drizzle-orm/sqlite-core";
 
-/** The event of this installation (sw-architecture.md 19.3.1). `id` is the `id` of event.json. */
+/**
+ * The event of this installation (sw-architecture.md 19.3.1). Name, time zone and default
+ * language are empty until the admin has completed the setup.
+ */
 export const events = sqliteTable("events", {
   id: text("id").primaryKey(),
-  slug: text("slug").notNull().unique(),
-  name: text("name").notNull(),
-  timezone: text("timezone").notNull(),
-  defaultLanguage: text("default_language").notNull(),
+  name: text("name"),
+  timezone: text("timezone"),
+  defaultLanguage: text("default_language"),
   createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull(),
   updatedAt: integer("updated_at", { mode: "timestamp_ms" }).notNull(),
 });

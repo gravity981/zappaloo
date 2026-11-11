@@ -62,7 +62,6 @@ function createEnvironment(target: "staging" | "prod", httpsPort: number): Envir
     .replace(/^APP_ENV=.*$/m, `APP_ENV=${target}`)
     .replace(/^COMPOSE_PROJECT_NAME=.*$/m, `COMPOSE_PROJECT_NAME=${project}`)
     .replace(/^DATA_VOLUME=.*$/m, `DATA_VOLUME=${project}-data`)
-    .replace(/^EVENT_SLUG=.*$/m, "EVENT_SLUG=event-muster")
     .replace(/^SITE_ADDRESS=.*$/m, `SITE_ADDRESS=${SITE_IP}`)
     .replace(/^HTTP_PORT=.*$/m, `HTTP_PORT=${httpsPort - 1}`)
     .replace(/^HTTPS_PORT=.*$/m, `HTTPS_PORT=${httpsPort}`)
@@ -513,62 +512,19 @@ describe("staging with a prod backup", () => {
   });
 });
 
-describe("private event", () => {
-  it("[CFG-02] an event put into the data volume is used instead of the one in the image", () => {
+describe("event setup", () => {
+  it("[CFG-02][CFG-07] a fresh installation starts without an event setup; the seed command is for dev and test only", () => {
     const env = createEnvironment("staging", 18443 + (process.pid % 500) * 3 + 3000);
-    const envFile = join(env.dir, ".env");
-    writeFileSync(
-      envFile,
-      readFileSync(envFile, "utf8").replace(/^EVENT_SLUG=.*$/m, "EVENT_SLUG=our-day"),
-    );
     try {
-      // As in the runbook: before the first deployment, with the image to deploy.
-      const event = mkdtempSync(join(tmpdir(), "zappaloo-private-event-"));
-      const eventJson = JSON.parse(
-        execFileSync(
-          "docker",
-          ["run", "--rm", sourceImage, "cat", "/app/events/event-muster/event.json"],
-          {
-            encoding: "utf8",
-          },
-        ),
-      ) as Record<string, unknown>;
-      writeFileSync(
-        join(event, "event.json"),
-        JSON.stringify({ ...eventJson, id: "our-day", slug: "our-day", name: "Our Day" }),
-      );
-      writeFileSync(join(event, "theme.json"), "{}");
-      // Docker runs outside the devcontainer, so no bind mount: the files go in as a tar stream.
-      const files = execFileSync("tar", ["-cf", "-", "-C", event, "."]);
-      execFileSync(
-        "docker",
-        [
-          "run",
-          "--rm",
-          "-i",
-          "-v",
-          `${env.project}-data:/data`,
-          sourceImage,
-          "sh",
-          "-c",
-          "mkdir -p /data/events/our-day && tar -xf - -C /data/events/our-day",
-        ],
-        { input: files },
-      );
-      rmSync(event, { recursive: true, force: true });
-
       const result = env.deploy(STAGING_TAG, "--no-pull", "--no-restore");
       expect(result.status, result.output).toBe(0);
       expect(result.output).toContain("healthy, version");
-      // The API needs a session (ACS-09), so the event is read with the CLI.
+      // The admin completes the setup in the admin area; until then the event has no name.
       expect(env.compose("exec", "-T", "app", "zappaloo", "event", "show")).toContain(
-        "Our Day (our-day)",
+        "not set up yet",
       );
-      // Switched on and off at runtime with the CLI, as in the runbook.
-      env.compose("exec", "-T", "app", "zappaloo", "event", "feature", "gallery", "off");
-      expect(env.compose("exec", "-T", "app", "zappaloo", "event", "show")).toContain(
-        "gallery: off",
-      );
+      // Staging is set up in the admin area, like prod: the seed command refuses.
+      expect(() => env.compose("exec", "-T", "app", "zappaloo", "event", "seed-example")).toThrow();
     } finally {
       destroy(env);
     }

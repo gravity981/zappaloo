@@ -10,9 +10,7 @@ import { dataPaths, ensureDataDirs } from "./data-dir.ts";
 import type { DataPaths } from "./data-dir.ts";
 import { openDatabase, runMigrations } from "./database/database.ts";
 import type { Database } from "./database/database.ts";
-import { loadEvent } from "./event/config.ts";
-import { bootstrapEvent, EventService } from "./event/service.ts";
-import { BUNDLED_EVENTS_DIR } from "./config.ts";
+import { ensureEvent, EventService, EXAMPLE_EVENT } from "./event/service.ts";
 import type { Role } from "@zappaloo/shared";
 import { SESSION_COOKIE } from "./api/auth.ts";
 import type { AuthOptions } from "./api/auth.ts";
@@ -34,7 +32,7 @@ export function tempDir(prefix = "zappaloo-test-"): { path: string; remove: () =
 export interface TestContext {
   app: FastifyInstance;
   database: Database;
-  /** The example event (events/event-muster), created in the database. */
+  /** The example event (name, time zone, language set up), created in the database. */
   event: EventService;
   /** The emails the app "sent". */
   mailer: MemoryMailer;
@@ -49,15 +47,21 @@ export interface TestContext {
  * Builds the app on a fresh, migrated database. The app is not `ready` yet, so a
  * test can register extra routes before the first request.
  */
-export async function createTestApp(options: Partial<AppOptions> = {}): Promise<TestContext> {
+export async function createTestApp(
+  options: Partial<AppOptions> & {
+    /** false leaves the event without setup, as on a fresh installation (default: set up). */
+    setup?: boolean;
+  } = {},
+): Promise<TestContext> {
+  const { setup = true, ...appOptions } = options;
   const dir = tempDir();
   const paths = dataPaths(join(dir.path, "data"));
   ensureDataDirs(paths);
   const database = openDatabase(paths.database);
   runMigrations(database);
-  const loaded = loadEvent("event-muster", [BUNDLED_EVENTS_DIR]);
-  bootstrapEvent(database, loaded.config);
-  const event = new EventService(database, loaded.config.id);
+  ensureEvent(database);
+  const event = EventService.forInstallation(database);
+  if (setup) event.setup(EXAMPLE_EVENT, "cli");
   const mailer = new MemoryMailer();
   const auth = createAuth(
     database,
@@ -71,7 +75,7 @@ export async function createTestApp(options: Partial<AppOptions> = {}): Promise<
   );
   let app: FastifyInstance;
   try {
-    app = await buildApp({ database, event, auth, version: TEST_VERSION, ...options });
+    app = await buildApp({ database, event, auth, version: TEST_VERSION, ...appOptions });
   } catch (error) {
     database.close();
     dir.remove();

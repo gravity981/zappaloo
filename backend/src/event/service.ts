@@ -1,14 +1,20 @@
-// The event of this installation: creating it from its bootstrap directory,
-// reading and changing its feature toggles and settings, and the audit log
-// (CFG-03, CFG-05, DATA-02, DATA-03; sw-architecture.md 19.3.1).
+// The event of this installation: creating it on the first start, its setup, reading and
+// changing its identity, feature toggles and settings, and the audit log
+// (CFG-02, CFG-03, CFG-05, CFG-06, DATA-02, DATA-03; sw-architecture.md 19.3.1).
 //
 // Features and settings are read from the database on every call (never
 // cached), so a change made by the CLI applies at once in a running server.
 import { and, desc, eq } from "drizzle-orm";
-import { FEATURE_NAMES, SETTING_NAMES } from "@zappaloo/shared";
+import {
+  DEFAULT_FEATURES,
+  DEFAULT_SETTINGS,
+  EVENT_ID,
+  FEATURE_NAMES,
+  SETTING_NAMES,
+} from "@zappaloo/shared";
 import type {
-  EventConfig,
   EventResponse,
+  EventSetup,
   EventUpdate,
   FeatureName,
   Features,
@@ -20,7 +26,20 @@ import { auditLog, eventFeatures, events, eventSettings } from "../database/sche
 
 export class EventError extends Error {
   override name = "EventError";
+  /** `already_set_up` and `setup_incomplete` are answered with 409. */
+  readonly code: string | undefined;
+  constructor(message: string, code?: string) {
+    super(message);
+    this.code = code;
+  }
 }
+
+/** The example event of dev and test (`zappaloo event seed-example`, CFG-07). */
+export const EXAMPLE_EVENT: EventSetup = {
+  name: "Event Muster",
+  timezone: "Europe/Zurich",
+  defaultLanguage: "de",
+};
 
 /**
  * Who did something: "cli", "user:<id>" (the signed-in user, or the account a guest just
@@ -40,55 +59,34 @@ export function isSettingName(name: string): name is SettingName {
 }
 
 /**
- * Creates the event on the first start, or refreshes its identity (name, time
- * zone, default language) on later starts. Features and settings only fill in
- * keys that are missing, so values changed at runtime are never overwritten.
+ * Creates the event on the first start: the fixed id, no name, time zone and language yet
+ * (the admin's setup fills them in), features and settings with their defaults. Later starts
+ * only fill in keys that are missing, so values changed at runtime are never overwritten.
  * An installation serves one event: a database with another event is refused.
  */
-export function bootstrapEvent(
-  database: Database,
-  config: EventConfig,
-  now: () => Date = () => new Date(),
-): void {
+export function ensureEvent(database: Database, now: () => Date = () => new Date()): void {
   database.db.transaction((tx) => {
     const existing = tx.select({ id: events.id }).from(events).all();
-    const other = existing.find((row) => row.id !== config.id);
+    const other = existing.find((row) => row.id !== EVENT_ID);
     if (other) {
       throw new EventError(
-        `the database belongs to the event "${other.id}", but EVENT_SLUG selects "${config.id}"; an installation serves exactly one event`,
+        `the database belongs to the event "${other.id}", but an installation serves the event "${EVENT_ID}"`,
       );
     }
     const time = now();
     tx.insert(events)
-      .values({
-        id: config.id,
-        slug: config.slug,
-        name: config.name,
-        timezone: config.timezone,
-        defaultLanguage: config.defaultLanguage,
-        createdAt: time,
-        updatedAt: time,
-      })
-      .onConflictDoUpdate({
-        target: events.id,
-        set: {
-          slug: config.slug,
-          name: config.name,
-          timezone: config.timezone,
-          defaultLanguage: config.defaultLanguage,
-          updatedAt: time,
-        },
-      })
+      .values({ id: EVENT_ID, createdAt: time, updatedAt: time })
+      .onConflictDoNothing()
       .run();
     for (const name of FEATURE_NAMES) {
       tx.insert(eventFeatures)
-        .values({ eventId: config.id, name, enabled: config.features[name] })
+        .values({ eventId: EVENT_ID, name, enabled: DEFAULT_FEATURES[name] })
         .onConflictDoNothing()
         .run();
     }
     for (const name of SETTING_NAMES) {
       tx.insert(eventSettings)
-        .values({ eventId: config.id, name, value: config.settings[name] })
+        .values({ eventId: EVENT_ID, name, value: DEFAULT_SETTINGS[name] })
         .onConflictDoNothing()
         .run();
     }
@@ -122,7 +120,7 @@ export class EventService {
     if (!only || rows.length !== 1) {
       throw new EventError(
         rows.length === 0
-          ? "the database has no event yet; start the application once to create it from its event.json"
+          ? "the database has no event yet; start the application once to create it"
           : "the database holds more than one event; an installation serves exactly one",
       );
     }
@@ -136,9 +134,10 @@ export class EventService {
     return {
       id: event.id,
       name: event.name,
-      slug: event.slug,
       timezone: event.timezone,
       defaultLanguage: event.defaultLanguage,
+      setupComplete:
+        event.name !== null && event.timezone !== null && event.defaultLanguage !== null,
       features: this.features(),
       settings: this.settings(),
     };
@@ -201,11 +200,43 @@ export class EventService {
   }
 
   /**
-   * Changes several features and settings at once, all or nothing (CFG-05). Each change is
-   * audited; unchanged values are not. Returns the event as it is now.
+   * Completes the setup (CFG-02): name, time zone and default language, once. Audited.
+   * Refuses an event that is already set up.
+   */
+  setup(input: EventSetup, actor: Actor): EventResponse {
+    this.#database.db.transaction((tx) => {
+      if (this.get().setupComplete) {
+        throw new EventError("the event is already set up", "already_set_up");
+      }
+      tx.update(events)
+        .set({ ...input, updatedAt: this.#now() })
+        .where(eq(events.id, this.eventId))
+        .run();
+      this.audit(actor, "event.setup", { ...input }, tx);
+    });
+    return this.get();
+  }
+
+  /**
+   * Changes name, time zone, default language, features and settings at once, all or nothing
+   * (CFG-05, CFG-06). Each change is audited; unchanged values are not. Needs the setup to be
+   * complete. Returns the event as it is now.
    */
   update(changes: EventUpdate, actor: Actor): EventResponse {
-    this.#database.db.transaction(() => {
+    this.#database.db.transaction((tx) => {
+      const current = this.get();
+      if (!current.setupComplete) {
+        throw new EventError("the event is not set up yet", "setup_incomplete");
+      }
+      for (const key of ["name", "timezone", "defaultLanguage"] as const) {
+        const value = changes[key];
+        if (value === undefined || value === current[key]) continue;
+        tx.update(events)
+          .set({ [key]: value, updatedAt: this.#now() })
+          .where(eq(events.id, this.eventId))
+          .run();
+        this.audit(actor, "event.set", { name: key, from: current[key], to: value }, tx);
+      }
       for (const [name, enabled] of Object.entries(changes.features ?? {})) {
         if (isFeatureName(name)) this.setFeature(name, enabled, actor);
       }

@@ -6,8 +6,7 @@ import { loadConfig } from "./config.ts";
 import { dataPaths, ensureDataDirs } from "./data-dir.ts";
 import { startHeartbeat } from "./database/backup.ts";
 import { openDatabase, runMigrations } from "./database/database.ts";
-import { loadEvent } from "./event/config.ts";
-import { bootstrapEvent, EventService } from "./event/service.ts";
+import { ensureEvent, EventService } from "./event/service.ts";
 import { createAuth, startHousekeeping } from "./auth/setup.ts";
 import { createMailer } from "./mail/mailer.ts";
 import { resolveVersion } from "./version.ts";
@@ -18,15 +17,12 @@ async function main(): Promise<void> {
   const paths = dataPaths(config.DATA_DIR);
   ensureDataDirs(paths);
 
-  // The event is validated before anything else is touched: an invalid
-  // configuration stops the start with a clear error (CFG-02).
-  const loaded = loadEvent(config.EVENT_SLUG, [paths.events, config.EVENTS_DIR]);
-
   const database = openDatabase(paths.database);
   const applied = runMigrations(database);
-  bootstrapEvent(database, loaded.config);
+  // A fresh database gets its event without name; the admin completes the setup (CFG-02).
+  ensureEvent(database);
 
-  const event = new EventService(database, loaded.config.id);
+  const event = EventService.forInstallation(database);
   const auth = createAuth(database, event, config, createMailer(config));
   const app = await buildApp({
     database,
@@ -42,8 +38,7 @@ async function main(): Promise<void> {
       version,
       dataDir: paths.root,
       migrationsApplied: applied,
-      event: loaded.config.id,
-      eventDir: loaded.dir,
+      event: event.eventId,
     },
     "starting",
   );

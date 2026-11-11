@@ -27,7 +27,6 @@ If the image is private, create a GitHub token with only `read:packages`, store 
 | Setting | Staging (LAN) | Prod |
 |---|---|---|
 | `APP_ENV` / `COMPOSE_PROJECT_NAME` / `DATA_VOLUME` | `staging` / `zappaloo-staging` / `zappaloo-data-staging` | `prod` / `zappaloo` / `zappaloo-data-prod` |
-| `EVENT_SLUG` | the event folder (see "The event" below) | the event folder; set it before the first start: the database is tied to that event |
 | `SITE_ADDRESS` | the server's LAN IP, e.g. `192.168.1.20` | the domain |
 | `HTTP_PORT` / `HTTPS_PORT` | `8080` / `8443` (open `https://<LAN IP>:8443`) | `80` / `443` |
 | `TLS_MODE` | `internal` (Caddy's local CA) | contact email for Let's Encrypt |
@@ -36,20 +35,18 @@ If the image is private, create a GitHub token with only `read:packages`, store 
 
 ## The event
 
-An installation serves one event. `EVENT_SLUG` in `.env` names its folder `events/<slug>/` (`event.json`, `theme.json`). The application looks for it first in the data volume (`/data/events/<slug>/`), then in the image, which ships the example event `event-muster`. The application does not start if the event is missing or invalid; it prints every problem with the file name.
+An installation serves one event. There is no event folder to prepare: the event is set up in the admin area after the first start.
 
-A **private event** stays out of the public repository and lives in the data volume. Put it there **before the first deployment** of the environment, with the image you are going to deploy:
+1. Deploy as below. The first start creates the event without a name; until the setup is done, guests see a "not set up yet" page.
+2. Create the first admin on the server and give the admin the setup link it prints:
 
-```sh
-# our-day/ is the folder with event.json and theme.json; EVENT_SLUG=our-day is set in .env
-docker run --rm -v "<DATA_VOLUME from .env>:/data" -v "$PWD/our-day:/event:ro" \
-  ghcr.io/gravity981/zappaloo:<image tag> sh -c 'mkdir -p /data/events && cp -r /event /data/events/our-day'
-./deploy.sh <staging|prod> <image tag>
-```
+   ```sh
+   docker compose exec app zappaloo create-admin <username>
+   ```
 
-An installation serves exactly one event: a database created for one event is refused when `EVENT_SLUG` selects another. To change an event's files later, replace the folder in the volume the same way and deploy again.
+3. The admin signs in and completes the setup form (name, time zone, default language). The admin area then opens. Name, time zone and language can be changed later in Einstellungen.
 
-`event.json` is read when the app starts: the name, time zone and default language are refreshed from it, while features and settings are only initial values. Change them while the app runs with the CLI; every change is written to the audit log:
+Features and settings start with their defaults (all features on; platform and uploads closed) and are changed in the admin area, or while the app runs with the CLI; every change is written to the audit log:
 
 ```sh
 docker compose exec app zappaloo event show
@@ -57,7 +54,9 @@ docker compose exec app zappaloo event feature gallery off
 docker compose exec app zappaloo event setting platformOpen on
 ```
 
-The private event folder is part of the full backup (`events/`).
+`zappaloo event seed-example` sets up the example event for development and tests; it refuses staging and prod.
+
+The theme and static graphics, once they exist (stage 4 onwards), live in the data volume at `/data/events/event1/` and are part of the full backup (`events/`).
 
 ## Deploy
 
@@ -87,11 +86,10 @@ What to back up (everything else is rebuilt by `deploy.sh`):
 
 | What | Where | How |
 |---|---|---|
-| Database and files (photos, uploads, imported maps and tilesets, a private event) | the data volume (`DATA_VOLUME`, mounted at `/data`) | a **full backup**, below |
+| Database and files (photos, uploads, imported maps and tilesets, the event's theme) | the data volume (`DATA_VOLUME`, mounted at `/data`) | a **full backup**, below |
 | Pre-deploy database backups | `backups/` | copy the folder |
 | Settings | `.env` | copy the file |
 | Secrets (session secret, SMTP password, registry token) | `secrets/`, `ghcr-token` | copy the folder; keep it private (mode 600) |
-| Event bootstrap files | `events/<slug>/` (identity, theme, initial settings, graphics) | kept in the repository; the settings edited later live in the data volume, covered by the full backup |
 
 Caddy's volumes need no backup: certificates are issued again. Backups contain personal data: keep them readable only by you, and delete them at shutdown together with all other personal data. Scheduling (e.g. cron) and the off-site storage are yours; the tools below make the file.
 

@@ -51,7 +51,6 @@ describe("mail configuration", () => {
     const env = {
       ...BASE,
       APP_ENV: "prod",
-      EVENT_SLUG: "event-muster",
       PUBLIC_URL: "https://example.org",
       SESSION_SECRET: "x".repeat(32),
       SMTP_HOST: "mail.example.org",
@@ -68,7 +67,6 @@ describe("mail configuration", () => {
       const env = {
         ...BASE,
         APP_ENV: "prod",
-        EVENT_SLUG: "event-muster",
         PUBLIC_URL: "https://example.org",
         SESSION_SECRET: "x".repeat(32),
         SMTP_HOST: "mail.example.org",

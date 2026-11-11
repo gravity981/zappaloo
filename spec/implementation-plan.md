@@ -106,20 +106,45 @@ Requirements: CFG-02 (replaced), CFG-05 (reworded), CFG-06, CFG-07.
 
 **Before the stage starts:**
 - The project owner draws the door scene for the waiting page (ACS-12).
-- Event parts, menu options and the RSVP deadline of the first event are known, at least as test data.
+- Event parts (name, time, place, which part has the meal), menu options and the RSVP deadline of the first event are known, at least as test data.
+- The decisions below (plan review of 2026-11-11) are written into sw-architecture.md and the mocks (`zappaloo-mocks.html`, mocks/README.md) before step 3a starts. They were not written there yet because step 2i had uncommitted changes in the same files.
+
+**Decisions from the plan review (2026-11-11):**
+- **Countdown optional** (ACS-13 changes): the opening date stays a setting of its own (used by `{openingDate}`); a separate switch "Countdown auf der Warteseite zeigen" (default off) decides whether the countdown appears. The countdown disappears when it reaches zero; the text stays.
+- **Re-closing:** the admin can close the platform again ("Wieder schliessen", no email).
+- **Menu tied to one part** (RSVP-03): the admin marks the event part that has the meal (e.g. Dinner); the menu is asked only for persons attending that part. One menu list for everyone, children's menu included (the mock's two different lists become one).
+- **Admin changes an RSVP** (RSVP-04): the "Allergien" card in Rückmeldungen becomes a guest table (name, status, parts, menu, song; allergies as a column with the lock "nur Admins"); a row opens the RSVP wizard in admin mode, without the deadline.
+- **Approved companions** (RSVP-09): the VIP changes their attendance, menu and allergies in the wizard like their own, until the deadline, without a new approval. Only pending requests can be withdrawn; the name of an approved companion is changed by the admin.
+- **Invited parts of admin-created VIPs** (RSVP-02): the account panel shows "Eingeladen zu" chips for accounts with `vip`; a new account is invited to all parts.
+- **Waiting-page texts** are edited in Einstellungen only; the "Warteseite" chip leaves the Inhalte mock.
+- **Event parts** are created in stage 3 (Einstellungen › Rückmeldung: name, time, place, meal part), not in stage 4 as sw-architecture.md 19.3.1 says; stage 4 builds the programme on top of them.
+- **Privacy notice** (SEC-09): Claude drafts a German default (data kept, purposes, allergies as health data per SEC-11, deletion at shutdown); the admin edits it as Markdown in Einstellungen; public page `/datenschutz`. The mock gets the page and a "Datenschutz" link on the waiting page, the RSVP wizard and the admin area (the waiting-page mock has none today).
 
 **Steps:**
 
-**3a – RSVP.** Event parts and invitations per part; RSVP with menu choice and allergies; deadline; admin overview with totals and CSV export; reminder email; song wish; allergy data visible only to admins.
+**3a – RSVP.** Mock screens: `rsvp-parts`, `rsvp-people`, `rsvp-companion` (song only; the companion card comes in 3b), `rsvp-done` (before and after the deadline), `admin-rsvp`, `admin-invitations`, `admin-users` (account panel), `admin-settings` (card Rückmeldung), `admin-home` (KPI Rückmeldungen).
+- Event parts, meal part, menus and deadline in Einstellungen › Rückmeldung.
+- Invited parts per invitation: "Eingeladen zu" chips at batch creation, "Teile" column, editable per row (UX decision 31); "Eingeladen zu" in the account panel for admin-created VIPs.
+- Three-step wizard (attendance → food → song), deadline shown up front, declining every part skips to the summary; summary page, read-only after the deadline; no confirmation email (UX decision 12).
+- Rückmeldungen (new nav entry): totals per part (yes / no), menus of the meal part, guest table with the admin-only allergy column, song wishes, CSV export, "Erinnern (n)" reminder email to guests without an answer who have a verified address; a row opens the wizard in admin mode.
+- Übersicht: KPI "Rückmeldungen x / y, n ohne Antwort". The mock's "Zuletzt" activity card is not backed by a requirement and is left out (proposal; to confirm).
 Requirements: RSVP-01, RSVP-02, RSVP-03, RSVP-04, RSVP-05, RSVP-06, RSVP-07, SEC-11.
 
-**3b – Accompanying persons.** VIP requests an accompanying person with name and RSVP; pending requests can be edited or withdrawn and carry an optional note; admin approves or rejects; no login; deleted together with the VIP.
+**3b – Accompanying persons.** Mock screens: `rsvp-companion` (overview and request form), `rsvp-people` (one card per person), `rsvp-done`, `admin-rsvp` (requests card), `admin-home` (KPI Begleitpersonen, nav badge).
+- Request form: name, optional note, attendance for the VIP's own parts, menu, allergies with the lock note; the avatar comes later (PRES-07).
+- Status tags pending / approved / rejected; "Bearbeiten" and "Zurückziehen" while pending; approved companions are edited in the wizard (see decisions); the hint about a separate invitation for people with their own phone.
+- Admin approves or rejects in Rückmeldungen; approved companions count in totals, menus and the guest table; no login; deleted together with the VIP.
 Requirements: RSVP-08, RSVP-09, RSVP-10 (added 2026-11-10).
 
-**3c – Closed platform and waiting page.** Platform closed by default; waiting page with the door scene, texts by RSVP status with placeholders, editable texts, countdown; staff and admins have full access.
+**3c – Closed platform and waiting page.** Mock screens: `waiting` (three states), `admin-settings` (opening date and countdown switch in the card "Plattform öffnen", card Warteseite-Texte).
+- Platform closed by default; guests without `staff` or `admin` reach only the waiting page, the RSVP wizard, the profile (without the website navigation, back to the waiting page) and the public pages; enforced on the server too.
+- Waiting page: full-screen door scene (default scene shipped, replaceable per event in `$DATA_DIR/events/event1/`), gap tap for a bigger glimpse; top bar with the event name, Profil and Abmelden; card with the optional countdown, the text by RSVP status with `{name}`, `{waitingCount}`, `{openingDate}`, and "Rückmeldung geben" / "Rückmeldung ändern".
+- Einstellungen: opening date, countdown switch, the three editable texts with their defaults.
 Requirements: ACS-10, ACS-11, ACS-12, ACS-13.
 
-**3d – Opening and privacy notice.** Admin switch to open the platform with the "door is open" email; privacy notice reachable from every page.
+**3d – Opening and privacy notice.** Mock screens: `admin-settings` (card "Plattform öffnen"), `admin-home` (KPI Plattform with "Öffnen …"), `login` and the waiting page (link Datenschutz), a new privacy notice screen.
+- "Jetzt öffnen" with the optional "Die Tür ist offen" email to guests with a verified address (the count in the label counts them); "Wieder schliessen" without email.
+- Privacy notice page `/datenschutz`, reachable without sign-in and linked from every page; German default text, editable in Einstellungen.
 Requirements: ACS-14, SEC-09.
 
 **3e – Sign-in by email** (added 2026-11-10). The login accepts a verified email address as well as the username; an address can be verified by one account only (`409 email_taken`).

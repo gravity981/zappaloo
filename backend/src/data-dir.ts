@@ -9,7 +9,7 @@ export interface DataPaths {
   database: string;
   uploads: string;
   maps: string;
-  /** A private event (events/<slug>/), read before the application's own (19.3.1). */
+  /** Theme and static graphics of the event: events/<eventId>/ (19.2). */
   events: string;
   /** Written by the running server (database/backup.ts: startHeartbeat). */
   heartbeat: string;

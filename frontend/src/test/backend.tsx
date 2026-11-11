@@ -14,11 +14,11 @@ export const anna = {
   capabilities: [],
 };
 export const event = {
-  id: "event-muster",
+  id: "event1",
   name: "Event Muster",
-  slug: "event-muster",
   timezone: "Europe/Zurich",
   defaultLanguage: "de",
+  setupComplete: true,
   features: {
     minigames: true,
     snapshots: true,

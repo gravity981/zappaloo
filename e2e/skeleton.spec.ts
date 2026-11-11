@@ -62,7 +62,7 @@ test("[CFG-02][CFG-05] the server started with the example event and serves it w
   const response = await page.request.get("/api/event");
   expect(response.status()).toBe(200);
   expect(await response.json()).toMatchObject({
-    id: "event-muster",
+    id: "event1",
     name: "Event Muster",
     features: { minigames: true, eventScreen: true },
     settings: { platformOpen: false },

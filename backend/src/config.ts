@@ -1,15 +1,7 @@
 // Runtime configuration from environment variables, validated at startup.
 import { randomBytes } from "node:crypto";
 import { readFileSync } from "node:fs";
-import { fileURLToPath } from "node:url";
 import { z } from "zod";
-import { eventSlugSchema } from "@zappaloo/shared";
-
-/** The `events/` folder of the application: next to `backend/` in the repository and in the image. */
-export const BUNDLED_EVENTS_DIR = fileURLToPath(new URL("../../events", import.meta.url));
-
-/** Event used when EVENT_SLUG is not set (dev and test only). */
-export const EXAMPLE_EVENT = "event-muster";
 
 /** An unset variable and an empty one (Compose passes `${VAR:-}`) both mean "not configured". */
 const optional = <T extends z.ZodType>(schema: T) =>
@@ -28,14 +20,6 @@ const configSchema = z
     APP_VERSION: z.string().min(1).optional(),
     APP_VERSION_SUFFIX: z.string().optional(),
     APP_COMMIT: z.string().min(1).optional(),
-    /**
-     * The event of this installation: `events/<slug>/`, first in $DATA_DIR/events, then in the
-     * application (sw-architecture.md 19.3.1). Required in staging and prod, so a real
-     * installation never starts with the example event by accident.
-     */
-    EVENT_SLUG: z.string().min(1).optional(),
-    /** Replaces the application's `events/` folder (tests). */
-    EVENTS_DIR: z.string().min(1).default(BUNDLED_EVENTS_DIR),
     /** Signs the session cookies (sw-architecture.md 7.1.1); or read from SESSION_SECRET_FILE. */
     SESSION_SECRET: z.string().optional(),
     SESSION_SECRET_FILE: z.string().min(1).optional(),
@@ -62,16 +46,6 @@ const configSchema = z
   })
   .superRefine((value, context) => {
     if (
-      value.EVENT_SLUG === undefined &&
-      (value.APP_ENV === "staging" || value.APP_ENV === "prod")
-    ) {
-      context.addIssue({
-        code: "custom",
-        path: ["EVENT_SLUG"],
-        message: `required in ${value.APP_ENV}: the folder name of the event, e.g. ${EXAMPLE_EVENT}`,
-      });
-    }
-    if (
       value.PUBLIC_URL === undefined &&
       (value.APP_ENV === "staging" || value.APP_ENV === "prod")
     ) {
@@ -92,20 +66,9 @@ const configSchema = z
         message: "required with SMTP_HOST: the sender address of the emails",
       });
     }
-    if (value.EVENT_SLUG !== undefined) {
-      const slug = eventSlugSchema.safeParse(value.EVENT_SLUG);
-      if (!slug.success) {
-        context.addIssue({
-          code: "custom",
-          path: ["EVENT_SLUG"],
-          message: slug.error.issues[0]?.message ?? "is invalid",
-        });
-      }
-    }
   })
   .transform((value) => ({
     ...value,
-    EVENT_SLUG: value.EVENT_SLUG ?? EXAMPLE_EVENT,
     PUBLIC_URL: new URL(value.PUBLIC_URL ?? "http://localhost:5173").origin,
     MAIL_FROM: value.MAIL_FROM ?? "zappaloo@localhost",
   }));
