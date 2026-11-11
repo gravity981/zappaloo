@@ -17,10 +17,12 @@ import { eventApiRoutes } from "./api/event.ts";
 import { eventRoutes } from "./api/events.ts";
 import { noIndex } from "./api/no-index.ts";
 import { platformRoutes } from "./api/platform.ts";
+import { pwaRoutes } from "./api/pwa.ts";
 import { rsvpRoutes } from "./api/rsvp.ts";
 import { systemRoutes } from "./api/system.ts";
 import { waitingRoutes } from "./api/waiting.ts";
 import { sendError, validation } from "./api/validation.ts";
+import { AppIcons } from "./pwa/app-icons.ts";
 
 export interface AppOptions {
   database: Database;
@@ -31,6 +33,8 @@ export interface AppOptions {
   /** Use X-Forwarded-For for the client address (Caddy is the only way in). */
   trustProxy?: boolean;
   version: VersionResponse;
+  /** `$DATA_DIR/events`: the event's own files, here its app icons (19.2, 19.5). */
+  eventsDir: string;
   /** Built frontend to serve; omitted in dev, where Vite serves the frontend. */
   frontendDir?: string | undefined;
   logger?: FastifyServerOptions["logger"];
@@ -86,6 +90,10 @@ export async function buildApp(options: AppOptions): Promise<FastifyInstance> {
   await app.register(waitingRoutes, options.auth);
   await app.register(platformRoutes, options.auth);
   await app.register(eventApiRoutes, { event: options.event });
+  await app.register(pwaRoutes, {
+    event: options.event,
+    icons: new AppIcons(options.eventsDir),
+  });
 
   const frontendDir = options.frontendDir && resolve(options.frontendDir);
   if (frontendDir) {

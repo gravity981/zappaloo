@@ -10,7 +10,7 @@ const noIndexHeaders = { "X-Robots-Tag": "noindex, nofollow, noarchive" };
 // image report the same version; elsewhere the build is `<last release>+dev`.
 const appVersion = process.env.APP_VERSION ?? devVersion(gitLastRelease());
 
-// In dev, Vite serves the frontend and forwards API calls and robots.txt to the
+// In dev, Vite serves the frontend and forwards API calls, robots.txt, the manifest and the app icons to the
 // backend (npm run dev:backend). In production the backend serves the built files.
 export default defineConfig({
   plugins: [react()],
@@ -31,6 +31,8 @@ export default defineConfig({
     proxy: {
       "/api": { target: "http://localhost:3000", changeOrigin: false },
       "/robots.txt": { target: "http://localhost:3000", changeOrigin: false },
+      "/manifest.webmanifest": { target: "http://localhost:3000", changeOrigin: false },
+      "/app-icons": { target: "http://localhost:3000", changeOrigin: false },
     },
   },
   preview: { headers: noIndexHeaders },
