@@ -89,6 +89,7 @@ Sections with no requirement table describe architecture and technology choices:
 | 2026-11-04 | Movement is smooth in all directions: arrow keys on desktop, tap-to-move on touch devices. Collisions only with the map, not between players. The client simulates movement and the server validates positions (MP-04–06, GAME-09–10). |
 | 2026-11-04 | Minigames, including their content, ship with the platform (MG-11). Anti-cheat uses attempt IDs, per-minigame plausibility profiles and server-side quiz checks (MG-08). |
 | 2026-11-04 | Website content is edited in the browser as Markdown (CNT-05). `events/<slug>/` only bootstraps an installation, and settings can be changed at runtime (CFG-02, CFG-05). |
+| 2026-11-11 | The event is set up once in the admin area (name, time zone, default language, all editable later) after the first admin was created with the CLI. `EVENT_SLUG` and the `events/<slug>/` folder are removed; `theme.json` stays a file in `$DATA_DIR/events/event1/`; the dev and test example event comes from `zappaloo event seed-example`; a fresh installation has no maps (CFG-02, CFG-06, CFG-07, 19.3.1). |
 | 2026-11-04 | Email goes through SMTP, with Infomaniak mail as proof of concept (ACC-11). Invitation accounts are `unverified` without verification. Password reset by email works only for verified addresses, and otherwise an admin creates a one-time link (ACC-02/03/09/10). |
 | 2026-11-04 | Photo processing runs in a worker queue (PHO-13). |
 | 2026-11-04 | German UI. i18n from the start, and content is stored with language keys (LANG-01/02). |

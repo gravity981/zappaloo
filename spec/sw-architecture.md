@@ -100,8 +100,8 @@
   - [18.2 Requirements](#182-requirements)
 - [19. Reusability and Event Configuration](#19-reusability-and-event-configuration)
   - [19.1 Basic Principle](#191-basic-principle)
-  - [19.2 Example Bootstrap Directory](#192-example-bootstrap-directory)
-  - [19.3 Example event.json](#193-example-eventjson)
+  - [19.2 Event Files](#192-event-files)
+  - [19.3 Event Data](#193-event-data)
   - [19.4 Configurability](#194-configurability)
 - [20. Installation and Operating Model](#20-installation-and-operating-model)
   - [20.1 Later Multi-Event Extension](#201-later-multi-event-extension)
@@ -1523,7 +1523,7 @@ The concrete version of each library is pinned in the project's package manageme
 **Decided in stage 1 (2026-11-04):**
 - **Backend framework: Fastify.** Schema-based route validation fits SEC-03, good TypeScript support, and its plugin model suits the modular monolith (section 17).
 - **Database access: Drizzle ORM on SQLite** (driver `better-sqlite3`). The schema is written in TypeScript; drizzle-kit generates versioned SQL migration files that are reviewed and committed (DATA-04).
-- **Input validation: Zod.** Schemas live in `shared/`, double as TypeScript types, and are used by the backend (Fastify via `fastify-type-provider-zod`, SEC-03), for `event.json` validation (CFG-02) and in frontend forms.
+- **Input validation: Zod.** Schemas live in `shared/`, double as TypeScript types, and are used by the backend (Fastify via `fastify-type-provider-zod`, SEC-03), for the event setup (CFG-02) and in frontend forms.
 - **i18n: react-i18next** with one JSON message file per language and namespace (LANG-01). Hard-coded UI strings are caught by the ESLint rule `i18next/no-literal-string`.
 
 ---
@@ -1753,63 +1753,47 @@ There are two levels:
 
 The platform provides generic functions. The concrete event is shaped through configuration and content.
 
-Event configuration is managed at runtime. Settings, website content, guest groups and maps are edited through the admin dashboard and the map importer and stored in the database and on persistent file storage. The `events/<slug>/` directory only bootstraps a new installation: event identity, theme, initial settings, and static graphics that are not imported through the map importer.
+Event configuration is managed at runtime. Event identity (name, time zone, default language), settings, website content, guest groups and maps are edited through the admin dashboard and the map importer and stored in the database and on persistent file storage. Only the theme (`theme.json`) and static graphics that are not imported through the map importer are files (19.2).
 
-## 19.2 Example Bootstrap Directory
+## 19.2 Event Files
+
+An installation has no event folder to prepare by hand. The event is created in the admin area (19.3.1). Only the theme and static graphics are files, in the data volume:
 
 ```text
-events/
-  event-muster/
-    event.json
-    theme.json
-    assets/
-      sprites/
-      avatars/
-      audio/
+$DATA_DIR/events/event1/
+  theme.json
+  assets/
+    sprites/
+    avatars/
+    audio/
 ```
 
-## 19.3 Example `event.json`
+`theme.json` is optional: without it the platform's default theme applies. Its fields are specified with the website (stage 4). The files are covered by the full backup (23.8).
 
-```json
-{
-  "id": "event-muster",
-  "name": "Event Muster",
-  "slug": "event-muster",
-  "timezone": "Europe/Zurich",
+## 19.3 Event Data
 
-  "defaultLanguage": "de",
+The event is a database record with these fields:
 
-  "theme": {
-    "config": "theme.json"
-  },
+| Field | Set | Changeable later |
+|---|---|---|
+| Name | setup | yes, by the admin |
+| Time zone (IANA) | setup | yes, by the admin |
+| Default language | setup | yes, by the admin |
+| Features (`minigames`, `snapshots`, `gallery`, `keepsakes`, `rsvp`, `treasureHunt`, `eventScreen`) | defaults, all on | yes, by the admin |
+| Settings (`platformOpen`, `snapshotUploadsOpen`, `keepsakeUploadsOpen`) | defaults, all off | yes, by the admin |
 
-  "features": {
-    "minigames": true,
-    "snapshots": true,
-    "gallery": true,
-    "keepsakes": true,
-    "rsvp": true,
-    "treasureHunt": true,
-    "eventScreen": true
-  },
+The event has no slug and no configurable id: its `eventId` is the fixed value `event1`, because an installation serves exactly one event (CFG-04).
 
-  "settings": {
-    "platformOpen": false,
-    "snapshotUploadsOpen": false,
-    "keepsakeUploadsOpen": false
-  }
-}
-```
+## 19.3.1 Setup (decided 2026-11-11)
 
-The actual configuration is validated on the server. The values in `features` and `settings` are initial values; the admin can change them at runtime. Feature toggles decide whether a feature exists at all; the settings open the platform and the uploads (10.3, 10.4). Maps and the start map are managed in the map importer.
-
-## 19.3.1 Bootstrap at Startup (decided 2026-11-10)
-
-- **Which event:** the environment variable `EVENT_SLUG` names the event folder. It has the default `event-muster` in `dev` and `test` and is required in `staging` and `prod` (`.env` of the deployment; `.env.example` leaves it empty), so a real installation never starts with the example event by accident: the database is tied to the event of its first start.
-- **Where it is read from:** first `$DATA_DIR/events/<slug>/` (in the data volume), then the `events/<slug>/` folder of the application (in the image; the repository holds the example event `event-muster`). The first one found is used. A **private event** is therefore put into the data volume of the installation: it stays out of the public repository, and the full backup (22.2) covers it. `EVENTS_DIR` replaces the application's `events/` folder (tests).
-- **Validation:** `event.json` is validated with a strict schema (all keys of `features` and `settings` present, no unknown keys, `slug` equal to the folder name, a valid IANA time zone); `theme.json` must exist and be a JSON object (its fields are specified with the website, stage 4). On any problem the application does not start and prints every problem, naming the file.
-- **Database:** the first start creates the event with the `id` from `event.json` (text, e.g. `event-muster`) as its `eventId`. On every later start name, time zone and default language are refreshed from `event.json` (they cannot be changed at runtime); `features` and `settings` only fill in keys that are missing in the database, so values changed by the admin are never overwritten and a new toggle gets its initial value. An installation serves exactly one event (CFG-04); if the database holds an event with another `id`, the application does not start.
-- **Changing at runtime:** features and settings are read from the database on every request, so a change applies at once, in every process. The admin changes them with `PATCH /api/admin/event` (`{features?, settings?}` with at least one value, all or nothing; each change is audited with the admin as actor, an unchanged value is not), the operator also with the CLI (`zappaloo event feature|setting <name> on|off`, 23.8, actor `cli`). In the admin area (8.3), Einstellungen switches the features and Übersicht the uploads; opening the platform gets its own card with ACS-10 and ACS-14 (steps 3c, 3d). `GET /api/event` returns the event with its features and settings; the frontend loads it again whenever the page becomes visible, so a switched feature shows up without a reload.
+- **Replaces** the former bootstrap from `events/<slug>/` with `EVENT_SLUG` (decided 2026-11-10): neither the variable, the folder nor `event.json` exist any more.
+- **Order:** (1) the operator starts a fresh installation; (2) creates the first admin with the CLI (`zappaloo create-admin`, 23.8) and gives the admin the setup link; (3) the admin signs in and completes the event setup in the admin area.
+- **Not set up yet:** the first start of a fresh database creates the event record (`eventId` `event1`, features and settings with defaults) without name, time zone and language, so accounts and the CLI have an event to refer to; the setup fills these in. The application starts anyway. Until the setup is complete, an admin sees the setup form as the only content of the admin area, and every other signed-in user sees a neutral "not set up yet" page; sign-in, the setup link and the admin area's setup work. Routes of features that need the event answer `409` with the code `setup_incomplete`. The closed-platform behaviour (ACS-10, ACS-14, stage 3) comes on top once the event is set up.
+- **Setup form:** name, time zone, default language, validated like every admin input (a valid IANA time zone, a language the platform ships). Saving completes the setup. Features and settings start with their defaults (19.3) and are changed in Einstellungen and Übersicht (8.3), as before.
+- **Changing later:** name, time zone and default language stay editable in the admin area (`PATCH /api/admin/event` takes them next to `features` and `settings`; all or nothing; each change audited with the admin as actor, an unchanged value is not). Changing the time zone changes how stored times are displayed, not the stored times.
+- **Content and game world** are not part of the setup. They are managed at runtime in their own admin areas: website content, schedule and event parts (stage 4), maps, start map and clickable objects (map importer and "Spielwelt", stage 5), guest groups and invitations (stage 2). A fresh installation starts with no maps; MAP-14 creates them from the templates.
+- **Dev and test seed:** `zappaloo event seed-example` completes the setup of an empty installation with the example event "Event Muster" (Europe/Zurich, de). It refuses an installation that is already set up. Dev and e2e tests use it; one e2e test runs the real setup from an empty database.
+- **Runtime reads:** name, time zone, language, features and settings are read from the database on every request, so a change applies at once, in every process. The operator can also use the CLI (`zappaloo event feature|setting <name> on|off`, 23.8, actor `cli`). `GET /api/event` returns the event with its features and settings and whether the setup is complete; the frontend loads it again whenever the page becomes visible, so a changed value shows up without a reload.
 - **Disabled features** (CFG-03): the API answers `404` with the code `feature_disabled` for a disabled feature (a guard every feature route uses), and the frontend hides it (`useFeature`, `FeatureGate`).
 - **Audit log** (DATA-03): table `audit_log` with `eventId`, actor (`cli`, `user:<id>`, or `anonymous` for a request without sign-in), action, details (JSON with ids only, 7.1.1) and time.
 
@@ -1866,10 +1850,12 @@ A global user account could later be assigned to several events, with different 
 | ID | Requirement | Prio |
 |---|---|---|
 | CFG-01 | The platform core is generic; an event is shaped only through configuration and content (name, theme, website content, maps, tilesets, sprites, NPCs, dialogues, objects, guest groups, unlock conditions, albums, schedule). | Must |
-| CFG-02 | An installation is bootstrapped from an `events/<slug>/` directory (`event.json`, `theme.json`, static assets) that is validated on the server at startup; an invalid configuration is rejected with a clear error. | Must |
+| CFG-02 | A fresh installation starts without event data. The admin completes the setup (name, time zone, default language) in the admin area after the operator created the first admin with the CLI; until then guests see a "not set up yet" page. An invalid input is rejected with a clear error. | Must |
 | CFG-03 | The features `minigames`, `snapshots`, `gallery`, `keepsakes`, `rsvp`, `treasureHunt` and `eventScreen` can be enabled or disabled per event; disabled features are unavailable in UI and API. | Must |
 | CFG-04 | Each installation serves exactly one event with its own domain, database, uploads, users, content, maps and configuration; all installations share the same codebase. | Must |
-| CFG-05 | Event settings (feature toggles, platform open, snapshot uploads open, keepsake uploads open) are initialised from `event.json` and can be changed by the admin at runtime without a redeployment. | Must |
+| CFG-05 | Event settings (feature toggles, platform open, snapshot uploads open, keepsake uploads open) start with defaults and can be changed by the admin at runtime without a redeployment. | Must |
+| CFG-06 | The admin can change the event's name, time zone and default language at any time after the setup; each change is audited. | Must |
+| CFG-07 | The CLI command `zappaloo event seed-example` completes the setup of an empty installation with the example event and refuses an installation that is already set up (dev and test only). | Must |
 
 Multi-event operation in one installation (section 20.1) is out of scope for the first version (see section 30).
 
@@ -1959,7 +1945,7 @@ Production data and uploads must never be overwritten or deleted by a deployment
 
 | Version step | When |
 |---|---|
-| MAJOR | Incompatible change: incompatible `event.json` format, removed features, migrations that need manual steps |
+| MAJOR | Incompatible change: incompatible theme file format, removed features, migrations that need manual steps |
 | MINOR | New features, backward-compatible additions |
 | PATCH | Bug fixes only |
 
@@ -2101,6 +2087,7 @@ docker compose run --rm --no-deps -T app zappaloo restore --full - --force < bac
 docker compose exec app zappaloo event show                       # the event with its features and settings
 docker compose exec app zappaloo event feature <name> on|off      # feature toggle, audited (CFG-03, CFG-05)
 docker compose exec app zappaloo event setting <name> on|off      # platformOpen, snapshotUploadsOpen, keepsakeUploadsOpen
+docker compose exec app zappaloo event seed-example               # dev and test: set up an empty installation with the example event
 docker compose exec app zappaloo create-admin USERNAME [--vip]    # admin account, prints a setup link
 docker compose exec app zappaloo reset-password USERNAME          # prints a one-time reset link
 ```
@@ -2108,12 +2095,12 @@ docker compose exec app zappaloo reset-password USERNAME          # prints a one
 In dev, the same commands run from source with `npm run cli -- <command>`.
 
 - `backup` uses SQLite's online backup, so the application keeps running. Without `--full` it covers the database only.
-- `backup --full` writes one `.tar.gz` archive with a consistent database copy (`zappaloo.db`) and the files directories `uploads/`, `maps/` and `events/` (a private event, 19.3.1); `restore --full` replaces the database and the directories with the archive's content, with the same safeguards as `restore` (application stopped, `--force`). It first unpacks the archive next to the data and checks it (only these entries, no links, an intact database); an invalid archive leaves the data untouched (decided 2026-11-10). An archive without `events/` (made before stage 2) leaves the installation's `events/` as it is, so a private event survives the restore.
+- `backup --full` writes one `.tar.gz` archive with a consistent database copy (`zappaloo.db`) and the files directories `uploads/`, `maps/` and `events/` (theme and static graphics, 19.2); `restore --full` replaces the database and the directories with the archive's content, with the same safeguards as `restore` (application stopped, `--force`). It first unpacks the archive next to the data and checks it (only these entries, no links, an intact database); an invalid archive leaves the data untouched (decided 2026-11-10).
 - `backup` and `restore` take a file name inside the container or `-` for standard output and input; with `-` the backup is streamed to or from the host, which is how `deploy.sh` uses them.
 - `restore` refuses to run while the application is running and asks for `--force` before it overwrites the database. The restored database is migrated on the next start.
 - `create-admin` and `reset-password` never take a password on the command line; they print a one-time link instead, so no password ends up in the shell history.
 - Commands print a clear error and exit non-zero on failure, so `deploy.sh` can rely on them.
-- `event show`, `event feature` and `event setting` read and change the event's feature toggles and settings in the database; every change is written to the audit log with the actor `cli` (19.3.1). They need the event to exist, so the application must have been started once.
+- `event show`, `event feature` and `event setting` read and change the event's feature toggles and settings in the database; every change is written to the audit log with the actor `cli` (19.3.1). Before the setup is complete they refuse with the message that the event is not set up yet; `event seed-example` sets it up.
 - `create-admin USERNAME [--vip]` and `reset-password USERNAME` print the one-time link (7.1.1) with its expiry; both need the event to exist (the application must have been started once) and are written to the audit log with the actor `cli`.
 - Each command is built together with its feature: `version` and `migrate` in step 1b, `backup` and `restore` in step 1d, `create-admin` and `reset-password` in step 2b.
 
@@ -2337,13 +2324,7 @@ zappaloo/
     schemas/
     events/
 
-  events/
-    event-muster/
-      event.json
-      theme.json
-      content/
-      game/
-      photos/
+  # the event's theme and static graphics live in the data volume: $DATA_DIR/events/event1/ (19.2)
 
   infrastructure/
     docker/
@@ -2458,9 +2439,10 @@ Requirements: OPS-01–06, OPS-08–18, DATA-01, DATA-04, LANG-01, SEC-03, SEC-1
 - Roles `vip`, `staff`, `admin`, staff capabilities, guest groups.
 - Invitations with printable export.
 - Event settings, access conditions, sign-in everywhere, server-side enforcement.
+- Event setup in the admin area instead of an event folder (step 2i).
 - Admin pages for users, roles, invitations, groups and settings (step 2h; manual releases come with the first feature that stores access conditions).
 
-Requirements: ACC (except ACC-16), ROLE, INV, ACS (except ACS-04, ACS-10–14), GRP, CFG-02, CFG-03, CFG-05, DATA-02, DATA-03, SEC-01, SEC-02.
+Requirements: ACC (except ACC-16), ROLE, INV, ACS (except ACS-04, ACS-10–14), GRP, CFG-02, CFG-03, CFG-05, CFG-06, CFG-07, DATA-02, DATA-03, SEC-01, SEC-02.
 
 ## Stage 3 – RSVP and Waiting Page (completes Release 1)
 
