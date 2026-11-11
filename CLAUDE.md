@@ -10,6 +10,7 @@ Zappaloo is a reusable event platform (first use: a wedding) that combines a bro
 | `spec/sw-architecture.md` | Requirements, architecture, technology choices |
 | `spec/test-strategy.md` | Test levels, requirement traceability, "not yet implemented" list |
 | `spec/implementation-plan.md` | Stages and steps, preconditions per stage, releases, status reports |
+| `spec/mocks/` | Clickable UX mocks (`zappaloo-mocks.html`) and the UX decisions behind them |
 
 ## Working with the spec
 
@@ -34,6 +35,7 @@ Zappaloo is a reusable event platform (first use: a wedding) that combines a bro
   - `git branch --show-current` matches the current stage (exactly `n`, so `stage-1` does not match `stage-10`);
   - the working tree is clean (the previous step is committed).
   If either check fails, stop and ask the user. Don't fix it yourself.
+- **Frontend work follows the UX mocks** in `spec/mocks/`: build a screen from its mock (layout, flow, texts) and read the UX decisions in `spec/mocks/README.md`. If the mock and a requirement disagree, the requirement wins and the mock is fixed in the same step; propose other UX deviations before making them.
 - After each step: stop with a short summary (what changed, tests and their results, anything open) so the user can review and commit.
 - **When a stage is complete,** write a status report using the template in `spec/implementation-plan.md` (section 4), append it to section 5 there, update the overview table in section 3, and show the report in the conversation. It includes:
   - a table of stage | content | status (done / next / open);
@@ -49,6 +51,7 @@ Zappaloo is a reusable event platform (first use: a wedding) that combines a bro
 | Command | Does |
 |---|---|
 | `npm run dev:backend` / `npm run dev:frontend` | Backend on port 3000 (restarts on change; migrates `DATA_DIR` on start) / Vite on port 5173, proxying `/api` to the backend |
+| `npm run mocks` | UX mocks on `http://localhost:5174/zappaloo-mocks.html` (VS Code task "mocks"; works in the Simple Browser) |
 | `npm run build` | Production build of the frontend (`frontend/dist`) |
 | `npm run cli -- <command>` | The `zappaloo` CLI from source (`version`, `migrate`, …) |
 | `npm run db:generate -w backend` | New Drizzle migration after a change of `backend/src/database/schema.ts` |

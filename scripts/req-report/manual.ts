@@ -1,6 +1,6 @@
 // Manual test protocol (spec/manual-test-protocol.md, test-strategy.md 6.1):
 // checks that need a real environment or device. Each record is a table row
-//   | Requirements | Date | Tester | Environment | Result | Notes |
+//   | Requirements | Date | Environment | Result | Notes |
 // with one or more requirement IDs, an ISO date and the result `pass` or `fail`.
 // For each requirement only its latest record counts, so a later successful
 // re-check replaces an earlier failure.
@@ -9,14 +9,13 @@ import type { TestCase } from "./results.ts";
 export interface ManualRecord {
   ids: string[];
   date: string;
-  tester: string;
   environment: string;
   result: "pass" | "fail";
   notes: string;
   line: number;
 }
 
-const HEADER = ["Requirements", "Date", "Tester", "Environment", "Result", "Notes"];
+const HEADER = ["Requirements", "Date", "Environment", "Result", "Notes"];
 
 export function parseManualProtocol(markdown: string): {
   records: ManualRecord[];
@@ -42,7 +41,7 @@ export function parseManualProtocol(markdown: string): {
     }
     if (!inTable || cells.every((cell) => /^:?-+:?$/.test(cell))) return;
 
-    const [ids = "", date = "", tester = "", environment = "", result = "", notes = ""] = cells;
+    const [ids = "", date = "", environment = "", result = "", notes = ""] = cells;
     const idList = ids.split(/[,\s]+/).filter(Boolean);
     if (idList.length === 0) errors.push(`${where}: no requirement ID`);
     if (!/^\d{4}-\d{2}-\d{2}$/.test(date))
@@ -51,8 +50,7 @@ export function parseManualProtocol(markdown: string): {
       errors.push(`${where}: result "${result}" must be pass or fail`);
       return;
     }
-    if (!tester) errors.push(`${where}: tester missing`);
-    records.push({ ids: idList, date, tester, environment, result, notes, line: index + 1 });
+    records.push({ ids: idList, date, environment, result, notes, line: index + 1 });
   });
   return { records, errors };
 }
@@ -69,7 +67,7 @@ export function manualTestCases(records: ManualRecord[]): TestCase[] {
   return [...latest].map(([id, record]) => ({
     runner: "manual" as const,
     file: `spec/manual-test-protocol.md:${record.line}`,
-    title: `${record.date} ${record.environment} (${record.tester})${record.notes ? `: ${record.notes}` : ""}`,
+    title: `${record.date} ${record.environment}${record.notes ? `: ${record.notes}` : ""}`,
     status: record.result === "pass" ? ("passed" as const) : ("failed" as const),
     ids: [id],
   }));

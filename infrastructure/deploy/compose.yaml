@@ -14,12 +14,19 @@ services:
       # Only a pre-release suffix (rc.N) can be added; the version itself is in the image (23.6).
       APP_VERSION_SUFFIX: ${APP_VERSION_SUFFIX:-}
       SESSION_SECRET_FILE: /run/secrets/session_secret
+      # Address of the site, for the one-time links the CLI prints (7.1.1).
+      PUBLIC_URL: https://${SITE_ADDRESS:?set SITE_ADDRESS in .env}:${HTTPS_PORT:-443}
+      # Caddy is the only way in: the client address comes from X-Forwarded-For.
+      TRUST_PROXY: "true"
       SMTP_HOST: ${SMTP_HOST:-}
       SMTP_PORT: ${SMTP_PORT:-}
       SMTP_USER: ${SMTP_USER:-}
       MAIL_FROM: ${MAIL_FROM:-}
+      # Empty file without secrets/smtp_password: a mail server without login (7.1.1).
+      SMTP_PASSWORD_FILE: /run/secrets/smtp_password
     secrets:
       - session_secret
+      - smtp_password
     volumes:
       - data:/data
       # No bind mounts: deploy.sh streams database backups in and out (sw-architecture.md 23.5).
@@ -101,6 +108,9 @@ secrets:
   session_secret:
     # deploy.sh reads secrets/session_secret (mode 600) into this variable.
     environment: SESSION_SECRET
+  smtp_password:
+    # deploy.sh reads secrets/smtp_password (mode 600) into this variable, or leaves it empty.
+    environment: SMTP_PASSWORD_SECRET
 
 volumes:
   data:

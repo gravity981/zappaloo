@@ -25,7 +25,14 @@ export function openDatabase(file: string): Database {
   sqlite.pragma("journal_mode = WAL");
   sqlite.pragma("foreign_keys = ON");
   sqlite.pragma("busy_timeout = 5000");
-  return { sqlite, db: drizzle(sqlite, { schema }), close: () => sqlite.close() };
+  const db = drizzle(sqlite, { schema });
+  // Transactions take the write lock when they begin (BEGIN IMMEDIATE), not at their first
+  // write: a deferred transaction that has read and then writes while another process (the
+  // CLI, a backup) committed fails at once with "database is locked", without waiting for
+  // busy_timeout. Nested transactions are savepoints and are not affected.
+  const transaction = db.transaction.bind(db);
+  db.transaction = (run, config) => transaction(run, { behavior: "immediate", ...config });
+  return { sqlite, db, close: () => sqlite.close() };
 }
 
 export class MigrationError extends Error {

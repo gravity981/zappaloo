@@ -4,7 +4,176 @@
   },
   "nav": {
     "home": "Start",
-    "game": "Spielwelt"
+    "game": "Spielwelt",
+    "login": "Anmelden",
+    "profile": "Profil",
+    "logout": "Abmelden",
+    "admin": "Verwaltung"
+  },
+  "invite": {
+    "title": "Einladung einlösen",
+    "enterHint": "Gib den Code von deiner Einladungskarte ein.",
+    "code": "Einladungscode",
+    "next": "Weiter",
+    "checking": "Der Code wird geprüft …",
+    "tryAnother": "Anderen Code eingeben",
+    "welcome": "Willkommen, {{name}}!",
+    "registerHint": "Lege dein Konto an. Das Passwort braucht mindestens {{min}} Zeichen.",
+    "username": "Benutzername",
+    "displayName": "Anzeigename",
+    "register": "Konto anlegen",
+    "haveAccount": "Du hast schon ein Konto? Melde dich an und öffne den Link noch einmal:",
+    "redeemHint": "Du bist als {{user}} angemeldet. Mit der Einladung bekommt dein Konto Zugang zum Fest.",
+    "redeem": "Einladung einlösen",
+    "alreadyVip": "Dein Konto ist schon eingeladen. Diese Einladung wird nicht gebraucht."
+  },
+  "admin": {
+    "title": "Verwaltung",
+    "toWebsite": "Zur Website",
+    "platformOpen": "Plattform offen",
+    "platformClosed": "Plattform geschlossen",
+    "close": "Schliessen",
+    "cancel": "Abbrechen",
+    "copy": "Kopieren",
+    "copied": "Kopiert",
+    "linkHint": "Gültig bis {{date}}, einmal verwendbar. Der Link wird nur jetzt angezeigt.",
+    "nav": {
+      "home": "Übersicht",
+      "invitations": "Einladungen",
+      "users": "Konten & Rollen",
+      "settings": "Einstellungen"
+    },
+    "home": {
+      "title": "Übersicht",
+      "platform": "Plattform",
+      "open": "Offen",
+      "closed": "Geschlossen",
+      "uploads": "Hochladen",
+      "snapshots": "Schnappschüsse",
+      "keepsakes": "Andenken",
+      "featureOff": "Funktion ausgeschaltet"
+    },
+    "settings": {
+      "title": "Einstellungen",
+      "features": "Funktionen",
+      "featuresHint": "Ausgeschaltete Funktionen sind für alle verborgen. Änderungen gelten sofort."
+    },
+    "features": {
+      "minigames": "Minispiele",
+      "snapshots": "Schnappschüsse",
+      "gallery": "Galerie",
+      "keepsakes": "Andenken",
+      "rsvp": "Rückmeldung",
+      "treasureHunt": "Schatzsuche",
+      "eventScreen": "Eventscreen"
+    },
+    "roles": {
+      "vip": "vip",
+      "staff": "staff",
+      "admin": "admin"
+    },
+    "capabilities": {
+      "editWebsiteContent": "Inhalte",
+      "moderateContributions": "Moderation"
+    },
+    "invitations": {
+      "title": "Einladungen",
+      "new": "Neue Einladungen",
+      "names": "Gäste (ein Name pro Zeile)",
+      "expiresAt": "Ablaufdatum (optional)",
+      "createNone": "Einladungen erstellen",
+      "create_one": "{{count}} Einladung erstellen",
+      "create_other": "{{count}} Einladungen erstellen",
+      "created_one": "{{count}} Einladung erstellt",
+      "created_other": "{{count}} Einladungen erstellt",
+      "cardsHint": "Die Codes sind nur jetzt sichtbar. Drucke die Karten, bevor du die Seite verlässt.",
+      "print": "Karten drucken",
+      "done": "Fertig",
+      "qrLabel": "QR-Code der Einladung für {{name}}",
+      "filter": "Nach Status filtern",
+      "all": "Alle",
+      "guest": "Gast",
+      "status": "Status",
+      "actions": "Aktionen",
+      "validUntil": "gültig bis {{date}}",
+      "regenerate": "Neu erzeugen",
+      "revoke": "Widerrufen",
+      "statuses": {
+        "active": "Aktiv",
+        "redeemed": "Eingelöst",
+        "expired": "Abgelaufen",
+        "revoked": "Widerrufen",
+        "replaced": "Ersetzt"
+      }
+    },
+    "users": {
+      "title": "Konten & Rollen",
+      "create": "+ Konto anlegen",
+      "name": "Name",
+      "roles": "Rollen",
+      "capabilities": "Fähigkeiten",
+      "actions": "Aktionen",
+      "roleOf": "{{role}} für {{name}}",
+      "edit": "Konto {{name}} bearbeiten",
+      "lastAdmin": "Es braucht immer mindestens eine Admin-Person. Ernenne zuerst jemand anderen.",
+      "emailStatus": {
+        "unverified": "nicht bestätigt",
+        "verified": "bestätigt"
+      },
+      "vipAssignment": {
+        "invitation_code": "vip per Einladungscode",
+        "admin_promotion": "vip durch eine Admin-Person"
+      },
+      "capabilitiesOnlyStaff": "Fähigkeiten gibt es nur mit der Rolle staff.",
+      "password": "Passwort",
+      "resetHint": "Für Gäste ohne bestätigte E-Mail-Adresse: Erstelle einen Link und gib ihn weiter. Damit setzt die Person ein neues Passwort.",
+      "createResetLink": "Link zum Zurücksetzen erstellen",
+      "resetLink": "Link zum Zurücksetzen",
+      "createTitle": "Konto anlegen",
+      "username": "Benutzername",
+      "usernameHint": "3–32 Zeichen: a–z, 0–9, Punkt, Unterstrich, Bindestrich. Lässt sich nicht mehr ändern.",
+      "displayName": "Anzeigename (optional)",
+      "createSubmit": "Konto anlegen",
+      "createdTitle": "Konto für {{name}} angelegt",
+      "setupLink": "Link zum Festlegen des Passworts"
+    },
+    "groups": {
+      "title": "Gästegruppen",
+      "new": "+ Neu",
+      "name": "Name der Gruppe",
+      "add": "Hinzufügen",
+      "none": "Noch keine Gruppen.",
+      "members_one": "{{count}} Person",
+      "members_other": "{{count}} Personen",
+      "rename": "Umbenennen",
+      "remove": "Entfernen",
+      "removeMember": "{{name}} aus der Gruppe entfernen",
+      "addMember": "Person hinzufügen",
+      "choose": "Bitte wählen",
+      "delete": "Gruppe löschen",
+      "deleteConfirm": "Die Gruppe «{{name}}» wird gelöscht. Die Konten bleiben bestehen.",
+      "deleteFinal": "Endgültig löschen"
+    },
+    "notSetUp": "Noch nicht eingerichtet",
+    "setup": {
+      "title": "Veranstaltung einrichten",
+      "intro": "Zuerst bekommt die Veranstaltung einen Namen. Danach geht die Verwaltung auf; Inhalte und Spielwelt kommen später in ihren eigenen Bereichen.",
+      "submit": "Einrichtung abschliessen"
+    },
+    "identity": {
+      "title": "Veranstaltung",
+      "hint": "Name, Zeitzone und Sprache lassen sich jederzeit ändern. Die Zeitzone bestimmt, wie Zeiten angezeigt werden, nicht die gespeicherten Zeiten.",
+      "name": "Name",
+      "namePlaceholder": "z. B. Anna & Ben",
+      "timezone": "Zeitzone",
+      "timezoneHint": "Aus der Liste wählen oder eintippen, z. B. Europe/Zurich.",
+      "language": "Standardsprache",
+      "languages": {
+        "de": "Deutsch"
+      },
+      "save": "Speichern",
+      "saved": "Gespeichert."
+    }
   },
   "home": {
     "title": "Willkommen bei Zappaloo",
@@ -20,5 +189,104 @@
   },
   "footer": {
     "version": "Version {{version}}"
+  },
+  "login": {
+    "title": "Anmelden",
+    "username": "Benutzername",
+    "password": "Passwort",
+    "submit": "Anmelden",
+    "forgot": "Passwort vergessen?"
+  },
+  "forgotPassword": {
+    "title": "Passwort vergessen",
+    "hint": "Gib deinen Benutzernamen oder deine E-Mail-Adresse ein. Wenn die Adresse in deinem Profil bestätigt ist, schicken wir dir einen Link zum Zurücksetzen.",
+    "identifier": "Benutzername oder E-Mail-Adresse",
+    "submit": "Link anfordern",
+    "doneTitle": "Anfrage gesendet",
+    "doneText": "Falls ein Konto mit bestätigter E-Mail-Adresse dazu passt, haben wir einen Link geschickt. Er ist 24 Stunden gültig.",
+    "noEmail": "Keine bestätigte Adresse? Dann melde dich bei den Gastgebern: Sie können dir einen Link zum Zurücksetzen geben.",
+    "back": "Zur Anmeldung"
+  },
+  "verifyEmail": {
+    "title": "E-Mail-Adresse bestätigen",
+    "intro": "Tippe auf den Knopf, um deine E-Mail-Adresse zu bestätigen.",
+    "confirm": "Adresse bestätigen",
+    "working": "Die Adresse wird bestätigt …",
+    "doneTitle": "Adresse bestätigt",
+    "doneText": "Danke! Mit dieser Adresse kannst du dein Passwort per E-Mail zurücksetzen.",
+    "toProfile": "Zum Profil"
+  },
+  "setPassword": {
+    "title": "Passwort festlegen",
+    "hint": "Wähle ein Passwort mit mindestens {{min}} Zeichen.",
+    "password": "Passwort",
+    "repeat": "Passwort wiederholen",
+    "submit": "Passwort speichern",
+    "doneTitle": "Passwort gespeichert",
+    "doneText": "Du kannst dich jetzt anmelden.",
+    "toLogin": "Zur Anmeldung"
+  },
+  "profile": {
+    "title": "Profil",
+    "username": "Benutzername: {{username}}",
+    "displayName": "Anzeigename",
+    "email": "E-Mail-Adresse (optional)",
+    "emailStatus": {
+      "unverified": "Die Adresse ist noch nicht bestätigt.",
+      "verified": "Die Adresse ist bestätigt."
+    },
+    "verifySend": "Bestätigungslink senden",
+    "verifySent": "Wir haben dir einen Link geschickt. Er ist 24 Stunden gültig.",
+    "save": "Speichern",
+    "saved": "Gespeichert.",
+    "passwordTitle": "Passwort ändern",
+    "currentPassword": "Aktuelles Passwort",
+    "newPassword": "Neues Passwort (mindestens {{min}} Zeichen)",
+    "changePassword": "Passwort ändern",
+    "passwordChanged": "Das Passwort wurde geändert. Auf anderen Geräten musst du dich neu anmelden.",
+    "deleteTitle": "Konto löschen",
+    "deleteHint": "Dein Konto wird mit allen Daten unwiderruflich gelöscht. Zur Bestätigung gibst du dein Passwort ein.",
+    "deletePassword": "Passwort",
+    "deleteConfirm": "Konto endgültig löschen"
+  },
+  "errors": {
+    "unknown": "Das hat nicht geklappt. Bitte versuche es später noch einmal.",
+    "invalid_credentials": "Benutzername oder Passwort stimmt nicht.",
+    "rate_limited": "Zu viele Versuche. Bitte warte einen Moment und versuche es dann noch einmal.",
+    "invalid_link": "Dieser Link ist ungültig, abgelaufen oder wurde schon benutzt.",
+    "invalid_password": "Das aktuelle Passwort stimmt nicht.",
+    "invalid_invitation": "Dieser Code ist nicht gültig. Prüfe die Eingabe.",
+    "invitation_expired": "Diese Einladung ist abgelaufen. Melde dich bei den Gastgebern.",
+    "invitation_redeemed": "Diese Einladung wurde schon eingelöst.",
+    "invitation_revoked": "Diese Einladung wurde widerrufen. Melde dich bei den Gastgebern.",
+    "invitation_replaced": "Diese Einladung wurde durch eine neue ersetzt. Nimm den neuen Code.",
+    "already_vip": "Dein Konto ist schon eingeladen.",
+    "username_taken": "Dieser Benutzername ist schon vergeben.",
+    "not_regenerable": "Diese Einladung kann nicht neu erstellt werden.",
+    "not_revocable": "Diese Einladung kann nicht widerrufen werden.",
+    "mail_unavailable": "Auf diesem Server können keine E-Mails verschickt werden.",
+    "mail_failed": "Die E-Mail konnte nicht gesendet werden. Bitte versuche es später noch einmal.",
+    "no_unverified_email": "Es gibt keine unbestätigte E-Mail-Adresse in deinem Profil.",
+    "last_admin": "Du bist die letzte Admin-Person. Ernenne zuerst jemand anderen, dann kannst du dein Konto löschen.",
+    "validation_failed": "Bitte prüfe deine Eingaben.",
+    "passwords_differ": "Die beiden Passwörter sind nicht gleich.",
+    "csrf_failed": "Die Sitzung ist abgelaufen. Bitte lade die Seite neu.",
+    "network_error": "Keine Verbindung zum Server. Prüfe deine Internetverbindung und versuche es noch einmal.",
+    "unauthorized": "Du bist nicht mehr angemeldet. Bitte melde dich wieder an.",
+    "forbidden": "Dafür hast du keine Berechtigung.",
+    "not_found": "Das gibt es nicht (mehr).",
+    "feature_disabled": "Diese Funktion ist für diesen Anlass ausgeschaltet.",
+    "password_is_username": "Das Passwort darf nicht gleich wie der Benutzername sein.",
+    "invitation_not_found": "Diese Einladung gibt es nicht.",
+    "user_not_found": "Dieses Konto gibt es nicht.",
+    "group_name_taken": "Eine Gruppe mit diesem Namen gibt es schon.",
+    "group_not_found": "Diese Gruppe gibt es nicht.",
+    "not_staff": "Fähigkeiten gibt es nur für Personen mit der Rolle Staff.",
+    "already_set_up": "Die Veranstaltung ist schon eingerichtet.",
+    "setup_incomplete": "Die Veranstaltung ist noch nicht eingerichtet."
+  },
+  "notSetUp": {
+    "title": "Noch nicht eingerichtet",
+    "text": "Diese Seite wird gerade vorbereitet. Schau bald wieder vorbei."
   }
 }

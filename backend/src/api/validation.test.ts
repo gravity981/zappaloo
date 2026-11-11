@@ -4,6 +4,7 @@ import type { ZodTypeProvider } from "fastify-type-provider-zod";
 import { z } from "zod";
 import { apiErrorSchema } from "@zappaloo/shared";
 import { createTestApp } from "../test-support.ts";
+import { PUBLIC } from "./access.ts";
 import type { TestContext } from "../test-support.ts";
 import { assertInputSchemas, MissingSchemaError } from "./validation.ts";
 
@@ -18,6 +19,7 @@ function addExampleRoute(app: FastifyInstance): void {
   app.withTypeProvider<ZodTypeProvider>().post(
     "/api/example/:id",
     {
+      config: PUBLIC, // this file tests validation, not sign-in
       schema: {
         params: z.object({ id: z.coerce.number().int().positive() }),
         querystring: z.strictObject({ dryRun: z.enum(["true", "false"]).optional() }),

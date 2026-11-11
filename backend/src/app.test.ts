@@ -1,7 +1,7 @@
 import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
-import { createTestApp, tempDir } from "./test-support.ts";
+import { createTestApp, signIn, tempDir } from "./test-support.ts";
 import type { TestContext } from "./test-support.ts";
 
 let ctx: TestContext | undefined;
@@ -52,7 +52,11 @@ describe("serving the built frontend", () => {
 
   it("keeps API 404s as JSON, even for browsers", async () => {
     ctx = await createTestApp({ frontendDir: frontend() });
-    const response = await ctx.app.inject({ method: "GET", url: "/api/nope", headers: html });
+    const response = await ctx.app.inject({
+      method: "GET",
+      url: "/api/nope",
+      headers: { ...html, ...(await signIn(ctx)) },
+    });
     expect(response.statusCode).toBe(404);
     expect(response.json()).toMatchObject({ error: { code: "not_found" } });
   });

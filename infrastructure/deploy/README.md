@@ -31,7 +31,32 @@ If the image is private, create a GitHub token with only `read:packages`, store 
 | `HTTP_PORT` / `HTTPS_PORT` | `8080` / `8443` (open `https://<LAN IP>:8443`) | `80` / `443` |
 | `TLS_MODE` | `internal` (Caddy's local CA) | contact email for Let's Encrypt |
 | `COMPOSE_PROFILES` | `mailpit` (all mail is caught) | empty |
-| SMTP settings | `SMTP_HOST=mailpit`, `SMTP_PORT=1025` | the real SMTP account |
+| SMTP settings | `SMTP_HOST=mailpit`, `SMTP_PORT=1025` | the real SMTP account: `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `MAIL_FROM`; the password in `secrets/smtp_password` (mode 600) |
+
+## The event
+
+An installation serves one event. There is no event folder to prepare: the event is set up in the admin area after the first start.
+
+1. Deploy as below. The first start creates the event without a name; until the setup is done, guests see a "not set up yet" page.
+2. Create the first admin on the server and give the admin the setup link it prints:
+
+   ```sh
+   docker compose exec app zappaloo create-admin <username>
+   ```
+
+3. The admin signs in and completes the setup form (name, time zone, default language). The admin area then opens. Name, time zone and language can be changed later in Einstellungen.
+
+Features and settings start with their defaults (all features on; platform and uploads closed) and are changed in the admin area, or while the app runs with the CLI; every change is written to the audit log:
+
+```sh
+docker compose exec app zappaloo event show
+docker compose exec app zappaloo event feature gallery off
+docker compose exec app zappaloo event setting platformOpen on
+```
+
+`zappaloo event seed-example` sets up the example event for development and tests; it refuses staging and prod.
+
+The theme and static graphics, once they exist (stage 4 onwards), live in the data volume at `/data/events/event1/` and are part of the full backup (`events/`).
 
 ## Deploy
 
@@ -44,17 +69,27 @@ If the image is private, create a GitHub token with only `read:packages`, store 
 
 On **staging**, `deploy.sh` instead replaces the data with the newest full backup (`./backups/*.tar.gz`), if there is one; see "Backups and restore" below.
 
+## Accounts
+
+The first admin of an installation is created with the CLI, once the app runs. It prints a **one-time link** (valid 24 hours, works once) where the new admin sets the password; no password is ever typed on the command line:
+
+```sh
+docker compose exec app zappaloo create-admin <username> --vip     # --vip: the admin is also a guest
+docker compose exec app zappaloo reset-password <username>         # a locked-out user gets a new one-time link
+```
+
+The link starts with the site address (`https://<SITE_ADDRESS>:<HTTPS_PORT>`, set by Compose). Further accounts are created by an admin in the app, or by invitation. A user changes the password in the profile, which ends their other sessions; sessions last a year and renew with use. Logins are rate-limited per user and per client address (the address comes from Caddy). `secrets/session_secret` signs the session cookies: if it changes, everybody has to sign in again.
+
 ## Backups and restore
 
 What to back up (everything else is rebuilt by `deploy.sh`):
 
 | What | Where | How |
 |---|---|---|
-| Database and files (photos, uploads, imported maps and tilesets) | the data volume (`DATA_VOLUME`, mounted at `/data`) | a **full backup**, below |
+| Database and files (photos, uploads, imported maps and tilesets, the event's theme) | the data volume (`DATA_VOLUME`, mounted at `/data`) | a **full backup**, below |
 | Pre-deploy database backups | `backups/` | copy the folder |
 | Settings | `.env` | copy the file |
 | Secrets (session secret, SMTP password, registry token) | `secrets/`, `ghcr-token` | copy the folder; keep it private (mode 600) |
-| Event bootstrap files | `events/<slug>/` (identity, theme, initial settings, graphics) | kept in the repository; the settings edited later live in the data volume, covered by the full backup |
 
 Caddy's volumes need no backup: certificates are issued again. Backups contain personal data: keep them readable only by you, and delete them at shutdown together with all other personal data. Scheduling (e.g. cron) and the off-site storage are yours; the tools below make the file.
 

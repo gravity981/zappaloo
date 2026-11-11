@@ -1,0 +1,23 @@
+// Access to the event of this installation and its feature toggles in components
+// (CFG-03, CFG-05; sw-architecture.md 19.3.1). EventProvider loads it.
+import { createContext, useContext } from "react";
+import type { EventResponse, FeatureName } from "@zappaloo/shared";
+
+export const EventContext = createContext<EventResponse | undefined>(undefined);
+/** Takes over the event as the server answered a change (admin area), without a reload. */
+export const SetEventContext = createContext<(event: EventResponse) => void>(() => undefined);
+
+/** The event, or undefined while it is loading or if it could not be loaded. */
+export function useEvent(): EventResponse | undefined {
+  return useContext(EventContext);
+}
+
+/** Replaces the loaded event, e.g. with the answer of `PATCH /api/admin/event`. */
+export function useSetEvent(): (event: EventResponse) => void {
+  return useContext(SetEventContext);
+}
+
+/** Whether the feature is enabled for this event; false while unknown. */
+export function useFeature(name: FeatureName): boolean {
+  return useEvent()?.features[name] ?? false;
+}

@@ -12,6 +12,20 @@ import { dataPaths, ensureDataDirs } from "./data-dir.ts";
 import { backupDatabase, restoreDatabase } from "./database/backup.ts";
 import { backupFull, restoreFull } from "./database/full-backup.ts";
 import { openDatabase, runMigrations } from "./database/database.ts";
+import {
+  CLI_ACTOR,
+  ensureEvent,
+  EventError,
+  EventService,
+  EXAMPLE_EVENT,
+  isFeatureName,
+  isSettingName,
+} from "./event/service.ts";
+import { FEATURE_NAMES, SETTING_NAMES } from "@zappaloo/shared";
+import { setPasswordUrl } from "./api/auth.ts";
+import { AccountError, AccountService } from "./auth/accounts.ts";
+import type { IssuedLink } from "./auth/accounts.ts";
+import { usernameSchema } from "@zappaloo/shared";
 import { resolveVersion } from "./version.ts";
 
 export interface CliIo {
@@ -153,7 +167,178 @@ const commands: Record<string, Command> = {
       return 0;
     },
   },
+  "create-admin": {
+    summary: "Create an admin account and print its one-time setup link (valid 24 hours)",
+    usage: "create-admin USERNAME [--vip]",
+    run: (args, io) => {
+      const { positionals, values } = parseArgs({
+        args,
+        allowPositionals: true,
+        options: { vip: { type: "boolean", default: false } },
+      });
+      const [name] = positionals;
+      if (!name || positionals.length > 1) return usageError(io, "create-admin USERNAME [--vip]");
+      const username = usernameSchema.safeParse(name);
+      if (!username.success) {
+        io.err(`Invalid username "${name}": ${username.error.issues[0]?.message ?? "invalid"}.`);
+        return 1;
+      }
+      return withAccounts(io, (accounts, publicUrl) => {
+        // Account and link in one transaction: never an admin without a way to sign in.
+        const { user, link } = accounts.createUserWithSetupLink(
+          { username: username.data, roles: values.vip ? ["admin", "vip"] : ["admin"] },
+          CLI_ACTOR,
+        );
+        io.out(
+          `Admin account "${user.username}" created (roles: ${user.roles.join(", ")}). ` +
+            "No password is set yet.",
+        );
+        printLink(io, publicUrl, link);
+        return 0;
+      });
+    },
+  },
+  "reset-password": {
+    summary: "Print a one-time link (valid 24 hours) where the user sets a new password",
+    usage: "reset-password USERNAME",
+    run: (args, io) => {
+      const [name] = args;
+      if (!name || args.length > 1) return usageError(io, "reset-password USERNAME");
+      return withAccounts(io, (accounts, publicUrl) => {
+        const user = accounts.findUser(name);
+        if (!user) {
+          io.err(`There is no user "${name}".`);
+          return 1;
+        }
+        printLink(io, publicUrl, accounts.createLink(user.id, "reset", CLI_ACTOR));
+        return 0;
+      });
+    },
+  },
+  event: {
+    summary:
+      "Show the event, switch a feature or setting on or off (audited), or set up the example event (dev and test)",
+    usage: "event show | feature <name> on|off | setting <name> on|off | seed-example",
+    run: (args, io) => {
+      const [action, name, state] = args;
+      const usageText = "event show | feature <name> on|off | setting <name> on|off | seed-example";
+      const config = loadConfig(io.env);
+      const paths = dataPaths(config.DATA_DIR);
+      ensureDataDirs(paths);
+      const database = openDatabase(paths.database);
+      try {
+        if (action === "seed-example" && args.length === 1) {
+          if (config.APP_ENV === "staging" || config.APP_ENV === "prod") {
+            io.err(
+              `seed-example is for dev and test only; APP_ENV is ${config.APP_ENV}. Set the event up in the admin area.`,
+            );
+            return 1;
+          }
+          // Works on an installation that never started: the schema and the event come first.
+          runMigrations(database);
+          ensureEvent(database);
+          const seeded = EventService.forInstallation(database);
+          try {
+            seeded.setup(EXAMPLE_EVENT, CLI_ACTOR);
+          } catch (error) {
+            if (error instanceof EventError && error.code === "already_set_up") {
+              io.err(
+                "The event is already set up; seed-example only sets up an empty installation.",
+              );
+              return 1;
+            }
+            throw error;
+          }
+          io.out(`The example event "${EXAMPLE_EVENT.name}" is set up.`);
+          return 0;
+        }
+        const event = EventService.forInstallation(database);
+        if (action !== "show" && !event.get().setupComplete) {
+          io.err("The event is not set up yet: the admin completes the setup in the admin area.");
+          return 1;
+        }
+        if (action === "show" && args.length === 1) {
+          const current = event.get();
+          if (!current.setupComplete) {
+            io.out("The event is not set up yet.");
+            return 0;
+          }
+          const line = (flags: Record<string, boolean>) =>
+            Object.entries(flags)
+              .map(([key, on]) => `  ${key}: ${on ? "on" : "off"}`)
+              .join("\n");
+          io.out(
+            [
+              `${current.name ?? ""} (${current.id}), ${current.timezone ?? ""}, ${current.defaultLanguage ?? ""}`,
+              "Features:",
+              line(current.features),
+              "Settings:",
+              line(current.settings),
+            ].join("\n"),
+          );
+          return 0;
+        }
+        if ((action === "feature" || action === "setting") && name && args.length === 3) {
+          if (state !== "on" && state !== "off") return usageError(io, usageText);
+          const on = state === "on";
+          if (action === "feature") {
+            if (!isFeatureName(name)) {
+              io.err(`Unknown feature "${name}"; known: ${FEATURE_NAMES.join(", ")}.`);
+              return 1;
+            }
+            const changed = event.setFeature(name, on, CLI_ACTOR);
+            io.out(
+              changed
+                ? `Feature ${name} is now ${state}.`
+                : `Feature ${name} was already ${state}.`,
+            );
+          } else {
+            if (!isSettingName(name)) {
+              io.err(`Unknown setting "${name}"; known: ${SETTING_NAMES.join(", ")}.`);
+              return 1;
+            }
+            const changed = event.setSetting(name, on, CLI_ACTOR);
+            io.out(
+              changed
+                ? `Setting ${name} is now ${state}.`
+                : `Setting ${name} was already ${state}.`,
+            );
+          }
+          return 0;
+        }
+        return usageError(io, usageText);
+      } finally {
+        database.close();
+      }
+    },
+  },
 };
+
+/** Opens the database with the account service of the installation's event. */
+function withAccounts(
+  io: CliIo,
+  use: (accounts: AccountService, publicUrl: string) => number,
+): number {
+  const config = loadConfig(io.env);
+  const database = openDatabase(dataPaths(config.DATA_DIR).database);
+  try {
+    const accounts = new AccountService(database, EventService.forInstallation(database));
+    return use(accounts, config.PUBLIC_URL);
+  } catch (error) {
+    if (error instanceof AccountError) {
+      io.err(error.message);
+      return 1;
+    }
+    throw error;
+  } finally {
+    database.close();
+  }
+}
+
+function printLink(io: CliIo, publicUrl: string, link: IssuedLink): void {
+  io.out(`One-time link (valid until ${link.expiresAt.toISOString()}, works once):`);
+  io.out(setPasswordUrl(publicUrl, link.token));
+}
 
 function usageError(io: CliIo, usage: string): number {
   io.err(`Usage: zappaloo ${usage}`);

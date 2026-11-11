@@ -9,6 +9,8 @@ export interface DataPaths {
   database: string;
   uploads: string;
   maps: string;
+  /** Theme and static graphics of the event: events/<eventId>/ (19.2). */
+  events: string;
   /** Written by the running server (database/backup.ts: startHeartbeat). */
   heartbeat: string;
 }
@@ -19,13 +21,14 @@ export function dataPaths(root: string): DataPaths {
     database: join(root, "zappaloo.db"),
     uploads: join(root, "uploads"),
     maps: join(root, "maps"),
+    events: join(root, "events"),
     heartbeat: join(root, "server.heartbeat"),
   };
 }
 
 /** Creates the data directory and its subdirectories if they don't exist yet. */
 export function ensureDataDirs(paths: DataPaths): void {
-  for (const dir of [paths.root, paths.uploads, paths.maps]) {
+  for (const dir of [paths.root, paths.uploads, paths.maps, paths.events]) {
     mkdirSync(dir, { recursive: true });
   }
 }

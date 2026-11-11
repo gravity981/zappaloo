@@ -48,7 +48,7 @@ The full list is in [CLAUDE.md](CLAUDE.md#environment).
 ```text
 frontend/        React app, Phaser game (src/game), i18n messages (src/i18n/locales)
 backend/         Fastify API, CLI, database schema and migrations (drizzle/)
-shared/          Code used by both: API schemas (Zod), version scheme
+shared/          Code used by both: API schemas (Zod), version scheme, event setup schema
 e2e/             Playwright tests
 scripts/         Tooling: requirement report, version, migration check, image cleanup
 infrastructure/  Dockerfile, deployment bundle (compose.yaml, deploy.sh), image scripts

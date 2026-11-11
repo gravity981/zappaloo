@@ -79,7 +79,7 @@ if [ -n "$teardown" ]; then
     [[ $answer =~ ^[yY]$ ]] || die "cancelled"
   fi
   # Compose reads these only to interpolate the file; nothing is started.
-  IMAGE_TAG=$(env_get IMAGE_TAG) SESSION_SECRET=unused docker compose down --remove-orphans
+  IMAGE_TAG=$(env_get IMAGE_TAG) SESSION_SECRET=unused SMTP_PASSWORD_SECRET=unused docker compose down --remove-orphans
   if docker volume inspect "$data_volume" > /dev/null 2>&1; then
     docker volume rm "$data_volume" > /dev/null
   fi
@@ -121,6 +121,16 @@ fi
 chmod 600 secrets/session_secret
 SESSION_SECRET=$(cat secrets/session_secret)
 export SESSION_SECRET
+# The SMTP password, if the mail server needs a login (SMTP_USER in .env).
+SMTP_PASSWORD_SECRET=""
+if [ -f secrets/smtp_password ]; then
+  chmod 600 secrets/smtp_password
+  SMTP_PASSWORD_SECRET=$(cat secrets/smtp_password)
+fi
+if [ -n "$(env_get SMTP_USER)" ] && [ -z "$SMTP_PASSWORD_SECRET" ]; then
+  die "SMTP_USER is set in .env, but secrets/smtp_password is missing or empty"
+fi
+export SMTP_PASSWORD_SECRET
 
 # Fingerprint of everything that shapes the Caddy configuration (compose.yaml label).
 CADDY_CONFIG_HASH=$(printf '%s\n%s\n' "$(env_get SITE_ADDRESS)" "$(env_get TLS_MODE)" \

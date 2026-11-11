@@ -4,9 +4,16 @@ import { existsSync } from "node:fs";
 import { join, resolve } from "node:path";
 import fastifyStatic from "@fastify/static";
 import Fastify from "fastify";
-import type { FastifyInstance, FastifyServerOptions } from "fastify";
+import type { FastifyInstance, FastifyRequest, FastifyServerOptions } from "fastify";
 import type { VersionResponse } from "@zappaloo/shared";
 import type { Database } from "./database/database.ts";
+import type { EventService } from "./event/service.ts";
+import { routeTable } from "./api/access.ts";
+import { adminRoutes } from "./api/admin.ts";
+import { authRoutes } from "./api/auth.ts";
+import type { AuthOptions } from "./api/auth.ts";
+import { invitationRoutes } from "./api/invitations.ts";
+import { eventApiRoutes } from "./api/event.ts";
 import { eventRoutes } from "./api/events.ts";
 import { noIndex } from "./api/no-index.ts";
 import { systemRoutes } from "./api/system.ts";
@@ -14,19 +21,65 @@ import { sendError, validation } from "./api/validation.ts";
 
 export interface AppOptions {
   database: Database;
+  /** The installation's event, with its feature toggles and settings. */
+  event: EventService;
+  /** Accounts, sessions and their settings (sw-architecture.md 7.1.1). */
+  auth: AuthOptions;
+  /** Use X-Forwarded-For for the client address (Caddy is the only way in). */
+  trustProxy?: boolean;
   version: VersionResponse;
   /** Built frontend to serve; omitted in dev, where Vite serves the frontend. */
   frontendDir?: string | undefined;
   logger?: FastifyServerOptions["logger"];
 }
 
+/**
+ * Paths whose last part is a secret: invitation codes (INV-02) and one-time link tokens. They
+ * are replaced in the request log, which would otherwise keep them in the container logs.
+ */
+const SECRET_PATHS = /^(\/(?:api\/invitations|invite|set-password|verify-email)\/)[^/?#]+/;
+
+export function redactUrl(url: string): string {
+  let decoded = url;
+  try {
+    decoded = decodeURIComponent(url);
+  } catch {
+    // Not decodable: Fastify refuses it before any route runs; log it as it came.
+  }
+  return decoded.replace(SECRET_PATHS, "$1[redacted]");
+}
+
+/** Fastify's request serializer, with the secrets taken out of the URL. */
+function serializeRequest(request: FastifyRequest) {
+  return {
+    method: request.method,
+    url: redactUrl(request.url),
+    host: request.host,
+    remoteAddress: request.ip,
+  };
+}
+
+function withRedaction(logger: AppOptions["logger"]): FastifyServerOptions["logger"] {
+  if (!logger) return false;
+  return { ...(logger === true ? {} : logger), serializers: { req: serializeRequest } };
+}
+
 export async function buildApp(options: AppOptions): Promise<FastifyInstance> {
-  const app = Fastify({ logger: options.logger ?? false });
+  const app = Fastify({
+    logger: withRedaction(options.logger),
+    trustProxy: options.trustProxy ?? false,
+  });
 
   await app.register(validation);
   await app.register(noIndex);
+  await app.register(routeTable);
+  // The auth plugin comes first: its hook decides who may call what (ACS-09).
+  await app.register(authRoutes, options.auth);
   await app.register(systemRoutes, { database: options.database, version: options.version });
   await app.register(eventRoutes);
+  await app.register(adminRoutes, options.auth);
+  await app.register(invitationRoutes, options.auth);
+  await app.register(eventApiRoutes, { event: options.event });
 
   const frontendDir = options.frontendDir && resolve(options.frontendDir);
   if (frontendDir) {

@@ -12,11 +12,13 @@ body {
   display: flex;
   gap: 1rem;
   align-items: center;
+  flex-wrap: wrap;
   padding: 0.75rem 1rem;
 }
 
 .layout nav {
   display: flex;
+  flex-wrap: wrap;
   gap: 0.75rem;
 }
 
@@ -33,4 +35,29 @@ body {
 .game-canvas {
   width: 100%;
   height: 70vh;
+}
+
+/* Invitation cards (INV-14): printed from the admin page, everything else hidden. */
+.invitation-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(14rem, 1fr));
+  gap: 1rem;
+}
+.invitation-card {
+  border: 1px dashed currentColor;
+  padding: 1rem;
+  text-align: center;
+  break-inside: avoid;
+}
+.invitation-code {
+  font-family: monospace;
+  font-size: 1.25rem;
+  letter-spacing: 0.1em;
+}
+@media print {
+  .no-print,
+  header,
+  footer {
+    display: none !important;
+  }
 }
