@@ -46,6 +46,9 @@ export default function WaitingPage() {
             )}
           </>
         )}
+        <Link className="waiting-privacy" to="/datenschutz">
+          {t("footer.privacy")}
+        </Link>
       </section>
     </div>
   );

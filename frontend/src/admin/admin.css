@@ -686,3 +686,9 @@
 .admin a.btn {
   text-decoration: none;
 }
+.admin .privacy-text {
+  min-height: 16rem;
+  font:
+    13px/1.5 ui-monospace,
+    monospace;
+}

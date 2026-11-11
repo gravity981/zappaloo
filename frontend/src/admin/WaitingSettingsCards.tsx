@@ -10,15 +10,18 @@ import {
   localToInstant,
   WAITING_PLACEHOLDERS,
   WAITING_TEXT_KEYS,
+  openPlatformResponseSchema,
+  platformStatusSchema,
   waitingConfigSchema,
 } from "@zappaloo/shared";
 import type { WaitingTextKey, WaitingUpdate } from "@zappaloo/shared";
 import { fieldText } from "../app/forms.ts";
 import { useEvent } from "../app/event.ts";
-import { useAdminCall, useAdminData, useErrorText } from "./data.ts";
+import { useAdminCall, useAdminData, useErrorText, useRefreshEvent } from "./data.ts";
 import { Switch } from "./ui.tsx";
 
 const WAITING_PATH = "/api/admin/waiting";
+const PLATFORM_PATH = "/api/admin/platform";
 
 export default function WaitingSettingsCards() {
   const { t } = useTranslation();
@@ -27,6 +30,14 @@ export default function WaitingSettingsCards() {
   const event = useEvent();
   const timeZone = event?.timezone ?? "UTC";
   const { data, reload } = useAdminData(WAITING_PATH, waitingConfigSchema);
+  const { data: platform, reload: reloadPlatform } = useAdminData(
+    PLATFORM_PATH,
+    platformStatusSchema,
+  );
+  const refreshEvent = useRefreshEvent();
+  /** Whether the opening sends the email; on while someone can receive it. */
+  const [emailChoice, setEmailChoice] = useState<boolean>();
+  const [outcome, setOutcome] = useState<string>();
   const [error, setError] = useState<string>();
   const [saved, setSaved] = useState<"opening" | "texts">();
   /** The texts being edited; what the admin has not touched is as stored. */
@@ -43,6 +54,43 @@ export default function WaitingSettingsCards() {
     setError(errorText(result.errorCode));
     setSaved(undefined);
     return false;
+  }
+
+  async function openPlatform() {
+    if (!platform) return;
+    const sendEmail = emailChoice ?? platform.recipientCount > 0;
+    const result = await call("POST", `${PLATFORM_PATH}/open`, { sendEmail });
+    const parsed = openPlatformResponseSchema.safeParse(result.body);
+    if (result.ok && parsed.success) {
+      const { sent, failed } = parsed.data;
+      setError(undefined);
+      setOutcome(
+        [
+          sendEmail ? t("admin.waiting.openedMails", { count: sent }) : t("admin.waiting.opened"),
+          failed > 0 ? t("admin.waiting.mailsFailed", { count: failed }) : undefined,
+        ]
+          .filter(Boolean)
+          .join(" "),
+      );
+    } else {
+      setError(errorText(result.errorCode));
+      setOutcome(undefined);
+    }
+    reloadPlatform();
+    await refreshEvent();
+  }
+
+  async function closePlatform() {
+    const result = await call("POST", `${PLATFORM_PATH}/close`);
+    if (result.ok) {
+      setError(undefined);
+      setOutcome(t("admin.waiting.closed"));
+    } else {
+      setError(errorText(result.errorCode));
+      setOutcome(undefined);
+    }
+    reloadPlatform();
+    await refreshEvent();
   }
 
   const switchCountdown = (countdownEnabled: boolean) => {
@@ -125,6 +173,37 @@ export default function WaitingSettingsCards() {
             onChange={switchCountdown}
           />
         </div>
+        {platform && !platform.open && (
+          <>
+            <label className="row sm">
+              <input
+                type="checkbox"
+                checked={emailChoice ?? platform.recipientCount > 0}
+                disabled={platform.recipientCount === 0}
+                onChange={(event) => {
+                  setEmailChoice(event.target.checked);
+                }}
+              />
+              {t("admin.waiting.sendEmail", { count: platform.recipientCount })}
+            </label>
+            <button type="button" className="btn" onClick={() => void openPlatform()}>
+              {t("admin.waiting.openNow")}
+            </button>
+          </>
+        )}
+        {platform?.open && (
+          <>
+            <span className="hint">{t("admin.waiting.closeHint")}</span>
+            <button type="button" className="btn ghost" onClick={() => void closePlatform()}>
+              {t("admin.waiting.closeAgain")}
+            </button>
+          </>
+        )}
+        {outcome && (
+          <p role="status" className="hint">
+            {outcome}
+          </p>
+        )}
       </section>
 
       <section className="card" aria-labelledby="waiting-texts-title">

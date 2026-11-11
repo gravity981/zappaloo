@@ -486,3 +486,14 @@ export const waitingConfig = sqliteTable("waiting_config", {
   textAttending: text("text_attending"),
   textDeclined: text("text_declined"),
 });
+
+// --- Privacy notice (sw-architecture.md 24; SEC-09) ---------------------------------------
+
+/** The admin's own privacy notice as Markdown; without a row the default text is used. */
+export const privacyNotice = sqliteTable("privacy_notice", {
+  eventId: text("event_id")
+    .primaryKey()
+    .references(() => events.id),
+  markdown: text("markdown").notNull(),
+  updatedAt: integer("updated_at", { mode: "timestamp_ms" }).notNull(),
+});

@@ -10,6 +10,7 @@ import { AccessService } from "./access.ts";
 import { ActivityService } from "../event/activity.ts";
 import { RsvpService } from "../rsvp/service.ts";
 import { WaitingService } from "../waiting/service.ts";
+import { PlatformService } from "../event/platform.ts";
 import { InvitationService } from "./invitations.ts";
 import { RateLimiter } from "./rate-limit.ts";
 import { SessionService } from "./sessions.ts";
@@ -53,6 +54,7 @@ export function createAuth(
     access: new AccessService(database, event, groups),
     invitations: new InvitationService(database, event, accounts),
     rsvp,
+    platform: new PlatformService(database, event, mailer, config.PUBLIC_URL),
     waiting: new WaitingService(database, event, rsvp, eventsDir),
     activity: new ActivityService(database, event),
     limiter: new RateLimiter(),

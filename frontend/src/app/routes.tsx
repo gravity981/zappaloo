@@ -14,6 +14,7 @@ import HomePage from "../pages/HomePage.tsx";
 import InvitePage from "../pages/InvitePage.tsx";
 import LoginPage from "../pages/LoginPage.tsx";
 import NotFoundPage from "../pages/NotFoundPage.tsx";
+import PrivacyPage from "../pages/PrivacyPage.tsx";
 import ProfilePage from "../pages/ProfilePage.tsx";
 import RsvpPage from "../pages/RsvpPage.tsx";
 import SetPasswordPage from "../pages/SetPasswordPage.tsx";
@@ -36,6 +37,7 @@ export const routes: RouteObject[] = [
           { path: "forgot-password", element: <ForgotPasswordPage /> },
           { path: "set-password/:token", element: <SetPasswordPage /> },
           { path: "verify-email/:token", element: <VerifyEmailPage /> },
+          { path: "datenschutz", element: <PrivacyPage /> },
           { path: "invite", element: <InvitePage /> },
           { path: "invite/:code", element: <InvitePage /> },
           {

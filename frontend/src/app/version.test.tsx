@@ -1,4 +1,5 @@
 import { render, screen } from "@testing-library/react";
+import { MemoryRouter } from "react-router";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import { initI18n } from "../i18n/i18n.ts";
 import VersionFooter from "./VersionFooter.tsx";
@@ -31,7 +32,11 @@ describe("version in the footer", () => {
 
   it("[OPS-08] the website footer shows the version compiled in at build time", async () => {
     serverReports(`${__APP_VERSION__}-rc.3`);
-    render(<VersionFooter />);
+    render(
+      <MemoryRouter>
+        <VersionFooter />
+      </MemoryRouter>,
+    );
     expect(await screen.findByText(`Version ${__APP_VERSION__}-rc.3`)).toBeInTheDocument();
   });
 
@@ -40,7 +45,11 @@ describe("version in the footer", () => {
       "fetch",
       vi.fn(() => Promise.reject(new Error("offline"))),
     );
-    render(<VersionFooter />);
+    render(
+      <MemoryRouter>
+        <VersionFooter />
+      </MemoryRouter>,
+    );
     expect(await screen.findByText(`Version ${__APP_VERSION__}`)).toBeInTheDocument();
   });
 });

@@ -211,6 +211,7 @@ describe("data model", () => {
       "membership_roles",
       "memberships",
       "menu_options",
+      "privacy_notice",
       "rsvp_answers",
       "rsvp_attendance",
       "rsvp_config",

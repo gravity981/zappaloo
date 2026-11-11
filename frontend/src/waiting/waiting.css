@@ -82,6 +82,12 @@
   padding: 13px 18px;
   font-weight: 600;
 }
+.waiting-privacy {
+  text-align: center;
+  font-size: 13px;
+  color: inherit;
+  opacity: 0.75;
+}
 .countdown {
   display: flex;
   gap: 10px;

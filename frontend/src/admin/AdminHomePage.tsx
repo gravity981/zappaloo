@@ -103,6 +103,11 @@ export default function AdminHomePage() {
         <div className={open === false ? "kpi alert" : "kpi"}>
           <span className="eyebrow">{t("admin.home.platform")}</span>
           <b>{open === undefined ? "–" : open ? t("admin.home.open") : t("admin.home.closed")}</b>
+          {open === false && (
+            <Link className="btn sm" to="/admin/settings">
+              {t("admin.home.openLink")}
+            </Link>
+          )}
         </div>
         {event?.features.rsvp && <RsvpKpi />}
       </div>

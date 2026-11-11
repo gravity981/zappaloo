@@ -3,7 +3,15 @@ import type { TFunction } from "i18next";
 import type { ActivityEntry } from "@zappaloo/shared";
 
 /** Actions whose sentence names nobody and nothing. */
-const NAMELESS = ["rsvp.deadline", "rsvp.song", "waiting.set", "event.setup"];
+const NAMELESS = [
+  "rsvp.deadline",
+  "rsvp.song",
+  "waiting.set",
+  "platform.open",
+  "platform.close",
+  "privacy.set",
+  "event.setup",
+];
 
 type Translate = (key: string, options?: Record<string, unknown>) => string;
 

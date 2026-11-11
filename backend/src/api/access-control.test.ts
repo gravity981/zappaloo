@@ -37,11 +37,12 @@ function protect(ctx: TestContext, path: string, condition: AccessCondition): vo
 
 describe("sign-in is required everywhere (ACS-09, ACS-07)", () => {
   // The routes anyone may call. Adding to this list is a deliberate decision (ACS-09): the
-  // privacy notice, upload links and screen links add their routes in their own steps.
+  // privacy notice (SEC-09) is on the list; upload links and screen links add their routes in their own steps.
   const PUBLIC_ROUTES = [
     "GET /api/events/ping",
     "GET /api/health",
     "GET /api/invitations/:code",
+    "GET /api/privacy",
     "GET /api/session",
     "GET /api/version",
     "POST /api/email/verify",

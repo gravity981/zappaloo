@@ -67,7 +67,8 @@
       "companionsValue_one": "{{count}} Anfrage",
       "companionsValue_other": "{{count}} Anfragen",
       "companionsNone": "Keine Anfragen",
-      "companionsDecide": "Entscheiden"
+      "companionsDecide": "Entscheiden",
+      "openLink": "Öffnen …"
     },
     "settings": {
       "title": "Einstellungen",
@@ -257,7 +258,13 @@
       "companion_rename_unnamed": "Eine Begleitperson wurde umbenannt",
       "rsvp_song": "Songwunsch in der Rückmeldung ein- oder ausgeschaltet",
       "waiting_set": "Warteseite geändert",
-      "waiting_set_unnamed": "Warteseite geändert"
+      "waiting_set_unnamed": "Warteseite geändert",
+      "platform_open": "Plattform geöffnet",
+      "platform_open_unnamed": "Plattform geöffnet",
+      "platform_close": "Plattform wieder geschlossen",
+      "platform_close_unnamed": "Plattform wieder geschlossen",
+      "privacy_set": "Datenschutzerklärung geändert",
+      "privacy_set_unnamed": "Datenschutzerklärung geändert"
     },
     "rsvp": {
       "title": "Rückmeldungen",
@@ -351,6 +358,25 @@
       },
       "reset": "Standardtext",
       "saveTexts": "Texte speichern",
+      "saved": "Gespeichert.",
+      "openNow": "Jetzt öffnen",
+      "closeAgain": "Wieder schliessen",
+      "sendEmail": "E-Mail «Die Tür ist offen» an alle Gäste mit bestätigter Adresse senden ({{count}})",
+      "closeHint": "Die Plattform ist offen. Beim Schliessen wird keine E-Mail gesendet.",
+      "opened": "Die Plattform ist offen.",
+      "openedMails_one": "Die Plattform ist offen. {{count}} E-Mail wurde gesendet.",
+      "openedMails_other": "Die Plattform ist offen. {{count}} E-Mails wurden gesendet.",
+      "mailsFailed_one": "{{count}} E-Mail konnte nicht gesendet werden.",
+      "mailsFailed_other": "{{count}} E-Mails konnten nicht gesendet werden.",
+      "closed": "Die Plattform ist wieder geschlossen."
+    },
+    "privacy": {
+      "title": "Datenschutz",
+      "hint": "Markdown. Öffentlich unter /datenschutz und auf jeder Seite verlinkt. Der Standardtext nennt die Allergien als Gesundheitsdaten. {eventName} wird durch den Namen der Veranstaltung ersetzt.",
+      "view": "Ansehen",
+      "label": "Text der Datenschutzerklärung",
+      "save": "Speichern",
+      "reset": "Standardtext",
       "saved": "Gespeichert."
     }
   },
@@ -368,7 +394,8 @@
     "backHome": "Zur Startseite"
   },
   "footer": {
-    "version": "Version {{version}}"
+    "version": "Version {{version}}",
+    "privacy": "Datenschutz"
   },
   "login": {
     "title": "Anmelden",
@@ -476,7 +503,9 @@
     "companion_not_editable": "Diese Begleitperson kann nicht mehr so geändert werden. Ändere Teilnahme, Menü und Allergien in den Schritten 1 und 2.",
     "companion_decided": "Über diese Anfrage ist schon entschieden.",
     "companion_limit": "Du kannst höchstens {{count}} Begleitpersonen anmelden.",
-    "platform_closed": "Die Tür ist noch zu. Sobald sie aufgeht, sagen wir dir Bescheid."
+    "platform_closed": "Die Tür ist noch zu. Sobald sie aufgeht, sagen wir dir Bescheid.",
+    "already_open": "Die Plattform ist schon offen.",
+    "already_closed": "Die Plattform ist schon geschlossen."
   },
   "notSetUp": {
     "title": "Noch nicht eingerichtet",
@@ -558,5 +587,8 @@
     },
     "answer": "Rückmeldung geben",
     "change": "Rückmeldung ändern"
+  },
+  "privacy": {
+    "back": "Zurück"
   }
 }

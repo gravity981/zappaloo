@@ -40,6 +40,7 @@ import type { InvitationService } from "../auth/invitations.ts";
 import type { ActivityService } from "../event/activity.ts";
 import type { RsvpService } from "../rsvp/service.ts";
 import type { WaitingService } from "../waiting/service.ts";
+import type { PlatformService } from "../event/platform.ts";
 import type { SessionService } from "../auth/sessions.ts";
 import type { EventService } from "../event/service.ts";
 import type { Mailer } from "../mail/mailer.ts";
@@ -68,6 +69,8 @@ export interface AuthOptions {
   invitations: InvitationService;
   /** The RSVP, event parts and menus (RSVP-01 – RSVP-07). */
   rsvp: RsvpService;
+  /** Opening and closing the platform, and the privacy notice (ACS-14, SEC-09). */
+  platform: PlatformService;
   /** The waiting page of a closed platform (ACS-10 – ACS-13). */
   waiting: WaitingService;
   /** The latest changes for the admin overview (DATA-05). */
@@ -104,6 +107,7 @@ const OPEN_WHILE_CLOSED = [
   "/api/profile",
   "/api/rsvp",
   "/api/waiting",
+  "/api/privacy",
   "/api/event",
   "/api/events/",
   "/api/health",

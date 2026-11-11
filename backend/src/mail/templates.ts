@@ -52,3 +52,18 @@ export function rsvpReminderMail(
       `Sag uns bitte, ob du dabei bist.${until}\n\n${url}\n`,
   };
 }
+
+export function doorOpenMail(
+  to: string,
+  eventName: string,
+  name: string,
+  url: string,
+): MailMessage {
+  return {
+    to,
+    subject: `${eventName}: Die Tür ist offen`,
+    text:
+      `Hallo ${name}\n\nDie Tür ist offen! Die Spielwelt von ${eventName} wartet auf dich. ` +
+      `Melde dich hier an:\n\n${url}\n`,
+  };
+}

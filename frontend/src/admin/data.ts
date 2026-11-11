@@ -60,6 +60,16 @@ export function useAdminCall() {
   );
 }
 
+/** Loads the event again (after the platform was opened or closed) and takes it over. */
+export function useRefreshEvent() {
+  const setEvent = useSetEvent();
+  return useCallback(async () => {
+    const result = await apiRequest("GET", "/api/event");
+    const parsed = eventResponseSchema.safeParse(result.body);
+    if (result.ok && parsed.success) setEvent(parsed.data);
+  }, [setEvent]);
+}
+
 /**
  * Changes features or settings (`PATCH /api/admin/event`, CFG-05) and takes over the answer,
  * so every page shows the new state at once. Returns the error code, or undefined.
