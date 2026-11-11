@@ -3,8 +3,11 @@
   <head>
     <meta charset="UTF-8" />
     <!-- viewport-fit=cover: the page uses the whole screen; the stylesheets keep content clear of
-         the safe areas (PWA-03, PWA-04) -->
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+         the safe areas (PWA-03, PWA-04). maximum-scale=1: no zoom of the page, like an app. -->
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover"
+    />
     <!-- Add to home screen (PWA-03, sw-architecture.md 19.5): the manifest and the icons are the
          event's (served by the backend); the app title is replaced by the event's name at runtime -->
     <link rel="manifest" href="/manifest.webmanifest" />

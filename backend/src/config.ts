@@ -133,7 +133,11 @@ function resolveSmtpPassword(parsed: ParsedConfig): string | undefined {
   }
   try {
     return readFileSync(parsed.SMTP_PASSWORD_FILE, "utf8").trim() || undefined;
-  } catch {
+  } catch (error) {
+    // A mail server without login has no password: newer Docker Compose versions do not mount a
+    // secret whose value is empty, so the file may be missing. A login without a password is
+    // refused below in staging and prod, and by deploy.sh before that.
+    if ((error as NodeJS.ErrnoException).code === "ENOENT") return undefined;
     throw new ConfigError(
       `invalid configuration:\n  SMTP_PASSWORD_FILE: cannot read ${parsed.SMTP_PASSWORD_FILE}`,
     );

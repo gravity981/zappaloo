@@ -109,6 +109,8 @@
 }
 :is(.admin, .guest) .version-footer {
   padding: 0;
+  /* "Datenschutz · Version x.y.z" sits in the middle, above the centred notice (LIC-01) */
+  text-align: center;
 }
 
 /* text */
@@ -232,6 +234,14 @@
   background: #fff;
   font: inherit;
   color: inherit;
+}
+/* iOS Safari zooms into a field whose text is smaller than 16px when it gets the focus, and stays
+   zoomed after it loses it. On touch screens every field is 16px (the code boxes are bigger). */
+@media (pointer: coarse) {
+  :is(.admin, .guest) .input,
+  :is(.admin, .guest) .handover .input {
+    font-size: 16px;
+  }
 }
 :is(.admin, .guest) .input.auto {
   width: auto;
@@ -358,6 +368,13 @@
 }
 :is(.admin, .guest) .card.tight {
   padding: 4px 8px;
+}
+/* The title row and the note of a card with a table keep their distance from the border */
+:is(.admin, .guest) .card.tight > .tight-head {
+  padding: 8px 6px 0;
+}
+:is(.admin, .guest) .card.tight > .tight-foot {
+  padding: 0 6px 8px;
 }
 /* the card that asks for something: requests to decide, opening the platform */
 :is(.admin, .guest) .card.strong {

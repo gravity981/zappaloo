@@ -6,6 +6,8 @@
 
 body {
   margin: 0;
+  /* No zoom by double tap; taps are answered at once */
+  touch-action: manipulation;
 }
 
 .layout header {

@@ -437,6 +437,18 @@ describe("Rückmeldungen", () => {
       "href",
       "/admin/rsvp/guests/5",
     );
+    // The button is the last cell of its row, in a column of its own (UX mock `admin-rsvp`).
+    const cells = within(row).getAllByRole("cell");
+    expect(cells).toHaveLength(7);
+    const [first, , , , , , last] = cells;
+    if (!first || !last) throw new Error("the row has no first and last cell");
+    expect(within(last).getByRole("link")).toHaveTextContent("Bearbeiten");
+    expect(within(first).queryByRole("link")).not.toBeInTheDocument();
+    expect(within(table).getAllByRole("columnheader")).toHaveLength(7);
+    // The title row and the note keep their distance from the card's border.
+    const card = table.closest("section");
+    expect(card?.querySelector(".tight-head")).not.toBeNull();
+    expect(card?.querySelector(".tight-foot")).not.toBeNull();
     // The CSV export is a download link.
     expect(screen.getByRole("link", { name: "CSV" })).toHaveAttribute(
       "href",
