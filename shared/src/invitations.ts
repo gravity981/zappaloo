@@ -1,6 +1,12 @@
 // Personal invitations (sw-architecture.md 9): the schemas of the invitation API.
 import { z } from "zod";
-import { displayNameSchema, passwordSchema, usernameSchema, userSchema } from "./account.ts";
+import {
+  displayNameSchema,
+  emailSchema,
+  passwordSchema,
+  usernameSchema,
+  userSchema,
+} from "./account.ts";
 
 /** What an admin sees of a code; `expired` is derived from the expiry date (INV-06). */
 export const INVITATION_STATUSES = [
@@ -68,6 +74,8 @@ export const registerRequestSchema = z.strictObject({
   username: usernameSchema,
   displayName: displayNameSchema.optional(),
   password: passwordSchema,
+  /** Optional: for news and a forgotten password; verified later in the profile (7.1.1). */
+  email: emailSchema.optional(),
 });
 export type RegisterRequest = z.infer<typeof registerRequestSchema>;
 

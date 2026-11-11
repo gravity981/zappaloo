@@ -154,6 +154,8 @@ export class AccountService {
       passwordHash?: string;
       /** The invitation that grants `vip`; without it `vip` is an admin promotion (INV-11). */
       invitationId?: number;
+      /** An address given at registration; it stays unverified until the guest verifies it. */
+      email?: string | undefined;
     },
     actor: Actor,
     /** Inside the transaction of the caller. */
@@ -171,6 +173,7 @@ export class AccountService {
           username,
           displayName: input.displayName ?? username,
           passwordHash: input.passwordHash ?? null,
+          email: input.email ?? null,
           createdAt: now,
           updatedAt: now,
         })

@@ -29,10 +29,9 @@ export const routes: RouteObject[] = [
     element: <Root />,
     children: [
       {
-        element: <Layout />,
         children: [
-          // Reachable without sign-in (ACS-09). The privacy notice, upload-link pages and the
-          // event screen join this list with their features.
+          // Reachable without sign-in (ACS-09), each page in the frame of the mock (the bare
+          // frame). Upload-link pages and the event screen join this list with their features.
           { path: "login", element: <LoginPage /> },
           { path: "forgot-password", element: <ForgotPasswordPage /> },
           { path: "set-password/:token", element: <SetPasswordPage /> },
@@ -44,15 +43,21 @@ export const routes: RouteObject[] = [
             // Everything else needs a signed-in user, also paths that do not exist.
             element: <RequireSignIn />,
             children: [
-              { index: true, element: <HomePage /> },
-              {
-                // Pages of the open platform; guests wait at the front door until it opens.
-                element: <RequireOpen />,
-                children: [{ path: "game", element: <GamePage /> }],
-              },
-              { path: "profile", element: <ProfilePage /> },
+              // The RSVP is a flow of its own, without the page header.
               { path: "rsvp", element: <RsvpPage /> },
-              { path: "*", element: <NotFoundPage /> },
+              {
+                element: <Layout />,
+                children: [
+                  { index: true, element: <HomePage /> },
+                  {
+                    // Pages of the open platform; guests wait at the front door until it opens.
+                    element: <RequireOpen />,
+                    children: [{ path: "game", element: <GamePage /> }],
+                  },
+                  { path: "profile", element: <ProfilePage /> },
+                  { path: "*", element: <NotFoundPage /> },
+                ],
+              },
             ],
           },
         ],

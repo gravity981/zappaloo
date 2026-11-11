@@ -5,6 +5,7 @@ import { useTranslation } from "react-i18next";
 import { Link, useParams } from "react-router";
 import { PASSWORD_MIN_LENGTH } from "@zappaloo/shared";
 import { apiRequest } from "../app/api.ts";
+import { BareShell } from "../guest/Shells.tsx";
 import { fieldText } from "../app/forms.ts";
 
 export default function SetPasswordPage() {
@@ -33,15 +34,15 @@ export default function SetPasswordPage() {
 
   if (done) {
     return (
-      <section>
+      <BareShell>
         <h1>{t("setPassword.doneTitle")}</h1>
         <p>{t("setPassword.doneText")}</p>
         <Link to="/login">{t("setPassword.toLogin")}</Link>
-      </section>
+      </BareShell>
     );
   }
   return (
-    <section>
+    <BareShell>
       <h1>{t("setPassword.title")}</h1>
       <p>{t("setPassword.hint", { min: PASSWORD_MIN_LENGTH })}</p>
       <form onSubmit={(event) => void submit(event)}>
@@ -58,6 +59,6 @@ export default function SetPasswordPage() {
           {t("setPassword.submit")}
         </button>
       </form>
-    </section>
+    </BareShell>
   );
 }

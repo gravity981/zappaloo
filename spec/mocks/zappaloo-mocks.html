@@ -729,6 +729,57 @@ add({
     <a class="sm" data-go="login">Zurück zur Anmeldung</a>`),
 });
 add({
+  id: "set-password", group: "access", title: "Set password (setup / reset link)", path: "/set-password/<token>", reqs: ["ACC-14", "ACC-15", "ACC-10", "ACC-03", "ACC-08"],
+  variants: [["setup", "Setup link"], ["reset", "Reset link"], ["done", "Saved"], ["invalid", "Invalid link"]],
+  shows: ["The page behind the one-time link an admin hands over (new account, ACC-08, ACC-14) or the mail of “Passwort vergessen” (ACC-03, ACC-10, ACC-15).", "One password field with the eye button, no repeated field (same decision as the registration, 2026-11-11); the length rule is shown as a hint.", "After saving: confirmation and the way to the login. An expired or used link says so and names the hosts.", "Drawn 2026-11-11 for step 3g; the project owner confirms it before it is built."],
+  qs: [{ n: 57, q: "Does the set-password page repeat the password field?", p: "Proposal: no, like the registration: one field with an eye button, so a typo is visible. A guest who loses the password gets a new link from the hosts." }],
+  render: (v) => {
+    if (v === "done") return bare(`
+      <div class="m-check" style="align-self:center">${ic("check")}</div>
+      <h1 class="m-h1" style="text-align:center">Passwort gespeichert</h1>
+      <p class="m-muted" style="text-align:center">Du kannst dich jetzt anmelden. Auf anderen Geräten musst du dich neu anmelden.</p>
+      <button class="m-btn block" data-go="login">Zur Anmeldung</button>`);
+    if (v === "invalid") return bare(`
+      <div class="m-card flat" style="align-items:center;text-align:center;gap:12px;padding:28px 18px"><div class="m-av lg">${ic("mail")}</div><h1 class="m-h1" style="font-size:20px">Dieser Link ist nicht mehr gültig.</h1><p class="m-muted">Er ist abgelaufen oder wurde schon benutzt. Melde dich bei den Gastgebern, dann bekommst du einen neuen.</p></div>
+      <button class="m-btn block" data-go="login">Zur Anmeldung</button>`);
+    const reset = v === "reset";
+    return bare(`
+      <h1 class="m-h1">${reset ? "Neues Passwort festlegen" : "Willkommen! Lege dein Passwort fest"}</h1>
+      <p class="m-muted">${reset ? "Mit dem neuen Passwort meldest du dich ab jetzt an." : "Damit meldest du dich ab jetzt an. Dein Benutzername: erika.huber"}</p>
+      ${field("Passwort", `<div class="m-row2"><input class="m-input" id="sp-pw" type="password" autocomplete="new-password" placeholder="Mindestens 10 Zeichen" style="flex:1"><button class="m-btn ghost sm">Anzeigen</button></div>`, "Mindestens 10 Zeichen. Nicht gleich wie dein Benutzername.")}
+      <button class="m-btn block" data-go="set-password" data-variant="done">Passwort speichern</button>`);
+  },
+});
+add({
+  id: "verify-email", group: "access", title: "Confirm email address", path: "/verify-email/<token>", reqs: ["ACC-09", "ACC-16"],
+  variants: [["ready", "Ready"], ["done", "Confirmed"], ["invalid", "Invalid link"], ["taken", "Address taken"]],
+  shows: ["The page behind the link in the verification mail. The address is confirmed with a button, not on opening the page, so a mail scanner cannot use the link up.", "After confirming: the address now signs in and resets the password (ACC-16). Another account that has already verified the address: the page says so (409 email_taken).", "Drawn 2026-11-11 for step 3g; the project owner confirms it before it is built."],
+  qs: [],
+  render: (v) => {
+    if (v === "done") return bare(`
+      <div class="m-check" style="align-self:center">${ic("check")}</div>
+      <h1 class="m-h1" style="text-align:center">Adresse bestätigt</h1>
+      <p class="m-muted" style="text-align:center">Danke! Mit dieser Adresse kannst du dich anmelden und dein Passwort per E-Mail zurücksetzen.</p>
+      <button class="m-btn block" data-go="profile">Zum Profil</button>`);
+    if (v === "invalid" || v === "taken") return bare(`
+      <div class="m-card flat" style="align-items:center;text-align:center;gap:12px;padding:28px 18px"><div class="m-av lg">${ic("mail")}</div><h1 class="m-h1" style="font-size:20px">${v === "taken" ? "Diese Adresse ist schon vergeben." : "Dieser Link ist nicht mehr gültig."}</h1><p class="m-muted">${v === "taken" ? "Sie ist bei einem anderen Konto bestätigt. Trage im Profil eine andere Adresse ein." : "Er ist abgelaufen, wurde schon benutzt oder die Adresse hat sich geändert. Fordere im Profil einen neuen Link an."}</p></div>
+      <button class="m-btn block" data-go="profile">Zum Profil</button>`);
+    return bare(`
+      <div class="m-check" style="align-self:center">${ic("mail")}</div>
+      <h1 class="m-h1" style="text-align:center">E-Mail-Adresse bestätigen</h1>
+      <p class="m-muted" style="text-align:center">Tippe auf den Knopf, um deine E-Mail-Adresse zu bestätigen.</p>
+      <button class="m-btn block" data-go="verify-email" data-variant="done">Adresse bestätigen</button>`);
+  },
+});
+add({
+  id: "not-found", group: "access", title: "Page not found", path: "/<unknown>", reqs: ["ACS-09"],
+  shows: ["Shown to a signed-in user for a path that does not exist (everyone else is sent to the login first).", "Drawn 2026-11-11 for step 3g; the project owner confirms it before it is built."],
+  qs: [],
+  render: () => bare(`
+    <div class="m-card flat" style="align-items:center;text-align:center;gap:12px;padding:28px 18px"><div class="m-av lg">?</div><h1 class="m-h1" style="font-size:20px">Seite nicht gefunden</h1><p class="m-muted">Diese Seite gibt es nicht (mehr).</p></div>
+    <button class="m-btn block" data-go="home">Zur Startseite</button>`),
+});
+add({
   id: "privacy", group: "access", title: "Privacy notice", path: "/datenschutz", reqs: ["SEC-09", "SEC-11"],
   shows: ["Public page, also without sign-in; linked from every page (login, invitation, waiting page, RSVP wizard, website “Mehr”, admin area).", "German default text shipped with the platform; the admin edits it as Markdown in Einstellungen (decided 2026-11-11).", "Names allergies and dietary requirements as health data that only the organisers see (SEC-11)."],
   qs: [{ n: 55, q: "Where does the privacy notice text come from, and can the admin change it?", p: "Proposal: Claude drafts a German default; the admin edits it as Markdown in Einstellungen." }],

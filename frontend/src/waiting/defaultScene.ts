@@ -132,8 +132,10 @@ export function createDefaultScene(
         rect(worker.hair, x + 2, y, 6, 3);
         rect(worker.skin, x + 2, y + 3, 6, 5);
         rect(worker.clothes, x + 1, y + 8, 8, 9);
-        rect("#2a2228", x + 2, y + 17 + step, 2, 5 - step);
-        rect("#2a2228", x + 6, y + 17 + (1 - step), 2, 5 - (1 - step));
+        // The legs hang from the body's lower edge (y + 17) and never leave it. A step lifts one
+        // foot: that leg is shorter, the other one stands on the floor.
+        rect("#2a2228", x + 2, y + 17, 2, step === 0 ? 3 : 5);
+        rect("#2a2228", x + 6, y + 17, 2, step === 0 ? 5 : 3);
         if (worker.carry === "plank") rect("#8a5a32", x - 8, y + 11, 26, 3);
         if (worker.carry === "lantern") {
           rect("#ff8c3a", x + 10, y + 8, 4, 6);

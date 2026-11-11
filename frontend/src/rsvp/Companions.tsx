@@ -2,6 +2,7 @@
 // the card of one attending person (menu and allergies), the request form, and the list with
 // its status tags and actions.
 import { useState } from "react";
+import type { ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import { MAX_COMPANIONS, rsvpStateSchema } from "@zappaloo/shared";
 import type {
@@ -131,10 +132,13 @@ export function CompanionForm({
   parts,
   menus,
   time,
+  frame,
   onSaved,
   onCancel,
 }: {
   companion?: Companion;
+  /** Puts the form's body and its action buttons into the page frame. */
+  frame: (body: ReactNode, footer: ReactNode) => ReactNode;
   parts: EventPart[];
   menus: MenuOption[];
   time: (part: EventPart) => string;
@@ -175,9 +179,8 @@ export function CompanionForm({
     else setError(errorText(result.errorCode ?? "unknown"));
   }
 
-  return (
-    <div className="stack">
-      <h1 className="h1">{t("rsvp.companions.formTitle")}</h1>
+  return frame(
+    <>
       <p className="muted">{t("rsvp.companions.formHint")}</p>
       <label className="field">
         <span>{t("rsvp.companions.name")}</span>
@@ -226,20 +229,20 @@ export function CompanionForm({
           {error}
         </p>
       )}
-      <div className="rsvp-actions">
-        <button type="button" className="btn ghost" onClick={onCancel}>
-          {t("rsvp.companions.cancel")}
-        </button>
-        <button
-          type="button"
-          className="btn"
-          disabled={!complete || sending}
-          onClick={() => void submit()}
-        >
-          {companion ? t("rsvp.companions.save") : t("rsvp.companions.request")}
-        </button>
-      </div>
-    </div>
+    </>,
+    <>
+      <button type="button" className="btn ghost" onClick={onCancel}>
+        {t("rsvp.companions.cancel")}
+      </button>
+      <button
+        type="button"
+        className="btn"
+        disabled={!complete || sending}
+        onClick={() => void submit()}
+      >
+        {companion ? t("rsvp.companions.save") : t("rsvp.companions.request")}
+      </button>
+    </>,
   );
 }
 

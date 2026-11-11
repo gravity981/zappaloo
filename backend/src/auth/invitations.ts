@@ -367,7 +367,12 @@ export class InvitationService {
    */
   async redeemWithNewAccount(
     input: string,
-    account: { username: string; displayName?: string | undefined; password: string },
+    account: {
+      username: string;
+      displayName?: string | undefined;
+      password: string;
+      email?: string | undefined;
+    },
   ): Promise<User> {
     // Code and password are checked before the (expensive) hashing, and again in the transaction.
     this.#assertRedeemable(this.#find(this.#database.db, input));
@@ -383,6 +388,7 @@ export class InvitationService {
           roles: ["vip"],
           passwordHash,
           invitationId: row.id,
+          email: account.email,
         },
         SELF_ACTOR,
         tx,

@@ -5,6 +5,7 @@ import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Link, useParams } from "react-router";
 import { apiRequest } from "../app/api.ts";
+import { BareShell } from "../guest/Shells.tsx";
 
 type State = "ready" | "working" | "done" | { error: string };
 
@@ -21,29 +22,29 @@ export default function VerifyEmailPage() {
 
   if (state === "done") {
     return (
-      <section>
+      <BareShell>
         <h1>{t("verifyEmail.doneTitle")}</h1>
         <p>{t("verifyEmail.doneText")}</p>
         <Link to="/profile">{t("verifyEmail.toProfile")}</Link>
-      </section>
+      </BareShell>
     );
   }
   if (typeof state === "object") {
     return (
-      <section>
+      <BareShell>
         <h1>{t("verifyEmail.title")}</h1>
         <p role="alert">{t(`errors.${state.error}`, { defaultValue: t("errors.unknown") })}</p>
         <Link to="/profile">{t("verifyEmail.toProfile")}</Link>
-      </section>
+      </BareShell>
     );
   }
   return (
-    <section>
+    <BareShell>
       <h1>{t("verifyEmail.title")}</h1>
       <p>{t("verifyEmail.intro")}</p>
       <button type="button" disabled={state === "working"} onClick={() => void confirm()}>
         {state === "working" ? t("verifyEmail.working") : t("verifyEmail.confirm")}
       </button>
-    </section>
+    </BareShell>
   );
 }

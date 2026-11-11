@@ -14,7 +14,7 @@
 
 | Area | Screens |
 |---|---|
-| Release 1: invitation and RSVP | Enter invitation code, redeem and create account, login, forgot password, privacy notice, waiting page, RSVP (attendance, food and allergies, companions and song, summary), profile |
+| Release 1: invitation and RSVP | Enter invitation code, redeem and create account, login, forgot password, set password (setup and reset link), confirm email address, page not found, privacy notice, waiting page, RSVP (attendance, food and allergies, companions and song, summary), profile |
 | Game world | First entry (avatar, say hello), game world, page overlay over the game, table finder |
 | Website | Start, programme, content page, more, where do I sit, upload, upload confirmation, gallery with photo viewer, keepsake page, games and rankings, treasure found |
 | Admin | Event setup, overview, invitations, accounts and roles, RSVP overview, seating plan, content editor, game world (objects and portals, maps and import), settings, moderation, event screen |
@@ -97,3 +97,6 @@ Written into sw-architecture.md 7.4.1, 10.4 and 24 as well.
 | 54 | Waiting-page texts | Edited in Einstellungen only; the content editor has no "Warteseite" page. |
 | 55 | Privacy notice | Public page `/datenschutz` (new screen), linked on every page: login, waiting page, RSVP wizard, website "Mehr", admin area. German default text; the admin edits it as Markdown in Einstellungen (SEC-09). |
 | 56 | Closing again | Once open, the card "Plattform öffnen" offers "Wieder schliessen", without an email. The "Die Tür ist offen" email and the RSVP reminder go to verified addresses only; their counts count those. |
+| 57 | Password fields | The registration and the set-password page have one password field with an eye button and no repeated field (decided 2026-11-11): a typo is visible, and a guest who loses the password gets a new link from the hosts. |
+| 58 | Brand on public pages | The header of the pages without sign-in shows the event's name (public `GET /api/site`, only the name); the event has no date setting yet, so the date of the mock's header is left out until the programme exists (stage 4). |
+| 59 | Release 1 pages | Every page a guest sees before the opening follows its mock: login, enter code (six boxes), register (username suggested from the guest's name, optional email), forgot password, set password, confirm email, not found, privacy notice, RSVP in the flow frame, profile (account part), waiting page. The three pages without a mock were drawn on 2026-11-11 and need the project owner's confirmation. |

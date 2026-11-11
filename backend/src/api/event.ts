@@ -4,9 +4,10 @@
 import type { FastifyReply, FastifyRequest } from "fastify";
 import type { FastifyPluginCallbackZod } from "fastify-type-provider-zod";
 import { z } from "zod";
-import { eventResponseSchema } from "@zappaloo/shared";
+import { eventResponseSchema, siteResponseSchema } from "@zappaloo/shared";
 import type { FeatureName } from "@zappaloo/shared";
 import type { EventService } from "../event/service.ts";
+import { PUBLIC } from "./access.ts";
 import { sendError } from "./validation.ts";
 
 export interface EventApiOptions {
@@ -14,6 +15,16 @@ export interface EventApiOptions {
 }
 
 export const eventApiRoutes: FastifyPluginCallbackZod<EventApiOptions> = (app, options, done) => {
+  // The name of the event, for the brand header of the pages without sign-in (login, invitation).
+  app.get(
+    "/api/site",
+    {
+      config: PUBLIC,
+      schema: { querystring: z.strictObject({}), response: { 200: siteResponseSchema } },
+    },
+    () => ({ name: options.event.get().name }),
+  );
+
   app.get(
     "/api/event",
     { schema: { querystring: z.strictObject({}), response: { 200: eventResponseSchema } } },

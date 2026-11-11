@@ -67,7 +67,8 @@ describe("the RSVP wizard", () => {
       await screen.findByRole("heading", { name: "Bist du dabei, Erika?" }),
     ).toBeInTheDocument();
     expect(screen.getByText("Du kannst deine Antwort bis 1. Mai 2027 ändern.")).toBeInTheDocument();
-    expect(screen.getByText("Schritt 1 von 3")).toBeInTheDocument();
+    // The step counter of the flow frame.
+    expect(screen.getByText("1/3")).toBeInTheDocument();
     const next = screen.getByRole("button", { name: "Weiter" });
     expect(next).toBeDisabled();
     user.click(screen.getByRole("button", { name: "Trauung: Dabei" }));

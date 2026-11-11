@@ -17,14 +17,12 @@ export default function RsvpPage() {
   if (!session.user?.roles.includes("vip")) return <Navigate to="/" replace />;
   return (
     <FeatureGate feature={FEATURE} fallback={<p>{t("errors.feature_disabled")}</p>}>
-      <div className="admin embedded">
-        <RsvpWizard
-          mode={GUEST}
-          onFinish={() => {
-            void navigate("/");
-          }}
-        />
-      </div>
+      <RsvpWizard
+        mode={GUEST}
+        onFinish={() => {
+          void navigate("/");
+        }}
+      />
     </FeatureGate>
   );
 }

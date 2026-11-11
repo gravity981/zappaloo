@@ -39,7 +39,6 @@ test("[RSVP-08][RSVP-09][RSVP-10][SEC-11] a guest requests an accompanying perso
   await guest.goto(`/invite/${code}`);
   await guest.getByLabel(de.invite.username).fill(username);
   await guest.getByLabel(de.setPassword.password, { exact: true }).fill(PASSWORD);
-  await guest.getByLabel(de.setPassword.repeat).fill(PASSWORD);
   await guest.getByRole("button", { name: de.invite.register }).click();
   await guest.getByRole("link", { name: de.waiting.answer }).click();
   await guest.getByRole("button", { name: `Trauung: ${de.rsvp.attending}` }).click();

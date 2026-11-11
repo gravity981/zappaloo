@@ -39,7 +39,6 @@ test("[ACS-10][ACS-11][ACS-12][ACS-13] a guest of the closed platform sees the d
   await guest.goto(`/invite/${code}`);
   await guest.getByLabel(de.invite.username).fill(`wg${suffix}`);
   await guest.getByLabel(de.setPassword.password, { exact: true }).fill(PASSWORD);
-  await guest.getByLabel(de.setPassword.repeat).fill(PASSWORD);
   await guest.getByRole("button", { name: de.invite.register }).click();
   await expect(guest.getByText(new RegExp(`Psst, ${guestName}`))).toBeVisible();
   await expect(guest.getByRole("img", { name: /angelehnte Tür/ })).toBeVisible();

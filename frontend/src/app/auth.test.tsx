@@ -38,7 +38,7 @@ describe("signing in", () => {
     });
 
     user.click(screen.getByRole("button", { name: "Abmelden" }));
-    expect(await screen.findByRole("link", { name: "Anmelden" })).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "Anmelden" })).toBeInTheDocument();
     // Logging out sends the session's CSRF token (SEC-01).
     expect(calls.find((c) => c.method === "DELETE")?.csrf).toBe("csrf-1");
   });
@@ -135,7 +135,7 @@ describe("profile", () => {
     renderAt("/profile");
     const name = await screen.findByLabelText("Anzeigename");
     expect(name).toHaveValue("Anna");
-    expect(screen.getByText("Benutzername: anna")).toBeInTheDocument();
+    expect(screen.getByText("anna", { selector: "b" })).toBeInTheDocument();
     user.clear(name);
     user.type(name, "Anna Muster");
     user.type(screen.getByLabelText("E-Mail-Adresse (optional)"), "anna@example.org");
@@ -154,9 +154,11 @@ describe("profile", () => {
       "POST /api/profile/password": () => ({ status: 204 }),
     });
     renderAt("/profile");
+    // The password form is the second step of "Passwort ändern".
+    user.click(await screen.findByRole("button", { name: "Passwort ändern" }));
     user.type(await screen.findByLabelText("Aktuelles Passwort"), "correct-horse-battery");
     user.type(screen.getByLabelText(/^Neues Passwort/), "another-long-password");
-    user.click(screen.getByRole("button", { name: "Passwort ändern" }));
+    user.click(screen.getByRole("button", { name: "Passwort speichern" }));
     expect(await screen.findByRole("status")).toHaveTextContent("Das Passwort wurde geändert.");
     expect(calls.find((c) => c.path === "/api/profile/password")).toMatchObject({
       csrf: "csrf-1",
@@ -178,9 +180,11 @@ describe("email and account self-service", () => {
       "POST /api/password/forgot": () => ({ status: 204 }),
     });
     renderAt("/forgot-password");
-    user.type(await screen.findByLabelText("Benutzername oder E-Mail-Adresse"), "anna@example.org");
+    user.type(await screen.findByLabelText("Benutzername oder E-Mail"), "anna@example.org");
     user.click(screen.getByRole("button", { name: "Link anfordern" }));
-    expect(await screen.findByRole("heading", { name: "Anfrage gesendet" })).toBeInTheDocument();
+    expect(
+      await screen.findByRole("heading", { name: "Schau in dein Postfach" }),
+    ).toBeInTheDocument();
     expect(calls.find((c) => c.path === "/api/password/forgot")?.body).toEqual({
       identifier: "anna@example.org",
     });
@@ -298,10 +302,9 @@ describe("email and account self-service", () => {
       },
     });
     renderAt("/profile");
-    user.type(
-      await screen.findByLabelText("Passwort", { selector: "[name=deletePassword]" }),
-      "pw-pw-pw-pw-pw",
-    );
+    // Deleting is a second step: the button opens the confirmation with the password.
+    user.click(await screen.findByRole("button", { name: "Konto löschen" }));
+    user.type(await screen.findByLabelText("Passwort"), "pw-pw-pw-pw-pw");
     user.click(screen.getByRole("button", { name: "Konto endgültig löschen" }));
     expect(await screen.findByRole("heading", { name: "Anmelden" })).toBeInTheDocument();
     expect(calls.find((c) => c.method === "DELETE" && c.path === "/api/profile")).toMatchObject({
@@ -319,10 +322,9 @@ describe("email and account self-service", () => {
       }),
     });
     renderAt("/profile");
-    user.type(
-      await screen.findByLabelText("Passwort", { selector: "[name=deletePassword]" }),
-      "pw-pw-pw-pw-pw",
-    );
+    // Deleting is a second step: the button opens the confirmation with the password.
+    user.click(await screen.findByRole("button", { name: "Konto löschen" }));
+    user.type(await screen.findByLabelText("Passwort"), "pw-pw-pw-pw-pw");
     user.click(screen.getByRole("button", { name: "Konto endgültig löschen" }));
     expect(await screen.findByRole("alert")).toHaveTextContent("letzte Admin-Person");
   });
@@ -347,12 +349,15 @@ describe("invitations", () => {
     });
     renderAt("/invite/K7QMX4");
     expect(
-      await screen.findByRole("heading", { name: "Willkommen, Anna Muster!" }),
+      await screen.findByRole("heading", { name: "Schön, dass du da bist, Anna Muster!" }),
     ).toBeInTheDocument();
     expect(screen.getByLabelText("Anzeigename")).toHaveValue("Anna Muster");
+    // The username is suggested from the guest's name on the card.
+    expect(screen.getByLabelText("Benutzername")).toHaveValue("anna.muster");
+    user.clear(screen.getByLabelText("Benutzername"));
     user.type(screen.getByLabelText("Benutzername"), "Anna");
     user.type(screen.getByLabelText("Passwort"), "a-long-enough-password");
-    user.type(screen.getByLabelText("Passwort wiederholen"), "a-long-enough-password");
+    user.type(screen.getByLabelText("E-Mail (optional)"), "anna@example.ch");
     user.click(screen.getByRole("button", { name: "Konto anlegen" }));
 
     expect(await screen.findByRole("link", { name: "Profil" })).toBeInTheDocument();
@@ -360,6 +365,7 @@ describe("invitations", () => {
       username: "anna",
       displayName: "Anna Muster",
       password: "a-long-enough-password",
+      email: "anna@example.ch",
     });
     expect(calls.find((c) => c.method === "POST" && c.path === "/api/session")?.body).toEqual({
       username: "anna",
@@ -370,7 +376,7 @@ describe("invitations", () => {
   it("[INV-03][INV-04] explains a redeemed, expired or unknown code", async () => {
     for (const [code, expected] of [
       ["invitation_redeemed", "schon eingelöst"],
-      ["invitation_expired", "abgelaufen"],
+      ["invitation_expired", "nicht mehr gültig"],
       ["invalid_invitation", "nicht gültig"],
     ] as const) {
       fakeBackend({
@@ -394,10 +400,12 @@ describe("invitations", () => {
       "GET /api/invitations/K7QMX4": () => preview,
     });
     renderAt("/invite");
-    user.type(await screen.findByLabelText("Einladungscode"), "k7q-mx4");
+    // Six boxes: typing or pasting a whole code fills all of them, case and dashes ignored.
+    user.type(await screen.findByLabelText("Zeichen 1 von 6"), "k7q-mx4");
+    expect(screen.getByLabelText("Zeichen 6 von 6")).toHaveValue("4");
     user.click(screen.getByRole("button", { name: "Weiter" }));
     expect(
-      await screen.findByRole("heading", { name: "Willkommen, Anna Muster!" }),
+      await screen.findByRole("heading", { name: "Schön, dass du da bist, Anna Muster!" }),
     ).toBeInTheDocument();
   });
 
@@ -438,7 +446,7 @@ describe("sign-in is required (ACS-09)", () => {
     user.type(screen.getByLabelText("Passwort"), "correct-horse-battery");
     user.click(screen.getByRole("button", { name: "Anmelden" }));
     // The visitor wanted the profile and lands there.
-    expect(await screen.findByRole("heading", { name: "Profil" })).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "Mein Profil" })).toBeInTheDocument();
     // The event is only asked for once there is a session.
     expect(calls.findIndex((c) => c.path === "/api/event")).toBeGreaterThan(
       calls.findIndex((c) => c.method === "POST" && c.path === "/api/session"),
@@ -489,7 +497,9 @@ describe("sign-in is required (ACS-09)", () => {
     expect(await screen.findByRole("heading", { name: "Adresse bestätigt" })).toBeInTheDocument();
     unmount();
     renderAt("/invite/K7QMX4");
-    expect(await screen.findByRole("heading", { name: "Willkommen, Anna!" })).toBeInTheDocument();
+    expect(
+      await screen.findByRole("heading", { name: "Schön, dass du da bist, Anna!" }),
+    ).toBeInTheDocument();
   });
 });
 

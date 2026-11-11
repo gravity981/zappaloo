@@ -48,8 +48,8 @@ test("[ACC-14][ACC-01][ACC-04][ACC-05] set the password with the setup link, sig
   await expect(page.getByLabel(de.profile.displayName)).toHaveValue("E2E Admin");
 
   // Signing out ends the session: the profile is no longer reachable.
-  await page.getByRole("button", { name: de.nav.logout }).click();
-  await expect(page.getByRole("link", { name: de.nav.login })).toBeVisible();
+  await page.locator(".guest-site-head").getByRole("button", { name: de.nav.logout }).click();
+  await expect(page.getByRole("heading", { name: de.login.title })).toBeVisible();
   await page.goto("/profile");
   await expect(page.getByRole("heading", { name: de.login.title })).toBeVisible();
 });

@@ -2,7 +2,7 @@
 // and the way back to the website, navigation with the pages that exist. Only admins get in;
 // the server refuses everyone else's calls anyway. Until the event is set up (CFG-02) the area
 // shows only the setup form.
-import "./admin.css";
+import "../app/ui.css";
 import { useTranslation } from "react-i18next";
 import { Link, Navigate, NavLink, Outlet } from "react-router";
 import { useEvent } from "../app/event.ts";

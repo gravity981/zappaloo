@@ -1,6 +1,8 @@
-/* The admin area (sw-architecture.md 8.3), styled after the admin mocks in spec/mocks/.
-   Everything is scoped to .admin, so the website keeps its own look (theme: stage 4). */
-.admin {
+/* The shared look of the guest pages and the admin area (sw-architecture.md 8.3, UX mocks in
+   spec/mocks/): tokens, buttons, fields, cards, chips, tags, lists and tables. The admin page
+   frame (.admin, .admin-head, .admin-nav) belongs to the admin area only; the guest shells
+   (.guest-bare, .guest-flow) are at the end. Stage 4's theme replaces the tokens (--a-*). */
+:is(.admin, .guest) {
   --a-bg: #f4f4f1;
   --a-card: #ffffff;
   --a-ink: #1f1f1d;
@@ -13,10 +15,6 @@
   --a-warn: #a06a00;
   --a-display: system-ui, sans-serif;
 
-  min-height: 100vh;
-  display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  grid-template-rows: auto auto 1fr;
   background: var(--a-bg);
   color: var(--a-ink);
   font:
@@ -24,16 +22,22 @@
     sans-serif;
   color-scheme: light;
 }
-.admin *,
-.admin *::before,
-.admin *::after {
+.admin {
+  min-height: 100vh;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: auto auto 1fr;
+}
+:is(.admin, .guest) *,
+:is(.admin, .guest) *::before,
+:is(.admin, .guest) *::after {
   box-sizing: border-box;
 }
-.admin :focus-visible {
+:is(.admin, .guest) :focus-visible {
   outline: 2px solid #2b5bd0;
   outline-offset: 2px;
 }
-.admin p {
+:is(.admin, .guest) p {
   margin: 0;
 }
 
@@ -100,65 +104,65 @@
   gap: 16px;
   min-width: 0;
 }
-.admin .version-footer {
+:is(.admin, .guest) .version-footer {
   padding: 0;
 }
 
 /* text */
-.admin .h1 {
+:is(.admin, .guest) .h1 {
   font: 600 23px/1.2 var(--a-display);
   margin: 0;
   letter-spacing: -0.01em;
 }
-.admin .h2 {
+:is(.admin, .guest) .h2 {
   font: 600 16px/1.3 var(--a-display);
   margin: 0;
 }
-.admin .muted {
+:is(.admin, .guest) .muted {
   color: var(--a-muted);
 }
-.admin .hint {
+:is(.admin, .guest) .hint {
   font-size: 12px;
   color: var(--a-muted);
 }
-.admin .sm {
+:is(.admin, .guest) .sm {
   font-size: 12.5px;
 }
-.admin .eyebrow {
+:is(.admin, .guest) .eyebrow {
   font-size: 10.5px;
   letter-spacing: 0.09em;
   text-transform: uppercase;
   color: var(--a-muted);
   font-weight: 600;
 }
-.admin .error {
+:is(.admin, .guest) .error {
   color: var(--a-badge);
   font-weight: 600;
 }
 
 /* layout */
-.admin .sethead {
+:is(.admin, .guest) .sethead {
   display: flex;
   align-items: center;
   gap: 12px;
   flex-wrap: wrap;
 }
-.admin .sethead .grow {
+:is(.admin, .guest) .sethead .grow {
   flex: 1;
   min-width: 0;
 }
-.admin .row {
+:is(.admin, .guest) .row {
   display: flex;
   gap: 8px;
   flex-wrap: wrap;
   align-items: center;
 }
-.admin .stack {
+:is(.admin, .guest) .stack {
   display: flex;
   flex-direction: column;
   gap: 12px;
 }
-.admin .grid-2 {
+:is(.admin, .guest) .grid-2 {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
   gap: 16px;
@@ -166,7 +170,7 @@
 }
 
 /* controls */
-.admin .btn {
+:is(.admin, .guest) .btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -182,41 +186,41 @@
   cursor: pointer;
   align-self: flex-start;
 }
-.admin .btn.ghost {
+:is(.admin, .guest) .btn.ghost {
   background: transparent;
   color: var(--a-ink);
   border-color: var(--a-ink);
 }
-.admin .btn.soft {
+:is(.admin, .guest) .btn.soft {
   background: var(--a-fill);
   color: var(--a-ink);
   border-color: var(--a-fill);
 }
-.admin .btn.danger {
+:is(.admin, .guest) .btn.danger {
   background: transparent;
   color: var(--a-badge);
   border-color: currentColor;
 }
-.admin .btn.sm {
+:is(.admin, .guest) .btn.sm {
   min-height: 32px;
   padding: 0 12px;
   font-size: 12.5px;
   border-radius: 8px;
 }
-.admin .btn[disabled] {
+:is(.admin, .guest) .btn[disabled] {
   opacity: 0.4;
   cursor: not-allowed;
 }
-.admin .field {
+:is(.admin, .guest) .field {
   display: flex;
   flex-direction: column;
   gap: 5px;
 }
-.admin .field > span {
+:is(.admin, .guest) .field > span {
   font-size: 12.5px;
   font-weight: 600;
 }
-.admin .input {
+:is(.admin, .guest) .input {
   width: 100%;
   min-height: 44px;
   border: 1.5px solid var(--a-line);
@@ -226,21 +230,21 @@
   font: inherit;
   color: inherit;
 }
-.admin .input.auto {
+:is(.admin, .guest) .input.auto {
   width: auto;
   max-width: 100%;
 }
-.admin textarea.input {
+:is(.admin, .guest) textarea.input {
   min-height: 96px;
   padding: 10px 12px;
   resize: vertical;
 }
-.admin .chips {
+:is(.admin, .guest) .chips {
   display: flex;
   flex-wrap: wrap;
   gap: 7px;
 }
-.admin .chip {
+:is(.admin, .guest) .chip {
   display: inline-flex;
   align-items: center;
   gap: 6px;
@@ -254,21 +258,21 @@
   color: var(--a-ink);
   cursor: pointer;
 }
-.admin .chip.small {
+:is(.admin, .guest) .chip.small {
   min-height: 26px;
   padding: 0 9px;
   font-size: 12px;
 }
-.admin .chip[aria-pressed="true"] {
+:is(.admin, .guest) .chip[aria-pressed="true"] {
   border-color: var(--a-ink);
   background: var(--a-ink);
   color: #fff;
 }
-.admin .chip[disabled] {
+:is(.admin, .guest) .chip[disabled] {
   opacity: 0.4;
   cursor: not-allowed;
 }
-.admin .tag {
+:is(.admin, .guest) .tag {
   display: inline-flex;
   align-items: center;
   gap: 4px;
@@ -280,24 +284,24 @@
   color: var(--a-ink);
   white-space: nowrap;
 }
-.admin .tag.ok {
+:is(.admin, .guest) .tag.ok {
   background: #dcefe2;
   color: var(--a-ok);
 }
-.admin .tag.warn {
+:is(.admin, .guest) .tag.warn {
   background: #f6e8c8;
   color: var(--a-warn);
 }
-.admin .tag.bad {
+:is(.admin, .guest) .tag.bad {
   background: #f6dcd6;
   color: var(--a-badge);
 }
-.admin .tag.line {
+:is(.admin, .guest) .tag.line {
   background: transparent;
   border: 1px solid var(--a-line);
   color: var(--a-muted);
 }
-.admin .switch {
+:is(.admin, .guest) .switch {
   width: 44px;
   height: 26px;
   border-radius: 999px;
@@ -307,7 +311,7 @@
   cursor: pointer;
   flex: none;
 }
-.admin .switch::after {
+:is(.admin, .guest) .switch::after {
   content: "";
   position: absolute;
   top: 3px;
@@ -318,24 +322,24 @@
   background: #fff;
   transition: left 0.15s;
 }
-.admin .switch[aria-checked="true"] {
+:is(.admin, .guest) .switch[aria-checked="true"] {
   background: var(--a-ok);
 }
-.admin .switch[aria-checked="true"]::after {
+:is(.admin, .guest) .switch[aria-checked="true"]::after {
   left: 21px;
 }
-.admin .switch[disabled] {
+:is(.admin, .guest) .switch[disabled] {
   opacity: 0.5;
   cursor: wait;
 }
 @media (prefers-reduced-motion: reduce) {
-  .admin .switch::after {
+  :is(.admin, .guest) .switch::after {
     transition: none;
   }
 }
 
 /* containers */
-.admin .card {
+:is(.admin, .guest) .card {
   background: var(--a-card);
   border: 1px solid var(--a-line);
   border-radius: 14px;
@@ -345,19 +349,19 @@
   gap: 10px;
   min-width: 0;
 }
-.admin .card.flat {
+:is(.admin, .guest) .card.flat {
   background: var(--a-fill);
   border-color: var(--a-fill);
 }
-.admin .card.tight {
+:is(.admin, .guest) .card.tight {
   padding: 4px 8px;
 }
-.admin .kpis {
+:is(.admin, .guest) .kpis {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 10px;
 }
-.admin .kpi {
+:is(.admin, .guest) .kpi {
   background: var(--a-card);
   border: 1px solid var(--a-line);
   border-radius: 12px;
@@ -367,41 +371,41 @@
   gap: 4px;
   min-width: 0;
 }
-.admin .kpi b {
+:is(.admin, .guest) .kpi b {
   font: 600 22px/1.1 var(--a-display);
 }
-.admin .kpi.alert {
+:is(.admin, .guest) .kpi.alert {
   border: 2px solid var(--a-ink);
 }
-.admin .setrow {
+:is(.admin, .guest) .setrow {
   display: flex;
   align-items: center;
   gap: 12px;
   padding: 10px 0;
   border-bottom: 1px solid var(--a-line);
 }
-.admin .setrow:last-child {
+:is(.admin, .guest) .setrow:last-child {
   border-bottom: 0;
 }
-.admin .setrow .grow,
-.admin .li .grow {
+:is(.admin, .guest) .setrow .grow,
+:is(.admin, .guest) .li .grow {
   flex: 1;
   min-width: 0;
   display: flex;
   flex-direction: column;
   gap: 2px;
 }
-.admin .li .grow {
+:is(.admin, .guest) .li .grow {
   flex: 1 1 11rem;
 }
-.admin .list {
+:is(.admin, .guest) .list {
   display: flex;
   flex-direction: column;
   margin: 0;
   padding: 0;
   list-style: none;
 }
-.admin .li {
+:is(.admin, .guest) .li {
   display: flex;
   flex-wrap: wrap; /* on a phone the tag and buttons go below the text instead of squeezing it */
   align-items: center;
@@ -410,10 +414,10 @@
   border-bottom: 1px solid var(--a-line);
   min-width: 0;
 }
-.admin .li:last-child {
+:is(.admin, .guest) .li:last-child {
   border-bottom: 0;
 }
-.admin button.li {
+:is(.admin, .guest) button.li {
   width: 100%;
   background: none;
   border-top: 0;
@@ -424,15 +428,15 @@
   text-align: left;
   cursor: pointer;
 }
-.admin .scroll {
+:is(.admin, .guest) .scroll {
   overflow-x: auto;
 }
-.admin .table {
+:is(.admin, .guest) .table {
   width: 100%;
   border-collapse: collapse;
   font-size: 13px;
 }
-.admin .table th {
+:is(.admin, .guest) .table th {
   text-align: left;
   font-size: 11px;
   letter-spacing: 0.06em;
@@ -443,21 +447,21 @@
   border-bottom: 1.5px solid var(--a-line);
   white-space: nowrap;
 }
-.admin .table td {
+:is(.admin, .guest) .table td {
   padding: 10px;
   border-bottom: 1px solid var(--a-line);
   vertical-align: middle;
 }
-.admin .table tr:last-child td {
+:is(.admin, .guest) .table tr:last-child td {
   border-bottom: 0;
 }
-.admin .table .actions {
+:is(.admin, .guest) .table .actions {
   text-align: right;
   white-space: nowrap;
 }
 
 /* panel: a side sheet on desktop, full screen on phones */
-.admin .panel-backdrop {
+:is(.admin, .guest) .panel-backdrop {
   position: fixed;
   inset: 0;
   z-index: 20;
@@ -465,7 +469,7 @@
   display: flex;
   justify-content: flex-end;
 }
-.admin .panel {
+:is(.admin, .guest) .panel {
   background: var(--a-bg);
   width: 100%;
   height: 100%;
@@ -473,7 +477,7 @@
   display: flex;
   flex-direction: column;
 }
-.admin .panel-head {
+:is(.admin, .guest) .panel-head {
   position: sticky;
   top: 0;
   z-index: 2;
@@ -484,17 +488,17 @@
   padding: 12px 16px;
   border-bottom: 1px solid var(--a-line);
 }
-.admin .panel-head h2 {
+:is(.admin, .guest) .panel-head h2 {
   flex: 1;
   min-width: 0;
 }
-.admin .panel-body {
+:is(.admin, .guest) .panel-body {
   padding: 16px;
   display: flex;
   flex-direction: column;
   gap: 14px;
 }
-.admin .iconbtn {
+:is(.admin, .guest) .iconbtn {
   width: 34px;
   height: 34px;
   border-radius: 50%;
@@ -511,12 +515,12 @@
 }
 
 /* a link to hand over (setup or reset link) */
-.admin .handover {
+:is(.admin, .guest) .handover {
   display: flex;
   gap: 8px;
   flex-wrap: wrap;
 }
-.admin .handover .input {
+:is(.admin, .guest) .handover .input {
   flex: 1 1 240px;
   font:
     12.5px/1.4 ui-monospace,
@@ -550,19 +554,19 @@
   .admin-main {
     padding: 24px 28px 40px;
   }
-  .admin .h1 {
+  :is(.admin, .guest) .h1 {
     font-size: 28px;
   }
-  .admin .kpis {
+  :is(.admin, .guest) .kpis {
     grid-template-columns: repeat(4, minmax(0, 1fr));
   }
-  .admin .panel {
+  :is(.admin, .guest) .panel {
     width: 440px;
     border-left: 1px solid var(--a-line);
   }
 }
 @media (min-width: 1100px) {
-  .admin .grid-2 {
+  :is(.admin, .guest) .grid-2 {
     grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
   }
 }
@@ -578,7 +582,7 @@
   }
 }
 
-.admin .visually-hidden {
+:is(.admin, .guest) .visually-hidden {
   position: absolute;
   width: 1px;
   height: 1px;
@@ -587,41 +591,27 @@
   white-space: nowrap;
 }
 
-.admin b {
+:is(.admin, .guest) b {
   font-weight: 600;
 }
-.admin .grow {
+:is(.admin, .guest) .grow {
   flex: 1;
   min-width: 0;
 }
-.admin .input.auto {
+:is(.admin, .guest) .input.auto {
   align-self: flex-start;
 }
 
-/* The guest's RSVP wizard on the website reuses the admin look until the website theme
-   exists (stage 4): same cards, chips and buttons, without the admin page frame. */
-.admin.embedded {
-  min-height: 0;
-  display: block;
-  background: transparent;
-  max-width: 40rem;
-  margin: 0 auto;
-  padding: 8px 0 24px;
-}
-.admin.embedded .rsvp-step {
-  color: var(--a-muted);
-  font-size: 12px;
-}
-.admin .rsvp-actions {
+:is(.admin, .guest) .rsvp-actions {
   display: flex;
   gap: 8px;
   justify-content: space-between;
   flex-wrap: wrap;
 }
-.admin .rsvp-actions .btn:last-child:not(:first-child) {
+:is(.admin, .guest) .rsvp-actions .btn:last-child:not(:first-child) {
   margin-left: auto;
 }
-.admin .rsvp-part {
+:is(.admin, .guest) .rsvp-part {
   display: flex;
   align-items: center;
   gap: 10px;
@@ -629,48 +619,48 @@
   padding: 8px 0;
   border-bottom: 1px solid var(--a-fill);
 }
-.admin .rsvp-part:last-child {
+:is(.admin, .guest) .rsvp-part:last-child {
   border-bottom: 0;
 }
-.admin .rsvp-part .grow {
+:is(.admin, .guest) .rsvp-part .grow {
   min-width: 10rem;
 }
-.admin .lock {
+:is(.admin, .guest) .lock {
   color: var(--a-muted);
   font-size: 12px;
 }
-.admin .bar-row {
+:is(.admin, .guest) .bar-row {
   display: grid;
   grid-template-columns: 6rem 1fr auto;
   gap: 8px;
   align-items: center;
 }
-.admin .bar-row .track {
+:is(.admin, .guest) .bar-row .track {
   display: flex;
   height: 10px;
   background: var(--a-fill);
   border-radius: 999px;
   overflow: hidden;
 }
-.admin .bar-row .track i {
+:is(.admin, .guest) .bar-row .track i {
   display: block;
   height: 100%;
   background: var(--a-dark);
 }
-.admin .bar-row .track i.no {
+:is(.admin, .guest) .bar-row .track i.no {
   background: var(--a-line);
 }
-.admin .kpi .hint,
-.admin .kpi a {
+:is(.admin, .guest) .kpi .hint,
+:is(.admin, .guest) .kpi a {
   font-size: 12px;
 }
-.admin .inline-form {
+:is(.admin, .guest) .inline-form {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr));
   gap: 10px;
   align-items: end;
 }
-.admin .badge {
+:is(.admin, .guest) .badge {
   display: inline-block;
   margin-left: 6px;
   min-width: 18px;
@@ -683,12 +673,300 @@
   text-align: center;
   font-weight: 700;
 }
-.admin a.btn {
+:is(.admin, .guest) a.btn {
   text-decoration: none;
 }
-.admin .privacy-text {
+:is(.admin, .guest) .privacy-text {
   min-height: 16rem;
   font:
     13px/1.5 ui-monospace,
     monospace;
+}
+
+/* --- The guest pages (UX mocks: login, invitation, forgot password, privacy, RSVP, profile) --- */
+.guest {
+  min-height: 100vh;
+}
+.guest *,
+.guest *::before,
+.guest *::after {
+  box-sizing: border-box;
+}
+.guest .h1 {
+  font: 600 23px/1.2 var(--a-display);
+  letter-spacing: -0.01em;
+  margin: 0;
+  text-wrap: balance;
+}
+.guest a {
+  color: inherit;
+}
+.guest .link-muted {
+  color: var(--a-muted);
+  text-align: center;
+  font-size: 12.5px;
+}
+
+/* bare: brand header and one narrow column (login, invitation, forgot password, privacy) */
+.guest-bare {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 28px 20px 40px;
+  gap: 22px;
+}
+.guest-bare-brand {
+  font: 600 15px/1 var(--a-display);
+  color: var(--a-muted);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  text-decoration: none;
+}
+.guest-bare-inner {
+  width: 100%;
+  max-width: 400px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.guest-bare-inner.wide {
+  max-width: 640px;
+}
+
+/* flow: close button, title, progress and a sticky action bar (the RSVP) */
+.guest-flow {
+  display: flex;
+  flex-direction: column;
+}
+.guest-flow-head {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  background: var(--a-card);
+  border-bottom: 1px solid var(--a-line);
+  padding: 10px 14px 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.guest-flow-top {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.guest-flow-top b {
+  flex: 1;
+  text-align: center;
+  font: 600 14px/1.2 var(--a-display);
+}
+.guest-flow-top .count {
+  width: 34px;
+  text-align: right;
+  font-size: 12px;
+  color: var(--a-muted);
+}
+.guest-flow-progress {
+  display: grid;
+  grid-auto-flow: column;
+  gap: 4px;
+  padding-bottom: 10px;
+}
+.guest-flow-progress i {
+  height: 4px;
+  border-radius: 2px;
+  background: var(--a-line);
+}
+.guest-flow-progress i.on {
+  background: var(--a-ink);
+}
+.guest-flow-body {
+  flex: 1;
+  padding: 18px 16px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  width: 100%;
+  max-width: 620px;
+  margin-inline: auto;
+}
+.guest-flow-foot {
+  position: sticky;
+  bottom: 0;
+  background: var(--a-card);
+  border-top: 1px solid var(--a-line);
+  padding: 12px 16px 16px;
+}
+.guest-flow-foot-in {
+  max-width: 620px;
+  margin-inline: auto;
+  width: 100%;
+  display: flex;
+  gap: 8px;
+}
+.guest-flow-foot-in > * {
+  flex: 1;
+}
+.guest-flow .iconbtn {
+  text-decoration: none;
+}
+
+/* A card that says something happened (redeemed, expired, sent): icon, title, text */
+.guest .notice {
+  align-items: center;
+  text-align: center;
+  gap: 12px;
+  padding: 28px 18px;
+}
+.guest .notice .h1 {
+  font-size: 20px;
+}
+.guest .avatar {
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  background: var(--a-fill);
+  border: 1.5px solid var(--a-line);
+  display: grid;
+  place-items: center;
+  font-size: 26px;
+}
+.guest .check {
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  border: 3px solid var(--a-ok);
+  color: var(--a-ok);
+  display: grid;
+  place-items: center;
+  align-self: center;
+  font-size: 34px;
+}
+.guest .code-tag {
+  margin-left: auto;
+  font-family: ui-monospace, monospace;
+}
+.guest .invitation-line {
+  flex-direction: row;
+  align-items: center;
+  gap: 12px;
+}
+.guest .invitation-line .avatar {
+  width: 40px;
+  height: 40px;
+  font-size: 18px;
+}
+.guest hr {
+  border: 0;
+  border-top: 1px solid var(--a-line);
+  margin: 4px 0;
+  width: 100%;
+}
+
+/* Markdown text (the privacy notice) */
+.guest .markdown h1 {
+  font: 600 20px/1.2 var(--a-display);
+  margin: 0 0 6px;
+}
+.guest .markdown h2 {
+  font: 600 15px/1.3 var(--a-display);
+  margin: 14px 0 4px;
+}
+.guest .markdown p,
+.guest .markdown ul,
+.guest .markdown ol {
+  margin: 0 0 8px;
+}
+.guest .markdown ul,
+.guest .markdown ol {
+  padding-left: 20px;
+}
+.guest .markdown a {
+  text-decoration: underline;
+}
+
+/* a password field with an eye button */
+.guest .password-row {
+  display: flex;
+  gap: 8px;
+}
+.guest .password-row .input {
+  flex: 1;
+}
+
+@media (min-width: 720px) {
+  .guest .h1 {
+    font-size: 28px;
+  }
+}
+.guest .otp {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 8px;
+}
+.guest .otp .input {
+  text-align: center;
+  font:
+    600 20px/1 ui-monospace,
+    monospace;
+  padding: 0;
+  min-height: 52px;
+  text-transform: uppercase;
+}
+
+/* The signed-in pages: header with the account links, one column of content */
+.guest-site-head {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  padding: 12px 16px;
+  background: var(--a-card);
+  border-bottom: 1px solid var(--a-line);
+}
+.guest-site-head b {
+  font: 600 16px/1.15 var(--a-display);
+  margin-right: auto;
+}
+.guest-site-head nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.guest-site-head nav a,
+.guest-site-head nav button {
+  padding: 7px 12px;
+  border-radius: 999px;
+  border: 0;
+  background: transparent;
+  color: var(--a-muted);
+  font: inherit;
+  font-weight: 500;
+  text-decoration: none;
+  cursor: pointer;
+}
+.guest-site-head nav a.active {
+  background: var(--a-fill);
+  color: var(--a-ink);
+  font-weight: 700;
+}
+.guest-site-main {
+  max-width: 980px;
+  margin-inline: auto;
+  padding: 18px 16px 40px;
+}
+.guest .grid-2 {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 16px;
+}
+@media (min-width: 900px) {
+  .guest .grid-2 {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  }
+}
+:is(.admin, .guest) .btn.block {
+  width: 100%;
+  align-self: stretch;
 }

@@ -14,20 +14,45 @@
   },
   "invite": {
     "title": "Einladung einlösen",
-    "enterHint": "Gib den Code von deiner Einladungskarte ein.",
+    "enterHint": "Den Code findest du auf deiner Einladungskarte.",
     "code": "Einladungscode",
     "next": "Weiter",
     "checking": "Der Code wird geprüft …",
     "tryAnother": "Anderen Code eingeben",
-    "welcome": "Willkommen, {{name}}!",
-    "registerHint": "Lege dein Konto an. Das Passwort braucht mindestens {{min}} Zeichen.",
+    "welcome": "Schön, dass du da bist, {{name}}!",
+    "registerHint": "Lege dein Konto an. Damit kommst du auch später wieder hinein.",
     "username": "Benutzername",
     "displayName": "Anzeigename",
     "register": "Konto anlegen",
-    "haveAccount": "Du hast schon ein Konto? Melde dich an und öffne den Link noch einmal:",
+    "haveAccount": "Du hast schon ein Konto?",
     "redeemHint": "Du bist als {{user}} angemeldet. Mit der Einladung bekommt dein Konto Zugang zum Fest.",
     "redeem": "Einladung einlösen",
-    "alreadyVip": "Dein Konto ist schon eingeladen. Diese Einladung wird nicht gebraucht."
+    "alreadyVip": "Dein Konto ist schon eingeladen. Diese Einladung wird nicht gebraucht.",
+    "qrTip": "Tipp: Scanne den QR-Code auf der Karte – dann ist der Code schon ausgefüllt.",
+    "haveAccountShort": "Schon ein Konto?",
+    "personal": "Persönliche Einladung",
+    "displayNameHint": "So sehen dich die anderen Gäste.",
+    "usernameHint": "Zum Anmelden. Lässt sich später nicht ändern.",
+    "passwordHint": "Mindestens {{min}} Zeichen.",
+    "passwordPlaceholder": "Mindestens {{min}} Zeichen",
+    "email": "E-Mail (optional)",
+    "emailPlaceholder": "du@beispiel.ch",
+    "emailHint": "Für Nachrichten zum Fest und «Passwort vergessen». Bestätigen kannst du sie später im Profil.",
+    "loginAndRedeem": "Anmelden und Einladung einlösen",
+    "problem": {
+      "redeemed": {
+        "title": "Diese Einladung wurde schon eingelöst.",
+        "text": "Wenn du das warst: melde dich einfach an. Sonst melde dich bei den Gastgebern – sie schicken dir eine neue Karte."
+      },
+      "expired": {
+        "title": "Diese Einladung ist nicht mehr gültig.",
+        "text": "Der Code ist abgelaufen oder wurde ersetzt. Melde dich bei den Gastgebern, dann bekommst du einen neuen."
+      },
+      "invalid": {
+        "title": "Dieser Code ist nicht gültig.",
+        "text": "Prüfe die Eingabe. Auf der Karte stehen sechs Zeichen."
+      }
+    }
   },
   "admin": {
     "title": "Verwaltung",
@@ -403,17 +428,22 @@
     "password": "Passwort",
     "submit": "Anmelden",
     "forgot": "Passwort vergessen?",
-    "usernameHint": "E-Mail nur, wenn du sie im Profil bestätigt hast."
+    "usernameHint": "E-Mail nur, wenn du sie im Profil bestätigt hast.",
+    "noAccountTitle": "Noch kein Konto?",
+    "noAccountText": "Du brauchst deine Einladungskarte.",
+    "redeem": "Einladung einlösen"
   },
   "forgotPassword": {
     "title": "Passwort vergessen",
-    "hint": "Gib deinen Benutzernamen oder deine E-Mail-Adresse ein. Wenn die Adresse in deinem Profil bestätigt ist, schicken wir dir einen Link zum Zurücksetzen.",
-    "identifier": "Benutzername oder E-Mail-Adresse",
+    "hint": "Wir schicken dir einen Link, mit dem du ein neues Passwort setzt.",
+    "identifier": "Benutzername oder E-Mail",
     "submit": "Link anfordern",
-    "doneTitle": "Anfrage gesendet",
-    "doneText": "Falls ein Konto mit bestätigter E-Mail-Adresse dazu passt, haben wir einen Link geschickt. Er ist 24 Stunden gültig.",
-    "noEmail": "Keine bestätigte Adresse? Dann melde dich bei den Gastgebern: Sie können dir einen Link zum Zurücksetzen geben.",
-    "back": "Zur Anmeldung"
+    "doneTitle": "Schau in dein Postfach",
+    "doneText": "Wenn zu diesem Konto eine bestätigte E-Mail-Adresse gehört, ist ein Link unterwegs. Er gilt 24 Stunden.",
+    "noEmail": "Dann ist keine bestätigte Adresse hinterlegt. Frag die Gastgeber – sie können dir einen Link zum Zurücksetzen geben.",
+    "back": "Zurück zur Anmeldung",
+    "onlyVerified": "Klappt nur mit einer bestätigten E-Mail-Adresse.",
+    "noMailTitle": "Keine E-Mail bekommen?"
   },
   "verifyEmail": {
     "title": "E-Mail-Adresse bestätigen",
@@ -435,7 +465,7 @@
     "toLogin": "Zur Anmeldung"
   },
   "profile": {
-    "title": "Profil",
+    "title": "Mein Profil",
     "username": "Benutzername: {{username}}",
     "displayName": "Anzeigename",
     "email": "E-Mail-Adresse (optional)",
@@ -450,12 +480,21 @@
     "passwordTitle": "Passwort ändern",
     "currentPassword": "Aktuelles Passwort",
     "newPassword": "Neues Passwort (mindestens {{min}} Zeichen)",
-    "changePassword": "Passwort ändern",
+    "changePassword": "Passwort speichern",
     "passwordChanged": "Das Passwort wurde geändert. Auf anderen Geräten musst du dich neu anmelden.",
     "deleteTitle": "Konto löschen",
     "deleteHint": "Dein Konto wird mit allen Daten unwiderruflich gelöscht. Zur Bestätigung gibst du dein Passwort ein.",
     "deletePassword": "Passwort",
-    "deleteConfirm": "Konto endgültig löschen"
+    "deleteConfirm": "Konto endgültig löschen",
+    "cardProfile": "Profil",
+    "accountTitle": "Konto",
+    "usernameLabel": "Benutzername",
+    "emailLabel": "E-Mail",
+    "noEmail": "keine angegeben",
+    "emailTag": {
+      "unverified": "nicht bestätigt",
+      "verified": "bestätigt"
+    }
   },
   "errors": {
     "unknown": "Das hat nicht geklappt. Bitte versuche es später noch einmal.",
@@ -576,7 +615,8 @@
         "approved": "Bestätigt",
         "rejected": "Abgelehnt"
       }
-    }
+    },
+    "close": "Schliessen"
   },
   "waiting": {
     "sceneLabel": "Eine angelehnte Tür mit warmem Licht; dahinter bauen kleine Figuren an der Welt.",
@@ -592,5 +632,11 @@
   },
   "privacy": {
     "back": "Zurück"
+  },
+  "guest": {
+    "showPassword": "Anzeigen",
+    "hidePassword": "Verbergen",
+    "codeChar": "Zeichen {{n}} von {{total}}",
+    "codeHint": "{{total}} Zeichen. Einfügen füllt alle Felder auf einmal."
   }
 }

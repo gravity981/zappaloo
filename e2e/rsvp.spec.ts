@@ -44,7 +44,6 @@ test("[RSVP-01][RSVP-02][RSVP-03][RSVP-04][RSVP-05][RSVP-06][SEC-11][DATA-05] a 
   await guest.goto(`/invite/${code}`);
   await guest.getByLabel(de.invite.username).fill(username);
   await guest.getByLabel(de.setPassword.password, { exact: true }).fill(PASSWORD);
-  await guest.getByLabel(de.setPassword.repeat).fill(PASSWORD);
   await guest.getByRole("button", { name: de.invite.register }).click();
   await guest.getByRole("link", { name: de.waiting.answer }).click();
 

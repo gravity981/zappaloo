@@ -150,7 +150,7 @@ Requirements: ACS-14, SEC-09.
 **3e – Sign-in by email** (added 2026-11-10). The login accepts a verified email address as well as the username; an address can be verified by one account only (`409 email_taken`).
 Requirements: ACC-16.
 
-**3g – Guest pages in the mock style** (added 2026-11-11 after an audit of Release 1 against the mocks; built before 3f). Every page a guest sees before the opening is built from its mock (layout, flow, texts, UX decisions in mocks/README.md); until now only the waiting page, the RSVP content and the admin area follow the mocks, the pages of stage 2 are plain forms.
+**3g – Guest pages in the mock style** (added 2026-11-11 after an audit of Release 1 against the mocks; built before 3f; the pages without a mock are drawn in 3g and built in 3h). Every page a guest sees before the opening is built from its mock (layout, flow, texts, UX decisions in mocks/README.md); until now only the waiting page, the RSVP content and the admin area follow the mocks, the pages of stage 2 are plain forms.
 - **Shared look:** one stylesheet with the mock's neutral tokens (colours, type, spacing, buttons, fields, cards, tags) for the guest-facing pages, so stage 4's `theme.json` replaces values in one place; the RSVP wizard and the waiting page use it instead of borrowing the admin look. Two shells from the mock: `bare` (brand header with event name and date, one column, "Datenschutz" link below) and `flow` (close button, title, step counter and progress bar, sticky action bar).
 - **Pages and their mock screens:**
   - `/login` → `login` (field "Benutzername oder E-Mail" with its hint, "Passwort vergessen?", card "Noch kein Konto? Einladung einlösen", Datenschutz link).
@@ -165,7 +165,10 @@ Requirements: ACC-16.
 - Tests: the existing component tests keep their requirement IDs and follow the new texts; end-to-end tests use the texts from `common.json`; a test per page checks the Datenschutz link (SEC-09) and a narrow-viewport run checks that nothing is cut off (iPhone and Pixel profiles).
 Requirements: none new (ACC-01, ACC-03, ACC-04, ACC-07, ACC-09, INV-03, INV-04, INV-07, SEC-09, RSVP-01 and the other requirements of these pages are re-verified).
 
-**3f – Release 1 go-live** (after 3g). First release promoted and deployed to production on the operator's host; Let's Encrypt and live updates through Caddy checked there (manual test protocol); invitation print export checked end to end, privacy notice reviewed, manual checks from the release checklist that apply to Release 1.
+**3h – Set-password, confirm-email and not-found pages** (added 2026-11-11). Built from the three mock screens drawn in 3g (`set-password` with setup, reset, saved and invalid-link variants; `verify-email` with ready, confirmed, invalid and address-taken variants; `not-found`) after the project owner has confirmed them; UX decision 57 (one password field with an eye button, no repeated field) applies to the set-password page. The pages sit in the `bare` frame already; this step gives them their content and styling and updates their tests.
+Requirements: none new (ACC-03, ACC-08, ACC-09, ACC-10, ACC-14, ACC-15, ACC-16 re-verified).
+
+**3f – Release 1 go-live** (after 3g and 3h). First release promoted and deployed to production on the operator's host; Let's Encrypt and live updates through Caddy checked there (manual test protocol); invitation print export checked end to end, privacy notice reviewed, manual checks from the release checklist that apply to Release 1.
 Requirements: OPS-02.
 
 ### Stage 4 – Content and Website

@@ -123,8 +123,9 @@ describe("accompanying persons in the wizard", () => {
     await toStepThree();
     user.click(screen.getByRole("button", { name: "+ Begleitperson beantragen" }));
 
+    // The form has the title of the flow frame.
     expect(
-      await screen.findByRole("heading", { name: "Begleitperson beantragen" }),
+      await screen.findByText("Begleitperson beantragen", { selector: "b" }),
     ).toBeInTheDocument();
     const submit = screen.getByRole("button", { name: "Beantragen" });
     expect(submit).toBeDisabled();

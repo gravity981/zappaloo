@@ -3,14 +3,16 @@
 // wish, then a summary. Declining every part (for the guest and the approved companions) skips
 // to the summary. After the deadline the summary is read-only. The same wizard runs in admin
 // mode for a guest (RSVP-04): the deadline does not apply there.
-import "../admin/admin.css";
+import "../app/ui.css";
 import { useState } from "react";
+import type { ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import { rsvpStateSchema } from "@zappaloo/shared";
 import type { Companion, EventPart, RsvpAnswerRequest, RsvpState } from "@zappaloo/shared";
 import { apiRequest } from "../app/api.ts";
 import { useSession } from "../app/session.ts";
 import { useAdminData, useErrorText } from "../admin/data.ts";
+import { FlowShell } from "../guest/Shells.tsx";
 import { CompanionForm, CompanionsCard, MenuFields, PartsBlock } from "./Companions.tsx";
 import { answerOf, attendsAny, needsMenu, personOf } from "./person.ts";
 import type { PersonValue } from "./person.ts";
@@ -23,6 +25,46 @@ type View = { kind: "wizard" } | { kind: "form"; companion?: Companion };
 
 const TOTAL_STEPS = 3;
 const WIZARD: View = { kind: "wizard" };
+
+/**
+ * The page frame: the guest's wizard sits in the flow frame of the mock (close button, title,
+ * progress, sticky actions); the admin mode inside the admin area has no frame of its own.
+ */
+function Frame({
+  flow,
+  step,
+  title,
+  closeLabel,
+  footer,
+  children,
+}: {
+  flow: boolean;
+  step: number | undefined;
+  title: string;
+  closeLabel: string;
+  footer: ReactNode;
+  children: ReactNode;
+}) {
+  if (!flow) {
+    return (
+      <div className="stack">
+        {children}
+        {footer && <div className="rsvp-actions">{footer}</div>}
+      </div>
+    );
+  }
+  return (
+    <FlowShell
+      title={title}
+      closeTo="/"
+      closeLabel={closeLabel}
+      footer={footer}
+      {...(step ? { step, total: TOTAL_STEPS } : {})}
+    >
+      {children}
+    </FlowShell>
+  );
+}
 
 /** Loads the guest's RSVP; the form below starts from it and is rebuilt after each save. */
 export default function RsvpWizard({ mode, onFinish }: { mode: Mode; onFinish?: () => void }) {
@@ -149,12 +191,14 @@ function WizardForm({
     setView(companion ? { kind: "form", companion } : { kind: "form" });
   }
 
-  const header = (current: number) => (
-    <>
-      <span className="rsvp-step">{t("rsvp.step", { current, total: TOTAL_STEPS })}</span>
-      {admin && <p className="hint">{t("rsvp.adminMode")}</p>}
-    </>
-  );
+  /** In admin mode the page says so (no frame, so no progress bar either). */
+  const header = (current: number) =>
+    admin ? (
+      <>
+        <span className="rsvp-step">{t("rsvp.step", { current, total: TOTAL_STEPS })}</span>
+        <p className="hint">{t("rsvp.adminMode")}</p>
+      </>
+    ) : null;
   const alert = error && (
     <p role="alert" className="error">
       {error}
@@ -172,6 +216,17 @@ function WizardForm({
         parts={parts}
         menus={menus}
         time={time}
+        frame={(body, footer) => (
+          <Frame
+            flow={!admin}
+            step={undefined}
+            title={t("rsvp.companions.formTitle")}
+            closeLabel={t("rsvp.close")}
+            footer={footer}
+          >
+            {body}
+          </Frame>
+        )}
         {...(view.companion ? { companion: view.companion } : {})}
         onCancel={() => {
           setView(WIZARD);
@@ -190,7 +245,32 @@ function WizardForm({
     const attending = answer ? answer.attendingPartIds.length > 0 : false;
     const menuName = (id: number | null) => menus.find((menu) => menu.id === id)?.name;
     return (
-      <div className="stack">
+      <Frame
+        flow={!admin}
+        step={undefined}
+        title={t("rsvp.title")}
+        closeLabel={t("rsvp.close")}
+        footer={
+          <>
+            {!locked && parts.length > 0 && (
+              <button
+                type="button"
+                className="btn ghost"
+                onClick={() => {
+                  setStep(1);
+                }}
+              >
+                {t("rsvp.change")}
+              </button>
+            )}
+            {onFinish && (
+              <button type="button" className="btn" onClick={onFinish}>
+                {t("rsvp.finish")}
+              </button>
+            )}
+          </>
+        }
+      >
         {admin && <p className="hint">{t("rsvp.adminMode")}</p>}
         {answer ? (
           <h1 className="h1">
@@ -283,32 +363,35 @@ function WizardForm({
             <p className="muted sm">{t("rsvp.editUntil", { date: format.day(state.deadline) })}</p>
           )
         )}
-        <div className="rsvp-actions">
-          {!locked && parts.length > 0 && (
-            <button
-              type="button"
-              className="btn ghost"
-              onClick={() => {
-                setStep(1);
-              }}
-            >
-              {t("rsvp.change")}
-            </button>
-          )}
-          {onFinish && (
-            <button type="button" className="btn" onClick={onFinish}>
-              {t("rsvp.finish")}
-            </button>
-          )}
-        </div>
-      </div>
+      </Frame>
     );
   }
 
   // --- Step 1: attendance ------------------------------------------------------------------
   if (step === 1) {
     return (
-      <div className="stack">
+      <Frame
+        flow={!admin}
+        step={1}
+        title={t("rsvp.title")}
+        closeLabel={t("rsvp.close")}
+        footer={
+          <>
+            <button
+              type="button"
+              className="btn"
+              disabled={!ownAnswered || parts.length === 0 || sending}
+              onClick={() => {
+                // Declining every part skips to the summary.
+                if (nobody) void submit();
+                else setStep(2);
+              }}
+            >
+              {nobody && ownAnswered ? t("rsvp.send") : t("rsvp.next")}
+            </button>
+          </>
+        }
+      >
         {header(1)}
         <h1 className="h1">{t("rsvp.greeting", { name: state.name })}</h1>
         {parts.length === 0 ? (
@@ -341,29 +424,42 @@ function WizardForm({
           </>
         )}
         {alert}
-        <div className="rsvp-actions">
-          <span />
-          <button
-            type="button"
-            className="btn"
-            disabled={!ownAnswered || parts.length === 0 || sending}
-            onClick={() => {
-              // Declining every part skips to the summary.
-              if (nobody) void submit();
-              else setStep(2);
-            }}
-          >
-            {nobody && ownAnswered ? t("rsvp.send") : t("rsvp.next")}
-          </button>
-        </div>
-      </div>
+      </Frame>
     );
   }
 
   // --- Step 2: food and allergies ----------------------------------------------------------
   if (step === 2) {
     return (
-      <div className="stack">
+      <Frame
+        flow={!admin}
+        step={2}
+        title={t("rsvp.title")}
+        closeLabel={t("rsvp.close")}
+        footer={
+          <>
+            <button
+              type="button"
+              className="btn ghost"
+              onClick={() => {
+                setStep(1);
+              }}
+            >
+              {t("rsvp.back")}
+            </button>
+            <button
+              type="button"
+              className="btn"
+              disabled={menuMissing}
+              onClick={() => {
+                setStep(3);
+              }}
+            >
+              {t("rsvp.next")}
+            </button>
+          </>
+        }
+      >
         {header(2)}
         <h1 className="h1">{t("rsvp.food.title")}</h1>
         {attendsAny(own) && (
@@ -395,34 +491,34 @@ function WizardForm({
           </div>
         ))}
         {alert}
-        <div className="rsvp-actions">
-          <button
-            type="button"
-            className="btn ghost"
-            onClick={() => {
-              setStep(1);
-            }}
-          >
-            {t("rsvp.back")}
-          </button>
-          <button
-            type="button"
-            className="btn"
-            disabled={menuMissing}
-            onClick={() => {
-              setStep(3);
-            }}
-          >
-            {t("rsvp.next")}
-          </button>
-        </div>
-      </div>
+      </Frame>
     );
   }
 
   // --- Step 3: companions and song wish ----------------------------------------------------
   return (
-    <div className="stack">
+    <Frame
+      flow={!admin}
+      step={3}
+      title={t("rsvp.title")}
+      closeLabel={t("rsvp.close")}
+      footer={
+        <>
+          <button
+            type="button"
+            className="btn ghost"
+            onClick={() => {
+              setStep(2);
+            }}
+          >
+            {t("rsvp.back")}
+          </button>
+          <button type="button" className="btn" disabled={sending} onClick={() => void submit()}>
+            {sending ? t("rsvp.sending") : t("rsvp.send")}
+          </button>
+        </>
+      }
+    >
       {header(3)}
       <h1 className="h1">{t("rsvp.companions.stepTitle")}</h1>
       <CompanionsCard
@@ -455,20 +551,6 @@ function WizardForm({
         </div>
       )}
       {alert}
-      <div className="rsvp-actions">
-        <button
-          type="button"
-          className="btn ghost"
-          onClick={() => {
-            setStep(2);
-          }}
-        >
-          {t("rsvp.back")}
-        </button>
-        <button type="button" className="btn" disabled={sending} onClick={() => void submit()}>
-          {sending ? t("rsvp.sending") : t("rsvp.send")}
-        </button>
-      </div>
-    </div>
+    </Frame>
   );
 }

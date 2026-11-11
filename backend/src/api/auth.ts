@@ -108,6 +108,7 @@ const OPEN_WHILE_CLOSED = [
   "/api/rsvp",
   "/api/waiting",
   "/api/privacy",
+  "/api/site",
   "/api/event",
   "/api/events/",
   "/api/health",
