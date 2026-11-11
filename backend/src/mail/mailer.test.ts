@@ -78,8 +78,16 @@ describe("mail configuration", () => {
       expect(() =>
         loadConfig({ ...env, SMTP_USER: "zappaloo", SMTP_PASSWORD_FILE: empty }),
       ).toThrow(/SMTP_PASSWORD: required with SMTP_USER/);
-      // Without a login the empty file is fine (the Compose secret always exists).
+      // Without a login the empty file is fine, and so is a missing one: Docker Compose does not
+      // mount an empty secret (staging with Mailpit has no password).
       expect(loadConfig({ ...env, SMTP_PASSWORD_FILE: empty }).SMTP_PASSWORD).toBeUndefined();
+      const missing = join(dir.path, "no-such-file");
+      expect(loadConfig({ ...env, SMTP_PASSWORD_FILE: missing }).SMTP_PASSWORD).toBeUndefined();
+      // ... but a login still needs its password, and a file that cannot be read is an error.
+      expect(() =>
+        loadConfig({ ...env, SMTP_USER: "zappaloo", SMTP_PASSWORD_FILE: missing }),
+      ).toThrow(/SMTP_PASSWORD: required with SMTP_USER/);
+      expect(() => loadConfig({ ...env, SMTP_PASSWORD_FILE: dir.path })).toThrow(/cannot read/);
     } finally {
       dir.remove();
     }

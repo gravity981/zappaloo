@@ -24,7 +24,8 @@ services:
       SMTP_PORT: ${SMTP_PORT:-}
       SMTP_USER: ${SMTP_USER:-}
       MAIL_FROM: ${MAIL_FROM:-}
-      # Empty file without secrets/smtp_password: a mail server without login (7.1.1).
+      # Without secrets/smtp_password (a mail server without login, 7.1.1) the secret is empty and
+      # newer Compose versions do not mount it: the app treats a missing file as "no password".
       SMTP_PASSWORD_FILE: /run/secrets/smtp_password
     secrets:
       - session_secret
