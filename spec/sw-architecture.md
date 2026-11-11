@@ -1981,6 +1981,8 @@ Production data and uploads must never be overwritten or deleted by a deployment
 | Migration check | Drizzle migrations apply cleanly to an empty database and to a reference database of the latest release (DATA-04) |
 | Determine version | `<last release>+build.<N>` (23.1) |
 | Image build | Docker build with version and commit baked in; on `main` also pushed to the registry, after the end-to-end tests passed |
+
+The end-to-end tests run in their own job, in parallel with the other checks, inside Playwright's official container image (`mcr.microsoft.com/playwright:v<version>-noble`, the version of `@playwright/test` in `package.json`). Browsers and their system packages come with the image, so nothing is installed at run time. The image job waits for both jobs.
 | Image smoke test | Start the image, check `GET /api/version` returns the version determined above |
 
 Images built from `main` are kept for 30 days; release candidates and releases are kept forever. The weekly workflow `cleanup-images.yml` deletes images whose only tags are build tags (`X.Y.Z_build.N`) and that are older than 30 days.

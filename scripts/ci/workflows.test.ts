@@ -23,6 +23,7 @@ interface Job {
   if?: string;
   uses?: string;
   permissions?: Record<string, string>;
+  container?: { image?: string };
   steps?: Step[];
 }
 interface Workflow {
@@ -35,7 +36,10 @@ const cleanup = parse(read(".github/workflows/cleanup-images.yml")) as Workflow;
 const candidateWorkflow = parse(read(".github/workflows/release-candidate.yml")) as Workflow;
 const promoteWorkflow = parse(read(".github/workflows/promote.yml")) as Workflow;
 const dockerfile = read("infrastructure/docker/Dockerfile");
-const packageJson = JSON.parse(read("package.json")) as { scripts: Record<string, string> };
+const packageJson = JSON.parse(read("package.json")) as {
+  scripts: Record<string, string>;
+  devDependencies: Record<string, string>;
+};
 
 function runs(job: Job | undefined): string[] {
   return (job?.steps ?? []).flatMap((step) => (step.run ? [step.run] : []));
@@ -48,6 +52,7 @@ function stepIndex(job: Job | undefined, text: string): number {
 
 describe("ci.yml", () => {
   const checks = ci.jobs.checks;
+  const e2e = ci.jobs.e2e;
   const image = ci.jobs.image;
   const report = ci.jobs.report;
 
@@ -65,27 +70,24 @@ describe("ci.yml", () => {
       "npm run migration-check",
       "npm run build",
       "npm test",
-      "npm run test:e2e",
     ]) {
       expect(runs(checks), command).toContain(command);
     }
+    expect(runs(e2e)).toContain("npm ci");
+    expect(runs(e2e)).toContain("npm run test:e2e");
     expect(runs(image)).toContain("npm run test:deploy");
-    // The report reads the results of both jobs, and runs even when tests failed.
-    expect(report?.needs).toEqual(["checks", "image"]);
+    // The report reads the results of all jobs, and runs even when tests failed.
+    expect(report?.needs).toEqual(["checks", "e2e", "image"]);
     expect(report?.if).toBe("${{ !cancelled() }}");
     expect(runs(report)).toContain("npm run req-report");
   });
 
-  it("caches Playwright browsers per Playwright version, installing only system packages on a hit", () => {
-    const cache = checks?.steps?.find((step) => step.uses?.startsWith("actions/cache@"));
-    expect(cache?.with?.path).toBe("~/.cache/ms-playwright");
-    expect(String(cache?.with?.key)).toContain("steps.playwright.outputs.version");
-    const install = checks?.steps?.find((step) =>
-      step.run?.includes("playwright install --with-deps"),
-    );
-    const deps = checks?.steps?.find((step) => step.run?.includes("playwright install-deps"));
-    expect(install?.if).toBe("steps.playwright-cache.outputs.cache-hit != 'true'");
-    expect(deps?.if).toBe("steps.playwright-cache.outputs.cache-hit == 'true'");
+  it("runs the end-to-end tests in Playwright's official image of the installed Playwright version", () => {
+    const version = packageJson.devDependencies["@playwright/test"];
+    expect(version).toMatch(/^\d+\.\d+\.\d+$/);
+    expect(e2e?.container?.image).toBe(`mcr.microsoft.com/playwright:v${version}-noble`);
+    // Browsers come with the image: nothing is installed at run time.
+    expect(runs(e2e).join("\n")).not.toContain("playwright install");
   });
 
   it("[OPS-06] every npm script used by CI exists", () => {
@@ -106,7 +108,7 @@ describe("ci.yml", () => {
   });
 
   it("[OPS-08] builds the image with the CI version, smoke-tests it, and pushes only from main after all checks", () => {
-    expect(image?.needs).toBe("checks");
+    expect(image?.needs).toEqual(["checks", "e2e"]);
     const all = runs(image).join("\n");
     expect(all).toContain("node scripts/version/cli.ts ci --run-number");
     expect(all).toContain("github.run_number");

@@ -1,7 +1,7 @@
 # CI (sw-architecture.md 23.2, OPS-06, OPS-08): every pull request and every push
-# to main. The image is built, smoke-tested and deployment-tested only after all
-# checks passed, and pushed to the registry only from main. The requirement
-# report combines the results of both jobs.
+# to main. Checks and end-to-end tests run in parallel. The image is built,
+# smoke-tested and deployment-tested only after both passed, and pushed to the
+# registry only from main. The requirement report combines the results of all jobs.
 name: CI
 
 on:
@@ -35,23 +35,6 @@ jobs:
           node-version-file: .node-version
           cache: npm
       - run: npm ci
-      # Browsers are cached per Playwright version; on a cache hit only the
-      # system packages they need are installed.
-      - name: Playwright version
-        id: playwright
-        run: echo "version=$(node -p 'require("@playwright/test/package.json").version')" >> "$GITHUB_OUTPUT"
-      - name: Cache Playwright browsers
-        id: playwright-cache
-        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-        with:
-          path: ~/.cache/ms-playwright
-          key: playwright-${{ runner.os }}-${{ steps.playwright.outputs.version }}
-      - name: Install Playwright browsers
-        if: steps.playwright-cache.outputs.cache-hit != 'true'
-        run: npx playwright install --with-deps chromium webkit
-      - name: Install Playwright system dependencies
-        if: steps.playwright-cache.outputs.cache-hit == 'true'
-        run: npx playwright install-deps chromium webkit
       - name: Lint
         run: npm run lint
       - name: Format check
@@ -64,21 +47,47 @@ jobs:
         run: npm run build
       - name: Unit, component and integration tests
         run: npm test
+      - name: Upload test results
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: test-results
+          path: reports/vitest.json
+          retention-days: 14
+
+  # Runs in parallel with the checks, in Playwright's official image: browsers and
+  # their system packages are preinstalled, so nothing is installed at run time.
+  # The image tag must match the @playwright/test version in package.json.
+  e2e:
+    name: End-to-end tests
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    container:
+      image: mcr.microsoft.com/playwright:v1.64.1-noble
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0 # tags: last release for the dev version the backend reports
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .node-version
+          cache: npm
+      - run: npm ci
       - name: End-to-end tests
         run: npm run test:e2e
       - name: Upload test results
         if: ${{ !cancelled() }}
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
-          name: test-results
+          name: e2e-results
           path: |
-            reports/
+            reports/playwright.json
             playwright-report/
           retention-days: 14
 
   image:
     name: Image
-    needs: checks
+    needs: [checks, e2e]
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     permissions:
@@ -147,7 +156,7 @@ jobs:
 
   report:
     name: Requirement report
-    needs: [checks, image]
+    needs: [checks, e2e, image]
     if: ${{ !cancelled() }}
     runs-on: ubuntu-24.04
     timeout-minutes: 5
@@ -156,10 +165,15 @@ jobs:
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version-file: .node-version
-      # test-results keeps its reports/ folder; deploy-results is a single file.
+      # Single-file artifacts are downloaded into reports/; e2e-results keeps its
+      # reports/ folder (two paths are uploaded relative to the repository root).
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: test-results
+          path: reports
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: e2e-results
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: deploy-results
