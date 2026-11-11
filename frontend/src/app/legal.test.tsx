@@ -1,5 +1,7 @@
 // The footer's copyright and license notice, the license page and the admin's line
 // (LIC-01 – LIC-03; sw-architecture.md 19.6, UX decision 61).
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { screen, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { initI18n } from "../i18n/i18n.ts";
@@ -122,6 +124,17 @@ describe("the notice under the footer", () => {
     renderAt("/login");
     expect(await screen.findByRole("heading", { name: "Anmelden" })).toBeVisible();
     expect(screen.queryByRole("link", { name: "Quellcode" })).not.toBeInTheDocument();
+  });
+});
+
+describe("the footer's layout", () => {
+  it('[LIC-01] "Datenschutz · Version" is centred, like the notice below it', () => {
+    const css = readFileSync(join(import.meta.dirname, "ui.css"), "utf8").replace(
+      /\/\*[\s\S]*?\*\//g,
+      "",
+    );
+    const rule = /:is\(\.admin, \.guest\) \.version-footer\s*\{([^}]*)\}/.exec(css);
+    expect(rule?.[1]).toMatch(/text-align:\s*center/);
   });
 });
 

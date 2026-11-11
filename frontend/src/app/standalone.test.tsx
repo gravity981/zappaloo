@@ -63,6 +63,24 @@ describe("the page head (PWA-03)", () => {
   });
 });
 
+describe("no zoom (PWA-04)", () => {
+  it("[PWA-04] the page cannot be scaled: maximum-scale=1 in the viewport", () => {
+    expect(read("index.html")).toMatch(/<meta name="viewport" content="[^"]*maximum-scale=1\.0/);
+  });
+
+  it("[PWA-04] fields are 16px on touch screens, so iOS does not zoom in when one gets the focus", () => {
+    const ui = read("src/app/ui.css");
+    const block = /@media \(pointer: coarse\) \{([\s\S]*?)\n\}/.exec(ui)?.[1] ?? "";
+    expect(block).toContain(":is(.admin, .guest) .input");
+    expect(block).toContain(":is(.admin, .guest) .handover .input");
+    expect(block).toMatch(/font-size:\s*16px/);
+  });
+
+  it("[PWA-04] a double tap does not zoom", () => {
+    expect(read("src/app/styles.css")).toMatch(/body\s*\{[^}]*touch-action:\s*manipulation/);
+  });
+});
+
 describe("safe areas (PWA-04)", () => {
   /** The declarations of the first rule whose selector list contains `selector`. */
   function rule(css: string, selector: string): string {
