@@ -71,7 +71,7 @@ CI runs the report after the test jobs and fails the build on a non-zero exit.
 | INV | Integration, E2E | Includes a concurrency test for atomic redemption (INV-08) and the printable export at creation time (INV-14).  |
 | PHO, MOD | Integration, E2E, Manual | Uploads closed by default, opened and closed separately by the admin, upload links show a notice while closed (PHO-18). Composer with "Upload snapshot" (disabled without a photo) and "Upload keepsake" (photo, photo + text, text only); text length limits; keepsake page; printable keepsake book PDF including photos. Fixture images in JPEG, PNG and HEIC, plus oversized and invalid files. Worker queue processed in tests. Anonymous upload via upload link: revoked or expired token rejected, token grants nothing else. Swipe moderation via Playwright touch emulation and arrow keys, undo, rejected list. Real-device camera check is manual. |
 | MAP | Unit, Integration, E2E | Test maps exported from Tiled live in test fixtures, including invalid ones. Import validation, warnings for missing portal targets, portal properties from Tiled, `eventPart` and wander areas, rollback, new version used on next map entry with refreshed graphics. |
-| DATA | Integration | Migrations run from an empty DB and from the previous schema version with data. |
+| DATA | Integration | Migrations run from an empty DB and from the previous schema version with data. The activity card (DATA-05): listed actions appear newest first, limited to 5, names resolved, excluded actions (login, role changes) never appear, deleted guests show no name, admin role required. |
 | CFG | Unit, Integration | Setup validation (time zone, language, empty name) as unit tests. Setup from an empty database, later edits of name, time zone and language, `event seed-example` and its refusal on a set-up installation as integration tests; the setup form and the "not set up yet" page as E2E. Feature toggles and runtime settings changes checked in UI and API. |
 | OPS | Deployment smoke, Unit, Manual | Deployment test (`npm run test:deploy`, in CI after the image build): the real bundle (`compose.yaml`, `deploy.sh`) with the real image in Docker – staging without backup, HTTPS through Caddy with its local CA, data kept across redeployments and restarts, prod release-tag rule, pre-deploy backup, failed deployment and rollback with `--restore`, Server-Sent Events through Caddy without buffering (OPS-01, OPS-02, OPS-04, OPS-15, OPS-16); staging restored from the latest full backup in `backups/` (database and files replaced, no restore without caught mail, `--no-restore`) and torn down with `--teardown` (OPS-05, OPS-13); full backup and restore as CLI tests (unit-level, with refusals and invalid archives, OPS-05); only Caddy's ports (and Mailpit's on staging) published, HTTP→HTTPS redirect keeping a non-standard port (OPS-03, OPS-01). Release rules (candidate numbering, only the latest candidate, no reused tags) as unit tests, and the release notes (changelog sorted from commit messages, install and update commands) and the deployment bundle as unit tests against a temporary git repository (OPS-19), and the structure of the release workflows (OPS-10, OPS-11, OPS-12). Image smoke test of `GET /api/version` (OPS-08); version determination and release-workflow checks (SemVer, candidate numbering, "only the latest candidate") as unit-tested scripts (OPS-08, OPS-10, OPS-11). See 6.1 for the manual part. |
 | SEC | Unit, Integration, E2E | CSRF, rate limits and schema validation per endpoint group. Markdown sanitising, noindex headers and `robots.txt`, privacy notice without sign-in. Shutdown flow with fake timers: notice email, export, deletion. |
@@ -92,17 +92,17 @@ All active requirements are listed here until their stage is delivered. Shrink t
 | SCR | SCR-01, SCR-02, SCR-04, SCR-05, SCR-07 | 5 |
 | CNT | CNT-01 – CNT-05 | 5 |
 | AVA | AVA-01 – AVA-04 | 4 |
-| RSVP | RSVP-01 – RSVP-10 | 10 |
+| RSVP | RSVP-08 – RSVP-10 | 3 |
 | ACS | ACS-04, ACS-10 – ACS-14 | 6 |
 | PHO | PHO-01 – PHO-03, PHO-05 – PHO-19 | 18 |
 | MOD | MOD-01 – MOD-05 | 5 |
 | MAP | MAP-01 – MAP-06, MAP-08 – MAP-10, MAP-12 – MAP-15 | 13 |
 | CFG | CFG-01, CFG-04 | 2 |
 | OPS | OPS-02, OPS-12, OPS-13 | 3 |
-| SEC | SEC-04 – SEC-09, SEC-11 | 7 |
+| SEC | SEC-04 – SEC-09 | 6 |
 | PERF | PERF-01, PERF-03, PERF-04 | 3 |
 | ACC | ACC-16 | 1 |
-| **Total** | | **143** |
+| **Total** | | **135** |
 
 The stage each requirement belongs to is listed in `sw-architecture.md`, section 28.
 

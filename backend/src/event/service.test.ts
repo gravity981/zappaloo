@@ -198,13 +198,20 @@ describe("data model", () => {
       "access_releases",
       "audit_log",
       "event_features",
+      "event_parts",
       "event_settings",
       "guest_group_members",
       "guest_groups",
+      "invitation_parts",
       "invitations",
       "membership_capabilities",
+      "membership_parts",
       "membership_roles",
       "memberships",
+      "menu_options",
+      "rsvp_answers",
+      "rsvp_attendance",
+      "rsvp_config",
     ]);
     for (const { name } of tables) {
       const columns = database.sqlite.prepare(`PRAGMA table_info(${name})`).all() as {

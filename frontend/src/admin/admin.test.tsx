@@ -15,7 +15,7 @@ const asAdmin = { status: 200, body: { user: admin, csrfToken: "csrf-1" } };
 
 /** An account as `GET /api/admin/users` lists it. */
 function account(changes: Record<string, unknown> = {}) {
-  return { ...anna, vipAssignment: "invitation_code", groups: [], ...changes };
+  return { ...anna, vipAssignment: "invitation_code", groups: [], invitedPartIds: [], ...changes };
 }
 
 describe("admin area", () => {
@@ -38,7 +38,7 @@ describe("admin area", () => {
       within(nav)
         .getAllByRole("link")
         .map((link) => link.textContent),
-    ).toEqual(["Übersicht", "Einladungen", "Konten & Rollen", "Einstellungen"]);
+    ).toEqual(["Übersicht", "Einladungen", "Rückmeldungen", "Konten & Rollen", "Einstellungen"]);
     expect(await screen.findByText("Plattform geschlossen")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Zur Website" })).toHaveAttribute("href", "/");
   });
@@ -131,6 +131,7 @@ describe("invitations", () => {
     createdAt: "2026-11-10T10:00:00.000Z",
     redeemedAt: null,
     redeemedBy: null,
+    partIds: [],
   };
 
   it("[INV-01][INV-04][INV-14] an admin creates invitations and gets cards with code and QR code", async () => {

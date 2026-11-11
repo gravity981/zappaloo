@@ -7,6 +7,8 @@ import type { Mailer } from "../mail/mailer.ts";
 import { AccountService } from "./accounts.ts";
 import { GroupService } from "./groups.ts";
 import { AccessService } from "./access.ts";
+import { ActivityService } from "../event/activity.ts";
+import { RsvpService } from "../rsvp/service.ts";
 import { InvitationService } from "./invitations.ts";
 import { RateLimiter } from "./rate-limit.ts";
 import { SessionService } from "./sessions.ts";
@@ -46,6 +48,8 @@ export function createAuth(
     groups,
     access: new AccessService(database, event, groups),
     invitations: new InvitationService(database, event, accounts),
+    rsvp: new RsvpService(database, event),
+    activity: new ActivityService(database, event),
     limiter: new RateLimiter(),
     event,
     secret: config.SESSION_SECRET,

@@ -593,3 +593,79 @@
 .admin .input.auto {
   align-self: flex-start;
 }
+
+/* The guest's RSVP wizard on the website reuses the admin look until the website theme
+   exists (stage 4): same cards, chips and buttons, without the admin page frame. */
+.admin.embedded {
+  min-height: 0;
+  display: block;
+  background: transparent;
+  max-width: 40rem;
+  margin: 0 auto;
+  padding: 8px 0 24px;
+}
+.admin.embedded .rsvp-step {
+  color: var(--a-muted);
+  font-size: 12px;
+}
+.admin .rsvp-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: space-between;
+  flex-wrap: wrap;
+}
+.admin .rsvp-actions .btn:last-child:not(:first-child) {
+  margin-left: auto;
+}
+.admin .rsvp-part {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--a-fill);
+}
+.admin .rsvp-part:last-child {
+  border-bottom: 0;
+}
+.admin .rsvp-part .grow {
+  min-width: 10rem;
+}
+.admin .lock {
+  color: var(--a-muted);
+  font-size: 12px;
+}
+.admin .bar-row {
+  display: grid;
+  grid-template-columns: 6rem 1fr auto;
+  gap: 8px;
+  align-items: center;
+}
+.admin .bar-row .track {
+  display: flex;
+  height: 10px;
+  background: var(--a-fill);
+  border-radius: 999px;
+  overflow: hidden;
+}
+.admin .bar-row .track i {
+  display: block;
+  height: 100%;
+  background: var(--a-dark);
+}
+.admin .bar-row .track i.no {
+  background: var(--a-line);
+}
+.admin .kpi .hint,
+.admin .kpi a {
+  font-size: 12px;
+}
+.admin .inline-form {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr));
+  gap: 10px;
+  align-items: end;
+}
+.admin a.btn {
+  text-decoration: none;
+}

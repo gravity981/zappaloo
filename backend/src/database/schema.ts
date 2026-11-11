@@ -16,6 +16,7 @@ import {
   text,
   uniqueIndex,
 } from "drizzle-orm/sqlite-core";
+import { sql } from "drizzle-orm";
 import type { AnySQLiteColumn } from "drizzle-orm/sqlite-core";
 
 /**
@@ -288,4 +289,128 @@ export const accessReleases = sqliteTable(
     releasedAt: integer("released_at", { mode: "timestamp_ms" }).notNull(),
   },
   (table) => [primaryKey({ columns: [table.eventId, table.key] })],
+);
+
+// --- RSVP (sw-architecture.md 7.4, 7.4.1) -------------------------------------------------
+
+/** Event parts: ceremony, aperitif, dinner, party (RSVP-02). At most one has the meal. */
+export const eventParts = sqliteTable(
+  "event_parts",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    eventId: text("event_id")
+      .notNull()
+      .references(() => events.id),
+    name: text("name").notNull(),
+    startsAt: integer("starts_at", { mode: "timestamp_ms" }).notNull(),
+    place: text("place"),
+    hasMeal: integer("has_meal", { mode: "boolean" }).notNull().default(false),
+    createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull(),
+  },
+  (table) => [
+    index("event_parts_event").on(table.eventId),
+    uniqueIndex("event_parts_meal")
+      .on(table.eventId)
+      .where(sql`${table.hasMeal} = 1`),
+  ],
+);
+
+/** The one list of menu options for everyone (RSVP-03). */
+export const menuOptions = sqliteTable(
+  "menu_options",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    eventId: text("event_id")
+      .notNull()
+      .references(() => events.id),
+    name: text("name").notNull(),
+    createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull(),
+  },
+  (table) => [index("menu_options_event").on(table.eventId)],
+);
+
+/** RSVP settings of the event; for now the deadline (RSVP-04). */
+export const rsvpConfig = sqliteTable("rsvp_config", {
+  eventId: text("event_id")
+    .primaryKey()
+    .references(() => events.id),
+  /** The last day guests can change their RSVP, as `YYYY-MM-DD` in the event's time zone. */
+  deadline: text("deadline"),
+});
+
+/** The parts an invitation is for; copied to the membership when the code is redeemed. */
+export const invitationParts = sqliteTable(
+  "invitation_parts",
+  {
+    eventId: text("event_id")
+      .notNull()
+      .references(() => events.id),
+    invitationId: integer("invitation_id")
+      .notNull()
+      .references(() => invitations.id, { onDelete: "cascade" }),
+    partId: integer("part_id")
+      .notNull()
+      .references(() => eventParts.id, { onDelete: "cascade" }),
+  },
+  (table) => [primaryKey({ columns: [table.invitationId, table.partId] })],
+);
+
+/** The parts a `vip` is invited to (RSVP-02). */
+export const membershipParts = sqliteTable(
+  "membership_parts",
+  {
+    eventId: text("event_id")
+      .notNull()
+      .references(() => events.id),
+    userId: integer("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    partId: integer("part_id")
+      .notNull()
+      .references(() => eventParts.id, { onDelete: "cascade" }),
+  },
+  (table) => [
+    primaryKey({ columns: [table.eventId, table.userId, table.partId] }),
+    ofMembership(table),
+  ],
+);
+
+/** The RSVP of a guest: one row once they have answered (RSVP-01, RSVP-03, RSVP-06). */
+export const rsvpAnswers = sqliteTable(
+  "rsvp_answers",
+  {
+    eventId: text("event_id")
+      .notNull()
+      .references(() => events.id),
+    userId: integer("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    menuId: integer("menu_id").references(() => menuOptions.id, { onDelete: "set null" }),
+    /** Health data: only admins read it (SEC-11). */
+    allergies: text("allergies"),
+    songWish: text("song_wish"),
+    answeredAt: integer("answered_at", { mode: "timestamp_ms" }).notNull(),
+  },
+  (table) => [primaryKey({ columns: [table.eventId, table.userId] }), ofMembership(table)],
+);
+
+/** Yes or no per invited part (RSVP-01). */
+export const rsvpAttendance = sqliteTable(
+  "rsvp_attendance",
+  {
+    eventId: text("event_id")
+      .notNull()
+      .references(() => events.id),
+    userId: integer("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    partId: integer("part_id")
+      .notNull()
+      .references(() => eventParts.id, { onDelete: "cascade" }),
+    attending: integer("attending", { mode: "boolean" }).notNull(),
+  },
+  (table) => [
+    primaryKey({ columns: [table.eventId, table.userId, table.partId] }),
+    ofMembership(table),
+  ],
 );

@@ -1,15 +1,18 @@
 import { useTranslation } from "react-i18next";
 import { NavLink, Outlet } from "react-router";
+import { useFeature } from "./event.ts";
 import { useSession } from "./session.ts";
 import VersionFooter from "./VersionFooter.tsx";
 
 function AccountNav() {
   const { t } = useTranslation();
   const session = useSession();
+  const rsvp = useFeature("rsvp");
   if (!session.ready) return null;
   if (!session.user) return <NavLink to="/login">{t("nav.login")}</NavLink>;
   return (
     <>
+      {rsvp && session.user.roles.includes("vip") && <NavLink to="/rsvp">{t("nav.rsvp")}</NavLink>}
       {session.user.roles.includes("admin") && <NavLink to="/admin">{t("nav.admin")}</NavLink>}
       <NavLink to="/profile">{t("nav.profile")}</NavLink>
       <button type="button" onClick={() => void session.logout()}>

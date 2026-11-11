@@ -1114,7 +1114,7 @@ add({
 /* ===== Admin ===== */
 add({
   id: "admin-home", group: "admin", title: "Admin overview", path: "/admin", reqs: ["ROLE-07", "ACS-10", "PHO-18", "RSVP-05", "MOD-03"],
-  shows: ["Status at a glance: platform open/closed, uploads, RSVPs, moderation and companion requests.", "Admin shell: side navigation on desktop, scrollable chips on phones."],
+  shows: ["Status at a glance: platform open/closed, uploads, RSVPs, moderation and companion requests.", "“Zuletzt” (DATA-05, decided 2026-11-11): the latest 5 guest-related changes and changes to settings and content from the audit log; no logins or role changes.", "Admin shell: side navigation on desktop, scrollable chips on phones."],
   qs: [{ q: "Should the admin area work fully on phones, or desktop-first with only moderation and switches tuned for phones?", p: "Mock: everything responsive, but tables are tuned for desktop." }],
   render: () => admin("admin-home", `<h1 class="m-h1">Übersicht</h1>
     <div class="m-kpis">
@@ -1129,7 +1129,8 @@ add({
       <div class="m-card"><b>Zuletzt</b><div class="m-list sm">
         <div class="m-li"><div class="grow">Erika Huber hat zugesagt (3 Teile)</div><span class="m-hint">vor 2 Std</span></div>
         <div class="m-li"><div class="grow">Begleitperson «Mia Huber» beantragt</div><span class="m-hint">vor 2 Std</span></div>
-        <div class="m-li"><div class="grow">12 Einladungen erstellt</div><span class="m-hint">gestern</span></div></div></div></div>`),
+        <div class="m-li"><div class="grow">12 Einladungen erstellt</div><span class="m-hint">gestern</span></div>
+        <div class="m-li"><div class="grow">«Schnappschuss-Uploads» geändert</div><span class="m-hint">gestern</span></div></div></div></div>`),
 });
 add({
   id: "admin-invitations", group: "admin", title: "Invitations", path: "/admin/invitations", reqs: ["INV-01", "INV-04", "INV-05", "INV-06", "INV-14", "RSVP-02"],

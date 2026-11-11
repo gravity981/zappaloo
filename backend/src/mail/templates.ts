@@ -35,3 +35,20 @@ export function passwordResetMail(
       "Falls du das nicht angefordert hast, kannst du diese Nachricht ignorieren; dein Passwort bleibt unverändert.\n",
   };
 }
+
+export function rsvpReminderMail(
+  to: string,
+  eventName: string,
+  name: string,
+  deadline: string | null,
+  url: string,
+): MailMessage {
+  const until = deadline === null ? "" : ` Du kannst bis zum ${deadline} antworten.`;
+  return {
+    to,
+    subject: `${eventName}: Bitte gib uns deine Rückmeldung`,
+    text:
+      `Hallo ${name}\n\nWir haben noch keine Rückmeldung von dir für ${eventName}. ` +
+      `Sag uns bitte, ob du dabei bist.${until}\n\n${url}\n`,
+  };
+}

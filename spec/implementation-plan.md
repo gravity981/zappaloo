@@ -127,8 +127,8 @@ Requirements: CFG-02 (replaced), CFG-05 (reworded), CFG-06, CFG-07.
 - Invited parts per invitation: "Eingeladen zu" chips at batch creation, "Teile" column, editable per row (UX decision 31); "Eingeladen zu" in the account panel for admin-created VIPs.
 - Three-step wizard (attendance → food → song), deadline shown up front, declining every part skips to the summary; summary page, read-only after the deadline; no confirmation email (UX decision 12).
 - Rückmeldungen (new nav entry): totals per part (yes / no), menus of the meal part, guest table with the admin-only allergy column, song wishes, CSV export, "Erinnern (n)" reminder email to guests without an answer who have a verified address; a row opens the wizard in admin mode.
-- Übersicht: KPI "Rückmeldungen x / y, n ohne Antwort". The mock's "Zuletzt" activity card is not backed by a requirement and is left out (proposal; to confirm).
-Requirements: RSVP-01, RSVP-02, RSVP-03, RSVP-04, RSVP-05, RSVP-06, RSVP-07, SEC-11.
+- Übersicht: KPI "Rückmeldungen x / y, n ohne Antwort", and the card "Zuletzt" (decided 2026-11-11, DATA-05): the latest 5 audit-log entries about guests and about settings and content, names resolved on display, no logins or role changes. 3a audits RSVP answers and changes and event-part and RSVP-setting changes; 3b adds companion requests and decisions, 3c and 3d the waiting-page texts, opening and the privacy notice; invitations created and redeemed are already audited.
+Requirements: RSVP-01, RSVP-02, RSVP-03, RSVP-04, RSVP-05, RSVP-06, RSVP-07, SEC-11, DATA-05 (added 2026-11-11).
 
 **3b – Accompanying persons.** Mock screens: `rsvp-companion` (overview and request form), `rsvp-people` (one card per person), `rsvp-done`, `admin-rsvp` (requests card), `admin-home` (KPI Begleitpersonen, nav badge).
 - Request form: name, optional note, attendance for the VIP's own parts, menu, allergies with the lock note; the avatar comes later (PRES-07).

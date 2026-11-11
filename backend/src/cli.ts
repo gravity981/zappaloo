@@ -1,6 +1,7 @@
 // Command-line interface `zappaloo` (sw-architecture.md 23.8). Runs inside the
 // application container (`docker compose exec app zappaloo <command>`) or from
 // source (`npm run cli -- <command>`). Commands are added with their features.
+import { RsvpService, seedExampleRsvp } from "./rsvp/service.ts";
 import { createReadStream, createWriteStream, mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
@@ -240,6 +241,7 @@ const commands: Record<string, Command> = {
           const seeded = EventService.forInstallation(database);
           try {
             seeded.setup(EXAMPLE_EVENT, CLI_ACTOR);
+            seedExampleRsvp(new RsvpService(database, seeded), CLI_ACTOR);
           } catch (error) {
             if (error instanceof EventError && error.code === "already_set_up") {
               io.err(
@@ -249,7 +251,9 @@ const commands: Record<string, Command> = {
             }
             throw error;
           }
-          io.out(`The example event "${EXAMPLE_EVENT.name}" is set up.`);
+          io.out(
+            `The example event "${EXAMPLE_EVENT.name}" is set up, with event parts, menus and an RSVP deadline.`,
+          );
           return 0;
         }
         const event = EventService.forInstallation(database);

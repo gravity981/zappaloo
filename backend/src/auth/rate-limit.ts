@@ -72,3 +72,6 @@ export const REDEEM_FAILURES_PER_ADDRESS: Limit = { max: 20, windowMs: 15 * 60_0
  */
 export const REDEEM_FAILURES_GLOBAL: Limit = { max: 100, windowMs: 60 * 60_000 };
 export const REDEEM_GLOBAL_KEY = "redeem:failures";
+
+/** Reminder emails to guests without an RSVP, per admin (RSVP-07): a double click sends nothing twice. */
+export const RSVP_REMIND_PER_ADMIN: Limit = { max: 5, windowMs: 60 * 60_000 };

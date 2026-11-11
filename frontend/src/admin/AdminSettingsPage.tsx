@@ -1,6 +1,7 @@
 // Einstellungen (sw-architecture.md 8.3): one page with sections. In stage 2 the event's
-// name, time zone and language (CFG-06) and the feature switches (CFG-03, CFG-05); opening the platform, RSVP, waiting page texts, links and guest
-// profiles come with their steps.
+// name, time zone and language (CFG-06), the RSVP settings (RSVP-02, RSVP-03, RSVP-04) and the
+// feature switches (CFG-03, CFG-05); opening the platform, waiting page texts, privacy notice,
+// links and guest profiles come with their steps.
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { FEATURE_NAMES } from "@zappaloo/shared";
@@ -10,6 +11,7 @@ import { useErrorText, useEventUpdate } from "./data.ts";
 import EventIdentityForm from "./EventIdentityForm.tsx";
 import { identityOf } from "./identity.ts";
 import type { EventIdentity } from "./identity.ts";
+import RsvpSettingsCard from "./RsvpSettingsCard.tsx";
 import { Switch } from "./ui.tsx";
 
 export default function AdminSettingsPage() {
@@ -58,6 +60,7 @@ export default function AdminSettingsPage() {
       )}
       {event && (
         <div className="grid-2">
+          <RsvpSettingsCard />
           <section className="card" aria-labelledby="features-title">
             <b id="features-title">{t("admin.settings.features")}</b>
             <span className="hint">{t("admin.settings.featuresHint")}</span>

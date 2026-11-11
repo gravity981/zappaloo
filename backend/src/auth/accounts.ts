@@ -4,9 +4,11 @@ import { and, eq, inArray, isNotNull, isNull, lte, or, sql } from "drizzle-orm";
 import type { AdminUser, Capability, ProfileUpdate, Role, User } from "@zappaloo/shared";
 import type { Database } from "../database/database.ts";
 import {
+  eventParts,
   guestGroupMembers,
   guestGroups,
   membershipCapabilities,
+  membershipParts,
   membershipRoles,
   memberships,
   oneTimeLinks,
@@ -70,6 +72,22 @@ export class AccountService {
     this.#database = database;
     this.#event = event;
     this.#now = now;
+  }
+
+  /** A `vip` without an invitation (admin promotion) starts invited to every part (RSVP-02). */
+  #inviteToAllParts(tx: Tx, userId: number): void {
+    const eventId = this.#event.eventId;
+    const parts = tx
+      .select({ id: eventParts.id })
+      .from(eventParts)
+      .where(eq(eventParts.eventId, eventId))
+      .all();
+    for (const { id } of parts) {
+      tx.insert(membershipParts)
+        .values({ eventId, userId, partId: id })
+        .onConflictDoNothing()
+        .run();
+    }
   }
 
   /** The user as the API shows it, with the roles in this installation's event. */
@@ -175,6 +193,9 @@ export class AccountService {
         tx.insert(membershipRoles)
           .values({ eventId: this.#event.eventId, userId: row.id, role })
           .run();
+      }
+      if (input.roles.includes("vip") && input.invitationId === undefined) {
+        this.#inviteToAllParts(tx, row.id);
       }
       this.#event.audit(
         actor === SELF_ACTOR ? `user:${String(row.id)}` : actor,
@@ -489,9 +510,18 @@ export class AccountService {
       .where(eq(guestGroups.eventId, this.#event.eventId))
       .orderBy(guestGroups.name)
       .all();
+    const invited = db
+      .select({ userId: membershipParts.userId, partId: membershipParts.partId })
+      .from(membershipParts)
+      .where(eq(membershipParts.eventId, this.#event.eventId))
+      .all();
     return rows.map(({ user, vipAssignment }) => ({
       ...this.#toUser(user),
       vipAssignment,
+      invitedPartIds: invited
+        .filter((p) => p.userId === user.id)
+        .map((p) => p.partId)
+        .sort((a, b) => a - b),
       groups: groups.filter((g) => g.userId === user.id).map(({ id, name }) => ({ id, name })),
     }));
   }
@@ -527,6 +557,12 @@ export class AccountService {
       }
       // Direct promotion needs no code; revoking vip forgets how it was granted (INV-11).
       const gainedVip = wanted.includes("vip") && !current.includes("vip");
+      if (gainedVip) this.#inviteToAllParts(tx, userId);
+      if (!wanted.includes("vip") && current.includes("vip")) {
+        tx.delete(membershipParts)
+          .where(and(eq(membershipParts.eventId, eventId), eq(membershipParts.userId, userId)))
+          .run();
+      }
       if (gainedVip || (!wanted.includes("vip") && current.includes("vip"))) {
         tx.update(memberships)
           .set(

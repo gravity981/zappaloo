@@ -14,6 +14,7 @@ import AdminSetupPage from "./AdminSetupPage.tsx";
 const PAGES = [
   { to: "/admin", label: "admin.nav.home", end: true },
   { to: "/admin/invitations", label: "admin.nav.invitations", end: false },
+  { to: "/admin/rsvp", label: "admin.nav.rsvp", end: false },
   { to: "/admin/users", label: "admin.nav.users", end: false },
   { to: "/admin/settings", label: "admin.nav.settings", end: false },
 ] as const;

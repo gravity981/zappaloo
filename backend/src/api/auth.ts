@@ -37,6 +37,8 @@ import type { RateLimiter } from "../auth/rate-limit.ts";
 import type { AccessService } from "../auth/access.ts";
 import type { GroupService } from "../auth/groups.ts";
 import type { InvitationService } from "../auth/invitations.ts";
+import type { ActivityService } from "../event/activity.ts";
+import type { RsvpService } from "../rsvp/service.ts";
 import type { SessionService } from "../auth/sessions.ts";
 import type { EventService } from "../event/service.ts";
 import type { Mailer } from "../mail/mailer.ts";
@@ -63,6 +65,10 @@ export interface AuthOptions {
   access: AccessService;
   /** Personal invitation codes (INV-01 – INV-12). */
   invitations: InvitationService;
+  /** The RSVP, event parts and menus (RSVP-01 – RSVP-07). */
+  rsvp: RsvpService;
+  /** The latest changes for the admin overview (DATA-05). */
+  activity: ActivityService;
   /** Sends emails (ACC-11); undefined if no mail server is configured. */
   mailer?: Mailer | undefined;
 }

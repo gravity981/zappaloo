@@ -788,6 +788,16 @@ Every signed-in guest responds to the invitation. The RSVP gives guests a reason
 - **Accompanying persons:** while a request is pending, the VIP can edit or withdraw it. After approval the VIP changes the person's attendance, menu and allergies in the wizard like their own, until the deadline, without a new approval; the name of an approved person is changed by the admin. Approved persons count in the totals, menus and the guest table.
 - **Reminder and other emails** go only to verified addresses (7.1.1); the count on the button ("Erinnern (n)") counts guests without an answer who have one.
 
+**Implementation decisions of step 3a** (2026-11-11):
+
+- **Deadline** (RSVP-04): a calendar day set in Einstellungen; guests can answer and change until that day ends in the event's time zone (`rsvp_config.deadline`, `YYYY-MM-DD`). Without a deadline the RSVP stays open. Part start times are entered and shown in the event's time zone and stored as instants (`shared/src/time.ts`).
+- **Menu** (RSVP-03): a person who attends the meal part must choose a menu while menus exist; a person who does not attend it has none (a chosen one is dropped). A guest who declines every part keeps no menu, allergies or song wish.
+- **Invited parts** (RSVP-02): stored per membership (`membership_parts`); an invitation carries its own list (`invitation_parts`, all parts by default) and copies it to the account when redeemed. After redemption the invitation row and the account panel show and change the same list. Admin promotion to `vip` (role change, account created by an admin, CLI `--vip`) invites to all parts that exist then; revoking `vip` clears the list. A part created later is not added to existing invitations. Deleting a part also removes the answers for it; deleting a menu option leaves its guests without a menu choice. Removing a part from a guest's invitation removes their answer for it.
+- **Answers** are one row per guest (`rsvp_answers`) and one yes/no per invited part (`rsvp_attendance`); every invited part must be answered, once. Only `vip` accounts answer. Companions follow in step 3b.
+- **API:** `GET`/`PUT /api/rsvp` (guest); `GET /api/admin/rsvp` (overview), `GET /api/admin/rsvp/export` (CSV, `;` separated, cells that start with `=`, `+`, `-` or `@` are prefixed so spreadsheets do not run them), `POST /api/admin/rsvp/remind` (at most 5 per admin and hour), `GET`/`PUT /api/admin/rsvp/guests/:id` (admin mode, ignores the deadline); `GET /api/admin/rsvp/config`, `PUT /api/admin/rsvp/deadline`, `POST`/`PATCH`/`DELETE /api/admin/rsvp/parts[/:id]` and `/menus[/:id]`; `PUT /api/admin/invitations/:id/parts`, `PUT /api/admin/users/:id/parts`. All RSVP routes of guests and the overview are unavailable (404 `feature_disabled`) while the feature `rsvp` is off; the configuration stays editable.
+- **Allergies** (SEC-11) are returned only to the guest's own wizard and to admins; they never enter the audit log or the card "Zuletzt". The audit log records `rsvp.answer` / `rsvp.admin_answer` with the guest's id.
+- **Example data:** `event seed-example` also creates the parts Trauung, Apéro, Dinner (meal) and Party, the menus Fleisch, Vegetarisch, Vegan and Kindermenü, and the deadline 2027-05-01.
+
 ## 7.5 Requirements
 
 | ID | Requirement | Prio |
@@ -885,7 +895,7 @@ These include:
 
 **The admin area** (`/admin`, step 2h, decided 2026-11-10) follows the admin mocks ([mocks/](mocks/README.md)). It has its own shell: a dark header with "Verwaltung", the platform state (open or closed) and a link back to the website; a side navigation on desktop that becomes a row of scrollable entries on phones. The navigation lists only the pages that exist; each later step adds its page and entry (Rückmeldungen, Sitzplan, Inhalte, Spielwelt, Moderation). Pages from stage 2:
 
-- **Übersicht** (`/admin`): the platform state, and the switches for snapshot and keepsake uploads. Further status tiles come with their features.
+- **Übersicht** (`/admin`): the platform state, and the switches for snapshot and keepsake uploads. Further status tiles come with their features. The card **Zuletzt** (DATA-05, decided 2026-11-11) lists the latest 5 entries of the audit log that concern guests (RSVP answered or changed, companion requested, approved or rejected, invitations created or redeemed) or settings and content (event settings, event parts, texts, website content as these features arrive); logins, sign-outs and role changes are left out. The audit log keeps ids only (7.1.1), so the endpoint `GET /api/admin/activity` (admin role) resolves guest names and part names when it answers; an entry whose guest was deleted shows no name. Entries are shown with a relative time ("vor 2 Std") and a short German sentence per action; actions that are not on the list never appear. Each step that audits a new listed action adds its sentence.
 - **Einladungen** (`/admin/invitations`): batch creation, the print view right after creation, the list with a status filter, regenerate and revoke.
 - **Konten & Rollen** (`/admin/users`): the accounts with role chips (vip, staff, admin) and their capabilities; a panel per account changes roles, staff capabilities and groups and creates a reset link to hand over; "Konto anlegen" creates an account and shows its setup link. Beside it the guest groups; a panel per group renames or deletes it and adds or removes members.
 - **Einstellungen** (`/admin/settings`): one page with sections; in stage 2 the feature switches. Opening the platform (ACS-10, ACS-14) and the other sections come with their steps.
@@ -1721,6 +1731,7 @@ These include in particular:
 | DATA-02 | Every event-related record (memberships, roles, groups, permissions, content, maps, contributions, albums, RSVPs, accompanying persons, seating, minigame results, treasure hunt finds, settings) carries an `eventId`. | Must |
 | DATA-03 | Administrative actions are recorded in an audit log (who, what, when). | Must |
 | DATA-04 | Database schema changes are applied through versioned migrations that preserve existing data. | Must |
+| DATA-05 | The admin overview shows the latest guest-related changes and changes to settings and content, read from the audit log (DATA-03) with names resolved only when displayed; sign-ins and role changes are not listed. | Should |
 
 ---
 
@@ -1871,7 +1882,7 @@ A global user account could later be assigned to several events, with different 
 | CFG-04 | Each installation serves exactly one event with its own domain, database, uploads, users, content, maps and configuration; all installations share the same codebase. | Must |
 | CFG-05 | Event settings (feature toggles, platform open, snapshot uploads open, keepsake uploads open) start with defaults and can be changed by the admin at runtime without a redeployment. | Must |
 | CFG-06 | The admin can change the event's name, time zone and default language at any time after the setup; each change is audited. | Must |
-| CFG-07 | The CLI command `zappaloo event seed-example` completes the setup of an empty installation with the example event and refuses an installation that is already set up (dev and test only). | Must |
+| CFG-07 | The CLI command `zappaloo event seed-example` completes the setup of an empty installation with the example event (including example event parts, menu options and an RSVP deadline) and refuses an installation that is already set up (dev and test only). | Must |
 
 Multi-event operation in one installation (section 20.1) is out of scope for the first version (see section 30).
 
