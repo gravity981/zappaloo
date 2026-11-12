@@ -41,3 +41,38 @@ test("[ACC-04][SEC-09] the profile fits the width of a phone", async ({
   await expect(page.getByRole("link", { name: "Datenschutz" }).first()).toBeVisible();
   expect(await overflow(page)).toBeLessThanOrEqual(0);
 });
+
+/** Step 3.9a: no admin page moves sideways on a swipe; wide tables scroll inside their own box. */
+const ADMIN_PAGES = [
+  "/admin",
+  "/admin/invitations",
+  "/admin/rsvp",
+  "/admin/users",
+  "/admin/settings",
+  "/admin/gibt-es-nicht",
+];
+
+test("[RSVP-02][SEC-09] no admin page scrolls sideways on a phone", async ({
+  page,
+  context,
+}, testInfo) => {
+  test.skip(!testInfo.project.name.startsWith("mobile"), "phones only");
+  await signInAsAdmin(page, context);
+  for (const path of ADMIN_PAGES) {
+    await page.goto(path);
+    await expect(page.getByRole("link", { name: "Datenschutz" }).first()).toBeVisible();
+    expect(await overflow(page), path).toBeLessThanOrEqual(0);
+    // Real guest lists are wide: a table wider than the screen scrolls inside its own box.
+    await page.evaluate(() => {
+      for (const table of document.querySelectorAll<HTMLElement>(".table")) {
+        table.style.minWidth = "900px";
+      }
+    });
+    expect(await overflow(page), `${path} with wide tables`).toBeLessThanOrEqual(0);
+    // A swipe moves the page only if it can scroll sideways at all.
+    await page.evaluate(() => {
+      window.scrollTo(200, 0);
+    });
+    expect(await page.evaluate(() => window.scrollX), `${path} scrollX`).toBe(0);
+  }
+});

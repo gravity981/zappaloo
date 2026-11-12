@@ -687,6 +687,59 @@ describe("invited parts", () => {
     expect(calls.find((c) => c.method === "PUT")?.body).toEqual({ partIds: [1, 2, 3] });
     expect(within(panel).getByText(/vip ohne Einladung/)).toBeInTheDocument();
   });
+
+  it("[RSVP-02] the account panel shows the invited parts of every account with vip, also with staff or admin", async () => {
+    const account = (changes: Record<string, unknown>) => ({
+      ...anna,
+      vipAssignment: "admin_promotion",
+      groups: [],
+      invitedPartIds: [1],
+      ...changes,
+    });
+    fakeBackend({
+      "GET /api/session": () => asAdmin,
+      "GET /api/admin/rsvp/config": () => ({ status: 200, body: config }),
+      "GET /api/admin/groups": () => ({ status: 200, body: { groups: [] } }),
+      "GET /api/admin/users": () => ({
+        status: 200,
+        body: {
+          users: [
+            account({ id: 1, username: "lea", displayName: "Lea", roles: ["staff", "vip"] }),
+            account({ id: 2, username: "max", displayName: "Max", roles: ["admin", "vip"] }),
+            account({
+              id: 3,
+              username: "tom",
+              displayName: "Tom",
+              roles: ["admin", "staff", "vip"],
+            }),
+            account({ id: 4, username: "ida", displayName: "Ida", roles: ["admin"] }),
+          ],
+        },
+      }),
+    });
+    renderAt("/admin/users");
+    for (const name of ["Lea", "Max", "Tom"]) {
+      user.click(await screen.findByRole("button", { name: `Konto ${name} bearbeiten` }));
+      const panel = await screen.findByRole("dialog");
+      await within(panel).findByText("Eingeladen zu");
+      expect(await within(panel).findByRole("button", { name: "Trauung" })).toHaveAttribute(
+        "aria-pressed",
+        "true",
+      );
+      expect(within(panel).getByRole("button", { name: "Dinner" })).toHaveAttribute(
+        "aria-pressed",
+        "false",
+      );
+      user.click(within(panel).getByRole("button", { name: "Schliessen" }));
+      await waitFor(() => {
+        expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+      });
+    }
+    // Without vip there is nothing to invite to.
+    user.click(await screen.findByRole("button", { name: "Konto Ida bearbeiten" }));
+    const panel = await screen.findByRole("dialog");
+    expect(within(panel).queryByText("Eingeladen zu")).not.toBeInTheDocument();
+  });
 });
 
 describe("revoking vip (7.4.1, decided 2026-11-11)", () => {

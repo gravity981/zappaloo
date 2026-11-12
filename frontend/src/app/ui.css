@@ -459,6 +459,11 @@
 }
 :is(.admin, .guest) .scroll {
   overflow-x: auto;
+  /* the containing block of the visually hidden texts in the table, so they scroll with it and
+     never widen the page (an absolute child escapes the clipping of a static box) */
+  position: relative;
+  /* a swipe at the end of the table does not move the page */
+  overscroll-behavior-x: contain;
 }
 :is(.admin, .guest) .table {
   width: 100%;
