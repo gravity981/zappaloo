@@ -57,11 +57,11 @@ Status values: **specified** (requirements written, not implemented) · **in pro
 | LANG | Language and i18n | 5.3 | 2 | 1, 4 | in progress |
 | SCR | Event screen (photo wall, live rankings) | 5.4 | 5 (2 withdrawn) | 7, 8 | specified |
 | CNT | Shared content base, Markdown editing | 6 | 5 | 4 | specified |
-| ACC | User accounts, authentication, email | 7, 23.8 | 15 (1 withdrawn) | 2, 3 | implemented |
+| ACC | User accounts, account states, authentication, email | 7, 23.8 | 19 (1 withdrawn) | 2, 3, 3.9 | in progress |
 | AVA | Avatars | 7.3 | 4 | 5, 6 | specified |
-| RSVP | RSVP, event parts, accompanying persons | 7.4 | 10 | 3 | implemented |
+| RSVP | RSVP, program items, accompanying persons, person types | 7.4 | 15 | 3, 3.9 | in progress |
 | ROLE | Roles (vip, staff, admin) and staff capabilities | 8 | 8 (2 withdrawn) | 2 | implemented |
-| INV | VIP invitations | 9 | 13 (6 withdrawn) | 2 | implemented |
+| INV | VIP invitations | 9 | 15 (6 withdrawn) | 2, 3.9 | in progress |
 | ACS | Sign-in, opening the platform, waiting page, upload links, access control | 10, 11 | 10 (4 withdrawn) | 2, 3, 7 | in progress |
 | GRP | Guest groups | 12 | 2 | 2 | implemented |
 | PHO | Contributions: snapshots (gallery, photo wall) and keepsakes (keepsake page, printable book) | 13 | 18 (1 withdrawn) | 7 | specified |
@@ -74,7 +74,9 @@ Status values: **specified** (requirements written, not implemented) · **in pro
 | PERF | Performance and load | 25 | 3 (1 withdrawn) | 5, 7, 9 | specified |
 | MP | Multiplayer — removed | 3.3 | 0 (6 withdrawn) | – | withdrawn |
 | GB | Guestbook — merged into PHO | 13.6 | 0 (4 withdrawn) | – | withdrawn |
-| | **Total** | | **213** (246 IDs, 33 withdrawn) | | |
+| PWA | Installable app (manifest, icons, home screen) | 19.5 | 5 | 3.5 | implemented |
+| LIC | Copyright and license notice in the footer | 19.6 | 3 | 3.5 | implemented |
+| | **Total** | | **232** (265 IDs, 33 withdrawn) | | |
 
 Sections with no requirement table describe architecture and technology choices: 15 (stack), 16 (frontend), 17 (backend), 26 (project structure), 27 (decision summary), 28 (stages) and 29 (principles). Section 30 lists what is out of scope for the first version.
 
@@ -139,6 +141,7 @@ Sections with no requirement table describe architecture and technology choices:
 | 2026-11-11 | **Stage 3 plan review against the mocks** (sw-architecture.md 7.4.1, 10.4, 24; ACS-13 changed). The countdown on the waiting page is optional: a switch separate from the opening date, hidden at zero. The platform can be closed again. The menu belongs to the meal part, one list for everyone. Admins change an RSVP through a guest table in Rückmeldungen that opens the wizard in admin mode. Approved companions stay editable by their VIP until the deadline. Admin-created VIPs get invited parts in the account panel. Event parts come with stage 3. The privacy notice ships a German default, editable by the admin. |
 | 2026-11-11 | **Installable app before Release 1** (new stage 3.5, sw-architecture.md 19.5, PWA-01 – PWA-05). Guests add the site to the iOS or Android home screen and open it without browser bars, with the event's icon. The manifest is served dynamically from the event record, the icons are files in `$DATA_DIR/events/event1/icons/`, there is no service worker, and the Release 1 go-live (formerly step 3f) becomes step 3.5f. Numbered 3.5 so stages 4–10 keep their numbers. |
 | 2026-11-11 | **Footer with copyright and license notice** (stage 3.5, step 3.5d, sw-architecture.md 19.6, LIC-01 – LIC-03). Below "Datenschutz · Version x.y.z": an admin-editable copyright line (default `© <year> <event name>`), the fixed AGPL-3.0 sentence and the links "Source code" (operator's `SOURCE_URL`) and "License" (public page `/license`). The repository must be public before the Release 1 go-live. The go-live is now step 3.5f. |
+| 2026-11-12 | **Findings from the Release 1 pilot** (new stage 3.9; sw-architecture.md 7.1.2, 7.4.2; ACC-17 – ACC-20, INV-20, INV-21, RSVP-11 – RSVP-15; RSVP-01, RSVP-08 – RSVP-10 reworded). Every invitation creates an inactive account at once, so invited guests are on the guest list before they redeem; accounts are active, inactive or blocked; a guest's own account deletion removes the login but keeps the hosts' guest-list entry until the shutdown; admins can delete accounts. One RSVP answer for all program items by default, approval of accompanying persons off by default, person types adult / child / baby with no menu for babies. "Event part" becomes "program item" (Programmpunkt). |
 
 ## Open points
 

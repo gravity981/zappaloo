@@ -310,8 +310,8 @@ Avatars collide with the collision areas of the map. Wandering guest figures (3.
 
 The world is populated by the figures of all attending guests:
 
-- Every VIP — including accompanying persons — who has accepted the RSVP for at least one event part and has an avatar appears as a figure with a name tag. Guests who haven't answered or have declined don't appear. That is also a reason to answer the RSVP.
-- Figures walk around randomly inside the wander areas of the maps that belong to the event parts the guest attends. An aperitif-only guest walks in the garden, not in the banquet hall.
+- Every VIP — including accompanying persons — who has accepted the RSVP for at least one program item and has an avatar appears as a figure with a name tag. Guests who haven't answered or have declined don't appear. That is also a reason to answer the RSVP.
+- Figures walk around randomly inside the wander areas of the maps that belong to the program items the guest attends. An aperitif-only guest walks in the garden, not in the banquet hall.
 - The signed-in user sees their own controllable avatar, not their own figure.
 - Figures and name tags are shown only to signed-in users. A guest cannot hide their own figure (decided 2026-11-10).
 - Each device only simulates the figures on the current map. Random movement doesn't need to match across devices.
@@ -367,8 +367,8 @@ A treasure hunt connects the real venue with the game world:
 | MP-04 | ~~Each client simulates its own avatar's movement; the server validates every position update (speed within the limit, no crossing of collision areas, inside the map) and, if a check fails, keeps the last valid position and sends it back to the client.~~ (withdrawn: no multiplayer, see 3.3) | – |
 | MP-05 | ~~The movement of other players is interpolated between server updates so that it appears smooth.~~ (withdrawn: no multiplayer, see 3.3) | – |
 | MP-06 | ~~There are no collisions between players; avatars can pass through each other.~~ (withdrawn: no multiplayer, see 3.3) | – |
-| PRES-01 | Every VIP (including accompanying persons) who has accepted the RSVP for at least one event part and has an avatar appears in the game world as a figure with a name tag; others don't appear; the signed-in user sees their own avatar instead of their own figure. | Must |
-| PRES-02 | Figures walk around randomly inside the wander areas (`type = wander`) of the maps whose `eventPart` the guest attends, respecting the map's collision areas. | Must |
+| PRES-01 | Every VIP (including accompanying persons) who has accepted the RSVP for at least one program item and has an avatar appears in the game world as a figure with a name tag; others don't appear; the signed-in user sees their own avatar instead of their own figure. | Must |
+| PRES-02 | Figures walk around randomly inside the wander areas (`type = wander`) of the maps whose `programItem` the guest attends, respecting the map's collision areas. | Must |
 | PRES-03 | ~~When a guest is online, their static figure is replaced by their live avatar.~~ (withdrawn: no multiplayer, see 3.3) | – |
 | PRES-04 | Figures and name tags are shown only to signed-in users (decided 2026-11-10: a guest cannot hide their own figure). | Must |
 | PRES-05 | The admin assigns guests to tables; seats are map objects (`type = seat`, property `table`) and the server places each guest on a free seat of their table. | Must |
@@ -599,7 +599,7 @@ On the event day, guests mostly want to know: what is happening now, and what co
 
 - The schedule is stored as structured entries: start time, optional end time, title, place, and optionally the map that represents the place.
 - On the event day, the website start page shows the current and the next entry, in the event's timezone. The game world shows no "now / next" (decided 2026-11-10).
-- The programme shows a guest only the event parts they are invited to, with one line saying so.
+- The programme shows a guest only the program items they are invited to, with one line saying so.
 - Changes to the schedule by the admin are visible immediately, e.g. when dinner starts later.
 - If an entry has a map, "Go there" opens that map in the game.
 
@@ -615,7 +615,7 @@ On the event day, guests mostly want to know: what is happening now, and what co
 | WEB-06 | The website gives access to contribution upload, the gallery and the keepsake page (see PHO). | Must |
 | WEB-07 | The schedule is stored as structured entries (start time, optional end time, title, place, optional map); on the event day, the website start page shows the current and the next entry in the event's timezone, and schedule changes are visible immediately; the game world shows no "now / next" (decided 2026-11-10). | Should |
 | WEB-08 | A schedule entry with a map offers "Go there", which opens that map in the game. | Could |
-| WEB-09 | The programme shows a guest only the event parts they are invited to, with one line saying so. | Should |
+| WEB-09 | The programme shows a guest only the program items they are invited to, with one line saying so. | Should |
 | LANG-01 | All UI strings are externalised through an i18n framework; German is the default and initially only UI language. | Must |
 | LANG-02 | Every content item (pages, dialogues, NPC texts, information objects) is stored with a language key; initially only German (`de`) is maintained. | Must |
 | SCR-01 | A full-screen event screen rotates between the active panels (photo wall, minigame leaderboards, treasure hunt ranking) without user interaction; the admin chooses the panels and the rotation interval. | Must |
@@ -738,13 +738,38 @@ Users can delete their own account and their own content at any time.
 
 **API.** `GET /api/session` (current user or none, with the CSRF token), `POST /api/session` (login), `DELETE /api/session` (logout), `GET`/`PATCH /api/profile`, `POST /api/profile/password`, `POST /api/password/set` (with a link), `POST /api/admin/users` (admin role of the event: creates an account with roles and its setup link in one transaction and returns the link, ACC-08); roles, capabilities and groups below. Every response carries `Referrer-Policy: same-origin`, and the request log shows invitation codes and link tokens in URLs as `[redacted]` (INV-02).
 
+### 7.1.2 Account States and the Guest List (decided 2026-11-12, stage 3.9)
+
+Finding of the Release 1 pilot (v1.0.2): the hosts organise the event with this app, so every invited person must be on the guest list from the moment the invitation is created, not only once the card is redeemed.
+
+**States** (ACC-17). Every account has exactly one state (`users.status`):
+- `inactive`: never activated. No password, cannot sign in, gets no email. An account created for an invitation has no username yet either (`users.username` is nullable; the unique index allows several empty values, and a username, once set, never changes). An inactive account becomes `active` when its owner sets the first password: by redeeming the invitation (the registration form sets username, display name, password and the optional email) or with the setup link of an account an admin created.
+- `active`: can sign in.
+- `blocked` (ACC-18): set and lifted by an admin in the account panel ("Konto sperren" with a second click, "Entsperren"), only for active accounts; an inactive account is uninvited by revoking its invitation instead. A blocked account cannot sign in; its sessions end and its open setup and reset links are voided at once. Its roles, groups, RSVP and companions stay and keep counting. At sign-in a blocked account gets the same answer as a wrong password (`401 invalid_credentials`, "Benutzername oder Passwort falsch"), so nobody learns the state (decided 2026-11-12). Unblocking makes it `active` again with its old password. An admin cannot block their own account, and the last admin of the event cannot be blocked (`409 last_admin`). Audited as `user.block` and `user.unblock`.
+
+**An account per invitation** (ACC-17, decided 2026-11-12). Creating an invitation creates its inactive account in the same transaction: display name = guest name, a membership with `vip` (method `invitation_code`, pointing to the invitation), the invitation's program items and its person type (RSVP-13). The invitation references its account (`invitations.user_id`). The invited program items live on the membership only (`invitation_program_items` is dropped), so the invitation row and the account panel edit the same list. The account appears at once in Konten & Rollen and in Rückmeldungen as "ohne Antwort"; the admin can answer for it in admin mode (e.g. a guest who answers by phone); reminder emails never reach it, because it has no address. While an account is inactive its roles are locked: it keeps exactly `vip`.
+- **Names.** `invitations.guest_name` is the admin's record and is printed on the card; `users.display_name` is the name the guest is shown with. While the account is inactive, changing the guest name changes the display name too. From activation on the display name is the guest's (they can change it in the registration form and in the profile); admin tables show the current display name, and the username is the admin's stable identifier.
+- **Regenerating** a code (lost card) creates a new invitation for the same account; the old one becomes `replaced`.
+- **Revoking** (INV-20): when the revoked invitation was the account's last open invitation (active or expired) and the account was never activated, the account is deleted with its membership, any RSVP the admin entered, its companions and all its invitations. The button then asks for a second click ("Widerrufen und Gast entfernen"). Otherwise only the code is revoked.
+- **Redeeming** activates the account; marking the code redeemed happens in the same transaction (INV-08).
+- **Redeeming while signed in to an account without `vip`** (INV-07, ACC-07): the page asks "Diese Einladung für «Gastname» zu deinem Konto «Benutzername» hinzufügen?" and offers "Nicht du? Abmelden". Confirming merges in one transaction: the signed-in account gets `vip` (method `invitation_code`, this invitation) and takes over the inactive account's program items, person type, RSVP with companions and guest groups; the invitation's account reference moves to it, the code is marked redeemed and the inactive account is deleted. The signed-in account keeps its username, password, email and display name. An account without `vip` never has an RSVP (revoking `vip` deletes it), so nothing is overwritten. An account that already has `vip` gets `409 already_vip` and the code is not used. Audited as `invitation.redeem` with the method `merge` and both account ids.
+
+**Accounts an admin creates** (ACC-20). "Konto anlegen" (ACC-08) and the CLI `create-admin` create an account with a username and a setup link; it is `inactive` until the link is used. When `vip` is ticked, the same form shows the program item chips ("Eingeladen zu"), none selected, and at least one is required (`400 program_items_required`); this replaces UX decision 53. `create-admin --vip` keeps inviting to all program items. The person type starts as adult.
+
+**Deleting an account.**
+- **By an admin** (ACC-19): "Konto löschen" in the account panel, in any state, with a second click. Deletes the account with membership, roles, sessions, links, RSVP with allergies, companions and all its invitations, whatever their status, in one transaction. Not for one's own account (that is the profile) and not for the last admin (`409 last_admin`). Audited with ids only as `user.admin_delete`.
+- **By the guest** (ACC-12): "Konto löschen" in the profile deletes the login and what the guest created: username, password, email, sessions, links and, with their features, profile photo, greeting and contributions. The guest-list entry belongs to the hosts and stays until the shutdown (SEC-08): the account goes back to `inactive` with the guest name of its invitation as display name, its program items, person type, `vip`, groups and RSVP with companions; other roles are removed, the redeemed invitation stays redeemed. The confirmation step says so. A guest who wants back in asks the hosts, who delete the old entry and create a fresh invitation (the RSVP is answered again). An account without `vip` has no guest-list entry and is deleted completely, as before. The last admin still cannot delete their account (`409 last_admin`). RSVP-09's "if the VIP's account is deleted" means deleting the whole entry (by an admin, or by revoking).
+- **Privacy notice:** the default text's section "Löschen" reads: "Du kannst dein Konto jederzeit im Profil löschen. Deine Rückmeldung (mit Begleitpersonen und Allergien) bleibt für die Organisation bei den Gastgebern; wenn du sie auch gelöscht haben willst, schreib ihnen. Nach dem Fest löschen wir alle persönlichen Daten." An event whose notice was edited keeps its text; the admin copies the paragraph in.
+
+**Migration of existing data** (prod runs v1.0.2): accounts with a password become `active`, accounts without one `inactive`; every unredeemed invitation with status `active` (expired ones included) gets its inactive account as above, with the invitation's program items; redeemed invitations get the account that redeemed them (`memberships.vip_invitation_id`); revoked and replaced invitations without an account keep none ("Aufräumen" removes them, INV-21); every account and companion becomes adult (RSVP-13); the companion approval switch is off and pending requests are approved (7.4.2). `deploy.sh` takes the pre-deploy backup.
+
 ## 7.2 Registration and Invitations
 
 There is no public self-registration. An account is created only:
 - by redeeming a personal invitation (link or code), or
 - by an admin.
 
-VIPs can request accompanying persons without an account, e.g. children (see 7.4).
+VIPs can add accompanying persons without an account, e.g. children (see 7.4).
 
 Guests without an account can still contribute through the upload links at the venue (see 10.3, 13.3).
 
@@ -773,39 +798,50 @@ Avatars are based on prepared pixel-art graphics. No AI API is required, and ava
 
 Every signed-in guest responds to the invitation. The RSVP gives guests a reason to sign in early, and it gives the hosts a guest list they can use.
 
-- The admin defines the event parts, e.g. ceremony, aperitif, dinner, party. Each invitation states which parts the guest is invited to. Guests invited to the aperitif only are common.
-- A VIP can request **accompanying persons** who get no account of their own, e.g. small children or people without a smartphone. Before submitting the request, the VIP enters the name and answers their RSVP: attendance for the parts the VIP is invited to, menu choice and allergies. The VIP chooses the person's avatar later, when the world opens (3.5).
-- The admin approves or rejects the request. An approved person is added to the event like any VIP — RSVP, figure, seat — but cannot log in. Their VIP manages their data.
+- The admin defines the program items, e.g. ceremony, aperitif, dinner, party. Each invitation states which program items the guest is invited to. Guests invited to the aperitif only are common.
+- A VIP can add **accompanying persons** who get no account of their own, e.g. small children or people without a smartphone. Before saving, the VIP enters the name and person type and answers their RSVP: attendance for the program items the VIP is invited to, menu choice and allergies. The VIP chooses the person's avatar later, when the world opens (3.5).
+- If the admin has switched on approval, the admin approves or rejects each added person; otherwise an added person counts right away (7.4.2). An accepted person is added to the event like any VIP — RSVP, figure, seat — but cannot log in. Their VIP manages their data.
 - People who should have their own account get a normal invitation from the admin.
-- For each part, the guest answers yes or no.
+- The guest answers once for all invited program items, or yes or no for each program item if the admin has chosen that (7.4.2).
+- Every person on the guest list is an adult, a child or a baby (7.4.2).
 - For each attending person (guest and accompanying persons), the RSVP records the name, a menu choice from the options the admin defines, and allergies or dietary requirements. Allergies and dietary requirements are health data: only admins see them (24).
 - Optionally, the RSVP includes a song wish. Messages to the hosts belong in keepsakes (13.6), not in the RSVP.
 - Guests can change their RSVP until a deadline set by the admin.
-- The admin sees an overview with totals per part, menu choice and allergies, can export it as CSV, and can send a reminder email to guests who haven't responded.
+- The admin sees an overview with totals per program item, menu choice and allergies, can export it as CSV, and can send a reminder email to guests who haven't responded.
 
 ### 7.4.1 RSVP Details (decided 2026-11-11)
 
-- **Event parts** are created in stage 3, in Einstellungen › Rückmeldung: name, time, place, and whether the part has the meal. At most one part is the meal part (e.g. Dinner). The programme (stage 4) builds on these parts.
-- **Invited parts:** an invitation states its parts (set per batch when creating invitations, editable per invitation, UX decision 31). An account that gets `vip` from an admin (9.4) has no invitation; its account panel shows "Eingeladen zu" chips, and such an account starts invited to all parts.
-- **Menu:** one list of menu options for everyone, the children's menu included. The menu is asked only for persons who attend the meal part; persons who don't attend it have no menu choice.
-- **Form:** a three-step wizard: attendance → food and allergies (one card per attending person) → accompanying persons and song wish; declining every part skips to the summary. The summary page confirms the answer; there is no confirmation email. After the deadline the summary is read-only with a hint to contact the hosts.
-- **Admin changes** (RSVP-04): the Rückmeldungen page has a guest table (name, status, parts, menu, song wish, and allergies as an admin-only column); a row opens the same wizard in admin mode, which ignores the deadline. Each admin change is audited.
+- **Program items** are created in stage 3, in Einstellungen › Rückmeldung: name, time, place, and whether the program item has the meal. At most one program item is the meal item (e.g. Dinner). The programme (stage 4) builds on these program items.
+- **Invited program items:** an invitation states its program items (set per batch when creating invitations, editable per invitation, UX decision 31). An account that gets `vip` from an admin (9.4) has no invitation; its account panel shows "Eingeladen zu" chips, and such an account starts invited to all program items. *Changed 2026-11-12 (7.1.2): "Konto anlegen" requires the program items in the form.*
+- **Menu:** one list of menu options for everyone, the children's menu included. The menu is asked only for persons who attend the meal item; persons who don't attend it have no menu choice.
+- **Form:** a three-step wizard: attendance → food and allergies (one card per attending person) → accompanying persons and song wish; declining every program item skips to the summary. The summary page confirms the answer; there is no confirmation email. After the deadline the summary is read-only with a hint to contact the hosts.
+- **Admin changes** (RSVP-04): the Rückmeldungen page has a guest table (name, status, program items, menu, song wish, and allergies as an admin-only column); a row opens the same wizard in admin mode, which ignores the deadline. Each admin change is audited.
 - **Accompanying persons:** while a request is pending, the VIP can edit or withdraw it. After approval the VIP changes the person's attendance, menu and allergies in the wizard like their own, until the deadline, without a new approval; the name of an approved person is changed by the admin. Approved persons count in the totals, menus and the guest table.
 - **Reminder and other emails** go only to verified addresses (7.1.1); the count on the button ("Erinnern (n)") counts guests without an answer who have one.
 
 **Implementation decisions of step 3a** (2026-11-11):
 
-- **Deadline** (RSVP-04): a calendar day set in Einstellungen; guests can answer and change until that day ends in the event's time zone (`rsvp_config.deadline`, `YYYY-MM-DD`). Without a deadline the RSVP stays open. Part start times are entered and shown in the event's time zone and stored as instants (`shared/src/time.ts`).
-- **Menu** (RSVP-03): a person who attends the meal part must choose a menu while menus exist; a person who does not attend it has none (a chosen one is dropped). A guest who declines every part keeps no menu, allergies or song wish.
-- **Invited parts** (RSVP-02): stored per membership (`membership_parts`); an invitation carries its own list (`invitation_parts`, all parts by default) and copies it to the account when redeemed. After redemption the invitation row and the account panel show and change the same list. Admin promotion to `vip` (role change, account created by an admin, CLI `--vip`) invites to all parts that exist then; revoking `vip` clears the list. A part created later is not added to existing invitations. Deleting a part also removes the answers for it; deleting a menu option leaves its guests without a menu choice. Removing a part from a guest's invitation removes their answer for it, whichever way it is changed (invitation row, account panel, deleting the part).
-- **Answers after the invitation changed** (decided 2026-11-11 after the stage-3 review): a part added to a guest's invitation after they answered is *not answered yet* for them and their companions: it counts in neither yes nor no, its CSV cell is empty, the summary marks it "Noch offen" and the wizard starts at the attendance step and asks for it. A guest who declined every other part is "ohne Antwort" again until they answer it (so "Erinnern" reaches them). A guest or companion whose last yes disappears (the part was deleted or removed from the invitation) goes back to "ohne Antwort": their answer (menu, allergies, song wish) is removed and the wizard asks again. The status rule (`rsvpStatus`) and the menu rule (`menuRequired`) live in `shared/src/rsvp.ts`; answers carry `attendingPartIds` and `declinedPartIds`.
-- **Revoking `vip`** (decided 2026-11-11): deletes the guest's RSVP with it: invited parts, answer with allergies, and all accompanying persons (SEC-11: no health data is kept for someone who is no longer a guest). The role chip asks first ("vip entziehen", a second click).
-- **Answers** are one row per guest (`rsvp_answers`) and one yes/no per invited part (`rsvp_attendance`); every invited part must be answered, once. Only `vip` accounts answer. Companions follow in step 3b.
-- **API:** `GET`/`PUT /api/rsvp` (guest); `GET /api/admin/rsvp` (overview), `GET /api/admin/rsvp/export` (CSV, `;` separated, cells that start with `=`, `+`, `-` or `@` are prefixed so spreadsheets do not run them), `POST /api/admin/rsvp/remind` (one round per event every 10 minutes, counted before the first mail, so a double click or a second admin never mails the same guests twice), `GET /api/admin/rsvp/pending` (the count for the navigation badge), `GET`/`PUT /api/admin/rsvp/guests/:id` (admin mode, ignores the deadline); `GET /api/admin/rsvp/config`, `PUT /api/admin/rsvp/deadline`, `POST`/`PATCH`/`DELETE /api/admin/rsvp/parts[/:id]` and `/menus[/:id]`; `PUT /api/admin/invitations/:id/parts`, `PUT /api/admin/users/:id/parts`. All RSVP routes of guests and the overview are unavailable (404 `feature_disabled`) while the feature `rsvp` is off; the configuration stays editable.
+- **Deadline** (RSVP-04): a calendar day set in Einstellungen; guests can answer and change until that day ends in the event's time zone (`rsvp_config.deadline`, `YYYY-MM-DD`). Without a deadline the RSVP stays open. Program item start times are entered and shown in the event's time zone and stored as instants (`shared/src/time.ts`).
+- **Menu** (RSVP-03): a person who attends the meal item must choose a menu while menus exist; a person who does not attend it has none (a chosen one is dropped). A guest who declines every program item keeps no menu, allergies or song wish.
+- **Invited program items** (RSVP-02): stored per membership (`membership_program_items`); an invitation carries its own list (`invitation_program_items`, all program items by default) and copies it to the account when redeemed (*changed 2026-11-12, 7.1.2: every invitation has its account from the start, and the list lives on the membership only*). After redemption the invitation row and the account panel show and change the same list. Admin promotion to `vip` (role change, account created by an admin, CLI `--vip`) invites to all program items that exist then; revoking `vip` clears the list. A program item created later is not added to existing invitations. Deleting a program item also removes the answers for it; deleting a menu option leaves its guests without a menu choice. Removing a program item from a guest's invitation removes their answer for it, whichever way it is changed (invitation row, account panel, deleting the program item).
+- **Answers after the invitation changed** (decided 2026-11-11 after the stage-3 review): a program item added to a guest's invitation after they answered is *not answered yet* for them and their companions: it counts in neither yes nor no, its CSV cell is empty, the summary marks it "Noch offen" and the wizard starts at the attendance step and asks for it. A guest who declined every other program item is "ohne Antwort" again until they answer it (so "Erinnern" reaches them). A guest or companion whose last yes disappears (the program item was deleted or removed from the invitation) goes back to "ohne Antwort": their answer (menu, allergies, song wish) is removed and the wizard asks again. The status rule (`rsvpStatus`) and the menu rule (`menuRequired`) live in `shared/src/rsvp.ts`; answers carry `attendingItemIds` and `declinedItemIds`.
+- **Revoking `vip`** (decided 2026-11-11): deletes the guest's RSVP with it: invited program items, answer with allergies, and all accompanying persons (SEC-11: no health data is kept for someone who is no longer a guest). The role chip asks first ("vip entziehen", a second click).
+- **Answers** are one row per guest (`rsvp_answers`) and one yes/no per invited program item (`rsvp_attendance`); every invited program item must be answered, once. Only `vip` accounts answer. Companions follow in step 3b.
+- **API:** `GET`/`PUT /api/rsvp` (guest); `GET /api/admin/rsvp` (overview), `GET /api/admin/rsvp/export` (CSV, `;` separated, cells that start with `=`, `+`, `-` or `@` are prefixed so spreadsheets do not run them), `POST /api/admin/rsvp/remind` (one round per event every 10 minutes, counted before the first mail, so a double click or a second admin never mails the same guests twice), `GET /api/admin/rsvp/pending` (the count for the navigation badge), `GET`/`PUT /api/admin/rsvp/guests/:id` (admin mode, ignores the deadline); `GET /api/admin/rsvp/config`, `PUT /api/admin/rsvp/deadline`, `POST`/`PATCH`/`DELETE /api/admin/rsvp/program-items[/:id]` and `/menus[/:id]`; `PUT /api/admin/invitations/:id/program-items`, `PUT /api/admin/users/:id/program-items`. All RSVP routes of guests and the overview are unavailable (404 `feature_disabled`) while the feature `rsvp` is off; the configuration stays editable.
 - **Allergies** (SEC-11) are returned only to the guest's own wizard and to admins; they never enter the audit log or the card "Zuletzt". The audit log records `rsvp.answer` / `rsvp.admin_answer` with the guest's id.
-- **Accompanying persons** (step 3b, decided 2026-11-11): a guest has at most 10 (pending and approved together; a rejected request does not count). A request carries the name, an optional note and the person's own RSVP for the guest's invited parts (same rules as the guest's: menu for the meal part, allergies only for an attending person). Statuses `pending`, `approved`, `rejected`; the admin decides once. A pending request is changed in the request form or withdrawn; a rejected one stays visible with the tag "abgelehnt" until the guest removes it (and can then ask again); an approved one is changed in wizard steps 1 and 2 (attendance, menu, allergies; the guest's `PUT /api/rsvp` carries `companions`) and only the admin renames it (`PATCH /api/admin/rsvp/companions/:id`). After the RSVP deadline guests can no longer request, change, withdraw or remove; admins can always change attendance (admin mode) and decide. Approved persons count in the totals per part, the menus and the guest table (under their guest, "↳ name") and the CSV; pending and rejected ones do not. They are invited to the same parts as their guest and lose an answer for a part that is removed from the guest's invitation. They have no account; the guest's account deletion removes them (`companions`, `companion_attendance`). The navigation entry "Rückmeldungen" shows the number of pending requests and Übersicht a tile "Begleitpersonen". Audit actions: `companion.request`, `companion.approve`, `companion.reject`, `companion.withdraw`, `companion.rename` (ids only, in the card "Zuletzt" with the person's name while they exist). Routes: `POST /api/rsvp/companions`, `PUT`/`DELETE /api/rsvp/companions/:id`, `POST /api/admin/rsvp/companions/:id/approve` and `/reject`.
+- **Accompanying persons** (step 3b, decided 2026-11-11): a guest has at most 10 (pending and approved together; a rejected request does not count). A request carries the name, an optional note and the person's own RSVP for the guest's invited program items (same rules as the guest's: menu for the meal item, allergies only for an attending person). Statuses `pending`, `approved`, `rejected`; the admin decides once. A pending request is changed in the request form or withdrawn; a rejected one stays visible with the tag "abgelehnt" until the guest removes it (and can then ask again); an approved one is changed in wizard steps 1 and 2 (attendance, menu, allergies; the guest's `PUT /api/rsvp` carries `companions`) and only the admin renames it (`PATCH /api/admin/rsvp/companions/:id`). After the RSVP deadline guests can no longer request, change, withdraw or remove; admins can always change attendance (admin mode) and decide. Approved persons count in the totals per program item, the menus and the guest table (under their guest, "↳ name") and the CSV; pending and rejected ones do not. They are invited to the same program items as their guest and lose an answer for a program item that is removed from the guest's invitation. They have no account; the guest's account deletion removes them (`companions`, `companion_attendance`). The navigation entry "Rückmeldungen" shows the number of pending requests and Übersicht a tile "Begleitpersonen". Audit actions: `companion.request`, `companion.approve`, `companion.reject`, `companion.withdraw`, `companion.rename` (ids only, in the card "Zuletzt" with the person's name while they exist). Routes: `POST /api/rsvp/companions`, `PUT`/`DELETE /api/rsvp/companions/:id`, `POST /api/admin/rsvp/companions/:id/approve` and `/reject`.
 - **Song wish** (RSVP-06, decided 2026-11-11): Einstellungen › Rückmeldung has a switch "Songwunsch fragen" (`rsvp_config.song_enabled`, on by default, `PUT /api/admin/rsvp/song`, audited as `rsvp.song`). While it is off the wizard does not ask, the server takes no new wish, the summary, the guest table and the CSV leave the song out, and wishes already given stay stored and come back when it is switched on again.
-- **Example data:** `event seed-example` also creates the parts Trauung, Apéro, Dinner (meal) and Party, the menus Fleisch, Vegetarisch, Vegan and Kindermenü, and the deadline 2027-05-01.
+- **Example data:** `event seed-example` also creates the program items Trauung, Apéro, Dinner (meal) and Party, the menus Fleisch, Vegetarisch, Vegan and Kindermenü, and the deadline 2027-05-01.
+
+### 7.4.2 RSVP Changes from the Release 1 Pilot (decided 2026-11-12, stage 3.9)
+
+- **Program item** (German "Programmpunkt") replaces "event part" ("Teil") everywhere: interface, code, API routes, database tables and this spec. The Tiled map property is `programItem` (14.2).
+- **One answer or one per program item** (RSVP-11). Einstellungen › Rückmeldung has a switch "Pro Programmpunkt zusagen" (`rsvp_config.per_item`, off by default). While it is off, step 1 of the wizard asks each person once ("Ich komme" / "Ich komme nicht") and lists the program items they are invited to; the answer is stored as the same yes or no for every invited program item, so totals per program item, menus (meal item), figures (PRES-01, PRES-02) and the CSV work unchanged. A program item added to an invitation later takes the person's existing answer, so nobody is asked again; the other rules of 7.4.1 (deleted or removed program items) still apply. While the switch is on, the wizard works as in 7.4.1. Switching to one answer keeps every stored answer: a person with at least one yes is shown as "Ja", and the next save sets the same answer for all their program items; before saving, the switch says how many guests have mixed answers. Audited as `rsvp.per_item`. Companions follow the same mode as their guest.
+- **Companion approval as a setting** (RSVP-12). Einstellungen › Rückmeldung has a switch "Begleitpersonen bestätigen" (`rsvp_config.companion_approval`, off by default). Off: an added person is `approved` at once and counts right away; there is no pending badge and no tile "Begleitpersonen". On: as in 7.4.1 (pending, approve, reject, edit or withdraw while pending). Switching it off approves all pending requests after a confirmation that names their number; rejected ones stay rejected. Audited as `rsvp.companion_approval`. The texts say "Begleitperson hinzufügen" instead of "beantragen". Removing (decided 2026-11-12): with approval off, the guest removes an added person until the deadline (`DELETE /api/rsvp/companions/:id`, audited as `companion.withdraw`); in both modes the admin removes an accompanying person in Rückmeldungen at any time, with a second click (audited as `companion.remove`). With approval on, the guest can still withdraw only a pending request (RSVP-10).
+- **Person type** (RSVP-13). Every person on the guest list has a type: `adult`, `child` or `baby` (labels "Erwachsene", "Kind", "Baby"; `memberships.person_type`, `companions.person_type`). The admin sets it for guests with an account: per batch when creating invitations (default adult), changeable per row of the batch, and in the account panel; the guest neither sees nor changes it. For an accompanying person the VIP must choose it when adding (no default); afterwards it is changed like the name, by the admin. Audited as `user.person_type` and with the companion's actions.
+- **Babies have no menu** (RSVP-14). A baby who attends the meal item is not asked for a menu (`menuRequired` in `shared/src/rsvp.ts` takes the type); allergies are still asked. A person who becomes a baby loses a chosen menu.
+- **Types in the overview** (RSVP-15). Rückmeldungen shows the totals per program item split by type (e.g. "Ja 42 · 35 Erwachsene, 5 Kinder, 2 Babys"); the guest table and the CSV have a column "Typ".
+- **Phones.** The guest tables of Rückmeldungen and Konten & Rollen scroll inside their own box; the page itself never moves sideways on a swipe (finding of the pilot on iOS and Android).
 
 ## 7.5 Requirements
 
@@ -827,20 +863,29 @@ Every signed-in guest responds to the invitation. The RSVP gives guests a reason
 | ACC-14 | The CLI command `create-admin USERNAME` (optionally with `--vip`) creates an admin account and prints a one-time setup link, valid for 24 hours, where the new admin sets the password; this is how the first admin of an installation is created (23.8). | Must |
 | ACC-15 | The CLI command `reset-password USERNAME` prints a one-time password-reset link for the user, so an admin who is locked out can get back in (23.8). | Must |
 | ACC-16 | Users sign in with their username or with a verified email address; an email address can be verified by one account only, and an unverified address never signs anyone in (decided 2026-11-10). | Must |
+| ACC-17 | Every account is `active`, `inactive` or `blocked`; creating an invitation creates an inactive account for the invited person (no username, no password, cannot sign in), which is on the guest list and in the RSVP overview right away; redeeming the invitation activates it (decided 2026-11-12, 7.1.2). | Must |
+| ACC-18 | An admin can block and unblock an active account; a blocked account cannot sign in, its sessions and open links end, and its data stays and keeps counting. | Must |
+| ACC-19 | An admin can delete an account together with its RSVP, accompanying persons and invitations. | Must |
+| ACC-20 | An account an admin creates stays inactive until its setup link is used; when it gets `vip`, the admin chooses its invited program items in the same form. | Must |
 | AVA-01 | A signed-in user can design a pixel-art avatar in an avatar editor (skin colour, hairstyle, hair colour, clothing, clothing colours, accessories, predefined templates). | Must |
 | AVA-02 | The avatar configuration is stored with the user or their event membership. | Must |
 | AVA-03 | Avatars are composed from prepared pixel-art assets; no AI API is used. | Must |
 | AVA-04 | The configured avatar is rendered in the game world as the user's own avatar and, for other users, as the user's wandering figure. | Must |
-| RSVP-01 | Every signed-in guest can submit an RSVP, answering yes or no for each event part they are invited to. | Must |
-| RSVP-02 | The admin defines the event parts and, per invitation, which parts the guest is invited to. | Must |
+| RSVP-01 | Every signed-in guest can submit an RSVP for the program items they are invited to: one answer for all of them, or yes or no for each (RSVP-11). | Must |
+| RSVP-02 | The admin defines the program items and, per invitation, which program items the guest is invited to. | Must |
 | RSVP-03 | For each attending person (guest and accompanying persons), the RSVP records the name, a menu choice from admin-defined options, and allergies or dietary requirements. | Must |
 | RSVP-04 | Guests can change their RSVP until a deadline set by the admin; afterwards only admins can change it. | Must |
-| RSVP-05 | The admin sees an RSVP overview with totals per event part, menu choice and allergies, and can export it as CSV. | Must |
+| RSVP-05 | The admin sees an RSVP overview with totals per program item, menu choice and allergies, and can export it as CSV. | Must |
 | RSVP-06 | The RSVP can include an optional song wish; the admin switches the question on or off in Einstellungen (on by default). | Should |
 | RSVP-07 | The admin can send a reminder email to guests who haven't responded. | Should |
-| RSVP-08 | A VIP can request an accompanying person who gets no account (e.g. a child or someone without a smartphone); before submitting, the VIP enters the name and answers their RSVP (attendance for the parts the VIP is invited to, menu choice, allergies); the avatar is chosen later (PRES-07). | Must |
-| RSVP-09 | The admin approves or rejects each request; an approved person is added to the event like any VIP (RSVP, figure, seat) but cannot log in, and their VIP manages their data; if the VIP's account is deleted, their accompanying persons are deleted too. | Must |
-| RSVP-10 | While a request for an accompanying person is pending, the VIP can edit or withdraw it; the request can carry an optional note for the admin (e.g. "my daughter, 6"). | Should |
+| RSVP-08 | A VIP can add an accompanying person who gets no account (e.g. a child or someone without a smartphone); before saving, the VIP enters the name and person type and answers their RSVP (attendance for the program items the VIP is invited to, menu choice, allergies); the avatar is chosen later (PRES-07). | Must |
+| RSVP-09 | While approval is on (RSVP-12), the admin approves or rejects each added person; an accepted person is added to the event like any VIP (RSVP, figure, seat) but cannot log in, and their VIP manages their data; if the VIP's account is deleted, their accompanying persons are deleted too. | Must |
+| RSVP-10 | While an accompanying person waits for approval, the VIP can edit or withdraw them; an accompanying person can carry an optional note for the admin (e.g. "my daughter, 6"). | Should |
+| RSVP-11 | The admin chooses in Einstellungen whether guests answer the RSVP once for all their invited program items (the default) or yes or no per program item; answers are stored per program item either way (decided 2026-11-12, 7.4.2). | Must |
+| RSVP-12 | The admin chooses in Einstellungen whether accompanying persons need approval (off by default); without approval an added person counts right away, and switching approval off approves pending requests. | Must |
+| RSVP-13 | Every person on the guest list (guest with an account, accompanying person) is an adult, a child or a baby; the admin sets the type of guests (default adult), and the VIP chooses it for each accompanying person. | Must |
+| RSVP-14 | Babies are not asked for a menu choice. | Must |
+| RSVP-15 | The RSVP overview splits the totals per program item by person type, and the guest table and the CSV export show the type. | Must |
 
 ---
 
@@ -893,7 +938,7 @@ These include:
 - User management.
 - Role management.
 - Invitation management and accompanying-person requests.
-- Event settings, event parts and the "How I know the couple" list.
+- Event settings, program items and the "How I know the couple" list.
 - Content management.
 - RSVP overview, reminders and seating plan.
 - Map management in the map importer.
@@ -904,9 +949,9 @@ These include:
 
 **The admin area** (`/admin`, step 2h, decided 2026-11-10) follows the admin mocks ([mocks/](mocks/README.md)). It has its own shell: a dark header with "Verwaltung", the platform state (open or closed) and a link back to the website; a side navigation on desktop that becomes a row of scrollable entries on phones. The navigation lists only the pages that exist; each later step adds its page and entry (Rückmeldungen, Sitzplan, Inhalte, Spielwelt, Moderation). Pages from stage 2:
 
-- **Übersicht** (`/admin`): the platform state, and the switches for snapshot and keepsake uploads. Further status tiles come with their features. The card **Zuletzt** (DATA-05, decided 2026-11-11) lists the latest 5 entries of the audit log that concern guests (RSVP answered or changed, companion requested, approved or rejected, invitations created or redeemed) or settings and content (event settings, event parts, texts, website content as these features arrive); logins, sign-outs and role changes are left out. The audit log keeps ids only (7.1.1), so the endpoint `GET /api/admin/activity` (admin role) resolves guest names and part names when it answers; an entry whose guest was deleted shows no name. Entries are shown with a relative time ("vor 2 Std") and a short German sentence per action; actions that are not on the list never appear. Each step that audits a new listed action adds its sentence.
-- **Einladungen** (`/admin/invitations`): batch creation, the print view right after creation, the list with a status filter, regenerate and revoke.
-- **Konten & Rollen** (`/admin/users`): the accounts with role chips (vip, staff, admin) and their capabilities; a panel per account changes roles, staff capabilities and groups and creates a reset link to hand over; "Konto anlegen" creates an account and shows its setup link. Beside it the guest groups; a panel per group renames or deletes it and adds or removes members.
+- **Übersicht** (`/admin`): the platform state, and the switches for snapshot and keepsake uploads. Further status tiles come with their features. The card **Zuletzt** (DATA-05, decided 2026-11-11) lists the latest 5 entries of the audit log that concern guests (RSVP answered or changed, companion requested, approved or rejected, invitations created or redeemed) or settings and content (event settings, program items, texts, website content as these features arrive); logins, sign-outs and role changes are left out. The audit log keeps ids only (7.1.1), so the endpoint `GET /api/admin/activity` (admin role) resolves guest names and program item names when it answers; an entry whose guest was deleted shows no name. Entries are shown with a relative time ("vor 2 Std") and a short German sentence per action; actions that are not on the list never appear. Each step that audits a new listed action adds its sentence.
+- **Einladungen** (`/admin/invitations`): batch creation, the print view right after creation, the list with a status filter, regenerate and revoke. From stage 3.9 (7.1.2): the batch also sets the person type; revoking the last open invitation of a never-activated account removes the guest after a second click (INV-20); "Aufräumen (n)" deletes all revoked and replaced invitations after a second click (INV-21).
+- **Konten & Rollen** (`/admin/users`): the accounts with role chips (vip, staff, admin) and their capabilities; a panel per account changes roles, staff capabilities and groups and creates a reset link to hand over; "Konto anlegen" creates an account and shows its setup link. Beside it the guest groups; a panel per group renames or deletes it and adds or removes members. From stage 3.9 (7.1.2, decided 2026-11-12): the table has the columns Benutzername (empty while inactive) | Name (the current display name) | Status (aktiv / inaktiv / gesperrt) | Rollen | Fähigkeiten, filter chips Alle / Aktiv / Inaktiv / Gesperrt with counts and a search over name and username; it scrolls inside its own box on phones. The panel of an inactive account shows the state, a link to its invitation, person type, locked roles, groups and "Eingeladen zu", and no password section; an active account's panel adds the person type and "Konto sperren"; a blocked account's panel shows "Entsperren" and no reset link; every panel ends with "Konto löschen" (ACC-19). The "Eingeladen zu" chips appear for every account with `vip`, whatever its other roles. "Konto anlegen" shows the program item chips when `vip` is ticked (ACC-20).
 - **Einstellungen** (`/admin/settings`): one page with sections; in stage 2 the feature switches. Opening the platform (ACS-10, ACS-14) and the other sections come with their steps.
 
 A link shown to hand over (setup or reset) is shown once, with a copy button and its expiry. Every page needs the admin role; others are sent to the start page (the server refuses them anyway). Manual releases (ACS-05) get their page with the first feature that stores access conditions.
@@ -945,7 +990,7 @@ Besides event administration there could be a separate platform administration t
 | ROLE-04 | VIP status persists until an admin explicitly revokes it. | Must |
 | ROLE-05 | `staff` grants access to staff-only areas and does not imply `vip`. | Must |
 | ROLE-06 | An admin can enable or disable the fixed capabilities `editWebsiteContent` (website content) and `moderateContributions` (contributions) per staff member; only staff members with the capability can use the corresponding function. | Must |
-| ROLE-07 | `admin` grants all event administration functions, including users, roles, invitations and accompanying-person requests, guest groups, event settings and features, website content, RSVP overview and event parts, seating plan, profile removal, maps (map importer), contributions and gallery, upload links, event screen links, treasure hunt, data export and shutdown. | Must |
+| ROLE-07 | `admin` grants all event administration functions, including users, roles, invitations and accompanying-person requests, guest groups, event settings and features, website content, RSVP overview and program items, seating plan, profile removal, maps (map importer), contributions and gallery, upload links, event screen links, treasure hunt, data export and shutdown. | Must |
 | ROLE-08 | `admin` does not imply `vip` or `staff`; an admin without those roles has no access to VIP or staff areas. | Must |
 | ROLE-09 | Revoking one role leaves all other roles of the user unchanged; a user whose VIP is revoked loses access to guest functions. | Must |
 | ROLE-10 | ~~A separate platform administrator, distinct from the event `admin` role, can manage all events and installations.~~ (withdrawn: out of scope, see section 30) | – |
@@ -1039,12 +1084,13 @@ VIPs cannot invite people who would get an account of their own. They can reques
 ### 9.6.1 Implementation (step 2e, decided 2026-11-10)
 
 - **Code.** 6 random characters from the 32-letter alphabet `A–H J–N P–Z 2–9` (no 0/O, 1/I): 30 bits, e.g. `K7QMX4`, no separator. Input ignores case, dashes and spaces. The link is `<PUBLIC_URL>/invite/<code>`, the QR code on the card holds it. Only the SHA-256 of the normalised code is stored; the plain code is in the response that creates or regenerates the invitation and nowhere else (not in the request log either, 7.1.1). If a new code is already taken, another one is drawn. Six characters are guessable by someone with many addresses (decision record in README.md), so besides the per-address limit there is a global one (decided 2026-11-10): at most 100 failed attempts per hour across all addresses; beyond it every redemption call answers `429` until the hour is over. Only failures count (a code that does not exist, or is redeemed, expired, revoked or replaced), so real guests are not slowed down.
-- **Invitation.** Guest name (1–100 characters; suggested as display name at redemption), optional note, optional expiry date (no default expiry: a code stays valid until redeemed, revoked or replaced). Event parts per invitation come with step 3a.
+- **Invitation.** Guest name (1–100 characters; suggested as display name at redemption), optional note, optional expiry date (no default expiry: a code stays valid until redeemed, revoked or replaced). Program items per invitation come with step 3a.
 - **Status.** Stored: `active`, `redeemed`, `revoked`, `replaced`; `expired` is derived from the expiry date, so nothing has to flip a row. Only an `active` or `expired` code can be regenerated (the old one becomes `replaced`, the new one is a new invitation for the same guest; a new expiry date must be in the future); only an `active` one can be revoked (an expired one is dead already), a revoked one needs a fresh invitation. A redeemed code stays redeemed, also after its account was deleted.
 - **Redemption.** `GET /api/invitations/:code` (guest name, or `404 invalid_invitation` / `410 invitation_expired|redeemed|revoked|replaced`); `POST /api/invitations/:code/register` creates the account with `vip` and its password and marks the code redeemed in one transaction; `POST /api/invitations/:code/redeem` does the same for the signed-in user without `vip` (`409 already_vip` otherwise, the code is not consumed). The update that marks the code redeemed only matches `active`, so of any number of concurrent attempts exactly one wins. The password must not equal the username (7.1.1). Failed redemption attempts are limited to 20 per client address in 15 minutes (successful ones do not count: guests share addresses, decided 2026-11-10), and to 100 per hour overall. Both limits use fixed windows kept in memory: around a window boundary up to twice the limit can pass, and a restart resets them.
 - **How vip was granted** (INV-11): `memberships.vip_assignment` (`invitation_code` or `admin_promotion`) and `vip_invitation_id`; direct promotion (role change, account created by an admin, CLI `--vip`) records `admin_promotion`, revoking `vip` clears both. The audit log records the method.
 - **Admin API.** `GET`/`POST /api/admin/invitations` (batch of up to 200 guests with one expiry), `POST /api/admin/invitations/:id/revoke` and `/regenerate`.
 - **Frontend.** `/invite` (type the code) and `/invite/:code` (register, or redeem when signed in); `/admin/invitations` creates invitations and prints the cards (name, QR code drawn in the browser, code, link) with the browser's print function.
+- **Invitations and accounts from stage 3.9** (decided 2026-11-12): every invitation has its inactive account from the start (`invitations.user_id`); registering activates that account, redeeming while signed in merges it into the signed-in account, revoking the last open invitation of a never-activated account deletes it, and deleting an account deletes its invitations whatever their status. All details in 7.1.2. "Aufräumen" (INV-21, `POST /api/admin/invitations/cleanup`, audited as `invitation.cleanup` with the number) deletes revoked and replaced invitations; redeemed ones stay recorded while their account exists (INV-10).
 
 ## 9.7 Requirements
 
@@ -1069,6 +1115,8 @@ VIPs cannot invite people who would get an account of their own. They can reques
 | INV-17 | ~~The admin approves or rejects pending invitation requests; on approval the admin sets the invited event parts, and the platform creates a personal invitation and emails its link to the requested address.~~ (withdrawn: replaced by accompanying persons without account, see RSVP-08/09) | – |
 | INV-18 | ~~An account created through an emailed invitation link with the same email address gets the email status `verified`.~~ (withdrawn: replaced by accompanying persons without account, see RSVP-08/09) | – |
 | INV-19 | ~~A rejected invitation request sends no email and stays in a list of rejected requests.~~ (withdrawn: replaced by accompanying persons without account, see RSVP-08/09) | – |
+| INV-20 | Revoking the last open invitation of an account that was never activated deletes that account, after a confirmation (decided 2026-11-12, 7.1.2). | Must |
+| INV-21 | The admin can delete all revoked and replaced invitations in one action; redeemed, active and expired invitations stay. | Should |
 
 ---
 
@@ -1121,7 +1169,7 @@ Invitations and RSVP must work early, long before the world and the website are 
 - **Server gate** (ACS-10, ACS-07): while the platform is closed, a signed-in user without `staff` or `admin` can call only these routes: `/api/session`, `/api/password/*`, `/api/email/*`, `/api/profile[/*]`, `/api/rsvp[/*]`, `/api/waiting[/*]`, `/api/privacy`, `/api/site`, `/api/event`, `/api/events/ping`, `/api/health`, `/api/version`, `/api/invitations/*` and `/api/admin/*` (which keep their own admin check). An entry matches itself and the routes below it, never a longer name (`/api/profile` does not open `/api/profiles`). Everything else under `/api`, including every route a later feature adds and the live feeds under `/api/events/`, answers `403 platform_closed` until the admin opens the platform; a test walks every registered route. The state is read on every request. Unknown paths stay a plain 404.
 - **Front end:** a restricted guest lands on the waiting page at `/` (full screen, no website navigation); `/rsvp` and `/profile` keep the page header with only "Warteseite", "Rückmeldung", "Profil" and "Abmelden"; the game world and the other platform pages send them back to the waiting page.
 - **Settings** (`waiting_config`, `GET`/`PATCH /api/admin/waiting`, audited as `waiting.set` with the names of the fields, never the texts): opening date (an instant; entered and shown in the event's time zone), countdown switch (default off), three texts (each can go back to its default). A text has at most 1000 characters. The countdown needs the switch and a date.
-- **Placeholders:** `{name}` is the display name; `{waitingCount}` counts the guests who have accepted (at least one part) and the approved companions who attend, without the viewing guest; `{openingDate}` is the date in the event's language and time zone, or "bald" while none is announced. An unknown `{word}` stays as written. The page data (`GET /api/waiting`) carries the finished text.
+- **Placeholders:** `{name}` is the display name; `{waitingCount}` counts the guests who have accepted (at least one program item) and the approved companions who attend, without the viewing guest; `{openingDate}` is the date in the event's language and time zone, or "bald" while none is announced. An unknown `{word}` stays as written. The page data (`GET /api/waiting`) carries the finished text.
 - **Door scene** (ACS-12): the built-in scene is drawn in code at a low resolution and scaled without smoothing: a door slightly ajar, warm light, figures that carry a plank, a lantern and a brush behind the gap, light dust; a tap on the door opens the gap wider for 3.5 seconds. With "reduce motion" the figures stand still. An event replaces it with a **sprite sheet** in `$DATA_DIR/events/<eventId>/`: `door.png` (`frames` equally sized frames side by side), `door.json` (`{ "frameWidth", "frameHeight", "frames", "fps", "gap"? }`; sizes 16–2048 px, 1–64 frames, 0.5–30 fps; `gap` is an optional rectangle in fractions of a frame, `{ x, y, width, height }`) and an optional `door-glimpse.png` (one picture) that a tap on the gap shows for 3.5 seconds. The sheet fills the screen like a cover (cropped at the edges), without smoothing. A missing or invalid `door.json`, an unknown key or a missing `door.png` means the built-in scene; a file that fails to load falls back to it on the page. `GET /api/waiting/door` tells which one, `GET /api/waiting/door/sheet` and `/glimpse` serve the files (sign-in required); a version in the answer makes a replaced file load again.
 
 **Implementation decisions of step 3d** (2026-11-11):
@@ -1470,7 +1518,7 @@ In Tiled, each object gets a `type`, a unique name and its properties. Examples:
 - Seat: `type = seat`, `table = 3` (see 3.6)
 - Wander area: `type = wander`, where guest figures walk around
 
-Each map also has the map property `eventPart`, e.g. `dinner`. It decides whose figures appear on the map (see 3.6).
+Each map also has the map property `programItem`, e.g. `dinner`. It decides whose figures appear on the map (see 3.6).
 
 The engine interprets these generic object types and executes the associated behaviour.
 
@@ -1511,7 +1559,7 @@ Drawing pixel art is the main effort per event. To keep it low, the platform shi
 |---|---|---|
 | MAP-01 | Maps are drawn in Tiled, exported as JSON and imported at runtime through the admin map importer; Tiled is not part of the running system. | Must |
 | MAP-02 | The engine supports tile layers (background, ground, decoration, objects, foreground, collision) and object layers defining spawn points, collisions, portals, clickable objects (buildings, NPCs, signs, items), protected zones, seats and wander areas. | Must |
-| MAP-03 | The engine interprets the object properties `type`, `label`, `approach`, `action`, `contentId`, `targetMap`, `targetSpawn`, `minigameId` and `page`, and the map property `eventPart`, and executes the corresponding behaviour (14.2). | Must |
+| MAP-03 | The engine interprets the object properties `type`, `label`, `approach`, `action`, `contentId`, `targetMap`, `targetSpawn`, `minigameId` and `page`, and the map property `programItem`, and executes the corresponding behaviour (14.2). | Must |
 | MAP-04 | New or changed maps and tilesets can be imported without a redeployment or code change. | Must |
 | MAP-05 | The map importer lists the event's maps and lets the admin import a new map or a new version of an existing map (Tiled JSON with tilesets), delete a map and set the start map. | Must |
 | MAP-06 | An import is validated (format, required layers, referenced tilesets, spawn points); an invalid import is rejected and the active version stays unchanged. | Must |
@@ -1719,7 +1767,7 @@ The database stores, for example:
 - Album information.
 - Contribution texts.
 - Profile photos and greetings.
-- RSVPs and event parts.
+- RSVPs and program items.
 - Seating plan.
 - Treasure hunt items and finds.
 - Map metadata and versions.
@@ -1799,7 +1847,7 @@ There are two levels:
 - Guest groups.
 - Unlock conditions.
 - Photo albums.
-- Schedule and event parts.
+- Schedule and program items.
 - Menu options and the "How I know the couple" list.
 - Treasure hunt items.
 
@@ -1833,7 +1881,7 @@ The event is a database record with these fields:
 | Default language | setup | yes, by the admin |
 | Features (`minigames`, `snapshots`, `gallery`, `keepsakes`, `rsvp`, `treasureHunt`, `eventScreen`) | defaults, all on | yes, by the admin |
 | Settings (`platformOpen`, `snapshotUploadsOpen`, `keepsakeUploadsOpen`) | defaults, all off | yes, by the admin |
-| RSVP and waiting page (event parts, menu options, deadline, opening date, countdown switch, waiting-page texts; stage 3, 7.4.1, 10.4) | none, default texts, countdown off | yes, by the admin |
+| RSVP and waiting page (program items, menu options, deadline, opening date, countdown switch, waiting-page texts; stage 3, 7.4.1, 10.4) | none, default texts, countdown off | yes, by the admin |
 | Privacy notice (Markdown; stage 3, 24) | German default text | yes, by the admin |
 | Footer copyright line (stage 3.5, 19.6) | `© <year> <event name>` | yes, by the admin; empty hides it |
 
@@ -1945,7 +1993,7 @@ A global user account could later be assigned to several events, with different 
 | CFG-04 | Each installation serves exactly one event with its own domain, database, uploads, users, content, maps and configuration; all installations share the same codebase. | Must |
 | CFG-05 | Event settings (feature toggles, platform open, snapshot uploads open, keepsake uploads open) start with defaults and can be changed by the admin at runtime without a redeployment. | Must |
 | CFG-06 | The admin can change the event's name, time zone and default language at any time after the setup; each change is audited. | Must |
-| CFG-07 | The CLI command `zappaloo event seed-example` completes the setup of an empty installation with the example event (including example event parts, menu options and an RSVP deadline) and refuses an installation that is already set up (dev and test only). | Must |
+| CFG-07 | The CLI command `zappaloo event seed-example` completes the setup of an empty installation with the example event (including example program items, menu options and an RSVP deadline) and refuses an installation that is already set up (dev and test only). | Must |
 
 Multi-event operation in one installation (section 20.1) is out of scope for the first version (see section 30).
 
@@ -2479,8 +2527,8 @@ What matters is a clear separation between:
 | Photos | QR code upload, anonymous via upload link or signed in; worker queue for processing |
 | Contributions | Compose photo and/or text, then "Upload snapshot" (needs a photo; gallery and photo wall) or "Upload keepsake" (keepsake page and printable keepsake book); shared upload links, pipeline and moderation |
 | Moderation | One queue for all contributions; swipe right/left; nothing shown without approval |
-| RSVP | Per event part, with accompanying persons (no own account, requested by the VIP), menu and allergies; CSV export |
-| Guest presence | Attending guests wander around the maps of their event parts; speech bubble with name, photo, greeting and "How I know the couple" |
+| RSVP | Per program item, with accompanying persons (no own account, requested by the VIP), menu and allergies; CSV export |
+| Guest presence | Attending guests wander around the maps of their program items; speech bubble with name, photo, greeting and "How I know the couple" |
 | Treasure hunt | QR codes hidden at the venue unlock collectibles; ranking |
 | Event screen | Projector page: photo wall, live leaderboards, hunt ranking; read-only link |
 | Template maps | Church, garden, banquet hall, party area with swappable decoration |
@@ -2539,7 +2587,7 @@ Requirements: ACC (except ACC-16), ROLE, INV, ACS (except ACS-04, ACS-10–14), 
 
 ## Stage 3 – RSVP and Waiting Page
 
-- RSVP with event parts, accompanying persons, deadline, overview, CSV export, reminders.
+- RSVP with program items, accompanying persons, deadline, overview, CSV export, reminders.
 - Closed platform with teaser waiting page (door scene, texts by RSVP status, optional countdown); admin switch to open it, with "the door is open" email, and to close it again.
 - Privacy notice; allergy data visible only to admins.
 
@@ -2554,6 +2602,18 @@ Requirements: RSVP, ACS-10–14, ACC-16, SEC-09, SEC-11, DATA-05.
 - Device check on iOS and Android, then the Release 1 go-live.
 
 Requirements: PWA, LIC.
+
+## Stage 3.9 – Findings from the Release 1 Pilot
+
+Added 2026-11-12 after running v1.0.2 on prod. Delivered to prod as updates of Release 1.
+
+- Fixes: Rückmeldungen moves sideways on phones, "Eingeladen zu" chips missing for new accounts with several roles, "·" between Datenschutz and Version.
+- "Program item" (Programmpunkt) instead of "event part" (Teil) everywhere.
+- One RSVP answer for all program items (setting), companion approval as a setting, "Begleitperson hinzufügen".
+- Account states (active, inactive, blocked), an inactive account per invitation so every invited person is on the guest list; merging on redemption; revoking removes a never-activated guest; admins delete accounts; a guest's own deletion keeps the guest-list entry; invitation cleanup; "Konto anlegen" with program items.
+- Person types (adult, child, baby), babies without a menu, totals by type.
+
+Requirements: ACC-17 – ACC-20, INV-20, INV-21, RSVP-11 – RSVP-15 (RSVP-01, RSVP-08 – RSVP-10 reworded).
 
 ## Stage 4 – Content and Website
 
@@ -2576,7 +2636,7 @@ Requirements: GAME, MAP, AVA (except AVA-04), WEB-08, PERF-04.
 
 ## Stage 6 – Living World
 
-- Wandering figures of attending guests on the maps of their event parts.
+- Wandering figures of attending guests on the maps of their program items.
 - Profile photo, greeting, "How I know the couple" and speech bubble.
 - Seating plan and table finder with tablemates.
 

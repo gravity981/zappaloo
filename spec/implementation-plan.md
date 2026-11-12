@@ -17,6 +17,7 @@ This plan breaks the stages of [sw-architecture.md](sw-architecture.md), section
 | Release | After stage | What guests get |
 |---|---|---|
 | **Release 1 (early)** | 3.5 | Redeem invitation, answer the RSVP, waiting page with the door scene, add the site to the home screen as an app. The platform is closed. |
+| Release 1 updates | 3.9 | Findings from the pilot on prod: one RSVP answer for all program items, "Begleitperson hinzufügen" without approval, person types; invited guests on the guest list before they redeem. |
 | **Opening** | 6 | The admin opens the platform: website, game world, wandering figures, speech bubbles, table finder. |
 | **Event-ready** | 9 | Contributions, photo wall, moderation, minigames, treasure hunt; load test passed and release checklist done. |
 | **After the event** | 10 | Export, shutdown notice and deletion (mandatory, ready before the shutdown date). |
@@ -31,8 +32,9 @@ Each release goes into production. From Release 1 on, real guest data is stored,
 |---|---|---|---|
 | 1 | Walking skeleton and deployment | 1 | done |
 | 2 | Accounts, roles and access | 1 | done |
-| 3 | RSVP and waiting page | – | next |
-| 3.5 | Installable app (home screen icon, no browser chrome) | 1 | open |
+| 3 | RSVP and waiting page | – | done |
+| 3.5 | Installable app (home screen icon, no browser chrome) | 1 | done |
+| 3.9 | Findings from the Release 1 pilot | 1 (updates) | next |
 | 4 | Content and website | Opening | open |
 | 5 | Game world and map importer | Opening | open |
 | 6 | Living world | Opening | open |
@@ -207,6 +209,44 @@ Requirements: PWA-01 – PWA-05 (verified on staging and on devices).
 **3.5f – Release 1 go-live** (after 3.5a – 3.5e; formerly 3f). First release promoted and deployed to production on the operator's host; Let's Encrypt and live updates through Caddy checked there (manual test protocol); invitation print export checked end to end, privacy notice reviewed, home screen install checked on the production host, manual checks from the release checklist that apply to Release 1.
 Checked with the released version on prod (decided 2026-11-11): LIC-03 and OPS-02 stay on the "not yet tested" list until then. When Release 1 works on prod and stage 4 starts, the lists are cleared (test-strategy.md, section 5).
 Requirements: OPS-02, LIC-03 (verified on prod).
+
+### Stage 3.9 – Findings from the Release 1 Pilot
+
+Added 2026-11-12 after running v1.0.2 on prod. The decisions are in sw-architecture.md 7.1.2, 7.4.2, 8.3 and 9.6.1 and in mocks/README.md. Numbered 3.9 so that stages 4–10 keep their numbers; branch `feature/stage-3.9`. Each step can go to prod as a Release 1 update; prod holds real guest data, so every migration is checked against a copy of the prod backup on staging before it is promoted.
+
+**Before the stage starts:**
+- Stage 3.5 is complete and merged; `feature/stage-3.9` starts from it (done 2026-11-12).
+- The decisions of 2026-11-12 are written into the spec (this plan, 7.1.2, 7.4.2).
+- *Decided 2026-11-12:* with approval off, the guest removes an added accompanying person until the deadline, and the admin removes one in Rückmeldungen at any time (7.4.2, step 3.9c).
+- *Decided 2026-11-12:* a blocked user gets the same "Benutzername oder Passwort falsch" as for a wrong password (7.1.2, step 3.9e).
+
+**Steps:**
+
+**3.9a – Fixes from the pilot.** Rückmeldungen no longer moves sideways on a swipe on iOS and Android: its tables scroll inside their own box (checked for every admin page at phone width); the account panel shows the "Eingeladen zu" chips for every account with `vip`, also when it has `staff` or `admin` and right after "Konto anlegen"; the footer reads "Datenschutz · Version x.y.z" (19.6). Tests: a Playwright run at phone width that a horizontal swipe does not scroll any admin page; a component test for the chips with combined roles; the footer text.
+Requirements: none new.
+Re-verified: RSVP-02, RSVP-05, SEC-09, OPS-08.
+
+**3.9b – Program item instead of part.** "Programmpunkt" in every text (i18n keys, mocks, e-mails, CSV headers), `programItem` in code, `/program-items` in the API, tables and columns renamed by a Drizzle migration (`event_parts` → `program_items`, `membership_parts`, `invitation_parts`, the `part_id` columns); audit action names of existing entries are migrated too, so "Zuletzt" still reads them. No behaviour changes.
+Requirements: none new.
+Re-verified: RSVP-01 – RSVP-10, DATA-05 and the migration check against the latest release's schema.
+
+**3.9c – RSVP settings.** Mock first: `rsvp-parts` with one answer per person, `admin-settings` card Rückmeldung with the two switches, `rsvp-companion` with "Begleitperson hinzufügen" with and without approval. Then: switch "Pro Programmpunkt zusagen" (off by default), one answer stored for every invited program item, program items added later take the existing answer, the warning about mixed answers when switching; switch "Begleitpersonen bestätigen" (off by default), switching off approves pending requests after a confirmation, badge and tile only with approval on; texts "hinzufügen"; the guest removes an added person until the deadline (approval off), the admin removes one in Rückmeldungen. The migration sets both switches to their defaults, so pending requests on prod are approved by the update.
+Requirements: RSVP-11, RSVP-12; RSVP-01, RSVP-08, RSVP-09, RSVP-10 (reworded).
+
+**3.9d – Every invited person has an account.** Mock first: `invite-register` (activates the account; variant for a signed-in account without `vip`: "zu deinem Konto hinzufügen"), `profile` (the confirmation of "Konto löschen" says what stays), `admin-invitations` (revoke with "Widerrufen und Gast entfernen"), `admin-rsvp` (inactive guests as "ohne Antwort"). Then: `users.status` and a nullable username; creating an invitation creates its inactive account (`invitations.user_id`, program items on the membership only); registration activates it; merge into a signed-in account without `vip`; revoking the last open invitation of a never-activated account deletes it (INV-20); deleting an account deletes its invitations; a guest's own deletion keeps the guest-list entry as inactive; inactive accounts cannot sign in and get no reminder; new default privacy text; the migration of existing data (7.1.2). Tests include the concurrency test of redemption (INV-08) with the account, the merge, the migration on a database with v1.0.2 data, and the sign-in refusal of inactive accounts.
+Requirements: ACC-17, INV-20.
+Re-verified: ACC-01, ACC-07, ACC-09, ACC-12, INV-03, INV-07, INV-08, INV-10, RSVP-07, RSVP-09, SEC-09.
+
+**3.9e – Konten & Rollen and Einladungen.** Mock first: `admin-users` (columns Benutzername | Name | Status | Rollen | Fähigkeiten, filter chips, panels for inactive, active and blocked accounts, "Konto anlegen" with program item chips), `admin-invitations` ("Aufräumen (n)"). Then: the table and filters, panel per state with locked roles while inactive, block and unblock (sessions and links end), "Konto löschen" for admins, "Konto anlegen" creates an inactive account and requires program items with `vip`, "Aufräumen" deletes revoked and replaced invitations.
+Requirements: ACC-18, ACC-19, ACC-20, INV-21.
+Re-verified: ACC-08, ACC-10, ACC-14, ROLE-01, ROLE-09.
+
+**3.9f – Person types.** Mock first: `admin-invitations` (type per batch and row), `admin-users` (type in the panel), `rsvp-companion` (type chips, required), `rsvp-people` (no menu for a baby), `admin-rsvp` (totals by type, column "Typ"). Then: `person_type` on memberships and companions (adult for existing data), the menu rule takes the type, totals, guest table and CSV by type.
+Requirements: RSVP-13, RSVP-14, RSVP-15.
+Re-verified: RSVP-03, RSVP-05.
+
+**3.9g – Update on prod.** Image build and deployment test; staging restored from the latest prod backup and updated, so the migrations run on real data (OPS-13); release candidate, promotion and deployment to prod with the pre-deploy backup; manual checks on a phone (swipe, RSVP with one answer, adding a companion, redeeming a card for a pre-created account). The admin copies the new "Löschen" paragraph into the privacy notice on prod (7.1.2), because an edited notice keeps its text. Status report for stage 3.9.
+Requirements: none new.
 
 ### Stage 4 – Content and Website
 
@@ -461,3 +501,71 @@ After each completed stage, Claude appends a report with this structure to secti
 - Group conditions name the group (11.1.1): renaming a group closes what was protected with the old name, and a new group with the old name opens it to others. Nothing stores conditions yet; to decide before the first feature does (stage 4 or 5).
 - Five failed logins lock that one username for 15 minutes, also the admin's; anyone who knows a username can do that on purpose. Kept as specified (decided 2026-11-10): it caps the guesses per account from any number of addresses. The lock is in memory, so a restart of the app also ends it.
 - Redemption can be blocked for an hour by anyone who fails 100 times on purpose (accepted, see the decision record); the admin can hand a code over.
+
+### Stage 3 – RSVP and Waiting Page (2026-11-12, written after the stage)
+
+**Summary:** Guests redeem their card, answer the RSVP with accompanying persons, menu, allergies and song wish, and wait at the door scene until the hosts open the platform. Admins manage program items, menus and the deadline, follow the answers in Rückmeldungen (guest table, CSV, reminders), open and close the platform and edit the privacy notice. Guests sign in with a username or a verified email address, and every Release 1 page follows the mocks.
+
+**Steps:** 3a RSVP – done. 3b Accompanying persons – done. 3c Closed platform and waiting page – done. 3d Opening and privacy notice – done. 3e Sign-in by email – done. 3g Guest pages in the mock style – done (added). 3h Set-password, confirm-email and not-found pages – done (added). 3i Fixes from the stage-3 review – done (added). 3f Release 1 go-live – moved to stage 3.5 (3.5f).
+
+**Requirements:** 19 of 19 planned for this stage (RSVP-01 – RSVP-10, ACS-10 – ACS-14, ACC-16, SEC-09, SEC-11, DATA-05), all with passing tests (requirement report). Overall: 96 of 232 active requirements (stage 3.9 adds 11 on 2026-11-12).
+
+**Tests:** see the report of stage 3.5 (one test run on 2026-11-12 covers both stages). No manual checks belong to stage 3; the go-live checks moved to 3.5f.
+
+**Spec changes and deviations:** plan review against the mocks (countdown optional, closing again, menu tied to the meal item, admin changes through the guest table, approved companions editable by their VIP, invited program items for admin-made VIPs, privacy notice page); sign-in by email (ACC-16, step 3e); the guest pages built from the mocks (3g, 3h); answers follow invitation changes and revoking `vip` deletes the RSVP (3i, 7.4.1); the go-live moved to stage 3.5 because Release 1 includes the installable app.
+
+**Overall status:**
+
+| Stage | Content | Status |
+|---|---|---|
+| 1 | Walking skeleton and deployment | done |
+| 2 | Accounts, roles and access | done |
+| 3 | RSVP and waiting page | done |
+| 3.5 | Installable app | done |
+| 3.9 | Findings from the Release 1 pilot | next |
+| 4 – 10 | Opening, Event-ready, After the event | open |
+
+**Remaining requirements by stage:** see the report of stage 3.5.
+
+**Waiting on the project owner:** see the report of stage 3.5.
+
+**Risks and notes:** none beyond the report of stage 3.5.
+
+### Stage 3.5 – Installable App (2026-11-12, written after the stage)
+
+**Summary:** Guests add the site to the home screen of iOS and Android and open it full screen with the event's icon and name; a hint in the mobile browser shows how. Every page with the footer carries the admin's copyright line, the AGPL-3.0 sentence and links to the source code and the license. Release 1 runs on prod (v1.0.2).
+
+**Steps:** 3.5a Manifest and icons – done. 3.5b Page head and safe areas – done. 3.5c Install hint – done. 3.5d Footer with copyright and license notice – done. 3.5e Device check and 3.5f Release 1 go-live – done on prod (v1.0.2), but not recorded in the manual test protocol yet. Fixes after the go-live: staging starts without a mail password, pages no longer zoom in on a focused field, the guest table keeps its edit button in its own column, an email link opened while signed in no longer reports an expired session.
+
+**Requirements:** 8 of 8 planned for this stage (PWA-01 – PWA-05, LIC-01 – LIC-03) with passing automated tests. PWA-01 – PWA-05, LIC-03 and OPS-02 stay on the "not yet tested" list (test-strategy.md, section 5) until the device and prod checks are recorded. Overall: 96 of 232 active requirements, all with passing tests; 136 not yet implemented.
+
+**Tests:** 2026-11-12 on `feature/stage-3.9` (spec changes only since v1.0.2): Vitest 632 tests in 63 files passed (651 results in the report, 603 tagged); Playwright 67 passed and 17 skipped by design (tests that run on one browser profile only), none failed; requirement report OK. Manual: OPS-05 only (2026-11-10); the device checks of 3.5e and the prod checks of 3.5f have no rows yet.
+
+**Spec changes and deviations:** footer with copyright and license notice added to the stage (19.6, LIC-01 – LIC-03); the device check runs with the first release candidate on staging, the prod checks with the released version; the go-live (formerly 3f) is step 3.5f. After the go-live the pilot produced stage 3.9 (2026-11-12).
+
+**Overall status:**
+
+| Stage | Content | Status |
+|---|---|---|
+| 1 | Walking skeleton and deployment | done |
+| 2 | Accounts, roles and access | done |
+| 3 | RSVP and waiting page | done |
+| 3.5 | Installable app | done |
+| 3.9 | Findings from the Release 1 pilot | next |
+| 4 | Content and website | open |
+| 5 | Game world and map importer | open |
+| 6 | Living world | open |
+| 7 | Contributions and event screen | open |
+| 8 | Minigames, treasure hunt and highscores | open |
+| 9 | Event readiness | open |
+| 10 | After the event | open |
+
+**Remaining requirements by stage** (requirement report; it counts stages 3.5 and 3.9 under stage 3): stage 1 → 2 (OPS-12, OPS-13: manual checks); 3 → 12 (OPS-02 and the 11 of stage 3.9); 4 → 15; 5 → 36; 6 → 14; 7 → 30; 8 → 22; 9 → 1; 10 → 4. In total 136 of 232 active.
+
+**Waiting on the project owner:**
+- Record the checks of 3.5e (iPhone and Android: icon, name, no browser bars, safe areas, sign-in after install, hint) and 3.5f (Let's Encrypt and live updates on prod, the source link of a public repository) as rows in the manual test protocol; then OPS-02 leaves the "not yet implemented" list and the "not yet tested" list is cleared (a precondition of stage 4).
+- Before step 3.9c reaches prod: decide pending companion requests on prod if they should be reviewed, because the update approves all pending ones (approval off by default).
+
+**Risks and notes:**
+- Prod holds real guest data and stage 3.9 changes the schema in several steps (rename, accounts per invitation, person types); each migration is tried on staging with a copy of the latest prod backup before promotion (3.9g).
+- The requirement report's stage table reads whole stage numbers only, so stages 3.5 and 3.9 appear under stage 3.
