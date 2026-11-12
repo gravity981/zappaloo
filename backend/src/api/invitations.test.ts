@@ -810,7 +810,11 @@ describe("an account per invitation (ACC-17, INV-20; 7.1.2)", () => {
     // The admin answered for the guest (e.g. by phone), and added a companion.
     const attendance = everything.map((programItemId) => ({ programItemId, attending: false }));
     ctx.auth.rsvp.answer(drop?.userId ?? 0, { attendance }, "cli", true);
-    ctx.auth.rsvp.requestCompanion(drop?.userId ?? 0, { name: "Begleitung", attendance }, "cli");
+    ctx.auth.rsvp.requestCompanion(
+      drop?.userId ?? 0,
+      { name: "Begleitung", personType: "adult", attendance },
+      "cli",
+    );
 
     const response = await ctx.app.inject({
       method: "POST",

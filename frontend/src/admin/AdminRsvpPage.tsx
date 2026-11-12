@@ -4,8 +4,8 @@
 import { Fragment, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Link } from "react-router";
-import { remindResponseSchema, rsvpOverviewSchema } from "@zappaloo/shared";
-import type { RsvpStatus } from "@zappaloo/shared";
+import { PERSON_TYPES, remindResponseSchema, rsvpOverviewSchema } from "@zappaloo/shared";
+import type { PersonType, RsvpStatus } from "@zappaloo/shared";
 import { useAdminCall, useAdminData, useErrorText } from "./data.ts";
 import { notifyRsvpChanged } from "./pending.ts";
 
@@ -41,6 +41,12 @@ export default function AdminRsvpPage() {
     reload();
     notifyRsvpChanged();
   }
+
+  /** "35 Erwachsene, 5 Kinder, 2 Babys": the types that are there (RSVP-15). */
+  const byType = (counts: Record<PersonType, number>) =>
+    PERSON_TYPES.filter((type) => counts[type] > 0)
+      .map((type) => `${String(counts[type])} ${t(`personTypesPlural.${type}`)}`)
+      .join(", ");
 
   async function removeCompanion(id: number) {
     setBusy(id);
@@ -167,7 +173,10 @@ export default function AdminRsvpPage() {
                 <i style={{ width: `${String((total.yes / widest) * 100)}%` }} />
                 <i className="no" style={{ width: `${String((total.no / widest) * 100)}%` }} />
               </div>
-              <span className="sm">{t("admin.rsvp.yesNo", { yes: total.yes, no: total.no })}</span>
+              <span className="sm">
+                {t("admin.rsvp.yesNo", { yes: total.yes, no: total.no })}
+                {total.yes > 0 && ` (${byType(total.yesByType)})`}
+              </span>
             </div>
           ))}
         </section>
@@ -215,6 +224,7 @@ export default function AdminRsvpPage() {
             <thead>
               <tr>
                 <th>{t("admin.rsvp.name")}</th>
+                <th>{t("admin.rsvp.type")}</th>
                 <th>{t("admin.rsvp.status")}</th>
                 <th>{t("admin.rsvp.programItems")}</th>
                 <th>{t("admin.rsvp.menu")}</th>
@@ -237,6 +247,7 @@ export default function AdminRsvpPage() {
                     <td>
                       <b>{guest.name}</b>
                     </td>
+                    <td className="sm">{t(`personTypes.${guest.personType}`)}</td>
                     <td>
                       <span className={STATUS_TAG[guest.status]}>
                         {t(`admin.rsvp.statuses.${guest.status}`)}
@@ -274,6 +285,7 @@ export default function AdminRsvpPage() {
                             {t("admin.rsvp.companionOf", { name: guest.name })}
                           </span>
                         </td>
+                        <td className="sm">{t(`personTypes.${c.personType}`)}</td>
                         <td>
                           {data.companionApproval && (
                             <span className="tag ok">

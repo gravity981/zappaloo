@@ -6,11 +6,12 @@ import { useTranslation } from "react-i18next";
 import {
   CAPABILITIES,
   createUserResponseSchema,
+  PERSON_TYPES,
   resetLinkResponseSchema,
   ROLES,
   rsvpConfigSchema,
 } from "@zappaloo/shared";
-import type { AdminUser, Capability, Group, Role } from "@zappaloo/shared";
+import type { AdminUser, Capability, Group, PersonType, Role } from "@zappaloo/shared";
 import { useAdminCall, useAdminData } from "./data.ts";
 import { HandOverLink, Panel, ToggleChip } from "./ui.tsx";
 import { rolesLocked, useToggleRole, useUsersErrorText } from "./users.ts";
@@ -110,6 +111,13 @@ export function AccountPanel({
     if (result.ok) done?.();
   }
 
+  async function setPersonType(personType: PersonType) {
+    const result = await call("PUT", `/api/admin/users/${String(user.id)}/person-type`, {
+      personType,
+    });
+    onChanged(result.ok ? undefined : errorText(result.errorCode));
+  }
+
   async function createResetLink() {
     const result = await call("POST", `/api/admin/users/${String(user.id)}/reset-link`);
     const parsed = resetLinkResponseSchema.safeParse(result.body);
@@ -147,6 +155,23 @@ export function AccountPanel({
         {user.status === "blocked" && <span className="hint"> {t("admin.users.blockedHint")}</span>}
       </p>
       <Alert text={error} />
+
+      {isVip && (
+        <section className="stack" aria-labelledby="account-type">
+          <b id="account-type">{t("admin.personType")}</b>
+          <div className="chips">
+            {PERSON_TYPES.map((personType) => (
+              <ToggleChip
+                key={personType}
+                pressed={user.personType === personType}
+                onToggle={() => void setPersonType(personType)}
+              >
+                {t(`personTypes.${personType}`)}
+              </ToggleChip>
+            ))}
+          </div>
+        </section>
+      )}
 
       <section className="stack" aria-labelledby="account-roles">
         <b id="account-roles">{t("admin.users.roles")}</b>

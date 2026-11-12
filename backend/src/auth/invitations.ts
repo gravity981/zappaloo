@@ -3,7 +3,7 @@
 // response that creates or regenerates it (INV-02, INV-14).
 import { randomBytes } from "node:crypto";
 import { and, desc, eq, ne, or } from "drizzle-orm";
-import type { Invitation, InvitationStatus, User } from "@zappaloo/shared";
+import type { Invitation, InvitationStatus, PersonType, User } from "@zappaloo/shared";
 import type { Database } from "../database/database.ts";
 import {
   companions,
@@ -35,7 +35,8 @@ export type InvitationErrorCode =
   | "not_regenerable"
   | "not_revocable"
   | "program_item_not_found"
-  | "program_items_not_editable";
+  | "program_items_not_editable"
+  | "person_type_not_editable";
 
 export class InvitationError extends Error {
   override name = "InvitationError";
@@ -102,8 +103,14 @@ export class InvitationService {
     return row.status;
   }
 
-  #toInvitation(row: Row, programItemIds: number[], removesGuest: boolean): Invitation {
+  #toInvitation(
+    row: Row,
+    programItemIds: number[],
+    removesGuest: boolean,
+    personType: PersonType = "adult",
+  ): Invitation {
     return {
+      personType,
       id: row.id,
       guestName: row.guestName,
       note: row.note,
@@ -159,8 +166,43 @@ export class InvitationService {
     return !others.some((other) => other.status === "active" || other.status === "redeemed");
   }
 
+  /** The person type of the invitation's guest (RSVP-13), the account's. */
+  #personType(tx: Reader, row: Row): PersonType {
+    if (row.userId === null) return "adult";
+    return (
+      tx
+        .select({ personType: memberships.personType })
+        .from(memberships)
+        .where(
+          and(eq(memberships.eventId, this.#event.eventId), eq(memberships.userId, row.userId)),
+        )
+        .get()?.personType ?? "adult"
+    );
+  }
+
   #view(tx: Reader, row: Row): Invitation {
-    return this.#toInvitation(row, this.#programItemIds(tx, row), this.#removesGuest(tx, row));
+    return this.#toInvitation(
+      row,
+      this.#programItemIds(tx, row),
+      this.#removesGuest(tx, row),
+      this.#personType(tx, row),
+    );
+  }
+
+  /** The admin changes the person type of the guest of an invitation (RSVP-13). */
+  setPersonType(id: number, personType: PersonType, actor: Actor): Invitation {
+    return this.#database.db.transaction((tx) => {
+      const row = this.#get(tx, id);
+      const status = this.#status(row);
+      if (row.userId === null || status === "revoked" || status === "replaced") {
+        throw new InvitationError(
+          "person_type_not_editable",
+          `the person type of a ${status} code cannot be changed`,
+        );
+      }
+      this.#accounts.setPersonType(row.userId, personType, actor);
+      return this.#view(tx, row);
+    });
   }
 
   list(): Invitation[] {
@@ -201,6 +243,8 @@ export class InvitationService {
     actor: Actor,
     /** The program items the guests are invited to; undefined: all program items of the event. */
     programItemIds?: number[],
+    /** The person type of the guests (RSVP-13); undefined: adult. */
+    personType: PersonType = "adult",
   ): IssuedCode[] {
     return this.#database.db.transaction((tx) => {
       const programItems = this.#resolveProgramItems(tx, programItemIds);
@@ -229,6 +273,7 @@ export class InvitationService {
             createdAt: this.#now(),
             vipAssignment: "invitation_code",
             vipInvitationId: issued.invitation.id,
+            personType,
           })
           .run();
         tx.insert(membershipRoles).values({ eventId, userId: account.id, role: "vip" }).run();
@@ -237,7 +282,7 @@ export class InvitationService {
             .values({ eventId, userId: account.id, programItemId })
             .run();
         }
-        const invitation = { ...issued.invitation, programItemIds: programItems };
+        const invitation = { ...issued.invitation, programItemIds: programItems, personType };
         // The id only: the guest's name is in the invitation, not copied into the log.
         this.#event.audit(actor, "invitation.create", { invitationId: invitation.id }, tx);
         return { ...issued, invitation };
@@ -370,7 +415,11 @@ export class InvitationService {
       );
       return {
         ...issued,
-        invitation: { ...issued.invitation, programItemIds: this.#programItemIds(tx, row) },
+        invitation: {
+          ...issued.invitation,
+          programItemIds: this.#programItemIds(tx, row),
+          personType: this.#personType(tx, row),
+        },
       };
     });
   }

@@ -193,7 +193,11 @@ describe("deleting an account (ACC-19)", () => {
     for (const invitation of created) {
       const userId = invitation.userId ?? 0;
       ctx.auth.rsvp.answer(userId, { attendance }, "cli", true);
-      ctx.auth.rsvp.requestCompanion(userId, { name: "Begleitung", attendance }, "cli");
+      ctx.auth.rsvp.requestCompanion(
+        userId,
+        { name: "Begleitung", personType: "adult", attendance },
+        "cli",
+      );
     }
     // The inactive guest also has a replaced code.
     ctx.auth.invitations.regenerate(inactive?.id ?? 0, undefined, "cli");

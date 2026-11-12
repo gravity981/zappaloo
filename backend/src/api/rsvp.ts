@@ -198,7 +198,7 @@ const rsvpPlugin: FastifyPluginAsyncZod<AuthOptions> = (app, options) => {
     },
     async (request, reply) => {
       try {
-        rsvp.renameCompanion(request.params.id, request.body.name, actor(request));
+        rsvp.renameCompanion(request.params.id, request.body, actor(request));
         return await reply.status(204).send();
       } catch (error) {
         return fail(reply, error);

@@ -22,6 +22,7 @@ function account(changes: Record<string, unknown> = {}) {
     ...anna,
     status: "active",
     vipAssignment: "invitation_code",
+    personType: "adult",
     groups: [],
     invitedProgramItemIds: [],
     ...changes,
@@ -147,6 +148,7 @@ describe("invitations", () => {
     programItemIds: [],
     userId: 41,
     removesGuest: false,
+    personType: "adult",
   };
 
   it("[INV-01][INV-04][INV-14] an admin creates invitations and gets cards with code and QR code", async () => {
@@ -181,6 +183,7 @@ describe("invitations", () => {
     // Valid through the chosen day, in the admin's time zone.
     expect(post?.body).toEqual({
       guests: [{ name: "Anna Muster" }, { name: "Ben" }],
+      personType: "adult",
       expiresAt: new Date("2027-05-01T23:59:59").toISOString(),
     });
 
@@ -237,6 +240,7 @@ describe("revoking removes a guest who never registered (INV-20)", () => {
     programItemIds: [],
     userId: 41,
     removesGuest: true,
+    personType: "adult",
   };
 
   it("[INV-20] revoking the last open code asks for a second click, which names what happens", async () => {
@@ -301,6 +305,7 @@ describe("cleaning up invitations (INV-21)", () => {
     programItemIds: [],
     userId: null,
     removesGuest: false,
+    personType: "adult",
   };
 
   it("[INV-05][INV-21] the filter chips, Aufräumen and its hint sit in the card of the table", async () => {
@@ -420,6 +425,7 @@ describe("accounts, roles and groups", () => {
           deadline: null,
           songEnabled: true,
           perItem: false,
+          personType: "adult",
           companionApproval: false,
           pendingCount: 0,
           programItems: [],
@@ -467,6 +473,7 @@ describe("accounts, roles and groups", () => {
           deadline: null,
           songEnabled: true,
           perItem: false,
+          personType: "adult",
           companionApproval: false,
           pendingCount: 0,
           programItems: [],
@@ -588,6 +595,7 @@ describe("accounts, roles and groups", () => {
           deadline: null,
           songEnabled: true,
           perItem: false,
+          personType: "adult",
           companionApproval: false,
           pendingCount: 0,
           programItems: [

@@ -127,6 +127,7 @@ function WizardForm({
     attendance: answer ? attendanceOf(answer, state.programItems, state.perItem) : {},
     menuId: answer?.menuId ?? null,
     allergies: answer?.allergies ?? "",
+    personType: state.personType,
   };
   // A program item added after the answer is open: the wizard starts at the attendance again.
   const [step, setStep] = useState<Step>(

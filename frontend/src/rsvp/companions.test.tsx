@@ -1,4 +1,4 @@
-import { screen, waitFor, within } from "@testing-library/react";
+import { fireEvent, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import { initI18n } from "../i18n/i18n.ts";
 import { anna, fakeBackend, renderAt, user } from "../test/backend.tsx";
@@ -35,6 +35,7 @@ const companion = (changes: Record<string, unknown> = {}) => {
     name: "Mia Huber",
     note: "Meine Tochter, 6 Jahre",
     status: "pending",
+    personType: "adult",
     attendingItemIds: [1, 3] as number[],
     menuId: 4,
     allergies: null,
@@ -54,6 +55,7 @@ function state(changes: Record<string, unknown> = {}) {
     closed: false,
     songEnabled: true,
     perItem: true,
+    personType: "adult",
     companionApproval: true,
     programItems: PARTS,
     menus: MENUS,
@@ -149,6 +151,9 @@ describe("accompanying persons in the wizard", () => {
     // The meal program item needs a menu.
     expect(submit).toBeDisabled();
     user.click(screen.getByRole("button", { name: "Mia Huber: Kindermenü" }));
+    // The type has no default: the guest must choose it (RSVP-13).
+    expect(submit).toBeDisabled();
+    user.click(screen.getByRole("button", { name: "Kind" }));
     expect(submit).toBeEnabled();
     user.click(submit);
 
@@ -158,6 +163,7 @@ describe("accompanying persons in the wizard", () => {
       csrf: "csrf-1",
       body: {
         name: "Mia Huber",
+        personType: "child",
         note: "Meine Tochter, 6 Jahre",
         attendance: [
           { programItemId: 1, attending: true },
@@ -426,11 +432,13 @@ describe("accompanying persons in the wizard", () => {
     user.click(screen.getByRole("button", { name: "Umbenennen: Noah Huber" }));
     const field = screen.getByLabelText("Name");
     user.type(field, "Noah Beat Huber");
+    // The type changes like the name, by the admin (RSVP-13).
+    fireEvent.change(screen.getByLabelText("Typ"), { target: { value: "baby" } });
     user.click(screen.getByRole("button", { name: "Speichern" }));
     expect(await screen.findByText("Noah Beat Huber")).toBeInTheDocument();
     expect(calls.find((c) => c.method === "PATCH")).toMatchObject({
       csrf: "csrf-9",
-      body: { name: "Noah Beat Huber" },
+      body: { name: "Noah Beat Huber", personType: "baby" },
     });
   });
 });
@@ -440,6 +448,7 @@ describe("Rückmeldungen: companion requests", () => {
     deadline: null,
     songEnabled: true,
     perItem: true,
+    personType: "adult",
     companionApproval: true,
     programItems: PARTS,
     menus: MENUS,
@@ -448,6 +457,7 @@ describe("Rückmeldungen: companion requests", () => {
     guests: [
       {
         userId: 5,
+        personType: "adult",
         name: "Erika Huber",
         status: "attending",
         invitedProgramItemIds: [1, 3],
@@ -615,6 +625,7 @@ describe("companion approval off (RSVP-12, 7.4.2)", () => {
       deadline: null,
       songEnabled: true,
       perItem: true,
+      personType: "adult",
       companionApproval: false,
       pendingCount: 0,
       programItems: PARTS,
@@ -624,6 +635,7 @@ describe("companion approval off (RSVP-12, 7.4.2)", () => {
       guests: [
         {
           userId: 5,
+          personType: "adult",
           name: "Erika Huber",
           status: "attending",
           invitedProgramItemIds: [1, 3],
@@ -685,6 +697,7 @@ describe("companion approval off (RSVP-12, 7.4.2)", () => {
           deadline: null,
           songEnabled: true,
           perItem: true,
+          personType: "adult",
           companionApproval: false,
           pendingCount: 0,
           programItems: PARTS,

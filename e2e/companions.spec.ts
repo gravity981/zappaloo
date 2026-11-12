@@ -5,7 +5,7 @@ import de from "../frontend/src/i18n/locales/de/common.json" with { type: "json"
 // The settings of the installation are shared by all tests, which run side by side: this test
 // uses the defaults of 7.4.2 (one answer per person, accompanying persons without approval). The
 // other settings are tested with the API and the pages (RSVP-11, RSVP-12).
-test("[RSVP-08][RSVP-10][RSVP-12][SEC-11] a guest adds an accompanying person, who counts at once; the admin removes them", async ({
+test("[RSVP-08][RSVP-10][RSVP-12][RSVP-13][RSVP-15][SEC-11] a guest adds an accompanying person, who counts at once; the admin removes them", async ({
   page,
   context,
   browser,
@@ -58,6 +58,8 @@ test("[RSVP-08][RSVP-10][RSVP-12][SEC-11] a guest adds an accompanying person, w
   await guest.getByLabel(de.rsvp.companions.note).fill("Meine Tochter, 6 Jahre");
   const add = guest.getByRole("button", { name: de.rsvp.companions.add });
   await expect(add).toBeDisabled();
+  // The type has no default: the button stays off until the guest chooses it (RSVP-13).
+  await guest.getByRole("button", { name: de.personTypes.child, exact: true }).click();
   await guest.getByRole("button", { name: `${mia}: ${de.rsvp.yes}`, exact: true }).click();
   await guest.getByLabel(new RegExp(`${de.rsvp.allergies} \\(${mia}\\)`)).fill("Erdnüsse");
   await add.click();
@@ -77,8 +79,9 @@ test("[RSVP-08][RSVP-10][RSVP-12][SEC-11] a guest adds an accompanying person, w
   const row = page.getByRole("row", { name: new RegExp(mia) });
   await expect(row).toContainText("Trauung");
   await expect(row).toContainText("Erdnüsse");
+  await expect(row).toContainText(de.personTypes.child);
   const csv = await page.request.get("/api/admin/rsvp/export");
-  expect(await csv.text()).toContain(`↳ ${mia};bestätigt;ja;;;;;;Erdnüsse`);
+  expect(await csv.text()).toContain(`↳ ${mia};${de.personTypes.child};bestätigt;ja;;;;;;Erdnüsse`);
   expect((await guest.request.get("/api/admin/rsvp")).status()).toBe(403);
 
   // The admin removes the person with a second click.

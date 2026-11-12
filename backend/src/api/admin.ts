@@ -14,6 +14,7 @@ import {
   groupRequestSchema,
   groupSchema,
   setCapabilitiesRequestSchema,
+  personTypeRequestSchema,
   setRolesRequestSchema,
   userSchema,
 } from "@zappaloo/shared";
@@ -173,6 +174,23 @@ const adminPlugin: FastifyPluginAsyncZod<AuthOptions> = (
         return await reply.send(
           accounts.setRoles(request.params.id, request.body.roles, actor(request)),
         );
+      } catch (error) {
+        return fail(reply, error);
+      }
+    },
+  );
+
+  // The person type of a guest (RSVP-13).
+  app.put(
+    "/api/admin/users/:id/person-type",
+    {
+      ...admin,
+      schema: { querystring: noQuery, params: userParams, body: personTypeRequestSchema },
+    },
+    (request, reply) => {
+      try {
+        accounts.setPersonType(request.params.id, request.body.personType, actor(request));
+        return reply.status(204).send();
       } catch (error) {
         return fail(reply, error);
       }

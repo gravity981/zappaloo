@@ -9,6 +9,7 @@ import {
   invitationPreviewSchema,
   invitationSchema,
   invitedProgramItemsRequestSchema,
+  personTypeRequestSchema,
   issuedInvitationSchema,
   redeemResponseSchema,
   registerRequestSchema,
@@ -48,6 +49,7 @@ const STATUSES: Partial<Record<string, number>> = {
   not_revocable: 409,
   program_item_not_found: 404,
   program_items_not_editable: 409,
+  person_type_not_editable: 409,
 };
 
 /** Answers an invitation error; `failure` counts it against the address and everyone. */
@@ -105,7 +107,7 @@ const invitationPlugin: FastifyPluginAsyncZod<AuthOptions> = (app, options) => {
       },
     },
     async (request, reply) => {
-      const { guests, expiresAt, programItemIds } = request.body;
+      const { guests, expiresAt, programItemIds, personType } = request.body;
       if (expiresAt !== undefined && new Date(expiresAt) <= new Date()) {
         return sendError(reply, 400, {
           code: "validation_failed",
@@ -118,6 +120,7 @@ const invitationPlugin: FastifyPluginAsyncZod<AuthOptions> = (app, options) => {
           expiresAt === undefined ? undefined : new Date(expiresAt),
           actor(request),
           programItemIds,
+          personType,
         );
         return await reply.status(201).send({ invitations: created.map(issued) });
       } catch (error) {
@@ -146,6 +149,29 @@ const invitationPlugin: FastifyPluginAsyncZod<AuthOptions> = (app, options) => {
             request.body.programItemIds,
             actor(request),
           ),
+        );
+      } catch (error) {
+        return fail(reply, error);
+      }
+    },
+  );
+
+  // The person type of the invited guest (RSVP-13).
+  app.put(
+    "/api/admin/invitations/:id/person-type",
+    {
+      ...admin,
+      schema: {
+        querystring: noQuery,
+        params: idParams,
+        body: personTypeRequestSchema,
+        response: { 200: invitationSchema },
+      },
+    },
+    async (request, reply) => {
+      try {
+        return await reply.send(
+          invitations.setPersonType(request.params.id, request.body.personType, actor(request)),
         );
       } catch (error) {
         return fail(reply, error);

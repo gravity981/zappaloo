@@ -1,4 +1,4 @@
-import { screen, waitFor, within } from "@testing-library/react";
+import { fireEvent, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import { initI18n } from "../i18n/i18n.ts";
 import { anna, fakeBackend, renderAt, user } from "../test/backend.tsx";
@@ -33,6 +33,7 @@ function state(changes: Record<string, unknown> = {}) {
     closed: false,
     songEnabled: true,
     perItem: true,
+    personType: "adult",
     companionApproval: true,
     programItems: PARTS,
     menus: MENUS,
@@ -365,13 +366,14 @@ describe("Rückmeldungen", () => {
     deadline: "2027-05-01",
     songEnabled: true,
     perItem: true,
+    personType: "adult",
     companionApproval: true,
     programItems: PARTS,
     menus: MENUS,
     totals: [
-      { programItemId: 1, yes: 2, no: 1 },
-      { programItemId: 2, yes: 1, no: 2 },
-      { programItemId: 3, yes: 2, no: 1 },
+      { programItemId: 1, yes: 2, no: 1, yesByType: { adult: 2, child: 0, baby: 0 } },
+      { programItemId: 2, yes: 1, no: 2, yesByType: { adult: 1, child: 0, baby: 0 } },
+      { programItemId: 3, yes: 2, no: 1, yesByType: { adult: 2, child: 0, baby: 0 } },
     ],
     menuTotals: [
       { menuId: 1, count: 1 },
@@ -380,6 +382,7 @@ describe("Rückmeldungen", () => {
     guests: [
       {
         userId: 5,
+        personType: "adult",
         name: "Erika Huber",
         status: "attending",
         invitedProgramItemIds: [1, 2, 3],
@@ -392,6 +395,7 @@ describe("Rückmeldungen", () => {
       },
       {
         userId: 6,
+        personType: "adult",
         name: "Peter Graf",
         status: "declined",
         invitedProgramItemIds: [1, 2, 3],
@@ -404,6 +408,7 @@ describe("Rückmeldungen", () => {
       },
       {
         userId: 7,
+        personType: "adult",
         name: "Lukas Meier",
         status: "none",
         invitedProgramItemIds: [1],
@@ -429,7 +434,7 @@ describe("Rückmeldungen", () => {
     });
     renderAt("/admin/rsvp");
     expect(await screen.findByRole("heading", { name: "Rückmeldungen" })).toBeInTheDocument();
-    expect(await screen.findAllByText("2 ja · 1 nein")).toHaveLength(2);
+    expect(await screen.findAllByText(/2 ja · 1 nein/)).toHaveLength(2);
     expect(screen.getByText("Menüs (Dinner)")).toBeInTheDocument();
     const table = screen.getByRole("table");
     expect(
@@ -445,12 +450,15 @@ describe("Rückmeldungen", () => {
     );
     // The button is the last cell of its row, in a column of its own (UX mock `admin-rsvp`).
     const cells = within(row).getAllByRole("cell");
-    expect(cells).toHaveLength(7);
-    const [first, , , , , , last] = cells;
+    expect(cells).toHaveLength(8);
+    const [first, , , , , , , last] = cells;
     if (!first || !last) throw new Error("the row has no first and last cell");
     expect(within(last).getByRole("link")).toHaveTextContent("Bearbeiten");
     expect(within(first).queryByRole("link")).not.toBeInTheDocument();
-    expect(within(table).getAllByRole("columnheader")).toHaveLength(7);
+    expect(within(table).getAllByRole("columnheader")).toHaveLength(8);
+    // The column Typ and the totals by type (RSVP-15).
+    expect(within(table).getByRole("columnheader", { name: "Typ" })).toBeInTheDocument();
+    expect(within(row).getByText("Erwachsene")).toBeInTheDocument();
     // The title row and the note keep their distance from the card's border.
     const card = table.closest("section");
     expect(card?.querySelector(".tight-head")).not.toBeNull();
@@ -503,6 +511,7 @@ describe("Einstellungen › Rückmeldung", () => {
     deadline: "2027-05-01",
     songEnabled: true,
     perItem: true,
+    personType: "adult",
     companionApproval: true,
     pendingCount: 0,
     programItems: PARTS,
@@ -604,6 +613,7 @@ describe("invited program items", () => {
     deadline: null,
     songEnabled: true,
     perItem: true,
+    personType: "adult",
     companionApproval: true,
     pendingCount: 0,
     programItems: PARTS,
@@ -621,6 +631,7 @@ describe("invited program items", () => {
     programItemIds: [1, 2],
     userId: 41,
     removesGuest: false,
+    personType: "adult",
     ...changes,
   });
 
@@ -649,6 +660,7 @@ describe("invited program items", () => {
     expect(calls.find((c) => c.method === "POST")?.body).toEqual({
       guests: [{ name: "Anna Muster" }],
       programItemIds: [1, 2],
+      personType: "adult",
     });
   });
 
@@ -677,6 +689,7 @@ describe("invited program items", () => {
       ...anna,
       status: "active",
       vipAssignment: "admin_promotion",
+      personType: "adult",
       groups: [],
       invitedProgramItemIds: [1, 3],
       ...changes,
@@ -695,6 +708,7 @@ describe("invited program items", () => {
               username: "erika",
               displayName: "Erika",
               vipAssignment: "invitation_code",
+              personType: "adult",
             }),
           ],
         },
@@ -721,6 +735,7 @@ describe("invited program items", () => {
       ...anna,
       status: "active",
       vipAssignment: "admin_promotion",
+      personType: "adult",
       groups: [],
       invitedProgramItemIds: [1],
       ...changes,
@@ -788,6 +803,7 @@ describe("revoking vip (7.4.1, decided 2026-11-11)", () => {
               roles: ["vip", "staff"],
               status: "active",
               vipAssignment: "admin_promotion",
+              personType: "adult",
               groups: [],
               invitedProgramItemIds: [1],
             },
@@ -819,6 +835,7 @@ describe("Übersicht", () => {
     deadline: null,
     songEnabled: true,
     perItem: true,
+    personType: "adult",
     companionApproval: true,
     programItems: PARTS,
     menus: MENUS,
@@ -930,6 +947,7 @@ describe("the song wish switch", () => {
           deadline: null,
           songEnabled: true,
           perItem: true,
+          personType: "adult",
           companionApproval: true,
           pendingCount: 0,
           programItems: PARTS,
@@ -960,6 +978,7 @@ describe("the song wish switch", () => {
           deadline: null,
           songEnabled: false,
           perItem: true,
+          personType: "adult",
           companionApproval: true,
           programItems: PARTS,
           menus: MENUS,
@@ -987,6 +1006,7 @@ describe("one answer per person (RSVP-11, 7.4.2)", () => {
   const approvedMia = {
     id: 7,
     name: "Mia Huber",
+    personType: "adult",
     note: null,
     status: "approved",
     attendingItemIds: [] as number[],
@@ -1000,11 +1020,21 @@ describe("one answer per person (RSVP-11, 7.4.2)", () => {
       "GET /api/session": () => asGuest,
       "GET /api/rsvp": () => ({
         status: 200,
-        body: state({ perItem: false, companionApproval: false, companions: [approvedMia] }),
+        body: state({
+          perItem: false,
+          personType: "adult",
+          companionApproval: false,
+          companions: [approvedMia],
+        }),
       }),
       "PUT /api/rsvp": () => ({
         status: 200,
-        body: state({ perItem: false, answer: answered([]), companions: [approvedMia] }),
+        body: state({
+          perItem: false,
+          personType: "adult",
+          answer: answered([]),
+          companions: [approvedMia],
+        }),
       }),
     });
     renderAt("/rsvp");
@@ -1047,11 +1077,19 @@ describe("one answer per person (RSVP-11, 7.4.2)", () => {
       "GET /api/session": () => asGuest,
       "GET /api/rsvp": () => ({
         status: 200,
-        body: state({ perItem: false, answer: answered([1, 3], { menuId: 1 }) }),
+        body: state({
+          perItem: false,
+          personType: "adult",
+          answer: answered([1, 3], { menuId: 1 }),
+        }),
       }),
       "PUT /api/rsvp": () => ({
         status: 200,
-        body: state({ perItem: false, answer: answered([1, 2, 3], { menuId: 1 }) }),
+        body: state({
+          perItem: false,
+          personType: "adult",
+          answer: answered([1, 2, 3], { menuId: 1 }),
+        }),
       }),
     });
     renderAt("/rsvp");
@@ -1084,6 +1122,7 @@ describe("one answer per person (RSVP-11, 7.4.2)", () => {
         deadline: null,
         songEnabled: true,
         perItem: true,
+        personType: "adult",
         companionApproval: true,
         pendingCount: 3,
         programItems: PARTS,
@@ -1132,6 +1171,7 @@ describe("one answer per person (RSVP-11, 7.4.2)", () => {
           deadline: null,
           songEnabled: true,
           perItem: false,
+          personType: "adult",
           companionApproval: true,
           pendingCount: 0,
           programItems: PARTS,
@@ -1146,5 +1186,189 @@ describe("one answer per person (RSVP-11, 7.4.2)", () => {
       expect(calls.some((c) => c.method === "PUT")).toBe(true);
     });
     expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument();
+  });
+});
+
+describe("person types (RSVP-13, RSVP-14, RSVP-15)", () => {
+  it("[RSVP-15] the totals name the types that are there", async () => {
+    fakeBackend({
+      "GET /api/session": () => asAdmin,
+      "GET /api/admin/rsvp": () => ({
+        status: 200,
+        body: {
+          deadline: null,
+          songEnabled: true,
+          perItem: true,
+          companionApproval: false,
+          programItems: PARTS,
+          menus: MENUS,
+          totals: [
+            { programItemId: 1, yes: 42, no: 3, yesByType: { adult: 35, child: 5, baby: 2 } },
+            { programItemId: 2, yes: 10, no: 0, yesByType: { adult: 10, child: 0, baby: 0 } },
+            { programItemId: 3, yes: 0, no: 4, yesByType: { adult: 0, child: 0, baby: 0 } },
+          ],
+          menuTotals: [],
+          guests: [],
+          companions: [],
+          pendingCount: 0,
+          answered: 0,
+          total: 0,
+          reminderCount: 0,
+        },
+      }),
+    });
+    renderAt("/admin/rsvp");
+    expect(
+      await screen.findByText("42 ja · 3 nein (35 Erwachsene, 5 Kinder, 2 Babys)"),
+    ).toBeInTheDocument();
+    expect(screen.getByText("10 ja · 0 nein (10 Erwachsene)")).toBeInTheDocument();
+    expect(screen.getByText("0 ja · 4 nein")).toBeInTheDocument();
+  });
+
+  it("[RSVP-14] a baby is not asked for a menu, but for allergies", async () => {
+    fakeBackend({
+      "GET /api/session": () => asGuest,
+      "GET /api/rsvp": () => ({
+        status: 200,
+        body: state({
+          personType: "baby",
+          answer: answered([1, 3]),
+        }),
+      }),
+    });
+    renderAt("/rsvp");
+    user.click(await screen.findByRole("button", { name: "Ändern" }));
+    await screen.findByRole("heading", { name: "Bist du dabei, Erika?" });
+    user.click(screen.getByRole("button", { name: "Weiter" }));
+    await screen.findByRole("heading", { name: "Essen & Allergien" });
+    expect(screen.queryByText(/Menü \(Dinner\)/)).not.toBeInTheDocument();
+    expect(screen.getByLabelText("Allergien oder Unverträglichkeiten")).toBeInTheDocument();
+    // Without a menu to choose, the wizard goes on.
+    expect(screen.getByRole("button", { name: "Weiter" })).toBeEnabled();
+  });
+
+  it("[RSVP-13] the admin sets the type of a batch, per row and in the account panel", async () => {
+    const invitationRow = {
+      id: 1,
+      guestName: "Anna Muster",
+      note: null,
+      status: "active",
+      expiresAt: null,
+      createdAt: "2026-11-10T10:00:00.000Z",
+      redeemedAt: null,
+      redeemedBy: null,
+      programItemIds: [1, 2],
+      userId: 41,
+      removesGuest: true,
+      personType: "adult",
+    };
+    const calls = fakeBackend({
+      "GET /api/session": () => asAdmin,
+      "GET /api/admin/rsvp/config": () => ({
+        status: 200,
+        body: {
+          deadline: null,
+          songEnabled: true,
+          perItem: true,
+          companionApproval: false,
+          pendingCount: 0,
+          programItems: PARTS,
+          menus: [],
+        },
+      }),
+      "GET /api/admin/invitations": () => ({ status: 200, body: { invitations: [invitationRow] } }),
+      "PUT /api/admin/invitations/1/person-type": () => ({
+        status: 200,
+        body: { ...invitationRow, personType: "baby" },
+      }),
+      "POST /api/admin/invitations": () => ({
+        status: 201,
+        body: {
+          invitations: [
+            {
+              ...invitationRow,
+              personType: "child",
+              code: "K7QMX4",
+              url: "http://x/invite/K7QMX4",
+            },
+          ],
+        },
+      }),
+    });
+    renderAt("/admin/invitations");
+    // The batch: adult is chosen by default, a click makes it Kind.
+    const group = await screen.findByRole("group", { name: "Typ" });
+    expect(within(group).getByRole("button", { name: "Erwachsene" })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+    user.click(within(group).getByRole("button", { name: "Kind" }));
+    user.type(screen.getByLabelText("Gäste (ein Name pro Zeile)"), "Mia");
+    user.click(screen.getByRole("button", { name: "1 Einladung erstellen" }));
+    await screen.findByRole("heading", { name: "1 Einladung erstellt" });
+    expect(calls.find((c) => c.method === "POST")?.body).toMatchObject({ personType: "child" });
+    user.click(screen.getByRole("button", { name: "Fertig" }));
+
+    // Per row of the list.
+    const select = await screen.findByRole("combobox", { name: "Typ: Anna Muster" });
+    expect(select).toHaveValue("adult");
+    fireEvent.change(select, { target: { value: "baby" } });
+    await waitFor(() => {
+      expect(calls.some((c) => c.path === "/api/admin/invitations/1/person-type")).toBe(true);
+    });
+    expect(calls.find((c) => c.path.endsWith("/person-type"))?.body).toEqual({
+      personType: "baby",
+    });
+  });
+
+  it("[RSVP-13] the account panel of a guest sets the type", async () => {
+    const calls = fakeBackend({
+      "GET /api/session": () => asAdmin,
+      "GET /api/admin/rsvp/config": () => ({
+        status: 200,
+        body: {
+          deadline: null,
+          songEnabled: true,
+          perItem: true,
+          companionApproval: false,
+          pendingCount: 0,
+          programItems: PARTS,
+          menus: [],
+        },
+      }),
+      "GET /api/admin/groups": () => ({ status: 200, body: { groups: [] } }),
+      "GET /api/admin/users": () => ({
+        status: 200,
+        body: {
+          users: [
+            {
+              ...anna,
+              id: 1,
+              status: "active",
+              personType: "adult",
+              roles: ["vip"],
+              vipAssignment: "admin_promotion",
+              groups: [],
+              invitedProgramItemIds: [1],
+            },
+          ],
+        },
+      }),
+      "PUT /api/admin/users/1/person-type": () => ({ status: 204 }),
+    });
+    renderAt("/admin/users");
+    user.click(await screen.findByRole("button", { name: /Konto .* bearbeiten/ }));
+    const panel = await screen.findByRole("dialog");
+    expect(within(panel).getByRole("button", { name: "Erwachsene" })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+    user.click(within(panel).getByRole("button", { name: "Baby" }));
+    await waitFor(() => {
+      expect(calls.some((c) => c.path === "/api/admin/users/1/person-type")).toBe(true);
+    });
+    expect(calls.find((c) => c.path.endsWith("/person-type"))?.body).toEqual({
+      personType: "baby",
+    });
   });
 });

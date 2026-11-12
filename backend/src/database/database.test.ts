@@ -404,3 +404,37 @@ describe("migration 0010_accounts_per_invitation", () => {
     expect(database.sqlite.pragma("foreign_key_check")).toEqual([]);
   });
 });
+
+describe("migration 0011_person_types", () => {
+  it("[DATA-04][RSVP-13] makes every existing account and companion an adult", () => {
+    const { database, dir } = freshDatabase();
+    // The database before 0011.
+    const folder = join(dir, "migrations");
+    cpSync(MIGRATIONS_DIR, folder, { recursive: true });
+    const journalFile = join(folder, "meta", "_journal.json");
+    const journal = JSON.parse(readFileSync(journalFile, "utf8")) as {
+      entries: { tag: string }[];
+    };
+    const index = journal.entries.findIndex((entry) => entry.tag === "0011_person_types");
+    expect(index).toBeGreaterThan(0);
+    writeFileSync(
+      journalFile,
+      JSON.stringify({ ...journal, entries: journal.entries.slice(0, index) }),
+    );
+    runMigrations(database, folder);
+    database.sqlite.exec(`
+      INSERT INTO events (id, created_at, updated_at) VALUES ('event1', 1, 1);
+      INSERT INTO users (id, username, status, display_name, created_at, updated_at) VALUES (1, 'anna', 'active', 'Anna', 1, 1);
+      INSERT INTO memberships (event_id, user_id, created_at) VALUES ('event1', 1, 1);
+      INSERT INTO companions (id, event_id, host_user_id, name, status, created_at) VALUES (1, 'event1', 1, 'Mia', 'approved', 1);
+    `);
+
+    writeFileSync(journalFile, JSON.stringify(journal));
+    expect(runMigrations(database, folder)).toBe(journal.entries.length - index);
+    const rows = (sql: string) => database.sqlite.prepare(sql).all();
+    expect(rows("SELECT person_type FROM memberships")).toEqual([{ person_type: "adult" }]);
+    expect(rows("SELECT name, person_type FROM companions")).toEqual([
+      { name: "Mia", person_type: "adult" },
+    ]);
+  });
+});

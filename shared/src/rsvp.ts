@@ -4,6 +4,15 @@ import { z } from "zod";
 
 const idSchema = z.number().int().positive();
 
+/** Every person on the guest list is an adult, a child or a baby (RSVP-13). */
+export const PERSON_TYPES = ["adult", "child", "baby"] as const;
+export const personTypeSchema = z.enum(PERSON_TYPES);
+export type PersonType = z.infer<typeof personTypeSchema>;
+
+/** `PUT /api/admin/users/:id/person-type` and `PUT /api/admin/invitations/:id/person-type`. */
+export const personTypeRequestSchema = z.strictObject({ personType: personTypeSchema });
+export type PersonTypeRequest = z.infer<typeof personTypeRequestSchema>;
+
 export const programItemNameSchema = z.string().trim().min(1).max(60);
 export const placeSchema = z.string().trim().min(1).max(100);
 export const menuNameSchema = z.string().trim().min(1).max(60);
@@ -89,6 +98,7 @@ export const companionSchema = z.object({
   name: z.string(),
   note: z.string().nullable(),
   status: z.enum(COMPANION_STATUSES),
+  personType: personTypeSchema,
   attendingItemIds: z.array(idSchema),
   /** The program items answered with no; an invited program item in neither list is not answered yet. */
   declinedItemIds: z.array(idSchema),
@@ -110,13 +120,17 @@ const personAnswerShape = {
 /** `POST`/`PUT /api/rsvp/companions`: a request, or the change of a pending one (RSVP-08, RSVP-10). */
 export const companionRequestSchema = z.strictObject({
   name: companionNameSchema,
+  /** The guest must choose it, there is no default (RSVP-13). */
+  personType: personTypeSchema,
   note: companionNoteSchema.nullable().optional(),
   ...personAnswerShape,
 });
 export type CompanionRequest = z.infer<typeof companionRequestSchema>;
 
-/** `PATCH /api/admin/rsvp/companions/:id`: the name of an approved person (7.4.1). */
-export const companionRenameSchema = z.strictObject({ name: companionNameSchema });
+/** `PATCH /api/admin/rsvp/companions/:id`: the name and the type of a person, by the admin (7.4.1, RSVP-13). */
+export const companionRenameSchema = z
+  .strictObject({ name: companionNameSchema.optional(), personType: personTypeSchema.optional() })
+  .refine((value) => Object.keys(value).length > 0, { message: "name at least one value" });
 
 /** The answer of one person: attendance per invited program item, menu, allergies. */
 export const attendanceSchema = z.object({ programItemId: idSchema, attending: z.boolean() });
@@ -161,6 +175,8 @@ export const rsvpStateSchema = z.object({
   closed: z.boolean(),
   /** Whether the wizard asks for a song wish (RSVP-06). */
   songEnabled: z.boolean(),
+  /** The guest's own type: a baby is not asked for a menu (RSVP-14). The page does not show it. */
+  personType: personTypeSchema,
   /** Yes or no per program item (RSVP-11); off: step 1 asks once per person. */
   perItem: z.boolean(),
   /** Whether an added accompanying person waits for the admin's approval (RSVP-12). */
@@ -198,7 +214,10 @@ export function menuRequired(
   programItems: readonly Pick<ProgramItem, "id" | "hasMeal">[],
   menuCount: number,
   attendingItemIds: readonly number[],
+  personType: PersonType = "adult",
 ): boolean {
+  // A baby is not asked for a menu (RSVP-14).
+  if (personType === "baby") return false;
   const meal = programItems.find((programItem) => programItem.hasMeal);
   return meal !== undefined && menuCount > 0 && attendingItemIds.includes(meal.id);
 }
@@ -207,6 +226,7 @@ export function menuRequired(
 export const rsvpGuestSchema = z.object({
   userId: idSchema,
   name: z.string(),
+  personType: personTypeSchema,
   status: z.enum(RSVP_STATUSES),
   invitedProgramItemIds: z.array(idSchema),
   attendingItemIds: z.array(idSchema),
@@ -238,7 +258,17 @@ export const rsvpOverviewSchema = z.object({
   menus: z.array(menuOptionSchema),
   /** Per program item: persons who answered yes and who answered no; a program item not answered yet counts in neither. */
   totals: z.array(
-    z.object({ programItemId: idSchema, yes: z.number().int(), no: z.number().int() }),
+    z.object({
+      programItemId: idSchema,
+      yes: z.number().int(),
+      no: z.number().int(),
+      /** The yes split by person type (RSVP-15). */
+      yesByType: z.object({
+        adult: z.number().int(),
+        child: z.number().int(),
+        baby: z.number().int(),
+      }),
+    }),
   ),
   /** Menu choices of the persons attending the meal program item; menuId null = no choice made. */
   menuTotals: z.array(z.object({ menuId: idSchema.nullable(), count: z.number().int() })),

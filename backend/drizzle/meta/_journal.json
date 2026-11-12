@@ -78,6 +78,13 @@
       "when": 1794508803935,
       "tag": "0010_accounts_per_invitation",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "6",
+      "when": 1794513647979,
+      "tag": "0011_person_types",
+      "breakpoints": true
     }
   ]
 }

@@ -1,7 +1,14 @@
 // Accounts, event roles and one-time links (ACC-04, ACC-06, ACC-08, ACC-14,
 // ACC-15; sw-architecture.md 7.1.1).
 import { and, desc, eq, inArray, isNotNull, isNull, lte, ne, or, sql } from "drizzle-orm";
-import type { AdminUser, Capability, ProfileUpdate, Role, User } from "@zappaloo/shared";
+import type {
+  AdminUser,
+  Capability,
+  PersonType,
+  ProfileUpdate,
+  Role,
+  User,
+} from "@zappaloo/shared";
 import type { Database } from "../database/database.ts";
 import {
   programItems,
@@ -13,6 +20,7 @@ import {
   membershipRoles,
   memberships,
   oneTimeLinks,
+  rsvpAnswers,
   sessions,
   users,
 } from "../database/schema.ts";
@@ -645,6 +653,29 @@ export class AccountService {
   }
 
   /**
+   * The admin sets the person type of a guest (RSVP-13). A baby is not asked for a menu, so a
+   * menu the guest chose before goes (RSVP-14). Companions have their own type.
+   */
+  setPersonType(userId: number, personType: PersonType, actor: Actor): void {
+    this.#database.db.transaction((tx) => {
+      const eventId = this.#event.eventId;
+      const done = tx
+        .update(memberships)
+        .set({ personType })
+        .where(and(eq(memberships.eventId, eventId), eq(memberships.userId, userId)))
+        .run();
+      if (done.changes !== 1) throw new AccountError("user_not_found", "no such user");
+      if (personType === "baby") {
+        tx.update(rsvpAnswers)
+          .set({ menuId: null })
+          .where(and(eq(rsvpAnswers.eventId, eventId), eq(rsvpAnswers.userId, userId)))
+          .run();
+      }
+      this.#event.audit(actor, "user.person_type", { userId, personType }, tx);
+    });
+  }
+
+  /**
    * An admin blocks an active account (ACC-18): it cannot sign in, its sessions end and its open
    * setup and reset links are voided at once; roles, groups, RSVP and companions stay.
    */
@@ -776,7 +807,11 @@ export class AccountService {
   listUsers(): AdminUser[] {
     const { db } = this.#database;
     const rows = db
-      .select({ user: users, vipAssignment: memberships.vipAssignment })
+      .select({
+        user: users,
+        vipAssignment: memberships.vipAssignment,
+        personType: memberships.personType,
+      })
       .from(users)
       .innerJoin(memberships, eq(memberships.userId, users.id))
       .where(eq(memberships.eventId, this.#event.eventId))
@@ -801,8 +836,9 @@ export class AccountService {
       .from(membershipProgramItems)
       .where(eq(membershipProgramItems.eventId, this.#event.eventId))
       .all();
-    return rows.map(({ user, vipAssignment }) => ({
+    return rows.map(({ user, vipAssignment, personType }) => ({
       ...this.#toUser(user),
+      personType,
       username: user.username,
       status: user.status,
       vipAssignment,

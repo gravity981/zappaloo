@@ -129,6 +129,7 @@ describe("requesting an accompanying person", () => {
     };
     const made = await call<RsvpState>(erika, "POST", "/api/rsvp/companions", {
       name: "Mia Huber",
+      personType: "adult",
       note: "Meine Tochter, 6 Jahre",
       attendance: attend(programItems, "Trauung", "Dinner"),
       menuId: menus[1]?.id,
@@ -141,6 +142,7 @@ describe("requesting an accompanying person", () => {
         name: "Mia Huber",
         note: "Meine Tochter, 6 Jahre",
         status: "pending",
+        personType: "adult",
         attendingItemIds: [id(programItems, "Trauung"), id(programItems, "Dinner")],
         declinedItemIds: programItems
           .map((programItem) => programItem.id)
@@ -163,22 +165,36 @@ describe("requesting an accompanying person", () => {
     const erika = await guest("erika", [id(programItems, "Apéro"), id(programItems, "Dinner")]);
     const post = (body: object) => call(erika, "POST", "/api/rsvp/companions", body);
     // Attendance must cover exactly the guest's invited program items.
-    expect((await post({ name: "Mia", attendance: attend(programItems, "Trauung") })).status).toBe(
-      400,
-    );
+    expect(
+      (
+        await post({
+          name: "Mia",
+          personType: "adult",
+          attendance: attend(programItems, "Trauung"),
+        })
+      ).status,
+    ).toBe(400);
     const own = programItems.filter((p) => ["Apéro", "Dinner"].includes(p.name));
     // Dinner is the meal program item: a menu is required.
-    const noMenu = await post({ name: "Mia", attendance: attend(own, "Dinner") });
+    const noMenu = await post({
+      name: "Mia",
+      personType: "adult",
+      attendance: attend(own, "Dinner"),
+    });
     expect(noMenu.status).toBe(400);
     expect((noMenu.body as { error: { code: string } }).error.code).toBe("menu_required");
-    expect((await post({ name: "Mia", attendance: attend(own, "Apéro") })).status).toBe(201);
-    expect((await post({ name: " ", attendance: attend(own) })).status).toBe(400);
+    expect(
+      (await post({ name: "Mia", personType: "adult", attendance: attend(own, "Apéro") })).status,
+    ).toBe(201);
+    expect((await post({ name: " ", personType: "adult", attendance: attend(own) })).status).toBe(
+      400,
+    );
   });
 
   it("[RSVP-08] only guests request, and only while the RSVP feature is on", async () => {
     const { ctx, call, programItems, guest, root } = await setup();
     const erika = await guest("erika");
-    const body = { name: "Mia", attendance: attend(programItems) };
+    const body = { name: "Mia", personType: "adult", attendance: attend(programItems) };
     expect((await call(root, "POST", "/api/rsvp/companions", body)).status).toBe(403);
     expect(
       (await ctx.app.inject({ method: "POST", url: "/api/rsvp/companions", payload: body }))
@@ -191,7 +207,11 @@ describe("requesting an accompanying person", () => {
   it("[RSVP-08] at most ten pending and approved persons per guest; rejected ones do not count", async () => {
     const { call, programItems, guest, root } = await setup();
     const erika = await guest("erika");
-    const body = (name: string) => ({ name, attendance: attend(programItems) });
+    const body = (name: string) => ({
+      name,
+      personType: "adult",
+      attendance: attend(programItems),
+    });
     for (let i = 0; i < 10; i += 1) {
       expect(
         (await call(erika, "POST", "/api/rsvp/companions", body(`P${String(i)}`))).status,
@@ -215,6 +235,7 @@ describe("changing and withdrawing", () => {
     const erika = await s.guest("erika");
     const made = await s.call<RsvpState>(erika, "POST", "/api/rsvp/companions", {
       name: "Mia Huber",
+      personType: "adult",
       attendance: attend(s.programItems, "Trauung"),
     });
     return { ...s, erika, companion: must(made.body?.companions[0]) };
@@ -228,6 +249,7 @@ describe("changing and withdrawing", () => {
       `/api/rsvp/companions/${String(companion.id)}`,
       {
         name: "Mia Maria Huber",
+        personType: "adult",
         note: "Tochter, 6",
         attendance: attend(programItems, "Apéro"),
       },
@@ -254,6 +276,7 @@ describe("changing and withdrawing", () => {
       (
         await call<RsvpState>(erika, "POST", "/api/rsvp/companions", {
           name: "Noah",
+          personType: "adult",
           attendance: attend(programItems),
         })
       ).body?.companions[1],
@@ -264,6 +287,7 @@ describe("changing and withdrawing", () => {
     const code = (r: { body: unknown }) => (r.body as { error: { code: string } }).error.code;
     const edit = await call(erika, "PUT", `/api/rsvp/companions/${String(companion.id)}`, {
       name: "Neu",
+      personType: "adult",
       attendance: attend(programItems),
     });
     expect([edit.status, code(edit)]).toEqual([409, "companion_not_editable"]);
@@ -283,7 +307,7 @@ describe("changing and withdrawing", () => {
     const { call, guest, companion, programItems } = await pending();
     const ben = await guest("ben");
     for (const [method, payload] of [
-      ["PUT", { name: "X", attendance: attend(programItems) }],
+      ["PUT", { name: "X", personType: "adult", attendance: attend(programItems) }],
       ["DELETE", undefined],
     ] as const) {
       const res = await call(ben, method, `/api/rsvp/companions/${String(companion.id)}`, payload);
@@ -307,6 +331,7 @@ describe("changing and withdrawing", () => {
       closed(
         await call(erika, "POST", "/api/rsvp/companions", {
           name: "X",
+          personType: "adult",
           attendance: attend(programItems),
         }),
       ),
@@ -315,6 +340,7 @@ describe("changing and withdrawing", () => {
       closed(
         await call(erika, "PUT", `/api/rsvp/companions/${String(companion.id)}`, {
           name: "X",
+          personType: "adult",
           attendance: attend(programItems),
         }),
       ),
@@ -335,6 +361,7 @@ describe("approval", () => {
     const erika = await guest("erika");
     const made = await call<RsvpState>(erika, "POST", "/api/rsvp/companions", {
       name: "Mia",
+      personType: "adult",
       attendance: attend(programItems),
     });
     const mia = must(made.body?.companions[0]);
@@ -362,6 +389,7 @@ describe("approval", () => {
         (
           await call<RsvpState>(erika, "POST", "/api/rsvp/companions", {
             name,
+            personType: "adult",
             attendance: attend(programItems, ...names),
             ...(names.includes("Dinner") ? { menuId: menus[1]?.id, allergies: "Laktose" } : {}),
           })
@@ -397,7 +425,7 @@ describe("approval", () => {
 
     const lines = (await get(root, "/api/admin/rsvp/export")).text.trim().split("\r\n");
     expect(lines).toHaveLength(3);
-    expect(lines[2]).toBe("↳ Mia;bestätigt;ja;nein;ja;nein;Kindermenü;;Laktose");
+    expect(lines[2]).toBe("↳ Mia;Erwachsene;bestätigt;ja;nein;ja;nein;Kindermenü;;Laktose");
   });
 
   it("[RSVP-09] the guest changes an approved person's attendance, menu and allergies in the RSVP, without a new approval", async () => {
@@ -407,6 +435,7 @@ describe("approval", () => {
       (
         await call<RsvpState>(erika, "POST", "/api/rsvp/companions", {
           name: "Mia",
+          personType: "adult",
           attendance: attend(programItems, "Trauung"),
         })
       ).body?.companions[0],
@@ -447,6 +476,7 @@ describe("approval", () => {
       (
         await call<RsvpState>(erika, "POST", "/api/rsvp/companions", {
           name: "Mia",
+          personType: "adult",
           attendance: attend(programItems),
         })
       ).body?.companions[0],
@@ -473,6 +503,7 @@ describe("approval", () => {
       (
         await call<RsvpState>(erika, "POST", "/api/rsvp/companions", {
           name: "Mia",
+          personType: "adult",
           attendance: attend(programItems, "Trauung"),
         })
       ).body?.companions[0],
@@ -494,6 +525,7 @@ describe("deleting and privacy", () => {
     const erika = await guest("erika");
     await call(erika, "POST", "/api/rsvp/companions", {
       name: "Mia",
+      personType: "adult",
       attendance: attend(programItems, "Trauung"),
     });
     const count = (table: string) =>
@@ -510,6 +542,7 @@ describe("deleting and privacy", () => {
     const erika = await guest("erika");
     await call(erika, "POST", "/api/rsvp/companions", {
       name: "Mia",
+      personType: "adult",
       attendance: attend(programItems, "Trauung", "Party"),
     });
     await call(root, "PUT", `/api/admin/users/${String(erika.id)}/program-items`, {
@@ -525,6 +558,7 @@ describe("deleting and privacy", () => {
     const ben = await guest("ben");
     await call(erika, "POST", "/api/rsvp/companions", {
       name: "Mia",
+      personType: "adult",
       attendance: attend(programItems, "Dinner"),
       menuId: menus[1]?.id,
       allergies: "GEHEIM-KIND-ALLERGIE",
@@ -544,6 +578,7 @@ describe("deleting and privacy", () => {
       (
         await call<RsvpState>(erika, "POST", "/api/rsvp/companions", {
           name: "Mia Huber",
+          personType: "adult",
           attendance: attend(programItems),
         })
       ).body?.companions[0],
@@ -586,6 +621,7 @@ describe("companion approval as a setting (RSVP-12, 7.4.2)", () => {
     const erika = await guest("erika");
     const ok = await call<RsvpState>(erika, "POST", "/api/rsvp/companions", {
       name: "Mia Huber",
+      personType: "adult",
       attendance: attend(programItems),
     });
     expect(ok.status).toBe(201);
@@ -606,7 +642,7 @@ describe("companion approval as a setting (RSVP-12, 7.4.2)", () => {
   it("[RSVP-12] with approval off the guest removes an added person until the deadline; with approval on only a pending one", async () => {
     const { call, programItems, guest, root } = await setup();
     const erika = await guest("erika");
-    const body = { name: "Mia", attendance: attend(programItems) };
+    const body = { name: "Mia", personType: "adult", attendance: attend(programItems) };
     // Approval on: an approved person cannot be removed by the guest (RSVP-10).
     const requested = must(
       (await call<RsvpState>(erika, "POST", "/api/rsvp/companions", body)).body,
@@ -640,6 +676,7 @@ describe("companion approval as a setting (RSVP-12, 7.4.2)", () => {
       (
         await call<RsvpState>(erika, "POST", "/api/rsvp/companions", {
           name: "Mia",
+          personType: "adult",
           attendance: attend(programItems),
         })
       ).body,
@@ -665,6 +702,7 @@ describe("companion approval as a setting (RSVP-12, 7.4.2)", () => {
         (
           await call<RsvpState>(erika, "POST", "/api/rsvp/companions", {
             name,
+            personType: "adult",
             attendance: attend(programItems),
           })
         ).body,

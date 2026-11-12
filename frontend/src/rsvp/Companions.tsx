@@ -4,10 +4,11 @@
 import { useState } from "react";
 import type { ReactNode } from "react";
 import { useTranslation } from "react-i18next";
-import { MAX_COMPANIONS, rsvpStateSchema } from "@zappaloo/shared";
+import { MAX_COMPANIONS, PERSON_TYPES, rsvpStateSchema } from "@zappaloo/shared";
 import type {
   Companion,
   CompanionRequest,
+  PersonType,
   ProgramItem,
   MenuOption,
   RsvpState,
@@ -220,14 +221,21 @@ export function CompanionForm({
   const errorText = useErrorText();
   const [name, setName] = useState(companion?.name ?? "");
   const [note, setNote] = useState(companion?.note ?? "");
-  const [value, setValue] = useState<PersonValue>(
+  /** The guest must choose the type, there is no default (RSVP-13). */
+  const [type, setType] = useState<PersonType | undefined>(companion?.personType);
+  const [answer, setAnswer] = useState<Omit<PersonValue, "personType">>(
     companion
       ? personOf(companion, programItems, perItem)
       : { attendance: {}, menuId: null, allergies: "" },
   );
+  const value: PersonValue = { ...answer, personType: type ?? "adult" };
+  const setValue = (next: PersonValue) => {
+    setAnswer({ attendance: next.attendance, menuId: next.menuId, allergies: next.allergies });
+  };
   const [error, setError] = useState<string>();
   const [sending, setSending] = useState(false);
   const complete =
+    type !== undefined &&
     name.trim() !== "" &&
     programItems.every((programItem) => value.attendance[programItem.id] !== undefined) &&
     (!needsMenu(value, programItems, menus) || value.menuId !== null);
@@ -236,6 +244,7 @@ export function CompanionForm({
     setSending(true);
     const body: CompanionRequest = {
       name: name.trim(),
+      personType: type ?? "adult",
       note: note.trim() === "" ? null : note.trim(),
       ...answerOf(value, programItems, menus),
     };
@@ -276,6 +285,24 @@ export function CompanionForm({
           }}
         />
       </label>
+      <div className="field" role="group" aria-label={t("rsvp.companions.type")}>
+        <span>{t("rsvp.companions.type")}</span>
+        <div className="chips">
+          {PERSON_TYPES.map((personType) => (
+            <button
+              key={personType}
+              type="button"
+              className="chip"
+              aria-pressed={type === personType}
+              onClick={() => {
+                setType(personType);
+              }}
+            >
+              {t(`personTypes.${personType}`)}
+            </button>
+          ))}
+        </div>
+      </div>
       <b className="sm">{t("rsvp.companions.attendance")}</b>
       <AttendanceBlock
         perItem={perItem}
@@ -350,7 +377,7 @@ export function CompanionsCard({
   const session = useSession();
   const errorText = useErrorText();
   const [error, setError] = useState<string>();
-  const [renaming, setRenaming] = useState<{ id: number; name: string }>();
+  const [renaming, setRenaming] = useState<{ id: number; name: string; personType: PersonType }>();
   const open = companions.filter((c) => c.status !== "rejected").length;
 
   async function remove(companion: Companion) {
@@ -364,9 +391,9 @@ export function CompanionsCard({
     } else setError(errorText(result.errorCode ?? "unknown"));
   }
 
-  async function rename(id: number, name: string) {
+  async function rename(id: number, name: string, personType: PersonType) {
     const result = await apiRequest("PATCH", `/api/admin/rsvp/companions/${String(id)}`, {
-      body: { name },
+      body: { name, personType },
       csrfToken: session.csrfToken,
     });
     if (result.ok) {
@@ -404,7 +431,7 @@ export function CompanionsCard({
                   className="row"
                   onSubmit={(event) => {
                     event.preventDefault();
-                    void rename(companion.id, renaming.name);
+                    void rename(companion.id, renaming.name, renaming.personType);
                   }}
                 >
                   <input
@@ -414,9 +441,26 @@ export function CompanionsCard({
                     maxLength={100}
                     required
                     onChange={(event) => {
-                      setRenaming({ id: companion.id, name: event.target.value });
+                      setRenaming({ ...renaming, id: companion.id, name: event.target.value });
                     }}
                   />
+                  <select
+                    className="input auto"
+                    aria-label={t("rsvp.companions.type")}
+                    value={renaming.personType}
+                    onChange={(event) => {
+                      setRenaming({
+                        ...renaming,
+                        personType: event.target.value as PersonType,
+                      });
+                    }}
+                  >
+                    {PERSON_TYPES.map((personType) => (
+                      <option key={personType} value={personType}>
+                        {t(`personTypes.${personType}`)}
+                      </option>
+                    ))}
+                  </select>
                   <button type="submit" className="btn sm">
                     {t("rsvp.companions.save")}
                   </button>
@@ -441,7 +485,11 @@ export function CompanionsCard({
                     className="btn soft sm"
                     aria-label={`${t("rsvp.companions.rename")}: ${companion.name}`}
                     onClick={() => {
-                      setRenaming({ id: companion.id, name: companion.name });
+                      setRenaming({
+                        id: companion.id,
+                        name: companion.name,
+                        personType: companion.personType,
+                      });
                     }}
                   >
                     {t("rsvp.companions.rename")}

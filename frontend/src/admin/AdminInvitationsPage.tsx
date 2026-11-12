@@ -10,9 +10,10 @@ import {
   INVITATION_STATUSES,
   invitationListSchema,
   issuedInvitationSchema,
+  PERSON_TYPES,
   rsvpConfigSchema,
 } from "@zappaloo/shared";
-import type { InvitationStatus, IssuedInvitation } from "@zappaloo/shared";
+import type { InvitationStatus, IssuedInvitation, PersonType } from "@zappaloo/shared";
 import { fieldText } from "../app/forms.ts";
 import QrCode from "../app/QrCode.tsx";
 import { useAdminCall, useAdminData, useErrorText } from "./data.ts";
@@ -82,6 +83,8 @@ export default function AdminInvitationsPage() {
   const { data: config } = useAdminData("/api/admin/rsvp/config", rsvpConfigSchema);
   const programItems = config?.programItems ?? [];
   /** The program items chosen for the new batch; every program item until the admin chooses. */
+  /** The person type of the new batch (RSVP-13). */
+  const [batchType, setBatchType] = useState<PersonType>("adult");
   const [chosen, setChosen] = useState<number[]>();
   const batchProgramItems = chosen ?? programItems.map((programItem) => programItem.id);
   const [cards, setCards] = useState<IssuedInvitation[]>([]);
@@ -96,6 +99,7 @@ export default function AdminInvitationsPage() {
     const result = await call("POST", "/api/admin/invitations", {
       guests: guestNames(names).map((name) => ({ name })),
       ...(programItems.length > 0 ? { programItemIds: batchProgramItems } : {}),
+      personType: batchType,
       // Valid through the chosen day, in the admin's time zone.
       ...(expires === "" ? {} : { expiresAt: new Date(`${expires}T23:59:59`).toISOString() }),
     });
@@ -120,6 +124,14 @@ export default function AdminInvitationsPage() {
 
   /** The code whose revoking removes the guest and waits for the second click (INV-20). */
   const [confirmRemove, setConfirmRemove] = useState<number>();
+
+  async function setPersonType(id: number, personType: PersonType) {
+    const result = await call("PUT", `/api/admin/invitations/${String(id)}/person-type`, {
+      personType,
+    });
+    setError(result.ok ? undefined : errorText(result.errorCode));
+    reload();
+  }
 
   async function revoke(id: number) {
     const result = await call("POST", `/api/admin/invitations/${String(id)}/revoke`);
@@ -213,6 +225,22 @@ export default function AdminInvitationsPage() {
             </div>
           )}
         </div>
+        <div className="field" role="group" aria-label={t("admin.personType")}>
+          <span>{t("admin.personType")}</span>
+          <div className="chips">
+            {PERSON_TYPES.map((personType) => (
+              <ToggleChip
+                key={personType}
+                pressed={batchType === personType}
+                onToggle={() => {
+                  setBatchType(personType);
+                }}
+              >
+                {t(`personTypes.${personType}`)}
+              </ToggleChip>
+            ))}
+          </div>
+        </div>
         <label className="field">
           <span>{t("admin.invitations.expiresAt")}</span>
           <input className="input auto" name="expiresAt" type="date" />
@@ -261,6 +289,7 @@ export default function AdminInvitationsPage() {
                 <th>{t("admin.invitations.guest")}</th>
                 <th>{t("admin.invitations.status")}</th>
                 <th>{t("admin.invitations.programItemsColumn")}</th>
+                <th>{t("admin.personType")}</th>
                 <th>
                   <span className="visually-hidden">{t("admin.invitations.actions")}</span>
                 </th>
@@ -313,6 +342,23 @@ export default function AdminInvitationsPage() {
                         </ToggleChip>
                       ))}
                     </div>
+                  </td>
+                  <td>
+                    <select
+                      className="input auto"
+                      aria-label={`${t("admin.personType")}: ${invitation.guestName}`}
+                      value={invitation.personType}
+                      disabled={invitation.status === "revoked" || invitation.status === "replaced"}
+                      onChange={(event) => {
+                        void setPersonType(invitation.id, event.target.value as PersonType);
+                      }}
+                    >
+                      {PERSON_TYPES.map((personType) => (
+                        <option key={personType} value={personType}>
+                          {t(`personTypes.${personType}`)}
+                        </option>
+                      ))}
+                    </select>
                   </td>
                   <td className="actions">
                     {(invitation.status === "active" || invitation.status === "expired") && (

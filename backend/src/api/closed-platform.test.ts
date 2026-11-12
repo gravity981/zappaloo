@@ -276,6 +276,7 @@ describe("the waiting page (ACS-11)", () => {
     await answer(lukas, "Trauung");
     const request = await call<RsvpState>(erika, "POST", "/api/rsvp/companions", {
       name: "Mia",
+      personType: "adult",
       attendance: programItems.map((p) => ({ programItemId: p.id, attending: true })),
     });
     const mia = request.body?.companions[0];

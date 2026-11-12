@@ -1,12 +1,14 @@
 // The answer of one person (guest or companion) while the wizard edits it.
 import { menuRequired } from "@zappaloo/shared";
-import type { ProgramItem, MenuOption } from "@zappaloo/shared";
+import type { MenuOption, PersonType, ProgramItem } from "@zappaloo/shared";
 
 /** What the wizard holds for one person while it is edited; a program item without a value is open. */
 export interface PersonValue {
   attendance: Record<number, boolean>;
   menuId: number | null;
   allergies: string;
+  /** A baby is not asked for a menu (RSVP-14). */
+  personType: PersonType;
 }
 
 /**
@@ -46,6 +48,7 @@ export function personOf(
     declinedItemIds: number[];
     menuId: number | null;
     allergies: string | null;
+    personType: PersonType;
   },
   programItems: ProgramItem[],
   perItem: boolean,
@@ -54,6 +57,7 @@ export function personOf(
     attendance: attendanceOf(companion, programItems, perItem),
     menuId: companion.menuId,
     allergies: companion.allergies ?? "",
+    personType: companion.personType,
   };
 }
 
@@ -71,7 +75,7 @@ export function needsMenu(
   const attending = programItems
     .filter((programItem) => value.attendance[programItem.id] === true)
     .map((p) => p.id);
-  return menuRequired(programItems, menus.length, attending);
+  return menuRequired(programItems, menus.length, attending, value.personType);
 }
 
 export function attendsAny(value: PersonValue): boolean {

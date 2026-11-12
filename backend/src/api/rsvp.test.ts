@@ -733,11 +733,11 @@ describe("the admin overview", () => {
     expect(response.headers["content-type"]).toContain("text/csv");
     expect(response.headers["content-disposition"]).toContain("attachment");
     const lines = response.body.trim().split("\r\n");
-    expect(lines[0]).toBe("Name;Status;Trauung;Apéro;Dinner;Party;Menü;Songwunsch;Allergien");
+    expect(lines[0]).toBe("Name;Typ;Status;Trauung;Apéro;Dinner;Party;Menü;Songwunsch;Allergien");
     expect(lines[1]).toBe(
-      'anna;zugesagt;ja;nein;ja;nein;Vegetarisch;"Abba; Dancing ""Queen""";"\'=HYPERLINK(""http://x"")"',
+      'anna;Erwachsene;zugesagt;ja;nein;ja;nein;Vegetarisch;"Abba; Dancing ""Queen""";"\'=HYPERLINK(""http://x"")"',
     );
-    expect(lines[2]).toBe("ben;ohne Antwort;;;;;;;");
+    expect(lines[2]).toBe("ben;Erwachsene;ohne Antwort;;;;;;;");
   });
 });
 
@@ -945,7 +945,7 @@ describe("the song wish switch", () => {
       ["ben", null],
     ]);
     const header = (await get(root, "/api/admin/rsvp/export")).raw.body.split("\r\n")[0];
-    expect(header).toBe("Name;Status;Trauung;Apéro;Dinner;Party;Menü;Allergien");
+    expect(header).toBe("Name;Typ;Status;Trauung;Apéro;Dinner;Party;Menü;Allergien");
 
     // Switched on again, the wish is there and can be changed.
     await call(root, "PUT", "/api/admin/rsvp/song", { enabled: true });
@@ -995,7 +995,12 @@ describe("answers after the invitation changes (7.4.1, decided 2026-11-11)", () 
     expect(changed.status).toBe(200);
     const overview = (await get<RsvpOverview>(root, "/api/admin/rsvp")).body;
     expect(guestRow(overview, zora.id).attendingItemIds).toEqual([trauung]);
-    expect(total(overview, party)).toEqual({ programItemId: party, yes: 0, no: 0 });
+    expect(total(overview, party)).toEqual({
+      programItemId: party,
+      yes: 0,
+      no: 0,
+      yesByType: { adult: 0, child: 0, baby: 0 },
+    });
     const state = (await get<RsvpState>(zora, "/api/rsvp")).body;
     expect(state.answer?.attendingItemIds).toEqual([trauung]);
   });
@@ -1018,7 +1023,12 @@ describe("answers after the invitation changes (7.4.1, decided 2026-11-11)", () 
     }
 
     const overview = (await get<RsvpOverview>(root, "/api/admin/rsvp")).body;
-    expect(total(overview, apero)).toEqual({ programItemId: apero, yes: 0, no: 0 });
+    expect(total(overview, apero)).toEqual({
+      programItemId: apero,
+      yes: 0,
+      no: 0,
+      yesByType: { adult: 0, child: 0, baby: 0 },
+    });
     // Anna still attends; Ben declined the rest and has no answer for the new program item.
     expect(guestRow(overview, anna.id)).toMatchObject({
       status: "attending",
@@ -1029,8 +1039,12 @@ describe("answers after the invitation changes (7.4.1, decided 2026-11-11)", () 
       declinedItemIds: [trauung],
     });
     const csv = (await get(root, "/api/admin/rsvp/export")).raw.body.split("\r\n");
-    expect(csv.find((line) => line.startsWith("anna;"))).toMatch(/^anna;zugesagt;ja;;;;/);
-    expect(csv.find((line) => line.startsWith("ben;"))).toMatch(/^ben;ohne Antwort;nein;;;;/);
+    expect(csv.find((line) => line.startsWith("anna;"))).toMatch(
+      /^anna;Erwachsene;zugesagt;ja;;;;/,
+    );
+    expect(csv.find((line) => line.startsWith("ben;"))).toMatch(
+      /^ben;Erwachsene;ohne Antwort;nein;;;;/,
+    );
     // The guest's state tells the wizard which program item is open.
     const state = (await get<RsvpState>(ben, "/api/rsvp")).body;
     expect(state.answer).toMatchObject({ attendingItemIds: [], declinedItemIds: [trauung] });
@@ -1074,6 +1088,7 @@ describe("answers after the invitation changes (7.4.1, decided 2026-11-11)", () 
     await call(anna, "PUT", "/api/rsvp", { attendance });
     const made = await call<RsvpState>(anna, "POST", "/api/rsvp/companions", {
       name: "Mia",
+      personType: "adult",
       attendance: [
         { programItemId: trauung, attending: false },
         { programItemId: party, attending: true },
@@ -1103,6 +1118,7 @@ describe("answers after the invitation changes (7.4.1, decided 2026-11-11)", () 
     });
     await call(anna, "POST", "/api/rsvp/companions", {
       name: "Mia",
+      personType: "adult",
       attendance: yes(programItems, "Trauung"),
       allergies: "Laktose",
     });
@@ -1140,6 +1156,7 @@ describe("answers after the invitation changes (7.4.1, decided 2026-11-11)", () 
     const anna = await guest("anna");
     await call(anna, "POST", "/api/rsvp/companions", {
       name: "Mia",
+      personType: "adult",
       attendance: yes(programItems, "Trauung"),
     });
     const pending = await get<{ pendingCount: number }>(root, "/api/admin/rsvp/pending");
@@ -1202,6 +1219,7 @@ describe("one answer or one per program item (RSVP-11, 7.4.2)", () => {
     // A companion of erika answers yes as well.
     const added = await call<RsvpState>(erika, "POST", "/api/rsvp/companions", {
       name: "Mia",
+      personType: "adult",
       attendance: invited.map((programItemId) => ({ programItemId, attending: true })),
     });
     expect(added.status).toBe(201);

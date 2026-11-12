@@ -89,7 +89,7 @@ test("[RSVP-01][RSVP-02][RSVP-03][RSVP-04][RSVP-05][RSVP-06][RSVP-11][ACC-17][SE
   );
   const csv = await page.request.get("/api/admin/rsvp/export");
   expect(await csv.text()).toContain(
-    `${name};zugesagt;ja;ja;ja;;Vegetarisch;ABBA – Dancing Queen;Nüsse`,
+    `${name};${de.personTypes.adult};zugesagt;ja;ja;ja;;Vegetarisch;ABBA – Dancing Queen;Nüsse`,
   );
 
   // Allergies reach nobody but the admin: the guest has no access to the overview.

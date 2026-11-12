@@ -2,6 +2,7 @@
 // schemas of the admin API.
 import { z } from "zod";
 import { capabilitySchema, roleSchema, userSchema } from "./account.ts";
+import { personTypeSchema } from "./rsvp.ts";
 
 /** `PUT /api/admin/users/:id/roles`: the complete set of roles of the user (ROLE-01). */
 export const setRolesRequestSchema = z.strictObject({ roles: z.array(roleSchema).max(3) });
@@ -35,6 +36,8 @@ export type UserStatus = z.infer<typeof userStatusSchema>;
 export const adminUserSchema = userSchema.extend({
   /** Null while the account is inactive and was created for an invitation (ACC-17, 7.1.2). */
   username: z.string().nullable(),
+  /** The person type of a guest (RSVP-13). */
+  personType: personTypeSchema,
   /** `inactive`: never activated; `active`; `blocked` by an admin (ACC-18). */
   status: userStatusSchema,
   /** How `vip` was granted (INV-11); null without the role. */

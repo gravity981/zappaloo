@@ -1,5 +1,6 @@
 // Personal invitations (sw-architecture.md 9): the schemas of the invitation API.
 import { z } from "zod";
+import { personTypeSchema } from "./rsvp.ts";
 import {
   displayNameSchema,
   emailSchema,
@@ -31,6 +32,8 @@ export const invitationSchema = z.object({
   redeemedBy: z.number().int().nullable(),
   /** The program items the guest is invited to (RSVP-02), those of the guest's account. */
   programItemIds: z.array(z.number().int()),
+  /** The guest's person type (RSVP-13): the account's, the guest never sees it. */
+  personType: personTypeSchema,
   /** The invited person's account (ACC-17); null for old revoked and replaced codes. */
   userId: z.number().int().nullable(),
   /**
@@ -66,6 +69,8 @@ export const createInvitationsRequestSchema = z.strictObject({
   expiresAt: z.iso.datetime().optional(),
   /** The program items all these guests are invited to; without it, every program item (RSVP-02). */
   programItemIds: z.array(z.number().int().positive()).min(1).max(50).optional(),
+  /** The person type of all these guests (RSVP-13); without it, adult. */
+  personType: personTypeSchema.optional(),
 });
 export type CreateInvitationsRequest = z.infer<typeof createInvitationsRequestSchema>;
 export const createInvitationsResponseSchema = z.object({

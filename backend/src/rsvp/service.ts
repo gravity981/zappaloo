@@ -4,6 +4,7 @@
 import { and, asc, eq, inArray } from "drizzle-orm";
 import { MAX_COMPANIONS, menuRequired, rsvpStatus } from "@zappaloo/shared";
 import type {
+  PersonType,
   Companion,
   CompanionRequest,
   ProgramItem,
@@ -25,6 +26,7 @@ import {
   programItems,
   membershipProgramItems,
   membershipRoles,
+  memberships,
   menuOptions,
   rsvpAnswers,
   rsvpAttendance,
@@ -103,6 +105,7 @@ function toCompanion(
     name: row.name,
     note: row.note,
     status: row.status,
+    personType: row.personType,
     attendingItemIds: programItemIdsOf(mine, true),
     declinedItemIds: programItemIdsOf(mine, false),
     menuId: row.menuId,
@@ -128,6 +131,13 @@ function programItemCell(
   if (person.attendingItemIds.includes(programItemId)) return "ja";
   return person.declinedItemIds.includes(programItemId) ? "nein" : "";
 }
+
+/** The labels of the person types in the CSV export (RSVP-15). */
+const PERSON_TYPE_LABELS: Record<PersonType, string> = {
+  adult: "Erwachsene",
+  child: "Kind",
+  baby: "Baby",
+};
 
 /** A cell of the CSV export; a leading `=`, `+`, `-` or `@` would be run as a formula. */
 function csvCell(value: string): string {
@@ -535,6 +545,17 @@ export class RsvpService {
     };
   }
 
+  /** The person type of a guest (RSVP-13). */
+  #personTypeOf(reader: Reader, userId: number): PersonType {
+    return (
+      reader
+        .select({ personType: memberships.personType })
+        .from(memberships)
+        .where(and(eq(memberships.eventId, this.#event.eventId), eq(memberships.userId, userId)))
+        .get()?.personType ?? "adult"
+    );
+  }
+
   /** What the wizard shows: the guest's invited program items, the menus, the deadline and the answer. */
   state(userId: number): RsvpState {
     const { db } = this.#database;
@@ -545,6 +566,7 @@ export class RsvpService {
       deadline: this.#deadline(),
       closed: this.isClosed(),
       songEnabled: this.#songEnabled(),
+      personType: this.#personTypeOf(db, userId),
       perItem: this.perItem(),
       companionApproval: this.companionApproval(),
       programItems: this.#programItems().filter((programItem) => invited.has(programItem.id)),
@@ -564,6 +586,7 @@ export class RsvpService {
   #checkPerson(
     tx: Reader,
     invited: number[],
+    personType: PersonType,
     input: {
       attendance: { programItemId: number; attending: boolean }[];
       menuId?: number | null | undefined;
@@ -591,7 +614,7 @@ export class RsvpService {
     const attending = input.attendance.filter((a) => a.attending).map((a) => a.programItemId);
     const menus = this.#menus(tx);
     let menuId: number | null = null;
-    if (menuRequired(this.#programItems(tx), menus.length, attending)) {
+    if (menuRequired(this.#programItems(tx), menus.length, attending, personType)) {
       if (input.menuId === undefined || input.menuId === null) {
         throw new RsvpError("menu_required", "choose a menu");
       }
@@ -691,13 +714,19 @@ export class RsvpService {
           `at most ${String(MAX_COMPANIONS)} accompanying persons per guest`,
         );
       }
-      const person = this.#checkPerson(tx, this.invitedProgramItemIds(userId, tx), input);
+      const person = this.#checkPerson(
+        tx,
+        this.invitedProgramItemIds(userId, tx),
+        input.personType,
+        input,
+      );
       const row = tx
         .insert(companions)
         .values({
           eventId: this.#event.eventId,
           hostUserId: userId,
           name: input.name,
+          personType: input.personType,
           note: input.note ?? null,
           createdAt: this.#now(),
           // Without approval (the default, RSVP-12) an added person counts right away.
@@ -725,9 +754,14 @@ export class RsvpService {
           "only a pending request can be changed; change the answer of an approved person in the RSVP",
         );
       }
-      const person = this.#checkPerson(tx, this.invitedProgramItemIds(userId, tx), input);
+      const person = this.#checkPerson(
+        tx,
+        this.invitedProgramItemIds(userId, tx),
+        input.personType,
+        input,
+      );
       tx.update(companions)
-        .set({ name: input.name, note: input.note ?? null })
+        .set({ name: input.name, note: input.note ?? null, personType: input.personType })
         .where(eq(companions.id, id))
         .run();
       this.#saveCompanionAnswer(tx, id, person);
@@ -795,8 +829,12 @@ export class RsvpService {
     });
   }
 
-  /** The name of an approved person is changed by the admin only (7.4.1). */
-  renameCompanion(id: number, name: string, actor: Actor): void {
+  /** The name and the type of an accompanying person are changed by the admin only (7.4.1, RSVP-13). */
+  renameCompanion(
+    id: number,
+    patch: { name?: string | undefined; personType?: PersonType | undefined },
+    actor: Actor,
+  ): void {
     this.#database.db.transaction((tx) => {
       const row = tx
         .select()
@@ -804,8 +842,24 @@ export class RsvpService {
         .where(and(eq(companions.id, id), eq(companions.eventId, this.#event.eventId)))
         .get();
       if (!row) throw new RsvpError("companion_not_found", "no such accompanying person");
-      tx.update(companions).set({ name }).where(eq(companions.id, id)).run();
-      this.#event.audit(actor, "companion.rename", { companionId: id }, tx);
+      tx.update(companions)
+        .set({
+          ...(patch.name === undefined ? {} : { name: patch.name }),
+          ...(patch.personType === undefined ? {} : { personType: patch.personType }),
+          // A baby is not asked for a menu: a chosen one goes (RSVP-14).
+          ...(patch.personType === "baby" ? { menuId: null } : {}),
+        })
+        .where(eq(companions.id, id))
+        .run();
+      this.#event.audit(
+        actor,
+        "companion.rename",
+        {
+          companionId: id,
+          ...(patch.personType === undefined ? {} : { personType: patch.personType }),
+        },
+        tx,
+      );
     });
   }
 
@@ -822,7 +876,7 @@ export class RsvpService {
         throw new RsvpError("rsvp_closed", "the deadline for the RSVP has passed");
       }
       const invited = this.invitedProgramItemIds(userId, tx);
-      const person = this.#checkPerson(tx, invited, input);
+      const person = this.#checkPerson(tx, invited, this.#personTypeOf(tx, userId), input);
       const { menuId } = person;
       const anyAttending = person.attending.length > 0;
       const eventId = this.#event.eventId;
@@ -853,7 +907,7 @@ export class RsvpService {
         this.#saveCompanionAnswer(
           tx,
           companion.id,
-          this.#checkPerson(tx, invited, companionAnswer),
+          this.#checkPerson(tx, invited, companion.personType, companionAnswer),
         );
       }
       // Ids only: the allergies are health data and stay out of the log (SEC-04, SEC-11).
@@ -874,9 +928,14 @@ export class RsvpService {
         displayName: users.displayName,
         emailStatus: users.emailStatus,
         email: users.email,
+        personType: memberships.personType,
       })
       .from(users)
       .innerJoin(membershipRoles, eq(membershipRoles.userId, users.id))
+      .innerJoin(
+        memberships,
+        and(eq(memberships.userId, users.id), eq(memberships.eventId, membershipRoles.eventId)),
+      )
       .where(and(eq(membershipRoles.eventId, eventId), eq(membershipRoles.role, "vip")))
       .orderBy(asc(users.displayName), asc(users.id))
       .all();
@@ -920,6 +979,7 @@ export class RsvpService {
       return {
         userId: row.id,
         name: row.displayName,
+        personType: row.personType,
         status: rsvpStatus(
           answer !== undefined,
           invitedProgramItemIds,
@@ -975,11 +1035,25 @@ export class RsvpService {
       programItemId: programItem.id,
       yes: people.filter((p) => p.attendingItemIds.includes(programItem.id)).length,
       no: people.filter((p) => p.declinedItemIds.includes(programItem.id)).length,
+      yesByType: {
+        adult: people.filter(
+          (p) => p.personType === "adult" && p.attendingItemIds.includes(programItem.id),
+        ).length,
+        child: people.filter(
+          (p) => p.personType === "child" && p.attendingItemIds.includes(programItem.id),
+        ).length,
+        baby: people.filter(
+          (p) => p.personType === "baby" && p.attendingItemIds.includes(programItem.id),
+        ).length,
+      },
     }));
     const meal = config.programItems.find((programItem) => programItem.hasMeal);
     const counts = new Map<number | null, number>();
     if (meal) {
-      for (const person of people.filter((p) => p.attendingItemIds.includes(meal.id))) {
+      // Babies get no menu, so they are not counted (RSVP-14).
+      for (const person of people.filter(
+        (p) => p.personType !== "baby" && p.attendingItemIds.includes(meal.id),
+      )) {
         counts.set(person.menuId, (counts.get(person.menuId) ?? 0) + 1);
       }
     }
@@ -1099,6 +1173,7 @@ export class RsvpService {
       id === null ? "" : (overview.menus.find((m) => m.id === id)?.name ?? "");
     const header = [
       "Name",
+      "Typ",
       "Status",
       ...overview.programItems.map((programItem) => programItem.name),
       "Menü",
@@ -1109,6 +1184,7 @@ export class RsvpService {
     const lines = overview.guests.flatMap((guest) => [
       [
         guest.name,
+        PERSON_TYPE_LABELS[guest.personType],
         status[guest.status],
         ...overview.programItems.map((programItem) => programItemCell(guest, programItem.id)),
         menuName(guest.menuId),
@@ -1120,6 +1196,7 @@ export class RsvpService {
         .filter((c) => c.hostUserId === guest.userId && c.status === "approved")
         .map((c) => [
           `↳ ${c.name}`,
+          PERSON_TYPE_LABELS[c.personType],
           "bestätigt",
           ...overview.programItems.map((programItem) => programItemCell(c, programItem.id)),
           menuName(c.menuId),

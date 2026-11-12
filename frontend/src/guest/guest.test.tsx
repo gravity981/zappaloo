@@ -286,6 +286,7 @@ describe("the RSVP in the flow frame (UX mock rsvp-parts)", () => {
     closed: false,
     songEnabled: true,
     perItem: true,
+    personType: "adult",
     companionApproval: true,
     programItems: [
       { id: 1, name: "Trauung", startsAt: "2027-06-12T12:00:00.000Z", place: null, hasMeal: false },

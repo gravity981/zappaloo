@@ -56,7 +56,18 @@
       }
     }
   },
+  "personTypes": {
+    "adult": "Erwachsene",
+    "child": "Kind",
+    "baby": "Baby"
+  },
+  "personTypesPlural": {
+    "adult": "Erwachsene",
+    "child": "Kinder",
+    "baby": "Babys"
+  },
   "admin": {
+    "personType": "Typ",
     "title": "Verwaltung",
     "toWebsite": "Zur Website",
     "platformOpen": "Plattform offen",
@@ -358,6 +369,7 @@
         "none": "ohne Antwort"
       },
       "name": "Name",
+      "type": "Typ",
       "status": "Status",
       "programItems": "Programmpunkte",
       "menu": "Menü",
@@ -732,6 +744,7 @@
       "name": "Name",
       "note": "Notiz für die Gastgeber (optional)",
       "attendance": "Teilnahme",
+      "type": "Typ",
       "thePerson": "Begleitperson",
       "cancel": "Abbrechen",
       "save": "Speichern",
