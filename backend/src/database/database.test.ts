@@ -220,3 +220,51 @@ describe("migration 0008_program_items", () => {
     expect(database.sqlite.pragma("foreign_key_check")).toEqual([]);
   });
 });
+
+describe("migration 0009_rsvp_settings", () => {
+  it("[DATA-04][RSVP-12] sets both RSVP settings to their defaults and approves the pending requests", () => {
+    const { database, dir } = freshDatabase();
+    // The database of the last release: everything before 0009.
+    const folder = join(dir, "migrations");
+    cpSync(MIGRATIONS_DIR, folder, { recursive: true });
+    const journalFile = join(folder, "meta", "_journal.json");
+    const journal = JSON.parse(readFileSync(journalFile, "utf8")) as {
+      entries: { tag: string }[];
+    };
+    const index = journal.entries.findIndex((entry) => entry.tag === "0009_rsvp_settings");
+    expect(index).toBeGreaterThan(0);
+    writeFileSync(
+      journalFile,
+      JSON.stringify({ ...journal, entries: journal.entries.slice(0, index) }),
+    );
+    runMigrations(database, folder);
+
+    database.sqlite.exec(`
+      INSERT INTO events (id, created_at, updated_at) VALUES ('event1', 1, 1);
+      INSERT INTO users (id, username, display_name, created_at, updated_at) VALUES (1, 'anna', 'Anna', 1, 1);
+      INSERT INTO memberships (event_id, user_id, created_at) VALUES ('event1', 1, 1);
+      INSERT INTO rsvp_config (event_id, deadline, song_enabled) VALUES ('event1', '2027-05-01', 0);
+      INSERT INTO companions (id, event_id, host_user_id, name, status, created_at) VALUES
+        (1, 'event1', 1, 'Mia', 'pending', 1),
+        (2, 'event1', 1, 'Noah', 'approved', 1),
+        (3, 'event1', 1, 'Hans', 'rejected', 1);
+    `);
+
+    writeFileSync(journalFile, JSON.stringify(journal));
+    expect(runMigrations(database, folder)).toBe(journal.entries.length - index);
+    const rows = (sql: string) => database.sqlite.prepare(sql).all();
+    // Both settings are off; what was set before stays.
+    expect(
+      rows("SELECT deadline, song_enabled, per_item, companion_approval FROM rsvp_config"),
+    ).toEqual([{ deadline: "2027-05-01", song_enabled: 0, per_item: 0, companion_approval: 0 }]);
+    // The pending request counts now; the rejected one stays rejected.
+    expect(rows("SELECT id, status FROM companions ORDER BY id")).toEqual([
+      { id: 1, status: "approved" },
+      { id: 2, status: "approved" },
+      { id: 3, status: "rejected" },
+    ]);
+    expect(rows("SELECT decided_at FROM companions WHERE id = 1")).not.toEqual([
+      { decided_at: null },
+    ]);
+  });
+});

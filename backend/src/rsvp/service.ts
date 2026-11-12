@@ -187,10 +187,107 @@ export class RsvpService {
     );
   }
 
+  /** Yes or no per program item (RSVP-11); off: one answer per person (the default). */
+  perItem(reader: Reader = this.#database.db): boolean {
+    return (
+      reader
+        .select({ perItem: rsvpConfig.perItem })
+        .from(rsvpConfig)
+        .where(eq(rsvpConfig.eventId, this.#event.eventId))
+        .get()?.perItem ?? false
+    );
+  }
+
+  /** Whether an added accompanying person waits for the admin's approval (RSVP-12). */
+  companionApproval(reader: Reader = this.#database.db): boolean {
+    return (
+      reader
+        .select({ companionApproval: rsvpConfig.companionApproval })
+        .from(rsvpConfig)
+        .where(eq(rsvpConfig.eventId, this.#event.eventId))
+        .get()?.companionApproval ?? false
+    );
+  }
+
+  /** Persons with a yes and a no among their program items: the warning when switching to one answer. */
+  #mixedCount(): number {
+    const { db } = this.#database;
+    const eventId = this.#event.eventId;
+    const mixed = (rows: { key: number; attending: boolean }[]): number => {
+      const yes = new Set(rows.filter((r) => r.attending).map((r) => r.key));
+      const no = new Set(rows.filter((r) => !r.attending).map((r) => r.key));
+      return [...yes].filter((key) => no.has(key)).length;
+    };
+    const guests = db
+      .select({ key: rsvpAttendance.userId, attending: rsvpAttendance.attending })
+      .from(rsvpAttendance)
+      .where(eq(rsvpAttendance.eventId, eventId))
+      .all();
+    const persons = db
+      .select({ key: companionAttendance.companionId, attending: companionAttendance.attending })
+      .from(companionAttendance)
+      .innerJoin(companions, eq(companions.id, companionAttendance.companionId))
+      .where(and(eq(companionAttendance.eventId, eventId), eq(companions.status, "approved")))
+      .all();
+    return mixed(guests) + mixed(persons);
+  }
+
+  /** Switches between one answer per person and yes or no per program item (RSVP-11). */
+  setPerItem(enabled: boolean, actor: Actor): void {
+    this.#database.db.transaction((tx) => {
+      if (this.perItem(tx) === enabled) return;
+      tx.insert(rsvpConfig)
+        .values({ eventId: this.#event.eventId, perItem: enabled })
+        .onConflictDoUpdate({ target: rsvpConfig.eventId, set: { perItem: enabled } })
+        .run();
+      this.#event.audit(actor, "rsvp.per_item", { to: enabled }, tx);
+    });
+  }
+
+  /**
+   * Switches the approval of accompanying persons (RSVP-12). Switching it off approves every
+   * request that waits for a decision; rejected ones stay rejected.
+   */
+  setCompanionApproval(enabled: boolean, actor: Actor): { approved: number } {
+    return this.#database.db.transaction((tx) => {
+      if (this.companionApproval(tx) === enabled) return { approved: 0 };
+      tx.insert(rsvpConfig)
+        .values({ eventId: this.#event.eventId, companionApproval: enabled })
+        .onConflictDoUpdate({ target: rsvpConfig.eventId, set: { companionApproval: enabled } })
+        .run();
+      let approved = 0;
+      if (!enabled) {
+        const pending = tx
+          .select({ id: companions.id })
+          .from(companions)
+          .where(and(eq(companions.eventId, this.#event.eventId), eq(companions.status, "pending")))
+          .all();
+        if (pending.length > 0) {
+          tx.update(companions)
+            .set({ status: "approved", decidedAt: this.#now() })
+            .where(
+              inArray(
+                companions.id,
+                pending.map((row) => row.id),
+              ),
+            )
+            .run();
+        }
+        approved = pending.length;
+      }
+      this.#event.audit(actor, "rsvp.companion_approval", { to: enabled, approved }, tx);
+      return { approved };
+    });
+  }
+
   config(): RsvpConfig {
     return {
       deadline: this.#deadline(),
       songEnabled: this.#songEnabled(),
+      perItem: this.perItem(),
+      companionApproval: this.companionApproval(),
+      mixedCount: this.#mixedCount(),
+      pendingCount: this.pendingCount(),
       programItems: this.#programItems(),
       menus: this.#menus(),
     };
@@ -472,6 +569,8 @@ export class RsvpService {
       deadline: this.#deadline(),
       closed: this.isClosed(),
       songEnabled: this.#songEnabled(),
+      perItem: this.perItem(),
+      companionApproval: this.companionApproval(),
       programItems: this.#programItems().filter((programItem) => invited.has(programItem.id)),
       menus: this.#menus(),
       answer: this.#answer(db, userId),
@@ -504,6 +603,13 @@ export class RsvpService {
       throw new RsvpError(
         "invalid_attendance",
         "answer yes or no for every program item you are invited to, once each",
+      );
+    }
+    // One answer per person (RSVP-11): the same yes or no for every invited program item.
+    if (!this.perItem(tx) && new Set(input.attendance.map((a) => a.attending)).size > 1) {
+      throw new RsvpError(
+        "invalid_attendance",
+        "answer once for all program items: the same yes or no for each",
       );
     }
     const attending = input.attendance.filter((a) => a.attending).map((a) => a.programItemId);
@@ -618,6 +724,10 @@ export class RsvpService {
           name: input.name,
           note: input.note ?? null,
           createdAt: this.#now(),
+          // Without approval (the default, RSVP-12) an added person counts right away.
+          ...(this.companionApproval(tx)
+            ? {}
+            : { status: "approved" as const, decidedAt: this.#now() }),
         })
         .returning({ id: companions.id })
         .get();
@@ -656,7 +766,8 @@ export class RsvpService {
       this.#guest(tx, userId);
       this.#assertOpen(false);
       const row = this.#companion(tx, id, userId);
-      if (row.status === "approved") {
+      // With approval on, an approved person is removed by the hosts only (RSVP-10, RSVP-12).
+      if (row.status === "approved" && this.companionApproval(tx)) {
         throw new RsvpError(
           "companion_not_editable",
           "an approved person is changed or removed by the hosts",
@@ -690,6 +801,21 @@ export class RsvpService {
         { companionId: id },
         tx,
       );
+    });
+  }
+
+  /** The admin removes an accompanying person at any time, also after the deadline (RSVP-12). */
+  removeCompanion(id: number, actor: Actor): void {
+    this.#database.db.transaction((tx) => {
+      const row = tx
+        .select({ id: companions.id })
+        .from(companions)
+        .where(and(eq(companions.id, id), eq(companions.eventId, this.#event.eventId)))
+        .get();
+      if (!row) throw new RsvpError("companion_not_found", "no such accompanying person");
+      // The attendance goes by cascade; the card "Zuletzt" can no longer name the person.
+      this.#event.audit(actor, "companion.remove", { companionId: id }, tx);
+      tx.delete(companions).where(eq(companions.id, id)).run();
     });
   }
 

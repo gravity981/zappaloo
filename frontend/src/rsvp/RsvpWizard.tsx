@@ -13,7 +13,7 @@ import { apiRequest } from "../app/api.ts";
 import { useSession } from "../app/session.ts";
 import { useAdminData, useErrorText } from "../admin/data.ts";
 import { FlowShell } from "../guest/Shells.tsx";
-import { CompanionForm, CompanionsCard, MenuFields, ProgramItemsBlock } from "./Companions.tsx";
+import { AttendanceBlock, CompanionForm, CompanionsCard, MenuFields } from "./Companions.tsx";
 import { answerOf, answeredAll, attendanceOf, attendsAny, needsMenu, personOf } from "./person.ts";
 import type { PersonValue } from "./person.ts";
 import { useEventFormat } from "./format.ts";
@@ -124,7 +124,7 @@ function WizardForm({
   const format = useEventFormat();
   const answer = state.answer;
   const initial: PersonValue = {
-    attendance: answer ? attendanceOf(answer, state.programItems) : {},
+    attendance: answer ? attendanceOf(answer, state.programItems, state.perItem) : {},
     menuId: answer?.menuId ?? null,
     allergies: answer?.allergies ?? "",
   };
@@ -152,7 +152,7 @@ function WizardForm({
       : format.time(programItem.startsAt);
 
   const valueOf = (companion: Companion): PersonValue =>
-    edits[companion.id] ?? personOf(companion, programItems);
+    edits[companion.id] ?? personOf(companion, programItems, state.perItem);
   const approved = state.companions.filter((c) => c.status === "approved");
   /** Persons the RSVP is about: the guest and the companions that are not rejected. */
   const companions = state.companions.filter((c) => c.status !== "rejected");
@@ -221,6 +221,7 @@ function WizardForm({
     return (
       <CompanionForm
         key={view.companion?.id ?? "new"}
+        perItem={state.perItem}
         programItems={programItems}
         menus={menus}
         time={time}
@@ -264,6 +265,8 @@ function WizardForm({
       answer?.declinedItemIds ?? [],
     );
     const attending = status === "attending";
+    // With one answer per person a person with a yes anywhere is shown as attending everywhere.
+    const summaryAttendance = answer ? attendanceOf(answer, programItems, state.perItem) : {};
     const menuName = (id: number | null) => menus.find((menu) => menu.id === id)?.name;
     return (
       <Frame
@@ -307,9 +310,9 @@ function WizardForm({
                 {programItems.map((programItem) => (
                   <li key={programItem.id} className="li">
                     <b className="grow">{programItem.name}</b>
-                    {answer.attendingItemIds.includes(programItem.id) ? (
+                    {summaryAttendance[programItem.id] === true ? (
                       <span className="tag ok">{t("rsvp.attending")}</span>
-                    ) : answer.declinedItemIds.includes(programItem.id) ? (
+                    ) : summaryAttendance[programItem.id] === false ? (
                       <span className="tag">{t("rsvp.notAttending")}</span>
                     ) : (
                       <span className="tag warn">{t("rsvp.openProgramItem")}</span>
@@ -351,17 +354,19 @@ function WizardForm({
                             .join(" · ")}
                         </span>
                       </div>
-                      <span
-                        className={
-                          companion.status === "approved"
-                            ? "tag ok"
-                            : companion.status === "pending"
-                              ? "tag warn"
-                              : "tag bad"
-                        }
-                      >
-                        {t(`rsvp.companions.status.${companion.status}`)}
-                      </span>
+                      {(state.companionApproval || companion.status !== "approved") && (
+                        <span
+                          className={
+                            companion.status === "approved"
+                              ? "tag ok"
+                              : companion.status === "pending"
+                                ? "tag warn"
+                                : "tag bad"
+                          }
+                        >
+                          {t(`rsvp.companions.status.${companion.status}`)}
+                        </span>
+                      )}
                     </li>
                   ))}
                   {state.songEnabled && answer.songWish && (
@@ -419,9 +424,10 @@ function WizardForm({
           <p className="muted">{t("rsvp.noProgramItems")}</p>
         ) : (
           <>
-            <p className="muted">{t("rsvp.intro")}</p>
+            <p className="muted">{t(state.perItem ? "rsvp.intro" : "rsvp.introOnce")}</p>
             {deadline}
-            <ProgramItemsBlock
+            <AttendanceBlock
+              perItem={state.perItem}
               programItems={programItems}
               value={own.attendance}
               time={time}
@@ -432,7 +438,9 @@ function WizardForm({
             {approved.map((companion) => (
               <div key={companion.id} className="stack">
                 <b className="sm">{companion.name}</b>
-                <ProgramItemsBlock
+                <AttendanceBlock
+                  perItem={state.perItem}
+                  name={companion.name}
                   programItems={programItems}
                   value={valueOf(companion).attendance}
                   time={time}
@@ -496,9 +504,11 @@ function WizardForm({
           <div key={companion.id} className="card">
             <div className="row">
               <b>{companion.name}</b>
-              <span className={companion.status === "approved" ? "tag ok" : "tag warn"}>
-                {t(`rsvp.companions.status.${companion.status}`)}
-              </span>
+              {(state.companionApproval || companion.status !== "approved") && (
+                <span className={companion.status === "approved" ? "tag ok" : "tag warn"}>
+                  {t(`rsvp.companions.status.${companion.status}`)}
+                </span>
+              )}
             </div>
             <MenuFields
               value={valueOf(companion)}
@@ -544,6 +554,7 @@ function WizardForm({
       <h1 className="h1">{t("rsvp.companions.stepTitle")}</h1>
       <CompanionsCard
         companions={state.companions}
+        approval={state.companionApproval}
         programItems={programItems}
         menus={menus}
         admin={admin}

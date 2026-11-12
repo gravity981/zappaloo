@@ -30,11 +30,23 @@ export default function AdminRsvpPage() {
   const [message, setMessage] = useState<{ ok: boolean; text: string }>();
   /** While a request runs its buttons are off, so a double click sends nothing twice. */
   const [busy, setBusy] = useState<"remind" | number>();
+  /** The accompanying person whose removal waits for the second click. */
+  const [removing, setRemoving] = useState<number>();
 
   async function decide(id: number, decision: "approve" | "reject") {
     setBusy(id);
     const result = await call("POST", `/api/admin/rsvp/companions/${String(id)}/${decision}`);
     setBusy(undefined);
+    setMessage(result.ok ? undefined : { ok: false, text: errorText(result.errorCode) });
+    reload();
+    notifyRsvpChanged();
+  }
+
+  async function removeCompanion(id: number) {
+    setBusy(id);
+    const result = await call("DELETE", `/api/admin/rsvp/companions/${String(id)}`);
+    setBusy(undefined);
+    setRemoving(undefined);
     setMessage(result.ok ? undefined : { ok: false, text: errorText(result.errorCode) });
     reload();
     notifyRsvpChanged();
@@ -103,7 +115,7 @@ export default function AdminRsvpPage() {
         </p>
       )}
 
-      {data.pendingCount > 0 && (
+      {data.companionApproval && data.pendingCount > 0 && (
         <section className="card strong" aria-labelledby="rsvp-requests">
           <b id="rsvp-requests">{t("admin.rsvp.requests", { count: data.pendingCount })}</b>
           <ul className="list">
@@ -263,7 +275,11 @@ export default function AdminRsvpPage() {
                           </span>
                         </td>
                         <td>
-                          <span className="tag ok">{t("admin.rsvp.companionStatus.approved")}</span>
+                          {data.companionApproval && (
+                            <span className="tag ok">
+                              {t("admin.rsvp.companionStatus.approved")}
+                            </span>
+                          )}
                         </td>
                         <td>
                           {c.attendingItemIds.map(programItemName).join(", ") ||
@@ -276,7 +292,40 @@ export default function AdminRsvpPage() {
                         </td>
                         {data.songEnabled && <td>{t("admin.rsvp.none")}</td>}
                         <td>{c.allergies ?? t("admin.rsvp.none")}</td>
-                        <td />
+                        <td className="actions">
+                          {removing === c.id ? (
+                            <span className="row" role="alertdialog" aria-label={c.name}>
+                              <button
+                                type="button"
+                                className="btn danger sm"
+                                disabled={busy === c.id}
+                                onClick={() => void removeCompanion(c.id)}
+                              >
+                                {t("admin.rsvp.removeFinal")}
+                              </button>
+                              <button
+                                type="button"
+                                className="btn ghost sm"
+                                onClick={() => {
+                                  setRemoving(undefined);
+                                }}
+                              >
+                                {t("admin.cancel")}
+                              </button>
+                            </span>
+                          ) : (
+                            <button
+                              type="button"
+                              className="btn ghost sm"
+                              aria-label={`${t("admin.rsvp.remove")}: ${c.name}`}
+                              onClick={() => {
+                                setRemoving(c.id);
+                              }}
+                            >
+                              {t("admin.rsvp.remove")}
+                            </button>
+                          )}
+                        </td>
                       </tr>
                     ))}
                 </Fragment>

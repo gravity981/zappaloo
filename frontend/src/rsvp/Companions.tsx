@@ -65,6 +65,70 @@ export function ProgramItemsBlock({
   );
 }
 
+/**
+ * The attendance of one person: yes or no per program item (RSVP-11 on), or one answer for all
+ * the program items the person is invited to (off, the default). `name` words the buttons of an
+ * accompanying person ("Mia kommt"); the guest's own say "Ich komme".
+ */
+export function AttendanceBlock({
+  programItems,
+  value,
+  onChange,
+  time,
+  perItem,
+  name,
+}: {
+  programItems: ProgramItem[];
+  value: Record<number, boolean>;
+  onChange: (next: Record<number, boolean>) => void;
+  time: (programItem: ProgramItem) => string;
+  perItem: boolean;
+  name?: string;
+}) {
+  const { t } = useTranslation();
+  if (perItem) {
+    return (
+      <ProgramItemsBlock
+        programItems={programItems}
+        value={value}
+        onChange={onChange}
+        time={time}
+      />
+    );
+  }
+  const current = programItems.length > 0 ? value[programItems[0]?.id ?? 0] : undefined;
+  return (
+    <div className="card">
+      <div className="chips" role="group" aria-label={name ?? t("rsvp.attendanceOnce")}>
+        {[true, false].map((yes) => {
+          const text =
+            name === undefined
+              ? t(yes ? "rsvp.iCome" : "rsvp.iComeNot")
+              : t(yes ? "rsvp.personComes" : "rsvp.personComesNot", { name });
+          return (
+            <button
+              key={String(yes)}
+              type="button"
+              className="chip"
+              aria-pressed={current === yes}
+              onClick={() => {
+                onChange(
+                  Object.fromEntries(programItems.map((programItem) => [programItem.id, yes])),
+                );
+              }}
+            >
+              {text}
+            </button>
+          );
+        })}
+      </div>
+      <span className="hint">
+        {programItems.map((programItem) => programItem.name).join(" · ")}
+      </span>
+    </div>
+  );
+}
+
 /** Menu and allergies of one person (step 2). */
 export function MenuFields({
   value,
@@ -134,6 +198,7 @@ const STATUS_TAG = { pending: "tag warn", approved: "tag ok", rejected: "tag bad
 /** The request form of a new person, or the change of a pending one (RSVP-08, RSVP-10). */
 export function CompanionForm({
   companion,
+  perItem,
   programItems,
   menus,
   time,
@@ -142,6 +207,7 @@ export function CompanionForm({
   onCancel,
 }: {
   companion?: Companion;
+  perItem: boolean;
   /** Puts the form's body and its action buttons into the page frame. */
   frame: (body: ReactNode, footer: ReactNode) => ReactNode;
   programItems: ProgramItem[];
@@ -156,7 +222,9 @@ export function CompanionForm({
   const [name, setName] = useState(companion?.name ?? "");
   const [note, setNote] = useState(companion?.note ?? "");
   const [value, setValue] = useState<PersonValue>(
-    companion ? personOf(companion, programItems) : { attendance: {}, menuId: null, allergies: "" },
+    companion
+      ? personOf(companion, programItems, perItem)
+      : { attendance: {}, menuId: null, allergies: "" },
   );
   const [error, setError] = useState<string>();
   const [sending, setSending] = useState(false);
@@ -210,7 +278,9 @@ export function CompanionForm({
         />
       </label>
       <b className="sm">{t("rsvp.companions.attendance")}</b>
-      <ProgramItemsBlock
+      <AttendanceBlock
+        perItem={perItem}
+        {...(name.trim() === "" ? {} : { name: name.trim() })}
         programItems={programItems}
         value={value.attendance}
         time={time}
@@ -245,7 +315,7 @@ export function CompanionForm({
         disabled={!complete || sending}
         onClick={() => void submit()}
       >
-        {companion ? t("rsvp.companions.save") : t("rsvp.companions.request")}
+        {companion ? t("rsvp.companions.save") : t("rsvp.companions.add")}
       </button>
     </>,
   );
@@ -254,6 +324,7 @@ export function CompanionForm({
 /** The accompanying persons with their status and what the guest or admin can do (step 3). */
 export function CompanionsCard({
   companions,
+  approval,
   programItems,
   menus,
   admin,
@@ -264,6 +335,8 @@ export function CompanionsCard({
   onRefresh,
 }: {
   companions: Companion[];
+  /** Whether an added person waits for the admin's approval (RSVP-12). */
+  approval: boolean;
   programItems: ProgramItem[];
   menus: MenuOption[];
   admin: boolean;
@@ -355,9 +428,12 @@ export function CompanionsCard({
               <span className="muted sm">{summary(companion)}</span>
               {companion.note && <span className="hint">«{companion.note}»</span>}
             </div>
-            <span className={STATUS_TAG[companion.status]}>
-              {t(`rsvp.companions.status.${companion.status}`)}
-            </span>
+            {/* Without approval every added person counts at once: no status to show. */}
+            {(approval || companion.status !== "approved") && (
+              <span className={STATUS_TAG[companion.status]}>
+                {t(`rsvp.companions.status.${companion.status}`)}
+              </span>
+            )}
             {admin
               ? companion.status === "approved" &&
                 renaming?.id !== companion.id && (
@@ -396,7 +472,8 @@ export function CompanionsCard({
                         </button>
                       </>
                     )}
-                    {companion.status === "rejected" && (
+                    {(companion.status === "rejected" ||
+                      (companion.status === "approved" && !approval)) && (
                       <button
                         type="button"
                         className="btn ghost sm"

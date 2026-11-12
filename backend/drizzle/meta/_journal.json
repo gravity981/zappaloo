@@ -64,6 +64,13 @@
       "when": 1794505924826,
       "tag": "0008_program_items",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "6",
+      "when": 1794506706456,
+      "tag": "0009_rsvp_settings",
+      "breakpoints": true
     }
   ]
 }

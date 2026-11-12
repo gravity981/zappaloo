@@ -97,6 +97,10 @@ async function setup() {
     });
     programItems.push(must(made.body));
   }
+  // The tests of this file answer per program item and approve companions (the settings of
+  // 7.4.1); the defaults of 7.4.2 are tested on their own.
+  await call(root, "PUT", "/api/admin/rsvp/per-item", { enabled: true });
+  await call(root, "PUT", "/api/admin/rsvp/companion-approval", { enabled: true });
   const menus: MenuOption[] = [];
   for (const name of ["Fleisch", "Kindermenü"]) {
     menus.push(
@@ -550,5 +554,155 @@ describe("deleting and privacy", () => {
       ["companion.approve", "Mia Huber"],
       ["companion.request", "Mia Huber"],
     ]);
+  });
+});
+
+describe("companion approval as a setting (RSVP-12, 7.4.2)", () => {
+  interface Config {
+    companionApproval: boolean;
+    pendingCount: number;
+  }
+  interface Overview {
+    pendingCount: number;
+    totals: { programItemId: number; yes: number }[];
+    companions: { id: number; status: string }[];
+  }
+
+  it("[RSVP-12] approval is off by default: an added person is approved at once and counts right away", async () => {
+    const ctx = await createTestApp();
+    context = ctx;
+    const root = await makeUser(ctx, "root", ["admin"]);
+    const config = await ctx.app.inject({
+      url: "/api/admin/rsvp/config",
+      headers: { cookie: root.cookie },
+    });
+    expect(config.json<Config>().companionApproval).toBe(false);
+    await ctx.close();
+    context = undefined;
+
+    const { call, get, programItems, guest, root: admin } = await setup();
+    await call(admin, "PUT", "/api/admin/rsvp/companion-approval", { enabled: false });
+    const erika = await guest("erika");
+    const ok = await call<RsvpState>(erika, "POST", "/api/rsvp/companions", {
+      name: "Mia Huber",
+      attendance: attend(programItems),
+    });
+    expect(ok.status).toBe(201);
+    expect(ok.body?.companions[0]?.status).toBe("approved");
+    expect(ok.body?.companionApproval).toBe(false);
+    const overview = (await get<Overview>(admin, "/api/admin/rsvp")).body;
+    expect(overview.pendingCount).toBe(0);
+    expect(
+      (
+        await get<{ pendingCount: number; companionApproval: boolean }>(
+          admin,
+          "/api/admin/rsvp/pending",
+        )
+      ).body,
+    ).toEqual({ pendingCount: 0, companionApproval: false });
+  });
+
+  it("[RSVP-12] with approval off the guest removes an added person until the deadline; with approval on only a pending one", async () => {
+    const { call, programItems, guest, root } = await setup();
+    const erika = await guest("erika");
+    const body = { name: "Mia", attendance: attend(programItems) };
+    // Approval on: an approved person cannot be removed by the guest (RSVP-10).
+    const requested = must(
+      (await call<RsvpState>(erika, "POST", "/api/rsvp/companions", body)).body,
+    );
+    const miaId = must(requested.companions[0]).id;
+    await call(root, "POST", `/api/admin/rsvp/companions/${String(miaId)}/approve`);
+    expect((await call(erika, "DELETE", `/api/rsvp/companions/${String(miaId)}`)).status).toBe(409);
+
+    // Approval off: the same person can be removed.
+    await call(root, "PUT", "/api/admin/rsvp/companion-approval", { enabled: false });
+    const removed = await call<RsvpState>(erika, "DELETE", `/api/rsvp/companions/${String(miaId)}`);
+    expect(removed.status).toBe(200);
+    expect(removed.body?.companions).toEqual([]);
+
+    // After the deadline the guest cannot remove, the admin still can.
+    const again = must((await call<RsvpState>(erika, "POST", "/api/rsvp/companions", body)).body);
+    const noahId = must(again.companions[0]).id;
+    await call(root, "PUT", "/api/admin/rsvp/deadline", { deadline: "2020-01-01" });
+    expect((await call(erika, "DELETE", `/api/rsvp/companions/${String(noahId)}`)).status).toBe(
+      403,
+    );
+    expect(
+      (await call(root, "DELETE", `/api/admin/rsvp/companions/${String(noahId)}`)).status,
+    ).toBe(204);
+  });
+
+  it("[RSVP-12] the admin removes an accompanying person at any time; only admins, and it is audited", async () => {
+    const { ctx, call, get, programItems, guest, root } = await setup();
+    const erika = await guest("erika");
+    const added = must(
+      (
+        await call<RsvpState>(erika, "POST", "/api/rsvp/companions", {
+          name: "Mia",
+          attendance: attend(programItems),
+        })
+      ).body,
+    );
+    const miaId = must(added.companions[0]).id;
+    expect(
+      (await call(erika, "DELETE", `/api/admin/rsvp/companions/${String(miaId)}`)).status,
+    ).toBe(403);
+    expect((await call(root, "DELETE", "/api/admin/rsvp/companions/9999")).status).toBe(404);
+    expect((await call(root, "DELETE", `/api/admin/rsvp/companions/${String(miaId)}`)).status).toBe(
+      204,
+    );
+    expect((await get<RsvpState>(erika, "/api/rsvp")).body.companions).toEqual([]);
+    const entry = ctx.event.auditEntries().find((e) => e.action === "companion.remove");
+    expect(entry?.details).toEqual({ companionId: miaId });
+  });
+
+  it("[RSVP-12] switching approval off approves every pending request; rejected ones stay rejected", async () => {
+    const { ctx, call, get, programItems, guest, root } = await setup();
+    const erika = await guest("erika");
+    const add = async (name: string) =>
+      must(
+        (
+          await call<RsvpState>(erika, "POST", "/api/rsvp/companions", {
+            name,
+            attendance: attend(programItems),
+          })
+        ).body,
+      );
+    await add("Eins");
+    await add("Zwei");
+    const state = await add("Drei");
+    const [one, , three] = state.companions;
+    await call(root, "POST", `/api/admin/rsvp/companions/${String(must(three).id)}/reject`);
+    expect((await get<Config>(root, "/api/admin/rsvp/config")).body.pendingCount).toBe(2);
+    expect(
+      (await call(root, "PUT", "/api/admin/rsvp/companion-approval", { enabled: "no" })).status,
+    ).toBe(400);
+    expect(
+      (await call(erika, "PUT", "/api/admin/rsvp/companion-approval", { enabled: false })).status,
+    ).toBe(403);
+    const off = await call<{ approved: number }>(
+      root,
+      "PUT",
+      "/api/admin/rsvp/companion-approval",
+      {
+        enabled: false,
+      },
+    );
+    expect(off.body).toEqual({ approved: 2 });
+    const overview = (await get<Overview>(root, "/api/admin/rsvp")).body;
+    expect(overview.pendingCount).toBe(0);
+    expect(overview.companions.map((c) => c.status).sort()).toEqual([
+      "approved",
+      "approved",
+      "rejected",
+    ]);
+    expect(must(one).id).toBeGreaterThan(0);
+    const entry = ctx.event.auditEntries().find((e) => e.action === "rsvp.companion_approval");
+    expect(entry?.details).toEqual({ to: false, approved: 2 });
+    // Switching it on again changes nothing for the approved ones; the next added person waits.
+    expect(
+      (await call(root, "PUT", "/api/admin/rsvp/companion-approval", { enabled: true })).status,
+    ).toBe(200);
+    expect((await add("Vier")).companions.at(-1)?.status).toBe("pending");
   });
 });

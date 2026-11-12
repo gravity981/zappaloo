@@ -870,16 +870,25 @@ add({
   },
 });
 add({
-  id: "rsvp-parts", group: "access", title: "RSVP 1 · Attendance", path: "/rsvp", reqs: ["RSVP-01", "RSVP-02", "RSVP-04"],
-  shows: ["Only the program items this invitation covers; yes/no per program item.", "Approved companions get their own yes/no block below the guest's (step 3b, decided 2026-11-11).", "Deadline shown up front.", "Declining every part skips straight to the summary.", "Opened by an admin from Rückmeldungen, the same wizard runs in admin mode, also after the deadline."],
+  id: "rsvp-parts", group: "access", title: "RSVP 1 · Attendance", path: "/rsvp", reqs: ["RSVP-01", "RSVP-02", "RSVP-04", "RSVP-11"],
+  variants: [["one", "One answer (default)"], ["per", "Per program item"]],
+  shows: ["One answer (RSVP-11, decided 2026-11-12, the default): “Ich komme” / “Ich komme nicht” once per person, with the program items the invitation covers listed below it; a program item added later takes the answer. With the switch “Pro Programmpunkt zusagen” on (variant), yes/no per program item as before.", "Only the program items this invitation covers.", "Approved companions get their own yes/no block below the guest's (step 3b, decided 2026-11-11).", "Deadline shown up front.", "Declining every part skips straight to the summary.", "Opened by an admin from Rückmeldungen, the same wizard runs in admin mode, also after the deadline."],
   qs: [
     { q: "RSVP as a three-step wizard (attendance → food → companions & song), or one long page?", p: "Mock: wizard, because it feels light on a phone and reuses well inside the game overlay." },
     { q: "Add a shortcut like “Ich bin überall dabei”?", p: "Mock: not shown. Could be a link above the program items." },
   ],
-  render: () => flow("Rückmeldung", 1, 3, `
+  render: (v) => v === "per" ? flow("Rückmeldung", 1, 3, `
     <h1 class="m-h1">Bist du dabei, Erika?</h1>
     <p class="m-muted">Sag uns für jeden Programmpunkt, ob du kommst. Du kannst deine Antwort bis <b>1. Mai 2027</b> ändern.</p>
-    ${partsBlock([0, 0, 0, -1])}`, `<button class="m-btn" data-go="rsvp-people">Weiter</button>`),
+    ${partsBlock([0, 0, 0, -1])}
+    <b class="sm">Mia Huber</b>
+    ${partsBlock([0, 0, 0, -1])}`, `<button class="m-btn" data-go="rsvp-people">Weiter</button>`) : flow("Rückmeldung", 1, 3, `
+    <h1 class="m-h1">Bist du dabei, Erika?</h1>
+    <p class="m-muted">Sag uns, ob du kommst. Du bist zu allen vier Programmpunkten eingeladen. Du kannst deine Antwort bis <b>1. Mai 2027</b> ändern.</p>
+    <div class="m-card"><div class="m-row2"><b class="grow" style="flex:1">Erika Huber</b><span class="m-tag">Du</span></div>${seg(["Ich komme", "Ich komme nicht"], 0)}
+      <span class="m-hint">Trauung · Apéro · Dinner · Party</span></div>
+    <div class="m-card"><b>Mia Huber</b>${seg(["Mia kommt", "Mia kommt nicht"], 0)}
+      <span class="m-hint">Trauung · Apéro · Dinner · Party</span></div>`, `<button class="m-btn" data-go="rsvp-people">Weiter</button>`),
 });
 add({
   id: "rsvp-people", group: "access", title: "RSVP 2 · Food & allergies", path: "/rsvp", reqs: ["RSVP-03", "SEC-11"],
@@ -894,22 +903,22 @@ add({
       ${field("Menü (Dinner)", chips(MENUS, [1]))}
       ${field("Allergien oder Unverträglichkeiten", area("rp-all-1", "Nüsse", 'placeholder="z. B. Nüsse, laktosefrei" style="min-height:60px"'))}
       <div class="m-lock">${ic("lock")} Sieht nur das Organisationsteam.</div></div>
-    <div class="m-card"><div class="m-row2"><b>Mia Huber</b><span class="m-tag warn">Begleitperson · beantragt</span></div>
+    <div class="m-card"><div class="m-row2"><b>Mia Huber</b><span class="m-tag warn">Begleitperson</span></div>
       ${field("Menü (Dinner)", chips(MENUS, [3]))}
       ${field("Allergien oder Unverträglichkeiten", area("rp-all-2", "", 'placeholder="keine" style="min-height:60px"'))}
       <div class="m-lock">${ic("lock")} Sieht nur das Organisationsteam.</div></div>`,
     `<button class="m-btn ghost" data-go="rsvp-parts">Zurück</button><button class="m-btn" data-go="rsvp-companion">Weiter</button>`),
 });
 add({
-  id: "rsvp-companion", group: "access", title: "RSVP 3 · Companions & song", path: "/rsvp", reqs: ["RSVP-08", "RSVP-09", "RSVP-10", "RSVP-06"],
-  variants: [["list", "Overview"], ["form", "Request companion"]],
-  shows: ["Existing companions with their request status (pending / approved / rejected).", "Pending: “Bearbeiten” and “Zurückziehen”. Rejected (decided 2026-11-11): stays visible with “Entfernen”. In admin mode (RSVP-04) an approved person can be renamed; requests, edits and withdrawals are for the guest only. At most 10 persons per guest. Approved: attendance, menu and allergies are changed in steps 1 and 2 until the deadline, without a new approval; the name only by the admin (decided 2026-11-11).", "Request form: name, attendance for the guest's own program items, menu (meal program item only) and allergies; avatar comes later.", "Optional song wish."],
+  id: "rsvp-companion", group: "access", title: "RSVP 3 · Companions & song", path: "/rsvp", reqs: ["RSVP-08", "RSVP-09", "RSVP-10", "RSVP-12", "RSVP-06"],
+  variants: [["list", "Added (no approval)"], ["pending", "With approval"], ["form", "Add companion"]],
+  shows: ["Companion approval is a setting (RSVP-12, decided 2026-11-12). Off (the default): “Begleitperson hinzufügen” adds the person at once, they count right away, there is no status tag, and the guest removes them with “Entfernen” until the deadline. On (variant): as before with “Wartet auf Bestätigung”, “Bearbeiten” and “Zurückziehen”. The texts say “hinzufügen”, not “beantragen”.", "Existing companions with their request status (pending / approved / rejected).", "Pending: “Bearbeiten” and “Zurückziehen”. Rejected (decided 2026-11-11): stays visible with “Entfernen”. In admin mode (RSVP-04) an approved person can be renamed; requests, edits and withdrawals are for the guest only. At most 10 persons per guest. Approved: attendance, menu and allergies are changed in steps 1 and 2 until the deadline, without a new approval; the name only by the admin (decided 2026-11-11).", "Request form: name, attendance for the guest's own program items, menu (meal program item only) and allergies; avatar comes later.", "Optional song wish."],
   qs: [
     { n: 52, q: "After approval, can the VIP still change a companion's attendance, menu and allergies?", p: "Proposal: yes, in the wizard like their own, until the deadline, without a new approval." },
     { q: "Can a guest edit or withdraw a companion request while it is still pending?", p: "Mock: yes, “Bearbeiten” and “Zurückziehen” on pending requests." },
     { q: "Should the guest give a reason, e.g. “Kind, 6 Jahre”?", p: "Mock: optional note field for the admin." },
   ],
-  render: (v) => v === "form" ? flow("Begleitperson beantragen", 0, 0, `
+  render: (v) => v === "form" ? flow("Begleitperson hinzufügen", 0, 0, `
     <p class="m-muted">Für Personen ohne eigenes Konto, z. B. Kinder. Du verwaltest ihre Angaben. Ihre Figur wählst du, sobald die Spielwelt offen ist.</p>
     ${field("Name", inp("cp-name", "Mia Huber"))}
     ${field("Notiz fürs Brautpaar (optional)", inp("cp-note", "Meine Tochter, 6 Jahre"))}
@@ -918,7 +927,17 @@ add({
     ${field("Menü (Dinner)", chips(MENUS, [3]))}
     ${field("Allergien oder Unverträglichkeiten", area("cp-all", "", 'style="min-height:60px"'))}
     <div class="m-lock">${ic("lock")} Sieht nur das Organisationsteam.</div>`,
-    `<button class="m-btn ghost" data-go="rsvp-companion" data-variant="list">Abbrechen</button><button class="m-btn" data-go="rsvp-companion" data-variant="list">Beantragen</button>`, "rsvp-companion")
+    `<button class="m-btn ghost" data-go="rsvp-companion" data-variant="list">Abbrechen</button><button class="m-btn" data-go="rsvp-companion" data-variant="list">Hinzufügen</button>`, "rsvp-companion")
+  : v === "list" ? flow("Rückmeldung", 3, 3, `
+    <h1 class="m-h1">Begleitpersonen & Musik</h1>
+    <div class="m-card"><b>Begleitpersonen</b>
+      <div class="m-list"><div class="m-li"><div class="m-av">MH</div><div class="grow"><b>Mia Huber</b><span class="m-muted sm">Trauung, Apéro, Dinner · Kindermenü</span></div><button class="m-btn ghost sm">Entfernen</button></div>
+      <div class="m-li"><div class="m-av">NH</div><div class="grow"><b>Noah Huber</b><span class="m-muted sm">Apéro, Dinner · Kindermenü</span></div><button class="m-btn ghost sm">Entfernen</button></div></div>
+      <span class="m-hint">Teilnahme, Menü und Allergien änderst du in den Schritten 1 und 2. Entfernen kannst du bis zur Frist.</span>
+      <button class="m-btn ghost sm" style="align-self:flex-start" data-go="rsvp-companion" data-variant="form">${ic("plus")} Begleitperson hinzufügen</button>
+      <p class="m-hint">Wer ein eigenes Handy hat, bekommt besser eine eigene Einladung. Frag dafür Lea & Jonas.</p></div>
+    <div class="m-card">${field("Songwunsch (optional)", inp("rp-song0", "ABBA – Dancing Queen"), "Dieses Lied bringt dich auf die Tanzfläche.")}</div>`,
+    `<button class="m-btn ghost" data-go="rsvp-people">Zurück</button><button class="m-btn" data-go="rsvp-done">Antwort senden</button>`)
   : flow("Rückmeldung", 3, 3, `
     <h1 class="m-h1">Begleitpersonen & Musik</h1>
     <div class="m-card"><b>Begleitpersonen</b>
@@ -926,8 +945,8 @@ add({
       <div class="m-row2"><button class="m-btn soft sm" data-go="rsvp-companion" data-variant="form">Bearbeiten</button><button class="m-btn ghost sm">Zurückziehen</button></div>
       <div class="m-list"><div class="m-li"><div class="m-av">NH</div><div class="grow"><b>Noah Huber</b><span class="m-muted sm">Apéro, Dinner · Kindermenü</span></div><span class="m-tag ok">Bestätigt</span></div></div>
       <span class="m-hint">Teilnahme, Menü und Allergien von Noah änderst du in den Schritten 1 und 2.</span>
-      <button class="m-btn ghost sm" style="align-self:flex-start" data-go="rsvp-companion" data-variant="form">${ic("plus")} Begleitperson beantragen</button>
-      <p class="m-hint">Wer ein eigenes Handy hat, bekommt besser eine eigene Einladung. Frag dafür Lea & Jonas.</p></div>
+      <button class="m-btn ghost sm" style="align-self:flex-start" data-go="rsvp-companion" data-variant="form">${ic("plus")} Begleitperson hinzufügen</button>
+      <p class="m-hint">Mit Bestätigung: Lea & Jonas nehmen jede Begleitperson an, bevor sie zählt. Wer ein eigenes Handy hat, bekommt besser eine eigene Einladung. Frag dafür Lea & Jonas.</p></div>
     <div class="m-card">${field("Songwunsch (optional)", inp("rp-song", "ABBA – Dancing Queen"), "Dieses Lied bringt dich auf die Tanzfläche.")}</div>`,
     `<button class="m-btn ghost" data-go="rsvp-people">Zurück</button><button class="m-btn" data-go="rsvp-done">Antwort senden</button>`),
 });
@@ -1310,16 +1329,17 @@ add({
   },
 });
 add({
-  id: "admin-rsvp", group: "admin", title: "RSVP overview", path: "/admin/rsvp", reqs: ["RSVP-05", "RSVP-07", "RSVP-09", "SEC-11"],
-  shows: ["Totals per program item and the menus of the meal program item.", "Guest table (decided 2026-11-11): name, status, program items, menu, song wish, and allergies as a column only admins see; status filter. A row opens the RSVP wizard in admin mode, also after the deadline (RSVP-04).", "CSV export; “Erinnern (n)” mails guests without an answer who have a verified address.", "Companion requests to approve or reject; approved companions appear in the table under their VIP."],
+  id: "admin-rsvp", group: "admin", title: "RSVP overview", path: "/admin/rsvp", reqs: ["RSVP-05", "RSVP-07", "RSVP-09", "RSVP-12", "SEC-11"],
+  variants: [["off", "Approval off (default)"], ["on", "Approval on"]],
+  shows: ["Approval off (RSVP-12): no card with requests, no badge in the navigation and no tile “Begleitpersonen” in Übersicht; the admin removes an accompanying person in the guest table with “Entfernen” and a second click, also after the deadline. Approval on (variant): the card with the requests as before.","Totals per program item and the menus of the meal program item.", "Guest table (decided 2026-11-11): name, status, program items, menu, song wish, and allergies as a column only admins see; status filter. A row opens the RSVP wizard in admin mode, also after the deadline (RSVP-04).", "CSV export; “Erinnern (n)” mails guests without an answer who have a verified address.", "Companion requests to approve or reject; approved companions appear in the table under their VIP."],
   qs: [{ n: 50, q: "How does an admin change a guest's RSVP after the deadline (RSVP-04)?", p: "Decided: the allergies card becomes a guest table with an admin-only allergy column; a row opens the RSVP wizard in admin mode." }],
-  render: () => admin("admin-rsvp", `<div class="m-sethead"><h1 class="m-h1 grow">Rückmeldungen</h1><button class="m-btn soft sm">${ic("dl")} CSV</button><button class="m-btn sm">${ic("mail")} Erinnern (31)</button></div>
-    <div class="m-card strong"><b>Begleitpersonen-Anfragen (3)</b><div class="m-list">${[["Mia Huber", "von Erika Huber · «Meine Tochter, 6 Jahre»"], ["Noah Brunner", "von Familie Brunner"], ["Hans Graf", "von Peter Graf · «Mein Vater, ohne Handy»"]].map(([n, b]) => `<div class="m-li"><div class="grow"><b>${n}</b><span class="m-hint">${b}</span></div><button class="m-btn ghost sm">Ablehnen</button><button class="m-btn sm">Annehmen</button></div>`).join("")}</div></div>
+  render: (v) => admin("admin-rsvp", `<div class="m-sethead"><h1 class="m-h1 grow">Rückmeldungen</h1><button class="m-btn soft sm">${ic("dl")} CSV</button><button class="m-btn sm">${ic("mail")} Erinnern (31)</button></div>
+    ${v !== "on" ? "" : `<div class="m-card strong"><b>Begleitpersonen-Anfragen (3)</b><div class="m-list">${[["Mia Huber", "von Erika Huber · «Meine Tochter, 6 Jahre»"], ["Noah Brunner", "von Familie Brunner"], ["Hans Graf", "von Peter Graf · «Mein Vater, ohne Handy»"]].map(([n, b]) => `<div class="m-li"><div class="grow"><b>${n}</b><span class="m-hint">${b}</span></div><button class="m-btn ghost sm">Ablehnen</button><button class="m-btn sm">Annehmen</button></div>`).join("")}</div></div>`}
     <div class="m-grid-d2"><div class="m-card"><b>Pro Programmpunkt</b><div class="m-bars">${[["Trauung", 72, 6], ["Apéro", 96, 4], ["Dinner", 68, 8], ["Party", 74, 10]].map(([n, y, no]) => `<div class="m-bar-row"><span>${n}</span><div class="track"><i style="width:${y / 1.2}%;background:var(--w-dark)"></i><i style="width:${no / 1.2}%;background:var(--w-line)"></i></div><span class="num sm">${y} ja · ${no} nein</span></div>`).join("")}</div></div>
     <div class="m-card"><b>Menüs (Dinner)</b><div class="m-bars">${[["Fleisch", 38], ["Vegetarisch", 22], ["Vegan", 3], ["Kinder", 5]].map(([n, c]) => `<div class="m-bar-row"><span>${n}</span><div class="track"><i style="width:${c * 2.4}%;background:var(--w-dark)"></i></div><span class="num sm">${c}</span></div>`).join("")}</div></div></div>
     <div class="m-card" style="padding:4px 8px"><div class="m-row2" style="padding:8px 6px 0"><b class="grow" style="flex:1">Gäste</b>${chips(["Alle 120", "Zugesagt 78", "Abgesagt 6", "Ohne Antwort 36"], [0])}</div>
       <div class="m-scroll"><table class="m-table"><thead><tr><th>Name</th><th>Status</th><th>Programmpunkte</th><th>Menü</th><th>Songwunsch</th><th><span class="m-lock">${ic("lock")} Allergien · nur Admins</span></th><th></th></tr></thead><tbody>
-      ${[["Erika Huber", "ok", "zugesagt", "T A D", "Vegetarisch", "ABBA – Dancing Queen", "Nüsse"], ["↳ Noah Huber", "ok", "bestätigt", "A D", "Kindermenü", "–", "–"], ["Tom Brunner", "ok", "zugesagt", "A D P", "Fleisch", "–", "Laktose"], ["Nina Roth", "ok", "zugesagt", "T A", "–", "Queen – Don't Stop Me Now", "Zöliakie (glutenfrei)"], ["Peter Graf", "bad", "abgesagt", "–", "–", "–", "–"], ["Lukas Meier", "", "ohne Antwort", "–", "–", "–", "–"]].map(([n, c, s, p, m, song, a]) => `<tr><td><b>${n}</b></td><td><span class="m-tag ${c}">${s}</span></td><td class="m-muted">${p}</td><td>${m}</td><td class="sm">${song}</td><td class="sm">${a}</td><td style="text-align:right"><button class="m-btn soft sm" data-go="rsvp-parts">Bearbeiten</button></td></tr>`).join("")}
+      ${[["Erika Huber", "ok", "zugesagt", "T A D", "Vegetarisch", "ABBA – Dancing Queen", "Nüsse"], ["↳ Noah Huber", "ok", "bestätigt", "A D", "Kindermenü", "–", "–"], ["Tom Brunner", "ok", "zugesagt", "A D P", "Fleisch", "–", "Laktose"], ["Nina Roth", "ok", "zugesagt", "T A", "–", "Queen – Don't Stop Me Now", "Zöliakie (glutenfrei)"], ["Peter Graf", "bad", "abgesagt", "–", "–", "–", "–"], ["Lukas Meier", "", "ohne Antwort", "–", "–", "–", "–"]].map(([n, c, s, p, m, song, a]) => `<tr><td><b>${n}</b></td><td><span class="m-tag ${c}">${s}</span></td><td class="m-muted">${p}</td><td>${m}</td><td class="sm">${song}</td><td class="sm">${a}</td><td style="text-align:right">${n.startsWith("↳") ? `<button class="m-btn danger sm">Entfernen</button>` : `<button class="m-btn soft sm" data-go="rsvp-parts">Bearbeiten</button>`}</td></tr>`).join("")}
       </tbody></table></div><span class="m-hint" style="padding:0 6px 8px">Bearbeiten öffnet die Rückmeldung im Admin-Modus, auch nach der Frist. Jede Änderung steht im Audit-Log.</span></div>`),
 });
 add({
@@ -1389,6 +1409,8 @@ add({
     <div class="m-grid-d2">
       <div class="m-card"><b>Rückmeldung</b>${field("Frist", inp("as-dl", "2027-05-01", 'type="date" style="width:auto"'))}
         <div class="m-setrow"><div class="grow"><b class="sm">Songwunsch fragen</b><span class="m-hint">Die Rückmeldung fragt nach einem Lieblingslied (decided 2026-11-11).</span></div>${sw(true)}</div>
+        <div class="m-setrow"><div class="grow"><b class="sm">Pro Programmpunkt zusagen</b><span class="m-hint">Aus (Standard): Gäste antworten einmal für alle ihre Programmpunkte. Ein: Ja oder Nein pro Programmpunkt. Beim Ausschalten behält, wer mindestens ein Ja hat, ein Ja; 3 Gäste haben gemischte Antworten, ihre Antwort gilt beim nächsten Speichern für alle.</span></div>${sw(false)}</div>
+        <div class="m-setrow"><div class="grow"><b class="sm">Begleitpersonen bestätigen</b><span class="m-hint">Aus (Standard): Eine hinzugefügte Begleitperson zählt sofort. Ein: Du nimmst jede Anfrage an oder lehnst sie ab. Beim Ausschalten werden die 2 offenen Anfragen nach einer Bestätigung angenommen.</span></div>${sw(false)}</div>
         <span class="m-eyebrow">Programmpunkte</span><div class="m-chips">${PROGRAM_ITEMS.map((p) => `<span class="m-chip">${p[0]} · ${p[1]}${p[0] === "Dinner" ? " · Essen" : ""}</span>`).join("")}<button class="m-chip">${ic("plus")}</button></div>
         <span class="m-hint">Ein Programmpunkt hat Name, Uhrzeit und Ort. Ein Programmpunkt kann das Essen haben: Nur dafür wird das Menü gefragt.</span>
         <span class="m-eyebrow">Menüs (für alle)</span><div class="m-chips">${MENUS.map((p) => `<span class="m-chip">${p}</span>`).join("")}<button class="m-chip">${ic("plus")}</button></div></div>

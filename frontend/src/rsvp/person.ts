@@ -16,8 +16,22 @@ export interface PersonValue {
 export function attendanceOf(
   answer: { attendingItemIds: number[]; declinedItemIds: number[] },
   programItems: ProgramItem[],
+  perItem: boolean,
 ): Record<number, boolean> {
   const attendance: Record<number, boolean> = {};
+  // One answer per person (RSVP-11): a yes for any program item is a yes for all of them.
+  const answered = programItems.some(
+    (programItem) =>
+      answer.attendingItemIds.includes(programItem.id) ||
+      answer.declinedItemIds.includes(programItem.id),
+  );
+  if (!perItem && answered) {
+    const yes = programItems.some((programItem) =>
+      answer.attendingItemIds.includes(programItem.id),
+    );
+    for (const programItem of programItems) attendance[programItem.id] = yes;
+    return attendance;
+  }
   for (const programItem of programItems) {
     if (answer.attendingItemIds.includes(programItem.id)) attendance[programItem.id] = true;
     else if (answer.declinedItemIds.includes(programItem.id)) attendance[programItem.id] = false;
@@ -34,9 +48,10 @@ export function personOf(
     allergies: string | null;
   },
   programItems: ProgramItem[],
+  perItem: boolean,
 ): PersonValue {
   return {
-    attendance: attendanceOf(companion, programItems),
+    attendance: attendanceOf(companion, programItems, perItem),
     menuId: companion.menuId,
     allergies: companion.allergies ?? "",
   };

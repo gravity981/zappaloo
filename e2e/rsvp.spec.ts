@@ -2,7 +2,7 @@ import { expect, test } from "@playwright/test";
 import { clientAddress, PASSWORD, signInAsAdmin } from "./support.ts";
 import de from "../frontend/src/i18n/locales/de/common.json" with { type: "json" };
 
-test("[RSVP-01][RSVP-02][RSVP-03][RSVP-04][RSVP-05][RSVP-06][SEC-11][DATA-05] a guest answers the RSVP for the invited program items; the admin sees it and changes it", async ({
+test("[RSVP-01][RSVP-02][RSVP-03][RSVP-04][RSVP-05][RSVP-06][RSVP-11][SEC-11][DATA-05] a guest answers the RSVP once for the invited program items; the admin sees it and changes it", async ({
   page,
   context,
   browser,
@@ -50,11 +50,10 @@ test("[RSVP-01][RSVP-02][RSVP-03][RSVP-04][RSVP-05][RSVP-06][SEC-11][DATA-05] a 
   await expect(
     guest.getByRole("heading", { name: de.rsvp.greeting.replace("{{name}}", name) }),
   ).toBeVisible();
-  // Only the invited program items are offered.
-  await expect(guest.getByRole("group", { name: "Party" })).toHaveCount(0);
-  await guest.getByRole("button", { name: `Trauung: ${de.rsvp.attending}` }).click();
-  await guest.getByRole("button", { name: `Apéro: ${de.rsvp.attending}` }).click();
-  await guest.getByRole("button", { name: `Dinner: ${de.rsvp.attending}` }).click();
+  // One answer for the invited program items (the default, RSVP-11); the party is not among them.
+  await expect(guest.getByText("Trauung · Apéro · Dinner")).toBeVisible();
+  await expect(guest.getByRole("button", { name: `Trauung: ${de.rsvp.attending}` })).toHaveCount(0);
+  await guest.getByRole("button", { name: de.rsvp.iCome, exact: true }).click();
   await guest.getByRole("button", { name: de.rsvp.next }).click();
 
   // The menu is asked because the guest attends the meal program item, and it is required.
@@ -94,15 +93,12 @@ test("[RSVP-01][RSVP-02][RSVP-03][RSVP-04][RSVP-05][RSVP-06][SEC-11][DATA-05] a 
   await row.getByRole("link", { name: `${de.admin.rsvp.edit}: ${name}` }).click();
   await expect(page.getByText(de.rsvp.adminMode)).toBeVisible();
   await page.getByRole("button", { name: de.rsvp.change }).click();
-  await page.getByRole("button", { name: `Apéro: ${de.rsvp.notAttending}` }).click();
-  await page.getByRole("button", { name: de.rsvp.next }).click();
-  await page.getByRole("button", { name: de.rsvp.next }).click();
+  await page.getByRole("button", { name: de.rsvp.iComeNot, exact: true }).click();
   await page.getByRole("button", { name: de.rsvp.send }).click();
   await expect(page.getByRole("button", { name: de.rsvp.change })).toBeVisible();
   await guest.reload();
-  await expect(guest.getByText("Trauung")).toBeVisible();
   await expect(
-    guest.getByRole("listitem").filter({ hasText: "Apéro" }).getByText(de.rsvp.notAttending),
+    guest.getByRole("heading", { name: de.rsvp.declined.replace("{{name}}", name) }),
   ).toBeVisible();
 
   // The card "Zuletzt" tells about it.

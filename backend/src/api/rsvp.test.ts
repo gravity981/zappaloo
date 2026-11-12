@@ -104,6 +104,10 @@ async function setup() {
     expect(made.status).toBe(201);
     programItems.push(must(made.body));
   }
+  // The tests of this file answer per program item and approve companions (the settings of
+  // 7.4.1); the defaults of 7.4.2 are tested on their own.
+  await call(root, "PUT", "/api/admin/rsvp/per-item", { enabled: true });
+  await call(root, "PUT", "/api/admin/rsvp/companion-approval", { enabled: true });
   const menus: MenuOption[] = [];
   for (const name of ["Fleisch", "Vegetarisch"]) {
     const made = await call<MenuOption>(root, "POST", "/api/admin/rsvp/menus", { name });
@@ -1138,7 +1142,134 @@ describe("answers after the invitation changes (7.4.1, decided 2026-11-11)", () 
       attendance: yes(programItems, "Trauung"),
     });
     const pending = await get<{ pendingCount: number }>(root, "/api/admin/rsvp/pending");
-    expect(pending.body).toEqual({ pendingCount: 1 });
+    expect(pending.body).toEqual({ pendingCount: 1, companionApproval: true });
     expect((await get(anna, "/api/admin/rsvp/pending")).status).toBe(403);
+  });
+});
+
+describe("one answer or one per program item (RSVP-11, 7.4.2)", () => {
+  interface Config {
+    perItem: boolean;
+    mixedCount: number;
+  }
+
+  it("[RSVP-11] one answer per person is the default; an answer must be the same yes or no for every program item", async () => {
+    const ctx = await createTestApp();
+    context = ctx;
+    const root0 = await makeUser(ctx, "root", ["admin"]);
+    const config = await ctx.app.inject({
+      url: "/api/admin/rsvp/config",
+      headers: { cookie: root0.cookie },
+    });
+    expect(config.json<Config>().perItem).toBe(false);
+    await ctx.close();
+    context = undefined;
+
+    const { call, get, programItems, guest, root } = await setup();
+    await call(root, "PUT", "/api/admin/rsvp/per-item", { enabled: false });
+    const erika = await guest("erika");
+    const mixed = await call(erika, "PUT", "/api/rsvp", {
+      attendance: yes(programItems, "Trauung", "Apéro"),
+    });
+    expect(mixed.status).toBe(400);
+    expect((mixed.body as { error: { code: string } }).error.code).toBe("invalid_attendance");
+    const menuId = must((await get<RsvpState>(erika, "/api/rsvp")).body.menus[0]).id;
+    const everything = await call<RsvpState>(erika, "PUT", "/api/rsvp", {
+      attendance: yes(programItems, "Trauung", "Apéro", "Dinner", "Party"),
+      menuId,
+    });
+    expect(everything.status).toBe(200);
+    const nothing = await call<RsvpState>(erika, "PUT", "/api/rsvp", {
+      attendance: yes(programItems),
+    });
+    expect(nothing.status).toBe(200);
+  });
+
+  it("[RSVP-11] the answer is stored per program item; a program item added later takes the existing answer", async () => {
+    const { call, get, programItems, menus, guest, root } = await setup();
+    await call(root, "PUT", "/api/admin/rsvp/per-item", { enabled: false });
+    const [trauung, apero, dinner, party] = programItems;
+    const invited = [must(trauung).id, must(apero).id];
+    const erika = await guest("erika", invited);
+    const nina = await guest("nina", invited);
+    const lukas = await guest("lukas", invited);
+    const answer = (who: SignedIn, yesOrNo: boolean) =>
+      call<RsvpState>(who, "PUT", "/api/rsvp", {
+        attendance: invited.map((programItemId) => ({ programItemId, attending: yesOrNo })),
+      });
+    expect((await answer(erika, true)).status).toBe(200);
+    expect((await answer(nina, false)).status).toBe(200);
+    // A companion of erika answers yes as well.
+    const added = await call<RsvpState>(erika, "POST", "/api/rsvp/companions", {
+      name: "Mia",
+      attendance: invited.map((programItemId) => ({ programItemId, attending: true })),
+    });
+    expect(added.status).toBe(201);
+
+    // The admin adds Dinner and Party to the invitations (lukas has not answered).
+    const all = [...invited, must(dinner).id, must(party).id];
+    for (const who of [erika, nina, lukas]) {
+      await call(root, "PUT", `/api/admin/users/${String(who.id)}/program-items`, {
+        programItemIds: all,
+      });
+    }
+    const erikaState = (await get<RsvpState>(erika, "/api/rsvp")).body;
+    expect(erikaState.answer?.attendingItemIds).toEqual(all);
+    expect(erikaState.answer?.declinedItemIds).toEqual([]);
+    expect(erikaState.companions[0]?.attendingItemIds).toEqual(all);
+    // Dinner is the meal item: the new yes asks for a menu the next time; the status stays.
+    expect(erikaState.answer?.menuId).toBeNull();
+    expect(menus.length).toBeGreaterThan(0);
+    const ninaState = (await get<RsvpState>(nina, "/api/rsvp")).body;
+    expect(ninaState.answer?.declinedItemIds).toEqual(all);
+    // Someone who has not answered stays unanswered: nothing is made up for them.
+    const lukasState = (await get<RsvpState>(lukas, "/api/rsvp")).body;
+    expect(lukasState.answer).toBeNull();
+    const overview = (await get<RsvpOverview>(root, "/api/admin/rsvp")).body;
+    // erika says yes and nina no for every program item, also for the new ones; the companion
+    // is still pending (approval is on in this setup) and does not count.
+    expect(overview.totals.map((t) => [t.yes, t.no])).toEqual([
+      [1, 1],
+      [1, 1],
+      [1, 1],
+      [1, 1],
+    ]);
+  });
+
+  it("[RSVP-11] switching to one answer keeps what is stored and counts the persons with mixed answers", async () => {
+    const { ctx, call, get, programItems, menus, guest, root } = await setup();
+    const erika = await guest("erika");
+    const mixed = await call<RsvpState>(erika, "PUT", "/api/rsvp", {
+      attendance: yes(programItems, "Trauung", "Dinner"),
+      menuId: menus[0]?.id,
+    });
+    expect(mixed.status).toBe(200);
+    const nina = await guest("nina");
+    await call(nina.id === 0 ? root : nina, "PUT", "/api/rsvp", {
+      attendance: yes(programItems, "Trauung", "Apéro", "Dinner", "Party"),
+      menuId: menus[0]?.id,
+    });
+    expect((await get<Config>(root, "/api/admin/rsvp/config")).body.mixedCount).toBe(1);
+
+    expect((await call(erika, "PUT", "/api/admin/rsvp/per-item", { enabled: false })).status).toBe(
+      403,
+    );
+    expect((await call(root, "PUT", "/api/admin/rsvp/per-item", { enabled: 1 })).status).toBe(400);
+    expect((await call(root, "PUT", "/api/admin/rsvp/per-item", { enabled: false })).status).toBe(
+      204,
+    );
+    // Nothing is rewritten by the switch itself.
+    const stored = (await get<RsvpState>(erika, "/api/rsvp")).body;
+    expect(stored.perItem).toBe(false);
+    expect(stored.answer?.attendingItemIds).toHaveLength(2);
+    expect(stored.answer?.declinedItemIds).toHaveLength(2);
+    // The next save is one answer for all.
+    const next = await call<RsvpState>(erika, "PUT", "/api/rsvp", {
+      attendance: yes(programItems, "Trauung", "Apéro", "Dinner", "Party"),
+      menuId: menus[0]?.id,
+    });
+    expect(next.body?.answer?.attendingItemIds).toHaveLength(4);
+    const entry = ctx.event.auditEntries().find((e) => e.action === "rsvp.per_item");
+    expect(entry?.details).toEqual({ to: false });
   });
 });

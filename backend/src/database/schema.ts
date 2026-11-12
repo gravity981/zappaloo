@@ -347,6 +347,10 @@ export const rsvpConfig = sqliteTable("rsvp_config", {
   deadline: text("deadline"),
   /** Whether the RSVP asks for a song wish (RSVP-06); the admin switches it. */
   songEnabled: integer("song_enabled", { mode: "boolean" }).notNull().default(true),
+  /** Yes or no per program item (RSVP-11); off: one answer per person, stored for every item. */
+  perItem: integer("per_item", { mode: "boolean" }).notNull().default(false),
+  /** Whether an added accompanying person waits for the admin's approval (RSVP-12). */
+  companionApproval: integer("companion_approval", { mode: "boolean" }).notNull().default(false),
 });
 
 /** The program items an invitation is for; copied to the membership when the code is redeemed. */

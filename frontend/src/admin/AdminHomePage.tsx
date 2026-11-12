@@ -36,21 +36,21 @@ function RsvpKpi() {
           {t("admin.home.rsvpOpen")}
         </Link>
       </div>
-      <div className={data?.pendingCount ? "kpi alert" : "kpi"}>
-        <span className="eyebrow">{t("admin.home.companions")}</span>
-        <b>
-          {data
-            ? data.pendingCount > 0
+      {data?.companionApproval && (
+        <div className={data.pendingCount ? "kpi alert" : "kpi"}>
+          <span className="eyebrow">{t("admin.home.companions")}</span>
+          <b>
+            {data.pendingCount > 0
               ? t("admin.home.companionsValue", { count: data.pendingCount })
-              : t("admin.home.companionsNone")
-            : "–"}
-        </b>
-        {data && data.pendingCount > 0 && (
-          <Link className="sm" to="/admin/rsvp">
-            {t("admin.home.companionsDecide")}
-          </Link>
-        )}
-      </div>
+              : t("admin.home.companionsNone")}
+          </b>
+          {data.pendingCount > 0 && (
+            <Link className="sm" to="/admin/rsvp">
+              {t("admin.home.companionsDecide")}
+            </Link>
+          )}
+        </div>
+      )}
     </>
   );
 }

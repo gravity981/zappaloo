@@ -6,6 +6,8 @@ import type { ActivityEntry } from "@zappaloo/shared";
 const NAMELESS = [
   "rsvp.deadline",
   "rsvp.song",
+  "rsvp.per_item",
+  "rsvp.companion_approval",
   "waiting.set",
   "platform.open",
   "platform.close",

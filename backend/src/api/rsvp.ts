@@ -20,6 +20,8 @@ import {
   rsvpOverviewSchema,
   rsvpPendingSchema,
   songEnabledRequestSchema,
+  perItemRequestSchema,
+  companionApprovalRequestSchema,
   rsvpStateSchema,
 } from "@zappaloo/shared";
 import type { FastifyReply } from "fastify";
@@ -204,6 +206,19 @@ const rsvpPlugin: FastifyPluginAsyncZod<AuthOptions> = (app, options) => {
     },
   );
 
+  app.delete(
+    "/api/admin/rsvp/companions/:id",
+    { ...adminFeature, schema: { querystring: noQuery, params: idParams, body: noBody } },
+    async (request, reply) => {
+      try {
+        rsvp.removeCompanion(request.params.id, actor(request));
+        return await reply.status(204).send();
+      } catch (error) {
+        return fail(reply, error);
+      }
+    },
+  );
+
   // --- Einstellungen › Rückmeldung --------------------------------------------------------
   app.get(
     "/api/admin/rsvp/config",
@@ -227,6 +242,28 @@ const rsvpPlugin: FastifyPluginAsyncZod<AuthOptions> = (app, options) => {
       rsvp.setSongEnabled(request.body.enabled, actor(request));
       return await reply.status(204).send();
     },
+  );
+
+  app.put(
+    "/api/admin/rsvp/per-item",
+    { ...admin, schema: { querystring: noQuery, body: perItemRequestSchema } },
+    async (request, reply) => {
+      rsvp.setPerItem(request.body.enabled, actor(request));
+      return await reply.status(204).send();
+    },
+  );
+
+  app.put(
+    "/api/admin/rsvp/companion-approval",
+    {
+      ...admin,
+      schema: {
+        querystring: noQuery,
+        body: companionApprovalRequestSchema,
+        response: { 200: z.object({ approved: z.number().int() }) },
+      },
+    },
+    (request) => rsvp.setCompanionApproval(request.body.enabled, actor(request)),
   );
 
   app.post(
@@ -364,7 +401,7 @@ const rsvpPlugin: FastifyPluginAsyncZod<AuthOptions> = (app, options) => {
   app.get(
     "/api/admin/rsvp/pending",
     { ...adminFeature, schema: { querystring: noQuery, response: { 200: rsvpPendingSchema } } },
-    () => ({ pendingCount: rsvp.pendingCount() }),
+    () => ({ pendingCount: rsvp.pendingCount(), companionApproval: rsvp.companionApproval() }),
   );
 
   app.get(

@@ -2,7 +2,10 @@ import { expect, test } from "@playwright/test";
 import { clientAddress, PASSWORD, signInAsAdmin } from "./support.ts";
 import de from "../frontend/src/i18n/locales/de/common.json" with { type: "json" };
 
-test("[RSVP-08][RSVP-09][RSVP-10][SEC-11] a guest requests an accompanying person, changes it, the admin approves, and the person counts", async ({
+// The settings of the installation are shared by all tests, which run side by side: this test
+// uses the defaults of 7.4.2 (one answer per person, accompanying persons without approval). The
+// other settings are tested with the API and the pages (RSVP-11, RSVP-12).
+test("[RSVP-08][RSVP-10][RSVP-12][SEC-11] a guest adds an accompanying person, who counts at once; the admin removes them", async ({
   page,
   context,
   browser,
@@ -15,7 +18,7 @@ test("[RSVP-08][RSVP-09][RSVP-10][SEC-11] a guest requests an accompanying perso
   const mia = `Mia ${suffix}`;
   const username = `gast${suffix}`;
 
-  // The admin keeps the RSVP open and invites a guest to every program item.
+  // The admin keeps the RSVP open and invites a guest to the ceremony only.
   await signInAsAdmin(page, context);
   await page.goto("/admin/settings");
   await page.getByLabel(de.admin.rsvpSettings.deadline).fill("2099-12-31");
@@ -25,12 +28,16 @@ test("[RSVP-08][RSVP-09][RSVP-10][SEC-11] a guest requests an accompanying perso
   ).toBeVisible();
   await page.goto("/admin/invitations");
   await page.getByLabel(de.admin.invitations.names).fill(guestName);
+  const invitedTo = page.getByRole("group", { name: de.admin.invitations.programItems });
+  for (const programItem of ["Apéro", "Dinner", "Party"]) {
+    await invitedTo.getByRole("button", { name: programItem }).click();
+  }
   await page.getByRole("button", { name: /Einladung erstellen/ }).click();
   const codeCell = page.locator(".invitation-code");
   await expect(codeCell).toHaveText(/^[A-Z0-9]{6}$/);
   const code = (await codeCell.textContent()) ?? "";
 
-  // The guest redeems the invitation and answers for themselves: Trauung only.
+  // The guest redeems the invitation and answers for themselves.
   const guestContext = await browser.newContext({
     ...(baseURL ? { baseURL } : {}),
     extraHTTPHeaders: { "x-forwarded-for": clientAddress() },
@@ -41,64 +48,46 @@ test("[RSVP-08][RSVP-09][RSVP-10][SEC-11] a guest requests an accompanying perso
   await guest.getByLabel(de.setPassword.password, { exact: true }).fill(PASSWORD);
   await guest.getByRole("button", { name: de.invite.register }).click();
   await guest.getByRole("link", { name: de.waiting.answer }).click();
-  await guest.getByRole("button", { name: `Trauung: ${de.rsvp.attending}` }).click();
-  for (const programItem of ["Apéro", "Dinner", "Party"]) {
-    await guest.getByRole("button", { name: `${programItem}: ${de.rsvp.notAttending}` }).click();
-  }
+  await guest.getByRole("button", { name: de.rsvp.iCome, exact: true }).click();
   await guest.getByRole("button", { name: de.rsvp.next }).click();
   await guest.getByRole("button", { name: de.rsvp.next }).click();
 
-  // Step 3: a request with the person's own answer; then a change while it is pending.
+  // Step 3: "hinzufügen", with the person's own answer; the person counts at once.
   await guest.getByRole("button", { name: new RegExp(de.rsvp.companions.new) }).click();
   await guest.getByLabel(de.rsvp.companions.name).fill(mia);
-  await guest.getByLabel(de.rsvp.companions.note).fill("Meine Tochter");
-  await guest.getByRole("button", { name: `Trauung: ${de.rsvp.attending}` }).click();
-  for (const programItem of ["Apéro", "Party"]) {
-    await guest.getByRole("button", { name: `${programItem}: ${de.rsvp.notAttending}` }).click();
-  }
-  await guest.getByRole("button", { name: `Dinner: ${de.rsvp.attending}` }).click();
-  // The meal program item needs a menu; the request waits for it.
-  const request = guest.getByRole("button", { name: de.rsvp.companions.request });
-  await expect(request).toBeDisabled();
-  await guest.getByRole("button", { name: `${mia}: Kindermenü` }).click();
-  await guest.getByLabel(new RegExp(`${de.rsvp.allergies} \\(${mia}\\)`)).fill("Erdnüsse");
-  await request.click();
-  const pending = guest.getByRole("listitem").filter({ hasText: mia });
-  await expect(pending.getByText(de.rsvp.companions.status.pending)).toBeVisible();
-  await pending.getByRole("button", { name: `${de.rsvp.companions.edit}: ${mia}` }).click();
   await guest.getByLabel(de.rsvp.companions.note).fill("Meine Tochter, 6 Jahre");
-  await guest.getByRole("button", { name: de.rsvp.companions.save }).click();
-  await expect(guest.getByText("Meine Tochter, 6 Jahre")).toBeVisible();
+  const add = guest.getByRole("button", { name: de.rsvp.companions.add });
+  await expect(add).toBeDisabled();
+  await guest
+    .getByRole("button", { name: de.rsvp.personComes.replace("{{name}}", mia), exact: true })
+    .click();
+  await guest.getByLabel(new RegExp(`${de.rsvp.allergies} \\(${mia}\\)`)).fill("Erdnüsse");
+  await add.click();
+  const added = guest.getByRole("listitem").filter({ hasText: mia });
+  await expect(added).toBeVisible();
+  await expect(added.getByText(de.rsvp.companions.status.pending)).toHaveCount(0);
+  await expect(
+    added.getByRole("button", { name: `${de.rsvp.companions.remove}: ${mia}` }),
+  ).toBeVisible();
   await guest.getByRole("button", { name: de.rsvp.send }).click();
-  await expect(guest.getByText(de.rsvp.companions.status.pending)).toBeVisible();
+  await expect(guest.getByText(mia)).toBeVisible();
 
-  // The admin sees the request with its note and approves it.
+  // The admin sees the person in the table under the guest, with the allergies (admins only);
+  // there is no card with requests.
   await page.goto("/admin/rsvp");
-  const requests = page.getByRole("region", { name: /Begleitpersonen-Anfragen/ });
-  await expect(requests).toContainText(mia);
-  await expect(requests).toContainText("Meine Tochter, 6 Jahre");
-  await requests.getByRole("button", { name: `${de.admin.rsvp.approve}: ${mia}` }).click();
-  await expect(page.getByRole("button", { name: `${de.admin.rsvp.approve}: ${mia}` })).toHaveCount(
-    0,
-  );
-
-  // The approved person is in the table under the guest, with the allergies (admins only).
+  await expect(page.getByRole("region", { name: /Begleitpersonen-Anfragen/ })).toHaveCount(0);
   const row = page.getByRole("row", { name: new RegExp(mia) });
-  await expect(row).toContainText("Trauung, Dinner");
-  await expect(row).toContainText("Kindermenü");
+  await expect(row).toContainText("Trauung");
   await expect(row).toContainText("Erdnüsse");
   const csv = await page.request.get("/api/admin/rsvp/export");
-  expect(await csv.text()).toContain(`↳ ${mia};bestätigt;ja;nein;ja;nein;Kindermenü;;Erdnüsse`);
-
-  // The guest sees the approval and can no longer withdraw; the allergies are not visible to
-  // anyone else.
-  await guest.reload();
-  await expect(
-    guest
-      .getByRole("listitem")
-      .filter({ hasText: mia })
-      .getByText(de.rsvp.companions.status.approved),
-  ).toBeVisible();
+  expect(await csv.text()).toContain(`↳ ${mia};bestätigt;ja;;;;;;Erdnüsse`);
   expect((await guest.request.get("/api/admin/rsvp")).status()).toBe(403);
+
+  // The admin removes the person with a second click.
+  await row.getByRole("button", { name: `${de.admin.rsvp.remove}: ${mia}` }).click();
+  await row.getByRole("button", { name: de.admin.rsvp.removeFinal }).click();
+  await expect(page.getByRole("row", { name: new RegExp(mia) })).toHaveCount(0);
+  await guest.reload();
+  await expect(guest.getByText(mia)).toHaveCount(0);
   await guestContext.close();
 });

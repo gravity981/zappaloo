@@ -13,6 +13,8 @@ import { Switch } from "./ui.tsx";
 
 const PARTS_PATH = "/api/admin/rsvp/program-items";
 const SONG_PATH = "/api/admin/rsvp/song";
+const PER_ITEM_PATH = "/api/admin/rsvp/per-item";
+const APPROVAL_PATH = "/api/admin/rsvp/companion-approval";
 
 /** The form of one program item; `programItem` undefined is a new one. */
 function ProgramItemForm({
@@ -100,6 +102,8 @@ export default function RsvpSettingsCard() {
   const [confirmDelete, setConfirmDelete] = useState<number>();
   const [menuName, setMenuName] = useState("");
   const [renaming, setRenaming] = useState<{ id: number; name: string }>();
+  /** Switching the approval off asks first while requests wait: they are approved with it. */
+  const [confirmApprovalOff, setConfirmApprovalOff] = useState(false);
 
   /** Runs a change; reloads on success and shows the error text otherwise. */
   async function run(method: "POST" | "PUT" | "PATCH" | "DELETE", path: string, body?: object) {
@@ -176,6 +180,67 @@ export default function RsvpSettingsCard() {
           onChange={(enabled) => void run("PUT", SONG_PATH, { enabled })}
         />
       </div>
+
+      <div className="setrow">
+        <div className="grow">
+          <b className="sm">{t("admin.rsvpSettings.perItem")}</b>
+          <span className="hint">{t("admin.rsvpSettings.perItemHint")}</span>
+          {data.perItem && data.mixedCount > 0 && (
+            <span className="hint" role="status">
+              {t("admin.rsvpSettings.perItemMixed", { count: data.mixedCount })}
+            </span>
+          )}
+        </div>
+        <Switch
+          checked={data.perItem}
+          label={t("admin.rsvpSettings.perItem")}
+          onChange={(enabled) => void run("PUT", PER_ITEM_PATH, { enabled })}
+        />
+      </div>
+
+      <div className="setrow">
+        <div className="grow">
+          <b className="sm">{t("admin.rsvpSettings.companionApproval")}</b>
+          <span className="hint">{t("admin.rsvpSettings.companionApprovalHint")}</span>
+        </div>
+        <Switch
+          checked={data.companionApproval}
+          label={t("admin.rsvpSettings.companionApproval")}
+          onChange={(enabled) => {
+            if (!enabled && data.pendingCount > 0) setConfirmApprovalOff(true);
+            else void run("PUT", APPROVAL_PATH, { enabled });
+          }}
+        />
+      </div>
+      {confirmApprovalOff && (
+        <div className="card flat" role="alertdialog" aria-labelledby="approval-off">
+          <span id="approval-off">
+            {t("admin.rsvpSettings.approvalOffConfirm", { count: data.pendingCount })}
+          </span>
+          <div className="row">
+            <button
+              type="button"
+              className="btn sm"
+              onClick={() =>
+                void run("PUT", APPROVAL_PATH, { enabled: false }).then(() => {
+                  setConfirmApprovalOff(false);
+                })
+              }
+            >
+              {t("admin.rsvpSettings.approvalOffFinal")}
+            </button>
+            <button
+              type="button"
+              className="btn ghost sm"
+              onClick={() => {
+                setConfirmApprovalOff(false);
+              }}
+            >
+              {t("admin.rsvpSettings.cancel")}
+            </button>
+          </div>
+        </div>
+      )}
 
       <b className="sm">{t("admin.rsvpSettings.programItems")}</b>
       <span className="hint">{t("admin.rsvpSettings.programItemsHint")}</span>

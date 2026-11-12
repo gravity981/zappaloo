@@ -32,6 +32,9 @@ function state(changes: Record<string, unknown> = {}) {
     deadline: "2027-05-01",
     closed: false,
     songEnabled: true,
+    perItem: true,
+    companionApproval: true,
+    mixedCount: 0,
     programItems: PARTS,
     menus: MENUS,
     answer: null,
@@ -362,6 +365,9 @@ describe("Rückmeldungen", () => {
   const overview = {
     deadline: "2027-05-01",
     songEnabled: true,
+    perItem: true,
+    companionApproval: true,
+    mixedCount: 0,
     programItems: PARTS,
     menus: MENUS,
     totals: [
@@ -495,7 +501,16 @@ describe("Rückmeldungen", () => {
 });
 
 describe("Einstellungen › Rückmeldung", () => {
-  const config = { deadline: "2027-05-01", songEnabled: true, programItems: PARTS, menus: MENUS };
+  const config = {
+    deadline: "2027-05-01",
+    songEnabled: true,
+    perItem: true,
+    companionApproval: true,
+    mixedCount: 0,
+    pendingCount: 0,
+    programItems: PARTS,
+    menus: MENUS,
+  };
 
   it("[RSVP-02] the admin adds a program item; the start is entered in the event's time zone", async () => {
     const calls = fakeBackend({
@@ -588,7 +603,16 @@ describe("Einstellungen › Rückmeldung", () => {
 });
 
 describe("invited program items", () => {
-  const config = { deadline: null, songEnabled: true, programItems: PARTS, menus: [] };
+  const config = {
+    deadline: null,
+    songEnabled: true,
+    perItem: true,
+    companionApproval: true,
+    mixedCount: 0,
+    pendingCount: 0,
+    programItems: PARTS,
+    menus: [],
+  };
   const invitation = (changes: Record<string, unknown> = {}) => ({
     id: 1,
     guestName: "Anna Muster",
@@ -793,6 +817,9 @@ describe("Übersicht", () => {
   const overview = {
     deadline: null,
     songEnabled: true,
+    perItem: true,
+    companionApproval: true,
+    mixedCount: 0,
     programItems: PARTS,
     menus: MENUS,
     totals: [],
@@ -899,7 +926,16 @@ describe("the song wish switch", () => {
       "GET /api/session": () => asAdmin,
       "GET /api/admin/rsvp/config": () => ({
         status: 200,
-        body: { deadline: null, songEnabled: true, programItems: PARTS, menus: MENUS },
+        body: {
+          deadline: null,
+          songEnabled: true,
+          perItem: true,
+          companionApproval: true,
+          mixedCount: 0,
+          pendingCount: 0,
+          programItems: PARTS,
+          menus: MENUS,
+        },
       }),
       "PUT /api/admin/rsvp/song": () => ({ status: 204 }),
     });
@@ -924,6 +960,9 @@ describe("the song wish switch", () => {
         body: {
           deadline: null,
           songEnabled: false,
+          perItem: true,
+          companionApproval: true,
+          mixedCount: 0,
           programItems: PARTS,
           menus: MENUS,
           totals: [],
@@ -943,5 +982,175 @@ describe("the song wish switch", () => {
       within(table).queryByRole("columnheader", { name: "Songwunsch" }),
     ).not.toBeInTheDocument();
     expect(within(table).getByRole("columnheader", { name: /Allergien/ })).toBeInTheDocument();
+  });
+});
+
+describe("one answer per person (RSVP-11, 7.4.2)", () => {
+  const approvedMia = {
+    id: 7,
+    name: "Mia Huber",
+    note: null,
+    status: "approved",
+    attendingItemIds: [] as number[],
+    declinedItemIds: [] as number[],
+    menuId: null,
+    allergies: null,
+  };
+
+  it("[RSVP-11] step 1 asks once per person and the answer is the same for every program item", async () => {
+    const calls = fakeBackend({
+      "GET /api/session": () => asGuest,
+      "GET /api/rsvp": () => ({
+        status: 200,
+        body: state({ perItem: false, companionApproval: false, companions: [approvedMia] }),
+      }),
+      "PUT /api/rsvp": () => ({
+        status: 200,
+        body: state({ perItem: false, answer: answered([]), companions: [approvedMia] }),
+      }),
+    });
+    renderAt("/rsvp");
+    await screen.findByRole("heading", { name: "Bist du dabei, Erika?" });
+    expect(screen.getByText(/Sag uns, ob du kommst/)).toBeInTheDocument();
+    // The program items are listed, but nobody is asked per program item.
+    expect(screen.getAllByText("Trauung · Apéro · Dinner")).toHaveLength(2);
+    expect(screen.queryByRole("button", { name: "Trauung: Dabei" })).not.toBeInTheDocument();
+    const next = screen.getByRole("button", { name: "Weiter" });
+    expect(next).toBeDisabled();
+    user.click(screen.getByRole("button", { name: "Ich komme nicht" }));
+    expect(next).toBeDisabled();
+    user.click(screen.getByRole("button", { name: "Mia Huber kommt nicht" }));
+    // Everybody declines: the wizard goes straight to sending.
+    user.click(await screen.findByRole("button", { name: "Antwort senden" }));
+    await waitFor(() => {
+      expect(calls.some((c) => c.method === "PUT")).toBe(true);
+    });
+    expect(calls.find((c) => c.method === "PUT")?.body).toEqual({
+      attendance: [
+        { programItemId: 1, attending: false },
+        { programItemId: 2, attending: false },
+        { programItemId: 3, attending: false },
+      ],
+      companions: [
+        {
+          companionId: 7,
+          attendance: [
+            { programItemId: 1, attending: false },
+            { programItemId: 2, attending: false },
+            { programItemId: 3, attending: false },
+          ],
+        },
+      ],
+    });
+  });
+
+  it("[RSVP-11] a yes answers every program item; an earlier mixed answer is shown as a yes", async () => {
+    const calls = fakeBackend({
+      "GET /api/session": () => asGuest,
+      "GET /api/rsvp": () => ({
+        status: 200,
+        body: state({ perItem: false, answer: answered([1, 3], { menuId: 1 }) }),
+      }),
+      "PUT /api/rsvp": () => ({
+        status: 200,
+        body: state({ perItem: false, answer: answered([1, 2, 3], { menuId: 1 }) }),
+      }),
+    });
+    renderAt("/rsvp");
+    // The summary shows the person as attending every program item.
+    expect(await screen.findAllByText("Dabei")).toHaveLength(3);
+    user.click(screen.getByRole("button", { name: "Ändern" }));
+    const yes = await screen.findByRole("button", { name: "Ich komme" });
+    expect(yes).toHaveAttribute("aria-pressed", "true");
+    user.click(screen.getByRole("button", { name: "Weiter" }));
+    await screen.findByRole("heading", { name: "Essen & Allergien" });
+    user.click(screen.getByRole("button", { name: "Weiter" }));
+    user.click(await screen.findByRole("button", { name: "Antwort senden" }));
+    await waitFor(() => {
+      expect(calls.some((c) => c.method === "PUT")).toBe(true);
+    });
+    expect(calls.find((c) => c.method === "PUT")?.body).toMatchObject({
+      attendance: [
+        { programItemId: 1, attending: true },
+        { programItemId: 2, attending: true },
+        { programItemId: 3, attending: true },
+      ],
+      menuId: 1,
+    });
+  });
+
+  it("[RSVP-11][RSVP-12] the admin switches both settings; switching approval off names the requests it approves", async () => {
+    const config = (changes: Record<string, unknown>) => ({
+      status: 200,
+      body: {
+        deadline: null,
+        songEnabled: true,
+        perItem: true,
+        companionApproval: true,
+        mixedCount: 2,
+        pendingCount: 3,
+        programItems: PARTS,
+        menus: MENUS,
+        ...changes,
+      },
+    });
+    const calls = fakeBackend({
+      "GET /api/session": () => asAdmin,
+      "GET /api/admin/rsvp/config": () => config({}),
+      "PUT /api/admin/rsvp/per-item": () => ({ status: 204 }),
+      "PUT /api/admin/rsvp/companion-approval": () => ({ status: 200, body: { approved: 3 } }),
+    });
+    renderAt("/admin/settings");
+    const perItem = await screen.findByRole("switch", { name: "Pro Programmpunkt zusagen" });
+    expect(perItem).toHaveAttribute("aria-checked", "true");
+    // The switch says how many persons have mixed answers before it is turned off.
+    expect(screen.getByText(/2 Personen haben gemischte Antworten/)).toBeInTheDocument();
+    user.click(perItem);
+    await waitFor(() => {
+      expect(calls.some((c) => c.path.endsWith("/per-item") && c.method === "PUT")).toBe(true);
+    });
+    expect(calls.find((c) => c.path.endsWith("/per-item"))?.body).toEqual({ enabled: false });
+
+    // With requests waiting, switching the approval off asks first and names their number.
+    user.click(screen.getByRole("switch", { name: "Begleitpersonen bestätigen" }));
+    const dialog = await screen.findByRole("alertdialog");
+    expect(within(dialog).getByText(/3 offene Anfragen werden/)).toBeInTheDocument();
+    expect(calls.some((c) => c.path.endsWith("/companion-approval"))).toBe(false);
+    user.click(within(dialog).getByRole("button", { name: "Abbrechen" }));
+    expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument();
+    user.click(screen.getByRole("switch", { name: "Begleitpersonen bestätigen" }));
+    user.click(await screen.findByRole("button", { name: "Ausschalten und annehmen" }));
+    await waitFor(() => {
+      expect(calls.some((c) => c.path.endsWith("/companion-approval"))).toBe(true);
+    });
+    expect(calls.find((c) => c.path.endsWith("/companion-approval"))?.body).toEqual({
+      enabled: false,
+    });
+  });
+
+  it("[RSVP-12] without waiting requests the approval switches off at once", async () => {
+    const calls = fakeBackend({
+      "GET /api/session": () => asAdmin,
+      "GET /api/admin/rsvp/config": () => ({
+        status: 200,
+        body: {
+          deadline: null,
+          songEnabled: true,
+          perItem: false,
+          companionApproval: true,
+          mixedCount: 0,
+          pendingCount: 0,
+          programItems: PARTS,
+          menus: MENUS,
+        },
+      }),
+      "PUT /api/admin/rsvp/companion-approval": () => ({ status: 200, body: { approved: 0 } }),
+    });
+    renderAt("/admin/settings");
+    user.click(await screen.findByRole("switch", { name: "Begleitpersonen bestätigen" }));
+    await waitFor(() => {
+      expect(calls.some((c) => c.method === "PUT")).toBe(true);
+    });
+    expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument();
   });
 });

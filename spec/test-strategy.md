@@ -84,7 +84,7 @@ All active requirements are listed here until their stage is delivered. Shrink t
 | Prefix | IDs | Count |
 |---|---|---|
 | ACC | ACC-17 – ACC-20 | 4 |
-| RSVP | RSVP-11 – RSVP-15 | 5 |
+| RSVP | RSVP-13 – RSVP-15 | 3 |
 | INV | INV-20, INV-21 | 2 |
 | GAME | GAME-01 – GAME-18 | 18 |
 | PRES | PRES-01, PRES-02, PRES-04 – PRES-10, PRES-12 – PRES-15 | 13 |
@@ -103,7 +103,7 @@ All active requirements are listed here until their stage is delivered. Shrink t
 | OPS | OPS-02, OPS-12, OPS-13 | 3 |
 | SEC | SEC-04 – SEC-08 | 5 |
 | PERF | PERF-01, PERF-03, PERF-04 | 3 |
-| **Total** | | **136** |
+| **Total** | | **134** |
 
 The stage each requirement belongs to is listed in `sw-architecture.md`, section 28.
 

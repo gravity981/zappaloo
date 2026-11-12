@@ -224,6 +224,8 @@ describe("the waiting page (ACS-11)", () => {
         ),
       );
     }
+    s.ctx.auth.rsvp.setPerItem(true, "cli");
+    s.ctx.auth.rsvp.setCompanionApproval(true, "cli");
     const guest = async (username: string, displayName: string) => {
       const who = await makeUser(s.ctx, username, ["vip"], displayName);
       s.ctx.auth.rsvp.setInvitedProgramItems(

@@ -55,11 +55,25 @@ export type DeadlineRequest = z.infer<typeof deadlineRequestSchema>;
 /** `PUT /api/admin/rsvp/song`: switches the song wish on or off. */
 export const songEnabledRequestSchema = z.strictObject({ enabled: z.boolean() });
 
+/** `PUT /api/admin/rsvp/per-item`: one answer per person (off) or yes or no per program item (on). */
+export const perItemRequestSchema = z.strictObject({ enabled: z.boolean() });
+
+/** `PUT /api/admin/rsvp/companion-approval`: whether added persons need the admin's approval. */
+export const companionApprovalRequestSchema = z.strictObject({ enabled: z.boolean() });
+
 /** `GET /api/admin/rsvp/config`: deadline, program items and menus (Einstellungen › Rückmeldung). */
 export const rsvpConfigSchema = z.object({
   deadline: dateSchema.nullable(),
   /** Whether the RSVP asks for a song wish (RSVP-06). */
   songEnabled: z.boolean(),
+  /** Yes or no per program item (RSVP-11); off: one answer per person for all of them. */
+  perItem: z.boolean(),
+  /** Whether an added accompanying person waits for the admin's approval (RSVP-12). */
+  companionApproval: z.boolean(),
+  /** Persons (guests and accompanying persons) with a yes and a no: shown when switching to one answer. */
+  mixedCount: z.number().int(),
+  /** Requests waiting for a decision: shown when switching the approval off. */
+  pendingCount: z.number().int(),
   programItems: z.array(programItemSchema),
   menus: z.array(menuOptionSchema),
 });
@@ -149,6 +163,10 @@ export const rsvpStateSchema = z.object({
   closed: z.boolean(),
   /** Whether the wizard asks for a song wish (RSVP-06). */
   songEnabled: z.boolean(),
+  /** Yes or no per program item (RSVP-11); off: step 1 asks once per person. */
+  perItem: z.boolean(),
+  /** Whether an added accompanying person waits for the admin's approval (RSVP-12). */
+  companionApproval: z.boolean(),
   /** The program items the guest is invited to. */
   programItems: z.array(programItemSchema),
   menus: z.array(menuOptionSchema),
@@ -216,6 +234,8 @@ export const rsvpOverviewSchema = z.object({
   deadline: dateSchema.nullable(),
   /** Whether the song wish is asked; the table shows its column only then. */
   songEnabled: z.boolean(),
+  /** Whether an added accompanying person waits for the admin's approval (RSVP-12). */
+  companionApproval: z.boolean(),
   programItems: z.array(programItemSchema),
   menus: z.array(menuOptionSchema),
   /** Per program item: persons who answered yes and who answered no; a program item not answered yet counts in neither. */
@@ -237,7 +257,11 @@ export const rsvpOverviewSchema = z.object({
 export type RsvpOverview = z.infer<typeof rsvpOverviewSchema>;
 
 /** `GET /api/admin/rsvp/pending`: requests waiting for a decision, for the navigation badge. */
-export const rsvpPendingSchema = z.object({ pendingCount: z.number().int() });
+export const rsvpPendingSchema = z.object({
+  pendingCount: z.number().int(),
+  /** The badge and the tile "Begleitpersonen" show only while approval is on (RSVP-12). */
+  companionApproval: z.boolean(),
+});
 
 /** `GET /api/admin/rsvp/guests/:id`: the wizard in admin mode (deadline ignored). */
 export const rsvpAdminStateSchema = rsvpStateSchema;
@@ -262,6 +286,8 @@ export const ACTIVITY_ACTIONS = [
   "rsvp.remind",
   "rsvp.deadline",
   "rsvp.song",
+  "rsvp.per_item",
+  "rsvp.companion_approval",
   "waiting.set",
   "platform.open",
   "platform.close",
@@ -283,6 +309,7 @@ export const ACTIVITY_ACTIONS = [
   "companion.reject",
   "companion.withdraw",
   "companion.rename",
+  "companion.remove",
   "event.setup",
   "event.set",
   "feature.set",
