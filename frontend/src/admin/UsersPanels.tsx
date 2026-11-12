@@ -88,11 +88,13 @@ export function AccountPanel({
     onChanged(result.ok ? undefined : errorText(result.errorCode));
   }
 
-  async function toggleInvitedPart(partId: number) {
-    const partIds = user.invitedPartIds.includes(partId)
-      ? user.invitedPartIds.filter((id) => id !== partId)
-      : [...user.invitedPartIds, partId].sort((a, b) => a - b);
-    const result = await call("PUT", `/api/admin/users/${String(user.id)}/parts`, { partIds });
+  async function toggleInvitedProgramItem(programItemId: number) {
+    const programItemIds = user.invitedProgramItemIds.includes(programItemId)
+      ? user.invitedProgramItemIds.filter((id) => id !== programItemId)
+      : [...user.invitedProgramItemIds, programItemId].sort((a, b) => a - b);
+    const result = await call("PUT", `/api/admin/users/${String(user.id)}/program-items`, {
+      programItemIds,
+    });
     onChanged(result.ok ? undefined : errorText(result.errorCode));
   }
 
@@ -177,20 +179,20 @@ export function AccountPanel({
       </section>
 
       {isVip && (
-        <section className="stack" aria-labelledby="account-parts">
-          <b id="account-parts">{t("admin.users.invitedTo")}</b>
-          {rsvpConfig?.parts.length === 0 ? (
+        <section className="stack" aria-labelledby="account-programItems">
+          <b id="account-programItems">{t("admin.users.invitedTo")}</b>
+          {rsvpConfig?.programItems.length === 0 ? (
             <span className="hint">{t("admin.users.invitedNone")}</span>
           ) : (
             <div className="chips">
-              {(rsvpConfig?.parts ?? []).map((part) => (
+              {(rsvpConfig?.programItems ?? []).map((programItem) => (
                 <ToggleChip
-                  key={part.id}
-                  pressed={user.invitedPartIds.includes(part.id)}
+                  key={programItem.id}
+                  pressed={user.invitedProgramItemIds.includes(programItem.id)}
                   disabled={user.vipAssignment === "invitation_code"}
-                  onToggle={() => void toggleInvitedPart(part.id)}
+                  onToggle={() => void toggleInvitedProgramItem(programItem.id)}
                 >
-                  {part.name}
+                  {programItem.name}
                 </ToggleChip>
               ))}
             </div>

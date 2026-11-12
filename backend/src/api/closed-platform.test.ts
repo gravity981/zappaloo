@@ -5,7 +5,7 @@ import { z } from "zod";
 import { DEFAULT_WAITING_TEXTS } from "@zappaloo/shared";
 import type {
   DoorResponse,
-  EventPart,
+  ProgramItem,
   Role,
   RsvpState,
   WaitingConfig,
@@ -212,13 +212,13 @@ describe("the closed platform (ACS-10)", () => {
 describe("the waiting page (ACS-11)", () => {
   async function withRsvp() {
     const s = await setup();
-    const parts: EventPart[] = [];
+    const programItems: ProgramItem[] = [];
     for (const [name, hour] of [
       ["Trauung", 14],
       ["Dinner", 18],
     ] as const) {
-      parts.push(
-        s.ctx.auth.rsvp.createPart(
+      programItems.push(
+        s.ctx.auth.rsvp.createProgramItem(
           { name, startsAt: `2027-06-12T${String(hour)}:00:00.000Z`, hasMeal: false },
           "cli",
         ),
@@ -226,18 +226,21 @@ describe("the waiting page (ACS-11)", () => {
     }
     const guest = async (username: string, displayName: string) => {
       const who = await makeUser(s.ctx, username, ["vip"], displayName);
-      s.ctx.auth.rsvp.setInvitedParts(
+      s.ctx.auth.rsvp.setInvitedProgramItems(
         who.id,
-        parts.map((p) => p.id),
+        programItems.map((p) => p.id),
         "cli",
       );
       return who;
     };
     const answer = (who: SignedIn, ...attending: string[]) =>
       s.call<RsvpState>(who, "PUT", "/api/rsvp", {
-        attendance: parts.map((p) => ({ partId: p.id, attending: attending.includes(p.name) })),
+        attendance: programItems.map((p) => ({
+          programItemId: p.id,
+          attending: attending.includes(p.name),
+        })),
       });
-    return { ...s, parts, guest, answer };
+    return { ...s, programItems, guest, answer };
   }
 
   it("[ACS-11] the text depends on the RSVP status and speaks to the guest by name", async () => {
@@ -264,14 +267,14 @@ describe("the waiting page (ACS-11)", () => {
   });
 
   it("[ACS-11] {waitingCount} counts accepted guests and approved companions, but not the guest", async () => {
-    const { get, call, guest, answer, root, parts } = await withRsvp();
+    const { get, call, guest, answer, root, programItems } = await withRsvp();
     const erika = await guest("erika", "Erika");
     const lukas = await guest("lukas", "Lukas");
     await answer(erika, "Trauung");
     await answer(lukas, "Trauung");
     const request = await call<RsvpState>(erika, "POST", "/api/rsvp/companions", {
       name: "Mia",
-      attendance: parts.map((p) => ({ partId: p.id, attending: true })),
+      attendance: programItems.map((p) => ({ programItemId: p.id, attending: true })),
     });
     const mia = request.body?.companions[0];
     // A pending request is not counted yet.

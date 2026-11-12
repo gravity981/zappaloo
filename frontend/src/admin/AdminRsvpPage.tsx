@@ -1,5 +1,5 @@
-// Rückmeldungen (RSVP-05, RSVP-07, SEC-11; sw-architecture.md 8.3, 7.4.1): totals per part,
-// the menus of the meal part, the guest table with the admin-only allergy column, the CSV
+// Rückmeldungen (RSVP-05, RSVP-07, SEC-11; sw-architecture.md 8.3, 7.4.1): totals per program item,
+// the menus of the meal program item, the guest table with the admin-only allergy column, the CSV
 // export and reminders. A row opens the RSVP wizard in admin mode.
 import { Fragment, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -66,8 +66,9 @@ export default function AdminRsvpPage() {
   }
   if (!data) return <h1 className="h1">{t("admin.rsvp.title")}</h1>;
 
-  const meal = data.parts.find((part) => part.hasMeal);
-  const partName = (id: number) => data.parts.find((part) => part.id === id)?.name ?? "";
+  const meal = data.programItems.find((programItem) => programItem.hasMeal);
+  const programItemName = (id: number) =>
+    data.programItems.find((programItem) => programItem.id === id)?.name ?? "";
   const menuName = (id: number | null) =>
     id === null
       ? t("admin.rsvp.noChoice")
@@ -142,12 +143,14 @@ export default function AdminRsvpPage() {
       )}
 
       <div className="grid-2">
-        <section className="card" aria-labelledby="rsvp-per-part">
-          <b id="rsvp-per-part">{t("admin.rsvp.perPart")}</b>
-          {data.parts.length === 0 && <span className="hint">{t("admin.rsvp.noParts")}</span>}
+        <section className="card" aria-labelledby="rsvp-per-program-item">
+          <b id="rsvp-per-program-item">{t("admin.rsvp.perProgramItem")}</b>
+          {data.programItems.length === 0 && (
+            <span className="hint">{t("admin.rsvp.noProgramItems")}</span>
+          )}
           {data.totals.map((total) => (
-            <div key={total.partId} className="bar-row">
-              <span>{partName(total.partId)}</span>
+            <div key={total.programItemId} className="bar-row">
+              <span>{programItemName(total.programItemId)}</span>
               <div className="track" aria-hidden="true">
                 <i style={{ width: `${String((total.yes / widest) * 100)}%` }} />
                 <i className="no" style={{ width: `${String((total.no / widest) * 100)}%` }} />
@@ -158,9 +161,9 @@ export default function AdminRsvpPage() {
         </section>
         <section className="card" aria-labelledby="rsvp-menus">
           <b id="rsvp-menus">
-            {meal ? t("admin.rsvp.menus", { part: meal.name }) : t("admin.rsvp.menusNoMeal")}
+            {meal ? t("admin.rsvp.menus", { programItem: meal.name }) : t("admin.rsvp.menusNoMeal")}
           </b>
-          {!meal && <span className="hint">{t("admin.rsvp.noMealPart")}</span>}
+          {!meal && <span className="hint">{t("admin.rsvp.noMealProgramItem")}</span>}
           {data.menuTotals.map((total) => (
             <div key={total.menuId ?? "none"} className="bar-row">
               <span>{menuName(total.menuId)}</span>
@@ -201,7 +204,7 @@ export default function AdminRsvpPage() {
               <tr>
                 <th>{t("admin.rsvp.name")}</th>
                 <th>{t("admin.rsvp.status")}</th>
-                <th>{t("admin.rsvp.parts")}</th>
+                <th>{t("admin.rsvp.programItems")}</th>
                 <th>{t("admin.rsvp.menu")}</th>
                 {data.songEnabled && <th>{t("admin.rsvp.song")}</th>}
                 <th>🔒 {t("admin.rsvp.allergies")}</th>
@@ -228,10 +231,11 @@ export default function AdminRsvpPage() {
                       </span>
                     </td>
                     <td>
-                      {guest.attendingPartIds.map(partName).join(", ") || t("admin.rsvp.none")}
+                      {guest.attendingItemIds.map(programItemName).join(", ") ||
+                        t("admin.rsvp.none")}
                     </td>
                     <td>
-                      {meal && guest.attendingPartIds.includes(meal.id)
+                      {meal && guest.attendingItemIds.includes(meal.id)
                         ? menuName(guest.menuId)
                         : t("admin.rsvp.none")}
                     </td>
@@ -262,10 +266,11 @@ export default function AdminRsvpPage() {
                           <span className="tag ok">{t("admin.rsvp.companionStatus.approved")}</span>
                         </td>
                         <td>
-                          {c.attendingPartIds.map(partName).join(", ") || t("admin.rsvp.none")}
+                          {c.attendingItemIds.map(programItemName).join(", ") ||
+                            t("admin.rsvp.none")}
                         </td>
                         <td>
-                          {meal && c.attendingPartIds.includes(meal.id)
+                          {meal && c.attendingItemIds.includes(meal.id)
                             ? menuName(c.menuId)
                             : t("admin.rsvp.none")}
                         </td>

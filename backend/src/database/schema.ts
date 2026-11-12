@@ -302,9 +302,9 @@ export const accessReleases = sqliteTable(
 
 // --- RSVP (sw-architecture.md 7.4, 7.4.1) -------------------------------------------------
 
-/** Event parts: ceremony, aperitif, dinner, party (RSVP-02). At most one has the meal. */
-export const eventParts = sqliteTable(
-  "event_parts",
+/** Program items: ceremony, aperitif, dinner, party (RSVP-02). At most one has the meal. */
+export const programItems = sqliteTable(
+  "program_items",
   {
     id: integer("id").primaryKey({ autoIncrement: true }),
     eventId: text("event_id")
@@ -317,8 +317,8 @@ export const eventParts = sqliteTable(
     createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull(),
   },
   (table) => [
-    index("event_parts_event").on(table.eventId),
-    uniqueIndex("event_parts_meal")
+    index("program_items_event").on(table.eventId),
+    uniqueIndex("program_items_meal")
       .on(table.eventId)
       .where(sql`${table.hasMeal} = 1`),
   ],
@@ -349,9 +349,9 @@ export const rsvpConfig = sqliteTable("rsvp_config", {
   songEnabled: integer("song_enabled", { mode: "boolean" }).notNull().default(true),
 });
 
-/** The parts an invitation is for; copied to the membership when the code is redeemed. */
-export const invitationParts = sqliteTable(
-  "invitation_parts",
+/** The program items an invitation is for; copied to the membership when the code is redeemed. */
+export const invitationProgramItems = sqliteTable(
+  "invitation_program_items",
   {
     eventId: text("event_id")
       .notNull()
@@ -359,16 +359,16 @@ export const invitationParts = sqliteTable(
     invitationId: integer("invitation_id")
       .notNull()
       .references(() => invitations.id, { onDelete: "cascade" }),
-    partId: integer("part_id")
+    programItemId: integer("program_item_id")
       .notNull()
-      .references(() => eventParts.id, { onDelete: "cascade" }),
+      .references(() => programItems.id, { onDelete: "cascade" }),
   },
-  (table) => [primaryKey({ columns: [table.invitationId, table.partId] })],
+  (table) => [primaryKey({ columns: [table.invitationId, table.programItemId] })],
 );
 
-/** The parts a `vip` is invited to (RSVP-02). */
-export const membershipParts = sqliteTable(
-  "membership_parts",
+/** The program items a `vip` is invited to (RSVP-02). */
+export const membershipProgramItems = sqliteTable(
+  "membership_program_items",
   {
     eventId: text("event_id")
       .notNull()
@@ -376,12 +376,12 @@ export const membershipParts = sqliteTable(
     userId: integer("user_id")
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
-    partId: integer("part_id")
+    programItemId: integer("program_item_id")
       .notNull()
-      .references(() => eventParts.id, { onDelete: "cascade" }),
+      .references(() => programItems.id, { onDelete: "cascade" }),
   },
   (table) => [
-    primaryKey({ columns: [table.eventId, table.userId, table.partId] }),
+    primaryKey({ columns: [table.eventId, table.userId, table.programItemId] }),
     ofMembership(table),
   ],
 );
@@ -405,7 +405,7 @@ export const rsvpAnswers = sqliteTable(
   (table) => [primaryKey({ columns: [table.eventId, table.userId] }), ofMembership(table)],
 );
 
-/** Yes or no per invited part (RSVP-01). */
+/** Yes or no per invited program item (RSVP-01). */
 export const rsvpAttendance = sqliteTable(
   "rsvp_attendance",
   {
@@ -415,13 +415,13 @@ export const rsvpAttendance = sqliteTable(
     userId: integer("user_id")
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
-    partId: integer("part_id")
+    programItemId: integer("program_item_id")
       .notNull()
-      .references(() => eventParts.id, { onDelete: "cascade" }),
+      .references(() => programItems.id, { onDelete: "cascade" }),
     attending: integer("attending", { mode: "boolean" }).notNull(),
   },
   (table) => [
-    primaryKey({ columns: [table.eventId, table.userId, table.partId] }),
+    primaryKey({ columns: [table.eventId, table.userId, table.programItemId] }),
     ofMembership(table),
   ],
 );
@@ -463,7 +463,7 @@ export const companions = sqliteTable(
   ],
 );
 
-/** Yes or no per part for a companion, for the parts the guest is invited to. */
+/** Yes or no per program item for a companion, for the program items the guest is invited to. */
 export const companionAttendance = sqliteTable(
   "companion_attendance",
   {
@@ -473,12 +473,12 @@ export const companionAttendance = sqliteTable(
     companionId: integer("companion_id")
       .notNull()
       .references(() => companions.id, { onDelete: "cascade" }),
-    partId: integer("part_id")
+    programItemId: integer("program_item_id")
       .notNull()
-      .references(() => eventParts.id, { onDelete: "cascade" }),
+      .references(() => programItems.id, { onDelete: "cascade" }),
     attending: integer("attending", { mode: "boolean" }).notNull(),
   },
-  (table) => [primaryKey({ columns: [table.companionId, table.partId] })],
+  (table) => [primaryKey({ columns: [table.companionId, table.programItemId] })],
 );
 
 // --- Waiting page (sw-architecture.md 10.4; ACS-11, ACS-13) -------------------------------

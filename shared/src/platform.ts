@@ -57,7 +57,7 @@ Diese Seite gehört zum Fest «{eventName}». Wir speichern nur, was wir dafür 
 ## Was wir speichern
 
 - **Dein Konto:** Benutzername, Anzeigename und dein Passwort (nur verschlüsselt, wir können es nicht lesen). Eine E-Mail-Adresse speichern wir nur, wenn du sie angibst.
-- **Deine Rückmeldung:** für welche Teile des Festes du zu- oder absagst, dein Menü, ein Songwunsch, falls danach gefragt wird, und die Personen, die du mitbringst (Name und ihre Angaben).
+- **Deine Rückmeldung:** für welche Programmpunkte des Festes du zu- oder absagst, dein Menü, ein Songwunsch, falls danach gefragt wird, und die Personen, die du mitbringst (Name und ihre Angaben).
 - **Allergien und Unverträglichkeiten:** Das sind Gesundheitsdaten und deshalb besonders schützenswert. Sie dienen nur der Planung des Essens. Nur die Administratoren sehen sie, weder andere Gäste noch Helferinnen und Helfer.
 - **Beiträge:** Fotos und Texte, die du später hochlädst oder schreibst, sobald diese Funktionen freigeschaltet sind.
 - **Technisches:** ein Cookie, damit du angemeldet bleibst. Wir setzen keine Werbe- oder Analyse-Dienste ein.

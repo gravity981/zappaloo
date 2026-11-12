@@ -35,14 +35,14 @@ const companion = (changes: Record<string, unknown> = {}) => {
     name: "Mia Huber",
     note: "Meine Tochter, 6 Jahre",
     status: "pending",
-    attendingPartIds: [1, 3] as number[],
+    attendingItemIds: [1, 3] as number[],
     menuId: 4,
     allergies: null,
     ...changes,
   };
-  // Every part the person does not attend is answered with no, unless the test says otherwise.
+  // Every program item the person does not attend is answered with no, unless the test says otherwise.
   return {
-    declinedPartIds: PARTS.map((p) => p.id).filter((id) => !value.attendingPartIds.includes(id)),
+    declinedItemIds: PARTS.map((p) => p.id).filter((id) => !value.attendingItemIds.includes(id)),
     ...value,
   };
 };
@@ -53,11 +53,11 @@ function state(changes: Record<string, unknown> = {}) {
     deadline: "2027-05-01",
     closed: false,
     songEnabled: true,
-    parts: PARTS,
+    programItems: PARTS,
     menus: MENUS,
     answer: {
-      attendingPartIds: [1],
-      declinedPartIds: [3],
+      attendingItemIds: [1],
+      declinedItemIds: [3],
       menuId: null,
       allergies: null,
       songWish: null,
@@ -144,7 +144,7 @@ describe("accompanying persons in the wizard", () => {
     );
     user.click(screen.getByRole("button", { name: "Trauung: Dabei" }));
     user.click(screen.getByRole("button", { name: "Dinner: Dabei" }));
-    // The meal part needs a menu.
+    // The meal program item needs a menu.
     expect(submit).toBeDisabled();
     user.click(screen.getByRole("button", { name: "Mia Huber: Kindermenü" }));
     expect(submit).toBeEnabled();
@@ -158,8 +158,8 @@ describe("accompanying persons in the wizard", () => {
         name: "Mia Huber",
         note: "Meine Tochter, 6 Jahre",
         attendance: [
-          { partId: 1, attending: true },
-          { partId: 3, attending: true },
+          { programItemId: 1, attending: true },
+          { programItemId: 3, attending: true },
         ],
         menuId: 4,
       },
@@ -192,8 +192,8 @@ describe("accompanying persons in the wizard", () => {
     ).toMatchObject({
       name: "Mia Maria Huber",
       attendance: [
-        { partId: 1, attending: true },
-        { partId: 3, attending: true },
+        { programItemId: 1, attending: true },
+        { programItemId: 3, attending: true },
       ],
       menuId: 4,
     });
@@ -231,8 +231,8 @@ describe("accompanying persons in the wizard", () => {
 
   it("[RSVP-10] a request saved in its form wins over what the steps held for that person", async () => {
     const answer = {
-      attendingPartIds: [1, 3],
-      declinedPartIds: [],
+      attendingItemIds: [1, 3],
+      declinedItemIds: [],
       menuId: 1,
       allergies: null,
       songWish: null,
@@ -273,7 +273,7 @@ describe("accompanying persons in the wizard", () => {
       name: "Noah Huber",
       status: "approved",
       note: null,
-      attendingPartIds: [3],
+      attendingItemIds: [3],
       menuId: 4,
     });
     const calls = fakeBackend({
@@ -305,8 +305,8 @@ describe("accompanying persons in the wizard", () => {
         {
           companionId: 8,
           attendance: [
-            { partId: 1, attending: true },
-            { partId: 3, attending: false },
+            { programItemId: 1, attending: true },
+            { programItemId: 3, attending: false },
           ],
           allergies: "Laktose",
         },
@@ -314,23 +314,23 @@ describe("accompanying persons in the wizard", () => {
     });
   });
 
-  it("[RSVP-09] declining every part for the guest and the approved persons skips to the summary", async () => {
-    const noah = companion({ id: 8, name: "Noah", status: "approved", attendingPartIds: [] });
+  it("[RSVP-09] declining every program item for the guest and the approved persons skips to the summary", async () => {
+    const noah = companion({ id: 8, name: "Noah", status: "approved", attendingItemIds: [] });
     const calls = fakeBackend({
       "GET /api/session": () => asGuest,
       "GET /api/rsvp": () => ({
         status: 200,
         body: state({
           answer: null,
-          companions: [noah, companion({ id: 7, attendingPartIds: [] })],
+          companions: [noah, companion({ id: 7, attendingItemIds: [] })],
         }),
       }),
       "PUT /api/rsvp": () => ({
         status: 200,
         body: state({
           answer: {
-            attendingPartIds: [],
-            declinedPartIds: [1, 3],
+            attendingItemIds: [],
+            declinedItemIds: [1, 3],
             menuId: null,
             allergies: null,
             songWish: null,
@@ -356,15 +356,15 @@ describe("accompanying persons in the wizard", () => {
         {
           companionId: 8,
           attendance: [
-            { partId: 1, attending: false },
-            { partId: 3, attending: false },
+            { programItemId: 1, attending: false },
+            { programItemId: 3, attending: false },
           ],
         },
         {
           companionId: 7,
           attendance: [
-            { partId: 1, attending: false },
-            { partId: 3, attending: false },
+            { programItemId: 1, attending: false },
+            { programItemId: 3, attending: false },
           ],
         },
       ],
@@ -437,7 +437,7 @@ describe("Rückmeldungen: companion requests", () => {
   const overview = (changes: Record<string, unknown> = {}) => ({
     deadline: null,
     songEnabled: true,
-    parts: PARTS,
+    programItems: PARTS,
     menus: MENUS,
     totals: [],
     menuTotals: [],
@@ -446,9 +446,9 @@ describe("Rückmeldungen: companion requests", () => {
         userId: 5,
         name: "Erika Huber",
         status: "attending",
-        invitedPartIds: [1, 3],
-        attendingPartIds: [1],
-        declinedPartIds: [3],
+        invitedProgramItemIds: [1, 3],
+        attendingItemIds: [1],
+        declinedItemIds: [3],
         menuId: null,
         songWish: null,
         allergies: null,
@@ -467,7 +467,7 @@ describe("Rückmeldungen: companion requests", () => {
           name: "Noah Huber",
           status: "approved",
           note: null,
-          attendingPartIds: [3],
+          attendingItemIds: [3],
           menuId: 1,
           allergies: "Laktose",
         }),

@@ -18,7 +18,13 @@ const asAdmin = { status: 200, body: { user: admin, csrfToken: "csrf-1" } };
 
 /** An account as `GET /api/admin/users` lists it. */
 function account(changes: Record<string, unknown> = {}) {
-  return { ...anna, vipAssignment: "invitation_code", groups: [], invitedPartIds: [], ...changes };
+  return {
+    ...anna,
+    vipAssignment: "invitation_code",
+    groups: [],
+    invitedProgramItemIds: [],
+    ...changes,
+  };
 }
 
 describe("admin area", () => {
@@ -137,7 +143,7 @@ describe("invitations", () => {
     createdAt: "2026-11-10T10:00:00.000Z",
     redeemedAt: null,
     redeemedBy: null,
-    partIds: [],
+    programItemIds: [],
   };
 
   it("[INV-01][INV-04][INV-14] an admin creates invitations and gets cards with code and QR code", async () => {

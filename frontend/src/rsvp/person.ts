@@ -1,8 +1,8 @@
 // The answer of one person (guest or companion) while the wizard edits it.
 import { menuRequired } from "@zappaloo/shared";
-import type { EventPart, MenuOption } from "@zappaloo/shared";
+import type { ProgramItem, MenuOption } from "@zappaloo/shared";
 
-/** What the wizard holds for one person while it is edited; a part without a value is open. */
+/** What the wizard holds for one person while it is edited; a program item without a value is open. */
 export interface PersonValue {
   attendance: Record<number, boolean>;
   menuId: number | null;
@@ -10,17 +10,17 @@ export interface PersonValue {
 }
 
 /**
- * Yes or no per part as the server has it. A part in neither list was added to the invitation
+ * Yes or no per program item as the server has it. A program item in neither list was added to the invitation
  * after the answer: it stays open, so the wizard asks for it (7.4.1).
  */
 export function attendanceOf(
-  answer: { attendingPartIds: number[]; declinedPartIds: number[] },
-  parts: EventPart[],
+  answer: { attendingItemIds: number[]; declinedItemIds: number[] },
+  programItems: ProgramItem[],
 ): Record<number, boolean> {
   const attendance: Record<number, boolean> = {};
-  for (const part of parts) {
-    if (answer.attendingPartIds.includes(part.id)) attendance[part.id] = true;
-    else if (answer.declinedPartIds.includes(part.id)) attendance[part.id] = false;
+  for (const programItem of programItems) {
+    if (answer.attendingItemIds.includes(programItem.id)) attendance[programItem.id] = true;
+    else if (answer.declinedItemIds.includes(programItem.id)) attendance[programItem.id] = false;
   }
   return attendance;
 }
@@ -28,29 +28,35 @@ export function attendanceOf(
 /** The value of a companion as the server has it. */
 export function personOf(
   companion: {
-    attendingPartIds: number[];
-    declinedPartIds: number[];
+    attendingItemIds: number[];
+    declinedItemIds: number[];
     menuId: number | null;
     allergies: string | null;
   },
-  parts: EventPart[],
+  programItems: ProgramItem[],
 ): PersonValue {
   return {
-    attendance: attendanceOf(companion, parts),
+    attendance: attendanceOf(companion, programItems),
     menuId: companion.menuId,
     allergies: companion.allergies ?? "",
   };
 }
 
-/** True once every part has a yes or a no. */
-export function answeredAll(value: PersonValue, parts: EventPart[]): boolean {
-  return parts.every((part) => value.attendance[part.id] !== undefined);
+/** True once every program item has a yes or a no. */
+export function answeredAll(value: PersonValue, programItems: ProgramItem[]): boolean {
+  return programItems.every((programItem) => value.attendance[programItem.id] !== undefined);
 }
 
-/** The person attends the part with the meal and menus exist: the menu is then needed. */
-export function needsMenu(value: PersonValue, parts: EventPart[], menus: MenuOption[]): boolean {
-  const attending = parts.filter((part) => value.attendance[part.id] === true).map((p) => p.id);
-  return menuRequired(parts, menus.length, attending);
+/** The person attends the program item with the meal and menus exist: the menu is then needed. */
+export function needsMenu(
+  value: PersonValue,
+  programItems: ProgramItem[],
+  menus: MenuOption[],
+): boolean {
+  const attending = programItems
+    .filter((programItem) => value.attendance[programItem.id] === true)
+    .map((p) => p.id);
+  return menuRequired(programItems, menus.length, attending);
 }
 
 export function attendsAny(value: PersonValue): boolean {
@@ -58,16 +64,16 @@ export function attendsAny(value: PersonValue): boolean {
 }
 
 /** The request body of one person's answer. */
-export function answerOf(value: PersonValue, parts: EventPart[], menus: MenuOption[]) {
+export function answerOf(value: PersonValue, programItems: ProgramItem[], menus: MenuOption[]) {
   const attending = attendsAny(value);
   return {
-    attendance: parts.map((part) => ({
-      partId: part.id,
-      attending: value.attendance[part.id] === true,
+    attendance: programItems.map((programItem) => ({
+      programItemId: programItem.id,
+      attending: value.attendance[programItem.id] === true,
     })),
     ...(attending
       ? {
-          ...(needsMenu(value, parts, menus) && value.menuId !== null
+          ...(needsMenu(value, programItems, menus) && value.menuId !== null
             ? { menuId: value.menuId }
             : {}),
           allergies: value.allergies.trim() === "" ? null : value.allergies.trim(),

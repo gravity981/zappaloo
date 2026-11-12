@@ -646,7 +646,7 @@
 :is(.admin, .guest) .rsvp-actions .btn:last-child:not(:first-child) {
   margin-left: auto;
 }
-:is(.admin, .guest) .rsvp-part {
+:is(.admin, .guest) .rsvp-program-item {
   display: flex;
   align-items: center;
   gap: 10px;
@@ -654,10 +654,10 @@
   padding: 8px 0;
   border-bottom: 1px solid var(--a-fill);
 }
-:is(.admin, .guest) .rsvp-part:last-child {
+:is(.admin, .guest) .rsvp-program-item:last-child {
   border-bottom: 0;
 }
-:is(.admin, .guest) .rsvp-part .grow {
+:is(.admin, .guest) .rsvp-program-item .grow {
   min-width: 10rem;
 }
 :is(.admin, .guest) .lock {

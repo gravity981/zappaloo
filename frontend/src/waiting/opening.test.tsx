@@ -110,7 +110,7 @@ describe("the privacy notice page (SEC-09)", () => {
           deadline: null,
           closed: false,
           songEnabled: true,
-          parts: [],
+          programItems: [],
           menus: [],
           answer: null,
           companions: [],

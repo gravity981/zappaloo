@@ -1,27 +1,27 @@
 // Einstellungen › Rückmeldung (RSVP-02, RSVP-03, RSVP-04; sw-architecture.md 7.4.1): the
-// deadline, the event parts (name, start, place, which one has the meal) and the one list of
+// deadline, the program items (name, start, place, which one has the meal) and the one list of
 // menu options.
 import { useState } from "react";
 import type { SubmitEvent } from "react";
 import { useTranslation } from "react-i18next";
 import { instantToLocal, localToInstant, rsvpConfigSchema } from "@zappaloo/shared";
-import type { EventPart } from "@zappaloo/shared";
+import type { ProgramItem } from "@zappaloo/shared";
 import { fieldText } from "../app/forms.ts";
 import { useEventFormat } from "../rsvp/format.ts";
 import { useAdminCall, useAdminData, useErrorText } from "./data.ts";
 import { Switch } from "./ui.tsx";
 
-const PARTS_PATH = "/api/admin/rsvp/parts";
+const PARTS_PATH = "/api/admin/rsvp/program-items";
 const SONG_PATH = "/api/admin/rsvp/song";
 
-/** The form of one part; `part` undefined is a new one. */
-function PartForm({
-  part,
+/** The form of one program item; `programItem` undefined is a new one. */
+function ProgramItemForm({
+  programItem,
   timeZone,
   onSubmit,
   onCancel,
 }: {
-  part?: EventPart;
+  programItem?: ProgramItem;
   timeZone: string;
   onSubmit: (body: object) => Promise<void>;
   onCancel: () => void;
@@ -42,27 +42,38 @@ function PartForm({
     <form className="card flat" onSubmit={submit}>
       <div className="inline-form">
         <label className="field">
-          <span>{t("admin.rsvpSettings.partName")}</span>
-          <input className="input" name="name" required maxLength={60} defaultValue={part?.name} />
+          <span>{t("admin.rsvpSettings.programItemName")}</span>
+          <input
+            className="input"
+            name="name"
+            required
+            maxLength={60}
+            defaultValue={programItem?.name}
+          />
         </label>
         <label className="field">
-          <span>{t("admin.rsvpSettings.partStart")}</span>
+          <span>{t("admin.rsvpSettings.programItemStart")}</span>
           <input
             className="input"
             name="startsAt"
             type="datetime-local"
             required
-            defaultValue={part ? instantToLocal(part.startsAt, timeZone) : undefined}
+            defaultValue={programItem ? instantToLocal(programItem.startsAt, timeZone) : undefined}
           />
         </label>
         <label className="field">
-          <span>{t("admin.rsvpSettings.partPlace")}</span>
-          <input className="input" name="place" maxLength={100} defaultValue={part?.place ?? ""} />
+          <span>{t("admin.rsvpSettings.programItemPlace")}</span>
+          <input
+            className="input"
+            name="place"
+            maxLength={100}
+            defaultValue={programItem?.place ?? ""}
+          />
         </label>
       </div>
       <label className="row sm">
-        <input type="checkbox" name="hasMeal" defaultChecked={part?.hasMeal ?? false} />
-        {t("admin.rsvpSettings.partMeal")}
+        <input type="checkbox" name="hasMeal" defaultChecked={programItem?.hasMeal ?? false} />
+        {t("admin.rsvpSettings.programItemMeal")}
       </label>
       <div className="row">
         <button type="submit" className="btn sm">
@@ -84,7 +95,7 @@ export default function RsvpSettingsCard() {
   const { data, reload } = useAdminData("/api/admin/rsvp/config", rsvpConfigSchema);
   const [error, setError] = useState<string>();
   const [saved, setSaved] = useState(false);
-  /** The part being edited, "new" for the add form, or undefined. */
+  /** The program item being edited, "new" for the add form, or undefined. */
   const [editing, setEditing] = useState<number | "new">();
   const [confirmDelete, setConfirmDelete] = useState<number>();
   const [menuName, setMenuName] = useState("");
@@ -166,54 +177,64 @@ export default function RsvpSettingsCard() {
         />
       </div>
 
-      <b className="sm">{t("admin.rsvpSettings.parts")}</b>
-      <span className="hint">{t("admin.rsvpSettings.partsHint")}</span>
-      {data.parts.length === 0 && <span className="hint">{t("admin.rsvpSettings.noParts")}</span>}
+      <b className="sm">{t("admin.rsvpSettings.programItems")}</b>
+      <span className="hint">{t("admin.rsvpSettings.programItemsHint")}</span>
+      {data.programItems.length === 0 && (
+        <span className="hint">{t("admin.rsvpSettings.noProgramItems")}</span>
+      )}
       <ul className="list">
-        {data.parts.map((part) =>
-          editing === part.id ? (
-            <li key={part.id}>
-              <PartForm
-                part={part}
+        {data.programItems.map((programItem) =>
+          editing === programItem.id ? (
+            <li key={programItem.id}>
+              <ProgramItemForm
+                programItem={programItem}
                 timeZone={format.timeZone}
                 onCancel={() => {
                   setEditing(undefined);
                 }}
                 onSubmit={async (body) => {
-                  if (await run("PATCH", `/api/admin/rsvp/parts/${String(part.id)}`, body)) {
+                  if (
+                    await run(
+                      "PATCH",
+                      `/api/admin/rsvp/program-items/${String(programItem.id)}`,
+                      body,
+                    )
+                  ) {
                     setEditing(undefined);
                   }
                 }}
               />
             </li>
           ) : (
-            <li key={part.id} className="li">
+            <li key={programItem.id} className="li">
               <div className="grow">
-                <b>{part.name}</b>
-                {part.hasMeal && <span className="tag ok">{t("admin.rsvpSettings.mealTag")}</span>}
+                <b>{programItem.name}</b>
+                {programItem.hasMeal && (
+                  <span className="tag ok">{t("admin.rsvpSettings.mealTag")}</span>
+                )}
                 <span className="hint">
-                  {format.date(part.startsAt)} {format.time(part.startsAt)}
-                  {part.place && ` · ${part.place}`}
+                  {format.date(programItem.startsAt)} {format.time(programItem.startsAt)}
+                  {programItem.place && ` · ${programItem.place}`}
                 </span>
               </div>
               <button
                 type="button"
                 className="btn soft sm"
-                aria-label={`${t("admin.rsvpSettings.edit")}: ${part.name}`}
+                aria-label={`${t("admin.rsvpSettings.edit")}: ${programItem.name}`}
                 onClick={() => {
-                  setEditing(part.id);
+                  setEditing(programItem.id);
                 }}
               >
                 {t("admin.rsvpSettings.edit")}
               </button>
-              {confirmDelete === part.id ? (
+              {confirmDelete === programItem.id ? (
                 <button
                   type="button"
                   className="btn danger sm"
-                  aria-label={`${t("admin.rsvpSettings.confirmDelete")} ${part.name}`}
+                  aria-label={`${t("admin.rsvpSettings.confirmDelete")} ${programItem.name}`}
                   onClick={() => {
                     setConfirmDelete(undefined);
-                    void run("DELETE", `/api/admin/rsvp/parts/${String(part.id)}`);
+                    void run("DELETE", `/api/admin/rsvp/program-items/${String(programItem.id)}`);
                   }}
                 >
                   {t("admin.rsvpSettings.confirmDelete")}
@@ -222,9 +243,9 @@ export default function RsvpSettingsCard() {
                 <button
                   type="button"
                   className="btn ghost sm"
-                  aria-label={`${t("admin.rsvpSettings.delete")}: ${part.name}`}
+                  aria-label={`${t("admin.rsvpSettings.delete")}: ${programItem.name}`}
                   onClick={() => {
-                    setConfirmDelete(part.id);
+                    setConfirmDelete(programItem.id);
                   }}
                 >
                   {t("admin.rsvpSettings.delete")}
@@ -238,7 +259,7 @@ export default function RsvpSettingsCard() {
         <span className="hint">{t("admin.rsvpSettings.deleteHint")}</span>
       )}
       {editing === "new" ? (
-        <PartForm
+        <ProgramItemForm
           timeZone={format.timeZone}
           onCancel={() => {
             setEditing(undefined);
@@ -255,7 +276,7 @@ export default function RsvpSettingsCard() {
             setEditing("new");
           }}
         >
-          {t("admin.rsvpSettings.addPart")}
+          {t("admin.rsvpSettings.addProgramItem")}
         </button>
       )}
 

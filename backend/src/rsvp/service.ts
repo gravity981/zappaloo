@@ -1,4 +1,4 @@
-// RSVP: event parts, menu options, the deadline, the guests' answers and the admin overview
+// RSVP: program items, menu options, the deadline, the guests' answers and the admin overview
 // (RSVP-01 – RSVP-07, SEC-11; sw-architecture.md 7.4, 7.4.1). Allergies are health data: only
 // the admin overview and the guest's own answer ever return them (SEC-11).
 import { and, asc, eq, inArray } from "drizzle-orm";
@@ -6,9 +6,9 @@ import { MAX_COMPANIONS, menuRequired, rsvpStatus } from "@zappaloo/shared";
 import type {
   Companion,
   CompanionRequest,
-  EventPart,
-  EventPartRequest,
-  EventPartUpdate,
+  ProgramItem,
+  ProgramItemRequest,
+  ProgramItemUpdate,
   MenuOption,
   RsvpAnswer,
   RsvpAnswerRequest,
@@ -22,8 +22,8 @@ import type { Database } from "../database/database.ts";
 import {
   companionAttendance,
   companions,
-  eventParts,
-  membershipParts,
+  programItems,
+  membershipProgramItems,
   membershipRoles,
   menuOptions,
   rsvpAnswers,
@@ -38,7 +38,7 @@ import { attendingNow, pruneAnswers } from "./cleanup.ts";
 import { closesAt } from "./deadline.ts";
 
 export type RsvpErrorCode =
-  | "part_not_found"
+  | "program_item_not_found"
   | "menu_not_found"
   | "user_not_found"
   | "not_a_guest"
@@ -62,7 +62,7 @@ export class RsvpError extends Error {
 
 /** One person's answer after the checks of `#checkPerson`. */
 interface CheckedPerson {
-  attendance: { partId: number; attending: boolean }[];
+  attendance: { programItemId: number; attending: boolean }[];
   attending: number[];
   menuId: number | null;
   allergies: string | null;
@@ -70,9 +70,9 @@ interface CheckedPerson {
 
 type Tx = Parameters<Parameters<Database["db"]["transaction"]>[0]>[0];
 type Reader = Pick<Database["db"], "select">;
-type PartRow = typeof eventParts.$inferSelect;
+type ProgramItemRow = typeof programItems.$inferSelect;
 
-const toPart = (row: PartRow): EventPart => ({
+const toProgramItem = (row: ProgramItemRow): ProgramItem => ({
   id: row.id,
   name: row.name,
   startsAt: row.startsAt.toISOString(),
@@ -80,11 +80,14 @@ const toPart = (row: PartRow): EventPart => ({
   hasMeal: row.hasMeal,
 });
 
-/** The parts answered with yes (or with no), sorted. */
-function partIdsOf(rows: { partId: number; attending: boolean }[], attending: boolean): number[] {
+/** The program items answered with yes (or with no), sorted. */
+function programItemIdsOf(
+  rows: { programItemId: number; attending: boolean }[],
+  attending: boolean,
+): number[] {
   return rows
     .filter((row) => row.attending === attending)
-    .map((row) => row.partId)
+    .map((row) => row.programItemId)
     .sort((a, b) => a - b);
 }
 
@@ -92,7 +95,7 @@ type CompanionRow = typeof companions.$inferSelect;
 
 function toCompanion(
   row: CompanionRow,
-  attendance: { companionId: number; partId: number; attending: boolean }[],
+  attendance: { companionId: number; programItemId: number; attending: boolean }[],
 ): Companion {
   const mine = attendance.filter((a) => a.companionId === row.id);
   return {
@@ -100,8 +103,8 @@ function toCompanion(
     name: row.name,
     note: row.note,
     status: row.status,
-    attendingPartIds: partIdsOf(mine, true),
-    declinedPartIds: partIdsOf(mine, false),
+    attendingItemIds: programItemIdsOf(mine, true),
+    declinedItemIds: programItemIdsOf(mine, false),
     menuId: row.menuId,
     allergies: row.allergies,
   };
@@ -117,13 +120,13 @@ function withoutEmail(guest: RsvpGuest & { email: string | null }): RsvpGuest {
 /** A reminder reaches a guest without an answer who has a verified address (RSVP-07). */
 const isReminded = (guest: RsvpGuest): boolean => guest.status === "none" && guest.verifiedEmail;
 
-/** One cell per part of the CSV export: ja, nein, or empty when not invited or not answered. */
-function partCell(
-  person: { attendingPartIds: number[]; declinedPartIds: number[] },
-  partId: number,
+/** One cell per program item of the CSV export: ja, nein, or empty when not invited or not answered. */
+function programItemCell(
+  person: { attendingItemIds: number[]; declinedItemIds: number[] },
+  programItemId: number,
 ): string {
-  if (person.attendingPartIds.includes(partId)) return "ja";
-  return person.declinedPartIds.includes(partId) ? "nein" : "";
+  if (person.attendingItemIds.includes(programItemId)) return "ja";
+  return person.declinedItemIds.includes(programItemId) ? "nein" : "";
 }
 
 /** A cell of the CSV export; a leading `=`, `+`, `-` or `@` would be run as a formula. */
@@ -143,16 +146,16 @@ export class RsvpService {
     this.#now = now;
   }
 
-  // --- Deadline, parts and menus (Einstellungen › Rückmeldung) -----------------------------
+  // --- Deadline, program items and menus (Einstellungen › Rückmeldung) -----------------------------
 
-  #parts(reader: Reader = this.#database.db): EventPart[] {
+  #programItems(reader: Reader = this.#database.db): ProgramItem[] {
     return reader
       .select()
-      .from(eventParts)
-      .where(eq(eventParts.eventId, this.#event.eventId))
-      .orderBy(asc(eventParts.startsAt), asc(eventParts.id))
+      .from(programItems)
+      .where(eq(programItems.eventId, this.#event.eventId))
+      .orderBy(asc(programItems.startsAt), asc(programItems.id))
       .all()
-      .map(toPart);
+      .map(toProgramItem);
   }
 
   #menus(reader: Reader = this.#database.db): MenuOption[] {
@@ -188,7 +191,7 @@ export class RsvpService {
     return {
       deadline: this.#deadline(),
       songEnabled: this.#songEnabled(),
-      parts: this.#parts(),
+      programItems: this.#programItems(),
       menus: this.#menus(),
     };
   }
@@ -225,29 +228,29 @@ export class RsvpService {
     });
   }
 
-  #part(tx: Reader, id: number): PartRow {
+  #programItem(tx: Reader, id: number): ProgramItemRow {
     const row = tx
       .select()
-      .from(eventParts)
-      .where(and(eq(eventParts.id, id), eq(eventParts.eventId, this.#event.eventId)))
+      .from(programItems)
+      .where(and(eq(programItems.id, id), eq(programItems.eventId, this.#event.eventId)))
       .get();
-    if (!row) throw new RsvpError("part_not_found", "no such event part");
+    if (!row) throw new RsvpError("program_item_not_found", "no such program item");
     return row;
   }
 
-  /** At most one part has the meal: marking one clears the mark on another. */
+  /** At most one program item has the meal: marking one clears the mark on another. */
   #clearMeal(tx: Tx): void {
-    tx.update(eventParts)
+    tx.update(programItems)
       .set({ hasMeal: false })
-      .where(and(eq(eventParts.eventId, this.#event.eventId), eq(eventParts.hasMeal, true)))
+      .where(and(eq(programItems.eventId, this.#event.eventId), eq(programItems.hasMeal, true)))
       .run();
   }
 
-  createPart(input: EventPartRequest, actor: Actor): EventPart {
+  createProgramItem(input: ProgramItemRequest, actor: Actor): ProgramItem {
     return this.#database.db.transaction((tx) => {
       if (input.hasMeal) this.#clearMeal(tx);
       const row = tx
-        .insert(eventParts)
+        .insert(programItems)
         .values({
           eventId: this.#event.eventId,
           name: input.name,
@@ -258,48 +261,53 @@ export class RsvpService {
         })
         .returning()
         .get();
-      this.#event.audit(actor, "rsvp.part.create", { partId: row.id }, tx);
-      return toPart(row);
+      this.#event.audit(actor, "rsvp.program_item.create", { programItemId: row.id }, tx);
+      return toProgramItem(row);
     });
   }
 
-  updatePart(id: number, changes: EventPartUpdate, actor: Actor): EventPart {
+  updateProgramItem(id: number, changes: ProgramItemUpdate, actor: Actor): ProgramItem {
     return this.#database.db.transaction((tx) => {
-      this.#part(tx, id);
+      this.#programItem(tx, id);
       if (changes.hasMeal) this.#clearMeal(tx);
       const row = tx
-        .update(eventParts)
+        .update(programItems)
         .set({
           ...(changes.name === undefined ? {} : { name: changes.name }),
           ...(changes.startsAt === undefined ? {} : { startsAt: new Date(changes.startsAt) }),
           ...(changes.place === undefined ? {} : { place: changes.place }),
           ...(changes.hasMeal === undefined ? {} : { hasMeal: changes.hasMeal }),
         })
-        .where(eq(eventParts.id, id))
+        .where(eq(programItems.id, id))
         .returning()
         .get();
-      this.#event.audit(actor, "rsvp.part.update", { partId: id }, tx);
-      return toPart(row);
+      this.#event.audit(actor, "rsvp.program_item.update", { programItemId: id }, tx);
+      return toProgramItem(row);
     });
   }
 
   /**
-   * Deleting a part also removes the invitations' parts and the answers for it; a guest or
+   * Deleting a program item also removes the invitations' program items and the answers for it; a guest or
    * companion whose only yes it was goes back to "no answer" (`pruneAnswers`).
    */
-  deletePart(id: number, actor: Actor): void {
+  deleteProgramItem(id: number, actor: Actor): void {
     this.#database.db.transaction((tx) => {
-      this.#part(tx, id);
+      this.#programItem(tx, id);
       const eventId = this.#event.eventId;
       const affected = tx
-        .select({ userId: membershipParts.userId })
-        .from(membershipParts)
-        .where(and(eq(membershipParts.eventId, eventId), eq(membershipParts.partId, id)))
+        .select({ userId: membershipProgramItems.userId })
+        .from(membershipProgramItems)
+        .where(
+          and(
+            eq(membershipProgramItems.eventId, eventId),
+            eq(membershipProgramItems.programItemId, id),
+          ),
+        )
         .all()
         .map(({ userId }) => ({ userId, before: attendingNow(tx, eventId, userId) }));
-      tx.delete(eventParts).where(eq(eventParts.id, id)).run();
+      tx.delete(programItems).where(eq(programItems.id, id)).run();
       for (const { userId, before } of affected) pruneAnswers(tx, eventId, userId, before);
-      this.#event.audit(actor, "rsvp.part.delete", { partId: id }, tx);
+      this.#event.audit(actor, "rsvp.program_item.delete", { programItemId: id }, tx);
     });
   }
 
@@ -347,48 +355,56 @@ export class RsvpService {
     });
   }
 
-  // --- Invited parts ------------------------------------------------------------------------
+  // --- Invited program items ------------------------------------------------------------------------
 
-  /** The ids of every part of the event. */
-  allPartIds(reader: Reader = this.#database.db): number[] {
-    return this.#parts(reader).map((part) => part.id);
+  /** The ids of every program item of the event. */
+  allProgramItemIds(reader: Reader = this.#database.db): number[] {
+    return this.#programItems(reader).map((programItem) => programItem.id);
   }
 
-  invitedPartIds(userId: number, reader: Reader = this.#database.db): number[] {
+  invitedProgramItemIds(userId: number, reader: Reader = this.#database.db): number[] {
     return reader
-      .select({ partId: membershipParts.partId })
-      .from(membershipParts)
+      .select({ programItemId: membershipProgramItems.programItemId })
+      .from(membershipProgramItems)
       .where(
-        and(eq(membershipParts.eventId, this.#event.eventId), eq(membershipParts.userId, userId)),
+        and(
+          eq(membershipProgramItems.eventId, this.#event.eventId),
+          eq(membershipProgramItems.userId, userId),
+        ),
       )
       .all()
-      .map((row) => row.partId)
+      .map((row) => row.programItemId)
       .sort((a, b) => a - b);
   }
 
   /**
-   * Replaces the parts a `vip` is invited to (RSVP-02). Answers for parts that are no longer
-   * invited are removed (`pruneAnswers`), so the guest table never shows an answer for a part
-   * without invitation; a part added later is not answered yet.
+   * Replaces the program items a `vip` is invited to (RSVP-02). Answers for program items that are no longer
+   * invited are removed (`pruneAnswers`), so the guest table never shows an answer for a program item
+   * without invitation; a program item added later is not answered yet.
    */
-  setInvitedParts(userId: number, partIds: number[], actor: Actor): number[] {
-    const wanted = [...new Set(partIds)].sort((a, b) => a - b);
+  setInvitedProgramItems(userId: number, programItemIds: number[], actor: Actor): number[] {
+    const wanted = [...new Set(programItemIds)].sort((a, b) => a - b);
     return this.#database.db.transaction((tx) => {
       this.#guest(tx, userId);
-      const known = new Set(this.allPartIds(tx));
+      const known = new Set(this.allProgramItemIds(tx));
       if (wanted.some((id) => !known.has(id))) {
-        throw new RsvpError("part_not_found", "no such event part");
+        throw new RsvpError("program_item_not_found", "no such program item");
       }
       const eventId = this.#event.eventId;
       const before = attendingNow(tx, eventId, userId);
-      tx.delete(membershipParts)
-        .where(and(eq(membershipParts.eventId, eventId), eq(membershipParts.userId, userId)))
+      tx.delete(membershipProgramItems)
+        .where(
+          and(
+            eq(membershipProgramItems.eventId, eventId),
+            eq(membershipProgramItems.userId, userId),
+          ),
+        )
         .run();
-      for (const partId of wanted) {
-        tx.insert(membershipParts).values({ eventId, userId, partId }).run();
+      for (const programItemId of wanted) {
+        tx.insert(membershipProgramItems).values({ eventId, userId, programItemId }).run();
       }
       pruneAnswers(tx, eventId, userId, before);
-      this.#event.audit(actor, "user.parts", { userId, partIds: wanted }, tx);
+      this.#event.audit(actor, "user.program_items", { userId, programItemIds: wanted }, tx);
       return wanted;
     });
   }
@@ -418,9 +434,9 @@ export class RsvpService {
     return user;
   }
 
-  #attendance(reader: Reader, userId: number): { partId: number; attending: boolean }[] {
+  #attendance(reader: Reader, userId: number): { programItemId: number; attending: boolean }[] {
     return reader
-      .select({ partId: rsvpAttendance.partId, attending: rsvpAttendance.attending })
+      .select({ programItemId: rsvpAttendance.programItemId, attending: rsvpAttendance.attending })
       .from(rsvpAttendance)
       .where(
         and(eq(rsvpAttendance.eventId, this.#event.eventId), eq(rsvpAttendance.userId, userId)),
@@ -437,8 +453,8 @@ export class RsvpService {
     if (!row) return null;
     const attendance = this.#attendance(reader, userId);
     return {
-      attendingPartIds: partIdsOf(attendance, true),
-      declinedPartIds: partIdsOf(attendance, false),
+      attendingItemIds: programItemIdsOf(attendance, true),
+      declinedItemIds: programItemIdsOf(attendance, false),
       menuId: row.menuId,
       allergies: row.allergies,
       songWish: row.songWish,
@@ -446,17 +462,17 @@ export class RsvpService {
     };
   }
 
-  /** What the wizard shows: the guest's invited parts, the menus, the deadline and the answer. */
+  /** What the wizard shows: the guest's invited program items, the menus, the deadline and the answer. */
   state(userId: number): RsvpState {
     const { db } = this.#database;
     const guest = this.#guest(db, userId);
-    const invited = new Set(this.invitedPartIds(userId));
+    const invited = new Set(this.invitedProgramItemIds(userId));
     return {
       name: guest.displayName,
       deadline: this.#deadline(),
       closed: this.isClosed(),
       songEnabled: this.#songEnabled(),
-      parts: this.#parts().filter((part) => invited.has(part.id)),
+      programItems: this.#programItems().filter((programItem) => invited.has(programItem.id)),
       menus: this.#menus(),
       answer: this.#answer(db, userId),
       companions: this.#companionsOf(db, userId),
@@ -466,20 +482,20 @@ export class RsvpService {
   // --- Accompanying persons (RSVP-08 – RSVP-10) ---------------------------------------------
 
   /**
-   * Checks the answer of one person against the invited parts and the meal rules, the same for
-   * a guest and for a companion: yes or no for every invited part, a menu for a person who
-   * attends the meal part while menus exist, allergies only for someone who attends.
+   * Checks the answer of one person against the invited program items and the meal rules, the same for
+   * a guest and for a companion: yes or no for every invited program item, a menu for a person who
+   * attends the meal program item while menus exist, allergies only for someone who attends.
    */
   #checkPerson(
     tx: Reader,
     invited: number[],
     input: {
-      attendance: { partId: number; attending: boolean }[];
+      attendance: { programItemId: number; attending: boolean }[];
       menuId?: number | null | undefined;
       allergies?: string | null | undefined;
     },
   ): CheckedPerson {
-    const given = input.attendance.map((a) => a.partId);
+    const given = input.attendance.map((a) => a.programItemId);
     if (
       new Set(given).size !== given.length ||
       given.length !== invited.length ||
@@ -487,13 +503,13 @@ export class RsvpService {
     ) {
       throw new RsvpError(
         "invalid_attendance",
-        "answer yes or no for every part you are invited to, once each",
+        "answer yes or no for every program item you are invited to, once each",
       );
     }
-    const attending = input.attendance.filter((a) => a.attending).map((a) => a.partId);
+    const attending = input.attendance.filter((a) => a.attending).map((a) => a.programItemId);
     const menus = this.#menus(tx);
     let menuId: number | null = null;
-    if (menuRequired(this.#parts(tx), menus.length, attending)) {
+    if (menuRequired(this.#programItems(tx), menus.length, attending)) {
       if (input.menuId === undefined || input.menuId === null) {
         throw new RsvpError("menu_required", "choose a menu");
       }
@@ -560,8 +576,10 @@ export class RsvpService {
   #saveCompanionAnswer(tx: Tx, companionId: number, person: CheckedPerson): void {
     const eventId = this.#event.eventId;
     tx.delete(companionAttendance).where(eq(companionAttendance.companionId, companionId)).run();
-    for (const { partId, attending } of person.attendance) {
-      tx.insert(companionAttendance).values({ eventId, companionId, partId, attending }).run();
+    for (const { programItemId, attending } of person.attendance) {
+      tx.insert(companionAttendance)
+        .values({ eventId, companionId, programItemId, attending })
+        .run();
     }
     tx.update(companions)
       .set({ menuId: person.menuId, allergies: person.allergies })
@@ -591,7 +609,7 @@ export class RsvpService {
           `at most ${String(MAX_COMPANIONS)} accompanying persons per guest`,
         );
       }
-      const person = this.#checkPerson(tx, this.invitedPartIds(userId, tx), input);
+      const person = this.#checkPerson(tx, this.invitedProgramItemIds(userId, tx), input);
       const row = tx
         .insert(companions)
         .values({
@@ -621,7 +639,7 @@ export class RsvpService {
           "only a pending request can be changed; change the answer of an approved person in the RSVP",
         );
       }
-      const person = this.#checkPerson(tx, this.invitedPartIds(userId, tx), input);
+      const person = this.#checkPerson(tx, this.invitedProgramItemIds(userId, tx), input);
       tx.update(companions)
         .set({ name: input.name, note: input.note ?? null })
         .where(eq(companions.id, id))
@@ -690,9 +708,9 @@ export class RsvpService {
   }
 
   /**
-   * Saves the answer of a guest (RSVP-01, RSVP-03, RSVP-06): yes or no for every invited part;
-   * a menu choice for a person who attends the meal part while menus exist; allergies and, while
-   * the admin has switched it on, a song wish optionally. A guest who declines every part keeps no menu, allergies or song wish.
+   * Saves the answer of a guest (RSVP-01, RSVP-03, RSVP-06): yes or no for every invited program item;
+   * a menu choice for a person who attends the meal program item while menus exist; allergies and, while
+   * the admin has switched it on, a song wish optionally. A guest who declines every program item keeps no menu, allergies or song wish.
    * After the deadline only an admin can change it (`admin`, RSVP-04).
    */
   answer(userId: number, input: RsvpAnswerRequest, actor: Actor, admin = false): RsvpState {
@@ -701,7 +719,7 @@ export class RsvpService {
       if (!admin && this.isClosed()) {
         throw new RsvpError("rsvp_closed", "the deadline for the RSVP has passed");
       }
-      const invited = this.invitedPartIds(userId, tx);
+      const invited = this.invitedProgramItemIds(userId, tx);
       const person = this.#checkPerson(tx, invited, input);
       const { menuId } = person;
       const anyAttending = person.attending.length > 0;
@@ -709,8 +727,8 @@ export class RsvpService {
       tx.delete(rsvpAttendance)
         .where(and(eq(rsvpAttendance.eventId, eventId), eq(rsvpAttendance.userId, userId)))
         .run();
-      for (const { partId, attending: yes } of input.attendance) {
-        tx.insert(rsvpAttendance).values({ eventId, userId, partId, attending: yes }).run();
+      for (const { programItemId, attending: yes } of input.attendance) {
+        tx.insert(rsvpAttendance).values({ eventId, userId, programItemId, attending: yes }).run();
       }
       const values = {
         menuId,
@@ -764,8 +782,13 @@ export class RsvpService {
     const invited = ids.length
       ? db
           .select()
-          .from(membershipParts)
-          .where(and(eq(membershipParts.eventId, eventId), inArray(membershipParts.userId, ids)))
+          .from(membershipProgramItems)
+          .where(
+            and(
+              eq(membershipProgramItems.eventId, eventId),
+              inArray(membershipProgramItems.userId, ids),
+            ),
+          )
           .all()
       : [];
     const attendance = ids.length
@@ -785,20 +808,25 @@ export class RsvpService {
     return rows.map((row) => {
       const answer = answers.find((a) => a.userId === row.id);
       const mine = attendance.filter((a) => a.userId === row.id);
-      const invitedPartIds = invited
+      const invitedProgramItemIds = invited
         .filter((p) => p.userId === row.id)
-        .map((p) => p.partId)
+        .map((p) => p.programItemId)
         .sort((a, b) => a - b);
-      const attendingPartIds = partIdsOf(mine, true);
-      const declinedPartIds = partIdsOf(mine, false);
+      const attendingItemIds = programItemIdsOf(mine, true);
+      const declinedItemIds = programItemIdsOf(mine, false);
       const verified = row.emailStatus === "verified" && row.email !== null;
       return {
         userId: row.id,
         name: row.displayName,
-        status: rsvpStatus(answer !== undefined, invitedPartIds, attendingPartIds, declinedPartIds),
-        invitedPartIds,
-        attendingPartIds,
-        declinedPartIds,
+        status: rsvpStatus(
+          answer !== undefined,
+          invitedProgramItemIds,
+          attendingItemIds,
+          declinedItemIds,
+        ),
+        invitedProgramItemIds,
+        attendingItemIds,
+        declinedItemIds,
         menuId: answer?.menuId ?? null,
         songWish: answer?.songWish ?? null,
         allergies: answer?.allergies ?? null,
@@ -827,13 +855,13 @@ export class RsvpService {
     }));
   }
 
-  /** Totals per part and menu, and the guest table (RSVP-05). Admin only: it holds allergies. */
+  /** Totals per program item and menu, and the guest table (RSVP-05). Admin only: it holds allergies. */
   overview(): RsvpOverview {
     const config = this.config();
     const guests = this.#guests();
     const answered = guests.filter((g) => g.status !== "none");
     const everyone = this.#allCompanions(guests);
-    // Approved companions count like guests; they are invited to their guest's parts.
+    // Approved companions count like guests; they are invited to their guest's program items.
     const approved = everyone
       .filter((c) => c.status === "approved")
       .flatMap((c) => {
@@ -841,15 +869,15 @@ export class RsvpService {
         return host ? [c] : [];
       });
     const people = [...guests, ...approved];
-    const totals = config.parts.map((part) => ({
-      partId: part.id,
-      yes: people.filter((p) => p.attendingPartIds.includes(part.id)).length,
-      no: people.filter((p) => p.declinedPartIds.includes(part.id)).length,
+    const totals = config.programItems.map((programItem) => ({
+      programItemId: programItem.id,
+      yes: people.filter((p) => p.attendingItemIds.includes(programItem.id)).length,
+      no: people.filter((p) => p.declinedItemIds.includes(programItem.id)).length,
     }));
-    const meal = config.parts.find((part) => part.hasMeal);
+    const meal = config.programItems.find((programItem) => programItem.hasMeal);
     const counts = new Map<number | null, number>();
     if (meal) {
-      for (const person of people.filter((p) => p.attendingPartIds.includes(meal.id))) {
+      for (const person of people.filter((p) => p.attendingItemIds.includes(meal.id))) {
         counts.set(person.menuId, (counts.get(person.menuId) ?? 0) + 1);
       }
     }
@@ -884,7 +912,7 @@ export class RsvpService {
   }
 
   /**
-   * How many persons attend at least one part: guests and approved companions (the waiting
+   * How many persons attend at least one program item: guests and approved companions (the waiting
    * page's `{waitingCount}`, ACS-11). Counts only, no answers leave the service.
    */
   acceptedCount(exceptUserId?: number): number {
@@ -970,7 +998,7 @@ export class RsvpService {
     const header = [
       "Name",
       "Status",
-      ...overview.parts.map((part) => part.name),
+      ...overview.programItems.map((programItem) => programItem.name),
       "Menü",
       ...(overview.songEnabled ? ["Songwunsch"] : []),
       "Allergien",
@@ -980,7 +1008,7 @@ export class RsvpService {
       [
         guest.name,
         status[guest.status],
-        ...overview.parts.map((part) => partCell(guest, part.id)),
+        ...overview.programItems.map((programItem) => programItemCell(guest, programItem.id)),
         menuName(guest.menuId),
         ...(overview.songEnabled ? [guest.songWish ?? ""] : []),
         guest.allergies ?? "",
@@ -991,7 +1019,7 @@ export class RsvpService {
         .map((c) => [
           `↳ ${c.name}`,
           "bestätigt",
-          ...overview.parts.map((part) => partCell(c, part.id)),
+          ...overview.programItems.map((programItem) => programItemCell(c, programItem.id)),
           menuName(c.menuId),
           ...(overview.songEnabled ? [""] : []),
           c.allergies ?? "",
@@ -1003,14 +1031,14 @@ export class RsvpService {
 
 /** The example RSVP setup of dev and test (`zappaloo event seed-example`, CFG-07). */
 export function seedExampleRsvp(rsvp: RsvpService, actor: Actor): void {
-  const parts: [string, string, string, boolean][] = [
+  const programItems: [string, string, string, boolean][] = [
     ["Trauung", "2027-06-12T12:00:00.000Z", "Kirche Muri", false],
     ["Apéro", "2027-06-12T13:30:00.000Z", "Schlossgarten", false],
     ["Dinner", "2027-06-12T16:30:00.000Z", "Landgasthof Linde", true],
     ["Party", "2027-06-12T20:00:00.000Z", "Linde, Saal", false],
   ];
-  for (const [name, startsAt, place, hasMeal] of parts) {
-    rsvp.createPart({ name, startsAt, place, hasMeal }, actor);
+  for (const [name, startsAt, place, hasMeal] of programItems) {
+    rsvp.createProgramItem({ name, startsAt, place, hasMeal }, actor);
   }
   for (const name of ["Fleisch", "Vegetarisch", "Vegan", "Kindermenü"])
     rsvp.createMenu(name, actor);

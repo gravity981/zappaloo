@@ -15,7 +15,7 @@ test("[RSVP-08][RSVP-09][RSVP-10][SEC-11] a guest requests an accompanying perso
   const mia = `Mia ${suffix}`;
   const username = `gast${suffix}`;
 
-  // The admin keeps the RSVP open and invites a guest to every part.
+  // The admin keeps the RSVP open and invites a guest to every program item.
   await signInAsAdmin(page, context);
   await page.goto("/admin/settings");
   await page.getByLabel(de.admin.rsvpSettings.deadline).fill("2099-12-31");
@@ -42,8 +42,8 @@ test("[RSVP-08][RSVP-09][RSVP-10][SEC-11] a guest requests an accompanying perso
   await guest.getByRole("button", { name: de.invite.register }).click();
   await guest.getByRole("link", { name: de.waiting.answer }).click();
   await guest.getByRole("button", { name: `Trauung: ${de.rsvp.attending}` }).click();
-  for (const part of ["Apéro", "Dinner", "Party"]) {
-    await guest.getByRole("button", { name: `${part}: ${de.rsvp.notAttending}` }).click();
+  for (const programItem of ["Apéro", "Dinner", "Party"]) {
+    await guest.getByRole("button", { name: `${programItem}: ${de.rsvp.notAttending}` }).click();
   }
   await guest.getByRole("button", { name: de.rsvp.next }).click();
   await guest.getByRole("button", { name: de.rsvp.next }).click();
@@ -53,11 +53,11 @@ test("[RSVP-08][RSVP-09][RSVP-10][SEC-11] a guest requests an accompanying perso
   await guest.getByLabel(de.rsvp.companions.name).fill(mia);
   await guest.getByLabel(de.rsvp.companions.note).fill("Meine Tochter");
   await guest.getByRole("button", { name: `Trauung: ${de.rsvp.attending}` }).click();
-  for (const part of ["Apéro", "Party"]) {
-    await guest.getByRole("button", { name: `${part}: ${de.rsvp.notAttending}` }).click();
+  for (const programItem of ["Apéro", "Party"]) {
+    await guest.getByRole("button", { name: `${programItem}: ${de.rsvp.notAttending}` }).click();
   }
   await guest.getByRole("button", { name: `Dinner: ${de.rsvp.attending}` }).click();
-  // The meal part needs a menu; the request waits for it.
+  // The meal program item needs a menu; the request waits for it.
   const request = guest.getByRole("button", { name: de.rsvp.companions.request });
   await expect(request).toBeDisabled();
   await guest.getByRole("button", { name: `${mia}: Kindermenü` }).click();

@@ -69,7 +69,7 @@ export interface AuthOptions {
   access: AccessService;
   /** Personal invitation codes (INV-01 – INV-12). */
   invitations: InvitationService;
-  /** The RSVP, event parts and menus (RSVP-01 – RSVP-07). */
+  /** The RSVP, program items and menus (RSVP-01 – RSVP-07). */
   rsvp: RsvpService;
   /** Opening and closing the platform, and the privacy notice (ACS-14, SEC-09). */
   platform: PlatformService;

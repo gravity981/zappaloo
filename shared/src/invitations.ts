@@ -29,8 +29,8 @@ export const invitationSchema = z.object({
   redeemedAt: z.string().nullable(),
   /** The account that redeemed the code, while it exists. */
   redeemedBy: z.number().int().nullable(),
-  /** The event parts the guest is invited to (RSVP-02). */
-  partIds: z.array(z.number().int()),
+  /** The program items the guest is invited to (RSVP-02). */
+  programItemIds: z.array(z.number().int()),
 });
 export type Invitation = z.infer<typeof invitationSchema>;
 export const invitationListSchema = z.object({ invitations: z.array(invitationSchema) });
@@ -57,8 +57,8 @@ export const createInvitationsRequestSchema = z.strictObject({
     .max(200),
   /** ISO date-time; without it the codes do not expire. */
   expiresAt: z.iso.datetime().optional(),
-  /** The parts all these guests are invited to; without it, every part (RSVP-02). */
-  partIds: z.array(z.number().int().positive()).min(1).max(50).optional(),
+  /** The program items all these guests are invited to; without it, every program item (RSVP-02). */
+  programItemIds: z.array(z.number().int().positive()).min(1).max(50).optional(),
 });
 export type CreateInvitationsRequest = z.infer<typeof createInvitationsRequestSchema>;
 export const createInvitationsResponseSchema = z.object({

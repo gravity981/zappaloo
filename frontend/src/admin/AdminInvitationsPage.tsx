@@ -1,7 +1,7 @@
 // Einladungen (sw-architecture.md 8.3, 9): the admin creates personal invitations in a batch,
 // revokes and replaces them, and prints the cards (INV-01, INV-04, INV-05, INV-14). The plain
 // code exists only in the response that creates or regenerates it, so the print view comes
-// right away and not again. Each invitation states the event parts it is for (RSVP-02).
+// right away and not again. Each invitation states the program items it is for (RSVP-02).
 import { useState } from "react";
 import type { SubmitEvent } from "react";
 import { useTranslation } from "react-i18next";
@@ -80,10 +80,10 @@ export default function AdminInvitationsPage() {
   const errorText = useErrorText();
   const { data, reload } = useAdminData("/api/admin/invitations", invitationListSchema);
   const { data: config } = useAdminData("/api/admin/rsvp/config", rsvpConfigSchema);
-  const parts = config?.parts ?? [];
-  /** The parts chosen for the new batch; every part until the admin chooses. */
+  const programItems = config?.programItems ?? [];
+  /** The program items chosen for the new batch; every program item until the admin chooses. */
   const [chosen, setChosen] = useState<number[]>();
-  const batchParts = chosen ?? parts.map((part) => part.id);
+  const batchProgramItems = chosen ?? programItems.map((programItem) => programItem.id);
   const [cards, setCards] = useState<IssuedInvitation[]>([]);
   const [names, setNames] = useState("");
   const [filter, setFilter] = useState<InvitationStatus>();
@@ -95,7 +95,7 @@ export default function AdminInvitationsPage() {
     const expires = fieldText(form, "expiresAt");
     const result = await call("POST", "/api/admin/invitations", {
       guests: guestNames(names).map((name) => ({ name })),
-      ...(parts.length > 0 ? { partIds: batchParts } : {}),
+      ...(programItems.length > 0 ? { programItemIds: batchProgramItems } : {}),
       // Valid through the chosen day, in the admin's time zone.
       ...(expires === "" ? {} : { expiresAt: new Date(`${expires}T23:59:59`).toISOString() }),
     });
@@ -110,8 +110,10 @@ export default function AdminInvitationsPage() {
     }
   }
 
-  async function setParts(id: number, partIds: number[]) {
-    const result = await call("PUT", `/api/admin/invitations/${String(id)}/parts`, { partIds });
+  async function setProgramItems(id: number, programItemIds: number[]) {
+    const result = await call("PUT", `/api/admin/invitations/${String(id)}/program-items`, {
+      programItemIds,
+    });
     setError(result.ok ? undefined : errorText(result.errorCode));
     reload();
   }
@@ -173,25 +175,25 @@ export default function AdminInvitationsPage() {
             }}
           />
         </label>
-        <div className="field" role="group" aria-label={t("admin.invitations.parts")}>
-          <span>{t("admin.invitations.parts")}</span>
-          {parts.length === 0 ? (
-            <span className="hint">{t("admin.invitations.partsNone")}</span>
+        <div className="field" role="group" aria-label={t("admin.invitations.programItems")}>
+          <span>{t("admin.invitations.programItems")}</span>
+          {programItems.length === 0 ? (
+            <span className="hint">{t("admin.invitations.programItemsNone")}</span>
           ) : (
             <div className="chips">
-              {parts.map((part) => (
+              {programItems.map((programItem) => (
                 <ToggleChip
-                  key={part.id}
-                  pressed={batchParts.includes(part.id)}
+                  key={programItem.id}
+                  pressed={batchProgramItems.includes(programItem.id)}
                   onToggle={() => {
                     setChosen(
-                      batchParts.includes(part.id)
-                        ? batchParts.filter((id) => id !== part.id)
-                        : [...batchParts, part.id],
+                      batchProgramItems.includes(programItem.id)
+                        ? batchProgramItems.filter((id) => id !== programItem.id)
+                        : [...batchProgramItems, programItem.id],
                     );
                   }}
                 >
-                  {part.name}
+                  {programItem.name}
                 </ToggleChip>
               ))}
             </div>
@@ -204,7 +206,7 @@ export default function AdminInvitationsPage() {
         <button
           type="submit"
           className="btn"
-          disabled={guests === 0 || (parts.length > 0 && batchParts.length === 0)}
+          disabled={guests === 0 || (programItems.length > 0 && batchProgramItems.length === 0)}
         >
           {guests === 0
             ? t("admin.invitations.createNone")
@@ -242,7 +244,7 @@ export default function AdminInvitationsPage() {
               <tr>
                 <th>{t("admin.invitations.guest")}</th>
                 <th>{t("admin.invitations.status")}</th>
-                <th>{t("admin.invitations.partsColumn")}</th>
+                <th>{t("admin.invitations.programItemsColumn")}</th>
                 <th>
                   <span className="visually-hidden">{t("admin.invitations.actions")}</span>
                 </th>
@@ -271,25 +273,27 @@ export default function AdminInvitationsPage() {
                   </td>
                   <td>
                     <div className="chips">
-                      {parts.map((part) => (
+                      {programItems.map((programItem) => (
                         <ToggleChip
-                          key={part.id}
+                          key={programItem.id}
                           small
-                          pressed={invitation.partIds.includes(part.id)}
+                          pressed={invitation.programItemIds.includes(programItem.id)}
                           disabled={
                             invitation.status === "revoked" || invitation.status === "replaced"
                           }
-                          label={`${part.name}: ${invitation.guestName}`}
+                          label={`${programItem.name}: ${invitation.guestName}`}
                           onToggle={() => {
-                            void setParts(
+                            void setProgramItems(
                               invitation.id,
-                              invitation.partIds.includes(part.id)
-                                ? invitation.partIds.filter((id) => id !== part.id)
-                                : [...invitation.partIds, part.id].sort((a, b) => a - b),
+                              invitation.programItemIds.includes(programItem.id)
+                                ? invitation.programItemIds.filter((id) => id !== programItem.id)
+                                : [...invitation.programItemIds, programItem.id].sort(
+                                    (a, b) => a - b,
+                                  ),
                             );
                           }}
                         >
-                          {part.name}
+                          {programItem.name}
                         </ToggleChip>
                       ))}
                     </div>

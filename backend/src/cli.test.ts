@@ -474,7 +474,7 @@ describe("event setup commands", () => {
     const result = await run(["event", "seed-example"], { DATA_DIR: dataDir, APP_ENV: "test" });
     expect(result).toEqual({
       code: 0,
-      out: 'The example event "Event Muster" is set up, with event parts, menus and an RSVP deadline.',
+      out: 'The example event "Event Muster" is set up, with program items, menus and an RSVP deadline.',
       err: "",
     });
     const shown = await run(["event", "show"], { DATA_DIR: dataDir });
@@ -490,8 +490,13 @@ describe("event setup commands", () => {
           .reverse()[0],
       ).toEqual(["cli", "event.setup"]);
       const config = new RsvpService(database, service).config();
-      expect(config.parts.map((p) => p.name)).toEqual(["Trauung", "Apéro", "Dinner", "Party"]);
-      expect(config.parts.filter((p) => p.hasMeal).map((p) => p.name)).toEqual(["Dinner"]);
+      expect(config.programItems.map((p) => p.name)).toEqual([
+        "Trauung",
+        "Apéro",
+        "Dinner",
+        "Party",
+      ]);
+      expect(config.programItems.filter((p) => p.hasMeal).map((p) => p.name)).toEqual(["Dinner"]);
       expect(config.menus.map((m) => m.name)).toEqual([
         "Fleisch",
         "Vegetarisch",

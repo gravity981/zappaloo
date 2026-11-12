@@ -32,16 +32,18 @@ function state(changes: Record<string, unknown> = {}) {
     deadline: "2027-05-01",
     closed: false,
     songEnabled: true,
-    parts: PARTS,
+    programItems: PARTS,
     menus: MENUS,
     answer: null,
     companions: [],
     ...changes,
   };
 }
-const answered = (partIds: number[], extra: Record<string, unknown> = {}) => ({
-  attendingPartIds: partIds,
-  declinedPartIds: PARTS.map((part) => part.id).filter((id) => !partIds.includes(id)),
+const answered = (programItemIds: number[], extra: Record<string, unknown> = {}) => ({
+  attendingItemIds: programItemIds,
+  declinedItemIds: PARTS.map((programItem) => programItem.id).filter(
+    (id) => !programItemIds.includes(id),
+  ),
   menuId: null,
   allergies: null,
   songWish: null,
@@ -50,7 +52,7 @@ const answered = (partIds: number[], extra: Record<string, unknown> = {}) => ({
 });
 
 describe("the RSVP wizard", () => {
-  it("[RSVP-01][RSVP-03][RSVP-06] a guest answers per part, picks a menu for the meal part and sends", async () => {
+  it("[RSVP-01][RSVP-03][RSVP-06] a guest answers per program item, picks a menu for the meal program item and sends", async () => {
     const calls = fakeBackend({
       "GET /api/session": () => asGuest,
       "GET /api/rsvp": () => ({ status: 200, body: state() }),
@@ -63,7 +65,7 @@ describe("the RSVP wizard", () => {
     });
     renderAt("/rsvp");
 
-    // Step 1: the deadline is shown up front; every part needs an answer before it goes on.
+    // Step 1: the deadline is shown up front; every program item needs an answer before it goes on.
     expect(
       await screen.findByRole("heading", { name: "Bist du dabei, Erika?" }),
     ).toBeInTheDocument();
@@ -79,7 +81,7 @@ describe("the RSVP wizard", () => {
     expect(next).toBeEnabled();
     user.click(next);
 
-    // Step 2: the menu is asked because Dinner is the meal part, and it is required.
+    // Step 2: the menu is asked because Dinner is the meal program item, and it is required.
     expect(await screen.findByRole("heading", { name: "Essen & Allergien" })).toBeInTheDocument();
     expect(
       screen.getByText("Sieht nur das Organisationsteam.", { exact: false }),
@@ -100,9 +102,9 @@ describe("the RSVP wizard", () => {
     expect(put?.csrf).toBe("csrf-1");
     expect(put?.body).toEqual({
       attendance: [
-        { partId: 1, attending: true },
-        { partId: 2, attending: false },
-        { partId: 3, attending: true },
+        { programItemId: 1, attending: true },
+        { programItemId: 2, attending: false },
+        { programItemId: 3, attending: true },
       ],
       menuId: 2,
       allergies: "Nüsse",
@@ -115,7 +117,7 @@ describe("the RSVP wizard", () => {
     expect(screen.getByText("Änderbar bis 1. Mai 2027.")).toBeInTheDocument();
   });
 
-  it("[RSVP-03] without the meal part there is no menu question, only allergies", async () => {
+  it("[RSVP-03] without the meal program item there is no menu question, only allergies", async () => {
     const calls = fakeBackend({
       "GET /api/session": () => asGuest,
       "GET /api/rsvp": () => ({ status: 200, body: state() }),
@@ -133,9 +135,9 @@ describe("the RSVP wizard", () => {
     await screen.findByRole("heading", { name: /Danke, Erika/ });
     expect(calls.find((c) => c.method === "PUT")?.body).toEqual({
       attendance: [
-        { partId: 1, attending: true },
-        { partId: 2, attending: false },
-        { partId: 3, attending: false },
+        { programItemId: 1, attending: true },
+        { programItemId: 2, attending: false },
+        { programItemId: 3, attending: false },
       ],
       allergies: null,
       songWish: null,
@@ -143,15 +145,15 @@ describe("the RSVP wizard", () => {
     });
   });
 
-  it("[RSVP-01] declining every part skips to the summary", async () => {
+  it("[RSVP-01] declining every program item skips to the summary", async () => {
     const calls = fakeBackend({
       "GET /api/session": () => asGuest,
       "GET /api/rsvp": () => ({ status: 200, body: state() }),
       "PUT /api/rsvp": () => ({ status: 200, body: state({ answer: answered([]) }) }),
     });
     renderAt("/rsvp");
-    for (const part of ["Trauung", "Apéro", "Dinner"]) {
-      user.click(await screen.findByRole("button", { name: `${part}: Nicht dabei` }));
+    for (const programItem of ["Trauung", "Apéro", "Dinner"]) {
+      user.click(await screen.findByRole("button", { name: `${programItem}: Nicht dabei` }));
     }
     // The button now sends instead of going on.
     user.click(screen.getByRole("button", { name: "Antwort senden" }));
@@ -162,7 +164,7 @@ describe("the RSVP wizard", () => {
     ).toBeInTheDocument();
     expect(screen.queryByLabelText("Allergien oder Unverträglichkeiten")).not.toBeInTheDocument();
     expect(calls.find((c) => c.method === "PUT")?.body).toEqual({
-      attendance: PARTS.map((part) => ({ partId: part.id, attending: false })),
+      attendance: PARTS.map((programItem) => ({ programItemId: programItem.id, attending: false })),
       companions: [],
     });
   });
@@ -190,13 +192,13 @@ describe("the RSVP wizard", () => {
     );
   });
 
-  it("[RSVP-02] a part added after the answer is open: the summary says so and the wizard asks for it", async () => {
+  it("[RSVP-02] a program item added after the answer is open: the summary says so and the wizard asks for it", async () => {
     fakeBackend({
       "GET /api/session": () => asGuest,
       "GET /api/rsvp": () => ({
         status: 200,
         // Dinner was added to the invitation after Erika answered.
-        body: state({ answer: answered([1], { declinedPartIds: [2] }) }),
+        body: state({ answer: answered([1], { declinedItemIds: [2] }) }),
       }),
     });
     renderAt("/rsvp");
@@ -219,12 +221,12 @@ describe("the RSVP wizard", () => {
     });
   });
 
-  it("[RSVP-02] after the deadline an open part is shown as such in the summary", async () => {
+  it("[RSVP-02] after the deadline an open program item is shown as such in the summary", async () => {
     fakeBackend({
       "GET /api/session": () => asGuest,
       "GET /api/rsvp": () => ({
         status: 200,
-        body: state({ closed: true, answer: answered([1], { declinedPartIds: [2] }) }),
+        body: state({ closed: true, answer: answered([1], { declinedItemIds: [2] }) }),
       }),
     });
     renderAt("/rsvp");
@@ -258,8 +260,8 @@ describe("the RSVP wizard", () => {
       }),
     });
     renderAt("/rsvp");
-    for (const part of ["Trauung", "Apéro", "Dinner"]) {
-      user.click(await screen.findByRole("button", { name: `${part}: Nicht dabei` }));
+    for (const programItem of ["Trauung", "Apéro", "Dinner"]) {
+      user.click(await screen.findByRole("button", { name: `${programItem}: Nicht dabei` }));
     }
     user.click(screen.getByRole("button", { name: "Antwort senden" }));
     expect(await screen.findByRole("alert")).toHaveTextContent(
@@ -268,15 +270,15 @@ describe("the RSVP wizard", () => {
     expect(screen.getByRole("button", { name: "Trauung: Nicht dabei" })).toBeInTheDocument();
   });
 
-  it("[RSVP-02] a guest without invited parts is told to contact the hosts", async () => {
+  it("[RSVP-02] a guest without invited program items is told to contact the hosts", async () => {
     fakeBackend({
       "GET /api/session": () => asGuest,
-      "GET /api/rsvp": () => ({ status: 200, body: state({ parts: [] }) }),
+      "GET /api/rsvp": () => ({ status: 200, body: state({ programItems: [] }) }),
     });
     renderAt("/rsvp");
     expect(
       await screen.findByText(
-        "Für dich sind noch keine Teile festgelegt. Melde dich bei den Gastgebern.",
+        "Für dich sind noch keine Programmpunkte festgelegt. Melde dich bei den Gastgebern.",
       ),
     ).toBeInTheDocument();
   });
@@ -360,12 +362,12 @@ describe("Rückmeldungen", () => {
   const overview = {
     deadline: "2027-05-01",
     songEnabled: true,
-    parts: PARTS,
+    programItems: PARTS,
     menus: MENUS,
     totals: [
-      { partId: 1, yes: 2, no: 1 },
-      { partId: 2, yes: 1, no: 2 },
-      { partId: 3, yes: 2, no: 1 },
+      { programItemId: 1, yes: 2, no: 1 },
+      { programItemId: 2, yes: 1, no: 2 },
+      { programItemId: 3, yes: 2, no: 1 },
     ],
     menuTotals: [
       { menuId: 1, count: 1 },
@@ -376,9 +378,9 @@ describe("Rückmeldungen", () => {
         userId: 5,
         name: "Erika Huber",
         status: "attending",
-        invitedPartIds: [1, 2, 3],
-        attendingPartIds: [1, 3],
-        declinedPartIds: [2],
+        invitedProgramItemIds: [1, 2, 3],
+        attendingItemIds: [1, 3],
+        declinedItemIds: [2],
         menuId: 2,
         songWish: "ABBA",
         allergies: "Nüsse",
@@ -388,9 +390,9 @@ describe("Rückmeldungen", () => {
         userId: 6,
         name: "Peter Graf",
         status: "declined",
-        invitedPartIds: [1, 2, 3],
-        attendingPartIds: [],
-        declinedPartIds: [1, 2, 3],
+        invitedProgramItemIds: [1, 2, 3],
+        attendingItemIds: [],
+        declinedItemIds: [1, 2, 3],
         menuId: null,
         songWish: null,
         allergies: null,
@@ -400,9 +402,9 @@ describe("Rückmeldungen", () => {
         userId: 7,
         name: "Lukas Meier",
         status: "none",
-        invitedPartIds: [1],
-        attendingPartIds: [],
-        declinedPartIds: [],
+        invitedProgramItemIds: [1],
+        attendingItemIds: [],
+        declinedItemIds: [],
         menuId: null,
         songWish: null,
         allergies: null,
@@ -416,7 +418,7 @@ describe("Rückmeldungen", () => {
     reminderCount: 1,
   };
 
-  it("[RSVP-05][SEC-11] shows totals per part and menu and the guest table with the admin-only allergy column", async () => {
+  it("[RSVP-05][SEC-11] shows totals per program item and menu and the guest table with the admin-only allergy column", async () => {
     fakeBackend({
       "GET /api/session": () => asAdmin,
       "GET /api/admin/rsvp": () => ({ status: 200, body: overview }),
@@ -493,13 +495,13 @@ describe("Rückmeldungen", () => {
 });
 
 describe("Einstellungen › Rückmeldung", () => {
-  const config = { deadline: "2027-05-01", songEnabled: true, parts: PARTS, menus: MENUS };
+  const config = { deadline: "2027-05-01", songEnabled: true, programItems: PARTS, menus: MENUS };
 
-  it("[RSVP-02] the admin adds a part; the start is entered in the event's time zone", async () => {
+  it("[RSVP-02] the admin adds a program item; the start is entered in the event's time zone", async () => {
     const calls = fakeBackend({
       "GET /api/session": () => asAdmin,
       "GET /api/admin/rsvp/config": () => ({ status: 200, body: config }),
-      "POST /api/admin/rsvp/parts": () => ({
+      "POST /api/admin/rsvp/program-items": () => ({
         status: 201,
         body: {
           id: 4,
@@ -513,7 +515,7 @@ describe("Einstellungen › Rückmeldung", () => {
     renderAt("/admin/settings");
     expect(await screen.findByText("Dinner")).toBeInTheDocument();
     expect(screen.getByText("Essen")).toBeInTheDocument();
-    user.click(screen.getByRole("button", { name: "Teil hinzufügen" }));
+    user.click(screen.getByRole("button", { name: "Programmpunkt hinzufügen" }));
     const start = await screen.findByLabelText("Beginn");
     const form = within(start.closest("form") as HTMLElement);
     user.type(form.getByLabelText("Name"), "Party");
@@ -532,11 +534,11 @@ describe("Einstellungen › Rückmeldung", () => {
     });
   });
 
-  it("[RSVP-02] deleting a part needs a second click", async () => {
+  it("[RSVP-02] deleting a program item needs a second click", async () => {
     const calls = fakeBackend({
       "GET /api/session": () => asAdmin,
       "GET /api/admin/rsvp/config": () => ({ status: 200, body: config }),
-      "DELETE /api/admin/rsvp/parts/2": () => ({ status: 204 }),
+      "DELETE /api/admin/rsvp/program-items/2": () => ({ status: 204 }),
     });
     renderAt("/admin/settings");
     user.click(await screen.findByRole("button", { name: "Löschen: Apéro" }));
@@ -585,8 +587,8 @@ describe("Einstellungen › Rückmeldung", () => {
   });
 });
 
-describe("invited parts", () => {
-  const config = { deadline: null, songEnabled: true, parts: PARTS, menus: [] };
+describe("invited program items", () => {
+  const config = { deadline: null, songEnabled: true, programItems: PARTS, menus: [] };
   const invitation = (changes: Record<string, unknown> = {}) => ({
     id: 1,
     guestName: "Anna Muster",
@@ -596,11 +598,11 @@ describe("invited parts", () => {
     createdAt: "2026-11-10T10:00:00.000Z",
     redeemedAt: null,
     redeemedBy: null,
-    partIds: [1, 2],
+    programItemIds: [1, 2],
     ...changes,
   });
 
-  it("[RSVP-02] a batch of invitations is created for the chosen parts, all by default", async () => {
+  it("[RSVP-02] a batch of invitations is created for the chosen program items, all by default", async () => {
     const calls = fakeBackend({
       "GET /api/session": () => asAdmin,
       "GET /api/admin/rsvp/config": () => ({ status: 200, body: config }),
@@ -613,8 +615,8 @@ describe("invited parts", () => {
     renderAt("/admin/invitations");
     user.type(await screen.findByLabelText("Gäste (ein Name pro Zeile)"), "Anna Muster");
     const group = await screen.findByRole("group", { name: "Eingeladen zu" });
-    for (const part of ["Trauung", "Apéro", "Dinner"]) {
-      expect(within(group).getByRole("button", { name: part })).toHaveAttribute(
+    for (const programItem of ["Trauung", "Apéro", "Dinner"]) {
+      expect(within(group).getByRole("button", { name: programItem })).toHaveAttribute(
         "aria-pressed",
         "true",
       );
@@ -624,18 +626,18 @@ describe("invited parts", () => {
     await screen.findByRole("heading", { name: "1 Einladung erstellt" });
     expect(calls.find((c) => c.method === "POST")?.body).toEqual({
       guests: [{ name: "Anna Muster" }],
-      partIds: [1, 2],
+      programItemIds: [1, 2],
     });
   });
 
-  it("[RSVP-02] the parts of an invitation are changed per row", async () => {
+  it("[RSVP-02] the program items of an invitation are changed per row", async () => {
     const calls = fakeBackend({
       "GET /api/session": () => asAdmin,
       "GET /api/admin/rsvp/config": () => ({ status: 200, body: config }),
       "GET /api/admin/invitations": () => ({ status: 200, body: { invitations: [invitation()] } }),
-      "PUT /api/admin/invitations/1/parts": () => ({
+      "PUT /api/admin/invitations/1/program items": () => ({
         status: 200,
-        body: invitation({ partIds: [1, 2, 3] }),
+        body: invitation({ programItemIds: [1, 2, 3] }),
       }),
     });
     renderAt("/admin/invitations");
@@ -645,15 +647,15 @@ describe("invited parts", () => {
     await waitFor(() => {
       expect(calls.some((c) => c.method === "PUT")).toBe(true);
     });
-    expect(calls.find((c) => c.method === "PUT")?.body).toEqual({ partIds: [1, 2, 3] });
+    expect(calls.find((c) => c.method === "PUT")?.body).toEqual({ programItemIds: [1, 2, 3] });
   });
 
-  it("[RSVP-02] the account panel of a promoted guest chooses the parts; an invited one only shows them", async () => {
+  it("[RSVP-02] the account panel of a promoted guest chooses the program items; an invited one only shows them", async () => {
     const account = (changes: Record<string, unknown>) => ({
       ...anna,
       vipAssignment: "admin_promotion",
       groups: [],
-      invitedPartIds: [1, 3],
+      invitedProgramItemIds: [1, 3],
       ...changes,
     });
     const calls = fakeBackend({
@@ -674,7 +676,10 @@ describe("invited parts", () => {
           ],
         },
       }),
-      "PUT /api/admin/users/1/parts": () => ({ status: 200, body: { partIds: [1, 2, 3] } }),
+      "PUT /api/admin/users/1/program items": () => ({
+        status: 200,
+        body: { programItemIds: [1, 2, 3] },
+      }),
     });
     renderAt("/admin/users");
     user.click(await screen.findByRole("button", { name: "Konto Oma bearbeiten" }));
@@ -684,16 +689,16 @@ describe("invited parts", () => {
     await waitFor(() => {
       expect(calls.some((c) => c.method === "PUT")).toBe(true);
     });
-    expect(calls.find((c) => c.method === "PUT")?.body).toEqual({ partIds: [1, 2, 3] });
+    expect(calls.find((c) => c.method === "PUT")?.body).toEqual({ programItemIds: [1, 2, 3] });
     expect(within(panel).getByText(/vip ohne Einladung/)).toBeInTheDocument();
   });
 
-  it("[RSVP-02] the account panel shows the invited parts of every account with vip, also with staff or admin", async () => {
+  it("[RSVP-02] the account panel shows the invited program items of every account with vip, also with staff or admin", async () => {
     const account = (changes: Record<string, unknown>) => ({
       ...anna,
       vipAssignment: "admin_promotion",
       groups: [],
-      invitedPartIds: [1],
+      invitedProgramItemIds: [1],
       ...changes,
     });
     fakeBackend({
@@ -759,7 +764,7 @@ describe("revoking vip (7.4.1, decided 2026-11-11)", () => {
               roles: ["vip", "staff"],
               vipAssignment: "admin_promotion",
               groups: [],
-              invitedPartIds: [1],
+              invitedProgramItemIds: [1],
             },
           ],
         },
@@ -788,7 +793,7 @@ describe("Übersicht", () => {
   const overview = {
     deadline: null,
     songEnabled: true,
-    parts: PARTS,
+    programItems: PARTS,
     menus: MENUS,
     totals: [],
     menuTotals: [],
@@ -829,7 +834,7 @@ describe("Übersicht", () => {
               name: "snapshotUploadsOpen",
             },
             { action: "rsvp.remind", createdAt: ago(60 * 50), count: 31, name: null },
-            { action: "rsvp.part.delete", createdAt: ago(60 * 60), count: 1, name: null },
+            { action: "rsvp.program_item.delete", createdAt: ago(60 * 60), count: 1, name: null },
           ],
         },
       }),
@@ -843,7 +848,7 @@ describe("Übersicht", () => {
       expect.stringMatching(/^12 Einladungen erstellt/),
       expect.stringMatching(/^«Schnappschuss-Uploads» geändert/),
       expect.stringMatching(/^Erinnerung an 31 Gäste gesendet/),
-      expect.stringMatching(/^Ein Teil wurde gelöscht/),
+      expect.stringMatching(/^Ein Programmpunkt wurde gelöscht/),
     ]);
     expect(items[0]).toHaveTextContent(/vor 2 Std/);
     expect(items[1]).toHaveTextContent(/vor 1 Tag|gestern/);
@@ -894,7 +899,7 @@ describe("the song wish switch", () => {
       "GET /api/session": () => asAdmin,
       "GET /api/admin/rsvp/config": () => ({
         status: 200,
-        body: { deadline: null, songEnabled: true, parts: PARTS, menus: MENUS },
+        body: { deadline: null, songEnabled: true, programItems: PARTS, menus: MENUS },
       }),
       "PUT /api/admin/rsvp/song": () => ({ status: 204 }),
     });
@@ -919,7 +924,7 @@ describe("the song wish switch", () => {
         body: {
           deadline: null,
           songEnabled: false,
-          parts: PARTS,
+          programItems: PARTS,
           menus: MENUS,
           totals: [],
           menuTotals: [],

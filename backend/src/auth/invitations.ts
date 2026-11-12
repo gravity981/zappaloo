@@ -6,10 +6,10 @@ import { and, desc, eq } from "drizzle-orm";
 import type { Invitation, InvitationStatus, User } from "@zappaloo/shared";
 import type { Database } from "../database/database.ts";
 import {
-  eventParts,
-  invitationParts,
+  programItems,
+  invitationProgramItems,
   invitations,
-  membershipParts,
+  membershipProgramItems,
   membershipRoles,
   memberships,
 } from "../database/schema.ts";
@@ -31,8 +31,8 @@ export type InvitationErrorCode =
   | "invitation_not_found"
   | "not_regenerable"
   | "not_revocable"
-  | "part_not_found"
-  | "parts_not_editable";
+  | "program_item_not_found"
+  | "program_items_not_editable";
 
 export class InvitationError extends Error {
   override name = "InvitationError";
@@ -98,7 +98,7 @@ export class InvitationService {
     return row.status;
   }
 
-  #toInvitation(row: Row, partIds: number[]): Invitation {
+  #toInvitation(row: Row, programItemIds: number[]): Invitation {
     return {
       id: row.id,
       guestName: row.guestName,
@@ -108,31 +108,34 @@ export class InvitationService {
       createdAt: row.createdAt.toISOString(),
       redeemedAt: row.redeemedAt?.toISOString() ?? null,
       redeemedBy: row.redeemedBy,
-      partIds,
+      programItemIds,
     };
   }
 
   /**
-   * The parts of an invitation: its own list, or, once redeemed, those of the account that
+   * The program items of an invitation: its own list, or, once redeemed, those of the account that
    * redeemed it, which the admin can also change in the account panel (RSVP-02).
    */
-  #partIds(tx: Pick<Database["db"], "select">, row: Row): number[] {
+  #programItemIds(tx: Pick<Database["db"], "select">, row: Row): number[] {
     const eventId = this.#event.eventId;
     const rows =
       row.status === "redeemed" && row.redeemedBy !== null
         ? tx
-            .select({ partId: membershipParts.partId })
-            .from(membershipParts)
+            .select({ programItemId: membershipProgramItems.programItemId })
+            .from(membershipProgramItems)
             .where(
-              and(eq(membershipParts.eventId, eventId), eq(membershipParts.userId, row.redeemedBy)),
+              and(
+                eq(membershipProgramItems.eventId, eventId),
+                eq(membershipProgramItems.userId, row.redeemedBy),
+              ),
             )
             .all()
         : tx
-            .select({ partId: invitationParts.partId })
-            .from(invitationParts)
-            .where(eq(invitationParts.invitationId, row.id))
+            .select({ programItemId: invitationProgramItems.programItemId })
+            .from(invitationProgramItems)
+            .where(eq(invitationProgramItems.invitationId, row.id))
             .all();
-    return rows.map((r) => r.partId).sort((a, b) => a - b);
+    return rows.map((r) => r.programItemId).sort((a, b) => a - b);
   }
 
   list(): Invitation[] {
@@ -143,21 +146,24 @@ export class InvitationService {
       .where(eq(invitations.eventId, this.#event.eventId))
       .orderBy(desc(invitations.id))
       .all()
-      .map((row) => this.#toInvitation(row, this.#partIds(db, row)));
+      .map((row) => this.#toInvitation(row, this.#programItemIds(db, row)));
   }
 
-  /** Every part of the event must exist; undefined means all parts (RSVP-02). */
-  #resolveParts(tx: Pick<Database["db"], "select">, partIds: number[] | undefined): number[] {
+  /** Every program item of the event must exist; undefined means all program items (RSVP-02). */
+  #resolveProgramItems(
+    tx: Pick<Database["db"], "select">,
+    programItemIds: number[] | undefined,
+  ): number[] {
     const all = tx
-      .select({ id: eventParts.id })
-      .from(eventParts)
-      .where(eq(eventParts.eventId, this.#event.eventId))
+      .select({ id: programItems.id })
+      .from(programItems)
+      .where(eq(programItems.eventId, this.#event.eventId))
       .all()
       .map((r) => r.id);
-    if (partIds === undefined) return all.sort((a, b) => a - b);
-    const wanted = [...new Set(partIds)].sort((a, b) => a - b);
+    if (programItemIds === undefined) return all.sort((a, b) => a - b);
+    const wanted = [...new Set(programItemIds)].sort((a, b) => a - b);
     if (wanted.some((id) => !all.includes(id))) {
-      throw new InvitationError("part_not_found", "no such event part");
+      throw new InvitationError("program_item_not_found", "no such program item");
     }
     return wanted;
   }
@@ -167,13 +173,13 @@ export class InvitationService {
     guests: { name: string; note?: string | undefined }[],
     expiresAt: Date | undefined,
     actor: Actor,
-    /** The parts the guests are invited to; undefined: all parts of the event. */
-    partIds?: number[],
+    /** The program items the guests are invited to; undefined: all program items of the event. */
+    programItemIds?: number[],
   ): IssuedCode[] {
     return this.#database.db.transaction((tx) => {
-      const parts = this.#resolveParts(tx, partIds);
+      const programItems = this.#resolveProgramItems(tx, programItemIds);
       return guests.map((guest) => {
-        const issued = this.#insert(tx, guest.name, guest.note ?? null, expiresAt, parts);
+        const issued = this.#insert(tx, guest.name, guest.note ?? null, expiresAt, programItems);
         // The id only: the guest's name is in the invitation, not copied into the log.
         this.#event.audit(actor, "invitation.create", { invitationId: issued.invitation.id }, tx);
         return issued;
@@ -203,7 +209,7 @@ export class InvitationService {
     guestName: string,
     note: string | null,
     expiresAt: Date | undefined,
-    partIds: number[],
+    programItemIds: number[],
   ): IssuedCode {
     const code = this.#unusedCode(tx);
     const row = tx
@@ -218,12 +224,12 @@ export class InvitationService {
       })
       .returning()
       .get();
-    for (const partId of partIds) {
-      tx.insert(invitationParts)
-        .values({ eventId: this.#event.eventId, invitationId: row.id, partId })
+    for (const programItemId of programItemIds) {
+      tx.insert(invitationProgramItems)
+        .values({ eventId: this.#event.eventId, invitationId: row.id, programItemId })
         .run();
     }
-    return { invitation: this.#toInvitation(row, partIds), code };
+    return { invitation: this.#toInvitation(row, programItemIds), code };
   }
 
   #get(tx: Pick<Database["db"], "select">, id: number): Row {
@@ -254,7 +260,7 @@ export class InvitationService {
         .returning()
         .get();
       this.#event.audit(actor, "invitation.revoke", { invitationId: id }, tx);
-      return this.#toInvitation(updated, this.#partIds(tx, updated));
+      return this.#toInvitation(updated, this.#programItemIds(tx, updated));
     });
   }
 
@@ -268,7 +274,13 @@ export class InvitationService {
       if (row.status !== "active") {
         throw new InvitationError("not_regenerable", `a ${row.status} code cannot be regenerated`);
       }
-      const issued = this.#insert(tx, row.guestName, row.note, expiresAt, this.#partIds(tx, row));
+      const issued = this.#insert(
+        tx,
+        row.guestName,
+        row.note,
+        expiresAt,
+        this.#programItemIds(tx, row),
+      );
       tx.update(invitations)
         .set({ status: "replaced", replacedBy: issued.invitation.id })
         .where(eq(invitations.id, id))
@@ -284,51 +296,69 @@ export class InvitationService {
   }
 
   /**
-   * Changes the parts of an invitation (RSVP-02, UX decision 31): its own list while the code
-   * is active or expired, the account's parts once it is redeemed. A revoked or replaced code
+   * Changes the program items of an invitation (RSVP-02, UX decision 31): its own list while the code
+   * is active or expired, the account's program items once it is redeemed. A revoked or replaced code
    * is dead and keeps what it had.
    */
-  setParts(id: number, partIds: number[], actor: Actor): Invitation {
+  setProgramItems(id: number, programItemIds: number[], actor: Actor): Invitation {
     return this.#database.db.transaction((tx) => {
       const row = this.#get(tx, id);
       const status = this.#status(row);
       if (status === "revoked" || status === "replaced") {
-        throw new InvitationError("parts_not_editable", `a ${status} code cannot be changed`);
+        throw new InvitationError(
+          "program_items_not_editable",
+          `a ${status} code cannot be changed`,
+        );
       }
-      const parts = this.#resolveParts(tx, partIds);
+      const programItems = this.#resolveProgramItems(tx, programItemIds);
       const eventId = this.#event.eventId;
-      tx.delete(invitationParts).where(eq(invitationParts.invitationId, id)).run();
-      for (const partId of parts) {
-        tx.insert(invitationParts).values({ eventId, invitationId: id, partId }).run();
+      tx.delete(invitationProgramItems).where(eq(invitationProgramItems.invitationId, id)).run();
+      for (const programItemId of programItems) {
+        tx.insert(invitationProgramItems)
+          .values({ eventId, invitationId: id, programItemId })
+          .run();
       }
       if (row.status === "redeemed" && row.redeemedBy !== null) {
         const before = attendingNow(tx, eventId, row.redeemedBy);
-        tx.delete(membershipParts)
+        tx.delete(membershipProgramItems)
           .where(
-            and(eq(membershipParts.eventId, eventId), eq(membershipParts.userId, row.redeemedBy)),
+            and(
+              eq(membershipProgramItems.eventId, eventId),
+              eq(membershipProgramItems.userId, row.redeemedBy),
+            ),
           )
           .run();
-        for (const partId of parts) {
-          tx.insert(membershipParts).values({ eventId, userId: row.redeemedBy, partId }).run();
+        for (const programItemId of programItems) {
+          tx.insert(membershipProgramItems)
+            .values({ eventId, userId: row.redeemedBy, programItemId })
+            .run();
         }
-        // Answers for parts no longer invited go, as with the account panel (7.4.1).
+        // Answers for program items no longer invited go, as with the account panel (7.4.1).
         pruneAnswers(tx, eventId, row.redeemedBy, before);
       }
-      this.#event.audit(actor, "invitation.parts", { invitationId: id, partIds: parts }, tx);
-      return this.#toInvitation(row, this.#partIds(tx, row));
+      this.#event.audit(
+        actor,
+        "invitation.program_items",
+        { invitationId: id, programItemIds: programItems },
+        tx,
+      );
+      return this.#toInvitation(row, this.#programItemIds(tx, row));
     });
   }
 
-  /** The invitation's parts become the parts of the guest who redeemed it. */
-  #copyPartsToMember(tx: Tx, invitationId: number, userId: number): void {
+  /** The invitation's program items become the program items of the guest who redeemed it. */
+  #copyProgramItemsToMember(tx: Tx, invitationId: number, userId: number): void {
     const eventId = this.#event.eventId;
     const rows = tx
-      .select({ partId: invitationParts.partId })
-      .from(invitationParts)
-      .where(eq(invitationParts.invitationId, invitationId))
+      .select({ programItemId: invitationProgramItems.programItemId })
+      .from(invitationProgramItems)
+      .where(eq(invitationProgramItems.invitationId, invitationId))
       .all();
-    for (const { partId } of rows) {
-      tx.insert(membershipParts).values({ eventId, userId, partId }).onConflictDoNothing().run();
+    for (const { programItemId } of rows) {
+      tx.insert(membershipProgramItems)
+        .values({ eventId, userId, programItemId })
+        .onConflictDoNothing()
+        .run();
     }
   }
 
@@ -398,7 +428,7 @@ export class InvitationService {
         tx,
       );
       markRedeemed(tx, row.id, user.id, this.#now());
-      this.#copyPartsToMember(tx, row.id, user.id);
+      this.#copyProgramItemsToMember(tx, row.id, user.id);
       return user;
     });
   }
@@ -429,7 +459,7 @@ export class InvitationService {
         .where(and(eq(memberships.eventId, eventId), eq(memberships.userId, userId)))
         .run();
       markRedeemed(tx, row.id, userId, this.#now());
-      this.#copyPartsToMember(tx, row.id, userId);
+      this.#copyProgramItemsToMember(tx, row.id, userId);
       this.#event.audit(
         `user:${String(userId)}`,
         "user.roles",

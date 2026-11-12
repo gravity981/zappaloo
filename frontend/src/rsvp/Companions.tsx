@@ -8,7 +8,7 @@ import { MAX_COMPANIONS, rsvpStateSchema } from "@zappaloo/shared";
 import type {
   Companion,
   CompanionRequest,
-  EventPart,
+  ProgramItem,
   MenuOption,
   RsvpState,
 } from "@zappaloo/shared";
@@ -18,25 +18,30 @@ import { useErrorText } from "../admin/data.ts";
 import { answerOf, attendsAny, needsMenu, personOf } from "./person.ts";
 import type { PersonValue } from "./person.ts";
 
-/** Yes or no per part, one row each. */
-export function PartsBlock({
-  parts,
+/** Yes or no per program item, one row each. */
+export function ProgramItemsBlock({
+  programItems,
   value,
   onChange,
   time,
 }: {
-  parts: EventPart[];
+  programItems: ProgramItem[];
   value: Record<number, boolean>;
   onChange: (next: Record<number, boolean>) => void;
-  time: (part: EventPart) => string;
+  time: (programItem: ProgramItem) => string;
 }) {
   const { t } = useTranslation();
   return (
     <div className="card">
-      {parts.map((part) => (
-        <div key={part.id} className="rsvp-part" role="group" aria-label={part.name}>
+      {programItems.map((programItem) => (
+        <div
+          key={programItem.id}
+          className="rsvp-program-item"
+          role="group"
+          aria-label={programItem.name}
+        >
           <div className="grow">
-            <b>{part.name}</b> <span className="muted sm">{time(part)}</span>
+            <b>{programItem.name}</b> <span className="muted sm">{time(programItem)}</span>
           </div>
           <div className="chips">
             {[true, false].map((yes) => (
@@ -44,10 +49,10 @@ export function PartsBlock({
                 key={String(yes)}
                 type="button"
                 className="chip"
-                aria-pressed={value[part.id] === yes}
-                aria-label={`${part.name}: ${yes ? t("rsvp.attending") : t("rsvp.notAttending")}`}
+                aria-pressed={value[programItem.id] === yes}
+                aria-label={`${programItem.name}: ${yes ? t("rsvp.attending") : t("rsvp.notAttending")}`}
                 onClick={() => {
-                  onChange({ ...value, [part.id]: yes });
+                  onChange({ ...value, [programItem.id]: yes });
                 }}
               >
                 {yes ? t("rsvp.attending") : t("rsvp.notAttending")}
@@ -64,29 +69,29 @@ export function PartsBlock({
 export function MenuFields({
   value,
   onChange,
-  parts,
+  programItems,
   menus,
   label,
 }: {
   value: PersonValue;
   onChange: (next: PersonValue) => void;
-  parts: EventPart[];
+  programItems: ProgramItem[];
   menus: MenuOption[];
   /** Makes the field names unique when a companion is on the page; the guest needs none. */
   label?: string;
 }) {
   const { t } = useTranslation();
-  const meal = parts.find((part) => part.hasMeal);
+  const meal = programItems.find((programItem) => programItem.hasMeal);
   const prefixed = (text: string) => (label === undefined ? text : `${label}: ${text}`);
   return (
     <>
-      {meal && needsMenu(value, parts, menus) && (
+      {meal && needsMenu(value, programItems, menus) && (
         <div
           className="field"
           role="group"
-          aria-label={prefixed(t("rsvp.menu", { part: meal.name }))}
+          aria-label={prefixed(t("rsvp.menu", { programItem: meal.name }))}
         >
-          <span>{t("rsvp.menu", { part: meal.name })}</span>
+          <span>{t("rsvp.menu", { programItem: meal.name })}</span>
           <div className="chips">
             {menus.map((menu) => (
               <button
@@ -129,7 +134,7 @@ const STATUS_TAG = { pending: "tag warn", approved: "tag ok", rejected: "tag bad
 /** The request form of a new person, or the change of a pending one (RSVP-08, RSVP-10). */
 export function CompanionForm({
   companion,
-  parts,
+  programItems,
   menus,
   time,
   frame,
@@ -139,9 +144,9 @@ export function CompanionForm({
   companion?: Companion;
   /** Puts the form's body and its action buttons into the page frame. */
   frame: (body: ReactNode, footer: ReactNode) => ReactNode;
-  parts: EventPart[];
+  programItems: ProgramItem[];
   menus: MenuOption[];
-  time: (part: EventPart) => string;
+  time: (programItem: ProgramItem) => string;
   onSaved: (state: RsvpState) => void;
   onCancel: () => void;
 }) {
@@ -151,21 +156,21 @@ export function CompanionForm({
   const [name, setName] = useState(companion?.name ?? "");
   const [note, setNote] = useState(companion?.note ?? "");
   const [value, setValue] = useState<PersonValue>(
-    companion ? personOf(companion, parts) : { attendance: {}, menuId: null, allergies: "" },
+    companion ? personOf(companion, programItems) : { attendance: {}, menuId: null, allergies: "" },
   );
   const [error, setError] = useState<string>();
   const [sending, setSending] = useState(false);
   const complete =
     name.trim() !== "" &&
-    parts.every((part) => value.attendance[part.id] !== undefined) &&
-    (!needsMenu(value, parts, menus) || value.menuId !== null);
+    programItems.every((programItem) => value.attendance[programItem.id] !== undefined) &&
+    (!needsMenu(value, programItems, menus) || value.menuId !== null);
 
   async function submit() {
     setSending(true);
     const body: CompanionRequest = {
       name: name.trim(),
       note: note.trim() === "" ? null : note.trim(),
-      ...answerOf(value, parts, menus),
+      ...answerOf(value, programItems, menus),
     };
     const result = companion
       ? await apiRequest("PUT", `/api/rsvp/companions/${String(companion.id)}`, {
@@ -205,8 +210,8 @@ export function CompanionForm({
         />
       </label>
       <b className="sm">{t("rsvp.companions.attendance")}</b>
-      <PartsBlock
-        parts={parts}
+      <ProgramItemsBlock
+        programItems={programItems}
         value={value.attendance}
         time={time}
         onChange={(attendance) => {
@@ -218,7 +223,7 @@ export function CompanionForm({
           <MenuFields
             value={value}
             onChange={setValue}
-            parts={parts}
+            programItems={programItems}
             menus={menus}
             label={name.trim() === "" ? t("rsvp.companions.thePerson") : name.trim()}
           />
@@ -249,7 +254,7 @@ export function CompanionForm({
 /** The accompanying persons with their status and what the guest or admin can do (step 3). */
 export function CompanionsCard({
   companions,
-  parts,
+  programItems,
   menus,
   admin,
   locked,
@@ -259,7 +264,7 @@ export function CompanionsCard({
   onRefresh,
 }: {
   companions: Companion[];
-  parts: EventPart[];
+  programItems: ProgramItem[];
   menus: MenuOption[];
   admin: boolean;
   locked: boolean;
@@ -301,9 +306,9 @@ export function CompanionsCard({
 
   const summary = (companion: Companion) =>
     [
-      parts
-        .filter((part) => companion.attendingPartIds.includes(part.id))
-        .map((part) => part.name)
+      programItems
+        .filter((programItem) => companion.attendingItemIds.includes(programItem.id))
+        .map((programItem) => programItem.name)
         .join(", "),
       menus.find((menu) => menu.id === companion.menuId)?.name,
     ]

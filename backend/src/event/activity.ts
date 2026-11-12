@@ -8,7 +8,7 @@ import type { Database } from "../database/database.ts";
 import {
   auditLog,
   companions,
-  eventParts,
+  programItems,
   invitations,
   menuOptions,
   users,
@@ -126,11 +126,14 @@ export class ActivityService {
           .get()?.name ?? null
       );
     }
-    const partId = num(row.details.partId);
-    if (partId !== undefined) {
+    const programItemId = num(row.details.programItemId);
+    if (programItemId !== undefined) {
       return (
-        db.select({ name: eventParts.name }).from(eventParts).where(eq(eventParts.id, partId)).get()
-          ?.name ?? null
+        db
+          .select({ name: programItems.name })
+          .from(programItems)
+          .where(eq(programItems.id, programItemId))
+          .get()?.name ?? null
       );
     }
     const menuId = num(row.details.menuId);

@@ -2,7 +2,7 @@ import { expect, test } from "@playwright/test";
 import { clientAddress, PASSWORD, signInAsAdmin } from "./support.ts";
 import de from "../frontend/src/i18n/locales/de/common.json" with { type: "json" };
 
-test("[RSVP-01][RSVP-02][RSVP-03][RSVP-04][RSVP-05][RSVP-06][SEC-11][DATA-05] a guest answers the RSVP for the invited parts; the admin sees it and changes it", async ({
+test("[RSVP-01][RSVP-02][RSVP-03][RSVP-04][RSVP-05][RSVP-06][SEC-11][DATA-05] a guest answers the RSVP for the invited program items; the admin sees it and changes it", async ({
   page,
   context,
   browser,
@@ -22,13 +22,13 @@ test("[RSVP-01][RSVP-02][RSVP-03][RSVP-04][RSVP-05][RSVP-06][SEC-11][DATA-05] a 
   await expect(
     page.getByRole("status").filter({ hasText: de.admin.rsvpSettings.saved }),
   ).toBeVisible();
-  // The example parts and menus of the seeded event are there, one part has the meal.
+  // The example program items and menus of the seeded event are there, one program item has the meal.
   await expect(page.getByText(de.admin.rsvpSettings.mealTag, { exact: true })).toBeVisible();
 
-  // An invitation for every part except the party.
+  // An invitation for every program item except the party.
   await page.goto("/admin/invitations");
   await page.getByLabel(de.admin.invitations.names).fill(name);
-  const invitedTo = page.getByRole("group", { name: de.admin.invitations.parts });
+  const invitedTo = page.getByRole("group", { name: de.admin.invitations.programItems });
   await invitedTo.getByRole("button", { name: "Party" }).click();
   await page.getByRole("button", { name: /Einladung erstellen/ }).click();
   const codeCell = page.locator(".invitation-code");
@@ -50,14 +50,14 @@ test("[RSVP-01][RSVP-02][RSVP-03][RSVP-04][RSVP-05][RSVP-06][SEC-11][DATA-05] a 
   await expect(
     guest.getByRole("heading", { name: de.rsvp.greeting.replace("{{name}}", name) }),
   ).toBeVisible();
-  // Only the invited parts are offered.
+  // Only the invited program items are offered.
   await expect(guest.getByRole("group", { name: "Party" })).toHaveCount(0);
   await guest.getByRole("button", { name: `Trauung: ${de.rsvp.attending}` }).click();
   await guest.getByRole("button", { name: `Apéro: ${de.rsvp.attending}` }).click();
   await guest.getByRole("button", { name: `Dinner: ${de.rsvp.attending}` }).click();
   await guest.getByRole("button", { name: de.rsvp.next }).click();
 
-  // The menu is asked because the guest attends the meal part, and it is required.
+  // The menu is asked because the guest attends the meal program item, and it is required.
   await expect(guest.getByRole("button", { name: de.rsvp.next })).toBeDisabled();
   await guest.getByRole("button", { name: "Vegetarisch" }).click();
   await guest.getByLabel(de.rsvp.allergies).fill("Nüsse");

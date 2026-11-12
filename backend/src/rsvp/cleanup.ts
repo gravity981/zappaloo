@@ -1,12 +1,12 @@
 // Keeps the RSVP answers in line with the invitation (sw-architecture.md 7.4.1): whoever changes
-// a guest's invited parts, deletes a part or revokes `vip` calls these inside the same
-// transaction, so the overview never counts an answer for a part the guest is not invited to.
+// a guest's invited program items, deletes a program item or revokes `vip` calls these inside the same
+// transaction, so the overview never counts an answer for a program item the guest is not invited to.
 import { and, eq, inArray, notInArray } from "drizzle-orm";
 import type { Database } from "../database/database.ts";
 import {
   companionAttendance,
   companions,
-  membershipParts,
+  membershipProgramItems,
   rsvpAnswers,
   rsvpAttendance,
 } from "../database/schema.ts";
@@ -14,16 +14,16 @@ import {
 type Tx = Parameters<Parameters<Database["db"]["transaction"]>[0]>[0];
 type Reader = Pick<Database["db"], "select">;
 
-/** The guest and the companions of the guest that attend at least one part. */
+/** The guest and the companions of the guest that attend at least one program item. */
 export interface Attending {
   guest: boolean;
   companions: Set<number>;
 }
 
-/** Who of this guest's party attends a part now; taken before a change, given to `pruneAnswers`. */
+/** Who of this guest's party attends a program item now; taken before a change, given to `pruneAnswers`. */
 export function attendingNow(reader: Reader, eventId: string, userId: number): Attending {
   const guest = reader
-    .select({ partId: rsvpAttendance.partId })
+    .select({ programItemId: rsvpAttendance.programItemId })
     .from(rsvpAttendance)
     .where(
       and(
@@ -59,24 +59,26 @@ function companionIds(reader: Reader, eventId: string, userId: number): number[]
 }
 
 /**
- * After the guest's invited parts changed (or a part was deleted): removes the answers for parts
- * the guest is no longer invited to, for the guest and their companions. Whoever attended a part
+ * After the guest's invited program items changed (or a program item was deleted): removes the answers for program items
+ * the guest is no longer invited to, for the guest and their companions. Whoever attended a program item
  * before and attends none now goes back to "no answer" (decided 2026-11-11): the guest's answer,
  * or the companion's attendance, menu and allergies, are removed, so the wizard asks again.
  */
 export function pruneAnswers(tx: Tx, eventId: string, userId: number, before: Attending): void {
   const invited = tx
-    .select({ partId: membershipParts.partId })
-    .from(membershipParts)
-    .where(and(eq(membershipParts.eventId, eventId), eq(membershipParts.userId, userId)))
+    .select({ programItemId: membershipProgramItems.programItemId })
+    .from(membershipProgramItems)
+    .where(
+      and(eq(membershipProgramItems.eventId, eventId), eq(membershipProgramItems.userId, userId)),
+    )
     .all()
-    .map((row) => row.partId);
+    .map((row) => row.programItemId);
   tx.delete(rsvpAttendance)
     .where(
       and(
         eq(rsvpAttendance.eventId, eventId),
         eq(rsvpAttendance.userId, userId),
-        notInArray(rsvpAttendance.partId, invited),
+        notInArray(rsvpAttendance.programItemId, invited),
       ),
     )
     .run();
@@ -86,7 +88,7 @@ export function pruneAnswers(tx: Tx, eventId: string, userId: number, before: At
       .where(
         and(
           inArray(companionAttendance.companionId, ids),
-          notInArray(companionAttendance.partId, invited),
+          notInArray(companionAttendance.programItemId, invited),
         ),
       )
       .run();
@@ -112,11 +114,13 @@ export function pruneAnswers(tx: Tx, eventId: string, userId: number, before: At
 
 /**
  * When `vip` is revoked, the guest's RSVP goes with it (decided 2026-11-11, SEC-11): invited
- * parts, answer, attendance and the accompanying persons with their allergies.
+ * program items, answer, attendance and the accompanying persons with their allergies.
  */
 export function forgetGuest(tx: Tx, eventId: string, userId: number): void {
-  tx.delete(membershipParts)
-    .where(and(eq(membershipParts.eventId, eventId), eq(membershipParts.userId, userId)))
+  tx.delete(membershipProgramItems)
+    .where(
+      and(eq(membershipProgramItems.eventId, eventId), eq(membershipProgramItems.userId, userId)),
+    )
     .run();
   tx.delete(rsvpAttendance)
     .where(and(eq(rsvpAttendance.eventId, eventId), eq(rsvpAttendance.userId, userId)))
