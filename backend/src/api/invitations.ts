@@ -12,6 +12,7 @@ import {
   issuedInvitationSchema,
   redeemResponseSchema,
   registerRequestSchema,
+  revokeResponseSchema,
 } from "@zappaloo/shared";
 import type { IssuedInvitation } from "@zappaloo/shared";
 import type { FastifyReply } from "fastify";
@@ -160,7 +161,7 @@ const invitationPlugin: FastifyPluginAsyncZod<AuthOptions> = (app, options) => {
         querystring: noQuery,
         params: idParams,
         body: noBody,
-        response: { 200: invitationSchema },
+        response: { 200: revokeResponseSchema },
       },
     },
     async (request, reply) => {

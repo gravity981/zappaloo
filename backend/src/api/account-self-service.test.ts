@@ -385,7 +385,8 @@ describe("deleting the own account", () => {
 
   it("[ACC-12] deletes the account with its membership, sessions and links after the password", async () => {
     const ctx = await setup();
-    const anna = await makeUser(ctx, "anna");
+    // Not a guest: an account without `vip` has no guest-list entry and goes completely.
+    const anna = await makeUser(ctx, "anna", ["staff"]);
     await makeUser(ctx, "root", ["admin"]);
     const session = await login(ctx, "anna");
     ctx.auth.accounts.createLink(anna.id, "reset", "cli");
@@ -431,10 +432,10 @@ describe("deleting the own account", () => {
       username: "zora",
       password: PASSWORD,
     });
-    const created = ctx.event.auditEntries().find((e) => e.action === "user.create");
-    expect(created).toMatchObject({
+    const redeemed = ctx.event.auditEntries().find((e) => e.action === "invitation.redeem");
+    expect(redeemed).toMatchObject({
       actor: `user:${String(user.id)}`,
-      details: { userId: user.id, vipAssignment: "invitation_code" },
+      details: { userId: user.id, method: "register" },
     });
     const session = await login(ctx, "zora");
     expect((await remove(ctx, session, PASSWORD)).statusCode).toBe(204);

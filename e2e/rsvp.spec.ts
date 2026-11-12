@@ -2,7 +2,7 @@ import { expect, test } from "@playwright/test";
 import { clientAddress, PASSWORD, signInAsAdmin } from "./support.ts";
 import de from "../frontend/src/i18n/locales/de/common.json" with { type: "json" };
 
-test("[RSVP-01][RSVP-02][RSVP-03][RSVP-04][RSVP-05][RSVP-06][RSVP-11][SEC-11][DATA-05] a guest answers the RSVP once for the invited program items; the admin sees it and changes it", async ({
+test("[RSVP-01][RSVP-02][RSVP-03][RSVP-04][RSVP-05][RSVP-06][RSVP-11][ACC-17][SEC-11][DATA-05] a guest answers the RSVP once for the invited program items; the admin sees it and changes it", async ({
   page,
   context,
   browser,
@@ -34,6 +34,12 @@ test("[RSVP-01][RSVP-02][RSVP-03][RSVP-04][RSVP-05][RSVP-06][RSVP-11][SEC-11][DA
   const codeCell = page.locator(".invitation-code");
   await expect(codeCell).toHaveText(/^[A-Z0-9]{6}$/);
   const code = (await codeCell.textContent()) ?? "";
+
+  // The guest is on the guest list before the card is redeemed: without an answer (ACC-17).
+  await page.goto("/admin/rsvp");
+  await expect(page.getByRole("row", { name: new RegExp(name) })).toContainText(
+    de.admin.rsvp.statuses.none,
+  );
 
   // The guest redeems the invitation in a browser of their own and answers.
   const guestContext = await browser.newContext({

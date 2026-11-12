@@ -29,8 +29,15 @@ export const invitationSchema = z.object({
   redeemedAt: z.string().nullable(),
   /** The account that redeemed the code, while it exists. */
   redeemedBy: z.number().int().nullable(),
-  /** The program items the guest is invited to (RSVP-02). */
+  /** The program items the guest is invited to (RSVP-02), those of the guest's account. */
   programItemIds: z.array(z.number().int()),
+  /** The invited person's account (ACC-17); null for old revoked and replaced codes. */
+  userId: z.number().int().nullable(),
+  /**
+   * True if revoking this code also removes the guest: it is the account's last open code and the
+   * account was never activated (INV-20). The button then asks for a second click.
+   */
+  removesGuest: z.boolean(),
 });
 export type Invitation = z.infer<typeof invitationSchema>;
 export const invitationListSchema = z.object({ invitations: z.array(invitationSchema) });
@@ -78,6 +85,10 @@ export const registerRequestSchema = z.strictObject({
   email: emailSchema.optional(),
 });
 export type RegisterRequest = z.infer<typeof registerRequestSchema>;
+
+/** `POST /api/admin/invitations/:id/revoke`: the code, and whether the guest was removed with it (INV-20). */
+export const revokeResponseSchema = invitationSchema.extend({ guestRemoved: z.boolean() });
+export type RevokeResponse = z.infer<typeof revokeResponseSchema>;
 
 /** The user whose account redeemed the code. */
 export const redeemResponseSchema = z.object({ user: userSchema });

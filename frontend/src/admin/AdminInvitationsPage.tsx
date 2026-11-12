@@ -118,8 +118,12 @@ export default function AdminInvitationsPage() {
     reload();
   }
 
+  /** The code whose revoking removes the guest and waits for the second click (INV-20). */
+  const [confirmRemove, setConfirmRemove] = useState<number>();
+
   async function revoke(id: number) {
     const result = await call("POST", `/api/admin/invitations/${String(id)}/revoke`);
+    setConfirmRemove(undefined);
     setError(result.ok ? undefined : errorText(result.errorCode));
     reload();
   }
@@ -309,16 +313,39 @@ export default function AdminInvitationsPage() {
                         {t("admin.invitations.regenerate")}
                       </button>
                     )}{" "}
-                    {invitation.status === "active" && (
-                      <button
-                        type="button"
-                        className="btn ghost sm"
-                        aria-label={`${t("admin.invitations.revoke")}: ${invitation.guestName}`}
-                        onClick={() => void revoke(invitation.id)}
-                      >
-                        {t("admin.invitations.revoke")}
-                      </button>
-                    )}
+                    {invitation.status === "active" &&
+                      (confirmRemove === invitation.id ? (
+                        <span className="row" role="alertdialog" aria-label={invitation.guestName}>
+                          <button
+                            type="button"
+                            className="btn danger sm"
+                            onClick={() => void revoke(invitation.id)}
+                          >
+                            {t("admin.invitations.revokeAndRemove")}
+                          </button>
+                          <button
+                            type="button"
+                            className="btn ghost sm"
+                            onClick={() => {
+                              setConfirmRemove(undefined);
+                            }}
+                          >
+                            {t("admin.cancel")}
+                          </button>
+                        </span>
+                      ) : (
+                        <button
+                          type="button"
+                          className="btn ghost sm"
+                          aria-label={`${t("admin.invitations.revoke")}: ${invitation.guestName}`}
+                          onClick={() => {
+                            if (invitation.removesGuest) setConfirmRemove(invitation.id);
+                            else void revoke(invitation.id);
+                          }}
+                        >
+                          {t("admin.invitations.revoke")}
+                        </button>
+                      ))}
                   </td>
                 </tr>
               ))}

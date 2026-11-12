@@ -84,8 +84,15 @@ export const users = sqliteTable(
   "users",
   {
     id: integer("id").primaryKey({ autoIncrement: true }),
-    /** Login name, lower case, never changes. */
-    username: text("username").notNull().unique(),
+    /**
+     * Login name, lower case, never changes once set. Null while the account is inactive and was
+     * created for an invitation (7.1.2); the unique index allows several empty values.
+     */
+    username: text("username").unique(),
+    /** `inactive`: never activated, cannot sign in; `active`; `blocked` by an admin (ACC-17, ACC-18). */
+    status: text("status", { enum: ["inactive", "active", "blocked"] })
+      .notNull()
+      .default("inactive"),
     displayName: text("display_name").notNull(),
     email: text("email"),
     emailStatus: text("email_status", { enum: ["unverified", "verified"] })
@@ -281,6 +288,8 @@ export const invitations = sqliteTable(
     redeemedBy: integer("redeemed_by").references(() => users.id, { onDelete: "set null" }),
     /** For a `replaced` code: the code that took its place. */
     replacedBy: integer("replaced_by").references((): AnySQLiteColumn => invitations.id),
+    /** The invited person's account, inactive until the code is redeemed (ACC-17, 7.1.2). */
+    userId: integer("user_id").references(() => users.id),
   },
   (table) => [index("invitations_event").on(table.eventId)],
 );
@@ -352,23 +361,6 @@ export const rsvpConfig = sqliteTable("rsvp_config", {
   /** Whether an added accompanying person waits for the admin's approval (RSVP-12). */
   companionApproval: integer("companion_approval", { mode: "boolean" }).notNull().default(false),
 });
-
-/** The program items an invitation is for; copied to the membership when the code is redeemed. */
-export const invitationProgramItems = sqliteTable(
-  "invitation_program_items",
-  {
-    eventId: text("event_id")
-      .notNull()
-      .references(() => events.id),
-    invitationId: integer("invitation_id")
-      .notNull()
-      .references(() => invitations.id, { onDelete: "cascade" }),
-    programItemId: integer("program_item_id")
-      .notNull()
-      .references(() => programItems.id, { onDelete: "cascade" }),
-  },
-  (table) => [primaryKey({ columns: [table.invitationId, table.programItemId] })],
-);
 
 /** The program items a `vip` is invited to (RSVP-02). */
 export const membershipProgramItems = sqliteTable(

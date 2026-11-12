@@ -112,7 +112,7 @@ export function AccountPanel({
   return (
     <Panel title={user.displayName} onClose={onClose}>
       <p className="hint">
-        {user.username}
+        {user.username ?? t("admin.users.noUsername")}
         {user.email && ` · ${user.email} (${t(`admin.users.emailStatus.${user.emailStatus}`)})`}
       </p>
       <Alert text={error} />
@@ -189,7 +189,6 @@ export function AccountPanel({
                 <ToggleChip
                   key={programItem.id}
                   pressed={user.invitedProgramItemIds.includes(programItem.id)}
-                  disabled={user.vipAssignment === "invitation_code"}
                   onToggle={() => void toggleInvitedProgramItem(programItem.id)}
                 >
                   {programItem.name}

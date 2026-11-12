@@ -15,15 +15,8 @@ import {
 } from "../database/schema.ts";
 import type { EventService } from "./service.ts";
 
-/**
- * Audit actions the card reads: its own kinds of entry, except the derived `invitation.redeem`,
- * plus the two rows that mean "a guest redeemed an invitation" (see `#action`).
- */
-const LISTED = [
-  ...ACTIVITY_ACTIONS.filter((action) => action !== "invitation.redeem"),
-  "user.create",
-  "user.roles",
-];
+/** The audit actions the card reads (DATA-05). */
+const LISTED: readonly string[] = ACTIVITY_ACTIONS;
 
 /** How many audit rows to scan: the card shows 5, and rows that are not listed are skipped. */
 const SCAN = 500;
@@ -87,12 +80,6 @@ export class ActivityService {
 
   /** The action as the card words it; undefined for rows that are not listed. */
   #action(row: Row): ActivityAction | undefined {
-    if (row.action === "user.create") {
-      return row.details.vipAssignment === "invitation_code" ? "invitation.redeem" : undefined;
-    }
-    if (row.action === "user.roles") {
-      return row.details.vipAssignment === "invitation_code" ? "invitation.redeem" : undefined;
-    }
     return ACTIVITY_ACTIONS.find((action) => action === row.action);
   }
 

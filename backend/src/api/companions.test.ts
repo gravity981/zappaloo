@@ -489,7 +489,7 @@ describe("approval", () => {
 });
 
 describe("deleting and privacy", () => {
-  it("[RSVP-09] deleting the guest's account deletes their accompanying persons", async () => {
+  it("[RSVP-09] a guest deleting their login leaves the accompanying persons with the hosts", async () => {
     const { ctx, call, guest, programItems } = await setup();
     const erika = await guest("erika");
     await call(erika, "POST", "/api/rsvp/companions", {
@@ -501,7 +501,8 @@ describe("deleting and privacy", () => {
     expect([count("companions"), count("companion_attendance")]).toEqual([1, 4]);
     const deleted = await call(erika, "DELETE", "/api/profile", { password: PASSWORD });
     expect(deleted.status).toBe(204);
-    expect([count("companions"), count("companion_attendance")]).toEqual([0, 0]);
+    // The guest-list entry stays with the hosts (7.1.2): the companions are still there ...
+    expect([count("companions"), count("companion_attendance")]).toEqual([1, 4]);
   });
 
   it("[RSVP-09] removing a program item from the guest's invitation removes their companions' answers for it", async () => {

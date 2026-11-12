@@ -623,6 +623,8 @@ describe("invited program items", () => {
     redeemedAt: null,
     redeemedBy: null,
     programItemIds: [1, 2],
+    userId: 41,
+    removesGuest: false,
     ...changes,
   });
 
@@ -674,9 +676,10 @@ describe("invited program items", () => {
     expect(calls.find((c) => c.method === "PUT")?.body).toEqual({ programItemIds: [1, 2, 3] });
   });
 
-  it("[RSVP-02] the account panel of a promoted guest chooses the program items; an invited one only shows them", async () => {
+  it("[RSVP-02] the account panel of a promoted guest chooses the program items, also for an account created for an invitation", async () => {
     const account = (changes: Record<string, unknown>) => ({
       ...anna,
+      status: "active",
       vipAssignment: "admin_promotion",
       groups: [],
       invitedProgramItemIds: [1, 3],
@@ -720,6 +723,7 @@ describe("invited program items", () => {
   it("[RSVP-02] the account panel shows the invited program items of every account with vip, also with staff or admin", async () => {
     const account = (changes: Record<string, unknown>) => ({
       ...anna,
+      status: "active",
       vipAssignment: "admin_promotion",
       groups: [],
       invitedProgramItemIds: [1],
@@ -786,6 +790,7 @@ describe("revoking vip (7.4.1, decided 2026-11-11)", () => {
               username: "oma",
               displayName: "Oma",
               roles: ["vip", "staff"],
+              status: "active",
               vipAssignment: "admin_promotion",
               groups: [],
               invitedProgramItemIds: [1],

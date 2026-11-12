@@ -47,6 +47,7 @@ function fail(reply: FastifyReply, error: unknown): FastifyReply {
       group_name_taken: 409,
       last_admin: 409,
       not_staff: 409,
+      roles_locked: 409,
     };
     const status = statuses[error.code];
     if (status !== undefined)

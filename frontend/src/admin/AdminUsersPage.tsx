@@ -102,7 +102,10 @@ export default function AdminUsersPage() {
                     <td>
                       <b>{user.displayName}</b>
                       <br />
-                      <span className="hint">{user.username}</span>
+                      <span className="hint">
+                        {user.username ?? t("admin.users.noUsername")}
+                        {user.status === "inactive" && " · " + t("admin.users.status.inactive")}
+                      </span>
                     </td>
                     <td>
                       <div className="chips">

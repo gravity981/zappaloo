@@ -245,6 +245,10 @@ describe("the privacy notice (SEC-09)", () => {
     expect(text).toMatch(/Allergien und Unverträglichkeiten.*Gesundheitsdaten/s);
     expect(text).toContain("Nur die Administratoren sehen sie");
     expect(text).toContain("Nach dem Fest löschen wir alle persönlichen Daten");
+    // Deleting the account keeps the guest-list entry with the hosts (7.1.2, ACC-17).
+    expect(text).toContain(
+      "Deine Rückmeldung (mit Begleitpersonen und Allergien) bleibt für die Organisation",
+    );
     expect(DEFAULT_PRIVACY_NOTICE).toContain("{eventName}");
   });
 

@@ -20,6 +20,7 @@ const asAdmin = { status: 200, body: { user: admin, csrfToken: "csrf-1" } };
 function account(changes: Record<string, unknown> = {}) {
   return {
     ...anna,
+    status: "active",
     vipAssignment: "invitation_code",
     groups: [],
     invitedProgramItemIds: [],
@@ -144,6 +145,8 @@ describe("invitations", () => {
     redeemedAt: null,
     redeemedBy: null,
     programItemIds: [],
+    userId: 41,
+    removesGuest: false,
   };
 
   it("[INV-01][INV-04][INV-14] an admin creates invitations and gets cards with code and QR code", async () => {
@@ -221,7 +224,90 @@ describe("invitations", () => {
   });
 });
 
+describe("revoking removes a guest who never registered (INV-20)", () => {
+  const open = {
+    id: 1,
+    guestName: "Anna Muster",
+    note: null,
+    status: "active",
+    expiresAt: null,
+    createdAt: "2026-11-10T10:00:00.000Z",
+    redeemedAt: null,
+    redeemedBy: null,
+    programItemIds: [],
+    userId: 41,
+    removesGuest: true,
+  };
+
+  it("[INV-20] revoking the last open code asks for a second click, which names what happens", async () => {
+    const calls = fakeBackend({
+      "GET /api/session": () => asAdmin,
+      "GET /api/admin/invitations": () => ({ status: 200, body: { invitations: [open] } }),
+      "POST /api/admin/invitations/1/revoke": () => ({
+        status: 200,
+        body: { ...open, status: "revoked", userId: null, removesGuest: false, guestRemoved: true },
+      }),
+    });
+    renderAt("/admin/invitations");
+    user.click(await screen.findByRole("button", { name: "Widerrufen: Anna Muster" }));
+    // The first click only asks.
+    expect(calls.some((c) => c.path.endsWith("/revoke"))).toBe(false);
+    const dialog = await screen.findByRole("alertdialog");
+    user.click(within(dialog).getByRole("button", { name: "Widerrufen und Gast entfernen" }));
+    await waitFor(() => {
+      expect(calls.some((c) => c.path === "/api/admin/invitations/1/revoke")).toBe(true);
+    });
+    expect(calls.find((c) => c.path.endsWith("/revoke"))?.csrf).toBe("csrf-1");
+  });
+
+  it("[INV-20] a code that removes nobody is revoked with one click, and Abbrechen keeps the guest", async () => {
+    const calls = fakeBackend({
+      "GET /api/session": () => asAdmin,
+      "GET /api/admin/invitations": () => ({
+        status: 200,
+        body: {
+          invitations: [
+            { ...open, removesGuest: false },
+            { ...open, id: 2, guestName: "Ben", removesGuest: true },
+          ],
+        },
+      }),
+      "POST /api/admin/invitations/1/revoke": () => ({
+        status: 200,
+        body: { ...open, status: "revoked", guestRemoved: false },
+      }),
+    });
+    renderAt("/admin/invitations");
+    user.click(await screen.findByRole("button", { name: "Widerrufen: Anna Muster" }));
+    await waitFor(() => {
+      expect(calls.some((c) => c.path === "/api/admin/invitations/1/revoke")).toBe(true);
+    });
+    user.click(screen.getByRole("button", { name: "Widerrufen: Ben" }));
+    user.click(
+      within(await screen.findByRole("alertdialog")).getByRole("button", { name: "Abbrechen" }),
+    );
+    expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument();
+    expect(calls.some((c) => c.path === "/api/admin/invitations/2/revoke")).toBe(false);
+  });
+});
+
 describe("accounts, roles and groups", () => {
+  it("[ACC-17] an inactive account is listed with its state and no username", async () => {
+    fakeBackend({
+      "GET /api/session": () => asAdmin,
+      "GET /api/admin/users": () => ({
+        status: 200,
+        body: {
+          users: [account({ id: 5, username: null, displayName: "Ben Offen", status: "inactive" })],
+        },
+      }),
+      "GET /api/admin/groups": () => ({ status: 200, body: { groups: [] } }),
+    });
+    renderAt("/admin/users");
+    expect(await screen.findByText("Ben Offen")).toBeInTheDocument();
+    expect(screen.getByText(/noch kein Benutzername · inaktiv/)).toBeInTheDocument();
+  });
+
   it("[ROLE-01][ROLE-09] a role chip switches one role and keeps the others", async () => {
     const calls = fakeBackend({
       "GET /api/session": () => asAdmin,

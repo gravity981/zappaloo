@@ -28,7 +28,15 @@ export type Group = z.infer<typeof groupSchema>;
 export const groupListSchema = z.object({ groups: z.array(groupSchema) });
 
 /** `GET /api/admin/users`: every account of the event with its groups. */
+export const USER_STATUSES = ["inactive", "active", "blocked"] as const;
+export const userStatusSchema = z.enum(USER_STATUSES);
+export type UserStatus = z.infer<typeof userStatusSchema>;
+
 export const adminUserSchema = userSchema.extend({
+  /** Null while the account is inactive and was created for an invitation (ACC-17, 7.1.2). */
+  username: z.string().nullable(),
+  /** `inactive`: never activated; `active`; `blocked` by an admin (ACC-18). */
+  status: userStatusSchema,
   /** How `vip` was granted (INV-11); null without the role. */
   vipAssignment: z.enum(["invitation_code", "admin_promotion"]).nullable(),
   groups: z.array(z.object({ id: z.number().int(), name: z.string() })),

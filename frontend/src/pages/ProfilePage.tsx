@@ -264,7 +264,9 @@ export default function ProfilePage() {
           </div>
           {panel === "delete" && (
             <form className="stack card flat" onSubmit={(event) => void deleteAccount(event)}>
-              <p className="sm">{t("profile.deleteHint")}</p>
+              <p className="sm">
+                {t(user.roles.includes("vip") ? "profile.deleteHintGuest" : "profile.deleteHint")}
+              </p>
               <div className="field">
                 <label htmlFor="profile-delete">
                   <span>{t("profile.deletePassword")}</span>

@@ -71,6 +71,13 @@
       "when": 1794506706456,
       "tag": "0009_rsvp_settings",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "6",
+      "when": 1794508803935,
+      "tag": "0010_accounts_per_invitation",
+      "breakpoints": true
     }
   ]
 }

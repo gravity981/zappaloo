@@ -204,7 +204,6 @@ describe("data model", () => {
       "footer_notice",
       "guest_group_members",
       "guest_groups",
-      "invitation_program_items",
       "invitations",
       "membership_capabilities",
       "membership_program_items",

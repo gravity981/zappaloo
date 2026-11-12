@@ -1,17 +1,19 @@
 // Accounts, event roles and one-time links (ACC-04, ACC-06, ACC-08, ACC-14,
 // ACC-15; sw-architecture.md 7.1.1).
-import { and, eq, inArray, isNotNull, isNull, lte, ne, or, sql } from "drizzle-orm";
+import { and, desc, eq, inArray, isNotNull, isNull, lte, ne, or, sql } from "drizzle-orm";
 import type { AdminUser, Capability, ProfileUpdate, Role, User } from "@zappaloo/shared";
 import type { Database } from "../database/database.ts";
 import {
   programItems,
   guestGroupMembers,
   guestGroups,
+  invitations,
   membershipCapabilities,
   membershipProgramItems,
   membershipRoles,
   memberships,
   oneTimeLinks,
+  sessions,
   users,
 } from "../database/schema.ts";
 import { SELF_ACTOR } from "../event/service.ts";
@@ -29,7 +31,8 @@ export type AccountErrorCode =
   | "last_admin"
   | "not_staff"
   | "password_is_username"
-  | "email_taken";
+  | "email_taken"
+  | "roles_locked";
 
 export class AccountError extends Error {
   override name = "AccountError";
@@ -119,7 +122,9 @@ export class AccountService {
       : [];
     return {
       id: row.id,
-      username: row.username,
+      // Only an inactive account created for an invitation has no username (7.1.2); it is never
+      // sent to a client as a session user (`listUsers` words it as null).
+      username: row.username ?? "",
       displayName: row.displayName,
       email: row.email,
       emailStatus: row.emailStatus,
@@ -172,6 +177,9 @@ export class AccountService {
         .insert(users)
         .values({
           username,
+          // An account is active once its owner has a password (7.1.2): at once when it is
+          // created with one (redeemed invitations), otherwise with the setup link.
+          status: input.passwordHash === undefined ? "inactive" : "active",
           displayName: input.displayName ?? username,
           passwordHash: input.passwordHash ?? null,
           email: input.email ?? null,
@@ -270,7 +278,8 @@ export class AccountService {
    */
   async verifyLogin(identifier: string, password: string): Promise<User | undefined> {
     const row = this.#findForLogin(identifier);
-    if (!row?.passwordHash) {
+    // Only an active account signs in; the others get the answer of a wrong password.
+    if (!row?.passwordHash || row.status !== "active") {
       await verifyDummyPassword(password);
       return undefined;
     }
@@ -304,7 +313,7 @@ export class AccountService {
     if (!row.passwordHash || !(await verifyPassword(row.passwordHash, current))) {
       throw new AccountError("invalid_password", "the current password is wrong");
     }
-    assertPasswordAllowed(row.username, next);
+    assertPasswordAllowed(row.username ?? "", next);
     const passwordHash = await hashPassword(next);
     this.#database.db.transaction((tx) => {
       tx.update(users)
@@ -391,7 +400,7 @@ export class AccountService {
       .from(users)
       .where(eq(users.id, link.userId))
       .get();
-    if (!owner || link.purpose === "verify") {
+    if (!owner?.username || link.purpose === "verify") {
       throw new AccountError("invalid_link", "the link is unknown, expired or already used");
     }
     return { purpose: link.purpose, username: owner.username };
@@ -409,21 +418,62 @@ export class AccountService {
       .from(users)
       .where(eq(users.id, checked.userId))
       .get();
-    if (!owner)
+    if (!owner?.username)
       throw new AccountError("invalid_link", "the link is unknown, expired or already used");
     assertPasswordAllowed(owner.username, password);
     const passwordHash = await hashPassword(password);
     return this.#database.db.transaction((tx) => {
       const link = this.#usableLink(tx, token);
       this.#voidLinks(tx, link.userId);
+      // The first password activates an account that was created without one (7.1.2).
       const row = tx
         .update(users)
-        .set({ passwordHash, updatedAt: this.#now() })
+        .set({
+          passwordHash,
+          status: sql`CASE WHEN ${users.status} = 'inactive' THEN 'active' ELSE ${users.status} END`,
+          updatedAt: this.#now(),
+        })
         .where(eq(users.id, link.userId))
         .returning()
         .get();
       return this.#toUser(row);
     });
+  }
+
+  /**
+   * An invited guest registers: the inactive account that was created with the invitation gets
+   * its username, password and optional address and becomes active (ACC-17, 7.1.2). Inside the
+   * transaction that also marks the code redeemed.
+   */
+  activateInvited(
+    tx: Tx,
+    userId: number,
+    input: {
+      username: string;
+      displayName: string;
+      passwordHash: string;
+      email?: string | undefined;
+    },
+  ): User {
+    const username = input.username.toLowerCase();
+    if (tx.select({ id: users.id }).from(users).where(eq(users.username, username)).get()) {
+      throw new AccountError("username_taken", `the username "${username}" is already taken`);
+    }
+    const row = tx
+      .update(users)
+      .set({
+        username,
+        status: "active",
+        displayName: input.displayName,
+        passwordHash: input.passwordHash,
+        email: input.email ?? null,
+        emailStatus: "unverified",
+        updatedAt: this.#now(),
+      })
+      .where(and(eq(users.id, userId), eq(users.status, "inactive"), isNull(users.passwordHash)))
+      .returning()
+      .get();
+    return this.#toUser(row);
   }
 
   /**
@@ -536,9 +586,79 @@ export class AccountService {
       if (this.#isLastAdmin(tx, userId)) {
         throw new AccountError("last_admin", "the last admin cannot delete the account");
       }
-      tx.delete(users).where(eq(users.id, userId)).run(); // memberships, roles, sessions, links cascade
-      this.#event.audit(`user:${String(userId)}`, "user.delete", { userId }, tx);
+      const guest = tx
+        .select({ role: membershipRoles.role })
+        .from(membershipRoles)
+        .where(
+          and(
+            eq(membershipRoles.eventId, this.#event.eventId),
+            eq(membershipRoles.userId, userId),
+            eq(membershipRoles.role, "vip"),
+          ),
+        )
+        .get();
+      if (guest) {
+        this.#retireGuest(tx, userId);
+        this.#event.audit(`user:${String(userId)}`, "user.delete", { userId, kept: true }, tx);
+      } else {
+        this.deleteUserRows(tx, userId);
+        this.#event.audit(`user:${String(userId)}`, "user.delete", { userId }, tx);
+      }
     });
+  }
+
+  /**
+   * The guest's own deletion (7.1.2): the login goes, the guest-list entry stays. The account
+   * goes back to `inactive` with the guest name of its invitation as display name; its program
+   * items, `vip`, groups and RSVP with companions stay, other roles are removed.
+   */
+  #retireGuest(tx: Tx, userId: number): void {
+    const eventId = this.#event.eventId;
+    const invitation = tx
+      .select({ guestName: invitations.guestName })
+      .from(invitations)
+      .where(eq(invitations.userId, userId))
+      .orderBy(desc(invitations.id))
+      .get();
+    tx.delete(sessions).where(eq(sessions.userId, userId)).run();
+    tx.delete(oneTimeLinks).where(eq(oneTimeLinks.userId, userId)).run();
+    tx.delete(membershipRoles)
+      .where(
+        and(
+          eq(membershipRoles.eventId, eventId),
+          eq(membershipRoles.userId, userId),
+          ne(membershipRoles.role, "vip"),
+        ),
+      )
+      .run();
+    tx.delete(membershipCapabilities)
+      .where(
+        and(eq(membershipCapabilities.eventId, eventId), eq(membershipCapabilities.userId, userId)),
+      )
+      .run();
+    tx.update(users)
+      .set({
+        username: null,
+        status: "inactive",
+        email: null,
+        emailStatus: "unverified",
+        passwordHash: null,
+        ...(invitation ? { displayName: invitation.guestName } : {}),
+        updatedAt: this.#now(),
+      })
+      .where(eq(users.id, userId))
+      .run();
+  }
+
+  /**
+   * Deletes the account row with what hangs on it: membership, roles, sessions and links by
+   * cascade, and its invitations, whatever their status (7.1.2). The guest's RSVP and companions
+   * go with the membership (`forgetGuest`).
+   */
+  deleteUserRows(tx: Tx, userId: number): void {
+    forgetGuest(tx, this.#event.eventId, userId);
+    tx.delete(invitations).where(eq(invitations.userId, userId)).run();
+    tx.delete(users).where(eq(users.id, userId)).run();
   }
 
   /** True if the user is the only admin of the event. */
@@ -584,6 +704,8 @@ export class AccountService {
       .all();
     return rows.map(({ user, vipAssignment }) => ({
       ...this.#toUser(user),
+      username: user.username,
+      status: user.status,
       vipAssignment,
       invitedProgramItemIds: invited
         .filter((p) => p.userId === user.id)
@@ -604,6 +726,20 @@ export class AccountService {
       const row = tx.select().from(users).where(eq(users.id, userId)).get();
       if (!row) throw new AccountError("user_not_found", "no such user");
       const current = this.#toUser(row).roles;
+      // An account created for an invitation keeps exactly `vip` until its owner registers.
+      if (
+        row.status === "inactive" &&
+        tx
+          .select({ id: invitations.id })
+          .from(invitations)
+          .where(eq(invitations.userId, userId))
+          .get()
+      ) {
+        throw new AccountError(
+          "roles_locked",
+          "the roles of an invited guest are locked until registration",
+        );
+      }
       if (current.includes("admin") && !wanted.includes("admin") && this.#isLastAdmin(tx, userId)) {
         throw new AccountError("last_admin", "the last admin cannot lose the admin role");
       }

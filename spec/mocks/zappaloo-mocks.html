@@ -689,8 +689,8 @@ add({
 });
 add({
   id: "invite-register", group: "access", title: "Redeem & create account", path: "/invite/K7QMX4", reqs: ["INV-07", "INV-03", "INV-04", "INV-06", "ACC-01", "ACC-07", "ACC-09"],
-  variants: [["ok", "Valid code"], ["redeemed", "Already redeemed"], ["expired", "Expired / revoked"]],
-  shows: ["Guest name from the invitation greets the guest and pre-fills the display name.", "Username (login, unchangeable; suggested from the guest name), password (≥ 10 chars), optional email (for news and password reset, verified later in the profile).", "Signed-in user without vip: same screen shows only “Einladung einlösen” (ACC-07).", "Error states for redeemed / expired / revoked / replaced codes."],
+  variants: [["ok", "Valid code"], ["merge", "Signed in, no vip"], ["redeemed", "Already redeemed"], ["expired", "Expired / revoked"]],
+  shows: ["Registering activates the account that was created with the invitation (ACC-17, decided 2026-11-12): the guest was on the guest list already, now username, password and the optional email are set.", "Signed in to an account without vip (variant): “Diese Einladung für «Gastname» zu deinem Konto «Benutzername» hinzufügen?” with “Nicht du? Abmelden”; confirming merges the invited person's entry (program items, RSVP, companions, groups) into the signed-in account.", "Guest name from the invitation greets the guest and pre-fills the display name.", "Username (login, unchangeable; suggested from the guest name), password (≥ 10 chars), optional email (for news and password reset, verified later in the profile).", "Signed-in user without vip: same screen shows only “Einladung einlösen” (ACC-07).", "Error states for redeemed / expired / revoked / replaced codes."],
   qs: [
     { q: "Offer the (optional) email field already at registration?", p: "Mock: yes, optional, with the hint that it only serves “Passwort vergessen” and is verified later in the profile." },
     { q: "Suggest a username from the guest name (erika.huber)?", p: "Mock: pre-filled suggestion, editable." },
@@ -702,6 +702,14 @@ add({
         : ["Diese Einladung ist nicht mehr gültig.", "Der Code ist abgelaufen oder wurde ersetzt. Melde dich bei Lea & Jonas, dann bekommst du einen neuen."];
       return bare(`<div class="m-card flat" style="align-items:center;text-align:center;gap:12px;padding:28px 18px"><div class="m-av lg">${ic("mail")}</div><h1 class="m-h1" style="font-size:20px">${t[0]}</h1><p class="m-muted">${t[1]}</p></div>
         <button class="m-btn block" data-go="login">Anmelden</button><button class="m-btn ghost block" data-go="invite-code">Anderen Code eingeben</button>`);
+    }
+    if (v === "merge") {
+      return bare(`
+        <div class="m-card flat" style="flex-direction:row;align-items:center;gap:12px"><div class="m-av">${ic("mail")}</div><div class="m-stack" style="gap:0"><span class="m-eyebrow">Persönliche Einladung</span><b>Erika Huber</b></div><span class="m-tag line" style="margin-left:auto;font-family:ui-monospace,monospace">K7QMX4</span></div>
+        <h1 class="m-h1">Schön, dass du da bist, Erika!</h1>
+        <p class="m-muted">Diese Einladung für «Erika Huber» zu deinem Konto «helper» hinzufügen?</p>
+        <button class="m-btn block" data-go="waiting">Zu meinem Konto hinzufügen</button>
+        <p class="sm">Nicht du? <a data-go="login">Abmelden</a></p>`);
     }
     return bare(`
       <div class="m-card flat" style="flex-direction:row;align-items:center;gap:12px"><div class="m-av">${ic("mail")}</div><div class="m-stack" style="gap:0"><span class="m-eyebrow">Persönliche Einladung</span><b>Erika Huber</b></div><span class="m-tag line" style="margin-left:auto;font-family:ui-monospace,monospace">K7QMX4</span></div>
@@ -1031,7 +1039,8 @@ add({
           <div class="m-li link"><div class="grow"><b>Passwort ändern</b></div>${ic("next")}</div>
           <div class="m-li link"><div class="grow"><b>Meine Beiträge</b><span class="m-hint">4 Schnappschüsse, 1 Andenken</span></div>${ic("next")}</div>
         </div>
-        <div class="m-row2"><button class="m-btn ghost sm" data-go="login">Abmelden</button><button class="m-btn danger sm">Konto löschen</button></div></div>
+        <div class="m-row2"><button class="m-btn ghost sm" data-go="login">Abmelden</button><button class="m-btn danger sm">Konto löschen</button></div>
+        <span class="m-hint">Beim Löschen verschwindet dein Login (Benutzername, Passwort, E-Mail, Sitzungen). Deine Rückmeldung mit Begleitpersonen und Allergien bleibt für die Organisation bei den Gastgebern; wenn du sie auch gelöscht haben willst, schreib ihnen. Nach dem Fest löschen wir alle persönlichen Daten.</span></div>
       </div>
     </div>`),
 });
@@ -1277,8 +1286,8 @@ add({
 });
 add({
   id: "admin-invitations", group: "admin", title: "Invitations", path: "/admin/invitations", reqs: ["INV-01", "INV-04", "INV-05", "INV-06", "INV-14", "RSVP-02"],
-  variants: [["list", "List"], ["created", "Just created → print"]],
-  shows: ["Batch creation: one guest per line, invited program items, optional expiry.", "Codes are visible only right after creation, so the print view comes immediately.", "List with status filter, regenerate (replace) and revoke."],
+  variants: [["list", "List"], ["revoke", "Revoke asks"], ["created", "Just created → print"]],
+  shows: ["Every invitation has its inactive account from the start (ACC-17): the guest is on the guest list and in Rückmeldungen as “ohne Antwort” before the card is redeemed. The program items of a row are those of the guest's account, the same list as in Konten & Rollen.", "Revoking the last open code of a guest who never registered removes the guest with their entries (INV-20, decided 2026-11-12): the button asks “Widerrufen und Gast entfernen” (variant) with a second click.", "Batch creation: one guest per line, invited program items, optional expiry.", "Codes are visible only right after creation, so the print view comes immediately.", "List with status filter, regenerate (replace) and revoke."],
   qs: [{ q: "Set invited program items per batch only, or also edit them per invitation afterwards?", p: "Mock: per batch at creation, editable per row later." }],
   render: (v) => admin("admin-invitations", v === "created" ? `
     <div class="m-sethead"><div class="grow"><h1 class="m-h1">3 Einladungen erstellt</h1><span class="m-muted sm">Die Codes sind nur jetzt sichtbar. Drucke die Karten, bevor du die Seite verlässt.</span></div><button class="m-btn">Karten drucken</button></div>
@@ -1292,7 +1301,7 @@ add({
       <button class="m-btn" style="align-self:flex-start" data-go="admin-invitations" data-variant="created">3 Einladungen erstellen</button></div>
     ${chips(["Alle 124", "Aktiv 36", "Eingelöst 84", "Abgelaufen 1", "Widerrufen 2", "Ersetzt 1"], [0])}
     <div class="m-card" style="padding:4px 8px"><div class="m-scroll"><table class="m-table"><thead><tr><th>Gast</th><th>Programmpunkte</th><th>Status</th><th></th></tr></thead><tbody>
-      ${[["Erika Huber", "T A D P", "ok", "eingelöst"], ["Lukas Meier", "T A D P", "", "aktiv"], ["Familie Brunner", "A", "", "aktiv"], ["Peter Graf", "A D", "warn", "abgelaufen"], ["Nina Roth", "T A", "bad", "widerrufen"]].map(([n, p, c, s]) => `<tr><td>${n}</td><td class="m-muted">${p}</td><td><span class="m-tag ${c}">${s}</span></td><td style="text-align:right;white-space:nowrap">${s === "aktiv" || s === "abgelaufen" ? '<button class="m-btn soft sm">Neu erzeugen</button> ' : ""}${s === "aktiv" ? '<button class="m-btn ghost sm">Widerrufen</button>' : ""}</td></tr>`).join("")}
+      ${[["Erika Huber", "T A D P", "ok", "eingelöst"], ["Lukas Meier", "T A D P", "", "aktiv"], ["Familie Brunner", "A", "", "aktiv"], ["Peter Graf", "A D", "warn", "abgelaufen"], ["Nina Roth", "T A", "bad", "widerrufen"]].map(([n, p, c, s]) => `<tr><td>${n}</td><td class="m-muted">${p}</td><td><span class="m-tag ${c}">${s}</span></td><td style="text-align:right;white-space:nowrap">${s === "aktiv" || s === "abgelaufen" ? '<button class="m-btn soft sm">Neu erzeugen</button> ' : ""}${s === "aktiv" ? (v === "revoke" && n === "Lukas Meier" ? '<button class="m-btn danger sm">Widerrufen und Gast entfernen</button> <button class="m-btn ghost sm" data-go="admin-invitations" data-variant="list">Abbrechen</button>' : '<button class="m-btn ghost sm">Widerrufen</button>') : ""}</td></tr>`).join("")}
     </tbody></table></div></div>`),
 });
 add({
@@ -1331,7 +1340,7 @@ add({
 add({
   id: "admin-rsvp", group: "admin", title: "RSVP overview", path: "/admin/rsvp", reqs: ["RSVP-05", "RSVP-07", "RSVP-09", "RSVP-12", "SEC-11"],
   variants: [["off", "Approval off (default)"], ["on", "Approval on"]],
-  shows: ["Approval off (RSVP-12): no card with requests, no badge in the navigation and no tile “Begleitpersonen” in Übersicht; the admin removes an accompanying person in the guest table with “Entfernen” and a second click, also after the deadline. Approval on (variant): the card with the requests as before.","Totals per program item and the menus of the meal program item.", "Guest table (decided 2026-11-11): name, status, program items, menu, song wish, and allergies as a column only admins see; status filter. A row opens the RSVP wizard in admin mode, also after the deadline (RSVP-04).", "CSV export; “Erinnern (n)” mails guests without an answer who have a verified address.", "Companion requests to approve or reject; approved companions appear in the table under their VIP."],
+  shows: ["Approval off (RSVP-12): no card with requests, no badge in the navigation and no tile “Begleitpersonen” in Übersicht; the admin removes an accompanying person in the guest table with “Entfernen” and a second click, also after the deadline. Approval on (variant): the card with the requests as before.","Totals per program item and the menus of the meal program item.", "Guest table (decided 2026-11-11): name, status, program items, menu, song wish, and allergies as a column only admins see; status filter. A row opens the RSVP wizard in admin mode, also after the deadline (RSVP-04).", "A guest whose invitation is not redeemed yet is in the table as “ohne Antwort” (ACC-17); Bearbeiten answers for them, e.g. by phone. Reminders reach only guests with a verified address.", "CSV export; “Erinnern (n)” mails guests without an answer who have a verified address.", "Companion requests to approve or reject; approved companions appear in the table under their VIP."],
   qs: [{ n: 50, q: "How does an admin change a guest's RSVP after the deadline (RSVP-04)?", p: "Decided: the allergies card becomes a guest table with an admin-only allergy column; a row opens the RSVP wizard in admin mode." }],
   render: (v) => admin("admin-rsvp", `<div class="m-sethead"><h1 class="m-h1 grow">Rückmeldungen</h1><button class="m-btn soft sm">${ic("dl")} CSV</button><button class="m-btn sm">${ic("mail")} Erinnern (31)</button></div>
     ${v !== "on" ? "" : `<div class="m-card strong"><b>Begleitpersonen-Anfragen (3)</b><div class="m-list">${[["Mia Huber", "von Erika Huber · «Meine Tochter, 6 Jahre»"], ["Noah Brunner", "von Familie Brunner"], ["Hans Graf", "von Peter Graf · «Mein Vater, ohne Handy»"]].map(([n, b]) => `<div class="m-li"><div class="grow"><b>${n}</b><span class="m-hint">${b}</span></div><button class="m-btn ghost sm">Ablehnen</button><button class="m-btn sm">Annehmen</button></div>`).join("")}</div></div>`}

@@ -268,3 +268,139 @@ describe("migration 0009_rsvp_settings", () => {
     ]);
   });
 });
+
+describe("migration 0010_accounts_per_invitation", () => {
+  it("[DATA-04][ACC-17] gives every account a status and every open invitation its inactive account, and keeps everything that hangs on the accounts", () => {
+    const { database, dir } = freshDatabase();
+    // The database of v1.0.x: everything before 0010.
+    const folder = join(dir, "migrations");
+    cpSync(MIGRATIONS_DIR, folder, { recursive: true });
+    const journalFile = join(folder, "meta", "_journal.json");
+    const journal = JSON.parse(readFileSync(journalFile, "utf8")) as {
+      entries: { tag: string }[];
+    };
+    const index = journal.entries.findIndex(
+      (entry) => entry.tag === "0010_accounts_per_invitation",
+    );
+    expect(index).toBeGreaterThan(0);
+    writeFileSync(
+      journalFile,
+      JSON.stringify({ ...journal, entries: journal.entries.slice(0, index) }),
+    );
+    runMigrations(database, folder);
+
+    database.sqlite.exec(`
+      INSERT INTO events (id, created_at, updated_at) VALUES ('event1', 1, 1);
+      INSERT INTO users (id, username, display_name, email, email_status, password_hash, created_at, updated_at) VALUES
+        (1, 'root', 'Root', NULL, 'unverified', 'hash', 1, 1),
+        (2, 'anna', 'Anna Muster', 'anna@example.org', 'verified', 'hash', 1, 1),
+        (3, 'setup', 'Setup', NULL, 'unverified', NULL, 1, 1);
+      INSERT INTO memberships (event_id, user_id, created_at, vip_assignment) VALUES
+        ('event1', 1, 1, NULL), ('event1', 2, 1, 'invitation_code'), ('event1', 3, 1, NULL);
+      INSERT INTO membership_roles (event_id, user_id, role) VALUES
+        ('event1', 1, 'admin'), ('event1', 2, 'vip');
+      INSERT INTO sessions (token_hash, user_id, csrf_token, created_at, last_used_at, expires_at) VALUES ('t', 2, 'c', 1, 1, 9999999999999);
+      INSERT INTO one_time_links (token_hash, user_id, purpose, created_at, expires_at) VALUES ('l', 3, 'setup', 1, 9999999999999);
+      INSERT INTO program_items (id, event_id, name, starts_at, has_meal, created_at) VALUES (1, 'event1', 'Trauung', 1, 0, 1), (2, 'event1', 'Dinner', 2, 1, 1);
+      INSERT INTO membership_program_items (event_id, user_id, program_item_id) VALUES ('event1', 2, 1), ('event1', 2, 2);
+      INSERT INTO rsvp_attendance (event_id, user_id, program_item_id, attending) VALUES ('event1', 2, 1, 1), ('event1', 2, 2, 1);
+      INSERT INTO invitations (id, event_id, guest_name, code_hash, status, expires_at, created_at, redeemed_at, redeemed_by, replaced_by) VALUES
+        (1, 'event1', 'Anna Muster', 'h1', 'redeemed', NULL, 1, 2, 2, NULL),
+        (2, 'event1', 'Ben Offen', 'h2', 'active', NULL, 5, NULL, NULL, NULL),
+        (3, 'event1', 'Cleo Abgelaufen', 'h3', 'active', 100, 6, NULL, NULL, NULL),
+        (4, 'event1', 'Dora Widerrufen', 'h4', 'revoked', NULL, 7, NULL, NULL, NULL),
+        (5, 'event1', 'Eva Ersetzt', 'h5', 'replaced', NULL, 8, NULL, NULL, 2);
+      INSERT INTO invitation_program_items (event_id, invitation_id, program_item_id) VALUES
+        ('event1', 2, 1), ('event1', 2, 2), ('event1', 3, 2);
+      INSERT INTO audit_log (event_id, actor, action, details, created_at) VALUES
+        ('event1', 'user:2', 'user.create', '{"userId":2,"roles":["vip"],"vipAssignment":"invitation_code","invitationId":1}', 1),
+        ('event1', 'user:1', 'user.roles', '{"userId":3,"from":[],"to":["staff"]}', 2),
+        ('event1', 'user:1', 'user.create', '{"userId":3,"roles":["staff"]}', 3);
+    `);
+
+    writeFileSync(journalFile, JSON.stringify(journal));
+    expect(runMigrations(database, folder)).toBe(journal.entries.length - index);
+    const rows = (sql: string) => database.sqlite.prepare(sql).all();
+
+    // With a password: active; without: inactive. Nothing that hangs on an account is lost.
+    expect(rows("SELECT id, username, status FROM users WHERE id <= 3 ORDER BY id")).toEqual([
+      { id: 1, username: "root", status: "active" },
+      { id: 2, username: "anna", status: "active" },
+      { id: 3, username: "setup", status: "inactive" },
+    ]);
+    expect(rows("SELECT count(*) AS n FROM sessions")).toEqual([{ n: 1 }]);
+    expect(rows("SELECT count(*) AS n FROM one_time_links")).toEqual([{ n: 1 }]);
+    expect(rows("SELECT count(*) AS n FROM rsvp_attendance")).toEqual([{ n: 2 }]);
+    expect(rows("SELECT role FROM membership_roles WHERE user_id = 2")).toEqual([{ role: "vip" }]);
+    expect(rows("SELECT email, email_status FROM users WHERE id = 2")).toEqual([
+      { email: "anna@example.org", email_status: "verified" },
+    ]);
+
+    // Each unredeemed invitation (the expired one too) has an inactive guest account.
+    const open = rows(
+      `SELECT i.id AS invitation, u.display_name AS name, u.username, u.status, u.email, u.password_hash AS hash
+         FROM invitations i JOIN users u ON u.id = i.user_id WHERE i.id IN (2, 3) ORDER BY i.id`,
+    );
+    expect(open).toEqual([
+      {
+        invitation: 2,
+        name: "Ben Offen",
+        username: null,
+        status: "inactive",
+        email: null,
+        hash: null,
+      },
+      {
+        invitation: 3,
+        name: "Cleo Abgelaufen",
+        username: null,
+        status: "inactive",
+        email: null,
+        hash: null,
+      },
+    ]);
+    // They are guests (vip) invited to the invitation's program items.
+    expect(
+      rows(
+        `SELECT m.user_id AS userId, m.vip_assignment AS how, m.vip_invitation_id AS invitation, r.role
+           FROM invitations i JOIN memberships m ON m.user_id = i.user_id JOIN membership_roles r ON r.user_id = i.user_id
+          WHERE i.id IN (2, 3) ORDER BY i.id`,
+      ),
+    ).toEqual([
+      { userId: 4, how: "invitation_code", invitation: 2, role: "vip" },
+      { userId: 5, how: "invitation_code", invitation: 3, role: "vip" },
+    ]);
+    expect(
+      rows(
+        "SELECT user_id AS u, program_item_id AS p FROM membership_program_items WHERE user_id > 3 ORDER BY 1, 2",
+      ),
+    ).toEqual([
+      { u: 4, p: 1 },
+      { u: 4, p: 2 },
+      { u: 5, p: 2 },
+    ]);
+    // A redeemed invitation belongs to its account; revoked and replaced ones have none.
+    expect(rows("SELECT id, user_id AS userId FROM invitations ORDER BY id")).toEqual([
+      { id: 1, userId: 2 },
+      { id: 2, userId: 4 },
+      { id: 3, userId: 5 },
+      { id: 4, userId: null },
+      { id: 5, userId: null },
+    ]);
+    expect(rows("SELECT name FROM sqlite_master WHERE name = 'invitation_program_items'")).toEqual(
+      [],
+    );
+    // Redeeming is audited as one kind of entry; other entries stay as they were.
+    expect(rows("SELECT action FROM audit_log ORDER BY id")).toEqual([
+      { action: "invitation.redeem" },
+      { action: "user.roles" },
+      { action: "user.create" },
+    ]);
+    // New accounts continue after the highest id, and the keys are all intact.
+    database.sqlite.exec(
+      "INSERT INTO users (display_name, created_at, updated_at) VALUES ('Neu', 1, 1);",
+    );
+    expect(rows("SELECT max(id) AS id FROM users")).toEqual([{ id: 6 }]);
+    expect(database.sqlite.pragma("foreign_key_check")).toEqual([]);
+  });
+});
