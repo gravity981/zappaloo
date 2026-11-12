@@ -48,6 +48,9 @@ function fail(reply: FastifyReply, error: unknown): FastifyReply {
       last_admin: 409,
       not_staff: 409,
       roles_locked: 409,
+      own_account: 409,
+      not_active: 409,
+      not_blocked: 409,
     };
     const status = statuses[error.code];
     if (status !== undefined)
@@ -109,6 +112,48 @@ const adminPlugin: FastifyPluginAsyncZod<AuthOptions> = (
     "/api/admin/users",
     { ...admin, schema: { querystring: noQuery, response: { 200: adminUserListSchema } } },
     () => ({ users: accounts.listUsers() }),
+  );
+
+  // Blocking and unblocking an account (ACC-18) and deleting it (ACC-19).
+  for (const [path, run] of [
+    [
+      "block",
+      (id: number, by: number) => {
+        accounts.blockUser(id, by);
+      },
+    ],
+    [
+      "unblock",
+      (id: number, by: number) => {
+        accounts.unblockUser(id, by);
+      },
+    ],
+  ] as const) {
+    app.post(
+      `/api/admin/users/:id/${path}`,
+      { ...admin, schema: { querystring: noQuery, params: userParams, body: noBody } },
+      (request, reply) => {
+        try {
+          run(request.params.id, signedIn(request).user.id);
+          return reply.status(204).send();
+        } catch (error) {
+          return fail(reply, error);
+        }
+      },
+    );
+  }
+
+  app.delete(
+    "/api/admin/users/:id",
+    { ...admin, schema: { querystring: noQuery, params: userParams, body: noBody } },
+    (request, reply) => {
+      try {
+        accounts.adminDeleteUser(request.params.id, signedIn(request).user.id);
+        return reply.status(204).send();
+      } catch (error) {
+        return fail(reply, error);
+      }
+    },
   );
 
   // The complete set of roles: what the admin leaves out is revoked, all others stay (ROLE-09).

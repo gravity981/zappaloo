@@ -128,6 +128,16 @@ export default function AdminInvitationsPage() {
     reload();
   }
 
+  /** "Aufräumen" (INV-21) deletes revoked and replaced codes after a second click. */
+  const [confirmCleanup, setConfirmCleanup] = useState(false);
+
+  async function cleanup() {
+    const result = await call("POST", "/api/admin/invitations/cleanup");
+    setConfirmCleanup(false);
+    setError(result.ok ? undefined : errorText(result.errorCode));
+    reload();
+  }
+
   async function regenerate(id: number) {
     const result = await call("POST", `/api/admin/invitations/${String(id)}/regenerate`);
     const parsed = issuedInvitationSchema.safeParse(result.body);
@@ -221,6 +231,46 @@ export default function AdminInvitationsPage() {
         <p role="alert" className="error">
           {error}
         </p>
+      )}
+
+      {count("revoked") + count("replaced") > 0 && (
+        <div className="row">
+          {confirmCleanup ? (
+            <span
+              className="row"
+              role="alertdialog"
+              aria-label={t("admin.invitations.cleanupFinal")}
+            >
+              <span className="sm">
+                {t("admin.invitations.cleanupConfirm", {
+                  count: count("revoked") + count("replaced"),
+                })}
+              </span>
+              <button type="button" className="btn danger sm" onClick={() => void cleanup()}>
+                {t("admin.invitations.cleanupFinal")}
+              </button>
+              <button
+                type="button"
+                className="btn ghost sm"
+                onClick={() => {
+                  setConfirmCleanup(false);
+                }}
+              >
+                {t("admin.cancel")}
+              </button>
+            </span>
+          ) : (
+            <button
+              type="button"
+              className="btn soft sm"
+              onClick={() => {
+                setConfirmCleanup(true);
+              }}
+            >
+              {t("admin.invitations.cleanup", { count: count("revoked") + count("replaced") })}
+            </button>
+          )}
+        </div>
       )}
 
       <div className="chips" role="group" aria-label={t("admin.invitations.filter")}>

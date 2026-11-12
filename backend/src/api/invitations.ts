@@ -173,6 +173,20 @@ const invitationPlugin: FastifyPluginAsyncZod<AuthOptions> = (app, options) => {
     },
   );
 
+  // "Aufräumen": deletes the revoked and replaced invitations (INV-21).
+  app.post(
+    "/api/admin/invitations/cleanup",
+    {
+      ...admin,
+      schema: {
+        querystring: noQuery,
+        body: noBody,
+        response: { 200: z.object({ deleted: z.number().int() }) },
+      },
+    },
+    (request) => ({ deleted: invitations.cleanup(actor(request)) }),
+  );
+
   app.post(
     "/api/admin/invitations/:id/regenerate",
     {

@@ -32,7 +32,12 @@ export type AccountErrorCode =
   | "not_staff"
   | "password_is_username"
   | "email_taken"
-  | "roles_locked";
+  | "roles_locked"
+  | "own_account"
+  | "not_active"
+  | "not_blocked"
+  | "program_items_required"
+  | "program_item_not_found";
 
 export class AccountError extends Error {
   override name = "AccountError";
@@ -77,6 +82,26 @@ export class AccountService {
     this.#database = database;
     this.#event = event;
     this.#now = now;
+  }
+
+  /** The chosen program items of a new `vip` (ACC-20); every one must exist. */
+  #inviteToProgramItems(tx: Tx, userId: number, programItemIds: number[]): void {
+    const eventId = this.#event.eventId;
+    const known = new Set(
+      tx
+        .select({ id: programItems.id })
+        .from(programItems)
+        .where(eq(programItems.eventId, eventId))
+        .all()
+        .map((row) => row.id),
+    );
+    const wanted = [...new Set(programItemIds)];
+    if (wanted.some((id) => !known.has(id))) {
+      throw new AccountError("program_item_not_found", "no such program item");
+    }
+    for (const programItemId of wanted) {
+      tx.insert(membershipProgramItems).values({ eventId, userId, programItemId }).run();
+    }
   }
 
   /** A `vip` without an invitation (admin promotion) starts invited to every program item (RSVP-02). */
@@ -162,6 +187,8 @@ export class AccountService {
       invitationId?: number;
       /** An address given at registration; it stays unverified until the guest verifies it. */
       email?: string | undefined;
+      /** The program items of a `vip` an admin promotes; undefined: all program items. */
+      programItemIds?: number[] | undefined;
     },
     actor: Actor,
     /** Inside the transaction of the caller. */
@@ -208,7 +235,8 @@ export class AccountService {
           .run();
       }
       if (input.roles.includes("vip") && input.invitationId === undefined) {
-        this.#inviteToAllProgramItems(tx, row.id);
+        if (input.programItemIds === undefined) this.#inviteToAllProgramItems(tx, row.id);
+        else this.#inviteToProgramItems(tx, row.id, input.programItemIds);
       }
       this.#event.audit(
         actor === SELF_ACTOR ? `user:${String(row.id)}` : actor,
@@ -237,9 +265,18 @@ export class AccountService {
    * never leaves an account without a password and without a link.
    */
   createUserWithSetupLink(
-    input: { username: string; displayName?: string | undefined; roles: Role[] },
+    input: {
+      username: string;
+      displayName?: string | undefined;
+      roles: Role[];
+      programItemIds?: number[] | undefined;
+    },
     actor: Actor,
   ): { user: User; link: IssuedLink } {
+    // A guest created by an admin needs its program items in the same form (ACC-20).
+    if (input.roles.includes("vip") && input.programItemIds?.length === 0) {
+      throw new AccountError("program_items_required", "choose at least one program item");
+    }
     return this.#database.db.transaction((tx) => {
       const user = this.createUser(input, actor, tx);
       return { user, link: this.createLink(user.id, "setup", actor, undefined, tx) };
@@ -604,6 +641,68 @@ export class AccountService {
         this.deleteUserRows(tx, userId);
         this.#event.audit(`user:${String(userId)}`, "user.delete", { userId }, tx);
       }
+    });
+  }
+
+  /**
+   * An admin blocks an active account (ACC-18): it cannot sign in, its sessions end and its open
+   * setup and reset links are voided at once; roles, groups, RSVP and companions stay.
+   */
+  blockUser(userId: number, actorUserId: number): void {
+    this.#database.db.transaction((tx) => {
+      const row = tx.select().from(users).where(eq(users.id, userId)).get();
+      if (!row) throw new AccountError("user_not_found", "no such user");
+      if (userId === actorUserId) {
+        throw new AccountError("own_account", "an admin cannot block their own account");
+      }
+      if (row.status !== "active") {
+        throw new AccountError("not_active", "only an active account can be blocked");
+      }
+      if (this.#isLastAdmin(tx, userId)) {
+        throw new AccountError("last_admin", "the last admin cannot be blocked");
+      }
+      tx.update(users)
+        .set({ status: "blocked", updatedAt: this.#now() })
+        .where(eq(users.id, userId))
+        .run();
+      tx.delete(sessions).where(eq(sessions.userId, userId)).run();
+      this.#voidLinks(tx, userId);
+      this.#event.audit(`user:${String(actorUserId)}`, "user.block", { userId }, tx);
+    });
+  }
+
+  /** Lifts a block: the account is active again with its old password (ACC-18). */
+  unblockUser(userId: number, actorUserId: number): void {
+    this.#database.db.transaction((tx) => {
+      const row = tx.select().from(users).where(eq(users.id, userId)).get();
+      if (!row) throw new AccountError("user_not_found", "no such user");
+      if (row.status !== "blocked") {
+        throw new AccountError("not_blocked", "the account is not blocked");
+      }
+      tx.update(users)
+        .set({ status: "active", updatedAt: this.#now() })
+        .where(eq(users.id, userId))
+        .run();
+      this.#event.audit(`user:${String(actorUserId)}`, "user.unblock", { userId }, tx);
+    });
+  }
+
+  /**
+   * An admin deletes an account in any state with its RSVP, companions and all its invitations
+   * (ACC-19). Not their own account (that is the profile) and not the last admin.
+   */
+  adminDeleteUser(userId: number, actorUserId: number): void {
+    this.#database.db.transaction((tx) => {
+      const row = tx.select({ id: users.id }).from(users).where(eq(users.id, userId)).get();
+      if (!row) throw new AccountError("user_not_found", "no such user");
+      if (userId === actorUserId) {
+        throw new AccountError("own_account", "an admin deletes their own account in the profile");
+      }
+      if (this.#isLastAdmin(tx, userId)) {
+        throw new AccountError("last_admin", "the last admin cannot be deleted");
+      }
+      this.deleteUserRows(tx, userId);
+      this.#event.audit(`user:${String(actorUserId)}`, "user.admin_delete", { userId }, tx);
     });
   }
 

@@ -2,7 +2,7 @@ import { expect, test } from "@playwright/test";
 import { signInAsAdmin } from "./support.ts";
 import de from "../frontend/src/i18n/locales/de/common.json" with { type: "json" };
 
-test("[ROLE-07][ACC-08][ROLE-01][ROLE-06][GRP-01][CFG-05] an admin manages accounts, groups and features in the admin area", async ({
+test("[ROLE-07][ACC-08][ACC-20][ROLE-01][ROLE-06][GRP-01][CFG-05] an admin manages accounts, groups and features in the admin area", async ({
   page,
   context,
 }) => {
@@ -24,9 +24,16 @@ test("[ROLE-07][ACC-08][ROLE-01][ROLE-06][GRP-01][CFG-05] an admin manages accou
   await create.getByLabel(de.admin.users.username).fill(username);
   await create.getByLabel(de.admin.users.displayName).fill(name);
   await create.getByRole("button", { name: de.admin.roles.vip }).click();
+  // A new guest needs at least one program item (ACC-20).
+  await expect(create.getByRole("button", { name: de.admin.users.createSubmit })).toBeDisabled();
+  await create.getByRole("button", { name: "Trauung" }).click();
   await create.getByRole("button", { name: de.admin.users.createSubmit }).click();
   await expect(page.getByLabel(de.admin.users.setupLink)).toHaveValue(/\/set-password\/[\w-]+$/);
   await page.getByRole("button", { name: de.admin.invitations.done }).click();
+
+  // The account is inactive until its owner uses the setup link.
+  const row = page.getByRole("row", { name: new RegExp(username) });
+  await expect(row).toContainText(de.admin.users.status.inactive);
 
   // Roles in the table: staff joins vip, vip stays.
   const staff = page.getByRole("button", { name: `staff für ${name}` });

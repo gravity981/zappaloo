@@ -1,6 +1,7 @@
 // The panels of Konten & Rollen (sw-architecture.md 8.3): one account (roles, staff
 // capabilities, groups, reset link), a new account with its setup link, and one guest group.
 import { useState } from "react";
+import { Link } from "react-router";
 import { useTranslation } from "react-i18next";
 import {
   CAPABILITIES,
@@ -12,7 +13,7 @@ import {
 import type { AdminUser, Capability, Group, Role } from "@zappaloo/shared";
 import { useAdminCall, useAdminData } from "./data.ts";
 import { HandOverLink, Panel, ToggleChip } from "./ui.tsx";
-import { useToggleRole, useUsersErrorText } from "./users.ts";
+import { rolesLocked, useToggleRole, useUsersErrorText } from "./users.ts";
 
 function Alert({ text }: { text: string | undefined }) {
   return text ? (
@@ -68,6 +69,10 @@ export function AccountPanel({
   const { toggleRole, revoking, confirmRevoke, cancelRevoke } = useToggleRole(onChanged);
   const [link, setLink] = useState<{ url: string; expiresAt: string }>();
   const { data: rsvpConfig } = useAdminData("/api/admin/rsvp/config", rsvpConfigSchema);
+  /** The action waiting for its second click: blocking or deleting the account. */
+  const [confirming, setConfirming] = useState<"block" | "delete">();
+  const locked = rolesLocked(user);
+  const hasPassword = user.status === "active";
   const isStaff = user.roles.includes("staff");
   const isVip = user.roles.includes("vip");
   const inGroup = (group: Group) => user.groups.some((g) => g.id === group.id);
@@ -98,6 +103,13 @@ export function AccountPanel({
     onChanged(result.ok ? undefined : errorText(result.errorCode));
   }
 
+  async function run(method: "POST" | "DELETE", path: string, done?: () => void) {
+    const result = await call(method, path);
+    setConfirming(undefined);
+    onChanged(result.ok ? undefined : errorText(result.errorCode));
+    if (result.ok) done?.();
+  }
+
   async function createResetLink() {
     const result = await call("POST", `/api/admin/users/${String(user.id)}/reset-link`);
     const parsed = resetLinkResponseSchema.safeParse(result.body);
@@ -115,6 +127,25 @@ export function AccountPanel({
         {user.username ?? t("admin.users.noUsername")}
         {user.email && ` · ${user.email} (${t(`admin.users.emailStatus.${user.emailStatus}`)})`}
       </p>
+      <p>
+        <span
+          className={
+            user.status === "blocked" ? "tag bad" : user.status === "active" ? "tag ok" : "tag"
+          }
+        >
+          {t(`admin.users.status.${user.status}`)}
+        </span>
+        {user.status === "inactive" && (
+          <>
+            {" "}
+            <span className="hint">{t("admin.users.inactiveHint")}</span>{" "}
+            {user.vipAssignment === "invitation_code" && (
+              <Link to="/admin/invitations">{t("admin.users.toInvitation")}</Link>
+            )}
+          </>
+        )}
+        {user.status === "blocked" && <span className="hint"> {t("admin.users.blockedHint")}</span>}
+      </p>
       <Alert text={error} />
 
       <section className="stack" aria-labelledby="account-roles">
@@ -124,12 +155,14 @@ export function AccountPanel({
             <ToggleChip
               key={role}
               pressed={user.roles.includes(role)}
+              disabled={locked}
               onToggle={() => void toggleRole(user, role)}
             >
               {t(`admin.roles.${role}`)}
             </ToggleChip>
           ))}
         </div>
+        {locked && <span className="hint">{t("admin.users.rolesLocked")}</span>}
         {user.vipAssignment && (
           <span className="hint">{t(`admin.users.vipAssignment.${user.vipAssignment}`)}</span>
         )}
@@ -204,18 +237,99 @@ export function AccountPanel({
         </section>
       )}
 
-      <section className="stack" aria-labelledby="account-password">
-        <b id="account-password">{t("admin.users.password")}</b>
-        <span className="hint">{t("admin.users.resetHint")}</span>
-        {link ? (
-          <HandOverLink
-            url={link.url}
-            expiresAt={link.expiresAt}
-            label={t("admin.users.resetLink")}
-          />
+      {hasPassword && (
+        <section className="stack" aria-labelledby="account-password">
+          <b id="account-password">{t("admin.users.password")}</b>
+          <span className="hint">{t("admin.users.resetHint")}</span>
+          {link ? (
+            <HandOverLink
+              url={link.url}
+              expiresAt={link.expiresAt}
+              label={t("admin.users.resetLink")}
+            />
+          ) : (
+            <button type="button" className="btn soft sm" onClick={() => void createResetLink()}>
+              {t("admin.users.createResetLink")}
+            </button>
+          )}
+        </section>
+      )}
+
+      <section className="stack" aria-label={t("admin.users.dangerZone")}>
+        {user.status === "blocked" && (
+          <button
+            type="button"
+            className="btn soft sm"
+            onClick={() => void run("POST", `/api/admin/users/${String(user.id)}/unblock`)}
+          >
+            {t("admin.users.unblock")}
+          </button>
+        )}
+        {user.status === "active" &&
+          (confirming === "block" ? (
+            <div className="card flat" role="alertdialog" aria-label={t("admin.users.block")}>
+              <span>{t("admin.users.blockConfirm", { name: user.displayName })}</span>
+              <div className="row">
+                <button
+                  type="button"
+                  className="btn danger sm"
+                  onClick={() => void run("POST", `/api/admin/users/${String(user.id)}/block`)}
+                >
+                  {t("admin.users.blockFinal")}
+                </button>
+                <button
+                  type="button"
+                  className="btn ghost sm"
+                  onClick={() => {
+                    setConfirming(undefined);
+                  }}
+                >
+                  {t("admin.cancel")}
+                </button>
+              </div>
+            </div>
+          ) : (
+            <button
+              type="button"
+              className="btn soft sm"
+              onClick={() => {
+                setConfirming("block");
+              }}
+            >
+              {t("admin.users.block")}
+            </button>
+          ))}
+        {confirming === "delete" ? (
+          <div className="card flat" role="alertdialog" aria-label={t("admin.users.delete")}>
+            <span>{t("admin.users.deleteConfirm", { name: user.displayName })}</span>
+            <div className="row">
+              <button
+                type="button"
+                className="btn danger sm"
+                onClick={() => void run("DELETE", `/api/admin/users/${String(user.id)}`, onClose)}
+              >
+                {t("admin.users.deleteFinal")}
+              </button>
+              <button
+                type="button"
+                className="btn ghost sm"
+                onClick={() => {
+                  setConfirming(undefined);
+                }}
+              >
+                {t("admin.cancel")}
+              </button>
+            </div>
+          </div>
         ) : (
-          <button type="button" className="btn soft sm" onClick={() => void createResetLink()}>
-            {t("admin.users.createResetLink")}
+          <button
+            type="button"
+            className="btn danger sm"
+            onClick={() => {
+              setConfirming("delete");
+            }}
+          >
+            {t("admin.users.delete")}
           </button>
         )}
       </section>
@@ -237,6 +351,9 @@ export function CreateAccountPanel({
   const [username, setUsername] = useState("");
   const [displayName, setDisplayName] = useState("");
   const [roles, setRoles] = useState<Role[]>([]);
+  /** The program items of a new guest (ACC-20): none selected, at least one with `vip`. */
+  const [itemIds, setItemIds] = useState<number[]>([]);
+  const { data: rsvpConfig } = useAdminData("/api/admin/rsvp/config", rsvpConfigSchema);
   const [error, setError] = useState<string>();
   const [created, setCreated] = useState<{ name: string; url: string; expiresAt: string }>();
 
@@ -245,6 +362,7 @@ export function CreateAccountPanel({
       username,
       ...(displayName.trim() === "" ? {} : { displayName }),
       roles,
+      ...(roles.includes("vip") ? { programItemIds: itemIds } : {}),
     });
     const parsed = createUserResponseSchema.safeParse(result.body);
     if (result.ok && parsed.success) {
@@ -333,8 +451,37 @@ export function CreateAccountPanel({
             ))}
           </div>
         </div>
+        {roles.includes("vip") && (
+          <div className="stack" role="group" aria-labelledby="create-items">
+            <b id="create-items" className="sm">
+              {t("admin.users.invitedTo")}
+            </b>
+            <div className="chips">
+              {(rsvpConfig?.programItems ?? []).map((programItem) => (
+                <ToggleChip
+                  key={programItem.id}
+                  pressed={itemIds.includes(programItem.id)}
+                  onToggle={() => {
+                    setItemIds((current) =>
+                      current.includes(programItem.id)
+                        ? current.filter((id) => id !== programItem.id)
+                        : [...current, programItem.id],
+                    );
+                  }}
+                >
+                  {programItem.name}
+                </ToggleChip>
+              ))}
+            </div>
+            <span className="hint">{t("admin.users.createItemsHint")}</span>
+          </div>
+        )}
         <Alert text={error} />
-        <button type="submit" className="btn">
+        <button
+          type="submit"
+          className="btn"
+          disabled={roles.includes("vip") && itemIds.length === 0}
+        >
           {t("admin.users.createSubmit")}
         </button>
       </form>

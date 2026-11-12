@@ -608,6 +608,13 @@ const authPlugin: FastifyPluginAsyncZod<AuthOptions> = async (app, options) => {
     },
     async (request, reply) => {
       const actor = `user:${String(signedIn(request).user.id)}`;
+      // The form of an admin names the program items of a new guest; the CLI invites to all (ACC-20).
+      if (request.body.roles.includes("vip") && !request.body.programItemIds?.length) {
+        return sendError(reply, 400, {
+          code: "program_items_required",
+          message: "choose at least one program item",
+        });
+      }
       try {
         const { user, link } = accounts.createUserWithSetupLink(request.body, actor);
         return await reply.status(201).send({
@@ -618,6 +625,12 @@ const authPlugin: FastifyPluginAsyncZod<AuthOptions> = async (app, options) => {
       } catch (error) {
         if (error instanceof AccountError && error.code === "username_taken") {
           return sendError(reply, 409, { code: "username_taken", message: error.message });
+        }
+        if (error instanceof AccountError && error.code === "program_items_required") {
+          return sendError(reply, 400, { code: error.code, message: error.message });
+        }
+        if (error instanceof AccountError && error.code === "program_item_not_found") {
+          return sendError(reply, 404, { code: error.code, message: error.message });
         }
         throw error;
       }

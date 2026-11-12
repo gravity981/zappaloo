@@ -349,11 +349,12 @@ describe("invited program items", () => {
     );
   });
 
-  it("[RSVP-02] a vip made by an admin is invited to all program items; revoking vip clears them", async () => {
+  it("[RSVP-02] a vip made by an admin is invited to the program items of the form; revoking vip clears them", async () => {
     const { ctx, root, call, get, programItems } = await setup();
     const created = await call<{ user: { id: number } }>(root, "POST", "/api/admin/users", {
       username: "oma",
       roles: ["vip"],
+      programItemIds: programItems.map((p) => p.id),
     });
     const id = created.body?.user.id ?? 0;
     const users = () =>

@@ -90,6 +90,8 @@ export const createUserRequestSchema = z.strictObject({
   username: usernameSchema,
   displayName: displayNameSchema.optional(),
   roles: z.array(roleSchema).default([]),
+  /** The program items of a new `vip`; at least one is required with the role (ACC-20). */
+  programItemIds: z.array(z.number().int().positive()).max(50).optional(),
 });
 export type CreateUserRequest = z.infer<typeof createUserRequestSchema>;
 

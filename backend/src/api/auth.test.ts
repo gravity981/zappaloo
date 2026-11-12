@@ -581,7 +581,7 @@ describe("accounts created by an admin", () => {
     const created = await create(ctx, boss, {
       username: "Ben",
       displayName: "Ben B.",
-      roles: ["vip", "staff"],
+      roles: ["staff"],
     });
     expect(created.statusCode, created.body).toBe(201);
     const body = created.json<{
@@ -591,7 +591,7 @@ describe("accounts created by an admin", () => {
     expect(body.user).toMatchObject({
       username: "ben",
       displayName: "Ben B.",
-      roles: ["staff", "vip"],
+      roles: ["staff"],
     });
     expect(body.setupUrl).toMatch(/^http:\/\/localhost:5173\/set-password\/[\w-]{43}$/);
 

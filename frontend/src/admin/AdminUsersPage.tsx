@@ -1,13 +1,22 @@
 // Konten & Rollen (sw-architecture.md 8.3): the accounts of the event with their roles and
 // capabilities, and the guest groups (ACC-08, ACC-10, ROLE-01, ROLE-06, ROLE-09, GRP-01).
 // Accounts and groups open a panel for everything that does not fit into the table.
-import { useCallback, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { adminUserListSchema, groupListSchema, groupSchema, ROLES } from "@zappaloo/shared";
+import type { UserStatus } from "@zappaloo/shared";
 import { AccountPanel, CreateAccountPanel, GroupPanel, RevokeVipConfirm } from "./UsersPanels.tsx";
 import { useAdminCall, useAdminData, useErrorText } from "./data.ts";
 import { ToggleChip } from "./ui.tsx";
-import { useToggleRole } from "./users.ts";
+import { rolesLocked, useToggleRole } from "./users.ts";
+
+/** The tag of a state in the table. */
+const STATUS_TAG: Record<UserStatus, string> = {
+  active: "tag ok",
+  inactive: "tag",
+  blocked: "tag bad",
+};
+const FILTERS: (UserStatus | undefined)[] = [undefined, "active", "inactive", "blocked"];
 
 type Open = { kind: "account"; id: number } | { kind: "group"; id: number } | { kind: "create" };
 
@@ -20,6 +29,9 @@ export default function AdminUsersPage() {
   const [open, setOpen] = useState<Open>();
   const [error, setError] = useState<string>();
   const [groupName, setGroupName] = useState<string>();
+  /** The status filter of the table (undefined: all) and the search over name and username. */
+  const [filter, setFilter] = useState<UserStatus>();
+  const [search, setSearch] = useState("");
 
   const reloadUsers = users.reload;
   const reloadGroups = groups.reload;
@@ -51,7 +63,17 @@ export default function AdminUsersPage() {
     }
   }
 
-  const userList = users.data?.users ?? [];
+  const userList = useMemo(() => users.data?.users ?? [], [users.data]);
+  const countOf = (status?: UserStatus) =>
+    status === undefined ? userList.length : userList.filter((u) => u.status === status).length;
+  const needle = search.trim().toLowerCase();
+  const shown = userList.filter(
+    (u) =>
+      (filter === undefined || u.status === filter) &&
+      (needle === "" ||
+        u.displayName.toLowerCase().includes(needle) ||
+        (u.username ?? "").includes(needle)),
+  );
   const groupList = groups.data?.groups ?? [];
   const account = open?.kind === "account" ? userList.find((u) => u.id === open.id) : undefined;
   const group = open?.kind === "group" ? groupList.find((g) => g.id === open.id) : undefined;
@@ -84,11 +106,41 @@ export default function AdminUsersPage() {
       )}
       <div className="grid-2">
         <div className="card tight">
+          <div className="row tight-head">
+            <div className="chips" role="group" aria-label={t("admin.users.filter")}>
+              {FILTERS.map((status) => (
+                <button
+                  key={status ?? "all"}
+                  type="button"
+                  className="chip"
+                  aria-pressed={filter === status}
+                  onClick={() => {
+                    setFilter(status);
+                  }}
+                >
+                  {status === undefined ? t("admin.users.all") : t(`admin.users.filters.${status}`)}{" "}
+                  {countOf(status)}
+                </button>
+              ))}
+            </div>
+            <input
+              className="input grow"
+              type="search"
+              aria-label={t("admin.users.search")}
+              placeholder={t("admin.users.search")}
+              value={search}
+              onChange={(event) => {
+                setSearch(event.target.value);
+              }}
+            />
+          </div>
           <div className="scroll">
             <table className="table">
               <thead>
                 <tr>
+                  <th>{t("admin.users.username")}</th>
                   <th>{t("admin.users.name")}</th>
+                  <th>{t("admin.users.statusColumn")}</th>
                   <th>{t("admin.users.roles")}</th>
                   <th>{t("admin.users.capabilities")}</th>
                   <th>
@@ -97,14 +149,15 @@ export default function AdminUsersPage() {
                 </tr>
               </thead>
               <tbody>
-                {userList.map((user) => (
+                {shown.map((user) => (
                   <tr key={user.id}>
+                    <td className="sm">{user.username ?? "–"}</td>
                     <td>
                       <b>{user.displayName}</b>
-                      <br />
-                      <span className="hint">
-                        {user.username ?? t("admin.users.noUsername")}
-                        {user.status === "inactive" && " · " + t("admin.users.status.inactive")}
+                    </td>
+                    <td>
+                      <span className={STATUS_TAG[user.status]}>
+                        {t(`admin.users.status.${user.status}`)}
                       </span>
                     </td>
                     <td>
@@ -118,6 +171,7 @@ export default function AdminUsersPage() {
                               role: t(`admin.roles.${role}`),
                               name: user.displayName,
                             })}
+                            disabled={rolesLocked(user)}
                             onToggle={() => void toggleRole(user, role)}
                           >
                             {t(`admin.roles.${role}`)}

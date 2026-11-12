@@ -1,8 +1,12 @@
 // Account changes shared by the Konten & Rollen page and its panels.
 import { useCallback, useState } from "react";
 import { useTranslation } from "react-i18next";
-import type { AdminUser, Role } from "@zappaloo/shared";
+import type { AdminUser, Role, UserStatus } from "@zappaloo/shared";
 import { useAdminCall, useErrorText } from "./data.ts";
+
+/** The roles of an inactive account that was created for an invitation are locked (7.1.2). */
+export const rolesLocked = (user: { status: UserStatus; vipAssignment: string | null }) =>
+  user.status === "inactive" && user.vipAssignment === "invitation_code";
 
 /** Errors of the account pages, with `last_admin` worded for role changes. */
 export function useUsersErrorText() {

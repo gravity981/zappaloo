@@ -291,6 +291,48 @@ describe("revoking removes a guest who never registered (INV-20)", () => {
   });
 });
 
+describe("cleaning up invitations (INV-21)", () => {
+  const base = {
+    note: null,
+    expiresAt: null,
+    createdAt: "2026-11-10T10:00:00.000Z",
+    redeemedAt: null,
+    redeemedBy: null,
+    programItemIds: [],
+    userId: null,
+    removesGuest: false,
+  };
+
+  it("[INV-21] Aufräumen names the number, asks for a second click and deletes revoked and replaced codes", async () => {
+    let list = [
+      { ...base, id: 1, guestName: "Alt", status: "revoked" },
+      { ...base, id: 2, guestName: "Ersetzt", status: "replaced" },
+      { ...base, id: 3, guestName: "Berta Bleibt", status: "active", userId: 7 },
+    ];
+    const calls = fakeBackend({
+      "GET /api/session": () => asAdmin,
+      "GET /api/admin/invitations": () => ({ status: 200, body: { invitations: list } }),
+      "POST /api/admin/invitations/cleanup": () => {
+        list = list.filter((i) => i.status === "active");
+        return { status: 200, body: { deleted: 2 } };
+      },
+    });
+    renderAt("/admin/invitations");
+    user.click(await screen.findByRole("button", { name: "Aufräumen (2)" }));
+    expect(calls.some((c) => c.path.endsWith("/cleanup"))).toBe(false);
+    expect(
+      screen.getByText(/2 widerrufene und ersetzte Einladungen werden gelöscht/),
+    ).toBeInTheDocument();
+    user.click(screen.getByRole("button", { name: "Endgültig aufräumen" }));
+    await waitFor(() => {
+      expect(screen.queryByText("Alt")).not.toBeInTheDocument();
+    });
+    expect(screen.getByText("Berta Bleibt")).toBeInTheDocument();
+    // Nothing left to clean up: no button.
+    expect(screen.queryByRole("button", { name: /Aufräumen/ })).not.toBeInTheDocument();
+  });
+});
+
 describe("accounts, roles and groups", () => {
   it("[ACC-17] an inactive account is listed with its state and no username", async () => {
     fakeBackend({
@@ -304,8 +346,130 @@ describe("accounts, roles and groups", () => {
       "GET /api/admin/groups": () => ({ status: 200, body: { groups: [] } }),
     });
     renderAt("/admin/users");
-    expect(await screen.findByText("Ben Offen")).toBeInTheDocument();
-    expect(screen.getByText(/noch kein Benutzername · inaktiv/)).toBeInTheDocument();
+    const row = (await screen.findByText("Ben Offen")).closest("tr");
+    expect(row).not.toBeNull();
+    expect(within(row as HTMLElement).getByText("inaktiv")).toBeInTheDocument();
+    // No username yet, and the roles are locked until the guest registers.
+    expect(
+      within(row as HTMLElement).getByRole("button", { name: "vip für Ben Offen" }),
+    ).toBeDisabled();
+  });
+
+  it("[ACC-17][ACC-18] the table filters by state with counts and searches name and username", async () => {
+    fakeBackend({
+      "GET /api/session": () => asAdmin,
+      "GET /api/admin/users": () => ({
+        status: 200,
+        body: {
+          users: [
+            account({ id: 1, username: "anna", displayName: "Anna Muster" }),
+            account({ id: 2, username: null, displayName: "Ben Offen", status: "inactive" }),
+            account({ id: 3, username: "cleo", displayName: "Cleo Gesperrt", status: "blocked" }),
+          ],
+        },
+      }),
+      "GET /api/admin/groups": () => ({ status: 200, body: { groups: [] } }),
+    });
+    renderAt("/admin/users");
+    await screen.findByText("Anna Muster");
+    expect(screen.getByRole("button", { name: "Alle 3" })).toBeInTheDocument();
+    user.click(screen.getByRole("button", { name: "Gesperrt 1" }));
+    expect(screen.queryByText("Anna Muster")).not.toBeInTheDocument();
+    expect(screen.getByText("Cleo Gesperrt")).toBeInTheDocument();
+    user.click(screen.getByRole("button", { name: "Alle 3" }));
+    user.type(screen.getByRole("searchbox"), "ann");
+    expect(screen.getByText("Anna Muster")).toBeInTheDocument();
+    expect(screen.queryByText("Ben Offen")).not.toBeInTheDocument();
+  });
+
+  it("[ACC-18] blocking asks for a second click; a blocked account is unblocked with one", async () => {
+    let accounts = [account({ id: 1, username: "anna", displayName: "Anna Muster" })];
+    const calls = fakeBackend({
+      "GET /api/session": () => asAdmin,
+      "GET /api/admin/users": () => ({ status: 200, body: { users: accounts } }),
+      "GET /api/admin/groups": () => ({ status: 200, body: { groups: [] } }),
+      "GET /api/admin/rsvp/config": () => ({
+        status: 200,
+        body: {
+          deadline: null,
+          songEnabled: true,
+          perItem: false,
+          companionApproval: false,
+          mixedCount: 0,
+          pendingCount: 0,
+          programItems: [],
+          menus: [],
+        },
+      }),
+      "POST /api/admin/users/1/block": () => {
+        accounts = [{ ...accounts[0], status: "blocked" } as (typeof accounts)[number]];
+        return { status: 204 };
+      },
+      "POST /api/admin/users/1/unblock": () => {
+        accounts = [{ ...accounts[0], status: "active" } as (typeof accounts)[number]];
+        return { status: 204 };
+      },
+    });
+    renderAt("/admin/users");
+    user.click(await screen.findByRole("button", { name: "Konto Anna Muster bearbeiten" }));
+    const panel = await screen.findByRole("dialog");
+    user.click(within(panel).getByRole("button", { name: "Konto sperren" }));
+    expect(calls.some((c) => c.path.endsWith("/block"))).toBe(false);
+    user.click(await within(panel).findByRole("button", { name: "Endgültig sperren" }));
+    await waitFor(() => {
+      expect(calls.some((c) => c.path === "/api/admin/users/1/block")).toBe(true);
+    });
+    // Blocked: no password section, "Entsperren" instead of "Konto sperren".
+    const unblock = await within(panel).findByRole("button", { name: "Entsperren" });
+    expect(
+      within(panel).queryByRole("button", { name: "Link zum Zurücksetzen erstellen" }),
+    ).not.toBeInTheDocument();
+    user.click(unblock);
+    await waitFor(() => {
+      expect(calls.some((c) => c.path === "/api/admin/users/1/unblock")).toBe(true);
+    });
+  });
+
+  it("[ACC-19] deleting an account asks for a second click and closes the panel", async () => {
+    let accounts = [account({ id: 1, username: "anna", displayName: "Anna Muster" })];
+    const calls = fakeBackend({
+      "GET /api/session": () => asAdmin,
+      "GET /api/admin/users": () => ({ status: 200, body: { users: accounts } }),
+      "GET /api/admin/groups": () => ({ status: 200, body: { groups: [] } }),
+      "GET /api/admin/rsvp/config": () => ({
+        status: 200,
+        body: {
+          deadline: null,
+          songEnabled: true,
+          perItem: false,
+          companionApproval: false,
+          mixedCount: 0,
+          pendingCount: 0,
+          programItems: [],
+          menus: [],
+        },
+      }),
+      "DELETE /api/admin/users/1": () => {
+        accounts = [];
+        return { status: 204 };
+      },
+    });
+    renderAt("/admin/users");
+    user.click(await screen.findByRole("button", { name: "Konto Anna Muster bearbeiten" }));
+    const panel = await screen.findByRole("dialog");
+    user.click(within(panel).getByRole("button", { name: "Konto löschen" }));
+    expect(calls.some((c) => c.method === "DELETE")).toBe(false);
+    expect(
+      within(panel).getByText(/mit Rückmeldung, Begleitpersonen und allen Einladungen gelöscht/),
+    ).toBeInTheDocument();
+    user.click(within(panel).getByRole("button", { name: "Endgültig löschen" }));
+    await waitFor(() => {
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    });
+    expect(calls.find((c) => c.method === "DELETE")?.csrf).toBe("csrf-1");
+    await waitFor(() => {
+      expect(screen.queryByText("Anna Muster")).not.toBeInTheDocument();
+    });
   });
 
   it("[ROLE-01][ROLE-09] a role chip switches one role and keeps the others", async () => {
@@ -394,6 +558,34 @@ describe("accounts, roles and groups", () => {
       "GET /api/session": () => asAdmin,
       "GET /api/admin/users": () => ({ status: 200, body: { users: [] } }),
       "GET /api/admin/groups": () => ({ status: 200, body: { groups: [] } }),
+      "GET /api/admin/rsvp/config": () => ({
+        status: 200,
+        body: {
+          deadline: null,
+          songEnabled: true,
+          perItem: false,
+          companionApproval: false,
+          mixedCount: 0,
+          pendingCount: 0,
+          programItems: [
+            {
+              id: 1,
+              name: "Trauung",
+              startsAt: "2027-06-12T12:00:00.000Z",
+              place: null,
+              hasMeal: false,
+            },
+            {
+              id: 2,
+              name: "Dinner",
+              startsAt: "2027-06-12T16:00:00.000Z",
+              place: null,
+              hasMeal: true,
+            },
+          ],
+          menus: [],
+        },
+      }),
       "POST /api/admin/users": () => ({
         status: 201,
         body: {
@@ -408,8 +600,17 @@ describe("accounts, roles and groups", () => {
     const panel = await screen.findByRole("dialog", { name: "Konto anlegen" });
     user.type(within(panel).getByLabelText("Benutzername"), "oma");
     user.type(within(panel).getByLabelText("Anzeigename (optional)"), "Oma Erika");
+    // A new guest needs program items (ACC-20): none selected, so nothing can be sent yet.
     user.click(within(panel).getByRole("button", { name: "vip" }));
-    user.click(within(panel).getByRole("button", { name: "Konto anlegen" }));
+    const submit = within(panel).getByRole("button", { name: "Konto anlegen" });
+    expect(await within(panel).findByRole("button", { name: "Trauung" })).toHaveAttribute(
+      "aria-pressed",
+      "false",
+    );
+    expect(submit).toBeDisabled();
+    user.click(within(panel).getByRole("button", { name: "Dinner" }));
+    expect(submit).toBeEnabled();
+    user.click(submit);
 
     const done = await screen.findByRole("dialog", { name: "Konto für Oma Erika angelegt" });
     expect(within(done).getByLabelText("Link zum Festlegen des Passworts")).toHaveValue(
@@ -419,6 +620,7 @@ describe("accounts, roles and groups", () => {
       username: "oma",
       displayName: "Oma Erika",
       roles: ["vip"],
+      programItemIds: [2],
     });
   });
 

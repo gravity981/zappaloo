@@ -2,7 +2,7 @@
 // 6-character string; only its SHA-256 is stored, so the plain code exists only in the
 // response that creates or regenerates it (INV-02, INV-14).
 import { randomBytes } from "node:crypto";
-import { and, desc, eq, ne } from "drizzle-orm";
+import { and, desc, eq, ne, or } from "drizzle-orm";
 import type { Invitation, InvitationStatus, User } from "@zappaloo/shared";
 import type { Database } from "../database/database.ts";
 import {
@@ -415,6 +415,26 @@ export class InvitationService {
         tx,
       );
       return this.#view(tx, row);
+    });
+  }
+
+  /**
+   * Deletes the revoked and replaced invitations (INV-21); redeemed, active and expired ones stay.
+   * Returns how many were deleted.
+   */
+  cleanup(actor: Actor): number {
+    return this.#database.db.transaction((tx) => {
+      const gone = tx
+        .delete(invitations)
+        .where(
+          and(
+            eq(invitations.eventId, this.#event.eventId),
+            or(eq(invitations.status, "revoked"), eq(invitations.status, "replaced")),
+          ),
+        )
+        .run().changes;
+      this.#event.audit(actor, "invitation.cleanup", { count: gone }, tx);
+      return gone;
     });
   }
 
