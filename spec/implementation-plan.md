@@ -34,8 +34,8 @@ Each release goes into production. From Release 1 on, real guest data is stored,
 | 2 | Accounts, roles and access | 1 | done |
 | 3 | RSVP and waiting page | – | done |
 | 3.5 | Installable app (home screen icon, no browser chrome) | 1 | done |
-| 3.9 | Findings from the Release 1 pilot | 1 (updates) | next |
-| 4 | Content and website | Opening | open |
+| 3.9 | Findings from the Release 1 pilot | 1 (updates) | done |
+| 4 | Content and website | Opening | next |
 | 5 | Game world and map importer | Opening | open |
 | 6 | Living world | Opening | open |
 | 7 | Contributions and event screen | Event-ready | open |
@@ -568,4 +568,54 @@ After each completed stage, Claude appends a report with this structure to secti
 
 **Risks and notes:**
 - Prod holds real guest data and stage 3.9 changes the schema in several steps (rename, accounts per invitation, person types); each migration is tried on staging with a copy of the latest prod backup before promotion (3.9g).
+- The requirement report's stage table reads whole stage numbers only, so stages 3.5 and 3.9 appear under stage 3.
+
+### Stage 3.9 – Findings from the Release 1 Pilot (2026-11-12, written after the code steps)
+
+**Summary:** Guests answer the RSVP once for all their program items and add companions without waiting for approval. Every invited person is on the guest list from the moment the invitation is created. Admins see the state of each account, can block and delete accounts, clean up old invitations and give every person a type. The update to prod (step 3.9g) is still to do and needs the project owner.
+
+**Steps:** 3.9a Fixes from the pilot (phone swipe, footer) – done. 3.9b Program item instead of part – done. 3.9c RSVP settings – done. 3.9d Every invited person has an account – done. 3.9e Konten & Rollen and Einladungen – done. 3.9f Person types – done. Review rounds between the steps changed texts and layout (see below). 3.9g Update on prod – the image builds and the app starts healthy with all 12 migrations. The smoke test and 9 of 19 deployment tests cannot pass in this devcontainer (see risks). Staging restore with a prod backup, release candidate, prod deployment, phone checks and the privacy paragraph wait for the project owner.
+
+**Requirements:** 11 of 11 planned for this stage (ACC-17 – ACC-20, INV-20, INV-21, RSVP-11 – RSVP-15) with passing tests. RSVP-01 and RSVP-08 – RSVP-10 are reworded and re-verified. Overall: 107 of 232 active requirements, all with passing Vitest and Playwright tests. 125 are not yet implemented.
+
+**Tests:** 2026-11-12 on `feature/stage-3.9`: Vitest 688 tests passed (707 results in the report, 659 tagged). Playwright 69 passed and 19 skipped by design, none failed. The requirement report is OK without the deployment results. With them it reports 9 requirements as failed, because their deployment tests fail in this devcontainer (see risks). Migration check OK for all 12 migrations, including tests with data for 0008 (rename), 0009 (RSVP settings), 0010 (accounts per invitation) and 0011 (person types). Deployment test: 10 of 19 passed. The 9 failures show empty output from `docker run` and `docker compose exec` in this devcontainer. An image built from the commit before stage 3.9 behaves the same, so the cause is not this stage. Manual: OPS-05 only.
+
+**Spec changes and deviations:** The decisions are in 7.1.2, 7.4.2 and 8.3 of sw-architecture.md and in the UX decisions of the mocks. Changes made while building:
+- The warning about mixed answers next to "Pro Programmpunkt zusagen" is gone. The setting has one short sentence.
+- The RSVP uses "Ja" and "Nein" for the one answer. Step 3 has no instructions around the companions and the song.
+- Roles are locked only for inactive accounts that have an invitation. An account an admin created keeps its roles editable.
+- Revoking the code of a guest who never registered removes the guest, so the status "Widerrufen" survives only on old data.
+- Babies are not counted in the menu totals.
+- The migrations now run with foreign keys off and are checked afterwards, because SQLite rebuilds the users table to make the username optional.
+- Texts use short, full sentences without semicolons. This holds for German texts and English notes alike. Older parts of the spec outside stage 3.9 still contain semicolons.
+
+**Overall status:**
+
+| Stage | Content | Status |
+|---|---|---|
+| 1 | Walking skeleton and deployment | done |
+| 2 | Accounts, roles and access | done |
+| 3 | RSVP and waiting page | done |
+| 3.5 | Installable app | done |
+| 3.9 | Findings from the Release 1 pilot | done |
+| 4 | Content and website | next |
+| 5 | Game world and map importer | open |
+| 6 | Living world | open |
+| 7 | Contributions and event screen | open |
+| 8 | Minigames, treasure hunt and highscores | open |
+| 9 | Event readiness | open |
+| 10 | After the event | open |
+
+**Remaining requirements by stage** (requirement report, stages 3.5 and 3.9 count under stage 3): stage 1 → 2 (OPS-12, OPS-13: manual checks). Stage 3 → 1 (OPS-02). Stage 4 → 15. Stage 5 → 36. Stage 6 → 14. Stage 7 → 30. Stage 8 → 22. Stage 9 → 1. Stage 10 → 4. In total 125 of 232 active.
+
+**Waiting on the project owner:**
+- Update prod with Release 1 update (step 3.9g). Restore the latest prod backup on staging and update it, so the migrations run on real data. Then promote a release candidate and deploy to prod with the pre-deploy backup.
+- The update approves all pending companion requests on prod, because approval is off by default. Review them first if needed.
+- Check on a phone after the update: no sideways swipe, RSVP with one answer, adding a companion, redeeming a card for a pre-created account.
+- Copy the new paragraph "Löschen" of the default privacy text into the notice on prod, because an edited notice keeps its text: "Du kannst dein Konto jederzeit im Profil löschen. Deine Rückmeldung (mit Begleitpersonen und Allergien) bleibt für die Organisation bei den Gastgebern. Wenn du sie auch gelöscht haben willst, schreib ihnen. Nach dem Fest löschen wir alle persönlichen Daten."
+- Record the device checks of 3.5e and 3.5f in the manual test protocol. This clears OPS-02 and the "not yet tested" list, which is a precondition of stage 4.
+
+**Risks and notes:**
+- Migration 0010 rebuilds the users table. The migrator now runs with foreign keys off and checks them afterwards. A violation cannot be rolled back at that point, so the pre-deploy backup is the safety net. Try it on staging with the prod backup first.
+- In this devcontainer, foreground `docker run` and `docker compose exec` lose the output of our CLI. The smoke test of the image and 9 deployment tests fail because of it, also on the commit before stage 3.9. Detached containers work. Run the image build and the deployment test on the CI runner or another machine before the release candidate.
 - The requirement report's stage table reads whole stage numbers only, so stages 3.5 and 3.9 appear under stage 3.
