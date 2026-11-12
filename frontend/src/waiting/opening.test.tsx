@@ -112,7 +112,6 @@ describe("the privacy notice page (SEC-09)", () => {
           songEnabled: true,
           perItem: true,
           companionApproval: true,
-          mixedCount: 0,
           programItems: [],
           menus: [],
           answer: null,

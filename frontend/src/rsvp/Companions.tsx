@@ -101,16 +101,15 @@ export function AttendanceBlock({
     <div className="card">
       <div className="chips" role="group" aria-label={name ?? t("rsvp.attendanceOnce")}>
         {[true, false].map((yes) => {
-          const text =
-            name === undefined
-              ? t(yes ? "rsvp.iCome" : "rsvp.iComeNot")
-              : t(yes ? "rsvp.personComes" : "rsvp.personComesNot", { name });
+          const text = t(yes ? "rsvp.yes" : "rsvp.no");
           return (
             <button
               key={String(yes)}
               type="button"
               className="chip"
               aria-pressed={current === yes}
+              // Several persons answer on one page: the name tells the buttons apart.
+              aria-label={name === undefined ? text : `${name}: ${text}`}
               onClick={() => {
                 onChange(
                   Object.fromEntries(programItems.map((programItem) => [programItem.id, yes])),
@@ -488,9 +487,6 @@ export function CompanionsCard({
           </li>
         ))}
       </ul>
-      {companions.some((c) => c.status === "approved") && !admin && (
-        <span className="hint">{t("rsvp.companions.approvedHint")}</span>
-      )}
       {!admin && !locked && open < MAX_COMPANIONS && (
         <button type="button" className="btn ghost sm" onClick={onNew}>
           + {t("rsvp.companions.new")}
@@ -499,7 +495,6 @@ export function CompanionsCard({
       {!admin && !locked && open >= MAX_COMPANIONS && (
         <span className="hint">{t("rsvp.companions.limit", { count: MAX_COMPANIONS })}</span>
       )}
-      {!admin && <p className="hint">{t("rsvp.companions.ownInvitation")}</p>}
     </div>
   );
 }

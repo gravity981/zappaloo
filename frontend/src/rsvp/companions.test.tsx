@@ -55,7 +55,6 @@ function state(changes: Record<string, unknown> = {}) {
     songEnabled: true,
     perItem: true,
     companionApproval: true,
-    mixedCount: 0,
     programItems: PARTS,
     menus: MENUS,
     answer: {
@@ -113,12 +112,12 @@ describe("accompanying persons in the wizard", () => {
     expect(
       within(row("Hans Graf")).getByRole("button", { name: "Entfernen: Hans Graf" }),
     ).toBeInTheDocument();
+    // No instructions around the list: the page stays quiet (decided 2026-11-12).
+    expect(screen.queryByText(/Teilnahme, Menü und Allergien/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Wer ein eigenes Handy hat/)).not.toBeInTheDocument();
     expect(
-      screen.getByText(
-        /Teilnahme, Menü und Allergien deiner Begleitpersonen änderst du in den Schritten 1 und 2/,
-      ),
-    ).toBeInTheDocument();
-    expect(screen.getByText(/Wer ein eigenes Handy hat/)).toBeInTheDocument();
+      screen.queryByText(/Dieses Lied bringt dich auf die Tanzfläche/),
+    ).not.toBeInTheDocument();
   });
 
   it("[RSVP-08] the guest requests a person: name, note, attendance, menu and allergies", async () => {
@@ -442,7 +441,6 @@ describe("Rückmeldungen: companion requests", () => {
     songEnabled: true,
     perItem: true,
     companionApproval: true,
-    mixedCount: 0,
     programItems: PARTS,
     menus: MENUS,
     totals: [],
@@ -618,7 +616,6 @@ describe("companion approval off (RSVP-12, 7.4.2)", () => {
       songEnabled: true,
       perItem: true,
       companionApproval: false,
-      mixedCount: 0,
       pendingCount: 0,
       programItems: PARTS,
       menus: MENUS,
@@ -689,7 +686,6 @@ describe("companion approval off (RSVP-12, 7.4.2)", () => {
           songEnabled: true,
           perItem: true,
           companionApproval: false,
-          mixedCount: 0,
           pendingCount: 0,
           programItems: PARTS,
           menus: MENUS,

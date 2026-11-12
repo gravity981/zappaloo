@@ -303,6 +303,32 @@ describe("cleaning up invitations (INV-21)", () => {
     removesGuest: false,
   };
 
+  it("[INV-05][INV-21] the filter chips, Aufräumen and its hint sit in the card of the table", async () => {
+    fakeBackend({
+      "GET /api/session": () => asAdmin,
+      "GET /api/admin/invitations": () => ({
+        status: 200,
+        body: { invitations: [{ ...base, id: 1, guestName: "Alt", status: "revoked" }] },
+      }),
+    });
+    renderAt("/admin/invitations");
+    const table = await screen.findByRole("table");
+    const card = table.closest(".card");
+    expect(card).not.toBeNull();
+    const inCard = within(card as HTMLElement);
+    expect(inCard.getByRole("group", { name: "Nach Status filtern" })).toBeInTheDocument();
+    const cleanup = await inCard.findByRole("button", { name: "Aufräumen (1)" });
+    // Below the table, above its hint.
+    const hint = inCard.getByText(/Aufräumen löscht widerrufene/);
+    expect(table.compareDocumentPosition(cleanup) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(cleanup.compareDocumentPosition(hint) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(
+      inCard.getByText(
+        "Aufräumen löscht widerrufene und ersetzte Einladungen. Eingelöste bleiben.",
+      ),
+    ).toBeInTheDocument();
+  });
+
   it("[INV-21] Aufräumen names the number, asks for a second click and deletes revoked and replaced codes", async () => {
     let list = [
       { ...base, id: 1, guestName: "Alt", status: "revoked" },
@@ -395,7 +421,6 @@ describe("accounts, roles and groups", () => {
           songEnabled: true,
           perItem: false,
           companionApproval: false,
-          mixedCount: 0,
           pendingCount: 0,
           programItems: [],
           menus: [],
@@ -443,7 +468,6 @@ describe("accounts, roles and groups", () => {
           songEnabled: true,
           perItem: false,
           companionApproval: false,
-          mixedCount: 0,
           pendingCount: 0,
           programItems: [],
           menus: [],
@@ -565,7 +589,6 @@ describe("accounts, roles and groups", () => {
           songEnabled: true,
           perItem: false,
           companionApproval: false,
-          mixedCount: 0,
           pendingCount: 0,
           programItems: [
             {

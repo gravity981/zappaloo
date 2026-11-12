@@ -209,29 +209,6 @@ export class RsvpService {
     );
   }
 
-  /** Persons with a yes and a no among their program items: the warning when switching to one answer. */
-  #mixedCount(): number {
-    const { db } = this.#database;
-    const eventId = this.#event.eventId;
-    const mixed = (rows: { key: number; attending: boolean }[]): number => {
-      const yes = new Set(rows.filter((r) => r.attending).map((r) => r.key));
-      const no = new Set(rows.filter((r) => !r.attending).map((r) => r.key));
-      return [...yes].filter((key) => no.has(key)).length;
-    };
-    const guests = db
-      .select({ key: rsvpAttendance.userId, attending: rsvpAttendance.attending })
-      .from(rsvpAttendance)
-      .where(eq(rsvpAttendance.eventId, eventId))
-      .all();
-    const persons = db
-      .select({ key: companionAttendance.companionId, attending: companionAttendance.attending })
-      .from(companionAttendance)
-      .innerJoin(companions, eq(companions.id, companionAttendance.companionId))
-      .where(and(eq(companionAttendance.eventId, eventId), eq(companions.status, "approved")))
-      .all();
-    return mixed(guests) + mixed(persons);
-  }
-
   /** Switches between one answer per person and yes or no per program item (RSVP-11). */
   setPerItem(enabled: boolean, actor: Actor): void {
     this.#database.db.transaction((tx) => {
@@ -286,7 +263,6 @@ export class RsvpService {
       songEnabled: this.#songEnabled(),
       perItem: this.perItem(),
       companionApproval: this.companionApproval(),
-      mixedCount: this.#mixedCount(),
       pendingCount: this.pendingCount(),
       programItems: this.#programItems(),
       menus: this.#menus(),

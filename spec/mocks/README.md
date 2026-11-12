@@ -109,15 +109,17 @@ Written into sw-architecture.md 7.1.2, 7.4.2 and 8.3 as well. The screens are dr
 
 | Topic | Decision |
 |---|---|
-| Program item | "Programmpunkt" replaces "Teil" in every text; earlier decisions that say "parts" (21, 31, 50 – 53) mean program items. |
-| One answer | With "Pro Programmpunkt zusagen" off (the default), step 1 of the RSVP asks each person once ("Ich komme" / "Ich komme nicht") and lists their program items. |
-| Adding companions | "Begleitperson hinzufügen" instead of "beantragen". With "Begleitpersonen bestätigen" off (the default) an added person has no status tag and counts right away. The person type is chosen with chips, no default. With approval off the guest removes an added person until the deadline; the admin removes one from the guest table in Rückmeldungen (second click). |
+| Program item | "Programmpunkt" replaces "Teil" in every text. Earlier decisions that say "parts" (21, 31, 50 – 53) mean program items. |
+| One answer | With "Pro Programmpunkt zusagen" off (the default), step 1 of the RSVP asks each person once ("Ja" / "Nein") and lists their program items. |
+| Quiet pages | The RSVP step with companions and songs has no instructions around the list and the song field. The settings switches have one short sentence. Filter chips, buttons and their hint belong in the card of the table they act on (Einladungen like Konten & Rollen). |
+| Plain sentences | Texts use short, full sentences and no semicolons. |
+| Adding companions | "Begleitperson hinzufügen" instead of "beantragen". With "Begleitpersonen bestätigen" off (the default) an added person has no status tag and counts right away. The person type is chosen with chips, no default. With approval off the guest removes an added person until the deadline. The admin removes one from the guest table in Rückmeldungen (second click). |
 | Person type | Chips "Erwachsene", "Kind", "Baby": per batch and row when creating invitations, in the account panel, in the companion form. A baby's card in step 2 has allergies but no menu. Rückmeldungen shows the totals per program item by type and a column "Typ". |
-| Konten & Rollen | Columns Benutzername (empty while inactive) · Name (current display name) · Status (aktiv / inaktiv / gesperrt) · Rollen · Fähigkeiten; filter chips with counts and a search. No invitation information in the table. |
+| Konten & Rollen | Columns Benutzername (empty while inactive) · Name (current display name) · Status (aktiv / inaktiv / gesperrt) · Rollen · Fähigkeiten. Filter chips with counts and a search. No invitation information in the table. |
 | Account panel | Inactive: state, "Zur Einladung", person type, roles locked, groups, "Eingeladen zu", no password section, "Konto löschen". Active: as before plus person type, "Konto sperren" and "Konto löschen". Blocked: "Entsperren", no reset link. "Eingeladen zu" appears for every account with vip. |
-| Konto anlegen | Ticking vip shows the program item chips, none selected; at least one is required (replaces 53). |
-| Einladungen | "Aufräumen (n)" deletes revoked and replaced invitations after a second click; revoking the last open invitation of a never-activated guest asks "Widerrufen und Gast entfernen". |
+| Konto anlegen | Ticking vip shows the program item chips, none selected. At least one is required (replaces 53). |
+| Einladungen | "Aufräumen (n)" deletes revoked and replaced invitations after a second click. Revoking the last open invitation of a never-activated guest asks "Widerrufen und Gast entfernen". |
 | Redeeming while signed in | "Diese Einladung für «Gastname» zu deinem Konto «Benutzername» hinzufügen?" with "Nicht du? Abmelden". |
 | Deleting the own account | The confirmation says that the RSVP with companions and allergies stays with the hosts until after the event. |
-| Phones | Wide admin tables scroll inside their own box; the page never moves sideways. |
+| Phones | Wide admin tables scroll inside their own box. The page never moves sideways. |
 | Footer | "Datenschutz · Version x.y.z" with a middle dot, as in 19.6. |

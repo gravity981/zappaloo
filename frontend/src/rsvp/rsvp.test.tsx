@@ -34,7 +34,6 @@ function state(changes: Record<string, unknown> = {}) {
     songEnabled: true,
     perItem: true,
     companionApproval: true,
-    mixedCount: 0,
     programItems: PARTS,
     menus: MENUS,
     answer: null,
@@ -367,7 +366,6 @@ describe("Rückmeldungen", () => {
     songEnabled: true,
     perItem: true,
     companionApproval: true,
-    mixedCount: 0,
     programItems: PARTS,
     menus: MENUS,
     totals: [
@@ -506,7 +504,6 @@ describe("Einstellungen › Rückmeldung", () => {
     songEnabled: true,
     perItem: true,
     companionApproval: true,
-    mixedCount: 0,
     pendingCount: 0,
     programItems: PARTS,
     menus: MENUS,
@@ -608,7 +605,6 @@ describe("invited program items", () => {
     songEnabled: true,
     perItem: true,
     companionApproval: true,
-    mixedCount: 0,
     pendingCount: 0,
     programItems: PARTS,
     menus: [],
@@ -824,7 +820,6 @@ describe("Übersicht", () => {
     songEnabled: true,
     perItem: true,
     companionApproval: true,
-    mixedCount: 0,
     programItems: PARTS,
     menus: MENUS,
     totals: [],
@@ -936,7 +931,6 @@ describe("the song wish switch", () => {
           songEnabled: true,
           perItem: true,
           companionApproval: true,
-          mixedCount: 0,
           pendingCount: 0,
           programItems: PARTS,
           menus: MENUS,
@@ -967,7 +961,6 @@ describe("the song wish switch", () => {
           songEnabled: false,
           perItem: true,
           companionApproval: true,
-          mixedCount: 0,
           programItems: PARTS,
           menus: MENUS,
           totals: [],
@@ -1022,9 +1015,9 @@ describe("one answer per person (RSVP-11, 7.4.2)", () => {
     expect(screen.queryByRole("button", { name: "Trauung: Dabei" })).not.toBeInTheDocument();
     const next = screen.getByRole("button", { name: "Weiter" });
     expect(next).toBeDisabled();
-    user.click(screen.getByRole("button", { name: "Ich komme nicht" }));
+    user.click(screen.getByRole("button", { name: "Nein" }));
     expect(next).toBeDisabled();
-    user.click(screen.getByRole("button", { name: "Mia Huber kommt nicht" }));
+    user.click(screen.getByRole("button", { name: "Mia Huber: Nein" }));
     // Everybody declines: the wizard goes straight to sending.
     user.click(await screen.findByRole("button", { name: "Antwort senden" }));
     await waitFor(() => {
@@ -1065,7 +1058,7 @@ describe("one answer per person (RSVP-11, 7.4.2)", () => {
     // The summary shows the person as attending every program item.
     expect(await screen.findAllByText("Dabei")).toHaveLength(3);
     user.click(screen.getByRole("button", { name: "Ändern" }));
-    const yes = await screen.findByRole("button", { name: "Ich komme" });
+    const yes = await screen.findByRole("button", { name: "Ja" });
     expect(yes).toHaveAttribute("aria-pressed", "true");
     user.click(screen.getByRole("button", { name: "Weiter" }));
     await screen.findByRole("heading", { name: "Essen & Allergien" });
@@ -1092,7 +1085,6 @@ describe("one answer per person (RSVP-11, 7.4.2)", () => {
         songEnabled: true,
         perItem: true,
         companionApproval: true,
-        mixedCount: 2,
         pendingCount: 3,
         programItems: PARTS,
         menus: MENUS,
@@ -1108,8 +1100,6 @@ describe("one answer per person (RSVP-11, 7.4.2)", () => {
     renderAt("/admin/settings");
     const perItem = await screen.findByRole("switch", { name: "Pro Programmpunkt zusagen" });
     expect(perItem).toHaveAttribute("aria-checked", "true");
-    // The switch says how many persons have mixed answers before it is turned off.
-    expect(screen.getByText(/2 Personen haben gemischte Antworten/)).toBeInTheDocument();
     user.click(perItem);
     await waitFor(() => {
       expect(calls.some((c) => c.path.endsWith("/per-item") && c.method === "PUT")).toBe(true);
@@ -1143,7 +1133,6 @@ describe("one answer per person (RSVP-11, 7.4.2)", () => {
           songEnabled: true,
           perItem: false,
           companionApproval: true,
-          mixedCount: 0,
           pendingCount: 0,
           programItems: PARTS,
           menus: MENUS,

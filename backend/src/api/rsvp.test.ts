@@ -1151,7 +1151,6 @@ describe("answers after the invitation changes (7.4.1, decided 2026-11-11)", () 
 describe("one answer or one per program item (RSVP-11, 7.4.2)", () => {
   interface Config {
     perItem: boolean;
-    mixedCount: number;
   }
 
   it("[RSVP-11] one answer per person is the default; an answer must be the same yes or no for every program item", async () => {
@@ -1237,7 +1236,7 @@ describe("one answer or one per program item (RSVP-11, 7.4.2)", () => {
     ]);
   });
 
-  it("[RSVP-11] switching to one answer keeps what is stored and counts the persons with mixed answers", async () => {
+  it("[RSVP-11] switching to one answer keeps what is stored until the next save", async () => {
     const { ctx, call, get, programItems, menus, guest, root } = await setup();
     const erika = await guest("erika");
     const mixed = await call<RsvpState>(erika, "PUT", "/api/rsvp", {
@@ -1245,12 +1244,7 @@ describe("one answer or one per program item (RSVP-11, 7.4.2)", () => {
       menuId: menus[0]?.id,
     });
     expect(mixed.status).toBe(200);
-    const nina = await guest("nina");
-    await call(nina.id === 0 ? root : nina, "PUT", "/api/rsvp", {
-      attendance: yes(programItems, "Trauung", "Apéro", "Dinner", "Party"),
-      menuId: menus[0]?.id,
-    });
-    expect((await get<Config>(root, "/api/admin/rsvp/config")).body.mixedCount).toBe(1);
+    expect((await get<Config>(root, "/api/admin/rsvp/config")).body.perItem).toBe(true);
 
     expect((await call(erika, "PUT", "/api/admin/rsvp/per-item", { enabled: false })).status).toBe(
       403,

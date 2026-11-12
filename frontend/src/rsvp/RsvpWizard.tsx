@@ -579,7 +579,6 @@ function WizardForm({
               }}
             />
           </label>
-          <span className="hint">{t("rsvp.songHint")}</span>
         </div>
       )}
       {alert}

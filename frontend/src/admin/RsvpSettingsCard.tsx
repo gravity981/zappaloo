@@ -185,11 +185,6 @@ export default function RsvpSettingsCard() {
         <div className="grow">
           <b className="sm">{t("admin.rsvpSettings.perItem")}</b>
           <span className="hint">{t("admin.rsvpSettings.perItemHint")}</span>
-          {data.perItem && data.mixedCount > 0 && (
-            <span className="hint" role="status">
-              {t("admin.rsvpSettings.perItemMixed", { count: data.mixedCount })}
-            </span>
-          )}
         </div>
         <Switch
           checked={data.perItem}

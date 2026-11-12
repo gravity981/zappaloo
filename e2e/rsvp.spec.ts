@@ -59,7 +59,7 @@ test("[RSVP-01][RSVP-02][RSVP-03][RSVP-04][RSVP-05][RSVP-06][RSVP-11][ACC-17][SE
   // One answer for the invited program items (the default, RSVP-11); the party is not among them.
   await expect(guest.getByText("Trauung · Apéro · Dinner")).toBeVisible();
   await expect(guest.getByRole("button", { name: `Trauung: ${de.rsvp.attending}` })).toHaveCount(0);
-  await guest.getByRole("button", { name: de.rsvp.iCome, exact: true }).click();
+  await guest.getByRole("button", { name: de.rsvp.yes, exact: true }).click();
   await guest.getByRole("button", { name: de.rsvp.next }).click();
 
   // The menu is asked because the guest attends the meal program item, and it is required.
@@ -99,7 +99,7 @@ test("[RSVP-01][RSVP-02][RSVP-03][RSVP-04][RSVP-05][RSVP-06][RSVP-11][ACC-17][SE
   await row.getByRole("link", { name: `${de.admin.rsvp.edit}: ${name}` }).click();
   await expect(page.getByText(de.rsvp.adminMode)).toBeVisible();
   await page.getByRole("button", { name: de.rsvp.change }).click();
-  await page.getByRole("button", { name: de.rsvp.iComeNot, exact: true }).click();
+  await page.getByRole("button", { name: de.rsvp.no, exact: true }).click();
   await page.getByRole("button", { name: de.rsvp.send }).click();
   await expect(page.getByRole("button", { name: de.rsvp.change })).toBeVisible();
   await guest.reload();

@@ -48,7 +48,7 @@ test("[RSVP-08][RSVP-10][RSVP-12][SEC-11] a guest adds an accompanying person, w
   await guest.getByLabel(de.setPassword.password, { exact: true }).fill(PASSWORD);
   await guest.getByRole("button", { name: de.invite.register }).click();
   await guest.getByRole("link", { name: de.waiting.answer }).click();
-  await guest.getByRole("button", { name: de.rsvp.iCome, exact: true }).click();
+  await guest.getByRole("button", { name: de.rsvp.yes, exact: true }).click();
   await guest.getByRole("button", { name: de.rsvp.next }).click();
   await guest.getByRole("button", { name: de.rsvp.next }).click();
 
@@ -58,9 +58,7 @@ test("[RSVP-08][RSVP-10][RSVP-12][SEC-11] a guest adds an accompanying person, w
   await guest.getByLabel(de.rsvp.companions.note).fill("Meine Tochter, 6 Jahre");
   const add = guest.getByRole("button", { name: de.rsvp.companions.add });
   await expect(add).toBeDisabled();
-  await guest
-    .getByRole("button", { name: de.rsvp.personComes.replace("{{name}}", mia), exact: true })
-    .click();
+  await guest.getByRole("button", { name: `${mia}: ${de.rsvp.yes}`, exact: true }).click();
   await guest.getByLabel(new RegExp(`${de.rsvp.allergies} \\(${mia}\\)`)).fill("Erdnüsse");
   await add.click();
   const added = guest.getByRole("listitem").filter({ hasText: mia });

@@ -70,8 +70,6 @@ export const rsvpConfigSchema = z.object({
   perItem: z.boolean(),
   /** Whether an added accompanying person waits for the admin's approval (RSVP-12). */
   companionApproval: z.boolean(),
-  /** Persons (guests and accompanying persons) with a yes and a no: shown when switching to one answer. */
-  mixedCount: z.number().int(),
   /** Requests waiting for a decision: shown when switching the approval off. */
   pendingCount: z.number().int(),
   programItems: z.array(programItemSchema),

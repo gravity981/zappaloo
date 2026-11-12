@@ -233,65 +233,27 @@ export default function AdminInvitationsPage() {
         </p>
       )}
 
-      {count("revoked") + count("replaced") > 0 && (
-        <div className="row">
-          {confirmCleanup ? (
-            <span
-              className="row"
-              role="alertdialog"
-              aria-label={t("admin.invitations.cleanupFinal")}
-            >
-              <span className="sm">
-                {t("admin.invitations.cleanupConfirm", {
-                  count: count("revoked") + count("replaced"),
-                })}
-              </span>
-              <button type="button" className="btn danger sm" onClick={() => void cleanup()}>
-                {t("admin.invitations.cleanupFinal")}
-              </button>
+      <div className="card tight">
+        <div className="row tight-head">
+          <div className="chips" role="group" aria-label={t("admin.invitations.filter")}>
+            {[undefined, ...INVITATION_STATUSES].map((status) => (
               <button
+                key={status ?? "all"}
                 type="button"
-                className="btn ghost sm"
+                className="chip"
+                aria-pressed={filter === status}
                 onClick={() => {
-                  setConfirmCleanup(false);
+                  setFilter(status);
                 }}
               >
-                {t("admin.cancel")}
+                {status === undefined
+                  ? t("admin.invitations.all")
+                  : t(`admin.invitations.statuses.${status}`)}{" "}
+                {count(status)}
               </button>
-            </span>
-          ) : (
-            <button
-              type="button"
-              className="btn soft sm"
-              onClick={() => {
-                setConfirmCleanup(true);
-              }}
-            >
-              {t("admin.invitations.cleanup", { count: count("revoked") + count("replaced") })}
-            </button>
-          )}
+            ))}
+          </div>
         </div>
-      )}
-
-      <div className="chips" role="group" aria-label={t("admin.invitations.filter")}>
-        {[undefined, ...INVITATION_STATUSES].map((status) => (
-          <button
-            key={status ?? "all"}
-            type="button"
-            className="chip"
-            aria-pressed={filter === status}
-            onClick={() => {
-              setFilter(status);
-            }}
-          >
-            {status === undefined
-              ? t("admin.invitations.all")
-              : t(`admin.invitations.statuses.${status}`)}{" "}
-            {count(status)}
-          </button>
-        ))}
-      </div>
-      <div className="card tight">
         <div className="scroll">
           <table className="table">
             <thead>
@@ -402,6 +364,49 @@ export default function AdminInvitationsPage() {
             </tbody>
           </table>
         </div>
+        {count("revoked") + count("replaced") > 0 && (
+          <div className="row tight-foot">
+            {confirmCleanup ? (
+              <span
+                className="row"
+                role="alertdialog"
+                aria-label={t("admin.invitations.cleanupFinal")}
+              >
+                <span className="sm">
+                  {t("admin.invitations.cleanupConfirm", {
+                    count: count("revoked") + count("replaced"),
+                  })}
+                </span>
+                <button type="button" className="btn danger sm" onClick={() => void cleanup()}>
+                  {t("admin.invitations.cleanupFinal")}
+                </button>
+                <button
+                  type="button"
+                  className="btn ghost sm"
+                  onClick={() => {
+                    setConfirmCleanup(false);
+                  }}
+                >
+                  {t("admin.cancel")}
+                </button>
+              </span>
+            ) : (
+              <button
+                type="button"
+                className="btn soft sm"
+                onClick={() => {
+                  setConfirmCleanup(true);
+                }}
+              >
+                {t("admin.invitations.cleanup", { count: count("revoked") + count("replaced") })}
+              </button>
+            )}
+          </div>
+        )}
+
+        {count("revoked") + count("replaced") > 0 && (
+          <span className="hint tight-foot">{t("admin.invitations.cleanupHint")}</span>
+        )}
       </div>
     </>
   );
