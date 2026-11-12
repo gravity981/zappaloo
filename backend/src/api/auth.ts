@@ -270,10 +270,15 @@ const authPlugin: FastifyPluginAsyncZod<AuthOptions> = async (app, options) => {
 
     if (!UNSAFE_METHODS.has(request.method) || !isApiRequest(request)) return;
     const origin = originHost(request.headers.origin);
+    // A public route does not rely on the session cookie (a link's token or a code in the body
+    // proves the right, or nothing is proved at all), so a signed-in visitor who opens a link
+    // from an email needs no CSRF token there; the Origin check still applies to every route.
+    const csrfToken =
+      request.routeOptions.config.public === true ? undefined : request.auth?.csrfToken;
     const refused =
       (origin !== undefined && origin !== request.headers.host) ||
-      (request.auth !== null &&
-        !sameToken(String(request.headers["x-csrf-token"] ?? ""), request.auth.csrfToken));
+      (csrfToken !== undefined &&
+        !sameToken(String(request.headers["x-csrf-token"] ?? ""), csrfToken));
     if (refused) {
       return sendError(reply, 403, {
         code: "csrf_failed",
