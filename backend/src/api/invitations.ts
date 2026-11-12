@@ -7,9 +7,6 @@ import {
   createInvitationsResponseSchema,
   invitationListSchema,
   invitationPreviewSchema,
-  invitationSchema,
-  invitedProgramItemsRequestSchema,
-  personTypeRequestSchema,
   issuedInvitationSchema,
   redeemResponseSchema,
   registerRequestSchema,
@@ -48,8 +45,6 @@ const STATUSES: Partial<Record<string, number>> = {
   not_regenerable: 409,
   not_revocable: 409,
   program_item_not_found: 404,
-  program_items_not_editable: 409,
-  person_type_not_editable: 409,
 };
 
 /** Answers an invitation error; `failure` counts it against the address and everyone. */
@@ -123,56 +118,6 @@ const invitationPlugin: FastifyPluginAsyncZod<AuthOptions> = (app, options) => {
           personType,
         );
         return await reply.status(201).send({ invitations: created.map(issued) });
-      } catch (error) {
-        return fail(reply, error);
-      }
-    },
-  );
-
-  // The program items an invitation is for (RSVP-02, UX decision 31).
-  app.put(
-    "/api/admin/invitations/:id/program-items",
-    {
-      ...admin,
-      schema: {
-        querystring: noQuery,
-        params: idParams,
-        body: invitedProgramItemsRequestSchema,
-        response: { 200: invitationSchema },
-      },
-    },
-    async (request, reply) => {
-      try {
-        return await reply.send(
-          invitations.setProgramItems(
-            request.params.id,
-            request.body.programItemIds,
-            actor(request),
-          ),
-        );
-      } catch (error) {
-        return fail(reply, error);
-      }
-    },
-  );
-
-  // The person type of the invited guest (RSVP-13).
-  app.put(
-    "/api/admin/invitations/:id/person-type",
-    {
-      ...admin,
-      schema: {
-        querystring: noQuery,
-        params: idParams,
-        body: personTypeRequestSchema,
-        response: { 200: invitationSchema },
-      },
-    },
-    async (request, reply) => {
-      try {
-        return await reply.send(
-          invitations.setPersonType(request.params.id, request.body.personType, actor(request)),
-        );
       } catch (error) {
         return fail(reply, error);
       }

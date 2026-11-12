@@ -1,5 +1,5 @@
 // The answer of one person (guest or companion) while the wizard edits it.
-import { menuRequired } from "@zappaloo/shared";
+import { menuOffered, menuRequired } from "@zappaloo/shared";
 import type { MenuOption, PersonType, ProgramItem } from "@zappaloo/shared";
 
 /** What the wizard holds for one person while it is edited; a program item without a value is open. */
@@ -66,7 +66,19 @@ export function answeredAll(value: PersonValue, programItems: ProgramItem[]): bo
   return programItems.every((programItem) => value.attendance[programItem.id] !== undefined);
 }
 
-/** The person attends the program item with the meal and menus exist: the menu is then needed. */
+/** The person attends the program item with the meal and menus exist: a menu is offered. */
+export function offersMenu(
+  value: PersonValue,
+  programItems: ProgramItem[],
+  menus: MenuOption[],
+): boolean {
+  const attending = programItems
+    .filter((programItem) => value.attendance[programItem.id] === true)
+    .map((p) => p.id);
+  return menuOffered(programItems, menus.length, attending);
+}
+
+/** An adult must choose the menu that is offered, for a child it is optional (RSVP-14). */
 export function needsMenu(
   value: PersonValue,
   programItems: ProgramItem[],
@@ -92,7 +104,7 @@ export function answerOf(value: PersonValue, programItems: ProgramItem[], menus:
     })),
     ...(attending
       ? {
-          ...(needsMenu(value, programItems, menus) && value.menuId !== null
+          ...(offersMenu(value, programItems, menus) && value.menuId !== null
             ? { menuId: value.menuId }
             : {}),
           allergies: value.allergies.trim() === "" ? null : value.allergies.trim(),

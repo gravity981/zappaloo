@@ -16,7 +16,7 @@ import type {
 import { apiRequest } from "../app/api.ts";
 import { useSession } from "../app/session.ts";
 import { useErrorText } from "../admin/data.ts";
-import { answerOf, attendsAny, needsMenu, personOf } from "./person.ts";
+import { answerOf, attendsAny, needsMenu, offersMenu, personOf } from "./person.ts";
 import type { PersonValue } from "./person.ts";
 
 /** Yes or no per program item, one row each. */
@@ -149,7 +149,7 @@ export function MenuFields({
   const prefixed = (text: string) => (label === undefined ? text : `${label}: ${text}`);
   return (
     <>
-      {meal && needsMenu(value, programItems, menus) && (
+      {meal && offersMenu(value, programItems, menus) && (
         <div
           className="field"
           role="group"
@@ -274,6 +274,21 @@ export function CompanionForm({
           }}
         />
       </label>
+      <div className="chips" role="group" aria-label={t("rsvp.companions.type")}>
+        {PERSON_TYPES.map((personType) => (
+          <button
+            key={personType}
+            type="button"
+            className="chip"
+            aria-pressed={type === personType}
+            onClick={() => {
+              setType(personType);
+            }}
+          >
+            {t(`personTypes.${personType}`)}
+          </button>
+        ))}
+      </div>
       <label className="field">
         <span>{t("rsvp.companions.note")}</span>
         <input
@@ -285,24 +300,6 @@ export function CompanionForm({
           }}
         />
       </label>
-      <div className="field" role="group" aria-label={t("rsvp.companions.type")}>
-        <span>{t("rsvp.companions.type")}</span>
-        <div className="chips">
-          {PERSON_TYPES.map((personType) => (
-            <button
-              key={personType}
-              type="button"
-              className="chip"
-              aria-pressed={type === personType}
-              onClick={() => {
-                setType(personType);
-              }}
-            >
-              {t(`personTypes.${personType}`)}
-            </button>
-          ))}
-        </div>
-      </div>
       <b className="sm">{t("rsvp.companions.attendance")}</b>
       <AttendanceBlock
         perItem={perItem}

@@ -152,9 +152,7 @@ export default function AdminUsersPage() {
                 {shown.map((user) => (
                   <tr key={user.id}>
                     <td className="sm">{user.username ?? "–"}</td>
-                    <td>
-                      <b>{user.displayName}</b>
-                    </td>
+                    <td>{user.displayName}</td>
                     <td>
                       <span className={STATUS_TAG[user.status]}>
                         {t(`admin.users.status.${user.status}`)}

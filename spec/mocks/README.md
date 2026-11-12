@@ -54,7 +54,7 @@ The decisions behind the mocks, by question number in the prototype's "Questions
 | 28 | Minigame from the website | Starts full-screen; closing returns to the page. |
 | 29 | Treasure found | Shows the hint of one item not found yet. |
 | 30 | Admin on phones | Everything responsive; tables are tuned for desktop. |
-| 31 | Invited parts | Set per batch when creating invitations, editable per invitation afterwards. |
+| 31 | Invited parts | Set per batch when creating invitations. The invitation list shows them as read-only letters (T A D P). Changed afterwards in the account panel only (changed 2026-11-12). |
 | 32 | Seating plan | Drag and drop only, no auto-fill. |
 | 33 | Content editor | One "Veröffentlichen" button, live at once; no drafts. |
 | 34 | Settings | One page with sections; the "Wie kennst du das Paar?" list has its own section. |
@@ -114,7 +114,7 @@ Written into sw-architecture.md 7.1.2, 7.4.2 and 8.3 as well. The screens are dr
 | Quiet pages | The RSVP step with companions and songs has no instructions around the list and the song field. The settings switches have one short sentence. Filter chips, buttons and their hint belong in the card of the table they act on (Einladungen like Konten & Rollen). |
 | Plain sentences | Texts use short, full sentences and no semicolons. |
 | Adding companions | "Begleitperson hinzufügen" instead of "beantragen". With "Begleitpersonen bestätigen" off (the default) an added person has no status tag and counts right away. The person type is chosen with chips, no default. With approval off the guest removes an added person until the deadline. The admin removes one from the guest table in Rückmeldungen (second click). |
-| Person type | Chips "Erwachsene", "Kind", "Baby": per batch and row when creating invitations, in the account panel, in the companion form. A baby's card in step 2 has allergies but no menu. Rückmeldungen shows the totals per program item by type and a column "Typ". |
+| Person type | Chips "Erwachsen" and "Kind" per batch when creating invitations, in the account panel and in the companion form (right under the name, no title). The invitation list shows one letter (E, K) and cannot change it. For a child the menu in step 2 is optional. Rückmeldungen shows the totals by type and a column "Typ". |
 | Konten & Rollen | Columns Benutzername (empty while inactive) · Name (current display name) · Status (aktiv / inaktiv / gesperrt) · Rollen · Fähigkeiten. Filter chips with counts and a search. No invitation information in the table. |
 | Account panel | Inactive: state, "Zur Einladung", person type, roles locked, groups, "Eingeladen zu", no password section, "Konto löschen". Active: as before plus person type, "Konto sperren" and "Konto löschen". Blocked: "Entsperren", no reset link. "Eingeladen zu" appears for every account with vip. |
 | Konto anlegen | Ticking vip shows the program item chips, none selected. At least one is required (replaces 53). |

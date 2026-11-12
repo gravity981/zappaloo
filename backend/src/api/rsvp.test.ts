@@ -303,16 +303,27 @@ describe("invited program items", () => {
     expect(response.statusCode).toBe(404);
   });
 
-  it("[RSVP-02] the admin changes the program items per invitation, before and after it is redeemed; a regenerated code keeps them", async () => {
+  it("[RSVP-02] the program items of an invitation are those of the guest's account: the admin changes them in the account panel, before and after redeeming, and a regenerated code keeps them", async () => {
     const { ctx, root, call, get, programItems } = await setup();
     const first = await invite(ctx, root, { programItemIds: ids(programItems, "Trauung") });
-    const changed = await call<{ programItemIds: number[] }>(
-      root,
-      "PUT",
-      `/api/admin/invitations/${String(first.id)}/program-items`,
-      { programItemIds: ids(programItems, "Trauung", "Dinner") },
-    );
-    expect(changed.body?.programItemIds).toEqual(ids(programItems, "Trauung", "Dinner"));
+    const panel = (userId: number | null, names: string[]) =>
+      call(root, "PUT", `/api/admin/users/${String(userId)}/program-items`, {
+        programItemIds: ids(programItems, ...names),
+      });
+    expect((await panel(first.userId, ["Trauung", "Dinner"])).status).toBe(200);
+    const listed = () =>
+      get<{ invitations: IssuedInvitation[] }>(root, "/api/admin/invitations").then((r) =>
+        r.body.invitations.map((i) => [i.id, i.programItemIds]),
+      );
+    expect(await listed()).toEqual([[first.id, ids(programItems, "Trauung", "Dinner")]]);
+    // There is no way to change them on the invitation row any more.
+    expect(
+      (
+        await call(root, "PUT", `/api/admin/invitations/${String(first.id)}/program-items`, {
+          programItemIds: [],
+        })
+      ).status,
+    ).toBe(404);
 
     const regenerated = await call<IssuedInvitation>(
       root,
@@ -320,24 +331,10 @@ describe("invited program items", () => {
       `/api/admin/invitations/${String(first.id)}/regenerate`,
     );
     expect(regenerated.body?.programItemIds).toEqual(ids(programItems, "Trauung", "Dinner"));
-    // The replaced code is dead and cannot be changed any more.
-    expect(
-      (
-        await call(root, "PUT", `/api/admin/invitations/${String(first.id)}/program-items`, {
-          programItemIds: [],
-        })
-      ).status,
-    ).toBe(409);
 
     const code = must(regenerated.body);
     await redeem(ctx, code.code, "erika");
-    const after = await call<{ programItemIds: number[] }>(
-      root,
-      "PUT",
-      `/api/admin/invitations/${String(code.id)}/program-items`,
-      { programItemIds: ids(programItems, "Party") },
-    );
-    expect(after.body?.programItemIds).toEqual(ids(programItems, "Party"));
+    expect((await panel(code.userId, ["Party"])).status).toBe(200);
     const users = (
       await get<{ users: { username: string; invitedProgramItemIds: number[] }[] }>(
         root,
@@ -735,9 +732,9 @@ describe("the admin overview", () => {
     const lines = response.body.trim().split("\r\n");
     expect(lines[0]).toBe("Name;Typ;Status;Trauung;Apéro;Dinner;Party;Menü;Songwunsch;Allergien");
     expect(lines[1]).toBe(
-      'anna;Erwachsene;zugesagt;ja;nein;ja;nein;Vegetarisch;"Abba; Dancing ""Queen""";"\'=HYPERLINK(""http://x"")"',
+      'anna;Erwachsen;zugesagt;ja;nein;ja;nein;Vegetarisch;"Abba; Dancing ""Queen""";"\'=HYPERLINK(""http://x"")"',
     );
-    expect(lines[2]).toBe("ben;Erwachsene;ohne Antwort;;;;;;;");
+    expect(lines[2]).toBe("ben;Erwachsen;ohne Antwort;;;;;;;");
   });
 });
 
@@ -986,12 +983,9 @@ describe("answers after the invitation changes (7.4.1, decided 2026-11-11)", () 
     });
     const [trauung, , , party] = ids(programItems, "Trauung", "Apéro", "Dinner", "Party");
 
-    const changed = await call(
-      root,
-      "PUT",
-      `/api/admin/invitations/${String(invitation.invitation.id)}/program-items`,
-      { programItemIds: ids(programItems, "Trauung", "Apéro") },
-    );
+    const changed = await call(root, "PUT", `/api/admin/users/${String(zora.id)}/program-items`, {
+      programItemIds: ids(programItems, "Trauung", "Apéro"),
+    });
     expect(changed.status).toBe(200);
     const overview = (await get<RsvpOverview>(root, "/api/admin/rsvp")).body;
     expect(guestRow(overview, zora.id).attendingItemIds).toEqual([trauung]);
@@ -999,7 +993,7 @@ describe("answers after the invitation changes (7.4.1, decided 2026-11-11)", () 
       programItemId: party,
       yes: 0,
       no: 0,
-      yesByType: { adult: 0, child: 0, baby: 0 },
+      yesByType: { adult: 0, child: 0 },
     });
     const state = (await get<RsvpState>(zora, "/api/rsvp")).body;
     expect(state.answer?.attendingItemIds).toEqual([trauung]);
@@ -1027,7 +1021,7 @@ describe("answers after the invitation changes (7.4.1, decided 2026-11-11)", () 
       programItemId: apero,
       yes: 0,
       no: 0,
-      yesByType: { adult: 0, child: 0, baby: 0 },
+      yesByType: { adult: 0, child: 0 },
     });
     // Anna still attends; Ben declined the rest and has no answer for the new program item.
     expect(guestRow(overview, anna.id)).toMatchObject({
@@ -1039,11 +1033,9 @@ describe("answers after the invitation changes (7.4.1, decided 2026-11-11)", () 
       declinedItemIds: [trauung],
     });
     const csv = (await get(root, "/api/admin/rsvp/export")).raw.body.split("\r\n");
-    expect(csv.find((line) => line.startsWith("anna;"))).toMatch(
-      /^anna;Erwachsene;zugesagt;ja;;;;/,
-    );
+    expect(csv.find((line) => line.startsWith("anna;"))).toMatch(/^anna;Erwachsen;zugesagt;ja;;;;/);
     expect(csv.find((line) => line.startsWith("ben;"))).toMatch(
-      /^ben;Erwachsene;ohne Antwort;nein;;;;/,
+      /^ben;Erwachsen;ohne Antwort;nein;;;;/,
     );
     // The guest's state tells the wizard which program item is open.
     const state = (await get<RsvpState>(ben, "/api/rsvp")).body;

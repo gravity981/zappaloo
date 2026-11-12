@@ -162,13 +162,16 @@ export default function AdminRsvpPage() {
 
       <div className="grid-2">
         <section className="card" aria-labelledby="rsvp-per-program-item">
-          <b id="rsvp-per-program-item">{t("admin.rsvp.perProgramItem")}</b>
+          <b id="rsvp-per-program-item">
+            {t(data.perItem ? "admin.rsvp.perProgramItem" : "admin.rsvp.overview")}
+          </b>
           {data.programItems.length === 0 && (
             <span className="hint">{t("admin.rsvp.noProgramItems")}</span>
           )}
-          {data.totals.map((total) => (
-            <div key={total.programItemId} className="bar-row">
-              <span>{programItemName(total.programItemId)}</span>
+          {/* One answer for everyone: all program items have the same totals, one bar is enough. */}
+          {(data.perItem ? data.totals : data.totals.slice(0, 1)).map((total) => (
+            <div key={total.programItemId} className={data.perItem ? "bar-row" : "bar-row single"}>
+              {data.perItem && <span>{programItemName(total.programItemId)}</span>}
               <div className="track" aria-hidden="true">
                 <i style={{ width: `${String((total.yes / widest) * 100)}%` }} />
                 <i className="no" style={{ width: `${String((total.no / widest) * 100)}%` }} />

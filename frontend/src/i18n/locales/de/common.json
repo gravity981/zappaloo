@@ -57,14 +57,16 @@
     }
   },
   "personTypes": {
-    "adult": "Erwachsene",
-    "child": "Kind",
-    "baby": "Baby"
+    "adult": "Erwachsen",
+    "child": "Kind"
+  },
+  "personTypesShort": {
+    "adult": "E",
+    "child": "K"
   },
   "personTypesPlural": {
     "adult": "Erwachsene",
-    "child": "Kinder",
-    "baby": "Babys"
+    "child": "Kinder"
   },
   "admin": {
     "personType": "Typ",
@@ -374,7 +376,8 @@
       "programItems": "Programmpunkte",
       "menu": "Menü",
       "song": "Songwunsch",
-      "allergies": "Allergien · nur Admins",
+      "allergies": "Allergien",
+      "overview": "Übersicht",
       "edit": "Bearbeiten",
       "none": "–",
       "noGuests": "Noch keine Gäste.",

@@ -425,7 +425,7 @@ describe("approval", () => {
 
     const lines = (await get(root, "/api/admin/rsvp/export")).text.trim().split("\r\n");
     expect(lines).toHaveLength(3);
-    expect(lines[2]).toBe("↳ Mia;Erwachsene;bestätigt;ja;nein;ja;nein;Kindermenü;;Laktose");
+    expect(lines[2]).toBe("↳ Mia;Erwachsen;bestätigt;ja;nein;ja;nein;Kindermenü;;Laktose");
   });
 
   it("[RSVP-09] the guest changes an approved person's attendance, menu and allergies in the RSVP, without a new approval", async () => {

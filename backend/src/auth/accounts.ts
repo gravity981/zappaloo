@@ -20,7 +20,6 @@ import {
   membershipRoles,
   memberships,
   oneTimeLinks,
-  rsvpAnswers,
   sessions,
   users,
 } from "../database/schema.ts";
@@ -653,8 +652,7 @@ export class AccountService {
   }
 
   /**
-   * The admin sets the person type of a guest (RSVP-13). A baby is not asked for a menu, so a
-   * menu the guest chose before goes (RSVP-14). Companions have their own type.
+   * The admin sets the person type of a guest (RSVP-13). Companions have their own type.
    */
   setPersonType(userId: number, personType: PersonType, actor: Actor): void {
     this.#database.db.transaction((tx) => {
@@ -665,12 +663,6 @@ export class AccountService {
         .where(and(eq(memberships.eventId, eventId), eq(memberships.userId, userId)))
         .run();
       if (done.changes !== 1) throw new AccountError("user_not_found", "no such user");
-      if (personType === "baby") {
-        tx.update(rsvpAnswers)
-          .set({ menuId: null })
-          .where(and(eq(rsvpAnswers.eventId, eventId), eq(rsvpAnswers.userId, userId)))
-          .run();
-      }
       this.#event.audit(actor, "user.person_type", { userId, personType }, tx);
     });
   }

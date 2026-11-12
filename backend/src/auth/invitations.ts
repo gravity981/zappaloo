@@ -18,7 +18,6 @@ import {
   users,
 } from "../database/schema.ts";
 import type { Actor, EventService } from "../event/service.ts";
-import { attendingNow, pruneAnswers } from "../rsvp/cleanup.ts";
 import { assertPasswordAllowed } from "./accounts.ts";
 import type { AccountService } from "./accounts.ts";
 import { hashPassword } from "./password.ts";
@@ -34,9 +33,7 @@ export type InvitationErrorCode =
   | "invitation_not_found"
   | "not_regenerable"
   | "not_revocable"
-  | "program_item_not_found"
-  | "program_items_not_editable"
-  | "person_type_not_editable";
+  | "program_item_not_found";
 
 export class InvitationError extends Error {
   override name = "InvitationError";
@@ -187,22 +184,6 @@ export class InvitationService {
       this.#removesGuest(tx, row),
       this.#personType(tx, row),
     );
-  }
-
-  /** The admin changes the person type of the guest of an invitation (RSVP-13). */
-  setPersonType(id: number, personType: PersonType, actor: Actor): Invitation {
-    return this.#database.db.transaction((tx) => {
-      const row = this.#get(tx, id);
-      const status = this.#status(row);
-      if (row.userId === null || status === "revoked" || status === "replaced") {
-        throw new InvitationError(
-          "person_type_not_editable",
-          `the person type of a ${status} code cannot be changed`,
-        );
-      }
-      this.#accounts.setPersonType(row.userId, personType, actor);
-      return this.#view(tx, row);
-    });
   }
 
   list(): Invitation[] {
@@ -425,50 +406,7 @@ export class InvitationService {
   }
 
   /**
-   * Changes the program items of an invitation (RSVP-02, UX decision 31): those of the guest's
-   * account, the same list as in the account panel. A revoked or replaced code is dead and keeps
-   * what it had.
-   */
-  setProgramItems(id: number, programItemIds: number[], actor: Actor): Invitation {
-    return this.#database.db.transaction((tx) => {
-      const row = this.#get(tx, id);
-      const status = this.#status(row);
-      if (status === "revoked" || status === "replaced" || row.userId === null) {
-        throw new InvitationError(
-          "program_items_not_editable",
-          `a ${status} code cannot be changed`,
-        );
-      }
-      const programItems = this.#resolveProgramItems(tx, programItemIds);
-      const eventId = this.#event.eventId;
-      const before = attendingNow(tx, eventId, row.userId);
-      tx.delete(membershipProgramItems)
-        .where(
-          and(
-            eq(membershipProgramItems.eventId, eventId),
-            eq(membershipProgramItems.userId, row.userId),
-          ),
-        )
-        .run();
-      for (const programItemId of programItems) {
-        tx.insert(membershipProgramItems)
-          .values({ eventId, userId: row.userId, programItemId })
-          .run();
-      }
-      // Answers for program items no longer invited go, as with the account panel (7.4.1).
-      pruneAnswers(tx, eventId, row.userId, before);
-      this.#event.audit(
-        actor,
-        "invitation.program_items",
-        { invitationId: id, programItemIds: programItems },
-        tx,
-      );
-      return this.#view(tx, row);
-    });
-  }
-
-  /**
-   * Deletes the revoked and replaced invitations (INV-21); redeemed, active and expired ones stay.
+   * Deletes the revoked and replaced invitations (INV-21). Redeemed, active and expired ones stay.
    * Returns how many were deleted.
    */
   cleanup(actor: Actor): number {

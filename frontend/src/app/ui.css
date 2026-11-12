@@ -670,6 +670,10 @@
   gap: 8px;
   align-items: center;
 }
+/* one bar for everyone, without a name in front (one answer per person) */
+:is(.admin, .guest) .bar-row.single {
+  grid-template-columns: 1fr auto;
+}
 :is(.admin, .guest) .bar-row .track {
   display: flex;
   height: 10px;

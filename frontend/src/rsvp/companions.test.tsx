@@ -141,6 +141,14 @@ describe("accompanying persons in the wizard", () => {
     ).toBeInTheDocument();
     const submit = screen.getByRole("button", { name: "Hinzufügen" });
     expect(submit).toBeDisabled();
+    // The type chips sit right under the name field, before the optional note, with no title.
+    const name = screen.getByLabelText("Name");
+    const types = screen.getByRole("group", { name: "Typ" });
+    const note = screen.getByLabelText("Notiz für die Gastgeber (optional)");
+    expect(name.compareDocumentPosition(types) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(types.compareDocumentPosition(note) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(screen.queryByText("Typ", { selector: "span" })).not.toBeInTheDocument();
+    expect(within(types).queryByRole("button", { name: "Baby" })).not.toBeInTheDocument();
     user.type(screen.getByLabelText("Name"), "Mia Huber");
     user.type(
       screen.getByLabelText("Notiz für die Gastgeber (optional)"),
@@ -433,12 +441,12 @@ describe("accompanying persons in the wizard", () => {
     const field = screen.getByLabelText("Name");
     user.type(field, "Noah Beat Huber");
     // The type changes like the name, by the admin (RSVP-13).
-    fireEvent.change(screen.getByLabelText("Typ"), { target: { value: "baby" } });
+    fireEvent.change(screen.getByLabelText("Typ"), { target: { value: "adult" } });
     user.click(screen.getByRole("button", { name: "Speichern" }));
     expect(await screen.findByText("Noah Beat Huber")).toBeInTheDocument();
     expect(calls.find((c) => c.method === "PATCH")).toMatchObject({
       csrf: "csrf-9",
-      body: { name: "Noah Beat Huber", personType: "baby" },
+      body: { name: "Noah Beat Huber", personType: "adult" },
     });
   });
 });

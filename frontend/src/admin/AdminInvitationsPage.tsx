@@ -85,6 +85,9 @@ export default function AdminInvitationsPage() {
   /** The program items chosen for the new batch; every program item until the admin chooses. */
   /** The person type of the new batch (RSVP-13). */
   const [batchType, setBatchType] = useState<PersonType>("adult");
+  /** The invited program items of an invitation, in the order of the program. */
+  const invited = (invitation: { programItemIds: number[] }) =>
+    programItems.filter((programItem) => invitation.programItemIds.includes(programItem.id));
   const [chosen, setChosen] = useState<number[]>();
   const batchProgramItems = chosen ?? programItems.map((programItem) => programItem.id);
   const [cards, setCards] = useState<IssuedInvitation[]>([]);
@@ -114,24 +117,8 @@ export default function AdminInvitationsPage() {
     }
   }
 
-  async function setProgramItems(id: number, programItemIds: number[]) {
-    const result = await call("PUT", `/api/admin/invitations/${String(id)}/program-items`, {
-      programItemIds,
-    });
-    setError(result.ok ? undefined : errorText(result.errorCode));
-    reload();
-  }
-
   /** The code whose revoking removes the guest and waits for the second click (INV-20). */
   const [confirmRemove, setConfirmRemove] = useState<number>();
-
-  async function setPersonType(id: number, personType: PersonType) {
-    const result = await call("PUT", `/api/admin/invitations/${String(id)}/person-type`, {
-      personType,
-    });
-    setError(result.ok ? undefined : errorText(result.errorCode));
-    reload();
-  }
 
   async function revoke(id: number) {
     const result = await call("POST", `/api/admin/invitations/${String(id)}/revoke`);
@@ -317,48 +304,29 @@ export default function AdminInvitationsPage() {
                     </span>
                   </td>
                   <td>
-                    <div className="chips">
-                      {programItems.map((programItem) => (
-                        <ToggleChip
-                          key={programItem.id}
-                          small
-                          pressed={invitation.programItemIds.includes(programItem.id)}
-                          disabled={
-                            invitation.status === "revoked" || invitation.status === "replaced"
-                          }
-                          label={`${programItem.name}: ${invitation.guestName}`}
-                          onToggle={() => {
-                            void setProgramItems(
-                              invitation.id,
-                              invitation.programItemIds.includes(programItem.id)
-                                ? invitation.programItemIds.filter((id) => id !== programItem.id)
-                                : [...invitation.programItemIds, programItem.id].sort(
-                                    (a, b) => a - b,
-                                  ),
-                            );
-                          }}
-                        >
-                          {programItem.name}
-                        </ToggleChip>
-                      ))}
-                    </div>
+                    {/* One letter per invited program item, read only. The account panel changes them. */}
+                    <abbr
+                      title={invited(invitation)
+                        .map((programItem) => programItem.name)
+                        .join(", ")}
+                      aria-label={`${t("admin.invitations.programItemsColumn")}: ${invited(
+                        invitation,
+                      )
+                        .map((programItem) => programItem.name)
+                        .join(", ")}`}
+                    >
+                      {invited(invitation)
+                        .map((programItem) => programItem.name.charAt(0).toUpperCase())
+                        .join(" ") || "–"}
+                    </abbr>
                   </td>
                   <td>
-                    <select
-                      className="input auto"
-                      aria-label={`${t("admin.personType")}: ${invitation.guestName}`}
-                      value={invitation.personType}
-                      disabled={invitation.status === "revoked" || invitation.status === "replaced"}
-                      onChange={(event) => {
-                        void setPersonType(invitation.id, event.target.value as PersonType);
-                      }}
+                    <abbr
+                      title={t(`personTypes.${invitation.personType}`)}
+                      aria-label={`${t("admin.personType")}: ${t(`personTypes.${invitation.personType}`)}`}
                     >
-                      {PERSON_TYPES.map((personType) => (
-                        <option key={personType} value={personType}>
-                          {t(`personTypes.${personType}`)}
-                        </option>
-                      ))}
-                    </select>
+                      {t(`personTypesShort.${invitation.personType}`)}
+                    </abbr>
                   </td>
                   <td className="actions">
                     {(invitation.status === "active" || invitation.status === "expired") && (

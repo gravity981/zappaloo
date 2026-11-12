@@ -732,14 +732,15 @@ describe("an account per invitation (ACC-17, INV-20; 7.1.2)", () => {
     const [invitation] = await createInvitations(ctx, root, ["Anna Muster"]);
     const before = (await users(ctx, root)).find((u) => u.displayName === "Anna Muster");
 
-    // The admin changes the program items on the invitation row: the account has them.
+    // The admin changes the program items in the account panel: the invitation shows them.
     const changed = await ctx.app.inject({
       method: "PUT",
-      url: `/api/admin/invitations/${String(invitation?.id)}/program-items`,
+      url: `/api/admin/users/${String(invitation?.userId)}/program-items`,
       headers: as(root),
       payload: { programItemIds: [dinner] },
     });
-    expect(changed.json()).toMatchObject({ programItemIds: [dinner] });
+    expect(changed.statusCode).toBe(200);
+    expect(ctx.auth.invitations.list()[0]?.programItemIds).toEqual([dinner]);
     expect(
       (await users(ctx, root)).find((u) => u.id === before?.id)?.invitedProgramItemIds,
     ).toEqual([dinner]);

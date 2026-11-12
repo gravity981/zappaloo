@@ -241,7 +241,7 @@ Re-verified: ACC-01, ACC-07, ACC-09, ACC-12, INV-03, INV-07, INV-08, INV-10, RSV
 Requirements: ACC-18, ACC-19, ACC-20, INV-21.
 Re-verified: ACC-08, ACC-10, ACC-14, ROLE-01, ROLE-09.
 
-**3.9f – Person types.** Mock first: `admin-invitations` (type per batch and row), `admin-users` (type in the panel), `rsvp-companion` (type chips, required), `rsvp-people` (no menu for a baby), `admin-rsvp` (totals by type, column "Typ"). Then: `person_type` on memberships and companions (adult for existing data), the menu rule takes the type, totals, guest table and CSV by type.
+**3.9f – Person types.** Mock first: `admin-invitations` (type per batch, one letter per row), `admin-users` (type in the panel), `rsvp-companion` (type chips, required), `rsvp-people` (optional menu for a child), `admin-rsvp` (totals by type, column "Typ"). Then: `person_type` on memberships and companions (adult for existing data), the menu rule takes the type, totals, guest table and CSV by type.
 Requirements: RSVP-13, RSVP-14, RSVP-15.
 Re-verified: RSVP-03, RSVP-05.
 
@@ -585,7 +585,7 @@ After each completed stage, Claude appends a report with this structure to secti
 - The RSVP uses "Ja" and "Nein" for the one answer. Step 3 has no instructions around the companions and the song.
 - Roles are locked only for inactive accounts that have an invitation. An account an admin created keeps its roles editable.
 - Revoking the code of a guest who never registered removes the guest, so the status "Widerrufen" survives only on old data.
-- Babies are not counted in the menu totals.
+- A child who left the menu open is not counted in the menu totals. There is no type baby.
 - The migrations now run with foreign keys off and are checked afterwards, because SQLite rebuilds the users table to make the username optional.
 - Texts use short, full sentences without semicolons. This holds for German texts and English notes alike. Older parts of the spec outside stage 3.9 still contain semicolons.
 

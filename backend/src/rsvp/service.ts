@@ -2,7 +2,7 @@
 // (RSVP-01 – RSVP-07, SEC-11; sw-architecture.md 7.4, 7.4.1). Allergies are health data: only
 // the admin overview and the guest's own answer ever return them (SEC-11).
 import { and, asc, eq, inArray } from "drizzle-orm";
-import { MAX_COMPANIONS, menuRequired, rsvpStatus } from "@zappaloo/shared";
+import { MAX_COMPANIONS, menuOffered, menuRequired, rsvpStatus } from "@zappaloo/shared";
 import type {
   PersonType,
   Companion,
@@ -134,9 +134,8 @@ function programItemCell(
 
 /** The labels of the person types in the CSV export (RSVP-15). */
 const PERSON_TYPE_LABELS: Record<PersonType, string> = {
-  adult: "Erwachsene",
+  adult: "Erwachsen",
   child: "Kind",
-  baby: "Baby",
 };
 
 /** A cell of the CSV export; a leading `=`, `+`, `-` or `@` would be run as a formula. */
@@ -614,14 +613,19 @@ export class RsvpService {
     const attending = input.attendance.filter((a) => a.attending).map((a) => a.programItemId);
     const menus = this.#menus(tx);
     let menuId: number | null = null;
-    if (menuRequired(this.#programItems(tx), menus.length, attending, personType)) {
+    const programItems = this.#programItems(tx);
+    if (menuOffered(programItems, menus.length, attending)) {
       if (input.menuId === undefined || input.menuId === null) {
-        throw new RsvpError("menu_required", "choose a menu");
+        // An adult must choose, a child may leave it open (RSVP-14).
+        if (menuRequired(programItems, menus.length, attending, personType)) {
+          throw new RsvpError("menu_required", "choose a menu");
+        }
+      } else {
+        if (!menus.some((menu) => menu.id === input.menuId)) {
+          throw new RsvpError("invalid_menu", "no such menu option");
+        }
+        menuId = input.menuId;
       }
-      if (!menus.some((menu) => menu.id === input.menuId)) {
-        throw new RsvpError("invalid_menu", "no such menu option");
-      }
-      menuId = input.menuId;
     }
     return {
       attendance: input.attendance,
@@ -846,8 +850,6 @@ export class RsvpService {
         .set({
           ...(patch.name === undefined ? {} : { name: patch.name }),
           ...(patch.personType === undefined ? {} : { personType: patch.personType }),
-          // A baby is not asked for a menu: a chosen one goes (RSVP-14).
-          ...(patch.personType === "baby" ? { menuId: null } : {}),
         })
         .where(eq(companions.id, id))
         .run();
@@ -1042,17 +1044,15 @@ export class RsvpService {
         child: people.filter(
           (p) => p.personType === "child" && p.attendingItemIds.includes(programItem.id),
         ).length,
-        baby: people.filter(
-          (p) => p.personType === "baby" && p.attendingItemIds.includes(programItem.id),
-        ).length,
       },
     }));
     const meal = config.programItems.find((programItem) => programItem.hasMeal);
     const counts = new Map<number | null, number>();
     if (meal) {
-      // Babies get no menu, so they are not counted (RSVP-14).
+      // A child who left the menu open is not counted in the menus (RSVP-14).
       for (const person of people.filter(
-        (p) => p.personType !== "baby" && p.attendingItemIds.includes(meal.id),
+        (p) =>
+          p.attendingItemIds.includes(meal.id) && !(p.personType === "child" && p.menuId === null),
       )) {
         counts.set(person.menuId, (counts.get(person.menuId) ?? 0) + 1);
       }

@@ -4,12 +4,12 @@ import { z } from "zod";
 
 const idSchema = z.number().int().positive();
 
-/** Every person on the guest list is an adult, a child or a baby (RSVP-13). */
-export const PERSON_TYPES = ["adult", "child", "baby"] as const;
+/** Every person on the guest list is an adult or a child (RSVP-13). */
+export const PERSON_TYPES = ["adult", "child"] as const;
 export const personTypeSchema = z.enum(PERSON_TYPES);
 export type PersonType = z.infer<typeof personTypeSchema>;
 
-/** `PUT /api/admin/users/:id/person-type` and `PUT /api/admin/invitations/:id/person-type`. */
+/** `PUT /api/admin/users/:id/person-type`: the admin sets the type of a guest. */
 export const personTypeRequestSchema = z.strictObject({ personType: personTypeSchema });
 export type PersonTypeRequest = z.infer<typeof personTypeRequestSchema>;
 
@@ -175,7 +175,7 @@ export const rsvpStateSchema = z.object({
   closed: z.boolean(),
   /** Whether the wizard asks for a song wish (RSVP-06). */
   songEnabled: z.boolean(),
-  /** The guest's own type: a baby is not asked for a menu (RSVP-14). The page does not show it. */
+  /** The guest's own type: a child may leave the menu open (RSVP-14). The page does not show it. */
   personType: personTypeSchema,
   /** Yes or no per program item (RSVP-11); off: step 1 asks once per person. */
   perItem: z.boolean(),
@@ -209,17 +209,24 @@ export function rsvpStatus(
   return invitedProgramItemIds.every((id) => declinedItemIds.includes(id)) ? "declined" : "none";
 }
 
-/** A person attending the program item with the meal chooses a menu, as long as menus exist (RSVP-03). */
+/** A person attending the program item with the meal is offered a menu, as long as menus exist (RSVP-03). */
+export function menuOffered(
+  programItems: readonly Pick<ProgramItem, "id" | "hasMeal">[],
+  menuCount: number,
+  attendingItemIds: readonly number[],
+): boolean {
+  const meal = programItems.find((programItem) => programItem.hasMeal);
+  return meal !== undefined && menuCount > 0 && attendingItemIds.includes(meal.id);
+}
+
+/** An adult must choose the menu that is offered. For a child it is optional (RSVP-14). */
 export function menuRequired(
   programItems: readonly Pick<ProgramItem, "id" | "hasMeal">[],
   menuCount: number,
   attendingItemIds: readonly number[],
   personType: PersonType = "adult",
 ): boolean {
-  // A baby is not asked for a menu (RSVP-14).
-  if (personType === "baby") return false;
-  const meal = programItems.find((programItem) => programItem.hasMeal);
-  return meal !== undefined && menuCount > 0 && attendingItemIds.includes(meal.id);
+  return personType !== "child" && menuOffered(programItems, menuCount, attendingItemIds);
 }
 
 /** One row of the guest table (RSVP-04, RSVP-05); `allergies` is for admins only (SEC-11). */
@@ -252,6 +259,8 @@ export const rsvpOverviewSchema = z.object({
   deadline: dateSchema.nullable(),
   /** Whether the song wish is asked; the table shows its column only then. */
   songEnabled: z.boolean(),
+  /** Yes or no per program item (RSVP-11); off: the totals are one bar for everyone. */
+  perItem: z.boolean(),
   /** Whether an added accompanying person waits for the admin's approval (RSVP-12). */
   companionApproval: z.boolean(),
   programItems: z.array(programItemSchema),
@@ -266,7 +275,6 @@ export const rsvpOverviewSchema = z.object({
       yesByType: z.object({
         adult: z.number().int(),
         child: z.number().int(),
-        baby: z.number().int(),
       }),
     }),
   ),

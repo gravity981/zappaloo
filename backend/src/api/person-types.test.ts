@@ -107,7 +107,7 @@ async function setup() {
 const code = (body: unknown) => (body as { error: { code: string } }).error.code;
 
 describe("person types of guests (RSVP-13)", () => {
-  it("[RSVP-13] an invitation batch sets the type, adult by default, and the admin changes it per row and in the account panel", async () => {
+  it("[RSVP-13] an invitation batch sets the type, adult by default, and the admin changes it in the account panel only", async () => {
     const { ctx, root, call } = await setup();
     const make = async (payload: object) =>
       (
@@ -125,17 +125,20 @@ describe("person types of guests (RSVP-13)", () => {
     const typeOf = (id: number) =>
       ctx.auth.accounts.listUsers().find((u) => u.id === id)?.personType;
     expect(typeOf(child?.userId ?? 0)).toBe("child");
+    // The invitation list shows the type, but it cannot be changed there.
+    expect(
+      (
+        await call<{ invitations: IssuedInvitation[] }>(root, "GET", "/api/admin/invitations")
+      ).body.invitations.map((i) => i.personType),
+    ).toEqual(["child", "adult"]);
+    expect(
+      (
+        await call(root, "PUT", `/api/admin/invitations/${String(adult?.id)}/person-type`, {
+          personType: "child",
+        })
+      ).status,
+    ).toBe(404);
 
-    // Per row of the invitation list.
-    const row = await call<IssuedInvitation>(
-      root,
-      "PUT",
-      `/api/admin/invitations/${String(adult?.id)}/person-type`,
-      { personType: "baby" },
-    );
-    expect(row.status).toBe(200);
-    expect(row.body.personType).toBe("baby");
-    expect(typeOf(adult?.userId ?? 0)).toBe("baby");
     // In the account panel.
     expect(
       (
@@ -149,14 +152,16 @@ describe("person types of guests (RSVP-13)", () => {
       userId: child?.userId,
       personType: "adult",
     });
-    // Unknown types and accounts are refused, and only admins decide.
-    expect(
-      (
-        await call(root, "PUT", `/api/admin/users/${String(child?.userId)}/person-type`, {
-          personType: "dog",
-        })
-      ).status,
-    ).toBe(400);
+    // There is no baby, other types and accounts are refused, and only admins decide.
+    for (const personType of ["baby", "dog"]) {
+      expect(
+        (
+          await call(root, "PUT", `/api/admin/users/${String(child?.userId)}/person-type`, {
+            personType,
+          })
+        ).status,
+      ).toBe(400);
+    }
     expect(
       (await call(root, "PUT", "/api/admin/users/999/person-type", { personType: "adult" })).status,
     ).toBe(404);
@@ -164,7 +169,7 @@ describe("person types of guests (RSVP-13)", () => {
     expect(
       (
         await call(guest, "PUT", `/api/admin/users/${String(guest.id)}/person-type`, {
-          personType: "baby",
+          personType: "child",
         })
       ).status,
     ).toBe(403);
@@ -174,9 +179,9 @@ describe("person types of guests (RSVP-13)", () => {
     const { root, call, guest, all } = await setup();
     const erika = await guest("erika");
     const post = (body: object) => call<RsvpState>(erika, "POST", "/api/rsvp/companions", body);
-    // There is no default.
+    // There is no default, and there is no baby.
     expect((await post({ name: "Mia", attendance: all() })).status).toBe(400);
-    expect((await post({ name: "Mia", personType: "dog", attendance: all() })).status).toBe(400);
+    expect((await post({ name: "Mia", personType: "baby", attendance: all() })).status).toBe(400);
     const made = await post({ name: "Mia", personType: "child", attendance: all() });
     expect(made.status).toBe(201);
     const mia = made.body.companions[0];
@@ -195,89 +200,85 @@ describe("person types of guests (RSVP-13)", () => {
     expect(
       (
         await call(erika, "PATCH", `/api/admin/rsvp/companions/${String(mia?.id)}`, {
-          personType: "baby",
+          personType: "child",
         })
       ).status,
     ).toBe(403);
   });
 });
 
-describe("babies have no menu (RSVP-14)", () => {
-  it("[RSVP-14] a baby who attends the meal is not asked for a menu, allergies are still asked", async () => {
+describe("the menu of a child is optional (RSVP-14)", () => {
+  it("[RSVP-14] an adult must choose the menu, a child may leave it open or choose one", async () => {
     const { root, call, guest, all, menus } = await setup();
     const erika = await guest("erika");
-    // As an adult the menu is required for Dinner.
     const needed = await call(erika, "PUT", "/api/rsvp", { attendance: all("Trauung", "Dinner") });
     expect(needed.status).toBe(400);
     expect(code(needed.body)).toBe("menu_required");
 
     await call(root, "PUT", `/api/admin/users/${String(erika.id)}/person-type`, {
-      personType: "baby",
+      personType: "child",
     });
-    const state = (await call<RsvpState>(erika, "GET", "/api/rsvp")).body;
-    expect(state.personType).toBe("baby");
-    const saved = await call<RsvpState>(erika, "PUT", "/api/rsvp", {
+    expect((await call<RsvpState>(erika, "GET", "/api/rsvp")).body.personType).toBe("child");
+    // Without a menu: allowed, allergies are kept.
+    const open = await call<RsvpState>(erika, "PUT", "/api/rsvp", {
       attendance: all("Trauung", "Dinner"),
       allergies: "Nüsse",
     });
-    expect(saved.status).toBe(200);
-    expect(saved.body.answer).toMatchObject({ menuId: null, allergies: "Nüsse" });
-    // A menu that is sent anyway is ignored.
-    const ignored = await call<RsvpState>(erika, "PUT", "/api/rsvp", {
+    expect(open.status).toBe(200);
+    expect(open.body.answer).toMatchObject({ menuId: null, allergies: "Nüsse" });
+    // With a menu: stored, and an unknown one is refused.
+    const chosen = await call<RsvpState>(erika, "PUT", "/api/rsvp", {
       attendance: all("Trauung", "Dinner"),
-      menuId: menus[0]?.id,
+      menuId: menus[1]?.id,
     });
-    expect(ignored.body.answer?.menuId).toBeNull();
-
-    // The same for an accompanying baby.
-    const lena = await call<RsvpState>(erika, "POST", "/api/rsvp/companions", {
-      name: "Lena",
-      personType: "baby",
+    expect(chosen.body.answer?.menuId).toBe(menus[1]?.id);
+    const unknown = await call(erika, "PUT", "/api/rsvp", {
       attendance: all("Dinner"),
-      allergies: "Laktose",
+      menuId: 9999,
     });
-    expect(lena.status).toBe(201);
-    expect(lena.body.companions[0]).toMatchObject({ menuId: null, allergies: "Laktose" });
-    const adultLena = await call(erika, "POST", "/api/rsvp/companions", {
-      name: "Lena2",
+    expect(code(unknown.body)).toBe("invalid_menu");
+
+    // The same for an accompanying child, while an accompanying adult must choose.
+    const mia = await call<RsvpState>(erika, "POST", "/api/rsvp/companions", {
+      name: "Mia",
+      personType: "child",
+      attendance: all("Dinner"),
+    });
+    expect(mia.status).toBe(201);
+    expect(mia.body.companions[0]).toMatchObject({ menuId: null });
+    const adultGuest = await call(erika, "POST", "/api/rsvp/companions", {
+      name: "Ben",
       personType: "adult",
       attendance: all("Dinner"),
     });
-    expect(code(adultLena.body)).toBe("menu_required");
+    expect(code(adultGuest.body)).toBe("menu_required");
   });
 
-  it("[RSVP-14] a person who becomes a baby loses the chosen menu, and babies are not counted in the menus", async () => {
+  it("[RSVP-14] a child without a menu choice is not counted in the menus", async () => {
     const { root, call, guest, all, menus } = await setup();
     const erika = await guest("erika");
     await call(erika, "PUT", "/api/rsvp", { attendance: all("Dinner"), menuId: menus[0]?.id });
-    const noah = (
-      await call<RsvpState>(erika, "POST", "/api/rsvp/companions", {
-        name: "Noah",
-        personType: "child",
-        attendance: all("Dinner"),
-        menuId: menus[1]?.id,
-      })
-    ).body.companions[0];
-    const before = (await call<RsvpOverview>(root, "GET", "/api/admin/rsvp")).body;
-    expect(before.menuTotals.map((t) => [t.menuId, t.count]).sort()).toEqual(
+    await call<RsvpState>(erika, "POST", "/api/rsvp/companions", {
+      name: "Noah",
+      personType: "child",
+      attendance: all("Dinner"),
+    });
+    await call<RsvpState>(erika, "POST", "/api/rsvp/companions", {
+      name: "Mia",
+      personType: "child",
+      attendance: all("Dinner"),
+      menuId: menus[1]?.id,
+    });
+    const overview = (await call<RsvpOverview>(root, "GET", "/api/admin/rsvp")).body;
+    // Erika and Mia chose, Noah left it open. All three attend the meal.
+    expect(overview.menuTotals.map((t) => [t.menuId, t.count]).sort()).toEqual(
       [
         [menus[0]?.id, 1],
         [menus[1]?.id, 1],
       ].sort(),
     );
-
-    await call(root, "PUT", `/api/admin/users/${String(erika.id)}/person-type`, {
-      personType: "baby",
-    });
-    await call(root, "PATCH", `/api/admin/rsvp/companions/${String(noah?.id)}`, {
-      personType: "baby",
-    });
-    const state = (await call<RsvpState>(erika, "GET", "/api/rsvp")).body;
-    expect(state.answer?.menuId).toBeNull();
-    expect(state.companions[0]?.menuId).toBeNull();
-    // Both attend the meal, but they get no menu, so the menu totals stay empty.
-    const after = (await call<RsvpOverview>(root, "GET", "/api/admin/rsvp")).body;
-    expect(after.menuTotals).toEqual([]);
+    const dinner = overview.totals.find((t) => t.yes === 3);
+    expect(dinner?.yesByType).toEqual({ adult: 1, child: 2 });
   });
 });
 
@@ -293,23 +294,18 @@ describe("totals and the guest table by type (RSVP-15)", () => {
       attendance: all("Trauung", "Dinner"),
       menuId: menus[0]?.id,
     });
-    await call(ben, "PUT", "/api/rsvp", { attendance: all("Trauung"), menuId: undefined });
-    for (const [name, personType] of [
-      ["Lena", "baby"],
-      ["Mia", "child"],
-    ] as const) {
-      await call(erika, "POST", "/api/rsvp/companions", {
-        name,
-        personType,
-        attendance: all("Trauung"),
-      });
-    }
+    await call(ben, "PUT", "/api/rsvp", { attendance: all("Trauung") });
+    await call(erika, "POST", "/api/rsvp/companions", {
+      name: "Mia",
+      personType: "child",
+      attendance: all("Trauung"),
+    });
     const overview = (await call<RsvpOverview>(root, "GET", "/api/admin/rsvp")).body;
     const trauung = overview.totals.find((t) => t.programItemId === items[0]?.id);
-    // erika (adult), ben (child), Mia (child), Lena (baby).
-    expect(trauung).toMatchObject({ yes: 4, yesByType: { adult: 1, child: 2, baby: 1 } });
+    // erika (adult), ben (child), Mia (child).
+    expect(trauung).toMatchObject({ yes: 3, yesByType: { adult: 1, child: 2 } });
     const dinner = overview.totals.find((t) => t.programItemId === items[1]?.id);
-    expect(dinner).toMatchObject({ yes: 1, yesByType: { adult: 1, child: 0, baby: 0 } });
+    expect(dinner).toMatchObject({ yes: 1, yesByType: { adult: 1, child: 0 } });
     expect(overview.guests.map((g) => [g.name, g.personType]).sort()).toEqual([
       ["ben", "child"],
       ["erika", "adult"],
@@ -317,8 +313,8 @@ describe("totals and the guest table by type (RSVP-15)", () => {
 
     const csv = (await call(root, "GET", "/api/admin/rsvp/export")).text.split("\r\n");
     expect(csv[0]?.startsWith("Name;Typ;Status;")).toBe(true);
-    expect(csv.find((line) => line.startsWith("erika;"))).toMatch(/^erika;Erwachsene;zugesagt;/);
+    expect(csv.find((line) => line.startsWith("erika;"))).toMatch(/^erika;Erwachsen;zugesagt;/);
     expect(csv.find((line) => line.startsWith("ben;"))).toMatch(/^ben;Kind;zugesagt;/);
-    expect(csv.find((line) => line.startsWith("↳ Lena;"))).toMatch(/^↳ Lena;Baby;bestätigt;/);
+    expect(csv.find((line) => line.startsWith("↳ Mia;"))).toMatch(/^↳ Mia;Kind;bestätigt;/);
   });
 });
