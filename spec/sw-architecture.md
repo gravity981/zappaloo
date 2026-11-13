@@ -1627,7 +1627,7 @@ The concrete version of each library is pinned in the project's package manageme
 
 **Decided in stage 1 (2026-11-04):**
 - **Backend framework: Fastify.** Schema-based route validation fits SEC-03, good TypeScript support, and its plugin model suits the modular monolith (section 17).
-- **Database access: Drizzle ORM on SQLite** (driver `better-sqlite3`). The schema is written in TypeScript; drizzle-kit generates versioned SQL migration files that are reviewed and committed (DATA-04).
+- **Database access: Drizzle ORM on SQLite** (driver `better-sqlite3`). The schema is written in TypeScript; drizzle-kit generates versioned SQL migration files that are reviewed and committed (DATA-04). Of drizzle-kit's schema snapshots (`backend/drizzle/meta/`), only the newest one is kept in the repository (decided 2026-11-13): drizzle-kit compares the schema with the newest snapshot only and the application never reads them, so the older one is deleted whenever a new migration is generated. The SQL files of released migrations are never squashed or changed.
 - **Input validation: Zod.** Schemas live in `shared/`, double as TypeScript types, and are used by the backend (Fastify via `fastify-type-provider-zod`, SEC-03), for the event setup (CFG-02) and in frontend forms.
 - **i18n: react-i18next** with one JSON message file per language and namespace (LANG-01). Hard-coded UI strings are caught by the ESLint rule `i18next/no-literal-string`.
 
