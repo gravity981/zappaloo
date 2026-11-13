@@ -44,6 +44,7 @@ const STATUSES: Partial<Record<string, number>> = {
   already_vip: 409,
   not_regenerable: 409,
   not_revocable: 409,
+  not_deletable: 409,
   program_item_not_found: 404,
 };
 
@@ -156,6 +157,23 @@ const invitationPlugin: FastifyPluginAsyncZod<AuthOptions> = (app, options) => {
       },
     },
     (request) => ({ deleted: invitations.cleanup(actor(request)) }),
+  );
+
+  // A redeemed invitation whose account is gone (INV-22).
+  app.delete(
+    "/api/admin/invitations/:id",
+    {
+      ...admin,
+      schema: { querystring: noQuery, params: idParams, body: noBody },
+    },
+    async (request, reply) => {
+      try {
+        invitations.deleteOrphan(request.params.id, actor(request));
+        return await reply.status(204).send();
+      } catch (error) {
+        return fail(reply, error);
+      }
+    },
   );
 
   app.post(

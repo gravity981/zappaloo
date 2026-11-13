@@ -362,6 +362,39 @@ describe("cleaning up invitations (INV-21)", () => {
     // Nothing left to clean up: no button.
     expect(screen.queryByRole("button", { name: /Aufräumen/ })).not.toBeInTheDocument();
   });
+
+  it("[INV-22] only a redemption without its account can be deleted, after a second click", async () => {
+    const orphan = { ...base, id: 4, guestName: "Dora", status: "redeemed", redeemedBy: null };
+    const withAccount = { ...base, id: 5, guestName: "Emil", status: "redeemed", redeemedBy: 9 };
+    let list = [orphan, withAccount];
+    const calls = fakeBackend({
+      "GET /api/session": () => asAdmin,
+      "GET /api/admin/invitations": () => ({ status: 200, body: { invitations: list } }),
+      "DELETE /api/admin/invitations/4": () => {
+        list = [withAccount];
+        return { status: 204, body: null };
+      },
+    });
+    renderAt("/admin/invitations");
+    expect(await screen.findByText("Dora")).toBeInTheDocument();
+    expect(screen.getAllByRole("button", { name: /^Löschen:/ })).toHaveLength(1);
+    expect(screen.queryByRole("button", { name: "Löschen: Emil" })).not.toBeInTheDocument();
+
+    user.click(screen.getByRole("button", { name: "Löschen: Dora" }));
+    expect(
+      screen.getByText(
+        "Die Einladung für Dora wird gelöscht. Ihr Code funktioniert danach nicht mehr.",
+      ),
+    ).toBeInTheDocument();
+    expect(calls.some((c) => c.method === "DELETE")).toBe(false);
+    user.click(screen.getByRole("button", { name: "Endgültig löschen" }));
+    await waitFor(() => {
+      expect(screen.queryByText("Dora")).not.toBeInTheDocument();
+    });
+    expect(calls.some((c) => c.method === "DELETE" && c.path === "/api/admin/invitations/4")).toBe(
+      true,
+    );
+  });
 });
 
 describe("accounts, roles and groups", () => {

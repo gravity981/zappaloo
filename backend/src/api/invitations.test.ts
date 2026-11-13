@@ -614,6 +614,74 @@ describe("expiry, revocation and replacement", () => {
   });
 });
 
+describe("deleting a redeemed invitation without its account", () => {
+  /** A redemption from before stage 3.9: the account is gone, the row is kept. */
+  const orphan = (ctx: TestContext, id: number) =>
+    ctx.database.sqlite
+      .prepare("UPDATE invitations SET redeemed_by = NULL, user_id = NULL WHERE id = ?")
+      .run(id);
+
+  it("[INV-22] an admin deletes the orphaned redemption; its code is then unknown", async () => {
+    const ctx = await setup();
+    const root = await admin(ctx);
+    const [invitation] = await createInvitations(ctx, root, ["Anna"]);
+    const code = invitation?.code ?? "";
+    await register(ctx, code, "anna");
+    orphan(ctx, invitation?.id ?? 0);
+
+    const response = await ctx.app.inject({
+      method: "DELETE",
+      url: `/api/admin/invitations/${String(invitation?.id)}`,
+      headers: as(root),
+    });
+    expect(response.statusCode, response.body).toBe(204);
+    expect(ctx.auth.invitations.list()).toEqual([]);
+    expect((await preview(ctx, code)).statusCode).toBe(404);
+
+    const audit = ctx.database.sqlite
+      .prepare("SELECT action, details FROM audit_log WHERE action = 'invitation.delete'")
+      .all() as { action: string; details: string }[];
+    expect(audit.map((row) => JSON.parse(row.details) as unknown)).toEqual([
+      { invitationId: invitation?.id },
+    ]);
+    expect(JSON.stringify(audit)).not.toContain("Anna");
+  });
+
+  it("[INV-22][INV-10] a redemption with its account, and an active code, cannot be deleted", async () => {
+    const ctx = await setup();
+    const root = await admin(ctx);
+    const [kept, active] = await createInvitations(ctx, root, ["Anna", "Ben"]);
+    await register(ctx, kept?.code ?? "", "anna");
+
+    for (const invitation of [kept, active]) {
+      const response = await ctx.app.inject({
+        method: "DELETE",
+        url: `/api/admin/invitations/${String(invitation?.id)}`,
+        headers: as(root),
+      });
+      expect(response.statusCode, response.body).toBe(409);
+      expect(response.json()).toMatchObject({ error: { code: "not_deletable" } });
+    }
+    expect(ctx.auth.invitations.list()).toHaveLength(2);
+  });
+
+  it("[INV-22][ROLE-07] only an admin deletes it", async () => {
+    const ctx = await setup();
+    const root = await admin(ctx);
+    const [invitation] = await createInvitations(ctx, root, ["Anna"]);
+    await register(ctx, invitation?.code ?? "", "anna");
+    orphan(ctx, invitation?.id ?? 0);
+    await makeUser(ctx, "carla", ["vip", "staff"]);
+    const carla = await login(ctx, "carla");
+    const response = await ctx.app.inject({
+      method: "DELETE",
+      url: `/api/admin/invitations/${String(invitation?.id)}`,
+      headers: as(carla),
+    });
+    expect(response.statusCode).toBe(403);
+  });
+});
+
 describe("assigning vip without a code", () => {
   it("[INV-11] an admin promotes a user directly; method audit-logged, no code created or consumed", async () => {
     const ctx = await setup();

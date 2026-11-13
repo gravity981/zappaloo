@@ -33,6 +33,7 @@ export type InvitationErrorCode =
   | "invitation_not_found"
   | "not_regenerable"
   | "not_revocable"
+  | "not_deletable"
   | "program_item_not_found";
 
 export class InvitationError extends Error {
@@ -402,6 +403,27 @@ export class InvitationService {
           personType: this.#personType(tx, row),
         },
       };
+    });
+  }
+
+  /**
+   * Deletes a redeemed invitation whose account is gone (INV-22): the rows that stage 3.9
+   * keeps from before, since deleting an account now deletes its invitations. A redeemed
+   * invitation with its account stays recorded (INV-10).
+   */
+  deleteOrphan(id: number, actor: Actor): void {
+    this.#database.db.transaction((tx) => {
+      const row = this.#get(tx, id);
+      if (this.#status(row) !== "redeemed" || row.redeemedBy !== null) {
+        throw new InvitationError(
+          "not_deletable",
+          "only a redeemed code without its account can be deleted",
+        );
+      }
+      // A code that replaced this one points at it; the reference is cleared, not blocking.
+      tx.update(invitations).set({ replacedBy: null }).where(eq(invitations.replacedBy, id)).run();
+      tx.delete(invitations).where(eq(invitations.id, id)).run();
+      this.#event.audit(actor, "invitation.delete", { invitationId: id }, tx);
     });
   }
 

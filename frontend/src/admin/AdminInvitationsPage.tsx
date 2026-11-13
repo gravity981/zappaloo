@@ -145,6 +145,20 @@ export default function AdminInvitationsPage() {
     reload();
   }
 
+  /** The redeemed invitation whose deletion waits for the second click (INV-22). */
+  const [confirmDelete, setConfirmDelete] = useState<number>();
+
+  /** Deletes a redeemed invitation whose account is gone (INV-22). */
+  async function remove(id: number) {
+    if (busy.current) return;
+    busy.current = true;
+    const result = await call("DELETE", `/api/admin/invitations/${String(id)}`);
+    busy.current = false;
+    setConfirmDelete(undefined);
+    setError(result.ok ? undefined : errorText(result.errorCode));
+    reload();
+  }
+
   async function regenerate(id: number) {
     if (busy.current) return;
     busy.current = true;
@@ -381,6 +395,42 @@ export default function AdminInvitationsPage() {
                           }}
                         >
                           {t("admin.invitations.revoke")}
+                        </button>
+                      ))}
+                    {invitation.status === "redeemed" &&
+                      invitation.redeemedBy === null &&
+                      (confirmDelete === invitation.id ? (
+                        <span className="row" role="alertdialog" aria-label={invitation.guestName}>
+                          <span>
+                            {t("admin.invitations.deleteConfirm", { name: invitation.guestName })}
+                          </span>
+                          <button
+                            type="button"
+                            className="btn danger sm"
+                            onClick={() => void remove(invitation.id)}
+                          >
+                            {t("admin.invitations.deleteFinal")}
+                          </button>
+                          <button
+                            type="button"
+                            className="btn ghost sm"
+                            onClick={() => {
+                              setConfirmDelete(undefined);
+                            }}
+                          >
+                            {t("admin.cancel")}
+                          </button>
+                        </span>
+                      ) : (
+                        <button
+                          type="button"
+                          className="btn danger sm"
+                          aria-label={`${t("admin.invitations.delete")}: ${invitation.guestName}`}
+                          onClick={() => {
+                            setConfirmDelete(invitation.id);
+                          }}
+                        >
+                          {t("admin.invitations.delete")}
                         </button>
                       ))}
                   </td>

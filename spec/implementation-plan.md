@@ -238,7 +238,7 @@ Requirements: ACC-17, INV-20.
 Re-verified: ACC-01, ACC-07, ACC-09, ACC-12, INV-03, INV-07, INV-08, INV-10, RSVP-07, RSVP-09, SEC-09.
 
 **3.9e – Konten & Rollen and Einladungen.** Mock first: `admin-users` (columns Benutzername | Name | Status | Rollen | Fähigkeiten, filter chips, panels for inactive, active and blocked accounts, "Konto anlegen" with program item chips), `admin-invitations` ("Aufräumen (n)"). Then: the table and filters, panel per state with locked roles while inactive, block and unblock (sessions and links end), "Konto löschen" for admins, "Konto anlegen" creates an inactive account and requires program items with `vip`, "Aufräumen" deletes revoked and replaced invitations.
-Requirements: ACC-18, ACC-19, ACC-20, INV-21.
+Requirements: ACC-18, ACC-19, ACC-20, INV-21, INV-22 (INV-22 added 2026-11-13: deleting a redeemed invitation whose account is gone, with "Löschen" in the actions column of Einladungen, beside "Neu erzeugen" and "Widerrufen"; second click "Endgültig löschen").
 Re-verified: ACC-08, ACC-10, ACC-14, ROLE-01, ROLE-09.
 
 **3.9f – Person types.** Mock first: `admin-invitations` (type per batch, one letter per row), `admin-users` (type in the panel), `rsvp-companion` (type chips, required), `rsvp-people` (optional menu for a child), `admin-rsvp` (totals by type, column "Typ"). Then: `person_type` on memberships and companions (adult for existing data), the menu rule takes the type, totals, guest table and CSV by type.
