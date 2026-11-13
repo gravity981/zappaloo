@@ -105,6 +105,7 @@ export class ThemeService {
     const staging = join(this.directory, `staging-${importId}`);
     const target = join(this.directory, importId);
     const previous = this.active();
+    const importedAt = this.#now();
     try {
       await mkdir(staging, { recursive: true });
       for (const [path, data] of themePackage.files) {
@@ -112,7 +113,6 @@ export class ThemeService {
         await writeFile(join(staging, path), data);
       }
       await rename(staging, target);
-      const importedAt = this.#now();
       this.#database.db.transaction((tx) => {
         // The same row for the insert and for the replacement of the active theme.
         const row = {
@@ -136,22 +136,28 @@ export class ThemeService {
           .run();
         this.#event.audit(actor, "theme.import", {}, tx);
       });
-      if (previous !== undefined)
-        await rm(join(this.directory, previous.importId), { recursive: true, force: true });
-      return {
-        importId,
-        name: themePackage.manifest.name,
-        formatVersion: themePackage.manifest.formatVersion,
-        importedAt,
-        colors: themePackage.theme.colors,
-        fonts: themePackage.theme.fonts ?? null,
-        waiting: themePackage.theme.waiting ?? null,
-      };
     } catch (error) {
+      // Nothing was committed: the new package's files go, and the active theme stays as it was.
       await rm(staging, { recursive: true, force: true });
       await rm(target, { recursive: true, force: true });
       throw error;
     }
+    // The former theme's files are no longer read. A failure to remove them leaves a folder behind,
+    // which is harmless; it must not undo or report the import, which has been committed.
+    if (previous !== undefined) {
+      await rm(join(this.directory, previous.importId), { recursive: true, force: true }).catch(
+        () => undefined,
+      );
+    }
+    return {
+      importId,
+      name: themePackage.manifest.name,
+      formatVersion: themePackage.manifest.formatVersion,
+      importedAt,
+      colors: themePackage.theme.colors,
+      fonts: themePackage.theme.fonts ?? null,
+      waiting: themePackage.theme.waiting ?? null,
+    };
   }
 
   /** Returns to the platform's default theme (THM-05). */

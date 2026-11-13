@@ -110,7 +110,7 @@ describe("event in the database", () => {
     expect(event.features().treasureHunt).toBe(true);
   });
 
-  it("an installation serves exactly one event", () => {
+  it("[CFG-04] an installation serves exactly one event", () => {
     const database = migratedDatabase();
     expect(() => EventService.forInstallation(database)).toThrow(/no event yet/);
     ensureEvent(database);

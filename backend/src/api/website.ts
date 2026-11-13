@@ -20,10 +20,7 @@ const websitePlugin: FastifyPluginAsyncZod<WebsiteOptions> = (app, { website }) 
         response: { 200: websiteResponseSchema },
       },
     },
-    (request) => {
-      signedIn(request);
-      return website.website();
-    },
+    (request) => website.website(signedIn(request).user.id),
   );
   // The program items the guest is invited to (WEB-09); none for a user who is not a guest.
   app.get(

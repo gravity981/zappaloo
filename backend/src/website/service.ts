@@ -49,8 +49,11 @@ export class WebsiteService {
       }));
   }
 
-  /** `GET /api/website`: the countdown, the event day, and "now" and "next" on the event day. */
-  website(now: Date = new Date()): WebsiteResponse {
+  /**
+   * `GET /api/website`: the countdown, the event day, and "now" and "next" on the event day. The "now"
+   * and "next" entries are shown only to a guest who accepted, i.e. attends a program item (WEB-07).
+   */
+  website(userId: number, now: Date = new Date()): WebsiteResponse {
     const { db } = this.#database;
     const eventId = this.#event.eventId;
     const timeZone = this.#event.get().timezone;
@@ -65,7 +68,8 @@ export class WebsiteService {
       .where(eq(contentStart.eventId, eventId))
       .get();
     const eventDay = isEventDay(first?.startsAt, now, timeZone);
-    const nowNext = eventDay ? nowNextAt(entries, now) : { now: null, next: null };
+    const accepted = this.#rsvp.guestStatus(userId) === "attending";
+    const nowNext = eventDay && accepted ? nowNextAt(entries, now) : { now: null, next: null };
     return {
       countdown: countdownAt({
         first: first && { startsAt: first.startsAt, placeName: first.placeName },
@@ -88,7 +92,9 @@ export class WebsiteService {
     const eventDay = timeZone !== null && isEventDay(entries[0]?.startsAt, now, timeZone);
     // The programme says that it leaves items out only when it does (WEB-09).
     const hidden = entries.some((entry) => !invited.has(entry.id));
-    const current = eventDay ? nowNextAt(entries, now).now : null;
+    // Only a guest who accepted is told which entry is now (WEB-07); the others see past and upcoming.
+    const accepted = this.#rsvp.guestStatus(userId) === "attending";
+    const current = eventDay && accepted ? nowNextAt(entries, now).now : null;
     return {
       hidden,
       eventDay,

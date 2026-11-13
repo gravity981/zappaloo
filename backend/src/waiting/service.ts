@@ -8,7 +8,6 @@ import {
   DEFAULT_WAITING_TEXTS,
   doorSheetSchema,
   fillWaitingText,
-  rsvpStatus,
   WAITING_TEXT_KEYS,
 } from "@zappaloo/shared";
 import type {
@@ -95,15 +94,7 @@ export class WaitingService {
     const event = this.#event.get();
     const settings = this.config();
     let status: RsvpStatus = "none";
-    if (isGuest) {
-      const { answer, programItems } = this.#rsvp.state(userId);
-      status = rsvpStatus(
-        answer !== null,
-        programItems.map((programItem) => programItem.id),
-        answer?.attendingItemIds ?? [],
-        answer?.declinedItemIds ?? [],
-      );
-    }
+    if (isGuest) status = this.#rsvp.guestStatus(userId);
     const name =
       this.#database.db
         .select({ name: users.displayName })

@@ -18,6 +18,7 @@ import type {
   RsvpGuest,
   RsvpOverview,
   RsvpState,
+  RsvpStatus,
 } from "@zappaloo/shared";
 import type { Database } from "../database/database.ts";
 import {
@@ -500,6 +501,21 @@ export class RsvpService {
       .all()
       .map((row) => row.programItemId)
       .sort((a, b) => a - b);
+  }
+
+  /**
+   * The RSVP status of a guest (7.4.1): "attending" once they attend a program item they are invited to.
+   * Someone who is not a guest has no answer and is "none". Used for what only accepting guests see
+   * (WEB-07, the waiting page).
+   */
+  guestStatus(userId: number, reader: Reader = this.#database.db): RsvpStatus {
+    const attendance = this.#attendance(reader, userId);
+    return rsvpStatus(
+      this.#answer(reader, userId) !== null,
+      this.invitedProgramItemIds(userId, reader),
+      programItemIdsOf(attendance, true),
+      programItemIdsOf(attendance, false),
+    );
   }
 
   /**

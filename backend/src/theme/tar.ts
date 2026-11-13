@@ -85,12 +85,19 @@ export function readThemeArchive(gzipped: Buffer, unpackedLimit: number): TarEnt
     const name =
       prefix === "" ? text(header.subarray(0, 100)) : `${prefix}/${text(header.subarray(0, 100))}`;
     const type = String.fromCharCode(header[156] ?? 0);
+    // The data of an entry must lie inside the archive; a shorter archive is cut short, not read.
+    if (offset + BLOCK + size > tar.length) {
+      throw new TarError("not_tar", name, "the archive ends inside an entry");
+    }
     const body = tar.subarray(offset + BLOCK, offset + BLOCK + size);
     offset += BLOCK + Math.ceil(size / BLOCK) * BLOCK;
     if (type === "5") {
       const folder = name.replace(/\/$/, "");
       if (!isSafePath(folder))
         throw new TarError("entry_path", name, "the path is absolute or contains ..");
+      if (seen.has(folder))
+        throw new TarError("entry_duplicate", name, "the entry is in the archive twice");
+      seen.add(folder);
       entries.push({ path: folder, kind: "directory", data: Buffer.alloc(0) });
       continue;
     }

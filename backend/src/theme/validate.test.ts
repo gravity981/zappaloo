@@ -14,6 +14,25 @@ const archive = (overrides: Record<string, Buffer> = {}) =>
 const codes = (result: ReturnType<typeof checkThemePackage>) =>
   result.ok ? [] : result.findings.map((finding) => finding.code);
 
+/** One ustar header block (512 bytes) with a name, a size and a type, and its checksum. */
+function tarHeader(name: string, size: number, type = "0"): Buffer {
+  const header = Buffer.alloc(512);
+  header.write(name, 0, 100, "utf8");
+  header.write("0000644\0", 100, 8, "latin1");
+  header.write("0000000\0", 108, 8, "latin1");
+  header.write("0000000\0", 116, 8, "latin1");
+  header.write(`${size.toString(8).padStart(11, "0")}\0`, 124, 12, "latin1");
+  header.write("00000000000\0", 136, 12, "latin1");
+  header.fill(0x20, 148, 156);
+  header.write(type, 156, 1, "latin1");
+  header.write("ustar\0", 257, 6, "latin1");
+  header.write("00", 263, 2, "latin1");
+  let sum = 0;
+  for (const byte of header) sum += byte;
+  header.write(`${sum.toString(8).padStart(6, "0")}\0 `, 148, 8, "latin1");
+  return header;
+}
+
 /** Changes the headers of a tar.gz archive (names, types) and recomputes their checksums. */
 function rewriteHeaders(gzipped: Buffer, change: (header: Buffer, index: number) => void): Buffer {
   const tar = gunzipSync(gzipped);
@@ -100,6 +119,19 @@ describe("the theme package validator (THM-03)", () => {
       if (index === 2) header.write("manifest.json", 0, 100, "utf8");
     });
     expect(codes(checkThemePackage(twice))).toContain("entry_duplicate");
+  });
+
+  it("[THM-03] refuses a folder that is in the archive twice", () => {
+    const folders = Buffer.concat([tarHeader("icons/", 0, "5"), tarHeader("icons/", 0, "5")]);
+    expect(
+      codes(checkThemePackage(gzipSync(Buffer.concat([folders, Buffer.alloc(1024)])))),
+    ).toEqual(["entry_duplicate"]);
+  });
+
+  it("[THM-03] refuses an archive that ends inside an entry, instead of reading a shorter file", () => {
+    // manifest.json declares 1000 bytes, but only 100 follow the header.
+    const cut = Buffer.concat([tarHeader("manifest.json", 1000), Buffer.alloc(100)]);
+    expect(codes(checkThemePackage(gzipSync(cut)))).toEqual(["not_tar"]);
   });
 
   it("[THM-03] refuses a file that the layout does not name", () => {

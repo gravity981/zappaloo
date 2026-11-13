@@ -12,6 +12,7 @@ afterEach(async () => {
 
 const DAY_BEFORE = new Date("2027-06-11T12:00:00.000Z");
 const EVENT_DAY = new Date("2027-06-12T11:00:00.000Z"); // 13:00 in Zurich
+const DURING_TRAUUNG = new Date("2027-06-12T10:20:00.000Z");
 
 /** Two program items on the event day (12:00 and 13:30 in Zurich); the first one ends at 12:45. */
 async function setup() {
@@ -34,6 +35,8 @@ async function setup() {
     headers: admin,
     payload: { name: "Apéro", startsAt: "2027-06-12T11:30:00.000Z" },
   });
+  // Yes or no per program item (RSVP-11), so a guest can attend one item and decline the other.
+  ctx.auth.rsvp.setPerItem(true, "test");
   const website = new WebsiteService(ctx.database, ctx.event, ctx.auth.rsvp);
   return {
     ctx,
@@ -44,10 +47,45 @@ async function setup() {
   };
 }
 
+/** A guest invited to the given program items, with no answer yet. */
+async function guest(
+  ctx: TestContext,
+  admin: Record<string, string>,
+  name: string,
+  programItemIds: number[],
+): Promise<number> {
+  await signIn(ctx, name, ["vip"]);
+  const userId = ctx.auth.accounts.findUser(name)?.id ?? 0;
+  const put = await ctx.app.inject({
+    method: "PUT",
+    url: `/api/admin/users/${String(userId)}/program-items`,
+    headers: admin,
+    payload: { programItemIds },
+  });
+  expect(put.statusCode).toBe(200);
+  return userId;
+}
+
+/** Answers yes for the items in `attending` and no for the other invited items. */
+function answer(ctx: TestContext, userId: number, invited: number[], attending: number[]) {
+  ctx.auth.rsvp.answer(
+    userId,
+    {
+      attendance: invited.map((programItemId) => ({
+        programItemId,
+        attending: attending.includes(programItemId),
+      })),
+    },
+    "test",
+  );
+}
+
 describe("the website and the programme (WEB-07, WEB-09, WEB-10)", () => {
   it("[WEB-11] the day before the event the countdown counts, and there is no now or next", async () => {
-    const { website } = await setup();
-    const body: WebsiteResponse = website.website(DAY_BEFORE);
+    const { ctx, admin, trauung, apero, website } = await setup();
+    const userId = await guest(ctx, admin, "anna", [trauung.id, apero.id]);
+    answer(ctx, userId, [trauung.id, apero.id], [apero.id]);
+    const body: WebsiteResponse = website.website(userId, DAY_BEFORE);
     expect(body.eventDay).toBe(false);
     expect(body.eventDate).toBe("2027-06-12");
     expect(body.countdown?.days).toBe(1);
@@ -55,33 +93,56 @@ describe("the website and the programme (WEB-07, WEB-09, WEB-10)", () => {
     expect(body.next).toBeNull();
   });
 
-  it("[WEB-07][WEB-10] on the event day the start page shows now and next, and no countdown", async () => {
-    const { website, trauung, apero } = await setup();
-    const body = website.website(EVENT_DAY);
+  it("[WEB-07][WEB-10] on the event day a guest who accepted sees now and next, and no countdown", async () => {
+    const { ctx, admin, trauung, apero, website } = await setup();
+    const userId = await guest(ctx, admin, "anna", [trauung.id, apero.id]);
+    answer(ctx, userId, [trauung.id, apero.id], [apero.id]);
+    const body = website.website(userId, EVENT_DAY);
     expect(body.eventDay).toBe(true);
     expect(body.countdown).toBeNull();
     expect(body.now).toBeNull();
     expect(body.next?.id).toBe(apero.id);
-    const duringTrauung = website.website(new Date("2027-06-12T10:20:00.000Z"));
-    expect(duringTrauung.now?.id).toBe(trauung.id);
-    expect(duringTrauung.now?.endsAt).toBe("2027-06-12T10:45:00.000Z");
+    const during = website.website(userId, DURING_TRAUUNG);
+    expect(during.now?.id).toBe(trauung.id);
+    expect(during.now?.endsAt).toBe("2027-06-12T10:45:00.000Z");
+  });
+
+  it("[WEB-07] on the event day a guest who declined every item sees no now or next", async () => {
+    const { ctx, admin, trauung, apero, website } = await setup();
+    const userId = await guest(ctx, admin, "anna", [trauung.id, apero.id]);
+    answer(ctx, userId, [trauung.id, apero.id], []);
+    const body = website.website(userId, EVENT_DAY);
+    expect(body.eventDay).toBe(true);
+    expect(body.now).toBeNull();
+    expect(body.next).toBeNull();
+    expect(website.website(userId, DURING_TRAUUNG).now).toBeNull();
+  });
+
+  it("[WEB-07] on the event day a guest who has not answered sees no now or next", async () => {
+    const { ctx, admin, trauung, apero, website } = await setup();
+    const userId = await guest(ctx, admin, "anna", [trauung.id, apero.id]);
+    const body = website.website(userId, EVENT_DAY);
+    expect(body.eventDay).toBe(true);
+    expect(body.now).toBeNull();
+    expect(body.next).toBeNull();
+  });
+
+  it("[WEB-07][WEB-09] the programme marks the current item only for a guest who accepted", async () => {
+    const { ctx, admin, trauung, apero, website } = await setup();
+    const accepted = await guest(ctx, admin, "anna", [trauung.id, apero.id]);
+    answer(ctx, accepted, [trauung.id, apero.id], [trauung.id, apero.id]);
+    const declined = await guest(ctx, admin, "ben", [trauung.id, apero.id]);
+    answer(ctx, declined, [trauung.id, apero.id], []);
+    const yes: ProgrammeResponse = website.programme(accepted, DURING_TRAUUNG);
+    expect(yes.items.find((item) => item.id === trauung.id)?.status).toBe("now");
+    const no: ProgrammeResponse = website.programme(declined, DURING_TRAUUNG);
+    // The Trauung has started, so without the "now" marker it is past, not upcoming.
+    expect(no.items.find((item) => item.id === trauung.id)?.status).toBe("past");
   });
 
   it("[WEB-09] the programme lists only the items the guest is invited to, with their status", async () => {
     const { ctx, admin, trauung, apero, website } = await setup();
-    const anna = await signIn(ctx, "anna", ["vip"]);
-    const userId = ctx.auth.accounts.findUser("anna")?.id ?? 0;
-    expect(
-      (
-        await ctx.app.inject({
-          method: "PUT",
-          url: `/api/admin/users/${String(userId)}/program-items`,
-          headers: admin,
-          payload: { programItemIds: [apero.id] },
-        })
-      ).statusCode,
-    ).toBe(200);
-    expect(anna).toBeDefined();
+    const userId = await guest(ctx, admin, "anna", [apero.id]);
     const programme: ProgrammeResponse = website.programme(userId, EVENT_DAY);
     expect(programme.items.map((item) => item.name)).toEqual(["Apéro"]);
     expect(programme.hidden).toBe(true);

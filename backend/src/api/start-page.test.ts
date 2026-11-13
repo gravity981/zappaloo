@@ -63,7 +63,7 @@ describe("the start page (WEB-10, WEB-11)", () => {
     expect(bodyOf<WebsiteResponse>(off).countdown).toBeNull();
   });
 
-  it("the start page keeps its hero image and alt text, and the image cannot be removed while it is the hero", async () => {
+  it("[WEB-10][CNT-06] the start page keeps its hero image and alt text, and the image cannot be removed while it is the hero", async () => {
     context = await createTestApp();
     const ctx = context;
     const admin = await signIn(ctx, "boss", ["admin"]);
@@ -106,7 +106,7 @@ describe("the start page (WEB-10, WEB-11)", () => {
     expect(freed.statusCode).toBe(204);
   });
 
-  it("the hero image is an image of the start page, not of a page", async () => {
+  it("[WEB-10][CNT-06] the hero image is an image of the start page, not of a page", async () => {
     context = await createTestApp();
     const ctx = context;
     const admin = await signIn(ctx, "boss", ["admin"]);

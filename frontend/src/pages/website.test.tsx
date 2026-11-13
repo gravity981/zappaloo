@@ -50,7 +50,7 @@ const countdownOf = (days: number) => ({
 });
 
 describe("the start page (WEB-10, WEB-11)", () => {
-  it("shows the hero with its alt text, the welcome text, the countdown and the shortcuts to the pages in Mehr", async () => {
+  it("[WEB-10][WEB-11] shows the hero with its alt text, the welcome text, the countdown and the shortcuts to the pages in Mehr", async () => {
     fakeBackend({
       "GET /api/session": () => signedIn,
       "GET /api/content": () => ({ status: 200, body: site }),
@@ -93,7 +93,7 @@ describe("the start page (WEB-10, WEB-11)", () => {
     expect(screen.queryByText(/^Noch$/)).not.toBeInTheDocument();
   });
 
-  it("the start page editor sets the hero image with its alt text and the countdown switch", async () => {
+  it("[WEB-10][CNT-05] the start page editor sets the hero image with its alt text and the countdown switch", async () => {
     const calls = fakeBackend({
       "GET /api/session": () => asAdmin,
       "GET /api/content": () => ({ status: 200, body: site }),

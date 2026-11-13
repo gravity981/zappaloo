@@ -711,7 +711,7 @@ Guests see the website: a start page with the hero image, the welcome text and t
 **Requirements:** 22 of 24 planned for this stage, all with passing tests (requirement report). CNT-02 and CNT-03 are open until stage 5. Overall: 133 of 244 active requirements implemented, 123 with passing tests. The other ten are the ones whose deployment-test results are stale (see below); none is from stage 4.
 
 **Tests:**
-- Unit and integration (Vitest): 832 tests in 81 files, all passing (`npm test`, run before the report).
+- Unit and integration (Vitest): 837 tests in 81 files, all passing (`npm test`, run before the report).
 - End-to-end (Playwright): 77 passed, 27 skipped (the project-specific skips), none failed (`npm run test:e2e`).
 - Deployment test (`npm run test:deploy`): not run in this stage. Its results are stale, and 11 requirement errors come from them (ACC-05, ACC-11, ACC-14, CFG-02, CFG-07, OPS-02, OPS-05, OPS-13, OPS-15, OPS-16, SEC-01).
 - Manual checks on a phone: none recorded for stage 4.
@@ -747,6 +747,11 @@ Guests see the website: a start page with the hero image, the welcome text and t
 - The prod update: the old `icons/` folder in the data volume is no longer read. Import a theme package right after the update (the note in the plan's stage 4 part).
 - A new release candidate before the next promotion. The promotion takes the example package from the candidate's release, and candidates built before this stage have none.
 - Confirm the preconditions and steps of stage 5 before it starts.
+- **Open points (2026-11-13, from the stage 4 review):**
+  - Now / next on the event day is shown only to guests who accepted (done, WEB-07; "accepted" = RSVP status "attending"). Open: should the "now" marker in the programme follow the same rule? It does now; confirm.
+  - Open: should "now" and "next" consider all program items, or only the items the guest is invited to (as the programme does, WEB-09)? It considers all items now.
+  - Open: the countdown on the start page names the date and place of the first program item to every signed-in guest. Should it show only to guests who accepted, or not at all before the event day?
+  - Open: the rehearsal of migration 0013 (places from the program items' texts) on a copy of the prod backup is not recorded. `places-migration.test.ts` runs it on fixture data only. It must be done, on staging with the prod backup, before the prod update; the project owner or whoever has the backup confirms it.
 
 **Risks and notes:**
 - Before the site response arrives, the first page load shows the default look, then the theme. A new theme shows on the next page load (19.7).

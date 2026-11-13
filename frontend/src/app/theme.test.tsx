@@ -60,7 +60,7 @@ describe("the theme of the event (THM-06)", () => {
 });
 
 describe("the waiting card's colours (19.7)", () => {
-  it("are set as their own properties, and the waiting card reads them with the platform's as fallback", () => {
+  it("[THM-01][THM-06] are set as their own properties, and the waiting card reads them with the platform's as fallback", () => {
     const waiting = { card: "#1e3a5f", text: "#ffffff", button: "#f2c14e", onButton: "#1e1e1e" };
     const style = props(themeStyle({ ...THEME, waiting }));
     expect(style["--w-card"]).toBe("#1e3a5f");
@@ -82,7 +82,7 @@ describe("the theme on the pages (sw-architecture.md 19.7)", () => {
     return element;
   };
 
-  it("the guest pages carry the theme's colours and the font faces with their URLs", async () => {
+  it("[THM-01][THM-06] the guest pages carry the theme's colours and the font faces with their URLs", async () => {
     fakeBackend({
       "GET /api/session": () => anonymous,
       "GET /api/site": () => ({ status: 200, body: { ...SITE, theme: THEME } }),
@@ -101,7 +101,7 @@ describe("the theme on the pages (sw-architecture.md 19.7)", () => {
     expect(faces).toContain('src: url("/theme/fonts/lora-400.woff2?v=import-1")');
   });
 
-  it("without a theme the guest pages keep the platform's defaults", async () => {
+  it("[THM-01] without a theme the guest pages keep the platform's defaults", async () => {
     fakeBackend({
       "GET /api/session": () => anonymous,
       "GET /api/site": () => ({ status: 200, body: SITE }),
@@ -112,7 +112,7 @@ describe("the theme on the pages (sw-architecture.md 19.7)", () => {
     expect(themed().querySelector("style")).toBeNull();
   });
 
-  it("the admin area keeps the platform's neutral look", async () => {
+  it("[THM-01] the admin area keeps the platform's neutral look", async () => {
     const admin = { ...anna, id: 9, username: "lea", displayName: "Lea", roles: ["admin"] };
     fakeBackend({
       "GET /api/session": () => ({ status: 200, body: { user: admin, csrfToken: "csrf" } }),
