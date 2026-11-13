@@ -75,3 +75,29 @@ export const themeJsonSchema = z.strictObject({
     .optional(),
 });
 export type ThemeJson = z.infer<typeof themeJsonSchema>;
+
+/** The active theme as the admin area shows it (`GET /api/admin/theme`). */
+export const themeStatusSchema = z.object({
+  active: z
+    .object({
+      name: z.string(),
+      formatVersion: z.number().int().positive(),
+      /** ISO date-time of the import. */
+      importedAt: z.string(),
+    })
+    .nullable(),
+});
+export type ThemeStatus = z.infer<typeof themeStatusSchema>;
+
+/** One finding of a refused package (THM-03). */
+export const themeFindingSchema = z.object({
+  file: z.string(),
+  code: z.string(),
+  detail: z.string(),
+});
+
+/** A refused import: the error and every finding of the package. */
+export const themeRefusalSchema = z.object({
+  error: z.object({ code: z.string(), message: z.string() }),
+  findings: z.array(themeFindingSchema),
+});

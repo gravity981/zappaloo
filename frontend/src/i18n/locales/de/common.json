@@ -372,7 +372,9 @@
       "content_place_delete": "Der Ort «{{name}}» wurde gelöscht",
       "content_place_delete_unnamed": "Ein Ort wurde gelöscht",
       "content_image_upload": "Ein Bild wurde hochgeladen",
-      "content_image_delete": "Ein Bild wurde gelöscht"
+      "content_image_delete": "Ein Bild wurde gelöscht",
+      "theme_import": "Ein Design wurde importiert",
+      "theme_reset": "Das Standard-Design gilt wieder"
     },
     "rsvp": {
       "title": "Rückmeldungen",

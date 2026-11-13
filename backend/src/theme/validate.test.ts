@@ -1,30 +1,13 @@
 import { gunzipSync, gzipSync } from "node:zlib";
 import { describe, expect, it } from "vitest";
 import { checkThemePackage } from "./validate.ts";
-import { buildThemeArchive, encodePng } from "./build.ts";
+import { buildThemeArchive, encodePng, validThemeFiles, VALID_COLORS } from "./build.ts";
 
-const COLORS = {
-  background: "#f4f4f1",
-  surface: "#ffffff",
-  text: "#1f1f1d",
-  muted: "#6a6a64",
-  line: "#d5d5ce",
-  accent: "#2a2a28",
-  onAccent: "#ffffff",
-};
+const COLORS = VALID_COLORS;
 const MANIFEST = { kind: "zappaloo-theme", formatVersion: 1, name: "Sommerfest" };
 
 /** A package that passes every rule. */
-function validFiles(overrides: Record<string, Buffer> = {}): Record<string, Buffer> {
-  return {
-    "manifest.json": Buffer.from(JSON.stringify(MANIFEST)),
-    "theme.json": Buffer.from(JSON.stringify({ colors: COLORS })),
-    "icons/icon-192.png": encodePng(192, 192, [42, 42, 40]),
-    "icons/icon-512.png": encodePng(512, 512, [42, 42, 40]),
-    "icons/apple-touch-icon.png": encodePng(180, 180, [42, 42, 40]),
-    ...overrides,
-  };
-}
+const validFiles = (overrides: Record<string, Buffer> = {}) => validThemeFiles(overrides);
 
 const archive = (overrides: Record<string, Buffer> = {}) =>
   buildThemeArchive(validFiles(overrides));

@@ -221,6 +221,7 @@ describe("data model", () => {
       "rsvp_answers",
       "rsvp_attendance",
       "rsvp_config",
+      "theme_active",
       "waiting_config",
     ]);
     for (const { name } of tables) {

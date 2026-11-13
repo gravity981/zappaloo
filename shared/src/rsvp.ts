@@ -374,6 +374,8 @@ export const ACTIVITY_ACTIONS = [
   "content.place.delete",
   "content.image.upload",
   "content.image.delete",
+  "theme.import",
+  "theme.reset",
 ] as const;
 export type ActivityAction = (typeof ACTIVITY_ACTIONS)[number];
 

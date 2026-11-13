@@ -12,6 +12,8 @@ import { routeTable } from "./api/access.ts";
 import { adminRoutes } from "./api/admin.ts";
 import { authRoutes } from "./api/auth.ts";
 import { contentRoutes } from "./api/content.ts";
+import { themeRoutes } from "./api/theme.ts";
+import { ThemeService } from "./theme/service.ts";
 import { websiteRoutes } from "./api/website.ts";
 import { WebsiteService } from "./website/service.ts";
 import { ContentService } from "./content/service.ts";
@@ -100,6 +102,9 @@ export async function buildApp(options: AppOptions): Promise<FastifyInstance> {
   });
   await app.register(websiteRoutes, {
     website: new WebsiteService(options.database, options.event, options.auth.rsvp),
+  });
+  await app.register(themeRoutes, {
+    theme: new ThemeService(options.database, options.event, options.eventsDir),
   });
   await app.register(eventApiRoutes, { event: options.event, footer: options.auth.footer });
   await app.register(pwaRoutes, {

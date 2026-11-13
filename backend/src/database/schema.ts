@@ -639,3 +639,21 @@ export const contentStart = sqliteTable("content_start", {
   countdown: integer("countdown", { mode: "boolean" }).notNull().default(true),
   updatedAt: integer("updated_at", { mode: "timestamp_ms" }).notNull(),
 });
+
+/**
+ * The active theme of the event (sw-architecture.md 19.7, THM-04): one row. Its files lie in
+ * `$DATA_DIR/events/<event>/theme/<importId>/`; the platform's default theme has no row.
+ */
+export const themeActive = sqliteTable("theme_active", {
+  eventId: text("event_id")
+    .primaryKey()
+    .references(() => events.id),
+  importId: text("import_id").notNull(),
+  name: text("name").notNull(),
+  formatVersion: integer("format_version").notNull(),
+  importedAt: integer("imported_at", { mode: "timestamp_ms" }).notNull(),
+  /** The seven colours as JSON. */
+  colors: text("colors").notNull(),
+  /** The fonts as JSON, or null when the package names none. */
+  fonts: text("fonts"),
+});
