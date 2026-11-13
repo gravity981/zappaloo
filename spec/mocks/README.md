@@ -7,7 +7,7 @@
 - **Frontend steps follow the mocks.** A step that builds a screen shown here uses its layout, flow and texts as the starting point. Each screen lists the requirement IDs it covers.
 - The requirements in [sw-architecture.md](../sw-architecture.md) still decide. Where a mock and a requirement disagree, the requirement wins, and the mock is fixed in the same step.
 - A UX change found during implementation is proposed first, then applied to the mock and, if it touches a requirement, to the spec.
-- The mocks are deliberately neutral. The website theme (colours and fonts, `theme.json`, stage 4) and the pixel style of the game UI are decided later.
+- The mocks are deliberately neutral. The website theme (colours and fonts) comes with the theme package (sw-architecture.md 19.7, stage 4), and the pixel style of the game UI with the world package (stage 5).
 - In the prototype: **Phone / Desktop** switches the device, the dashed **State** chips switch a screen's states, and buttons inside a mock lead to the next screen. The game world, avatar editor, upload composer, invitation code boxes, moderation and waiting page are interactive.
 
 ## Screens
@@ -123,3 +123,17 @@ Written into sw-architecture.md 7.1.2, 7.4.2 and 8.3 as well. The screens are dr
 | Deleting the own account | The confirmation says that the RSVP with companions and allergies stays with the hosts until after the event. |
 | Phones | Wide admin tables scroll inside their own box. The page never moves sideways. |
 | Footer | "Datenschutz · Version x.y.z" with a middle dot, as in 19.6. |
+
+## UX decisions for stage 4 (2026-11-13, plan review)
+
+Written into sw-architecture.md 6.2, 19.1.1 and 19.7 as well. The mock screens are changed in the steps that build them ("mock first").
+
+| Topic | Decision |
+|---|---|
+| Website tabs (replaces 19 for now) | The navigation shows only what exists. Stage 4 has Start, Programm and Mehr. Hochladen and Erinnerungen come with stage 7. The start page cards for seating, quiz and the game world come with their stages. |
+| Pages | A fresh installation has no pages. The hosts create them in Inhalte. Pages carry no access conditions in stage 4. |
+| Content editor | Inhalte lists the pages, the start page text and the places. It has no "Programm" entry, because the program items are the schedule and stay in Einstellungen › Rückmeldung (with an optional end time and a place picked from the places). |
+| Images | Uploaded in the editor and placed with the Markdown image syntax (CNT-06). |
+| Places and maps | A place card shows the uploaded map picture, the address and "In Google Maps öffnen". No map is embedded (CNT-07). |
+| Theme | Card "Design" in Einstellungen: the active theme, the import of a theme package, the findings of a refused package and "Standard-Design verwenden" with a second click. No download (THM-01 – THM-05). |
+| World | The admin entry "Spielwelt" keeps the object actions per map. Its tab "Karten & Import" becomes the world importer for one whole package (stage 5, MAP-16). |

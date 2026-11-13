@@ -42,6 +42,7 @@
   - [5.6 Requirements](#56-requirements)
 - [6. Shared Content and Data Base](#6-shared-content-and-data-base)
   - [6.1 Requirements](#61-requirements)
+  - [6.2 Content Model (decided 2026-11-13, stage 4)](#62-content-model-decided-2026-11-13-stage-4)
 - [7. User Accounts, Avatars and RSVP](#7-user-accounts-avatars-and-rsvp)
   - [7.1 User Accounts](#71-user-accounts)
   - [7.2 Registration and Invitations](#72-registration-and-invitations)
@@ -86,7 +87,7 @@
   - [14.1 Map Structure](#141-map-structure)
   - [14.2 Object Properties](#142-object-properties)
   - [14.3 Export and Import](#143-export-and-import)
-  - [14.4 Map Importer](#144-map-importer)
+  - [14.4 World Importer](#144-world-importer)
   - [14.5 Template Map Set](#145-template-map-set)
   - [14.6 Requirements](#146-requirements)
 - [15. Technology Stack](#15-technology-stack)
@@ -105,6 +106,7 @@
   - [19.4 Configurability](#194-configurability)
   - [19.5 Installable App (PWA, decided 2026-11-11, stage 3.5)](#195-installable-app-pwa-decided-2026-11-11-stage-35)
   - [19.6 Footer: Copyright and License Notice (decided 2026-11-11, stage 3.5)](#196-footer-copyright-and-license-notice-decided-2026-11-11-stage-35)
+  - [19.7 Theme Package (decided 2026-11-13, stage 4)](#197-theme-package-decided-2026-11-13-stage-4)
 - [20. Installation and Operating Model](#20-installation-and-operating-model)
   - [20.1 Later Multi-Event Extension](#201-later-multi-event-extension)
   - [20.2 Requirements (Sections 19 and 20)](#202-requirements-sections-19-and-20)
@@ -140,7 +142,7 @@
   - [Stage 3 – RSVP and Waiting Page](#stage-3--rsvp-and-waiting-page)
   - [Stage 3.5 – Installable App (completes Release 1)](#stage-35--installable-app-completes-release-1)
   - [Stage 4 – Content and Website](#stage-4--content-and-website)
-  - [Stage 5 – Game World and Map Importer](#stage-5--game-world-and-map-importer)
+  - [Stage 5 – Game World and World Importer](#stage-5--game-world-and-world-importer)
   - [Stage 6 – Living World](#stage-6--living-world)
   - [Stage 7 – Contributions and Event Screen](#stage-7--contributions-and-event-screen)
   - [Stage 8 – Minigames, Treasure Hunt and Highscores](#stage-8--minigames-treasure-hunt-and-highscores)
@@ -597,7 +599,7 @@ The screen is opened through a read-only screen link created by the admin. The l
 
 On the event day, guests mostly want to know: what is happening now, and what comes next?
 
-- The schedule is stored as structured entries: start time, optional end time, title, place, and optionally the map that represents the place.
+- The program items are the schedule (decided 2026-11-13). There is no second list. A program item has a name, a start time, an optional end time, a place (6.2) and, from stage 5, optionally the map that represents the place. The admin edits them in Einstellungen, where the RSVP already uses them (7.4.1).
 - On the event day, the website start page shows the current and the next entry, in the event's timezone. The game world shows no "now / next" (decided 2026-11-10).
 - The programme shows a guest only the program items they are invited to, with one line saying so.
 - Changes to the schedule by the admin are visible immediately, e.g. when dinner starts later.
@@ -608,12 +610,12 @@ On the event day, guests mostly want to know: what is happening now, and what co
 | ID | Requirement | Prio |
 |---|---|---|
 | WEB-01 | The website is fully usable without the game world and does not depend on Phaser. | Must |
-| WEB-02 | The website provides pages for: home, event description, programme/schedule, venues, travel/directions, parking, accommodation, FAQ, contact and guest information. | Must |
+| WEB-02 | The website has a start page, a programme and a list of all further pages. The hosts create the further pages as content pages, for example event description, venues, travel and directions, parking, accommodation, FAQ, contact and guest information. A fresh installation has no content pages (reworded 2026-11-13). | Must |
 | WEB-03 | The set of pages and their content is configurable per event. | Must |
 | WEB-04 | The website renders and is usable on smartphones, tablets and desktop computers. | Must |
 | WEB-05 | The website offers highscore and minigame overview pages. | Should |
 | WEB-06 | The website gives access to contribution upload, the gallery and the keepsake page (see PHO). | Must |
-| WEB-07 | The schedule is stored as structured entries (start time, optional end time, title, place, optional map); on the event day, the website start page shows the current and the next entry in the event's timezone, and schedule changes are visible immediately; the game world shows no "now / next" (decided 2026-11-10). | Should |
+| WEB-07 | The program items are the schedule (name, start time, optional end time, place, optional map; reworded 2026-11-13); on the event day, the website start page shows the current and the next entry in the event's timezone, and schedule changes are visible immediately; the game world shows no "now / next" (decided 2026-11-10). | Should |
 | WEB-08 | A schedule entry with a map offers "Go there", which opens that map in the game. | Could |
 | WEB-09 | The programme shows a guest only the program items they are invited to, with one line saying so. | Should |
 | LANG-01 | All UI strings are externalised through an i18n framework; German is the default and initially only UI language. | Must |
@@ -667,6 +669,23 @@ The platform therefore separates:
 | CNT-03 | Content is separate from its presentation; the same content item can be shown as a website page and referenced from a game-world object (e.g. via `contentId`). | Must |
 | CNT-04 | Content is stored in a structured form and served through the backend API. | Must |
 | CNT-05 | Admins and staff with `editWebsiteContent` edit website pages and other content texts in the browser using Markdown with a preview; changes are live without a redeployment. | Must |
+| CNT-06 | Admins and staff with `editWebsiteContent` upload images (JPEG, PNG, WebP) in the editor and use them in content texts and places. The images are stored on the installation and served to signed-in users only. | Must |
+| CNT-07 | Places (name, optional address, optional Google Maps link, optional uploaded map image) are maintained once and referenced by program items and pages. A place shows its map image and the link "In Google Maps öffnen". No map is embedded from another site. | Must |
+
+## 6.2 Content Model (decided 2026-11-13, stage 4)
+
+Everything a guest reads on the website is edited in the admin area "Inhalte" and stored in the database. How this fits with the other ways to shape an event is described in 19.1.1.
+
+- **Pages.** A page has a slug (its address is `/p/<slug>`), a title, a Markdown text per language (LANG-02, only `de` for now), the switch "In «Mehr» sichtbar" and a position in the list. Admins and staff with `editWebsiteContent` create, rename, order and delete pages. There are no drafts. "Veröffentlichen" is live at once (UX decision 33).
+- **A fresh installation has no pages.** Nothing is seeded. The hosts write the pages they need (WEB-02).
+- **Start page text.** The welcome block of the start page is a text of the same kind. It is edited in Inhalte but is not in the page list. The cards around it (RSVP status, now / next, shortcuts) are fixed (UX decision 20).
+- **Images** (CNT-06). An image is uploaded in the editor and placed in a text with the usual Markdown image syntax. Accepted are JPEG, PNG and WebP up to 10 MB. The type is checked by the file's content, not by its name. The image is stored as uploaded. Stage 4 does not resize or convert images (the upload pipeline of stage 7 does that for contributions). Images from other sites stay removed from every text (10.4, SEC-05).
+- **Places** (CNT-07). A place has a name, an optional address, an optional Google Maps link and an optional map image. The map is an uploaded picture. Nothing is embedded from Google, so reading a page sends no data to Google. The button "In Google Maps öffnen" opens the link in a new tab. Only `https` links to Google Maps are accepted. A program item refers to a place instead of carrying a free text. The existing place texts of the program items become places by a migration. A page can list places. They are shown as cards next to its text.
+- **Dialogues and NPC texts** (stage 5). They are content items edited in the browser like pages (CNT-05). A game object refers to one by `contentId` (CNT-03). They are not part of the world package (14.4).
+- **Program items** are the schedule (5.5). They stay in Einstellungen and are not edited in Inhalte.
+- **Outside the content base.** The waiting-page texts, the privacy notice and the footer line stay in Einstellungen with their own storage (UX decision 54). Albums (stage 7), treasure hunt items and quiz content (stage 8) are edited with their features.
+- **Access.** Pages carry no access conditions in stage 4. Every signed-in user reads every page once the platform is open. The switch "In «Mehr» sichtbar" only decides whether a page is listed. A hidden page is still reached by its address, for example from a game object. The admin page for manual releases therefore waits for the first feature that stores access conditions (step 5b).
+- **Audit.** Changes of pages, places and images are audited with ids only and appear on the card "Zuletzt" (DATA-05).
 
 ---
 
@@ -796,7 +815,7 @@ Possible customisations:
 
 The avatar configuration is stored with the user or their event membership.
 
-Avatars are based on prepared pixel-art graphics. No AI API is required, and avatars are not generated from photos.
+Avatars are based on prepared pixel-art graphics. No AI API is required, and avatars are not generated from photos. The graphics of the avatar editor come with the world package, so they match the style of the maps (14.4, decided 2026-11-13).
 
 ## 7.4 RSVP
 
@@ -947,7 +966,7 @@ These include:
 - Event settings, program items and the "How I know the couple" list.
 - Content management.
 - RSVP overview, reminders and seating plan.
-- Map management in the map importer.
+- World management in the world importer.
 - Contribution and gallery management, upload links and event screen links.
 - Treasure hunt items.
 - Management of event features.
@@ -1177,7 +1196,7 @@ Invitations and RSVP must work early, long before the world and the website are 
 - **Front end:** a restricted guest lands on the waiting page at `/` (full screen, no website navigation); `/rsvp` and `/profile` keep the page header with only "Warteseite", "Rückmeldung", "Profil" and "Abmelden"; the game world and the other platform pages send them back to the waiting page.
 - **Settings** (`waiting_config`, `GET`/`PATCH /api/admin/waiting`, audited as `waiting.set` with the names of the fields, never the texts): opening date (an instant; entered and shown in the event's time zone), countdown switch (default off), three texts (each can go back to its default). A text has at most 1000 characters. The countdown needs the switch and a date.
 - **Placeholders:** `{name}` is the display name; `{waitingCount}` counts the guests who have accepted (at least one program item) and the approved companions who attend, without the viewing guest; `{openingDate}` is the date in the event's language and time zone, or "bald" while none is announced. An unknown `{word}` stays as written. The page data (`GET /api/waiting`) carries the finished text.
-- **Door scene** (ACS-12): the built-in scene is drawn in code at a low resolution and scaled without smoothing: a door slightly ajar, warm light, figures that carry a plank, a lantern and a brush behind the gap, light dust; a tap on the door opens the gap wider for 3.5 seconds. With "reduce motion" the figures stand still. An event replaces it with a **sprite sheet** in `$DATA_DIR/events/<eventId>/`: `door.png` (`frames` equally sized frames side by side), `door.json` (`{ "frameWidth", "frameHeight", "frames", "fps", "gap"? }`; sizes 16–2048 px, 1–64 frames, 0.5–30 fps; `gap` is an optional rectangle in fractions of a frame, `{ x, y, width, height }`) and an optional `door-glimpse.png` (one picture) that a tap on the gap shows for 3.5 seconds. The sheet fills the screen like a cover (cropped at the edges), without smoothing. A missing or invalid `door.json`, an unknown key or a missing `door.png` means the built-in scene; a file that fails to load falls back to it on the page. `GET /api/waiting/door` tells which one, `GET /api/waiting/door/sheet` and `/glimpse` serve the files (sign-in required); a version in the answer makes a replaced file load again.
+- **Door scene** (ACS-12): the built-in scene is drawn in code at a low resolution and scaled without smoothing: a door slightly ajar, warm light, figures that carry a plank, a lantern and a brush behind the gap, light dust; a tap on the door opens the gap wider for 3.5 seconds. With "reduce motion" the figures stand still. An event replaces it with a **sprite sheet** in `$DATA_DIR/events/<eventId>/`: `door.png` (`frames` equally sized frames side by side), `door.json` (`{ "frameWidth", "frameHeight", "frames", "fps", "gap"? }`; sizes 16–2048 px, 1–64 frames, 0.5–30 fps; `gap` is an optional rectangle in fractions of a frame, `{ x, y, width, height }`) and an optional `door-glimpse.png` (one picture) that a tap on the gap shows for 3.5 seconds. The sheet fills the screen like a cover (cropped at the edges), without smoothing. A missing or invalid `door.json`, an unknown key or a missing `door.png` means the built-in scene; a file that fails to load falls back to it on the page. `GET /api/waiting/door` tells which one, `GET /api/waiting/door/sheet` and `/glimpse` serve the files (sign-in required); a version in the answer makes a replaced file load again. From stage 5 on the door scene comes with the world package (14.4, decided 2026-11-13); these files are read until a world package is imported.
 
 **Implementation decisions of step 3d** (2026-11-11):
 
@@ -1531,25 +1550,36 @@ The engine interprets these generic object types and executes the associated beh
 
 ## 14.3 Export and Import
 
-Tiled exports the map as a JSON file. The admin imports it, together with its tilesets, through the map importer. No redeployment is needed, so the art can be improved while the platform is running.
+Tiled exports each map as a JSON file. The maps, their tilesets and the other art of the game world are packed into one world package, which the admin imports through the world importer (14.4). No redeployment is needed, so the art can be improved while the platform is running.
 
 Phaser loads this data and interprets the layers, objects and properties.
 
 Tiled is only needed to create maps and is not part of the running server.
 
-## 14.4 Map Importer
+## 14.4 World Importer
 
-The admin dashboard contains a simple map importer. Maps are drawn in Tiled, including portal targets. The importer only brings them into the running platform:
+The admin dashboard contains a world importer (decided 2026-11-13, replaces the map importer that imported one map at a time). The whole game world comes as one **world package**, because all its art must match in style. The package holds:
 
-- List the event's maps, set the start map, delete a map.
-- Import a map (Tiled JSON plus tilesets) as a new map or as a new version of an existing map.
-- Validate the import: format, required layers, referenced tilesets, spawn points. An invalid import is rejected and the active version stays unchanged.
-- Report portals whose target map or spawn point doesn't exist, and clickable objects whose preset action points to a missing page, content item or minigame, as warnings. The import is still allowed, so maps can be imported one by one.
-- Keep the previous version of each map and allow rollback.
+- the maps (Tiled JSON, including portal targets) and their tilesets,
+- the objects placed on the maps,
+- the door scene of the waiting page (10.4, ACS-12),
+- the assets of the avatar editor (7.3).
 
-Next to the importer, the admin view **"Spielwelt"** shows one tab per map. It lists the map's clickable objects with their Tiled name, label and preset, and lets the admin assign each one's action: a page as overlay, a content item, a dialogue, a minigame, or none. The assignment is stored per map and object name, is live at once and survives a new map version as long as the object keeps its name. Portals are listed read-only with their target map and spawn point (decided 2026-11-10).
+Dialogues and NPC texts are not in the package. They are content, edited in the browser (6.2). Minigames, albums, treasure hunt items and quiz content are separate too.
 
-A new map version is used the next time a player enters the map. Cached graphics are refreshed, so improved art becomes visible without a redeployment.
+The importer brings a package into the running platform:
+
+- It shows the active world: name, import time, its maps and the start map. The start map is named in the package.
+- It imports a whole package only. A single map, tileset or picture cannot be imported on its own. A new package replaces the whole world.
+- It validates the package as a whole: format version, layout, and for every map the format, required layers, referenced tilesets and spawn points. Portals must point to a map and spawn point inside the package. An invalid package is rejected with its findings, and the active world stays unchanged.
+- It reports clickable objects whose preset action points to a missing page, content item or minigame as warnings. The import is still allowed, because these are created in the admin area.
+- It keeps the previous world package and allows a rollback to it.
+
+The package is a `tar.gz` with a format version, like the theme package (19.7). Its exact layout is defined when stage 5 is planned. Until a world package is imported, the built-in door scene applies, and the door files of stage 3 in the data volume are still read (10.4).
+
+Next to the importer, the admin view **"Spielwelt"** shows one tab per map. It lists the map's clickable objects with their Tiled name, label and preset, and lets the admin assign each one's action: a page as overlay, a content item, a dialogue, a minigame, or none. The assignment is stored per map and object name, is live at once and survives a new world package as long as the map and the object keep their names. Portals are listed read-only with their target map and spawn point (decided 2026-11-10, confirmed 2026-11-13).
+
+A new world is used the next time a player enters a map. Cached graphics are refreshed, so improved art becomes visible without a redeployment.
 
 ## 14.5 Template Map Set
 
@@ -1557,28 +1587,29 @@ Drawing pixel art is the main effort per event. To keep it low, the platform shi
 
 - The typical objects are already placed: spawn points, portals, clickable objects (with preset actions), tables with seats, and wander areas.
 - Decoration sits on separate layers. An event changes the look by editing only those layers in Tiled, without touching structure, collisions or objects.
-- In the map importer, a new installation can create its maps from the templates instead of importing its own.
+- The templates ship as a world package. In the world importer, a new installation can import this template world instead of its own.
 - The template art is drawn by the project owner, so it can be reused in any event.
 
 ## 14.6 Requirements
 
 | ID | Requirement | Prio |
 |---|---|---|
-| MAP-01 | Maps are drawn in Tiled, exported as JSON and imported at runtime through the admin map importer; Tiled is not part of the running system. | Must |
+| MAP-01 | Maps are drawn in Tiled, exported as JSON and imported at runtime as part of the world package through the admin world importer; Tiled is not part of the running system (reworded 2026-11-13). | Must |
 | MAP-02 | The engine supports tile layers (background, ground, decoration, objects, foreground, collision) and object layers defining spawn points, collisions, portals, clickable objects (buildings, NPCs, signs, items), protected zones, seats and wander areas. | Must |
 | MAP-03 | The engine interprets the object properties `type`, `label`, `approach`, `action`, `contentId`, `targetMap`, `targetSpawn`, `minigameId` and `page`, and the map property `programItem`, and executes the corresponding behaviour (14.2). | Must |
-| MAP-04 | New or changed maps and tilesets can be imported without a redeployment or code change. | Must |
-| MAP-05 | The map importer lists the event's maps and lets the admin import a new map or a new version of an existing map (Tiled JSON with tilesets), delete a map and set the start map. | Must |
-| MAP-06 | An import is validated (format, required layers, referenced tilesets, spawn points); an invalid import is rejected and the active version stays unchanged. | Must |
+| MAP-04 | A new or changed world (maps, tilesets, door scene, avatar editor assets) can be imported without a redeployment or code change (reworded 2026-11-13). | Must |
+| MAP-05 | The world importer shows the active world (name, import time, maps, start map) and lets the admin import a new world package; the start map is named in the package (reworded 2026-11-13). | Must |
+| MAP-06 | A world package is validated as a whole (format version, layout, and per map the format, required layers, referenced tilesets, spawn points and portal targets); an invalid package is rejected with its findings and the active world stays unchanged (reworded 2026-11-13). | Must |
 | MAP-07 | ~~The admin assigns each portal's target in the level editor: another map at a spawn point, a minigame, or a website page.~~ (withdrawn: portal targets are set as Tiled properties, see MAP-03) | – |
-| MAP-08 | On import, portals whose target map or spawn point doesn't exist, and clickable objects whose preset action points to a missing page, content item or minigame, are reported as warnings; the import is still allowed. | Must |
-| MAP-09 | The previous version of each map is kept and the admin can roll back to it. | Should |
-| MAP-10 | A newly imported map version is used the next time a player enters the map; cached graphics are refreshed, so improved art becomes visible without a redeployment. | Must |
+| MAP-08 | On import, clickable objects whose preset action points to a missing page, content item or minigame are reported as warnings; the import is still allowed. A portal whose target map or spawn point is missing in the package is an error (MAP-06; reworded 2026-11-13). | Must |
+| MAP-09 | The previous world package is kept and the admin can roll back to it (reworded 2026-11-13). | Should |
+| MAP-10 | A newly imported world is used the next time a player enters a map; cached graphics are refreshed, so improved art becomes visible without a redeployment. | Must |
 | MAP-11 | ~~The server reads each map's collision layer on import and uses it to validate movement (MP-04).~~ (withdrawn: no server-side movement validation without multiplayer) | – |
 | MAP-12 | The platform ships a template map set (church, garden, banquet hall, party area) with tilesets, and with spawn points, portals, tables with seats and wander areas already placed. | Should |
 | MAP-13 | Decoration in the template maps is on separate layers, so the look can be changed in Tiled without touching structure, collisions or objects. | Should |
-| MAP-14 | In the map importer, the admin can create the event's maps from the templates instead of importing them. | Should |
+| MAP-14 | In the world importer, the admin can import the shipped template world instead of an own world package (reworded 2026-11-13). | Should |
 | MAP-15 | In the admin view "Spielwelt", each map lists its clickable objects (Tiled name and label) and its portals; the admin assigns each clickable object's action (page as overlay, content item, dialogue, minigame or none) without re-importing the map; the preset from the Tiled file applies until the admin changes it; portals are shown read-only (decided 2026-11-10). | Must |
+| MAP-16 | The world package is a `tar.gz` with a defined layout and a format version. It holds the whole game world: maps, tilesets, objects, the door scene and the avatar editor assets. Only whole packages are imported, and a new package replaces the whole world. | Must |
 
 ---
 
@@ -1652,7 +1683,7 @@ React handles:
 - RSVP and seating.
 - Treasure hunt.
 - Event screen.
-- Map importer.
+- World importer.
 - Highscore views.
 - Other UI elements.
 
@@ -1860,22 +1891,35 @@ There are two levels:
 
 The platform provides generic functions. The concrete event is shaped through configuration and content.
 
-Event configuration is managed at runtime. Event identity (name, time zone, default language), settings, website content, guest groups and maps are edited through the admin dashboard and the map importer and stored in the database and on persistent file storage. Only the theme (`theme.json`) and static graphics that are not imported through the map importer are files (19.2).
+Event configuration is managed at runtime, in the browser. Nothing is placed on the server by hand (19.1.1).
+
+### 19.1.1 How an Event Is Shaped (decided 2026-11-13)
+
+An event is shaped through four channels. Each thing belongs to exactly one of them.
+
+| Channel | Contains | How it changes |
+|---|---|---|
+| **Admin area** (database) | Name, time zone, language, feature switches and settings, program items (they are the schedule), menus, RSVP rules, waiting-page texts, privacy notice, footer line, guest groups, invitations. Content (6.2): pages with uploaded images, places, dialogues and NPC texts. The actions of the clickable objects ("Spielwelt", 14.4). | Edited in the browser, live at once. |
+| **Theme package** (19.7) | App icons, `theme.json` (colours, fonts), font files. | An admin imports a whole package. A validator accepts or refuses it as a whole. The admin can return to the default theme. |
+| **World package** (14.4, stage 5) | Maps, tilesets, objects, the door scene, the avatar editor assets. | An admin imports a whole package. It replaces the whole world. |
+| **Feature data** | Minigames and quiz content, albums, treasure hunt items. | Managed with their features (stages 7 and 8). Minigames ship with the platform (MG-11). |
+
+- Both packages are `tar.gz` files with a defined layout and a format version. Only whole packages are imported, never single files.
+- The two packages are separate because the game world must match in art style across all its parts, and the website theme changes independently of it.
+- Copying an event's configuration and content to another installation is out of scope. A new installation is set up in its own admin area and can import the same packages.
 
 ## 19.2 Event Files
 
-An installation has no event folder to prepare by hand. The event is created in the admin area (19.3.1). Only the theme and static graphics are files, in the data volume:
+An installation has no event folder to prepare by hand. The event is created in the admin area (19.3.1). The platform itself writes these folders in the data volume, and the full backup covers them (23.8):
 
 ```text
 $DATA_DIR/events/event1/
-  theme.json
-  assets/
-    sprites/
-    avatars/
-    audio/
+  theme/      the active theme package, unpacked (19.7)
+  content/    uploaded content images (6.2)
+  world/      the active and the previous world package, unpacked (14.4, stage 5)
 ```
 
-`theme.json` is optional: without it the platform's default theme applies. Its fields are specified with the website (stage 4). The files are covered by the full backup (23.8).
+`theme.json` is no longer a file the operator places (decided 2026-11-13, replaces the rule of 2026-11-11). It comes inside the theme package. The app icons of stage 3.5 in `icons/` and the door files of stage 3 are files the operator placed. The icons are replaced by the theme package (19.5) and the door files by the world package (10.4).
 
 ## 19.3 Event Data
 
@@ -1901,7 +1945,7 @@ The event has no slug and no configurable id: its `eventId` is the fixed value `
 - **Not set up yet:** the first start of a fresh database creates the event record (`eventId` `event1`, features and settings with defaults) without name, time zone and language, so accounts and the CLI have an event to refer to; the setup fills these in. The application starts anyway. Until the setup is complete, an admin sees the setup form as the only content of the admin area, and every other signed-in user sees a neutral "not set up yet" page; sign-in, the setup link and the admin area's setup work. Routes of features that need the event answer `409` with the code `setup_incomplete`. The closed-platform behaviour (ACS-10, ACS-14, stage 3) comes on top once the event is set up.
 - **Setup form:** name, time zone, default language, validated like every admin input (a valid IANA time zone, a language the platform ships). Saving (`POST /api/admin/event/setup`, once; a second call answers `409 already_set_up`; audited with the admin as actor) completes the setup. Features and settings start with their defaults (19.3) and are changed in Einstellungen and Übersicht (8.3), as before.
 - **Changing later:** name, time zone and default language stay editable in the admin area (`PATCH /api/admin/event` takes them next to `features` and `settings`, and answers `409 setup_incomplete` before the setup; all or nothing; each change audited with the admin as actor, an unchanged value is not). Changing the time zone changes how stored times are displayed, not the stored times.
-- **Content and game world** are not part of the setup. They are managed at runtime in their own admin areas: website content and schedule (stage 4; event parts are created with the RSVP in stage 3, 7.4.1), maps, start map and clickable objects (map importer and "Spielwelt", stage 5), guest groups and invitations (stage 2). A fresh installation starts with no maps; MAP-14 creates them from the templates.
+- **Content and game world** are not part of the setup. They are managed at runtime in their own admin areas: website content and theme (stage 4, 6.2 and 19.7; program items are created with the RSVP in stage 3, 7.4.1), the world and its clickable objects (world importer and "Spielwelt", stage 5), guest groups and invitations (stage 2). A fresh installation starts with no pages, the default theme and no world; MAP-14 imports the template world.
 - **Dev and test seed:** `zappaloo event seed-example` completes the setup of an empty installation with the example event "Event Muster" (Europe/Zurich, de). It refuses an installation that is already set up. Dev and e2e tests use it; one e2e test runs the real setup from an empty database.
 - **Runtime reads:** name, time zone, language, features and settings are read from the database on every request, so a change applies at once, in every process. The operator can also use the CLI (`zappaloo event feature|setting <name> on|off`, 23.8, actor `cli`). `GET /api/event` returns the event with its features and settings and whether the setup is complete; the frontend loads it again whenever the page becomes visible, so a changed value shows up without a reload.
 - **Disabled features** (CFG-03): the API answers `404` with the code `feature_disabled` for a disabled feature (a guard every feature route uses), and the frontend hides it (`useFeature`, `FeatureGate`).
@@ -1921,8 +1965,9 @@ This prevents the platform from becoming unnecessarily complex through too many 
 
 Guests can add the site to the home screen of iOS and Android and open it like a native app, without browser bars and with the event's icon. The platform is a Progressive Web App without a service worker.
 
-- **Manifest:** `GET /manifest.webmanifest` is built from the event record: `name` and `short_name` from the event's name, `lang` from the default language, `display: "standalone"`, `start_url` and `scope` `/`, `theme_color` and `background_color` (neutral defaults of the shared stylesheet until `theme.json` sets them, stage 4) and the icons. It is public: no sign-in, and it answers while the platform is closed (ACS-09, ACS-10). It lives outside `/api`.
-- **Icons:** the files sit in `$DATA_DIR/events/event1/icons/` (19.2, covered by the full backup): `icon-192.png` (192×192), `icon-512.png` (512×512), optional `icon-maskable-512.png` (512×512, content inside the central 80 %) and `apple-touch-icon.png` (180×180). They are supplied as finished PNGs; the platform does not resize images. `GET /app-icons/<file>` serves exactly these four names; a file that is missing, not a PNG or of the wrong size is replaced by the built-in default icon, so the install always works.
+- **Manifest:** `GET /manifest.webmanifest` is built from the event record: `name` and `short_name` from the event's name, `lang` from the default language, `display: "standalone"`, `start_url` and `scope` `/`, `theme_color` and `background_color` (the theme's `accent` and `background` colours, 19.7; the neutral defaults of the shared stylesheet with the default theme) and the icons. It is public: no sign-in, and it answers while the platform is closed (ACS-09, ACS-10). It lives outside `/api`.
+- **Icons from stage 4 on** (decided 2026-11-13): the four icons come from the active theme package (19.7), with the same names and sizes. With the default theme the built-in default icon is served. The folder `$DATA_DIR/events/event1/icons/` is no longer read, so an installation that used it imports a theme package with its icons right after the update.
+- **Icons until stage 4:** the files sit in `$DATA_DIR/events/event1/icons/` (19.2, covered by the full backup): `icon-192.png` (192×192), `icon-512.png` (512×512), optional `icon-maskable-512.png` (512×512, content inside the central 80 %) and `apple-touch-icon.png` (180×180). They are supplied as finished PNGs; the platform does not resize images. `GET /app-icons/<file>` serves exactly these four names; a file that is missing, not a PNG or of the wrong size is replaced by the built-in default icon, so the install always works.
 - **Page head:** `index.html` carries `<link rel="manifest">`, `<link rel="apple-touch-icon" href="/app-icons/apple-touch-icon.png">`, `theme-color`, the iOS tags (`apple-mobile-web-app-capable`, `apple-mobile-web-app-title`, `apple-mobile-web-app-status-bar-style`) and `viewport-fit=cover`.
 - **Standalone layout:** no browser chrome means no address bar and no back button. Every page offers its own way back, and the guest shells, the waiting page with its door scene and the admin area respect the safe areas (`env(safe-area-inset-*)`).
 - **Install hint** (UX decision 60, decided 2026-11-11): shown only in a mobile browser (Android, iOS), never in the installed app (display mode `standalone`, or `navigator.standalone` on iOS) and never on a desktop browser. Two places: a slim strip under the top bar of the waiting page, hidden for good with × (kept in the browser's `localStorage`, so it comes back if storage is blocked), and a permanent card "App" in the profile. Both lead to the page `/install` (a flow page, sign-in required, back to the start page where there is nothing to do): on Android a button opens the browser's own install prompt (`beforeinstallprompt`) and without a prompt the steps of the browser menu are shown; on iOS, which has no prompt, three steps of the Share menu. The page also says that the app asks for the password once more, because a home screen app's cookies are stored apart from the browser's. There is no pop-up on the first visit.
@@ -1931,7 +1976,7 @@ Guests can add the site to the home screen of iOS and Android and open it like a
 | ID | Requirement | Prio |
 |---|---|---|
 | PWA-01 | `GET /manifest.webmanifest` returns a web app manifest built from the event (name, language, `display: "standalone"`, start URL and scope `/`, colours, icons); it is reachable without sign-in and while the platform is closed. | Must |
-| PWA-02 | The event's app icons (`icon-192.png`, `icon-512.png`, optional `icon-maskable-512.png`, `apple-touch-icon.png`) are read from `$DATA_DIR/events/event1/icons/` and served under `/app-icons/`; a missing or invalid file is replaced by a built-in default icon. | Must |
+| PWA-02 | The event's app icons (`icon-192.png`, `icon-512.png`, optional `icon-maskable-512.png`, `apple-touch-icon.png`) are served under `/app-icons/`. They come from the active theme package (19.7), and from the built-in default icon while the default theme applies (reworded 2026-11-13; until stage 4 they are read from `$DATA_DIR/events/event1/icons/`, and a missing or invalid file is replaced by the default icon). | Must |
 | PWA-03 | The page head carries the tags iOS and Android need to install the site as an app with its icon and name, and `viewport-fit=cover`. | Must |
 | PWA-04 | Opened from the home screen, every page is usable without browser chrome: content stays clear of the safe areas, and each page offers a way back. | Must |
 | PWA-05 | Guests on a mobile browser see a dismissible hint on how to add the site to the home screen (Android: install button; iOS: Share-menu steps); it never appears in standalone mode. | Should |
@@ -1951,6 +1996,96 @@ The notice comes with the public `GET /api/site` (`name`, `copyright` or `null`,
 | LIC-01 | Under "Datenschutz · Version", every page with the footer shows the copyright line, the fixed AGPL-3.0 sentence and the links "Quellcode" and "Lizenz", also without sign-in and while the platform is closed. | Must |
 | LIC-02 | The admin edits the copyright line in Einstellungen (plain text, 1–120 characters; empty hides it; reset restores the default `© <year> <event name>`); each change is audited without the text. | Must |
 | LIC-03 | "Quellcode" links to the repository address configured by the operator (`SOURCE_URL`); "Lizenz" opens the public page `/license` with the full AGPL-3.0 text from the image. | Must |
+
+## 19.7 Theme Package (decided 2026-11-13, stage 4)
+
+The look of an event outside the game world comes as one file, the theme package. An admin imports it in Einstellungen (card "Design"). It holds the app icons, the colours and the fonts. The pixel style of the game world comes with the world package (14.4).
+
+**What the theme changes.** The website and the guest pages (login, invitation, RSVP, profile, the card on the waiting page), the app icons and the colours of the web app manifest. The admin area keeps the platform's neutral look. The status colours (ok, warning, badge) stay the platform's.
+
+**Layout, format version 1.** The files sit at the root of the archive, without a wrapping folder.
+
+```text
+theme.tar.gz
+  manifest.json
+  theme.json
+  icons/
+    icon-192.png             192×192
+    icon-512.png             512×512
+    icon-maskable-512.png    512×512, optional, content inside the central 80 %
+    apple-touch-icon.png     180×180
+  fonts/                     optional
+    <name>.woff2
+```
+
+**`manifest.json`** names the kind of package, its format version and a name the admin recognises it by:
+
+```json
+{ "kind": "zappaloo-theme", "formatVersion": 1, "name": "Sommerfest" }
+```
+
+The format version covers the layout of the package and the fields of `theme.json` together. The platform lists the format versions it reads, today only `1`. A package with another version is refused. A change of the layout or of a field raises the version, and the platform keeps reading the older versions it lists.
+
+**`theme.json`**, format version 1:
+
+```json
+{
+  "colors": {
+    "background": "#f4f4f1",
+    "surface": "#ffffff",
+    "text": "#1f1f1d",
+    "muted": "#6a6a64",
+    "line": "#d5d5ce",
+    "accent": "#2a2a28",
+    "onAccent": "#ffffff"
+  },
+  "fonts": {
+    "body": {
+      "family": "Lora",
+      "files": [
+        { "file": "lora-400.woff2", "weight": 400, "style": "normal" },
+        { "file": "lora-700.woff2", "weight": 700, "style": "normal" }
+      ]
+    },
+    "heading": {
+      "family": "Playfair Display",
+      "files": [{ "file": "playfair-700.woff2", "weight": 700, "style": "normal" }]
+    }
+  }
+}
+```
+
+| Field | Rule |
+|---|---|
+| `colors` | Required, with exactly these seven keys. Each value is `#rrggbb`. `background` is the page, `surface` cards and fields, `text` and `muted` the two text colours, `line` borders, `accent` buttons and highlights, `onAccent` the text on them. |
+| `fonts` | Optional. `body` and `heading` are each optional. Without one, the platform's font is used for it. |
+| `family` | 1–40 characters: letters, digits, spaces and hyphens. |
+| `files` | 1–4 entries per font. `file` is a file name in `fonts/`. `weight` is 100–900 in steps of 100. `style` is `normal` or `italic`. |
+
+**The validator** checks the whole package before anything changes. It refuses the package when one of these rules is broken:
+
+- The upload is a gzip-compressed tar archive of at most 10 MB, and of at most 20 MB unpacked.
+- It contains only regular files and folders, with relative paths inside the layout above. Links, absolute paths, `..` and files the layout does not name are refused.
+- `manifest.json` and `theme.json` are valid JSON with exactly the fields above. An unknown field is refused. `kind` is `zappaloo-theme`, and `formatVersion` is one the platform reads.
+- The three required icons are there. Every icon is a PNG of exactly its size.
+- Every font file is a WOFF2 file of at most 2 MB. There are at most 8 font files. Every font file is named in `theme.json`, and every file named there exists.
+- `text` on `background`, `text` on `surface` and `onAccent` on `accent` each reach a contrast of 4.5 : 1, so a theme cannot make the pages unreadable.
+
+The answer to a refused package lists every finding with its file and reason.
+
+**Import.** Only a whole package is imported. It replaces icons, colours and fonts together. Nothing can be imported or changed on its own. The package is unpacked into a temporary folder and validated there. A valid package moves to `$DATA_DIR/events/event1/theme/<import id>/`, one database write makes it the active theme, and the folder of the former theme is removed afterwards. If any step fails, the active theme stays as it was.
+
+**Default theme.** "Standard-Design verwenden" removes the active package after a second click. The platform's default colours, fonts and icon apply again. The imported package cannot be downloaded.
+
+**Serving.** The public `GET /api/site` carries the active theme (colours, font faces and a version that changes with every import), so the pages without sign-in are themed too. The font files are served under `/theme/fonts/<file>` without sign-in, like the app icons. A new theme shows on the next page load. The card "Design" shows the active theme's name, its format version and the time of the import. Only an admin imports or removes a theme. Both are audited (`theme.import`, `theme.reset`) and appear on the card "Zuletzt".
+
+| ID | Requirement | Prio |
+|---|---|---|
+| THM-01 | An admin imports a theme package (`tar.gz`) in the admin area. It holds the app icons, `theme.json` (colours, fonts) and the font files, and it sets the look of the website and the guest pages, the app icons and the manifest colours. | Must |
+| THM-02 | The layout of the package and the fields of `theme.json` are defined by a format version in `manifest.json`. A package with a format version the platform does not read is refused. | Must |
+| THM-03 | A validator checks the whole package (archive, layout, file names, types and sizes, the fields of both JSON files, colours and their contrast, fonts). An invalid package is refused with its findings, and the active theme stays unchanged. | Must |
+| THM-04 | A package is applied only as a whole. It replaces icons, colours and fonts together, and nothing can be imported on its own. | Must |
+| THM-05 | The admin can return to the platform's default theme. Imports and the return are audited. | Must |
 
 ---
 
@@ -1994,7 +2129,7 @@ A global user account could later be assigned to several events, with different 
 
 | ID | Requirement | Prio |
 |---|---|---|
-| CFG-01 | The platform core is generic; an event is shaped only through configuration and content (name, theme, website content, maps, tilesets, sprites, NPCs, dialogues, objects, guest groups, unlock conditions, albums, schedule). | Must |
+| CFG-01 | The platform core is generic; an event is shaped only through configuration and content (name, theme, website content, maps, tilesets, sprites, NPCs, dialogues, objects, guest groups, unlock conditions, albums, schedule). All of it reaches the installation through the admin area, the theme package, the world package or the feature data (19.1.1), never through a code change or a file placed on the server. | Must |
 | CFG-02 | A fresh installation starts without event data. The admin completes the setup (name, time zone, default language) in the admin area after the operator created the first admin with the CLI; until then guests see a "not set up yet" page. An invalid input is rejected with a clear error. | Must |
 | CFG-03 | The features `minigames`, `snapshots`, `gallery`, `keepsakes`, `rsvp`, `treasureHunt` and `eventScreen` can be enabled or disabled per event; disabled features are unavailable in UI and API. | Must |
 | CFG-04 | Each installation serves exactly one event with its own domain, database, uploads, users, content, maps and configuration; all installations share the same codebase. | Must |
@@ -2539,7 +2674,7 @@ What matters is a clear separation between:
 | Treasure hunt | QR codes hidden at the venue unlock collectibles; ranking |
 | Event screen | Projector page: photo wall, live leaderboards, hunt ranking; read-only link |
 | Template maps | Church, garden, banquet hall, party area with swappable decoration |
-| Maps | Drawn in Tiled incl. portal targets; imported at runtime via the map importer |
+| Maps | Drawn in Tiled incl. portal targets; imported at runtime as one world package via the world importer |
 | Website content | Edited in the browser as Markdown; structured schedule with "now / next" on the event day |
 | Language | German, i18n from the start, content with language keys |
 | Email | SMTP, Infomaniak mail first |
@@ -2598,7 +2733,7 @@ Requirements: ACC (except ACC-16), ROLE, INV, ACS (except ACS-04, ACS-10–14), 
 - Closed platform with teaser waiting page (door scene, texts by RSVP status, optional countdown); admin switch to open it, with "the door is open" email, and to close it again.
 - Privacy notice; allergy data visible only to admins.
 
-Requirements: RSVP, ACS-10–14, ACC-16, SEC-09, SEC-11, DATA-05.
+Requirements: RSVP, ACS-10–14, ACC-16, SEC-05, SEC-09, SEC-11, DATA-05.
 
 ## Stage 3.5 – Installable App (completes Release 1)
 
@@ -2624,15 +2759,16 @@ Requirements: ACC-17 – ACC-20, INV-20, INV-21, RSVP-11 – RSVP-15 (RSVP-01, R
 
 ## Stage 4 – Content and Website
 
-- Content model with language keys.
+- Content model with language keys: pages, images, places (6.2).
 - Website pages, responsive layout, Markdown editing.
-- Structured schedule with "now / next".
+- Program items as the schedule, with "now / next".
+- Theme package: app icons, colours and fonts, imported by the admin (19.7).
 
-Requirements: CNT, WEB (except WEB-05, WEB-06, WEB-08), LANG-02, CFG-01, CFG-04, SEC-05.
+Requirements: CNT, WEB (except WEB-05, WEB-06, WEB-08), LANG-02, CFG-01, CFG-04, THM. SEC-05 was delivered with the privacy notice in stage 3.
 
-## Stage 5 – Game World and Map Importer
+## Stage 5 – Game World and World Importer
 
-- Map importer.
+- World importer: the whole world as one package (maps, tilesets, objects, door scene, avatar editor assets).
 - Smooth movement with map collisions, arrow keys and tap-to-move.
 - Interactive objects, portals, website overlays, avatars and avatar editor.
 - Landing in the game, guided first entry, button bar at the top, clickable objects that sparkle, loading time.

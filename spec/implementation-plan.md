@@ -36,7 +36,7 @@ Each release goes into production. From Release 1 on, real guest data is stored,
 | 3.5 | Installable app (home screen icon, no browser chrome) | 1 | done |
 | 3.9 | Findings from the Release 1 pilot | 1 (updates) | next |
 | 4 | Content and website | Opening | open |
-| 5 | Game world and map importer | Opening | open |
+| 5 | Game world and world importer | Opening | open |
 | 6 | Living world | Opening | open |
 | 7 | Contributions and event screen | Event-ready | open |
 | 8 | Minigames, treasure hunt and highscores | Event-ready | open |
@@ -148,7 +148,7 @@ Requirements: ACS-10, ACS-11, ACS-12, ACS-13.
 **3d – Opening and privacy notice.** Mock screens: `admin-settings` (card "Plattform öffnen"), `admin-home` (KPI Plattform with "Öffnen …"), `login` and the waiting page (link Datenschutz), a new privacy notice screen.
 - "Jetzt öffnen" with the optional "Die Tür ist offen" email to guests with a verified address (the count in the label counts them); "Wieder schliessen" without email.
 - Privacy notice page `/datenschutz`, reachable without sign-in and linked from every page; German default text, editable in Einstellungen.
-Requirements: ACS-14, SEC-09.
+Requirements: ACS-14, SEC-09, SEC-05 (the Markdown renderer, added to this line on 2026-11-13).
 
 **3e – Sign-in by email** (added 2026-11-10). The login accepts a verified email address as well as the username; an address can be verified by one account only (`409 email_taken`).
 Requirements: ACC-16.
@@ -252,46 +252,111 @@ Requirements: none new.
 
 ### Stage 4 – Content and Website
 
+Replanned 2026-11-13 after a review of the plan against stages 3 to 3.9 and a clearer picture of "event configuration and content" (sw-architecture.md 19.1.1). Branch `feature/stage-4`.
+
 **Before the stage starts:**
-- Texts for the first event's pages (at least drafts).
-- Release 1 runs on prod and works. The checks of stage 3.5 (devices on staging, prod) are recorded as `pass` rows in the manual test protocol, and the "not yet tested" list in test-strategy.md, section 5, is cleared, OPS-02 included.
+- Stage 3.9 is complete. Step 3.9g (update on prod) is done, and the "not yet tested" list in test-strategy.md, section 5, is cleared.
+- The project owner confirms the proposals below.
+- Texts for the first event's pages (at least drafts) and a theme package for the first event (icons, colours, fonts). Both are needed for the Opening, not for building the steps. The steps use test data.
+
+**Decisions from the plan review (2026-11-13):**
+- **Four channels** shape an event: the admin area, the theme package, the world package and the feature data (19.1.1). Copying an event to another installation is out of scope.
+- **Pages start empty.** A fresh installation has no content pages, and nothing is seeded (WEB-02 reworded).
+- **No access conditions on pages** in stage 4. The page for manual releases (ACS-05) moves to step 5b.
+- **Images are uploaded** in the editor (CNT-06). A map on a page is an uploaded picture with the link "In Google Maps öffnen". Nothing is embedded from Google.
+- **Places** are their own records (CNT-07), edited in Inhalte. Program items and pages refer to them.
+- **The program items are the schedule** (WEB-07 reworded). They stay in Einstellungen and gain an optional end time. The content editor has no "Programm" entry.
+- **Navigation shows only what exists.** The tabs Hochladen and Erinnerungen and the cards for seating, quiz and the game world come with their stages.
+- **Privacy notice, waiting-page texts and footer line** stay in Einstellungen, outside the content base.
+- **Theme package** (19.7, THM-01 – THM-05): app icons, `theme.json` and fonts come as one `tar.gz` that an admin imports. The format is versioned, a validator checks it, and only whole packages are applied. The admin can return to the default theme. There is no download. The app icons leave the data volume folder (PWA-02 reworded).
+- **World package** (14.4, stage 5): the map importer becomes a world importer. One package holds maps, tilesets, objects, the door scene and the avatar editor assets, all or nothing. Dialogues and NPC texts are edited in the browser. The view "Spielwelt" keeps assigning the actions.
+- **CNT-02 and CNT-03 are partially implemented** after stage 4 (test-strategy.md, section 5). Dialogues, NPC texts and the reference from a game object follow in step 5d, albums in step 7d.
+- **SEC-05** was delivered with the privacy notice (steps 3d and 3i) and leaves the "not yet implemented" list. Stage 4 reuses the renderer.
+- **CFG-01 and CFG-04 get tests** (step 4f).
+
+**Proposals to confirm before the stage starts** (written into the spec as proposed):
+- The fields of `theme.json` and the validator's limits (19.7): seven colours, two optional fonts, WOFF2 only, 10 MB per package, a contrast check.
+- The theme changes the website and the guest pages. The admin area keeps its neutral look.
+- Content images: JPEG, PNG and WebP up to 10 MB, stored as uploaded, without resizing in stage 4 (6.2).
+- A page lists its places as cards next to the text (6.2).
+- The date in the header of the public pages (UX decision 58) is the day of the earliest program item.
+- After the update that brings step 4e, prod shows the default app icon until a theme package is imported. The project owner imports one right after the update.
 
 **Steps:**
 
-**4a – Content model and editing.** Central content base with language keys; content items referenced from website and game; Markdown editing with preview; sanitised rendering.
-Requirements: CNT-01, CNT-02, CNT-03, CNT-04, CNT-05, LANG-02, SEC-05.
-Follow-up from stage 2: the content routes use `requireCapability("editWebsiteContent")` and get `[ROLE-06]` tests. If content items carry access conditions, the admin page for manual releases (ACS-05, sw-architecture.md 8.3) comes with this step.
+**4a – Content base and editor.** Mock first: `admin-content` (page list with order and "In «Mehr» sichtbar", title, Markdown with preview, "Veröffentlichen", the start page text, no "Programm" entry).
+- Pages with slug, title, a text per language key, visibility and position. The start page text. API for reading (signed-in users) and editing.
+- Editing needs the admin role or `staff` with `editWebsiteContent`. The admin area gets the entry "Inhalte", which such a staff member also reaches.
+- Changes are audited with ids only and appear on the card "Zuletzt".
+- The existing Markdown renderer (SEC-05) shows the preview and the pages.
+Requirements: CNT-01, CNT-02, CNT-03, CNT-04, CNT-05, LANG-02.
+Follow-up from stage 2: the content routes use `requireCapability("editWebsiteContent")` and get `[ROLE-06]` and `[ROLE-07]` tests.
+Re-verified: SEC-05, DATA-05.
 
-**4b – Website.** Website pages, configurable per event, responsive, usable without the game; generic platform core with one event per installation.
-Requirements: WEB-01, WEB-02, WEB-03, WEB-04, CFG-01, CFG-04.
+**4b – Images and places.** Mock first: the image button and image list in `admin-content`, a places list and form in Inhalte, the place card on `info`.
+- Image upload with the checks of 6.2 (type by content, size). Images are stored in `$DATA_DIR/events/event1/content/` and served to signed-in users. The renderer accepts images of the installation and still removes others.
+- Places with name, address, Google Maps link and map image. A page lists places.
+- Program items refer to a place. A migration turns the existing place texts into places. It is tried with a copy of the prod backup on staging, like the migrations of stage 3.9. Einstellungen › Rückmeldung picks the place from the list.
+Requirements: CNT-06, CNT-07.
+Re-verified: RSVP-01, RSVP-05 (the place of a program item), SEC-05.
 
-**4c – Schedule and "now / next".** Structured schedule; current and next entry on the start page (the game world shows no "now / next", decided 2026-11-10); the programme shows only the program items the guest is invited to.
+**4c – Website.** Mock screens: `home` (variant "Before the event"), `info`, `more`.
+- The website frame: bottom tab bar on phones and top navigation on desktop, with Start, Programm and Mehr. Later stages add their tabs.
+- Start page with the welcome text, the RSVP card and shortcuts to the pages. Content page `/p/<slug>`. "Mehr" with the visible pages in the admin's order, the profile, Verwaltung and Inhalte for those who may use them, Datenschutz and Abmelden.
+- Until stage 5, a signed-in user of an open platform lands on the start page. Restricted guests of a closed platform still see only the waiting page. The new routes join the closed-platform list and its test that walks every route (10.4).
+- No part of the website loads Phaser. The pages work at phone, tablet and desktop widths.
+Requirements: WEB-01, WEB-02, WEB-03, WEB-04.
+Re-verified: ACS-10, SEC-09.
+
+**4d – Programme and "now / next".** Mock screens: `programme` (all three variants), `home` (variant "Event day"), `admin-settings` (card Rückmeldung with the end time).
+- Program items gain an optional end time.
+- The programme page shows the program items the guest is invited to as a timeline, with the line that says so. On the event day past entries are greyed out and the current one is marked.
+- The start page shows the current and the next program item on the event day, in the event's time zone. A change by the admin shows at once. "Hingehen" follows in step 5d (WEB-08).
+- The header of the public pages shows the event's date.
 Requirements: WEB-07, WEB-09.
 
-### Stage 5 – Game World and Map Importer
+**4e – Theme package.** Mock first: card "Design" in `admin-settings` (active theme, import, findings of a refused package, "Standard-Design verwenden").
+- Import with the validator of 19.7, all or nothing. The return to the default theme. Audit entries.
+- The guest stylesheet reads its colours and fonts from the theme. `GET /api/site` carries the theme. Fonts are served from the installation.
+- The app icons and the manifest colours come from the theme. The folder `icons/` in the data volume is no longer read.
+- An example theme package in the repository, built by a script, for dev, tests and as a template for the project owner. The runbook describes the package.
+- Tests: one per validator rule with a broken package, the unchanged theme after a refused import, the import and the return to the default end to end.
+Requirements: THM-01, THM-02, THM-03, THM-04, THM-05.
+Re-verified: PWA-01, PWA-02, PWA-03.
+
+**4f – Generic core and stage report.**
+- CFG-01: a test shapes two fresh installations of the same build differently (name, theme package, pages, program items) through the admin API alone and checks that each serves its own. A check that the source holds no event-specific names or texts outside the example event and the tests.
+- CFG-04: tests that two installations with their own data folders share nothing, that every event-related record carries `event1`, and that no second event can be created.
+- Status report for stage 4.
+Requirements: CFG-01, CFG-04.
+
+### Stage 5 – Game World and World Importer
 
 **Before the stage starts:**
-- The project owner provides a first map (or a template map) and its tileset, drawn in Tiled.
+- The layout of the world package is defined and confirmed (sw-architecture.md 14.4): maps, tilesets, objects, door scene, avatar editor assets, format version.
+- The project owner provides a first world package (or the template world), with maps drawn in Tiled.
 
 **Steps:**
 
 **5a – Phaser foundation.** Top-down rendering, tile and object layers, portals between maps.
 Requirements: GAME-01, GAME-03, MAP-02.
 
-**5b – Map importer.** Import of Tiled JSON with tilesets at runtime, validation, warnings for missing portal targets, versions with rollback, refreshed graphics on next map entry.
-Requirements: MAP-01, MAP-04, MAP-05, MAP-06, MAP-08, MAP-09, MAP-10.
-Follow-up from stage 2: map loading and protected game areas checked on the server, with `[ACS-07]` tests. The admin page for manual releases (ACS-05, sw-architecture.md 8.3), unless 4a built it.
+**5b – World importer** (replanned 2026-11-13). Import of a whole world package at runtime (maps as Tiled JSON, tilesets, objects, door scene, avatar editor assets), validation of the whole package, warnings for presets that point to missing pages, content items or minigames, the previous package kept for a rollback, refreshed graphics on the next map entry. The waiting page takes its door scene from the world package.
+Requirements: MAP-01, MAP-04, MAP-05, MAP-06, MAP-08, MAP-09, MAP-10, MAP-16.
+Follow-up from stage 2: map loading and protected game areas checked on the server, with `[ACS-07]` tests. The admin page for manual releases (ACS-05, sw-architecture.md 8.3).
+Re-verified: ACS-12.
 
 **5c – Movement and controls.** Smooth movement with map collisions, arrow keys on desktop, tap-to-move with pathfinding on touch devices, suitable for all screen sizes.
 Requirements: GAME-02, GAME-07, GAME-09, GAME-10.
 
 **5d – Objects and overlays.** Object types `portal`, `clickable`, `decoration` and their properties; clickable objects that sparkle, walking to an object's approach point and running its action (page overlay, content item, dialogue, minigame), Enter or Space on desktop; portals as wobbling arrows; easter eggs; website pages as overlays above the paused game; "Go there" from the schedule; admin view "Spielwelt" to assign the actions per map.
 Requirements: GAME-04, GAME-05, GAME-06, GAME-08, GAME-11, GAME-15, GAME-16, MAP-03, MAP-15, WEB-08.
+Follow-up from stage 4: dialogues and NPC texts as content items edited in Inhalte, and a game object that shows a content item by `contentId`, with `[CNT-02]` and `[CNT-03]` tests.
 
-**5e – Avatars and entering the game.** Avatar editor; landing in the game after sign-in; guided first entry with the hint about sparkling objects; button bar at the top with RSVP badge; own avatar opens the profile; first map playable within 5 seconds over 4G.
+**5e – Avatars and entering the game.** Avatar editor with the assets of the world package; landing in the game after sign-in; guided first entry with the hint about sparkling objects; button bar at the top with RSVP badge; own avatar opens the profile; first map playable within 5 seconds over 4G.
 Requirements: AVA-01, AVA-02, AVA-03, GAME-12, GAME-13, GAME-14, GAME-17, GAME-18, PERF-04.
 
-**5f – Template map set.** Church, garden, banquet hall and party area with decoration on separate layers; maps created from templates in the importer.
+**5f – Template world.** Church, garden, banquet hall and party area with decoration on separate layers, shipped as a world package that the admin imports in the world importer.
 Requirements: MAP-12, MAP-13, MAP-14.
 
 ### Stage 6 – Living World (completes the Opening)
@@ -330,6 +395,7 @@ Follow-up from stage 2: moderation uses `requireCapability("moderateContribution
 
 **7d – Gallery and keepsakes.** Gallery by album and location with scheduled or manual release; photo viewer with full-resolution download; keepsake page; printable keepsake book.
 Requirements: PHO-10, PHO-12, PHO-16, PHO-17, PHO-19, WEB-06.
+Follow-up from stage 4: albums as part of the content base, with a `[CNT-02]` test.
 
 **7e – Event screen.** Full-screen panels with rotation, photo wall with captions over Server-Sent Events, read-only screen link, upload QR code shown now and then.
 Requirements: SCR-01, SCR-02, SCR-04, SCR-07.

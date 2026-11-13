@@ -56,27 +56,28 @@ Status values: **specified** (requirements written, not implemented) · **in pro
 | WEB | Classic website | 5 | 9 | 4, 5, 7, 8 | specified |
 | LANG | Language and i18n | 5.3 | 2 | 1, 4 | in progress |
 | SCR | Event screen (photo wall, live rankings) | 5.4 | 5 (2 withdrawn) | 7, 8 | specified |
-| CNT | Shared content base, Markdown editing | 6 | 5 | 4 | specified |
+| CNT | Shared content base, Markdown editing, images, places | 6 | 7 | 4, 5, 7 | specified |
 | ACC | User accounts, account states, authentication, email | 7, 23.8 | 19 (1 withdrawn) | 2, 3, 3.9 | in progress |
 | AVA | Avatars | 7.3 | 4 | 5, 6 | specified |
 | RSVP | RSVP, program items, accompanying persons, person types | 7.4 | 15 | 3, 3.9 | in progress |
 | ROLE | Roles (vip, staff, admin) and staff capabilities | 8 | 8 (2 withdrawn) | 2 | implemented |
-| INV | VIP invitations | 9 | 15 (6 withdrawn) | 2, 3.9 | in progress |
+| INV | VIP invitations | 9 | 16 (6 withdrawn) | 2, 3.9 | in progress |
 | ACS | Sign-in, opening the platform, waiting page, upload links, access control | 10, 11 | 10 (4 withdrawn) | 2, 3, 7 | in progress |
 | GRP | Guest groups | 12 | 2 | 2 | implemented |
 | PHO | Contributions: snapshots (gallery, photo wall) and keepsakes (keepsake page, printable book) | 13 | 18 (1 withdrawn) | 7 | specified |
 | MOD | Moderation (swipe view) | 13.7 | 5 | 7 | specified |
-| MAP | Tiled maps, map importer, template maps | 14 | 13 (2 withdrawn) | 5 | specified |
+| MAP | Tiled maps, world importer and world package, template world | 14 | 14 (2 withdrawn) | 5 | specified |
 | DATA | Database and data model | 18 | 5 | 1, 2, 3 | implemented |
 | CFG | Event configuration, installation model | 19, 20 | 7 | 2, 4 | in progress |
 | OPS | Deployment, backup tools, CI/CD, versioning and releases (hosting out of scope) | 21–23 | 17 (2 withdrawn) | 1, 3 | in progress |
-| SEC | Security and privacy (Swiss FADP) | 24 | 11 | 1, 2, 3, 4, 10 | in progress |
+| SEC | Security and privacy (Swiss FADP) | 24 | 11 | 1, 2, 3, 10 | in progress |
 | PERF | Performance and load | 25 | 3 (1 withdrawn) | 5, 7, 9 | specified |
 | MP | Multiplayer — removed | 3.3 | 0 (6 withdrawn) | – | withdrawn |
 | GB | Guestbook — merged into PHO | 13.6 | 0 (4 withdrawn) | – | withdrawn |
 | PWA | Installable app (manifest, icons, home screen) | 19.5 | 5 | 3.5 | implemented |
 | LIC | Copyright and license notice in the footer | 19.6 | 3 | 3.5 | implemented |
-| | **Total** | | **232** (265 IDs, 33 withdrawn) | | |
+| THM | Theme package (app icons, colours, fonts) | 19.7 | 5 | 4 | specified |
+| | **Total** | | **241** (274 IDs, 33 withdrawn) | | |
 
 Sections with no requirement table describe architecture and technology choices: 15 (stack), 16 (frontend), 17 (backend), 26 (project structure), 27 (decision summary), 28 (stages) and 29 (principles). Section 30 lists what is out of scope for the first version.
 
@@ -142,8 +143,11 @@ Sections with no requirement table describe architecture and technology choices:
 | 2026-11-11 | **Installable app before Release 1** (new stage 3.5, sw-architecture.md 19.5, PWA-01 – PWA-05). Guests add the site to the iOS or Android home screen and open it without browser bars, with the event's icon. The manifest is served dynamically from the event record, the icons are files in `$DATA_DIR/events/event1/icons/`, there is no service worker, and the Release 1 go-live (formerly step 3f) becomes step 3.5f. Numbered 3.5 so stages 4–10 keep their numbers. |
 | 2026-11-11 | **Footer with copyright and license notice** (stage 3.5, step 3.5d, sw-architecture.md 19.6, LIC-01 – LIC-03). Below "Datenschutz · Version x.y.z": an admin-editable copyright line (default `© <year> <event name>`), the fixed AGPL-3.0 sentence and the links "Source code" (operator's `SOURCE_URL`) and "License" (public page `/license`). The repository must be public before the Release 1 go-live. The go-live is now step 3.5f. |
 | 2026-11-12 | **Findings from the Release 1 pilot** (new stage 3.9; sw-architecture.md 7.1.2, 7.4.2; ACC-17 – ACC-20, INV-20, INV-21, RSVP-11 – RSVP-15; RSVP-01, RSVP-08 – RSVP-10 reworded). Every invitation creates an inactive account at once, so invited guests are on the guest list before they redeem; accounts are active, inactive or blocked; a guest's own account deletion removes the login but keeps the hosts' guest-list entry until the shutdown; admins can delete accounts. One RSVP answer for all program items by default, approval of accompanying persons off by default, person types adult / child with an optional menu for children. "Event part" becomes "program item" (Programmpunkt). |
+| 2026-11-13 | **Event configuration and content: four channels** (plan review of stage 4; sw-architecture.md 6.2, 14.4, 19.1.1, 19.7; CNT-06, CNT-07, THM-01 – THM-05, MAP-16; WEB-02, WEB-07, PWA-02, CFG-01, MAP-01, MAP-04 – MAP-06, MAP-08, MAP-09, MAP-14 reworded). An event is shaped through the admin area, a theme package, a world package and the feature data. Nothing is placed on the server by hand. The theme package (app icons, `theme.json`, fonts) is a versioned `tar.gz` that an admin imports as a whole after a validator has checked it, and the admin can return to the default theme. The map importer becomes a world importer: one package with maps, tilesets, objects, the door scene and the avatar editor assets, all or nothing, because the art of the world must match in style. Dialogues and NPC texts are edited in the browser, and "Spielwelt" keeps assigning the object actions. Content: pages start empty and carry no access conditions in stage 4, images are uploaded, places are their own records, and a map is an uploaded picture with "In Google Maps öffnen". Considered and rejected: an embedded Google map (reading a page would send data to Google) and theme settings edited field by field in Einstellungen. The program items are the schedule. Copying an event to another installation is out of scope. |
 
 ## Open points
+
+- **Layout of the world package (MAP-16):** defined when stage 5 is planned (sw-architecture.md 14.4).
 
 - **Gift list (optional feature, undecided):** the couple's wishes, which guests reserve or pledge a share of (e.g. a travel fund). No payments through the platform: bank details or TWINT QR code only, and the platform records pledges. Other guests don't see who gave what, and the couple gets an overview. Estimated effort ~3–4 points, value +0.5 to 1. If wanted: feature toggle `giftList`, priority Could. Build it only if the couple wants a gift list.
 - **Load test tool (PERF-01):** see `test-strategy.md`, section 6.2.
