@@ -26,6 +26,7 @@
     "dev:backend": "npm run dev -w backend",
     "dev:frontend": "npm run dev -w frontend",
     "db:reset-dev": "node scripts/dev/reset-dev-data.ts && npm run cli -- event seed-example && npm run cli -- dev-admin admin admin",
+    "build:example-theme": "node scripts/build-example-theme.ts dist",
     "mocks": "node scripts/serve-mocks/cli.ts",
     "build": "npm run build -w frontend",
     "cli": "node backend/src/cli.ts",

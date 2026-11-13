@@ -35,13 +35,13 @@ function rewriteHeaders(gzipped: Buffer, change: (header: Buffer, index: number)
 }
 
 describe("the theme package validator (THM-03)", () => {
-  it("accepts a complete package", () => {
+  it("[THM-03] accepts a complete package", () => {
     const result = checkThemePackage(archive());
     expect(result.ok).toBe(true);
     if (result.ok) expect(result.package.manifest.name).toBe("Sommerfest");
   });
 
-  it("accepts optional fonts and the optional maskable icon when they are right", () => {
+  it("[THM-03] accepts optional fonts and the optional maskable icon when they are right", () => {
     const font = Buffer.concat([Buffer.from("wOF2"), Buffer.alloc(64)]);
     const result = checkThemePackage(
       archive({
@@ -63,29 +63,29 @@ describe("the theme package validator (THM-03)", () => {
     expect(result.ok).toBe(true);
   });
 
-  it("refuses an archive of more than 10 MB", () => {
+  it("[THM-03] refuses an archive of more than 10 MB", () => {
     expect(codes(checkThemePackage(Buffer.alloc(10 * 1024 * 1024 + 1)))).toEqual([
       "archive_too_large",
     ]);
   });
 
-  it("refuses something that is not gzip", () => {
+  it("[THM-03] refuses something that is not gzip", () => {
     expect(codes(checkThemePackage(Buffer.from("das ist kein Archiv")))).toEqual(["not_gzip"]);
   });
 
-  it("refuses an archive that unpacks to more than 20 MB", () => {
+  it("[THM-03] refuses an archive that unpacks to more than 20 MB", () => {
     const big = archive({ "fonts/big.woff2": Buffer.alloc(21 * 1024 * 1024) });
     expect(codes(checkThemePackage(big))).toContain("unpacked_too_large");
   });
 
-  it("refuses links and other special entries", () => {
+  it("[THM-03] refuses links and other special entries", () => {
     const linked = rewriteHeaders(archive(), (header, index) => {
       if (index === 0) header.write("2", 156, 1, "latin1");
     });
     expect(codes(checkThemePackage(linked))).toContain("entry_type");
   });
 
-  it("refuses absolute paths and .. in files and folders", () => {
+  it("[THM-03] refuses absolute paths and .. in files and folders", () => {
     const absolute = rewriteHeaders(archive(), (header, index) => {
       if (index === 0) header.write("/etc/passwd", 0, 100, "utf8");
     });
@@ -94,7 +94,7 @@ describe("the theme package validator (THM-03)", () => {
     expect(codes(checkThemePackage(traversal))).toContain("entry_path");
   });
 
-  it("refuses a file that is in the archive twice", () => {
+  it("[THM-03] refuses a file that is in the archive twice", () => {
     const twice = rewriteHeaders(archive(), (header, index) => {
       // Entry 0 is the icons folder, entry 1 manifest.json: entry 2 is renamed to manifest.json.
       if (index === 2) header.write("manifest.json", 0, 100, "utf8");
@@ -102,13 +102,13 @@ describe("the theme package validator (THM-03)", () => {
     expect(codes(checkThemePackage(twice))).toContain("entry_duplicate");
   });
 
-  it("refuses a file that the layout does not name", () => {
+  it("[THM-03] refuses a file that the layout does not name", () => {
     expect(codes(checkThemePackage(archive({ "readme.txt": Buffer.from("hallo") })))).toEqual([
       "file_not_in_layout",
     ]);
   });
 
-  it("refuses a package without manifest.json or theme.json", () => {
+  it("[THM-03] refuses a package without manifest.json or theme.json", () => {
     const without = (name: string) => {
       const files = Object.fromEntries(
         Object.entries(validFiles()).filter(([path]) => path !== name),
@@ -119,20 +119,20 @@ describe("the theme package validator (THM-03)", () => {
     expect(codes(without("theme.json"))).toContain("file_missing");
   });
 
-  it("refuses JSON that does not parse", () => {
+  it("[THM-03] refuses JSON that does not parse", () => {
     expect(codes(checkThemePackage(archive({ "theme.json": Buffer.from("{ colors") })))).toEqual([
       "json_invalid",
     ]);
   });
 
-  it("refuses a format version the platform does not read", () => {
+  it("[THM-02] refuses a format version the platform does not read", () => {
     const result = checkThemePackage(
       archive({ "manifest.json": Buffer.from(JSON.stringify({ ...MANIFEST, formatVersion: 2 })) }),
     );
     expect(codes(result)).toEqual(["format_version"]);
   });
 
-  it("refuses an unknown field or a wrong kind in manifest.json", () => {
+  it("[THM-03] refuses an unknown field or a wrong kind in manifest.json", () => {
     const extra = checkThemePackage(
       archive({ "manifest.json": Buffer.from(JSON.stringify({ ...MANIFEST, author: "x" })) }),
     );
@@ -143,14 +143,14 @@ describe("the theme package validator (THM-03)", () => {
     expect(codes(kind)).toEqual(["json_field"]);
   });
 
-  it("refuses an unknown field in theme.json", () => {
+  it("[THM-03] refuses an unknown field in theme.json", () => {
     const result = checkThemePackage(
       archive({ "theme.json": Buffer.from(JSON.stringify({ colors: COLORS, shadow: true })) }),
     );
     expect(codes(result)).toEqual(["json_field"]);
   });
 
-  it("refuses a colour that is not #rrggbb, and a colour that is missing", () => {
+  it("[THM-03] refuses a colour that is not #rrggbb, and a colour that is missing", () => {
     const wrong = checkThemePackage(
       archive({
         "theme.json": Buffer.from(JSON.stringify({ colors: { ...COLORS, text: "dunkel" } })),
@@ -166,7 +166,7 @@ describe("the theme package validator (THM-03)", () => {
     expect(codes(absent)).toEqual(["json_field"]);
   });
 
-  it("refuses a package without one of the three required icons", () => {
+  it("[THM-03] refuses a package without one of the three required icons", () => {
     const files = Object.fromEntries(
       Object.entries(validFiles()).filter(([path]) => path !== "icons/icon-192.png"),
     );
@@ -174,13 +174,13 @@ describe("the theme package validator (THM-03)", () => {
     expect(codes(result)).toEqual(["file_missing"]);
   });
 
-  it("refuses an icon that is not a PNG", () => {
+  it("[THM-03] refuses an icon that is not a PNG", () => {
     expect(
       codes(checkThemePackage(archive({ "icons/icon-512.png": Buffer.from("GIF89a") }))),
     ).toEqual(["icon_not_png"]);
   });
 
-  it("refuses an icon of the wrong size, the optional maskable one too", () => {
+  it("[THM-03] refuses an icon of the wrong size, the optional maskable one too", () => {
     expect(
       codes(checkThemePackage(archive({ "icons/icon-192.png": encodePng(200, 200, [0, 0, 0]) }))),
     ).toEqual(["icon_size"]);
@@ -193,7 +193,7 @@ describe("the theme package validator (THM-03)", () => {
     ).toEqual(["icon_size"]);
   });
 
-  it("refuses a font file that is not WOFF2, and one above 2 MB", () => {
+  it("[THM-03] refuses a font file that is not WOFF2, and one above 2 MB", () => {
     expect(codes(checkThemePackage(archive({ "fonts/a.woff2": Buffer.from("TTF!") })))).toContain(
       "font_not_woff2",
     );
@@ -203,13 +203,13 @@ describe("the theme package validator (THM-03)", () => {
     );
   });
 
-  it("refuses more than eight font files", () => {
+  it("[THM-03] refuses more than eight font files", () => {
     const fonts: Record<string, Buffer> = {};
     for (let n = 0; n < 9; n++) fonts[`fonts/f${String(n)}.woff2`] = Buffer.from("wOF2xxxx");
     expect(codes(checkThemePackage(archive(fonts)))).toContain("font_count");
   });
 
-  it("refuses a font file that theme.json does not name, and a named file that is missing", () => {
+  it("[THM-03] refuses a font file that theme.json does not name, and a named file that is missing", () => {
     const font = Buffer.concat([Buffer.from("wOF2"), Buffer.alloc(16)]);
     expect(codes(checkThemePackage(archive({ "fonts/a.woff2": font })))).toContain(
       "font_unreferenced",
@@ -230,7 +230,7 @@ describe("the theme package validator (THM-03)", () => {
     expect(codes(checkThemePackage(named))).toContain("font_missing");
   });
 
-  it("refuses text that is not readable enough on the background, and on the accent", () => {
+  it("[THM-03] refuses text that is not readable enough on the background, and on the accent", () => {
     const low = checkThemePackage(
       archive({
         "theme.json": Buffer.from(JSON.stringify({ colors: { ...COLORS, text: "#9a9a9a" } })),
@@ -245,7 +245,7 @@ describe("the theme package validator (THM-03)", () => {
     expect(codes(accent)).toContain("contrast");
   });
 
-  it("accepts a waiting card of its own, and refuses it when its text is not readable", () => {
+  it("[THM-03] accepts a waiting card of its own, and refuses it when its text is not readable", () => {
     const waiting = { card: "#fffaf0", text: "#2a2420", button: "#2a2420", onButton: "#ffffff" };
     const good = checkThemePackage(
       archive({
@@ -265,7 +265,7 @@ describe("the theme package validator (THM-03)", () => {
     expect(low.findings.map((finding) => finding.detail).join(" ")).toContain("waiting card");
   });
 
-  it("refuses a waiting card with a field the format does not know", () => {
+  it("[THM-03] refuses a waiting card with a field the format does not know", () => {
     const result = checkThemePackage(
       archive({
         "theme.json": Buffer.from(
@@ -276,7 +276,7 @@ describe("the theme package validator (THM-03)", () => {
     expect(codes(result)).toContain("json_field");
   });
 
-  it("lists every finding, not only the first", () => {
+  it("[THM-03] lists every finding, not only the first", () => {
     const result = checkThemePackage(
       archive({
         "icons/icon-192.png": encodePng(200, 200, [0, 0, 0]),

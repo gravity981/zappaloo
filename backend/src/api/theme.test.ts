@@ -33,7 +33,7 @@ function themeFolders(ctx: TestContext): string[] {
 }
 
 describe("the theme of the event (THM-01, THM-03, THM-04, THM-05)", () => {
-  it("an admin imports a package, and the admin area shows it as the active theme", async () => {
+  it("[THM-01] an admin imports a package, and the admin area shows it as the active theme", async () => {
     context = await createTestApp();
     const ctx = context;
     const admin = await signIn(ctx, "boss", ["admin"]);
@@ -50,7 +50,7 @@ describe("the theme of the event (THM-01, THM-03, THM-04, THM-05)", () => {
     ).toBeGreaterThan(0);
   });
 
-  it("a refused package is answered with every finding, and the active theme stays as it was", async () => {
+  it("[THM-03] a refused package is answered with every finding, and the active theme stays as it was", async () => {
     context = await createTestApp();
     const ctx = context;
     const admin = await signIn(ctx, "boss", ["admin"]);
@@ -74,7 +74,7 @@ describe("the theme of the event (THM-01, THM-03, THM-04, THM-05)", () => {
     expect(themeFolders(ctx)).toHaveLength(1);
   });
 
-  it("a package of a format version the platform does not read is refused", async () => {
+  it("[THM-02] a package of a format version the platform does not read is refused", async () => {
     context = await createTestApp();
     const ctx = context;
     const admin = await signIn(ctx, "boss", ["admin"]);
@@ -90,7 +90,7 @@ describe("the theme of the event (THM-01, THM-03, THM-04, THM-05)", () => {
     ]);
   });
 
-  it("an archive that is not gzip is refused before anything is written", async () => {
+  it("[THM-03] an archive that is not gzip is refused before anything is written", async () => {
     context = await createTestApp();
     const ctx = context;
     const admin = await signIn(ctx, "boss", ["admin"]);
@@ -100,7 +100,7 @@ describe("the theme of the event (THM-01, THM-03, THM-04, THM-05)", () => {
     expect(themeFolders(ctx)).toEqual([]);
   });
 
-  it("importing again replaces the previous package and removes its folder", async () => {
+  it("[THM-04] importing again replaces the previous package and removes its folder", async () => {
     context = await createTestApp();
     const ctx = context;
     const admin = await signIn(ctx, "boss", ["admin"]);
@@ -110,7 +110,7 @@ describe("the theme of the event (THM-01, THM-03, THM-04, THM-05)", () => {
     expect(themeFolders(ctx)).toHaveLength(1);
   });
 
-  it("the return to the default theme removes the package, and both steps are audited", async () => {
+  it("[THM-05] the return to the default theme removes the package, and both steps are audited", async () => {
     context = await createTestApp();
     const ctx = context;
     const admin = await signIn(ctx, "boss", ["admin"]);
@@ -129,7 +129,7 @@ describe("the theme of the event (THM-01, THM-03, THM-04, THM-05)", () => {
     expect(actions).toContain("theme.reset");
   });
 
-  it("only admins import, read or return the theme", async () => {
+  it("[THM-01] only admins import, read or return the theme", async () => {
     context = await createTestApp();
     const ctx = context;
     const guest = await signIn(ctx, "anna", ["vip"]);
@@ -144,7 +144,7 @@ describe("the theme of the event (THM-01, THM-03, THM-04, THM-05)", () => {
     ).toBe(403);
   });
 
-  it("a package above 10 MB is refused by its size", async () => {
+  it("[THM-03] a package above 10 MB is refused by its size", async () => {
     context = await createTestApp();
     const ctx = context;
     const admin = await signIn(ctx, "boss", ["admin"]);
@@ -178,7 +178,7 @@ function fontThemeFiles(): Record<string, Buffer> {
 }
 
 describe("the theme on the pages without sign-in (THM-01, THM-04)", () => {
-  it("the site carries the default as null, and the active theme with its font URLs", async () => {
+  it("[THM-01][THM-06] the site carries the default as null, and the active theme with its font URLs", async () => {
     context = await createTestApp();
     const ctx = context;
     expect((await ctx.app.inject("/api/site")).json<{ theme: unknown }>().theme).toBeNull();
@@ -202,7 +202,7 @@ describe("the theme on the pages without sign-in (THM-01, THM-04)", () => {
     });
   });
 
-  it("the font files of the active theme are served without sign-in, and nothing else", async () => {
+  it("[THM-01] the font files of the active theme are served without sign-in, and nothing else", async () => {
     context = await createTestApp();
     const ctx = context;
     const admin = await signIn(ctx, "boss", ["admin"]);
@@ -216,7 +216,7 @@ describe("the theme on the pages without sign-in (THM-01, THM-04)", () => {
     expect((await ctx.app.inject("/theme/fonts/missing.woff2")).statusCode).toBe(404);
   });
 
-  it("the waiting card's colours are stored with the theme and sent to the pages", async () => {
+  it("[THM-01] the waiting card's colours are stored with the theme and sent to the pages", async () => {
     context = await createTestApp();
     const ctx = context;
     const admin = await signIn(ctx, "boss", ["admin"]);
@@ -234,7 +234,7 @@ describe("the theme on the pages without sign-in (THM-01, THM-04)", () => {
     ).toBeUndefined();
   });
 
-  it("the return to the default theme removes the site theme and its fonts", async () => {
+  it("[THM-05] the return to the default theme removes the site theme and its fonts", async () => {
     context = await createTestApp();
     const ctx = context;
     const admin = await signIn(ctx, "boss", ["admin"]);

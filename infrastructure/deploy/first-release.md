@@ -208,7 +208,7 @@ Copy the file to your off-site storage. It holds personal data: mode 600, delete
 
 ### 5.6 Optional: your own icons and colours
 
-The app icons and the colours of the web app come from a theme package (sw-architecture.md 19.7): a `tar.gz` with four PNG icons, `theme.json` (colours, fonts) and the font files. The admin imports it as a whole, and returns to the built-in look at any time. The card "Design" in the admin settings (Einstellungen) imports and removes it. The example package and the exact layout are described here in step 4e-7. Until then the built-in icons and colours apply, and the `icons/` folder of older installations is no longer read.
+The look of the website and the app icons come from a theme package. The package, the import in Einstellungen › Design and the example are described in [The theme](README.md#the-theme) of this runbook.
 
 They are part of the full backup (`events/`).
 

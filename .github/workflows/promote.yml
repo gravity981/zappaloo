@@ -73,9 +73,12 @@ jobs:
 
           # The deployment bundle exactly as it was in the candidate's commit (OPS-19).
           bundle=$(node scripts/release/cli.ts bundle "$TAG" dist --ref "$commit")
+          # The example theme package of the candidate, unchanged (no rebuild, like the image).
+          gh release download "$CANDIDATE_TAG" --pattern zappaloo-theme-example.tar.gz --dir dist
+          example="dist/zappaloo-theme-example.tar.gz"
           # Changelog since the previous release up to the candidate's commit, and the
           # commands to install or update prod with the bundle.
           node scripts/release/cli.ts notes "$TAG" "$GITHUB_REPOSITORY" --ref "$commit" \
             --intro "Promoted from $CANDIDATE_TAG (commit $commit) without rebuilding: image \`$IMAGE:$VERSION\`." > notes.md
           gh release create "$TAG" --verify-tag --latest --title "Zappaloo $TAG" \
-            --notes-file notes.md "$bundle"
+            --notes-file notes.md "$bundle" "$example"

@@ -127,9 +127,11 @@ jobs:
         run: |
           set -euo pipefail
           bundle=$(node scripts/release/cli.ts bundle "$TAG" dist --ref "$GITHUB_SHA")
+          # The example theme package, built from this commit; it is a release asset of its own.
+          example=$(node scripts/build-example-theme.ts dist)
           # Changelog from the commit messages since the previous release, and the
           # commands to install or update staging with the bundle (OPS-19).
           node scripts/release/cli.ts notes "$TAG" "$GITHUB_REPOSITORY" --ref "$GITHUB_SHA" \
             --intro "Release candidate of $VERSION, image \`$IMAGE:$IMAGE_TAG\`." > notes.md
           gh release create "$TAG" --verify-tag --prerelease --title "Zappaloo $TAG" \
-            --notes-file notes.md "$bundle"
+            --notes-file notes.md "$bundle" "$example"
