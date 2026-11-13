@@ -656,4 +656,6 @@ export const themeActive = sqliteTable("theme_active", {
   colors: text("colors").notNull(),
   /** The fonts as JSON, or null when the package names none. */
   fonts: text("fonts"),
+  /** The waiting card's colours as JSON, or null when the package names none (19.7). */
+  waiting: text("waiting"),
 });

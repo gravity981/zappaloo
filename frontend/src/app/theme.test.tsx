@@ -59,6 +59,21 @@ describe("the theme of the event (THM-06)", () => {
   });
 });
 
+describe("the waiting card's colours (19.7)", () => {
+  it("are set as their own properties, and the waiting card reads them with the platform's as fallback", () => {
+    const waiting = { card: "#1e3a5f", text: "#ffffff", button: "#f2c14e", onButton: "#1e1e1e" };
+    const style = props(themeStyle({ ...THEME, waiting }));
+    expect(style["--w-card"]).toBe("#1e3a5f");
+    expect(style["--w-text"]).toBe("#ffffff");
+    expect(style["--w-button"]).toBe("#f2c14e");
+    expect(style["--w-on-button"]).toBe("#1e1e1e");
+    expect(props(themeStyle(THEME))).not.toHaveProperty("--w-card");
+    const css = readFileSync(join(import.meta.dirname, "../waiting/waiting.css"), "utf8");
+    expect(css).toMatch(/\.waiting-card\s*\{[^}]*background:\s*var\(--w-card, #fffaf0\)/);
+    expect(css).toMatch(/\.waiting-button\s*\{[^}]*background:\s*var\(--w-button, #2a2420\)/);
+  });
+});
+
 describe("the theme on the pages (sw-architecture.md 19.7)", () => {
   /** The wrapper of the website and the guest pages. */
   const themed = () => {

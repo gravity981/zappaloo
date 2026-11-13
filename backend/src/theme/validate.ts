@@ -229,13 +229,20 @@ export function checkThemePackage(archive: Buffer): ThemeCheck {
     }
   }
 
-  // Contrast: the text on the background, the text on the surface, and the text on the accent.
+  // Contrast: the text on the background, the text on the surface, the text on the accent, and the
+  // text of the waiting card on its surface and the button text on the button.
   if (theme !== undefined) {
-    const { colors } = theme;
+    const { colors, waiting } = theme;
     const pairs = [
       ["text", colors.text, "background", colors.background],
       ["text", colors.text, "surface", colors.surface],
       ["onAccent", colors.onAccent, "accent", colors.accent],
+      ...(waiting === undefined
+        ? []
+        : [
+            ["text", waiting.text, "waiting card", waiting.card],
+            ["onButton", waiting.onButton, "waiting button", waiting.button],
+          ]),
     ] as const;
     for (const [fgName, fg, bgName, bg] of pairs) {
       const ratio = contrastRatio(fg, bg);

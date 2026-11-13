@@ -216,6 +216,24 @@ describe("the theme on the pages without sign-in (THM-01, THM-04)", () => {
     expect((await ctx.app.inject("/theme/fonts/missing.woff2")).statusCode).toBe(404);
   });
 
+  it("the waiting card's colours are stored with the theme and sent to the pages", async () => {
+    context = await createTestApp();
+    const ctx = context;
+    const admin = await signIn(ctx, "boss", ["admin"]);
+    const waiting = { card: "#1e3a5f", text: "#ffffff", button: "#f2c14e", onButton: "#1e1e1e" };
+    const files = validThemeFiles({
+      "theme.json": Buffer.from(JSON.stringify({ colors: VALID_COLORS, waiting })),
+    });
+    await upload(ctx, admin, buildThemeArchive(files));
+    const site = (await ctx.app.inject("/api/site")).json<{ theme: { waiting: unknown } }>();
+    expect(site.theme.waiting).toEqual(waiting);
+    // A package without the entry leaves the platform's card colours in place.
+    await upload(ctx, admin, buildThemeArchive(validThemeFiles({}, "Ohne")));
+    expect(
+      (await ctx.app.inject("/api/site")).json<{ theme: { waiting?: unknown } }>().theme.waiting,
+    ).toBeUndefined();
+  });
+
   it("the return to the default theme removes the site theme and its fonts", async () => {
     context = await createTestApp();
     const ctx = context;

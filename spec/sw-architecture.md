@@ -2079,6 +2079,7 @@ The format version covers the layout of the package and the fields of `theme.jso
 |---|---|
 | `colors` | Required, with exactly these seven keys. Each value is `#rrggbb`. `background` is the page, `surface` cards and fields, `text` and `muted` the two text colours, `line` borders, `accent` buttons and highlights, `onAccent` the text on them. |
 | `fonts` | Optional. `body`, `heading` and `display` are each optional. Without `body` or `heading`, the platform's font is used for it. `display` is for large numbers, today the countdown on the start page (5.6). Without it, the heading font is used (added 2026-11-13). |
+| `waiting` | Optional, its own entry next to `colors` (added 2026-11-13). The waiting card of a closed platform (ACS-10): `card` its surface, `text` its text, `button` its button, `onButton` the button's text; each `#rrggbb`. Exactly these four keys. Without it the platform's card colours apply. The waiting page's scene and the status colours stay the platform's. |
 | `family` | 1–40 characters: letters, digits, spaces and hyphens. |
 | `files` | 1–4 entries per font. `file` is a file name in `fonts/`. `weight` is 100–900 in steps of 100. `style` is `normal` or `italic`. |
 
@@ -2089,7 +2090,9 @@ The format version covers the layout of the package and the fields of `theme.jso
 - `manifest.json` and `theme.json` are valid JSON with exactly the fields above. An unknown field is refused. `kind` is `zappaloo-theme`, and `formatVersion` is one the platform reads.
 - The three required icons are there. Every icon is a PNG of exactly its size.
 - Every font file is a WOFF2 file of at most 2 MB. There are at most 8 font files. Every font file is named in `theme.json`, and every file named there exists.
-- `text` on `background`, `text` on `surface` and `onAccent` on `accent` each reach a contrast of 4.5 : 1, so a theme cannot make the pages unreadable.
+- `text` on `background`, `text` on `surface` and `onAccent` on `accent` each reach a contrast of 4.5 : 1, so a theme cannot make the pages unreadable. When `waiting` is given, `text` on `card` and `onButton` on `button` reach 4.5 : 1 too.
+
+The `waiting` entry was added to format version 1 before any package was released (the theme is not in a release yet); no package exists that it would change. From the first release on, a new field raises the version as described above.
 
 The answer to a refused package lists every finding with its file and reason.
 

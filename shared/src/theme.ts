@@ -59,6 +59,18 @@ const fontSchema = z.strictObject({
 });
 export type ThemeFont = z.infer<typeof fontSchema>;
 
+/** The four colours of the waiting card (19.7): its surface, its text, its button and the button text. */
+export const WAITING_COLOR_KEYS = ["card", "text", "button", "onButton"] as const;
+export type WaitingColorKey = (typeof WAITING_COLOR_KEYS)[number];
+
+const waitingColorsSchema = z.strictObject(
+  Object.fromEntries(WAITING_COLOR_KEYS.map((key) => [key, colorSchema])) as Record<
+    WaitingColorKey,
+    typeof colorSchema
+  >,
+);
+export type WaitingColors = z.infer<typeof waitingColorsSchema>;
+
 export const themeJsonSchema = z.strictObject({
   colors: z.strictObject(
     Object.fromEntries(THEME_COLOR_KEYS.map((key) => [key, colorSchema])) as Record<
@@ -73,6 +85,8 @@ export const themeJsonSchema = z.strictObject({
       display: fontSchema.optional(),
     })
     .optional(),
+  /** The waiting card of a closed platform; without it the platform's card colours apply. */
+  waiting: waitingColorsSchema.optional(),
 });
 export type ThemeJson = z.infer<typeof themeJsonSchema>;
 
@@ -100,6 +114,7 @@ export const siteThemeSchema = z.strictObject({
     heading: siteFontSchema.optional(),
     display: siteFontSchema.optional(),
   }),
+  waiting: waitingColorsSchema.optional(),
 });
 export type SiteTheme = z.infer<typeof siteThemeSchema>;
 

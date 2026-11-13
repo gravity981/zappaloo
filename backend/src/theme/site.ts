@@ -25,6 +25,7 @@ export function siteTheme(active: ActiveTheme | undefined): SiteTheme | null {
     version: active.importId,
     colors: active.colors,
     fonts: { body: face(fonts.body), heading: face(fonts.heading), display: face(fonts.display) },
+    waiting: active.waiting ?? undefined,
   };
 }
 

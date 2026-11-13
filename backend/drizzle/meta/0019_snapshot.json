@@ -1,8 +1,8 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "be9d58d3-4a1b-47b5-a984-13d70cce6015",
-  "prevId": "6764982c-4a19-498d-8459-5fa215a13a07",
+  "id": "b3bdb8b2-12e6-4faa-b95f-8345147df27d",
+  "prevId": "be9d58d3-4a1b-47b5-a984-13d70cce6015",
   "tables": {
     "access_releases": {
       "name": "access_releases",
@@ -2154,6 +2154,13 @@
         },
         "fonts": {
           "name": "fonts",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "waiting": {
+          "name": "waiting",
           "type": "text",
           "primaryKey": false,
           "notNull": false,

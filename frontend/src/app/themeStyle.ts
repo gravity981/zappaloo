@@ -33,6 +33,13 @@ export function themeStyle(theme: SiteTheme | null): CSSProperties {
   if (theme.fonts.body) style["--a-body-font"] = stack(theme.fonts.body.family);
   if (theme.fonts.heading) style["--a-display"] = stack(theme.fonts.heading.family);
   if (theme.fonts.display) style["--a-number-font"] = stack(theme.fonts.display.family);
+  // The waiting card has its own colours (19.7); waiting.css falls back to the platform's.
+  if (theme.waiting) {
+    style["--w-card"] = theme.waiting.card;
+    style["--w-text"] = theme.waiting.text;
+    style["--w-button"] = theme.waiting.button;
+    style["--w-on-button"] = theme.waiting.onButton;
+  }
   return style;
 }
 

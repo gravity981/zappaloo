@@ -6,7 +6,7 @@ import { randomUUID } from "node:crypto";
 import { mkdir, rename, rm, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { eq } from "drizzle-orm";
-import type { ThemeJson, ThemeStatus } from "@zappaloo/shared";
+import type { ThemeJson, ThemeStatus, WaitingColors } from "@zappaloo/shared";
 import type { Database } from "../database/database.ts";
 import { themeActive } from "../database/schema.ts";
 import type { Actor, EventService } from "../event/service.ts";
@@ -31,6 +31,8 @@ export interface ActiveTheme {
   importedAt: Date;
   colors: ThemeJson["colors"];
   fonts: ThemeJson["fonts"] | null;
+  /** The waiting card's colours, or null for the platform's card colours. */
+  waiting: WaitingColors | null;
 }
 
 export class ThemeService {
@@ -71,6 +73,7 @@ export class ThemeService {
       importedAt: row.importedAt,
       colors: JSON.parse(row.colors) as ThemeJson["colors"],
       fonts: row.fonts === null ? null : (JSON.parse(row.fonts) as ThemeJson["fonts"]),
+      waiting: row.waiting === null ? null : (JSON.parse(row.waiting) as WaitingColors),
     };
   }
 
@@ -111,33 +114,25 @@ export class ThemeService {
       await rename(staging, target);
       const importedAt = this.#now();
       this.#database.db.transaction((tx) => {
+        // The same row for the insert and for the replacement of the active theme.
+        const row = {
+          importId,
+          name: themePackage.manifest.name,
+          formatVersion: themePackage.manifest.formatVersion,
+          importedAt,
+          colors: JSON.stringify(themePackage.theme.colors),
+          fonts:
+            themePackage.theme.fonts === undefined
+              ? null
+              : JSON.stringify(themePackage.theme.fonts),
+          waiting:
+            themePackage.theme.waiting === undefined
+              ? null
+              : JSON.stringify(themePackage.theme.waiting),
+        };
         tx.insert(themeActive)
-          .values({
-            eventId: this.#event.eventId,
-            importId,
-            name: themePackage.manifest.name,
-            formatVersion: themePackage.manifest.formatVersion,
-            importedAt,
-            colors: JSON.stringify(themePackage.theme.colors),
-            fonts:
-              themePackage.theme.fonts === undefined
-                ? null
-                : JSON.stringify(themePackage.theme.fonts),
-          })
-          .onConflictDoUpdate({
-            target: themeActive.eventId,
-            set: {
-              importId,
-              name: themePackage.manifest.name,
-              formatVersion: themePackage.manifest.formatVersion,
-              importedAt,
-              colors: JSON.stringify(themePackage.theme.colors),
-              fonts:
-                themePackage.theme.fonts === undefined
-                  ? null
-                  : JSON.stringify(themePackage.theme.fonts),
-            },
-          })
+          .values({ eventId: this.#event.eventId, ...row })
+          .onConflictDoUpdate({ target: themeActive.eventId, set: row })
           .run();
         this.#event.audit(actor, "theme.import", {}, tx);
       });
@@ -150,6 +145,7 @@ export class ThemeService {
         importedAt,
         colors: themePackage.theme.colors,
         fonts: themePackage.theme.fonts ?? null,
+        waiting: themePackage.theme.waiting ?? null,
       };
     } catch (error) {
       await rm(staging, { recursive: true, force: true });

@@ -245,6 +245,37 @@ describe("the theme package validator (THM-03)", () => {
     expect(codes(accent)).toContain("contrast");
   });
 
+  it("accepts a waiting card of its own, and refuses it when its text is not readable", () => {
+    const waiting = { card: "#fffaf0", text: "#2a2420", button: "#2a2420", onButton: "#ffffff" };
+    const good = checkThemePackage(
+      archive({
+        "theme.json": Buffer.from(JSON.stringify({ colors: COLORS, waiting })),
+      }),
+    );
+    expect(good.ok).toBe(true);
+    const low = checkThemePackage(
+      archive({
+        "theme.json": Buffer.from(
+          JSON.stringify({ colors: COLORS, waiting: { ...waiting, text: "#c9c0b0" } }),
+        ),
+      }),
+    );
+    if (low.ok) throw new Error("a waiting card with low contrast should be refused");
+    expect(codes(low)).toContain("contrast");
+    expect(low.findings.map((finding) => finding.detail).join(" ")).toContain("waiting card");
+  });
+
+  it("refuses a waiting card with a field the format does not know", () => {
+    const result = checkThemePackage(
+      archive({
+        "theme.json": Buffer.from(
+          JSON.stringify({ colors: COLORS, waiting: { card: "#ffffff", shadow: "#000000" } }),
+        ),
+      }),
+    );
+    expect(codes(result)).toContain("json_field");
+  });
+
   it("lists every finding, not only the first", () => {
     const result = checkThemePackage(
       archive({
