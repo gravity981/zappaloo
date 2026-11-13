@@ -370,6 +370,21 @@ describe("email and account self-service", () => {
     });
   });
 
+  it("[ACC-12][ACC-17] a guest is told what stays with the hosts when they delete their login", async () => {
+    fakeBackend({
+      "GET /api/session": () => ({
+        status: 200,
+        body: { user: { ...anna, roles: ["vip"] }, csrfToken: "csrf-1" },
+      }),
+    });
+    renderAt("/profile");
+    user.click(await screen.findByRole("button", { name: "Konto löschen" }));
+    expect(
+      await screen.findByText(/Deine Rückmeldung \(mit Begleitpersonen und Allergien\) bleibt/),
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/mit allen Daten unwiderruflich gelöscht/)).not.toBeInTheDocument();
+  });
+
   it("[ACC-12] explains why the last admin cannot delete the account", async () => {
     fakeBackend({
       "GET /api/session": () => signedIn,
@@ -389,6 +404,27 @@ describe("email and account self-service", () => {
 
 describe("invitations", () => {
   const preview = { status: 200, body: { guestName: "Anna Muster" } };
+
+  it("[ACC-07] a signed-in user can say that the invitation is not theirs and sign out", async () => {
+    let current: { status: number; body: unknown } = {
+      status: 200,
+      body: { user: { ...anna, roles: ["staff"] }, csrfToken: "csrf-1" },
+    };
+    const calls = fakeBackend({
+      "GET /api/session": () => current,
+      "GET /api/invitations/K7QMX4": () => preview,
+      "DELETE /api/session": () => {
+        current = anonymous;
+        return { status: 204 };
+      },
+    });
+    renderAt("/invite/K7QMX4");
+    expect(await screen.findByText(/zu deinem Konto «anna» hinzufügen\?/)).toBeInTheDocument();
+    user.click(screen.getByRole("button", { name: "Abmelden" }));
+    // Signed out, the same page offers the registration of the invited person.
+    expect(await screen.findByRole("button", { name: "Konto anlegen" })).toBeInTheDocument();
+    expect(calls.some((c) => c.method === "DELETE" && c.path === "/api/session")).toBe(true);
+  });
 
   it("[INV-07] a new guest registers with the code and is signed in", async () => {
     let current: { status: number; body: unknown } = anonymous;
@@ -477,7 +513,10 @@ describe("invitations", () => {
       }),
     });
     renderAt("/invite/K7QMX4");
-    user.click(await screen.findByRole("button", { name: "Einladung einlösen" }));
+    expect(
+      await screen.findByText(/Diese Einladung für «Anna Muster» zu deinem Konto/),
+    ).toBeInTheDocument();
+    user.click(await screen.findByRole("button", { name: "Zu meinem Konto hinzufügen" }));
     await waitFor(() => {
       expect(calls.find((c) => c.path.endsWith("/redeem"))?.csrf).toBe("csrf-1");
     });

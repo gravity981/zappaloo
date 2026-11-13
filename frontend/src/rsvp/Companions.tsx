@@ -4,39 +4,45 @@
 import { useState } from "react";
 import type { ReactNode } from "react";
 import { useTranslation } from "react-i18next";
-import { MAX_COMPANIONS, rsvpStateSchema } from "@zappaloo/shared";
+import { MAX_COMPANIONS, PERSON_TYPES, rsvpStateSchema } from "@zappaloo/shared";
 import type {
   Companion,
   CompanionRequest,
-  EventPart,
+  PersonType,
+  ProgramItem,
   MenuOption,
   RsvpState,
 } from "@zappaloo/shared";
 import { apiRequest } from "../app/api.ts";
 import { useSession } from "../app/session.ts";
 import { useErrorText } from "../admin/data.ts";
-import { answerOf, attendsAny, needsMenu, personOf } from "./person.ts";
+import { answerOf, attendsAny, needsMenu, offersMenu, personOf } from "./person.ts";
 import type { PersonValue } from "./person.ts";
 
-/** Yes or no per part, one row each. */
-export function PartsBlock({
-  parts,
+/** Yes or no per program item, one row each. */
+export function ProgramItemsBlock({
+  programItems,
   value,
   onChange,
   time,
 }: {
-  parts: EventPart[];
+  programItems: ProgramItem[];
   value: Record<number, boolean>;
   onChange: (next: Record<number, boolean>) => void;
-  time: (part: EventPart) => string;
+  time: (programItem: ProgramItem) => string;
 }) {
   const { t } = useTranslation();
   return (
     <div className="card">
-      {parts.map((part) => (
-        <div key={part.id} className="rsvp-part" role="group" aria-label={part.name}>
+      {programItems.map((programItem) => (
+        <div
+          key={programItem.id}
+          className="rsvp-program-item"
+          role="group"
+          aria-label={programItem.name}
+        >
           <div className="grow">
-            <b>{part.name}</b> <span className="muted sm">{time(part)}</span>
+            <b>{programItem.name}</b> <span className="muted sm">{time(programItem)}</span>
           </div>
           <div className="chips">
             {[true, false].map((yes) => (
@@ -44,10 +50,10 @@ export function PartsBlock({
                 key={String(yes)}
                 type="button"
                 className="chip"
-                aria-pressed={value[part.id] === yes}
-                aria-label={`${part.name}: ${yes ? t("rsvp.attending") : t("rsvp.notAttending")}`}
+                aria-pressed={value[programItem.id] === yes}
+                aria-label={`${programItem.name}: ${yes ? t("rsvp.attending") : t("rsvp.notAttending")}`}
                 onClick={() => {
-                  onChange({ ...value, [part.id]: yes });
+                  onChange({ ...value, [programItem.id]: yes });
                 }}
               >
                 {yes ? t("rsvp.attending") : t("rsvp.notAttending")}
@@ -60,33 +66,96 @@ export function PartsBlock({
   );
 }
 
+/**
+ * The attendance of one person: yes or no per program item (RSVP-11 on), or one answer for all
+ * the program items the person is invited to (off, the default). `name` words the buttons of an
+ * accompanying person ("Mia kommt"); the guest's own say "Ich komme".
+ */
+export function AttendanceBlock({
+  programItems,
+  value,
+  onChange,
+  time,
+  perItem,
+  name,
+}: {
+  programItems: ProgramItem[];
+  value: Record<number, boolean>;
+  onChange: (next: Record<number, boolean>) => void;
+  time: (programItem: ProgramItem) => string;
+  perItem: boolean;
+  name?: string;
+}) {
+  const { t } = useTranslation();
+  if (perItem) {
+    return (
+      <ProgramItemsBlock
+        programItems={programItems}
+        value={value}
+        onChange={onChange}
+        time={time}
+      />
+    );
+  }
+  const current = programItems.length > 0 ? value[programItems[0]?.id ?? 0] : undefined;
+  return (
+    <div className="card">
+      <div className="chips" role="group" aria-label={name ?? t("rsvp.attendanceOnce")}>
+        {[true, false].map((yes) => {
+          const text = t(yes ? "rsvp.yes" : "rsvp.no");
+          return (
+            <button
+              key={String(yes)}
+              type="button"
+              className="chip"
+              aria-pressed={current === yes}
+              // Several persons answer on one page: the name tells the buttons apart.
+              aria-label={name === undefined ? text : `${name}: ${text}`}
+              onClick={() => {
+                onChange(
+                  Object.fromEntries(programItems.map((programItem) => [programItem.id, yes])),
+                );
+              }}
+            >
+              {text}
+            </button>
+          );
+        })}
+      </div>
+      <span className="hint">
+        {programItems.map((programItem) => programItem.name).join(" · ")}
+      </span>
+    </div>
+  );
+}
+
 /** Menu and allergies of one person (step 2). */
 export function MenuFields({
   value,
   onChange,
-  parts,
+  programItems,
   menus,
   label,
 }: {
   value: PersonValue;
   onChange: (next: PersonValue) => void;
-  parts: EventPart[];
+  programItems: ProgramItem[];
   menus: MenuOption[];
   /** Makes the field names unique when a companion is on the page; the guest needs none. */
   label?: string;
 }) {
   const { t } = useTranslation();
-  const meal = parts.find((part) => part.hasMeal);
+  const meal = programItems.find((programItem) => programItem.hasMeal);
   const prefixed = (text: string) => (label === undefined ? text : `${label}: ${text}`);
   return (
     <>
-      {meal && needsMenu(value, parts, menus) && (
+      {meal && offersMenu(value, programItems, menus) && (
         <div
           className="field"
           role="group"
-          aria-label={prefixed(t("rsvp.menu", { part: meal.name }))}
+          aria-label={prefixed(t("rsvp.menu", { programItem: meal.name }))}
         >
-          <span>{t("rsvp.menu", { part: meal.name })}</span>
+          <span>{t("rsvp.menu", { programItem: meal.name })}</span>
           <div className="chips">
             {menus.map((menu) => (
               <button
@@ -96,7 +165,9 @@ export function MenuFields({
                 aria-pressed={value.menuId === menu.id}
                 aria-label={prefixed(menu.name)}
                 onClick={() => {
-                  onChange({ ...value, menuId: menu.id });
+                  // A child's menu is optional (RSVP-14): a second click leaves it open again.
+                  const clear = value.personType === "child" && value.menuId === menu.id;
+                  onChange({ ...value, menuId: clear ? null : menu.id });
                 }}
               >
                 {menu.name}
@@ -129,7 +200,8 @@ const STATUS_TAG = { pending: "tag warn", approved: "tag ok", rejected: "tag bad
 /** The request form of a new person, or the change of a pending one (RSVP-08, RSVP-10). */
 export function CompanionForm({
   companion,
-  parts,
+  perItem,
+  programItems,
   menus,
   time,
   frame,
@@ -137,11 +209,12 @@ export function CompanionForm({
   onCancel,
 }: {
   companion?: Companion;
+  perItem: boolean;
   /** Puts the form's body and its action buttons into the page frame. */
   frame: (body: ReactNode, footer: ReactNode) => ReactNode;
-  parts: EventPart[];
+  programItems: ProgramItem[];
   menus: MenuOption[];
-  time: (part: EventPart) => string;
+  time: (programItem: ProgramItem) => string;
   onSaved: (state: RsvpState) => void;
   onCancel: () => void;
 }) {
@@ -150,22 +223,32 @@ export function CompanionForm({
   const errorText = useErrorText();
   const [name, setName] = useState(companion?.name ?? "");
   const [note, setNote] = useState(companion?.note ?? "");
-  const [value, setValue] = useState<PersonValue>(
-    companion ? personOf(companion, parts) : { attendance: {}, menuId: null, allergies: "" },
+  /** The guest must choose the type, there is no default (RSVP-13). */
+  const [type, setType] = useState<PersonType | undefined>(companion?.personType);
+  const [answer, setAnswer] = useState<Omit<PersonValue, "personType">>(
+    companion
+      ? personOf(companion, programItems, perItem)
+      : { attendance: {}, menuId: null, allergies: "" },
   );
+  const value: PersonValue = { ...answer, personType: type ?? "adult" };
+  const setValue = (next: PersonValue) => {
+    setAnswer({ attendance: next.attendance, menuId: next.menuId, allergies: next.allergies });
+  };
   const [error, setError] = useState<string>();
   const [sending, setSending] = useState(false);
   const complete =
+    type !== undefined &&
     name.trim() !== "" &&
-    parts.every((part) => value.attendance[part.id] !== undefined) &&
-    (!needsMenu(value, parts, menus) || value.menuId !== null);
+    programItems.every((programItem) => value.attendance[programItem.id] !== undefined) &&
+    (!needsMenu(value, programItems, menus) || value.menuId !== null);
 
   async function submit() {
     setSending(true);
     const body: CompanionRequest = {
       name: name.trim(),
+      personType: type ?? "adult",
       note: note.trim() === "" ? null : note.trim(),
-      ...answerOf(value, parts, menus),
+      ...answerOf(value, programItems, menus),
     };
     const result = companion
       ? await apiRequest("PUT", `/api/rsvp/companions/${String(companion.id)}`, {
@@ -193,6 +276,21 @@ export function CompanionForm({
           }}
         />
       </label>
+      <div className="chips" role="group" aria-label={t("rsvp.companions.type")}>
+        {PERSON_TYPES.map((personType) => (
+          <button
+            key={personType}
+            type="button"
+            className="chip"
+            aria-pressed={type === personType}
+            onClick={() => {
+              setType(personType);
+            }}
+          >
+            {t(`personTypes.${personType}`)}
+          </button>
+        ))}
+      </div>
       <label className="field">
         <span>{t("rsvp.companions.note")}</span>
         <input
@@ -205,8 +303,10 @@ export function CompanionForm({
         />
       </label>
       <b className="sm">{t("rsvp.companions.attendance")}</b>
-      <PartsBlock
-        parts={parts}
+      <AttendanceBlock
+        perItem={perItem}
+        {...(name.trim() === "" ? {} : { name: name.trim() })}
+        programItems={programItems}
         value={value.attendance}
         time={time}
         onChange={(attendance) => {
@@ -218,7 +318,7 @@ export function CompanionForm({
           <MenuFields
             value={value}
             onChange={setValue}
-            parts={parts}
+            programItems={programItems}
             menus={menus}
             label={name.trim() === "" ? t("rsvp.companions.thePerson") : name.trim()}
           />
@@ -240,7 +340,7 @@ export function CompanionForm({
         disabled={!complete || sending}
         onClick={() => void submit()}
       >
-        {companion ? t("rsvp.companions.save") : t("rsvp.companions.request")}
+        {companion ? t("rsvp.companions.save") : t("rsvp.companions.add")}
       </button>
     </>,
   );
@@ -249,7 +349,8 @@ export function CompanionForm({
 /** The accompanying persons with their status and what the guest or admin can do (step 3). */
 export function CompanionsCard({
   companions,
-  parts,
+  approval,
+  programItems,
   menus,
   admin,
   locked,
@@ -259,7 +360,9 @@ export function CompanionsCard({
   onRefresh,
 }: {
   companions: Companion[];
-  parts: EventPart[];
+  /** Whether an added person waits for the admin's approval (RSVP-12). */
+  approval: boolean;
+  programItems: ProgramItem[];
   menus: MenuOption[];
   admin: boolean;
   locked: boolean;
@@ -273,7 +376,7 @@ export function CompanionsCard({
   const session = useSession();
   const errorText = useErrorText();
   const [error, setError] = useState<string>();
-  const [renaming, setRenaming] = useState<{ id: number; name: string }>();
+  const [renaming, setRenaming] = useState<{ id: number; name: string; personType: PersonType }>();
   const open = companions.filter((c) => c.status !== "rejected").length;
 
   async function remove(companion: Companion) {
@@ -287,9 +390,9 @@ export function CompanionsCard({
     } else setError(errorText(result.errorCode ?? "unknown"));
   }
 
-  async function rename(id: number, name: string) {
+  async function rename(id: number, name: string, personType: PersonType) {
     const result = await apiRequest("PATCH", `/api/admin/rsvp/companions/${String(id)}`, {
-      body: { name },
+      body: { name, personType },
       csrfToken: session.csrfToken,
     });
     if (result.ok) {
@@ -301,9 +404,9 @@ export function CompanionsCard({
 
   const summary = (companion: Companion) =>
     [
-      parts
-        .filter((part) => companion.attendingPartIds.includes(part.id))
-        .map((part) => part.name)
+      programItems
+        .filter((programItem) => companion.attendingItemIds.includes(programItem.id))
+        .map((programItem) => programItem.name)
         .join(", "),
       menus.find((menu) => menu.id === companion.menuId)?.name,
     ]
@@ -327,7 +430,7 @@ export function CompanionsCard({
                   className="row"
                   onSubmit={(event) => {
                     event.preventDefault();
-                    void rename(companion.id, renaming.name);
+                    void rename(companion.id, renaming.name, renaming.personType);
                   }}
                 >
                   <input
@@ -337,9 +440,26 @@ export function CompanionsCard({
                     maxLength={100}
                     required
                     onChange={(event) => {
-                      setRenaming({ id: companion.id, name: event.target.value });
+                      setRenaming({ ...renaming, id: companion.id, name: event.target.value });
                     }}
                   />
+                  <select
+                    className="input auto"
+                    aria-label={t("rsvp.companions.type")}
+                    value={renaming.personType}
+                    onChange={(event) => {
+                      setRenaming({
+                        ...renaming,
+                        personType: event.target.value as PersonType,
+                      });
+                    }}
+                  >
+                    {PERSON_TYPES.map((personType) => (
+                      <option key={personType} value={personType}>
+                        {t(`personTypes.${personType}`)}
+                      </option>
+                    ))}
+                  </select>
                   <button type="submit" className="btn sm">
                     {t("rsvp.companions.save")}
                   </button>
@@ -350,9 +470,12 @@ export function CompanionsCard({
               <span className="muted sm">{summary(companion)}</span>
               {companion.note && <span className="hint">«{companion.note}»</span>}
             </div>
-            <span className={STATUS_TAG[companion.status]}>
-              {t(`rsvp.companions.status.${companion.status}`)}
-            </span>
+            {/* Without approval every added person counts at once: no status to show. */}
+            {(approval || companion.status !== "approved") && (
+              <span className={STATUS_TAG[companion.status]}>
+                {t(`rsvp.companions.status.${companion.status}`)}
+              </span>
+            )}
             {admin
               ? companion.status === "approved" &&
                 renaming?.id !== companion.id && (
@@ -361,7 +484,11 @@ export function CompanionsCard({
                     className="btn soft sm"
                     aria-label={`${t("rsvp.companions.rename")}: ${companion.name}`}
                     onClick={() => {
-                      setRenaming({ id: companion.id, name: companion.name });
+                      setRenaming({
+                        id: companion.id,
+                        name: companion.name,
+                        personType: companion.personType,
+                      });
                     }}
                   >
                     {t("rsvp.companions.rename")}
@@ -391,7 +518,8 @@ export function CompanionsCard({
                         </button>
                       </>
                     )}
-                    {companion.status === "rejected" && (
+                    {(companion.status === "rejected" ||
+                      (companion.status === "approved" && !approval)) && (
                       <button
                         type="button"
                         className="btn ghost sm"
@@ -406,9 +534,6 @@ export function CompanionsCard({
           </li>
         ))}
       </ul>
-      {companions.some((c) => c.status === "approved") && !admin && (
-        <span className="hint">{t("rsvp.companions.approvedHint")}</span>
-      )}
       {!admin && !locked && open < MAX_COMPANIONS && (
         <button type="button" className="btn ghost sm" onClick={onNew}>
           + {t("rsvp.companions.new")}
@@ -417,7 +542,6 @@ export function CompanionsCard({
       {!admin && !locked && open >= MAX_COMPANIONS && (
         <span className="hint">{t("rsvp.companions.limit", { count: MAX_COMPANIONS })}</span>
       )}
-      {!admin && <p className="hint">{t("rsvp.companions.ownInvitation")}</p>}
     </div>
   );
 }

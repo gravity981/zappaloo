@@ -32,16 +32,21 @@ function state(changes: Record<string, unknown> = {}) {
     deadline: "2027-05-01",
     closed: false,
     songEnabled: true,
-    parts: PARTS,
+    perItem: true,
+    personType: "adult",
+    companionApproval: true,
+    programItems: PARTS,
     menus: MENUS,
     answer: null,
     companions: [],
     ...changes,
   };
 }
-const answered = (partIds: number[], extra: Record<string, unknown> = {}) => ({
-  attendingPartIds: partIds,
-  declinedPartIds: PARTS.map((part) => part.id).filter((id) => !partIds.includes(id)),
+const answered = (programItemIds: number[], extra: Record<string, unknown> = {}) => ({
+  attendingItemIds: programItemIds,
+  declinedItemIds: PARTS.map((programItem) => programItem.id).filter(
+    (id) => !programItemIds.includes(id),
+  ),
   menuId: null,
   allergies: null,
   songWish: null,
@@ -50,7 +55,7 @@ const answered = (partIds: number[], extra: Record<string, unknown> = {}) => ({
 });
 
 describe("the RSVP wizard", () => {
-  it("[RSVP-01][RSVP-03][RSVP-06] a guest answers per part, picks a menu for the meal part and sends", async () => {
+  it("[RSVP-01][RSVP-03][RSVP-06] a guest answers per program item, picks a menu for the meal program item and sends", async () => {
     const calls = fakeBackend({
       "GET /api/session": () => asGuest,
       "GET /api/rsvp": () => ({ status: 200, body: state() }),
@@ -63,7 +68,7 @@ describe("the RSVP wizard", () => {
     });
     renderAt("/rsvp");
 
-    // Step 1: the deadline is shown up front; every part needs an answer before it goes on.
+    // Step 1: the deadline is shown up front; every program item needs an answer before it goes on.
     expect(
       await screen.findByRole("heading", { name: "Bist du dabei, Erika?" }),
     ).toBeInTheDocument();
@@ -79,7 +84,7 @@ describe("the RSVP wizard", () => {
     expect(next).toBeEnabled();
     user.click(next);
 
-    // Step 2: the menu is asked because Dinner is the meal part, and it is required.
+    // Step 2: the menu is asked because Dinner is the meal program item, and it is required.
     expect(await screen.findByRole("heading", { name: "Essen & Allergien" })).toBeInTheDocument();
     expect(
       screen.getByText("Sieht nur das Organisationsteam.", { exact: false }),
@@ -100,9 +105,9 @@ describe("the RSVP wizard", () => {
     expect(put?.csrf).toBe("csrf-1");
     expect(put?.body).toEqual({
       attendance: [
-        { partId: 1, attending: true },
-        { partId: 2, attending: false },
-        { partId: 3, attending: true },
+        { programItemId: 1, attending: true },
+        { programItemId: 2, attending: false },
+        { programItemId: 3, attending: true },
       ],
       menuId: 2,
       allergies: "Nüsse",
@@ -115,7 +120,7 @@ describe("the RSVP wizard", () => {
     expect(screen.getByText("Änderbar bis 1. Mai 2027.")).toBeInTheDocument();
   });
 
-  it("[RSVP-03] without the meal part there is no menu question, only allergies", async () => {
+  it("[RSVP-03] without the meal program item there is no menu question, only allergies", async () => {
     const calls = fakeBackend({
       "GET /api/session": () => asGuest,
       "GET /api/rsvp": () => ({ status: 200, body: state() }),
@@ -133,9 +138,9 @@ describe("the RSVP wizard", () => {
     await screen.findByRole("heading", { name: /Danke, Erika/ });
     expect(calls.find((c) => c.method === "PUT")?.body).toEqual({
       attendance: [
-        { partId: 1, attending: true },
-        { partId: 2, attending: false },
-        { partId: 3, attending: false },
+        { programItemId: 1, attending: true },
+        { programItemId: 2, attending: false },
+        { programItemId: 3, attending: false },
       ],
       allergies: null,
       songWish: null,
@@ -143,15 +148,15 @@ describe("the RSVP wizard", () => {
     });
   });
 
-  it("[RSVP-01] declining every part skips to the summary", async () => {
+  it("[RSVP-01] declining every program item skips to the summary", async () => {
     const calls = fakeBackend({
       "GET /api/session": () => asGuest,
       "GET /api/rsvp": () => ({ status: 200, body: state() }),
       "PUT /api/rsvp": () => ({ status: 200, body: state({ answer: answered([]) }) }),
     });
     renderAt("/rsvp");
-    for (const part of ["Trauung", "Apéro", "Dinner"]) {
-      user.click(await screen.findByRole("button", { name: `${part}: Nicht dabei` }));
+    for (const programItem of ["Trauung", "Apéro", "Dinner"]) {
+      user.click(await screen.findByRole("button", { name: `${programItem}: Nicht dabei` }));
     }
     // The button now sends instead of going on.
     user.click(screen.getByRole("button", { name: "Antwort senden" }));
@@ -162,7 +167,7 @@ describe("the RSVP wizard", () => {
     ).toBeInTheDocument();
     expect(screen.queryByLabelText("Allergien oder Unverträglichkeiten")).not.toBeInTheDocument();
     expect(calls.find((c) => c.method === "PUT")?.body).toEqual({
-      attendance: PARTS.map((part) => ({ partId: part.id, attending: false })),
+      attendance: PARTS.map((programItem) => ({ programItemId: programItem.id, attending: false })),
       companions: [],
     });
   });
@@ -190,13 +195,13 @@ describe("the RSVP wizard", () => {
     );
   });
 
-  it("[RSVP-02] a part added after the answer is open: the summary says so and the wizard asks for it", async () => {
+  it("[RSVP-02] a program item added after the answer is open: the summary says so and the wizard asks for it", async () => {
     fakeBackend({
       "GET /api/session": () => asGuest,
       "GET /api/rsvp": () => ({
         status: 200,
         // Dinner was added to the invitation after Erika answered.
-        body: state({ answer: answered([1], { declinedPartIds: [2] }) }),
+        body: state({ answer: answered([1], { declinedItemIds: [2] }) }),
       }),
     });
     renderAt("/rsvp");
@@ -219,12 +224,12 @@ describe("the RSVP wizard", () => {
     });
   });
 
-  it("[RSVP-02] after the deadline an open part is shown as such in the summary", async () => {
+  it("[RSVP-02] after the deadline an open program item is shown as such in the summary", async () => {
     fakeBackend({
       "GET /api/session": () => asGuest,
       "GET /api/rsvp": () => ({
         status: 200,
-        body: state({ closed: true, answer: answered([1], { declinedPartIds: [2] }) }),
+        body: state({ closed: true, answer: answered([1], { declinedItemIds: [2] }) }),
       }),
     });
     renderAt("/rsvp");
@@ -258,8 +263,8 @@ describe("the RSVP wizard", () => {
       }),
     });
     renderAt("/rsvp");
-    for (const part of ["Trauung", "Apéro", "Dinner"]) {
-      user.click(await screen.findByRole("button", { name: `${part}: Nicht dabei` }));
+    for (const programItem of ["Trauung", "Apéro", "Dinner"]) {
+      user.click(await screen.findByRole("button", { name: `${programItem}: Nicht dabei` }));
     }
     user.click(screen.getByRole("button", { name: "Antwort senden" }));
     expect(await screen.findByRole("alert")).toHaveTextContent(
@@ -268,15 +273,15 @@ describe("the RSVP wizard", () => {
     expect(screen.getByRole("button", { name: "Trauung: Nicht dabei" })).toBeInTheDocument();
   });
 
-  it("[RSVP-02] a guest without invited parts is told to contact the hosts", async () => {
+  it("[RSVP-02] a guest without invited program items is told to contact the hosts", async () => {
     fakeBackend({
       "GET /api/session": () => asGuest,
-      "GET /api/rsvp": () => ({ status: 200, body: state({ parts: [] }) }),
+      "GET /api/rsvp": () => ({ status: 200, body: state({ programItems: [] }) }),
     });
     renderAt("/rsvp");
     expect(
       await screen.findByText(
-        "Für dich sind noch keine Teile festgelegt. Melde dich bei den Gastgebern.",
+        "Für dich sind noch keine Programmpunkte festgelegt. Melde dich bei den Gastgebern.",
       ),
     ).toBeInTheDocument();
   });
@@ -360,13 +365,17 @@ describe("Rückmeldungen", () => {
   const overview = {
     deadline: "2027-05-01",
     songEnabled: true,
-    parts: PARTS,
+    perItem: true,
+    personType: "adult",
+    companionApproval: true,
+    programItems: PARTS,
     menus: MENUS,
     totals: [
-      { partId: 1, yes: 2, no: 1 },
-      { partId: 2, yes: 1, no: 2 },
-      { partId: 3, yes: 2, no: 1 },
+      { programItemId: 1, yes: 2, no: 1, yesByType: { adult: 2, child: 0 } },
+      { programItemId: 2, yes: 1, no: 2, yesByType: { adult: 1, child: 0 } },
+      { programItemId: 3, yes: 2, no: 1, yesByType: { adult: 2, child: 0 } },
     ],
+    personTotals: { yes: 2, no: 1, yesByType: { adult: 2, child: 0 } },
     menuTotals: [
       { menuId: 1, count: 1 },
       { menuId: 2, count: 1 },
@@ -374,11 +383,12 @@ describe("Rückmeldungen", () => {
     guests: [
       {
         userId: 5,
+        personType: "adult",
         name: "Erika Huber",
         status: "attending",
-        invitedPartIds: [1, 2, 3],
-        attendingPartIds: [1, 3],
-        declinedPartIds: [2],
+        invitedProgramItemIds: [1, 2, 3],
+        attendingItemIds: [1, 3],
+        declinedItemIds: [2],
         menuId: 2,
         songWish: "ABBA",
         allergies: "Nüsse",
@@ -386,11 +396,12 @@ describe("Rückmeldungen", () => {
       },
       {
         userId: 6,
+        personType: "adult",
         name: "Peter Graf",
         status: "declined",
-        invitedPartIds: [1, 2, 3],
-        attendingPartIds: [],
-        declinedPartIds: [1, 2, 3],
+        invitedProgramItemIds: [1, 2, 3],
+        attendingItemIds: [],
+        declinedItemIds: [1, 2, 3],
         menuId: null,
         songWish: null,
         allergies: null,
@@ -398,11 +409,12 @@ describe("Rückmeldungen", () => {
       },
       {
         userId: 7,
+        personType: "adult",
         name: "Lukas Meier",
         status: "none",
-        invitedPartIds: [1],
-        attendingPartIds: [],
-        declinedPartIds: [],
+        invitedProgramItemIds: [1],
+        attendingItemIds: [],
+        declinedItemIds: [],
         menuId: null,
         songWish: null,
         allergies: null,
@@ -416,19 +428,17 @@ describe("Rückmeldungen", () => {
     reminderCount: 1,
   };
 
-  it("[RSVP-05][SEC-11] shows totals per part and menu and the guest table with the admin-only allergy column", async () => {
+  it("[RSVP-05][SEC-11] shows totals per program item and menu and the guest table with the admin-only allergy column", async () => {
     fakeBackend({
       "GET /api/session": () => asAdmin,
       "GET /api/admin/rsvp": () => ({ status: 200, body: overview }),
     });
     renderAt("/admin/rsvp");
     expect(await screen.findByRole("heading", { name: "Rückmeldungen" })).toBeInTheDocument();
-    expect(await screen.findAllByText("2 ja · 1 nein")).toHaveLength(2);
+    expect(await screen.findAllByText("2 ja (2 Erwachsene) · 1 nein")).toHaveLength(2);
     expect(screen.getByText("Menüs (Dinner)")).toBeInTheDocument();
     const table = screen.getByRole("table");
-    expect(
-      within(table).getByRole("columnheader", { name: /Allergien · nur Admins/ }),
-    ).toBeInTheDocument();
+    expect(within(table).getByRole("columnheader", { name: /Allergien/ })).toBeInTheDocument();
     const row = within(table).getByRole("row", { name: /Erika Huber/ });
     expect(within(row).getByText("Trauung, Dinner")).toBeInTheDocument();
     expect(within(row).getByText("Vegetarisch")).toBeInTheDocument();
@@ -439,12 +449,17 @@ describe("Rückmeldungen", () => {
     );
     // The button is the last cell of its row, in a column of its own (UX mock `admin-rsvp`).
     const cells = within(row).getAllByRole("cell");
-    expect(cells).toHaveLength(7);
-    const [first, , , , , , last] = cells;
+    expect(cells).toHaveLength(8);
+    const [first, , , , , , , last] = cells;
     if (!first || !last) throw new Error("the row has no first and last cell");
     expect(within(last).getByRole("link")).toHaveTextContent("Bearbeiten");
     expect(within(first).queryByRole("link")).not.toBeInTheDocument();
-    expect(within(table).getAllByRole("columnheader")).toHaveLength(7);
+    expect(within(table).getAllByRole("columnheader")).toHaveLength(8);
+    // The column Typ and the totals by type (RSVP-15).
+    expect(within(table).getByRole("columnheader", { name: "Typ" })).toBeInTheDocument();
+    expect(within(row).getByText("Erwachsen")).toBeInTheDocument();
+    // The lock and the title alone, no "nur Admins" (decided 2026-11-12).
+    expect(within(table).getByRole("columnheader", { name: /^🔒 Allergien$/ })).toBeInTheDocument();
     // The title row and the note keep their distance from the card's border.
     const card = table.closest("section");
     expect(card?.querySelector(".tight-head")).not.toBeNull();
@@ -493,13 +508,22 @@ describe("Rückmeldungen", () => {
 });
 
 describe("Einstellungen › Rückmeldung", () => {
-  const config = { deadline: "2027-05-01", songEnabled: true, parts: PARTS, menus: MENUS };
+  const config = {
+    deadline: "2027-05-01",
+    songEnabled: true,
+    perItem: true,
+    personType: "adult",
+    companionApproval: true,
+    pendingCount: 0,
+    programItems: PARTS,
+    menus: MENUS,
+  };
 
-  it("[RSVP-02] the admin adds a part; the start is entered in the event's time zone", async () => {
+  it("[RSVP-02] the admin adds a program item; the start is entered in the event's time zone", async () => {
     const calls = fakeBackend({
       "GET /api/session": () => asAdmin,
       "GET /api/admin/rsvp/config": () => ({ status: 200, body: config }),
-      "POST /api/admin/rsvp/parts": () => ({
+      "POST /api/admin/rsvp/program-items": () => ({
         status: 201,
         body: {
           id: 4,
@@ -513,7 +537,7 @@ describe("Einstellungen › Rückmeldung", () => {
     renderAt("/admin/settings");
     expect(await screen.findByText("Dinner")).toBeInTheDocument();
     expect(screen.getByText("Essen")).toBeInTheDocument();
-    user.click(screen.getByRole("button", { name: "Teil hinzufügen" }));
+    user.click(screen.getByRole("button", { name: "Programmpunkt hinzufügen" }));
     const start = await screen.findByLabelText("Beginn");
     const form = within(start.closest("form") as HTMLElement);
     user.type(form.getByLabelText("Name"), "Party");
@@ -532,11 +556,11 @@ describe("Einstellungen › Rückmeldung", () => {
     });
   });
 
-  it("[RSVP-02] deleting a part needs a second click", async () => {
+  it("[RSVP-02] deleting a program item needs a second click", async () => {
     const calls = fakeBackend({
       "GET /api/session": () => asAdmin,
       "GET /api/admin/rsvp/config": () => ({ status: 200, body: config }),
-      "DELETE /api/admin/rsvp/parts/2": () => ({ status: 204 }),
+      "DELETE /api/admin/rsvp/program-items/2": () => ({ status: 204 }),
     });
     renderAt("/admin/settings");
     user.click(await screen.findByRole("button", { name: "Löschen: Apéro" }));
@@ -585,8 +609,17 @@ describe("Einstellungen › Rückmeldung", () => {
   });
 });
 
-describe("invited parts", () => {
-  const config = { deadline: null, songEnabled: true, parts: PARTS, menus: [] };
+describe("invited program items", () => {
+  const config = {
+    deadline: null,
+    songEnabled: true,
+    perItem: true,
+    personType: "adult",
+    companionApproval: true,
+    pendingCount: 0,
+    programItems: PARTS,
+    menus: [],
+  };
   const invitation = (changes: Record<string, unknown> = {}) => ({
     id: 1,
     guestName: "Anna Muster",
@@ -596,11 +629,14 @@ describe("invited parts", () => {
     createdAt: "2026-11-10T10:00:00.000Z",
     redeemedAt: null,
     redeemedBy: null,
-    partIds: [1, 2],
+    programItemIds: [1, 2],
+    userId: 41,
+    removesGuest: false,
+    personType: "adult",
     ...changes,
   });
 
-  it("[RSVP-02] a batch of invitations is created for the chosen parts, all by default", async () => {
+  it("[RSVP-02] a batch of invitations is created for the chosen program items, all by default", async () => {
     const calls = fakeBackend({
       "GET /api/session": () => asAdmin,
       "GET /api/admin/rsvp/config": () => ({ status: 200, body: config }),
@@ -613,8 +649,8 @@ describe("invited parts", () => {
     renderAt("/admin/invitations");
     user.type(await screen.findByLabelText("Gäste (ein Name pro Zeile)"), "Anna Muster");
     const group = await screen.findByRole("group", { name: "Eingeladen zu" });
-    for (const part of ["Trauung", "Apéro", "Dinner"]) {
-      expect(within(group).getByRole("button", { name: part })).toHaveAttribute(
+    for (const programItem of ["Trauung", "Apéro", "Dinner"]) {
+      expect(within(group).getByRole("button", { name: programItem })).toHaveAttribute(
         "aria-pressed",
         "true",
       );
@@ -624,36 +660,44 @@ describe("invited parts", () => {
     await screen.findByRole("heading", { name: "1 Einladung erstellt" });
     expect(calls.find((c) => c.method === "POST")?.body).toEqual({
       guests: [{ name: "Anna Muster" }],
-      partIds: [1, 2],
+      programItemIds: [1, 2],
+      personType: "adult",
     });
   });
 
-  it("[RSVP-02] the parts of an invitation are changed per row", async () => {
+  it("[RSVP-02] the invitation list shows the invited program items as read-only letters", async () => {
     const calls = fakeBackend({
       "GET /api/session": () => asAdmin,
       "GET /api/admin/rsvp/config": () => ({ status: 200, body: config }),
-      "GET /api/admin/invitations": () => ({ status: 200, body: { invitations: [invitation()] } }),
-      "PUT /api/admin/invitations/1/parts": () => ({
+      "GET /api/admin/invitations": () => ({
         status: 200,
-        body: invitation({ partIds: [1, 2, 3] }),
+        body: { invitations: [invitation({ programItemIds: [1, 3] })] },
       }),
     });
     renderAt("/admin/invitations");
-    const chip = await screen.findByRole("button", { name: "Dinner: Anna Muster" });
-    expect(chip).toHaveAttribute("aria-pressed", "false");
-    user.click(chip);
-    await waitFor(() => {
-      expect(calls.some((c) => c.method === "PUT")).toBe(true);
-    });
-    expect(calls.find((c) => c.method === "PUT")?.body).toEqual({ partIds: [1, 2, 3] });
+    // Trauung and Dinner: T D, with the names as the title. Apéro is not invited.
+    const letters = await screen.findByText("T D");
+    expect(screen.getAllByRole("columnheader").map((th) => th.textContent)).toEqual([
+      "Gast",
+      "Programmpunkte",
+      "Typ",
+      "Status",
+      "Aktionen",
+    ]);
+    expect(letters).toHaveAttribute("title", "Trauung, Dinner");
+    // Nothing to click: the program items are changed in the account panel.
+    expect(screen.queryByRole("button", { name: "Dinner: Anna Muster" })).not.toBeInTheDocument();
+    expect(calls.some((c) => c.method === "PUT")).toBe(false);
   });
 
-  it("[RSVP-02] the account panel of a promoted guest chooses the parts; an invited one only shows them", async () => {
+  it("[RSVP-02] the account panel of a promoted guest chooses the program items, also for an account created for an invitation", async () => {
     const account = (changes: Record<string, unknown>) => ({
       ...anna,
+      status: "active",
       vipAssignment: "admin_promotion",
+      personType: "adult",
       groups: [],
-      invitedPartIds: [1, 3],
+      invitedProgramItemIds: [1, 3],
       ...changes,
     });
     const calls = fakeBackend({
@@ -670,11 +714,15 @@ describe("invited parts", () => {
               username: "erika",
               displayName: "Erika",
               vipAssignment: "invitation_code",
+              personType: "adult",
             }),
           ],
         },
       }),
-      "PUT /api/admin/users/1/parts": () => ({ status: 200, body: { partIds: [1, 2, 3] } }),
+      "PUT /api/admin/users/1/program-items": () => ({
+        status: 200,
+        body: { programItemIds: [1, 2, 3] },
+      }),
     });
     renderAt("/admin/users");
     user.click(await screen.findByRole("button", { name: "Konto Oma bearbeiten" }));
@@ -684,8 +732,63 @@ describe("invited parts", () => {
     await waitFor(() => {
       expect(calls.some((c) => c.method === "PUT")).toBe(true);
     });
-    expect(calls.find((c) => c.method === "PUT")?.body).toEqual({ partIds: [1, 2, 3] });
+    expect(calls.find((c) => c.method === "PUT")?.body).toEqual({ programItemIds: [1, 2, 3] });
     expect(within(panel).getByText(/vip ohne Einladung/)).toBeInTheDocument();
+  });
+
+  it("[RSVP-02] the account panel shows the invited program items of every account with vip, also with staff or admin", async () => {
+    const account = (changes: Record<string, unknown>) => ({
+      ...anna,
+      status: "active",
+      vipAssignment: "admin_promotion",
+      personType: "adult",
+      groups: [],
+      invitedProgramItemIds: [1],
+      ...changes,
+    });
+    fakeBackend({
+      "GET /api/session": () => asAdmin,
+      "GET /api/admin/rsvp/config": () => ({ status: 200, body: config }),
+      "GET /api/admin/groups": () => ({ status: 200, body: { groups: [] } }),
+      "GET /api/admin/users": () => ({
+        status: 200,
+        body: {
+          users: [
+            account({ id: 1, username: "lea", displayName: "Lea", roles: ["staff", "vip"] }),
+            account({ id: 2, username: "max", displayName: "Max", roles: ["admin", "vip"] }),
+            account({
+              id: 3,
+              username: "tom",
+              displayName: "Tom",
+              roles: ["admin", "staff", "vip"],
+            }),
+            account({ id: 4, username: "ida", displayName: "Ida", roles: ["admin"] }),
+          ],
+        },
+      }),
+    });
+    renderAt("/admin/users");
+    for (const name of ["Lea", "Max", "Tom"]) {
+      user.click(await screen.findByRole("button", { name: `Konto ${name} bearbeiten` }));
+      const panel = await screen.findByRole("dialog");
+      await within(panel).findByText("Eingeladen zu");
+      expect(await within(panel).findByRole("button", { name: "Trauung" })).toHaveAttribute(
+        "aria-pressed",
+        "true",
+      );
+      expect(within(panel).getByRole("button", { name: "Dinner" })).toHaveAttribute(
+        "aria-pressed",
+        "false",
+      );
+      user.click(within(panel).getByRole("button", { name: "Schliessen" }));
+      await waitFor(() => {
+        expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+      });
+    }
+    // Without vip there is nothing to invite to.
+    user.click(await screen.findByRole("button", { name: "Konto Ida bearbeiten" }));
+    const panel = await screen.findByRole("dialog");
+    expect(within(panel).queryByText("Eingeladen zu")).not.toBeInTheDocument();
   });
 });
 
@@ -704,9 +807,11 @@ describe("revoking vip (7.4.1, decided 2026-11-11)", () => {
               username: "oma",
               displayName: "Oma",
               roles: ["vip", "staff"],
+              status: "active",
               vipAssignment: "admin_promotion",
+              personType: "adult",
               groups: [],
-              invitedPartIds: [1],
+              invitedProgramItemIds: [1],
             },
           ],
         },
@@ -735,9 +840,13 @@ describe("Übersicht", () => {
   const overview = {
     deadline: null,
     songEnabled: true,
-    parts: PARTS,
+    perItem: true,
+    personType: "adult",
+    companionApproval: true,
+    programItems: PARTS,
     menus: MENUS,
     totals: [],
+    personTotals: { yes: 0, no: 0, yesByType: { adult: 0, child: 0 } },
     menuTotals: [],
     guests: [],
     companions: [],
@@ -776,7 +885,7 @@ describe("Übersicht", () => {
               name: "snapshotUploadsOpen",
             },
             { action: "rsvp.remind", createdAt: ago(60 * 50), count: 31, name: null },
-            { action: "rsvp.part.delete", createdAt: ago(60 * 60), count: 1, name: null },
+            { action: "rsvp.program_item.delete", createdAt: ago(60 * 60), count: 1, name: null },
           ],
         },
       }),
@@ -790,7 +899,7 @@ describe("Übersicht", () => {
       expect.stringMatching(/^12 Einladungen erstellt/),
       expect.stringMatching(/^«Schnappschuss-Uploads» geändert/),
       expect.stringMatching(/^Erinnerung an 31 Gäste gesendet/),
-      expect.stringMatching(/^Ein Teil wurde gelöscht/),
+      expect.stringMatching(/^Ein Programmpunkt wurde gelöscht/),
     ]);
     expect(items[0]).toHaveTextContent(/vor 2 Std/);
     expect(items[1]).toHaveTextContent(/vor 1 Tag|gestern/);
@@ -841,7 +950,16 @@ describe("the song wish switch", () => {
       "GET /api/session": () => asAdmin,
       "GET /api/admin/rsvp/config": () => ({
         status: 200,
-        body: { deadline: null, songEnabled: true, parts: PARTS, menus: MENUS },
+        body: {
+          deadline: null,
+          songEnabled: true,
+          perItem: true,
+          personType: "adult",
+          companionApproval: true,
+          pendingCount: 0,
+          programItems: PARTS,
+          menus: MENUS,
+        },
       }),
       "PUT /api/admin/rsvp/song": () => ({ status: 204 }),
     });
@@ -866,9 +984,13 @@ describe("the song wish switch", () => {
         body: {
           deadline: null,
           songEnabled: false,
-          parts: PARTS,
+          perItem: true,
+          personType: "adult",
+          companionApproval: true,
+          programItems: PARTS,
           menus: MENUS,
           totals: [],
+          personTotals: { yes: 0, no: 0, yesByType: { adult: 0, child: 0 } },
           menuTotals: [],
           guests: [],
           companions: [],
@@ -885,5 +1007,423 @@ describe("the song wish switch", () => {
       within(table).queryByRole("columnheader", { name: "Songwunsch" }),
     ).not.toBeInTheDocument();
     expect(within(table).getByRole("columnheader", { name: /Allergien/ })).toBeInTheDocument();
+  });
+});
+
+describe("one answer per person (RSVP-11, 7.4.2)", () => {
+  const approvedMia = {
+    id: 7,
+    name: "Mia Huber",
+    personType: "adult",
+    note: null,
+    status: "approved",
+    attendingItemIds: [] as number[],
+    declinedItemIds: [] as number[],
+    menuId: null,
+    allergies: null,
+  };
+
+  it("[RSVP-11] step 1 asks once per person and the answer is the same for every program item", async () => {
+    const calls = fakeBackend({
+      "GET /api/session": () => asGuest,
+      "GET /api/rsvp": () => ({
+        status: 200,
+        body: state({
+          perItem: false,
+          personType: "adult",
+          companionApproval: false,
+          companions: [approvedMia],
+        }),
+      }),
+      "PUT /api/rsvp": () => ({
+        status: 200,
+        body: state({
+          perItem: false,
+          personType: "adult",
+          answer: answered([]),
+          companions: [approvedMia],
+        }),
+      }),
+    });
+    renderAt("/rsvp");
+    await screen.findByRole("heading", { name: "Bist du dabei, Erika?" });
+    expect(screen.getByText(/Sag uns, ob du kommst/)).toBeInTheDocument();
+    // The program items are listed, but nobody is asked per program item.
+    expect(screen.getAllByText("Trauung · Apéro · Dinner")).toHaveLength(2);
+    expect(screen.queryByRole("button", { name: "Trauung: Dabei" })).not.toBeInTheDocument();
+    const next = screen.getByRole("button", { name: "Weiter" });
+    expect(next).toBeDisabled();
+    user.click(screen.getByRole("button", { name: "Nein" }));
+    expect(next).toBeDisabled();
+    user.click(screen.getByRole("button", { name: "Mia Huber: Nein" }));
+    // Everybody declines: the wizard goes straight to sending.
+    user.click(await screen.findByRole("button", { name: "Antwort senden" }));
+    await waitFor(() => {
+      expect(calls.some((c) => c.method === "PUT")).toBe(true);
+    });
+    expect(calls.find((c) => c.method === "PUT")?.body).toEqual({
+      attendance: [
+        { programItemId: 1, attending: false },
+        { programItemId: 2, attending: false },
+        { programItemId: 3, attending: false },
+      ],
+      companions: [
+        {
+          companionId: 7,
+          attendance: [
+            { programItemId: 1, attending: false },
+            { programItemId: 2, attending: false },
+            { programItemId: 3, attending: false },
+          ],
+        },
+      ],
+    });
+  });
+
+  it("[RSVP-11] a yes answers every program item; an earlier mixed answer is shown as a yes", async () => {
+    const calls = fakeBackend({
+      "GET /api/session": () => asGuest,
+      "GET /api/rsvp": () => ({
+        status: 200,
+        body: state({
+          perItem: false,
+          personType: "adult",
+          answer: answered([1, 3], { menuId: 1 }),
+        }),
+      }),
+      "PUT /api/rsvp": () => ({
+        status: 200,
+        body: state({
+          perItem: false,
+          personType: "adult",
+          answer: answered([1, 2, 3], { menuId: 1 }),
+        }),
+      }),
+    });
+    renderAt("/rsvp");
+    // The summary shows the person as attending every program item.
+    expect(await screen.findAllByText("Dabei")).toHaveLength(3);
+    user.click(screen.getByRole("button", { name: "Ändern" }));
+    const yes = await screen.findByRole("button", { name: "Ja" });
+    expect(yes).toHaveAttribute("aria-pressed", "true");
+    user.click(screen.getByRole("button", { name: "Weiter" }));
+    await screen.findByRole("heading", { name: "Essen & Allergien" });
+    user.click(screen.getByRole("button", { name: "Weiter" }));
+    user.click(await screen.findByRole("button", { name: "Antwort senden" }));
+    await waitFor(() => {
+      expect(calls.some((c) => c.method === "PUT")).toBe(true);
+    });
+    expect(calls.find((c) => c.method === "PUT")?.body).toMatchObject({
+      attendance: [
+        { programItemId: 1, attending: true },
+        { programItemId: 2, attending: true },
+        { programItemId: 3, attending: true },
+      ],
+      menuId: 1,
+    });
+  });
+
+  it("[RSVP-11][RSVP-12] the admin switches both settings; switching approval off names the requests it approves", async () => {
+    const config = (changes: Record<string, unknown>) => ({
+      status: 200,
+      body: {
+        deadline: null,
+        songEnabled: true,
+        perItem: true,
+        personType: "adult",
+        companionApproval: true,
+        pendingCount: 3,
+        programItems: PARTS,
+        menus: MENUS,
+        ...changes,
+      },
+    });
+    const calls = fakeBackend({
+      "GET /api/session": () => asAdmin,
+      "GET /api/admin/rsvp/config": () => config({}),
+      "PUT /api/admin/rsvp/per-item": () => ({ status: 204 }),
+      "PUT /api/admin/rsvp/companion-approval": () => ({ status: 200, body: { approved: 3 } }),
+      "GET /api/admin/rsvp/pending": () => ({
+        status: 200,
+        body: { pendingCount: 3, companionApproval: true },
+      }),
+    });
+    const badgeLoads = () => calls.filter((c) => c.path === "/api/admin/rsvp/pending").length;
+    renderAt("/admin/settings");
+    const perItem = await screen.findByRole("switch", { name: "Pro Programmpunkt zusagen" });
+    expect(perItem).toHaveAttribute("aria-checked", "true");
+    user.click(perItem);
+    await waitFor(() => {
+      expect(calls.some((c) => c.path.endsWith("/per-item") && c.method === "PUT")).toBe(true);
+    });
+    expect(calls.find((c) => c.path.endsWith("/per-item"))?.body).toEqual({ enabled: false });
+
+    // With requests waiting, switching the approval off asks first and names their number.
+    user.click(screen.getByRole("switch", { name: "Begleitpersonen bestätigen" }));
+    const dialog = await screen.findByRole("alertdialog");
+    expect(within(dialog).getByText(/3 offene Anfragen werden/)).toBeInTheDocument();
+    expect(calls.some((c) => c.path.endsWith("/companion-approval"))).toBe(false);
+    user.click(within(dialog).getByRole("button", { name: "Abbrechen" }));
+    expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument();
+    user.click(screen.getByRole("switch", { name: "Begleitpersonen bestätigen" }));
+    const loadsBefore = badgeLoads();
+    user.click(await screen.findByRole("button", { name: "Ausschalten und annehmen" }));
+    await waitFor(() => {
+      expect(calls.some((c) => c.path.endsWith("/companion-approval"))).toBe(true);
+    });
+    // The badge of the navigation asks again: the requests are approved now.
+    await waitFor(() => {
+      expect(badgeLoads()).toBeGreaterThan(loadsBefore);
+    });
+    expect(calls.find((c) => c.path.endsWith("/companion-approval"))?.body).toEqual({
+      enabled: false,
+    });
+  });
+
+  it("[RSVP-12] without waiting requests the approval switches off at once", async () => {
+    const calls = fakeBackend({
+      "GET /api/session": () => asAdmin,
+      "GET /api/admin/rsvp/config": () => ({
+        status: 200,
+        body: {
+          deadline: null,
+          songEnabled: true,
+          perItem: false,
+          personType: "adult",
+          companionApproval: true,
+          pendingCount: 0,
+          programItems: PARTS,
+          menus: MENUS,
+        },
+      }),
+      "PUT /api/admin/rsvp/companion-approval": () => ({ status: 200, body: { approved: 0 } }),
+    });
+    renderAt("/admin/settings");
+    user.click(await screen.findByRole("switch", { name: "Begleitpersonen bestätigen" }));
+    await waitFor(() => {
+      expect(calls.some((c) => c.method === "PUT")).toBe(true);
+    });
+    expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument();
+  });
+});
+
+describe("person types (RSVP-13, RSVP-14, RSVP-15)", () => {
+  const overviewBase = {
+    deadline: null,
+    songEnabled: true,
+    perItem: true,
+    companionApproval: false,
+    programItems: PARTS,
+    menus: MENUS,
+    personTotals: { yes: 0, no: 0, yesByType: { adult: 0, child: 0 } },
+    menuTotals: [],
+    guests: [],
+    companions: [],
+    pendingCount: 0,
+    answered: 0,
+    total: 0,
+    reminderCount: 0,
+  };
+
+  it("[RSVP-15] the totals name the types that are there", async () => {
+    fakeBackend({
+      "GET /api/session": () => asAdmin,
+      "GET /api/admin/rsvp": () => ({
+        status: 200,
+        body: {
+          ...overviewBase,
+          totals: [
+            { programItemId: 1, yes: 42, no: 3, yesByType: { adult: 37, child: 5 } },
+            { programItemId: 2, yes: 2, no: 0, yesByType: { adult: 1, child: 1 } },
+            { programItemId: 3, yes: 0, no: 4, yesByType: { adult: 0, child: 0 } },
+          ],
+        },
+      }),
+    });
+    renderAt("/admin/rsvp");
+    expect(await screen.findByText("42 ja (37 Erwachsene, 5 Kinder) · 3 nein")).toBeInTheDocument();
+    // One of a type is worded in the singular.
+    expect(screen.getByText("2 ja (1 erwachsene Person, 1 Kind) · 0 nein")).toBeInTheDocument();
+    expect(screen.getByText("0 ja · 4 nein")).toBeInTheDocument();
+    // The note of an empty guest table spans all eight columns.
+    expect(screen.getByText("Noch keine Gäste.").closest("td")).toHaveAttribute("colspan", "8");
+    expect(screen.getByText("Pro Programmpunkt")).toBeInTheDocument();
+  });
+
+  it("[RSVP-15] with one answer for everyone the overview is one bar without a name", async () => {
+    fakeBackend({
+      "GET /api/session": () => asAdmin,
+      "GET /api/admin/rsvp": () => ({
+        status: 200,
+        body: {
+          ...overviewBase,
+          perItem: false,
+          // Guests are invited to different program items, so no program item counts everyone.
+          totals: [
+            { programItemId: 1, yes: 30, no: 1, yesByType: { adult: 28, child: 2 } },
+            { programItemId: 2, yes: 42, no: 3, yesByType: { adult: 37, child: 5 } },
+            { programItemId: 3, yes: 20, no: 2, yesByType: { adult: 20, child: 0 } },
+          ],
+          personTotals: { yes: 45, no: 4, yesByType: { adult: 39, child: 6 } },
+        },
+      }),
+    });
+    renderAt("/admin/rsvp");
+    // The bar counts persons: whoever attends anything, whoever declined everything.
+    expect(await screen.findByText("45 ja (39 Erwachsene, 6 Kinder) · 4 nein")).toBeInTheDocument();
+    expect(document.querySelectorAll(".bar-row.single")).toHaveLength(1);
+    expect(screen.queryByText(/^30 ja/)).not.toBeInTheDocument();
+    expect(screen.getByText("Übersicht", { selector: "b" })).toBeInTheDocument();
+    expect(screen.queryByText("Pro Programmpunkt")).not.toBeInTheDocument();
+    expect(screen.queryByText("Trauung", { selector: ".bar-row span" })).not.toBeInTheDocument();
+  });
+
+  it("[RSVP-14] a child is offered the menu, but may go on without choosing one", async () => {
+    fakeBackend({
+      "GET /api/session": () => asGuest,
+      "GET /api/rsvp": () => ({
+        status: 200,
+        body: state({ personType: "child", answer: answered([1, 3]) }),
+      }),
+    });
+    renderAt("/rsvp");
+    user.click(await screen.findByRole("button", { name: "Ändern" }));
+    await screen.findByRole("heading", { name: "Bist du dabei, Erika?" });
+    user.click(screen.getByRole("button", { name: "Weiter" }));
+    await screen.findByRole("heading", { name: "Essen & Allergien" });
+    // The menu is there, but nothing is missing without it.
+    expect(screen.getByText("Menü (Dinner)")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Weiter" })).toBeEnabled();
+    // A menu chosen by mistake is left open again with a second click.
+    const chip = screen.getByRole("button", { name: "Fleisch" });
+    user.click(chip);
+    expect(chip).toHaveAttribute("aria-pressed", "true");
+    user.click(chip);
+    expect(chip).toHaveAttribute("aria-pressed", "false");
+  });
+
+  it("[RSVP-14] an adult must choose the menu before going on", async () => {
+    fakeBackend({
+      "GET /api/session": () => asGuest,
+      "GET /api/rsvp": () => ({
+        status: 200,
+        body: state({ personType: "adult", answer: answered([1, 3]) }),
+      }),
+    });
+    renderAt("/rsvp");
+    user.click(await screen.findByRole("button", { name: "Ändern" }));
+    await screen.findByRole("heading", { name: "Bist du dabei, Erika?" });
+    user.click(screen.getByRole("button", { name: "Weiter" }));
+    await screen.findByRole("heading", { name: "Essen & Allergien" });
+    expect(screen.getByRole("button", { name: "Weiter" })).toBeDisabled();
+  });
+
+  it("[RSVP-13] the admin sets the type of a batch, and the list shows it as one letter that cannot be changed", async () => {
+    const invitationRow = {
+      id: 1,
+      guestName: "Anna Muster",
+      note: null,
+      status: "active",
+      expiresAt: null,
+      createdAt: "2026-11-10T10:00:00.000Z",
+      redeemedAt: null,
+      redeemedBy: null,
+      programItemIds: [1, 2],
+      userId: 41,
+      removesGuest: true,
+      personType: "child",
+    };
+    const calls = fakeBackend({
+      "GET /api/session": () => asAdmin,
+      "GET /api/admin/rsvp/config": () => ({
+        status: 200,
+        body: {
+          deadline: null,
+          songEnabled: true,
+          perItem: true,
+          companionApproval: false,
+          pendingCount: 0,
+          programItems: PARTS,
+          menus: [],
+        },
+      }),
+      "GET /api/admin/invitations": () => ({ status: 200, body: { invitations: [invitationRow] } }),
+      "POST /api/admin/invitations": () => ({
+        status: 201,
+        body: {
+          invitations: [{ ...invitationRow, code: "K7QMX4", url: "http://x/invite/K7QMX4" }],
+        },
+      }),
+    });
+    renderAt("/admin/invitations");
+    // The batch: Erwachsen is chosen by default, a click makes it Kind. There is no baby.
+    const group = await screen.findByRole("group", { name: "Typ" });
+    expect(within(group).getByRole("button", { name: "Erwachsen" })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+    expect(within(group).queryByRole("button", { name: "Baby" })).not.toBeInTheDocument();
+    user.click(within(group).getByRole("button", { name: "Kind" }));
+    user.type(screen.getByLabelText("Gäste (ein Name pro Zeile)"), "Mia");
+    user.click(screen.getByRole("button", { name: "1 Einladung erstellen" }));
+    await screen.findByRole("heading", { name: "1 Einladung erstellt" });
+    expect(calls.find((c) => c.method === "POST")?.body).toMatchObject({ personType: "child" });
+    user.click(screen.getByRole("button", { name: "Fertig" }));
+
+    // In the list: one letter, no selector.
+    const letter = await screen.findByText("K");
+    expect(letter).toHaveAttribute("title", "Kind");
+    expect(screen.queryByRole("combobox", { name: /Typ/ })).not.toBeInTheDocument();
+  });
+
+  it("[RSVP-13] the account panel of a guest sets the type", async () => {
+    const calls = fakeBackend({
+      "GET /api/session": () => asAdmin,
+      "GET /api/admin/rsvp/config": () => ({
+        status: 200,
+        body: {
+          deadline: null,
+          songEnabled: true,
+          perItem: true,
+          companionApproval: false,
+          pendingCount: 0,
+          programItems: PARTS,
+          menus: [],
+        },
+      }),
+      "GET /api/admin/groups": () => ({ status: 200, body: { groups: [] } }),
+      "GET /api/admin/users": () => ({
+        status: 200,
+        body: {
+          users: [
+            {
+              ...anna,
+              id: 1,
+              status: "active",
+              personType: "adult",
+              roles: ["vip"],
+              vipAssignment: "admin_promotion",
+              groups: [],
+              invitedProgramItemIds: [1],
+            },
+          ],
+        },
+      }),
+      "PUT /api/admin/users/1/person-type": () => ({ status: 204 }),
+    });
+    renderAt("/admin/users");
+    user.click(await screen.findByRole("button", { name: /Konto .* bearbeiten/ }));
+    const panel = await screen.findByRole("dialog");
+    expect(within(panel).getByRole("button", { name: "Erwachsen" })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+    user.click(within(panel).getByRole("button", { name: "Kind" }));
+    await waitFor(() => {
+      expect(calls.some((c) => c.path === "/api/admin/users/1/person-type")).toBe(true);
+    });
+    expect(calls.find((c) => c.path.endsWith("/person-type"))?.body).toEqual({
+      personType: "child",
+    });
   });
 });

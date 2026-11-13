@@ -18,7 +18,15 @@ const asAdmin = { status: 200, body: { user: admin, csrfToken: "csrf-1" } };
 
 /** An account as `GET /api/admin/users` lists it. */
 function account(changes: Record<string, unknown> = {}) {
-  return { ...anna, vipAssignment: "invitation_code", groups: [], invitedPartIds: [], ...changes };
+  return {
+    ...anna,
+    status: "active",
+    vipAssignment: "invitation_code",
+    personType: "adult",
+    groups: [],
+    invitedProgramItemIds: [],
+    ...changes,
+  };
 }
 
 describe("admin area", () => {
@@ -137,7 +145,10 @@ describe("invitations", () => {
     createdAt: "2026-11-10T10:00:00.000Z",
     redeemedAt: null,
     redeemedBy: null,
-    partIds: [],
+    programItemIds: [],
+    userId: 41,
+    removesGuest: false,
+    personType: "adult",
   };
 
   it("[INV-01][INV-04][INV-14] an admin creates invitations and gets cards with code and QR code", async () => {
@@ -172,6 +183,7 @@ describe("invitations", () => {
     // Valid through the chosen day, in the admin's time zone.
     expect(post?.body).toEqual({
       guests: [{ name: "Anna Muster" }, { name: "Ben" }],
+      personType: "adult",
       expiresAt: new Date("2027-05-01T23:59:59").toISOString(),
     });
 
@@ -215,7 +227,343 @@ describe("invitations", () => {
   });
 });
 
+describe("revoking removes a guest who never registered (INV-20)", () => {
+  const open = {
+    id: 1,
+    guestName: "Anna Muster",
+    note: null,
+    status: "active",
+    expiresAt: null,
+    createdAt: "2026-11-10T10:00:00.000Z",
+    redeemedAt: null,
+    redeemedBy: null,
+    programItemIds: [],
+    userId: 41,
+    removesGuest: true,
+    personType: "adult",
+  };
+
+  it("[INV-20] revoking the last open code asks for a second click, which names what happens", async () => {
+    const calls = fakeBackend({
+      "GET /api/session": () => asAdmin,
+      "GET /api/admin/invitations": () => ({ status: 200, body: { invitations: [open] } }),
+      "POST /api/admin/invitations/1/revoke": () => ({
+        status: 200,
+        body: { ...open, status: "revoked", userId: null, removesGuest: false, guestRemoved: true },
+      }),
+    });
+    renderAt("/admin/invitations");
+    user.click(await screen.findByRole("button", { name: "Widerrufen: Anna Muster" }));
+    // The first click only asks.
+    expect(calls.some((c) => c.path.endsWith("/revoke"))).toBe(false);
+    const dialog = await screen.findByRole("alertdialog");
+    user.click(within(dialog).getByRole("button", { name: "Widerrufen und Gast entfernen" }));
+    await waitFor(() => {
+      expect(calls.some((c) => c.path === "/api/admin/invitations/1/revoke")).toBe(true);
+    });
+    expect(calls.find((c) => c.path.endsWith("/revoke"))?.csrf).toBe("csrf-1");
+  });
+
+  it("[INV-20] a code that removes nobody is revoked with one click, and Abbrechen keeps the guest", async () => {
+    const calls = fakeBackend({
+      "GET /api/session": () => asAdmin,
+      "GET /api/admin/invitations": () => ({
+        status: 200,
+        body: {
+          invitations: [
+            { ...open, removesGuest: false },
+            { ...open, id: 2, guestName: "Ben", removesGuest: true },
+          ],
+        },
+      }),
+      "POST /api/admin/invitations/1/revoke": () => ({
+        status: 200,
+        body: { ...open, status: "revoked", guestRemoved: false },
+      }),
+    });
+    renderAt("/admin/invitations");
+    user.click(await screen.findByRole("button", { name: "Widerrufen: Anna Muster" }));
+    await waitFor(() => {
+      expect(calls.some((c) => c.path === "/api/admin/invitations/1/revoke")).toBe(true);
+    });
+    user.click(screen.getByRole("button", { name: "Widerrufen: Ben" }));
+    user.click(
+      within(await screen.findByRole("alertdialog")).getByRole("button", { name: "Abbrechen" }),
+    );
+    expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument();
+    expect(calls.some((c) => c.path === "/api/admin/invitations/2/revoke")).toBe(false);
+  });
+});
+
+describe("cleaning up invitations (INV-21)", () => {
+  const base = {
+    note: null,
+    expiresAt: null,
+    createdAt: "2026-11-10T10:00:00.000Z",
+    redeemedAt: null,
+    redeemedBy: null,
+    programItemIds: [],
+    userId: null,
+    removesGuest: false,
+    personType: "adult",
+  };
+
+  it("[INV-05][INV-21] the filter chips, Aufräumen and its hint sit in the card of the table", async () => {
+    fakeBackend({
+      "GET /api/session": () => asAdmin,
+      "GET /api/admin/invitations": () => ({
+        status: 200,
+        body: { invitations: [{ ...base, id: 1, guestName: "Alt", status: "revoked" }] },
+      }),
+    });
+    renderAt("/admin/invitations");
+    const table = await screen.findByRole("table");
+    const card = table.closest(".card");
+    expect(card).not.toBeNull();
+    const inCard = within(card as HTMLElement);
+    expect(inCard.getByRole("group", { name: "Nach Status filtern" })).toBeInTheDocument();
+    const cleanup = await inCard.findByRole("button", { name: "Aufräumen (1)" });
+    // Below the table, above its hint.
+    const hint = inCard.getByText(/Aufräumen löscht widerrufene/);
+    expect(table.compareDocumentPosition(cleanup) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(cleanup.compareDocumentPosition(hint) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(
+      inCard.getByText(
+        "Aufräumen löscht widerrufene und ersetzte Einladungen. Eingelöste bleiben.",
+      ),
+    ).toBeInTheDocument();
+  });
+
+  it("[INV-21] Aufräumen names the number, asks for a second click and deletes revoked and replaced codes", async () => {
+    let list = [
+      { ...base, id: 1, guestName: "Alt", status: "revoked" },
+      { ...base, id: 2, guestName: "Ersetzt", status: "replaced" },
+      { ...base, id: 3, guestName: "Berta Bleibt", status: "active", userId: 7 },
+    ];
+    const calls = fakeBackend({
+      "GET /api/session": () => asAdmin,
+      "GET /api/admin/invitations": () => ({ status: 200, body: { invitations: list } }),
+      "POST /api/admin/invitations/cleanup": () => {
+        list = list.filter((i) => i.status === "active");
+        return { status: 200, body: { deleted: 2 } };
+      },
+    });
+    renderAt("/admin/invitations");
+    user.click(await screen.findByRole("button", { name: "Aufräumen (2)" }));
+    expect(calls.some((c) => c.path.endsWith("/cleanup"))).toBe(false);
+    expect(
+      screen.getByText(/2 widerrufene und ersetzte Einladungen werden gelöscht/),
+    ).toBeInTheDocument();
+    user.click(screen.getByRole("button", { name: "Endgültig aufräumen" }));
+    await waitFor(() => {
+      expect(screen.queryByText("Alt")).not.toBeInTheDocument();
+    });
+    expect(screen.getByText("Berta Bleibt")).toBeInTheDocument();
+    // Nothing left to clean up: no button.
+    expect(screen.queryByRole("button", { name: /Aufräumen/ })).not.toBeInTheDocument();
+  });
+});
+
 describe("accounts, roles and groups", () => {
+  it("[ACC-17] an inactive account is listed with its state and no username", async () => {
+    fakeBackend({
+      "GET /api/session": () => asAdmin,
+      "GET /api/admin/users": () => ({
+        status: 200,
+        body: {
+          users: [account({ id: 5, username: null, displayName: "Ben Offen", status: "inactive" })],
+        },
+      }),
+      "GET /api/admin/groups": () => ({ status: 200, body: { groups: [] } }),
+    });
+    renderAt("/admin/users");
+    const row = (await screen.findByText("Ben Offen")).closest("tr");
+    expect(row).not.toBeNull();
+    expect(within(row as HTMLElement).getByText("inaktiv")).toBeInTheDocument();
+    // No username yet, and the roles are locked until the guest registers.
+    expect(
+      within(row as HTMLElement).getByRole("button", { name: "vip für Ben Offen" }),
+    ).toBeDisabled();
+  });
+
+  it("[ACC-17][ACC-18][ACC-20] the panel of an inactive account says so; only one an admin created gets a new setup link, a blocked one gets no link", async () => {
+    const calls = fakeBackend({
+      "GET /api/session": () => asAdmin,
+      "GET /api/admin/users": () => ({
+        status: 200,
+        body: {
+          users: [
+            account({ id: 2, username: null, displayName: "Ben Offen", status: "inactive" }),
+            account({
+              id: 3,
+              username: "oma",
+              displayName: "Oma Rosa",
+              status: "inactive",
+              vipAssignment: "admin_promotion",
+            }),
+            account({ id: 4, username: "cleo", displayName: "Cleo Gesperrt", status: "blocked" }),
+          ],
+        },
+      }),
+      "GET /api/admin/groups": () => ({ status: 200, body: { groups: [] } }),
+      "POST /api/admin/users/3/reset-link": () => ({
+        status: 201,
+        body: { resetUrl: "http://x/set-password/new", expiresAt: "2026-11-13T10:00:00.000Z" },
+      }),
+    });
+    renderAt("/admin/users");
+
+    // Invited, not registered: the state, the way to the invitation, locked roles, no password.
+    user.click(await screen.findByRole("button", { name: "Konto Ben Offen bearbeiten" }));
+    let panel = await screen.findByRole("dialog", { name: "Ben Offen" });
+    expect(within(panel).getByText("noch kein Benutzername")).toBeInTheDocument();
+    expect(within(panel).getByText("Noch nicht angemeldet.")).toBeInTheDocument();
+    expect(within(panel).getByRole("link", { name: "Zur Einladung" })).toHaveAttribute(
+      "href",
+      "/admin/invitations",
+    );
+    expect(within(panel).getByRole("button", { name: "vip" })).toBeDisabled();
+    expect(within(panel).queryByText("Passwort")).not.toBeInTheDocument();
+    expect(within(panel).getByRole("button", { name: "Konto löschen" })).toBeInTheDocument();
+    expect(within(panel).queryByRole("button", { name: "Konto sperren" })).not.toBeInTheDocument();
+    user.click(within(panel).getByRole("button", { name: "Schliessen" }));
+
+    // Created by an admin, link not used yet: free roles and a new setup link.
+    user.click(screen.getByRole("button", { name: "Konto Oma Rosa bearbeiten" }));
+    panel = await screen.findByRole("dialog", { name: "Oma Rosa" });
+    expect(within(panel).queryByRole("link", { name: "Zur Einladung" })).not.toBeInTheDocument();
+    expect(within(panel).getByRole("button", { name: "vip" })).toBeEnabled();
+    user.click(within(panel).getByRole("button", { name: "Neuen Einrichtungslink erstellen" }));
+    expect(await within(panel).findByLabelText("Link zum Festlegen des Passworts")).toHaveValue(
+      "http://x/set-password/new",
+    );
+    expect(calls.some((c) => c.path === "/api/admin/users/3/reset-link")).toBe(true);
+    user.click(within(panel).getByRole("button", { name: "Schliessen" }));
+
+    // Blocked: no link until the account is unblocked.
+    user.click(screen.getByRole("button", { name: "Konto Cleo Gesperrt bearbeiten" }));
+    panel = await screen.findByRole("dialog", { name: "Cleo Gesperrt" });
+    expect(within(panel).queryByText("Passwort")).not.toBeInTheDocument();
+    expect(within(panel).getByRole("button", { name: "Entsperren" })).toBeInTheDocument();
+  });
+
+  it("[ACC-17][ACC-18] the table filters by state with counts and searches name and username", async () => {
+    fakeBackend({
+      "GET /api/session": () => asAdmin,
+      "GET /api/admin/users": () => ({
+        status: 200,
+        body: {
+          users: [
+            account({ id: 1, username: "anna", displayName: "Anna Muster" }),
+            account({ id: 2, username: null, displayName: "Ben Offen", status: "inactive" }),
+            account({ id: 3, username: "cleo", displayName: "Cleo Gesperrt", status: "blocked" }),
+          ],
+        },
+      }),
+      "GET /api/admin/groups": () => ({ status: 200, body: { groups: [] } }),
+    });
+    renderAt("/admin/users");
+    await screen.findByText("Anna Muster");
+    expect(screen.getByRole("button", { name: "Alle 3" })).toBeInTheDocument();
+    user.click(screen.getByRole("button", { name: "Gesperrt 1" }));
+    expect(screen.queryByText("Anna Muster")).not.toBeInTheDocument();
+    expect(screen.getByText("Cleo Gesperrt")).toBeInTheDocument();
+    user.click(screen.getByRole("button", { name: "Alle 3" }));
+    user.type(screen.getByRole("searchbox"), "ann");
+    expect(screen.getByText("Anna Muster")).toBeInTheDocument();
+    expect(screen.queryByText("Ben Offen")).not.toBeInTheDocument();
+  });
+
+  it("[ACC-18] blocking asks for a second click; a blocked account is unblocked with one", async () => {
+    let accounts = [account({ id: 1, username: "anna", displayName: "Anna Muster" })];
+    const calls = fakeBackend({
+      "GET /api/session": () => asAdmin,
+      "GET /api/admin/users": () => ({ status: 200, body: { users: accounts } }),
+      "GET /api/admin/groups": () => ({ status: 200, body: { groups: [] } }),
+      "GET /api/admin/rsvp/config": () => ({
+        status: 200,
+        body: {
+          deadline: null,
+          songEnabled: true,
+          perItem: false,
+          personType: "adult",
+          companionApproval: false,
+          pendingCount: 0,
+          programItems: [],
+          menus: [],
+        },
+      }),
+      "POST /api/admin/users/1/block": () => {
+        accounts = [{ ...accounts[0], status: "blocked" } as (typeof accounts)[number]];
+        return { status: 204 };
+      },
+      "POST /api/admin/users/1/unblock": () => {
+        accounts = [{ ...accounts[0], status: "active" } as (typeof accounts)[number]];
+        return { status: 204 };
+      },
+    });
+    renderAt("/admin/users");
+    user.click(await screen.findByRole("button", { name: "Konto Anna Muster bearbeiten" }));
+    const panel = await screen.findByRole("dialog");
+    user.click(within(panel).getByRole("button", { name: "Konto sperren" }));
+    expect(calls.some((c) => c.path.endsWith("/block"))).toBe(false);
+    user.click(await within(panel).findByRole("button", { name: "Endgültig sperren" }));
+    await waitFor(() => {
+      expect(calls.some((c) => c.path === "/api/admin/users/1/block")).toBe(true);
+    });
+    // Blocked: no password section, "Entsperren" instead of "Konto sperren".
+    const unblock = await within(panel).findByRole("button", { name: "Entsperren" });
+    expect(
+      within(panel).queryByRole("button", { name: "Link zum Zurücksetzen erstellen" }),
+    ).not.toBeInTheDocument();
+    user.click(unblock);
+    await waitFor(() => {
+      expect(calls.some((c) => c.path === "/api/admin/users/1/unblock")).toBe(true);
+    });
+  });
+
+  it("[ACC-19] deleting an account asks for a second click and closes the panel", async () => {
+    let accounts = [account({ id: 1, username: "anna", displayName: "Anna Muster" })];
+    const calls = fakeBackend({
+      "GET /api/session": () => asAdmin,
+      "GET /api/admin/users": () => ({ status: 200, body: { users: accounts } }),
+      "GET /api/admin/groups": () => ({ status: 200, body: { groups: [] } }),
+      "GET /api/admin/rsvp/config": () => ({
+        status: 200,
+        body: {
+          deadline: null,
+          songEnabled: true,
+          perItem: false,
+          personType: "adult",
+          companionApproval: false,
+          pendingCount: 0,
+          programItems: [],
+          menus: [],
+        },
+      }),
+      "DELETE /api/admin/users/1": () => {
+        accounts = [];
+        return { status: 204 };
+      },
+    });
+    renderAt("/admin/users");
+    user.click(await screen.findByRole("button", { name: "Konto Anna Muster bearbeiten" }));
+    const panel = await screen.findByRole("dialog");
+    user.click(within(panel).getByRole("button", { name: "Konto löschen" }));
+    expect(calls.some((c) => c.method === "DELETE")).toBe(false);
+    expect(
+      within(panel).getByText(/mit Rückmeldung, Begleitpersonen und allen Einladungen gelöscht/),
+    ).toBeInTheDocument();
+    user.click(within(panel).getByRole("button", { name: "Endgültig löschen" }));
+    await waitFor(() => {
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    });
+    expect(calls.find((c) => c.method === "DELETE")?.csrf).toBe("csrf-1");
+    await waitFor(() => {
+      expect(screen.queryByText("Anna Muster")).not.toBeInTheDocument();
+    });
+  });
+
   it("[ROLE-01][ROLE-09] a role chip switches one role and keeps the others", async () => {
     const calls = fakeBackend({
       "GET /api/session": () => asAdmin,
@@ -302,6 +650,34 @@ describe("accounts, roles and groups", () => {
       "GET /api/session": () => asAdmin,
       "GET /api/admin/users": () => ({ status: 200, body: { users: [] } }),
       "GET /api/admin/groups": () => ({ status: 200, body: { groups: [] } }),
+      "GET /api/admin/rsvp/config": () => ({
+        status: 200,
+        body: {
+          deadline: null,
+          songEnabled: true,
+          perItem: false,
+          personType: "adult",
+          companionApproval: false,
+          pendingCount: 0,
+          programItems: [
+            {
+              id: 1,
+              name: "Trauung",
+              startsAt: "2027-06-12T12:00:00.000Z",
+              place: null,
+              hasMeal: false,
+            },
+            {
+              id: 2,
+              name: "Dinner",
+              startsAt: "2027-06-12T16:00:00.000Z",
+              place: null,
+              hasMeal: true,
+            },
+          ],
+          menus: [],
+        },
+      }),
       "POST /api/admin/users": () => ({
         status: 201,
         body: {
@@ -316,8 +692,17 @@ describe("accounts, roles and groups", () => {
     const panel = await screen.findByRole("dialog", { name: "Konto anlegen" });
     user.type(within(panel).getByLabelText("Benutzername"), "oma");
     user.type(within(panel).getByLabelText("Anzeigename (optional)"), "Oma Erika");
+    // A new guest needs program items (ACC-20): none selected, so nothing can be sent yet.
     user.click(within(panel).getByRole("button", { name: "vip" }));
-    user.click(within(panel).getByRole("button", { name: "Konto anlegen" }));
+    const submit = within(panel).getByRole("button", { name: "Konto anlegen" });
+    expect(await within(panel).findByRole("button", { name: "Trauung" })).toHaveAttribute(
+      "aria-pressed",
+      "false",
+    );
+    expect(submit).toBeDisabled();
+    user.click(within(panel).getByRole("button", { name: "Dinner" }));
+    expect(submit).toBeEnabled();
+    user.click(submit);
 
     const done = await screen.findByRole("dialog", { name: "Konto für Oma Erika angelegt" });
     expect(within(done).getByLabelText("Link zum Festlegen des Passworts")).toHaveValue(
@@ -327,6 +712,7 @@ describe("accounts, roles and groups", () => {
       username: "oma",
       displayName: "Oma Erika",
       roles: ["vip"],
+      programItemIds: [2],
     });
   });
 
@@ -340,6 +726,7 @@ describe("accounts, roles and groups", () => {
           users: [
             account({ groups: [{ id: 4, name: "Trauzeugen" }] }),
             account({ id: 2, username: "ben", displayName: "Ben" }),
+            account({ id: 3, username: null, displayName: "Carla Offen", status: "inactive" }),
           ],
         },
       }),
@@ -370,6 +757,9 @@ describe("accounts, roles and groups", () => {
     user.click(screen.getByRole("button", { name: /Trauzeugen/ }));
     const panel = await screen.findByRole("dialog", { name: "Trauzeugen" });
     expect(within(panel).getByText("1 Person")).toBeInTheDocument();
+    // An invited guest who has not registered has no username: the name alone, no empty brackets.
+    expect(within(panel).getByRole("option", { name: "Ben (ben)" })).toBeInTheDocument();
+    expect(within(panel).getByRole("option", { name: "Carla Offen" })).toBeInTheDocument();
     user.type(within(panel).getByLabelText("Person hinzufügen"), "2");
     user.click(within(panel).getByRole("button", { name: "Hinzufügen" }));
     user.click(within(panel).getByRole("button", { name: "Anna aus der Gruppe entfernen" }));

@@ -96,12 +96,12 @@ export class WaitingService {
     const settings = this.config();
     let status: RsvpStatus = "none";
     if (isGuest) {
-      const { answer, parts } = this.#rsvp.state(userId);
+      const { answer, programItems } = this.#rsvp.state(userId);
       status = rsvpStatus(
         answer !== null,
-        parts.map((part) => part.id),
-        answer?.attendingPartIds ?? [],
-        answer?.declinedPartIds ?? [],
+        programItems.map((programItem) => programItem.id),
+        answer?.attendingItemIds ?? [],
+        answer?.declinedItemIds ?? [],
       );
     }
     const name =

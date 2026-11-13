@@ -1,10 +1,19 @@
-// RSVP, event parts and menus (sw-architecture.md 7.4, 7.4.1): the schemas of the RSVP API,
+// RSVP, program items and menus (sw-architecture.md 7.4, 7.4.1): the schemas of the RSVP API,
 // shared by backend and frontend.
 import { z } from "zod";
 
 const idSchema = z.number().int().positive();
 
-export const partNameSchema = z.string().trim().min(1).max(60);
+/** Every person on the guest list is an adult or a child (RSVP-13). */
+export const PERSON_TYPES = ["adult", "child"] as const;
+export const personTypeSchema = z.enum(PERSON_TYPES);
+export type PersonType = z.infer<typeof personTypeSchema>;
+
+/** `PUT /api/admin/users/:id/person-type`: the admin sets the type of a guest. */
+export const personTypeRequestSchema = z.strictObject({ personType: personTypeSchema });
+export type PersonTypeRequest = z.infer<typeof personTypeRequestSchema>;
+
+export const programItemNameSchema = z.string().trim().min(1).max(60);
 export const placeSchema = z.string().trim().min(1).max(100);
 export const menuNameSchema = z.string().trim().min(1).max(60);
 export const allergiesSchema = z.string().trim().min(1).max(500);
@@ -12,38 +21,38 @@ export const songWishSchema = z.string().trim().min(1).max(200);
 /** A calendar day, `2027-05-01`. */
 export const dateSchema = z.iso.date();
 
-/** An event part: ceremony, aperitif, dinner, party (RSVP-02). */
-export const eventPartSchema = z.object({
+/** A program item: ceremony, aperitif, dinner, party (RSVP-02). */
+export const programItemSchema = z.object({
   id: idSchema,
   name: z.string(),
   /** ISO date-time. */
   startsAt: z.string(),
   place: z.string().nullable(),
-  /** The part that has the meal: the menu is asked only for persons attending it. */
+  /** The program item that has the meal: the menu is asked only for persons attending it. */
   hasMeal: z.boolean(),
 });
-export type EventPart = z.infer<typeof eventPartSchema>;
+export type ProgramItem = z.infer<typeof programItemSchema>;
 
 export const menuOptionSchema = z.object({ id: idSchema, name: z.string() });
 export type MenuOption = z.infer<typeof menuOptionSchema>;
 
-/** `POST`/`PATCH /api/admin/rsvp/parts`: a part; a change names what changes. */
-export const eventPartRequestSchema = z.strictObject({
-  name: partNameSchema,
+/** `POST`/`PATCH /api/admin/rsvp/program-items`: a program item; a change names what changes. */
+export const programItemRequestSchema = z.strictObject({
+  name: programItemNameSchema,
   startsAt: z.iso.datetime(),
   place: placeSchema.nullable().optional(),
   hasMeal: z.boolean().optional(),
 });
-export type EventPartRequest = z.infer<typeof eventPartRequestSchema>;
-export const eventPartUpdateSchema = z
+export type ProgramItemRequest = z.infer<typeof programItemRequestSchema>;
+export const programItemUpdateSchema = z
   .strictObject({
-    name: partNameSchema.optional(),
+    name: programItemNameSchema.optional(),
     startsAt: z.iso.datetime().optional(),
     place: placeSchema.nullable().optional(),
     hasMeal: z.boolean().optional(),
   })
   .refine((value) => Object.keys(value).length > 0, { message: "name at least one value" });
-export type EventPartUpdate = z.infer<typeof eventPartUpdateSchema>;
+export type ProgramItemUpdate = z.infer<typeof programItemUpdateSchema>;
 
 export const menuRequestSchema = z.strictObject({ name: menuNameSchema });
 export type MenuRequest = z.infer<typeof menuRequestSchema>;
@@ -55,12 +64,24 @@ export type DeadlineRequest = z.infer<typeof deadlineRequestSchema>;
 /** `PUT /api/admin/rsvp/song`: switches the song wish on or off. */
 export const songEnabledRequestSchema = z.strictObject({ enabled: z.boolean() });
 
-/** `GET /api/admin/rsvp/config`: deadline, parts and menus (Einstellungen › Rückmeldung). */
+/** `PUT /api/admin/rsvp/per-item`: one answer per person (off) or yes or no per program item (on). */
+export const perItemRequestSchema = z.strictObject({ enabled: z.boolean() });
+
+/** `PUT /api/admin/rsvp/companion-approval`: whether added persons need the admin's approval. */
+export const companionApprovalRequestSchema = z.strictObject({ enabled: z.boolean() });
+
+/** `GET /api/admin/rsvp/config`: deadline, program items and menus (Einstellungen › Rückmeldung). */
 export const rsvpConfigSchema = z.object({
   deadline: dateSchema.nullable(),
   /** Whether the RSVP asks for a song wish (RSVP-06). */
   songEnabled: z.boolean(),
-  parts: z.array(eventPartSchema),
+  /** Yes or no per program item (RSVP-11); off: one answer per person for all of them. */
+  perItem: z.boolean(),
+  /** Whether an added accompanying person waits for the admin's approval (RSVP-12). */
+  companionApproval: z.boolean(),
+  /** Requests waiting for a decision: shown when switching the approval off. */
+  pendingCount: z.number().int(),
+  programItems: z.array(programItemSchema),
   menus: z.array(menuOptionSchema),
 });
 export type RsvpConfig = z.infer<typeof rsvpConfigSchema>;
@@ -77,9 +98,10 @@ export const companionSchema = z.object({
   name: z.string(),
   note: z.string().nullable(),
   status: z.enum(COMPANION_STATUSES),
-  attendingPartIds: z.array(idSchema),
-  /** The parts answered with no; an invited part in neither list is not answered yet. */
-  declinedPartIds: z.array(idSchema),
+  personType: personTypeSchema,
+  attendingItemIds: z.array(idSchema),
+  /** The program items answered with no; an invited program item in neither list is not answered yet. */
+  declinedItemIds: z.array(idSchema),
   menuId: idSchema.nullable(),
   allergies: z.string().nullable(),
 });
@@ -90,7 +112,7 @@ export const companionNoteSchema = z.string().trim().min(1).max(500);
 
 /** The attendance, menu and allergies of one person, as in the wizard. */
 const personAnswerShape = {
-  attendance: z.array(z.strictObject({ partId: idSchema, attending: z.boolean() })).max(50),
+  attendance: z.array(z.strictObject({ programItemId: idSchema, attending: z.boolean() })).max(50),
   menuId: idSchema.nullable().optional(),
   allergies: z.string().trim().min(1).max(500).nullable().optional(),
 };
@@ -98,21 +120,25 @@ const personAnswerShape = {
 /** `POST`/`PUT /api/rsvp/companions`: a request, or the change of a pending one (RSVP-08, RSVP-10). */
 export const companionRequestSchema = z.strictObject({
   name: companionNameSchema,
+  /** The guest must choose it, there is no default (RSVP-13). */
+  personType: personTypeSchema,
   note: companionNoteSchema.nullable().optional(),
   ...personAnswerShape,
 });
 export type CompanionRequest = z.infer<typeof companionRequestSchema>;
 
-/** `PATCH /api/admin/rsvp/companions/:id`: the name of an approved person (7.4.1). */
-export const companionRenameSchema = z.strictObject({ name: companionNameSchema });
+/** `PATCH /api/admin/rsvp/companions/:id`: the name and the type of a person, by the admin (7.4.1, RSVP-13). */
+export const companionRenameSchema = z
+  .strictObject({ name: companionNameSchema.optional(), personType: personTypeSchema.optional() })
+  .refine((value) => Object.keys(value).length > 0, { message: "name at least one value" });
 
-/** The answer of one person: attendance per invited part, menu, allergies. */
-export const attendanceSchema = z.object({ partId: idSchema, attending: z.boolean() });
+/** The answer of one person: attendance per invited program item, menu, allergies. */
+export const attendanceSchema = z.object({ programItemId: idSchema, attending: z.boolean() });
 
 /** `PUT /api/rsvp`, and the admin's change of a guest's RSVP (RSVP-01, RSVP-03, RSVP-06). */
 export const rsvpAnswerRequestSchema = z.strictObject({
   attendance: z.array(attendanceSchema).max(50),
-  /** Needed for a person who attends the meal part while menus exist; ignored otherwise. */
+  /** Needed for a person who attends the meal program item while menus exist; ignored otherwise. */
   menuId: idSchema.nullable().optional(),
   allergies: allergiesSchema.nullable().optional(),
   songWish: songWishSchema.nullable().optional(),
@@ -125,13 +151,13 @@ export const rsvpAnswerRequestSchema = z.strictObject({
 export type RsvpAnswerRequest = z.infer<typeof rsvpAnswerRequestSchema>;
 
 export const rsvpAnswerSchema = z.object({
-  /** The parts the person attends. */
-  attendingPartIds: z.array(idSchema),
+  /** The program items the person attends. */
+  attendingItemIds: z.array(idSchema),
   /**
-   * The parts answered with no. An invited part in neither list is not answered yet: it was
+   * The program items answered with no. An invited program item in neither list is not answered yet: it was
    * added to the invitation after the answer (7.4.1).
    */
-  declinedPartIds: z.array(idSchema),
+  declinedItemIds: z.array(idSchema),
   menuId: idSchema.nullable(),
   allergies: z.string().nullable(),
   songWish: z.string().nullable(),
@@ -149,8 +175,14 @@ export const rsvpStateSchema = z.object({
   closed: z.boolean(),
   /** Whether the wizard asks for a song wish (RSVP-06). */
   songEnabled: z.boolean(),
-  /** The parts the guest is invited to. */
-  parts: z.array(eventPartSchema),
+  /** The guest's own type: a child may leave the menu open (RSVP-14). The page does not show it. */
+  personType: personTypeSchema,
+  /** Yes or no per program item (RSVP-11); off: step 1 asks once per person. */
+  perItem: z.boolean(),
+  /** Whether an added accompanying person waits for the admin's approval (RSVP-12). */
+  companionApproval: z.boolean(),
+  /** The program items the guest is invited to. */
+  programItems: z.array(programItemSchema),
   menus: z.array(menuOptionSchema),
   answer: rsvpAnswerSchema.nullable(),
   /** The guest's accompanying persons, all statuses. */
@@ -162,44 +194,55 @@ export const RSVP_STATUSES = ["attending", "declined", "none"] as const;
 export type RsvpStatus = (typeof RSVP_STATUSES)[number];
 
 /**
- * The status of a guest's RSVP (7.4.1): attending once they attend a part; declined once they
- * have answered every invited part with no; otherwise no answer (also when a part was added to
+ * The status of a guest's RSVP (7.4.1): attending once they attend a program item; declined once they
+ * have answered every invited program item with no; otherwise no answer (also when a program item was added to
  * the invitation after they declined the others).
  */
 export function rsvpStatus(
   answered: boolean,
-  invitedPartIds: readonly number[],
-  attendingPartIds: readonly number[],
-  declinedPartIds: readonly number[],
+  invitedProgramItemIds: readonly number[],
+  attendingItemIds: readonly number[],
+  declinedItemIds: readonly number[],
 ): RsvpStatus {
   if (!answered) return "none";
-  if (attendingPartIds.some((id) => invitedPartIds.includes(id))) return "attending";
-  return invitedPartIds.every((id) => declinedPartIds.includes(id)) ? "declined" : "none";
+  if (attendingItemIds.some((id) => invitedProgramItemIds.includes(id))) return "attending";
+  return invitedProgramItemIds.every((id) => declinedItemIds.includes(id)) ? "declined" : "none";
 }
 
-/** A person attending the part with the meal chooses a menu, as long as menus exist (RSVP-03). */
-export function menuRequired(
-  parts: readonly Pick<EventPart, "id" | "hasMeal">[],
+/** A person attending the program item with the meal is offered a menu, as long as menus exist (RSVP-03). */
+export function menuOffered(
+  programItems: readonly Pick<ProgramItem, "id" | "hasMeal">[],
   menuCount: number,
-  attendingPartIds: readonly number[],
+  attendingItemIds: readonly number[],
 ): boolean {
-  const meal = parts.find((part) => part.hasMeal);
-  return meal !== undefined && menuCount > 0 && attendingPartIds.includes(meal.id);
+  const meal = programItems.find((programItem) => programItem.hasMeal);
+  return meal !== undefined && menuCount > 0 && attendingItemIds.includes(meal.id);
+}
+
+/** An adult must choose the menu that is offered. For a child it is optional (RSVP-14). */
+export function menuRequired(
+  programItems: readonly Pick<ProgramItem, "id" | "hasMeal">[],
+  menuCount: number,
+  attendingItemIds: readonly number[],
+  personType: PersonType = "adult",
+): boolean {
+  return personType !== "child" && menuOffered(programItems, menuCount, attendingItemIds);
 }
 
 /** One row of the guest table (RSVP-04, RSVP-05); `allergies` is for admins only (SEC-11). */
 export const rsvpGuestSchema = z.object({
   userId: idSchema,
   name: z.string(),
+  personType: personTypeSchema,
   status: z.enum(RSVP_STATUSES),
-  invitedPartIds: z.array(idSchema),
-  attendingPartIds: z.array(idSchema),
-  /** The parts answered with no; an invited part in neither list is not answered yet. */
-  declinedPartIds: z.array(idSchema),
+  invitedProgramItemIds: z.array(idSchema),
+  attendingItemIds: z.array(idSchema),
+  /** The program items answered with no; an invited program item in neither list is not answered yet. */
+  declinedItemIds: z.array(idSchema),
   menuId: idSchema.nullable(),
   songWish: z.string().nullable(),
   allergies: z.string().nullable(),
-  /** True if the guest has a verified email address (a reminder can reach them). */
+  /** True if a reminder can reach the guest: an active account with a verified email address. */
   verifiedEmail: z.boolean(),
 });
 export type RsvpGuest = z.infer<typeof rsvpGuestSchema>;
@@ -216,11 +259,35 @@ export const rsvpOverviewSchema = z.object({
   deadline: dateSchema.nullable(),
   /** Whether the song wish is asked; the table shows its column only then. */
   songEnabled: z.boolean(),
-  parts: z.array(eventPartSchema),
+  /** Yes or no per program item (RSVP-11); off: the totals are one bar for everyone. */
+  perItem: z.boolean(),
+  /** Whether an added accompanying person waits for the admin's approval (RSVP-12). */
+  companionApproval: z.boolean(),
+  programItems: z.array(programItemSchema),
   menus: z.array(menuOptionSchema),
-  /** Per part: persons who answered yes and who answered no; a part not answered yet counts in neither. */
-  totals: z.array(z.object({ partId: idSchema, yes: z.number().int(), no: z.number().int() })),
-  /** Menu choices of the persons attending the meal part; menuId null = no choice made. */
+  /** Per program item: persons who answered yes and who answered no; a program item not answered yet counts in neither. */
+  totals: z.array(
+    z.object({
+      programItemId: idSchema,
+      yes: z.number().int(),
+      no: z.number().int(),
+      /** The yes split by person type (RSVP-15). */
+      yesByType: z.object({
+        adult: z.number().int(),
+        child: z.number().int(),
+      }),
+    }),
+  ),
+  /**
+   * Per person, for the single bar while guests answer once (RSVP-11 off, RSVP-15): yes for whoever
+   * attends at least one program item, no for whoever declined every program item they are invited to.
+   */
+  personTotals: z.object({
+    yes: z.number().int(),
+    no: z.number().int(),
+    yesByType: z.object({ adult: z.number().int(), child: z.number().int() }),
+  }),
+  /** Menu choices of the persons attending the meal program item; menuId null = no choice made. */
   menuTotals: z.array(z.object({ menuId: idSchema.nullable(), count: z.number().int() })),
   guests: z.array(rsvpGuestSchema),
   /** Every companion request; approved ones count in totals, menus and the table (RSVP-09). */
@@ -235,16 +302,20 @@ export const rsvpOverviewSchema = z.object({
 export type RsvpOverview = z.infer<typeof rsvpOverviewSchema>;
 
 /** `GET /api/admin/rsvp/pending`: requests waiting for a decision, for the navigation badge. */
-export const rsvpPendingSchema = z.object({ pendingCount: z.number().int() });
+export const rsvpPendingSchema = z.object({
+  pendingCount: z.number().int(),
+  /** The badge and the tile "Begleitpersonen" show only while approval is on (RSVP-12). */
+  companionApproval: z.boolean(),
+});
 
 /** `GET /api/admin/rsvp/guests/:id`: the wizard in admin mode (deadline ignored). */
 export const rsvpAdminStateSchema = rsvpStateSchema;
 
-/** `PUT /api/admin/invitations/:id/parts` and `PUT /api/admin/users/:id/parts`. */
-export const invitedPartsRequestSchema = z.strictObject({
-  partIds: z.array(idSchema).max(50),
+/** `PUT /api/admin/users/:id/program-items`: the program items a guest is invited to. */
+export const invitedProgramItemsRequestSchema = z.strictObject({
+  programItemIds: z.array(idSchema).max(50),
 });
-export type InvitedPartsRequest = z.infer<typeof invitedPartsRequestSchema>;
+export type InvitedProgramItemsRequest = z.infer<typeof invitedProgramItemsRequestSchema>;
 
 /** `POST /api/admin/rsvp/remind`: how many reminders were sent. */
 export const remindResponseSchema = z.object({ sent: z.number().int() });
@@ -260,13 +331,15 @@ export const ACTIVITY_ACTIONS = [
   "rsvp.remind",
   "rsvp.deadline",
   "rsvp.song",
+  "rsvp.per_item",
+  "rsvp.companion_approval",
   "waiting.set",
   "platform.open",
   "platform.close",
   "privacy.set",
-  "rsvp.part.create",
-  "rsvp.part.update",
-  "rsvp.part.delete",
+  "rsvp.program_item.create",
+  "rsvp.program_item.update",
+  "rsvp.program_item.delete",
   "rsvp.menu.create",
   "rsvp.menu.update",
   "rsvp.menu.delete",
@@ -274,13 +347,14 @@ export const ACTIVITY_ACTIONS = [
   "invitation.redeem",
   "invitation.regenerate",
   "invitation.revoke",
-  "invitation.parts",
-  "user.parts",
+  "invitation.program_items",
+  "user.program_items",
   "companion.request",
   "companion.approve",
   "companion.reject",
   "companion.withdraw",
   "companion.rename",
+  "companion.remove",
   "event.setup",
   "event.set",
   "feature.set",
@@ -295,7 +369,7 @@ export const activityEntrySchema = z.object({
   createdAt: z.string(),
   /** Several equal entries in a row (e.g. a batch of invitations) are one entry with a count. */
   count: z.number().int(),
-  /** The guest or part concerned, resolved when displayed; null if it no longer exists. */
+  /** The guest or program item concerned, resolved when displayed; null if it no longer exists. */
   name: z.string().nullable(),
 });
 export type ActivityEntry = z.infer<typeof activityEntrySchema>;

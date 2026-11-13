@@ -360,8 +360,9 @@ describe("guest groups", () => {
 
   it("[GRP-02] membership can be asked for by group name, and goes with the group and the account", async () => {
     const ctx = await setup();
-    const anna = await makeUser(ctx, "anna");
-    const ben = await makeUser(ctx, "ben");
+    // Not guests (no `vip`): their accounts go completely when they are deleted.
+    const anna = await makeUser(ctx, "anna", ["staff"]);
+    const ben = await makeUser(ctx, "ben", ["staff"]);
     await makeUser(ctx, "root", ["admin"]);
     const group = ctx.auth.groups.create("Best Men", "cli");
     ctx.auth.groups.addMember(group.id, anna.id, "cli");

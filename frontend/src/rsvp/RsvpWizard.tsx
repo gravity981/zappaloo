@@ -1,6 +1,6 @@
 // The RSVP wizard (sw-architecture.md 7.4, 7.4.1; UX mocks rsvp-parts, rsvp-people,
 // rsvp-companion, rsvp-done): attendance → food and allergies → accompanying persons and song
-// wish, then a summary. Declining every part (for the guest and the approved companions) skips
+// wish, then a summary. Declining every program item (for the guest and the approved companions) skips
 // to the summary. After the deadline the summary is read-only. The same wizard runs in admin
 // mode for a guest (RSVP-04): the deadline does not apply there.
 import "../app/ui.css";
@@ -8,12 +8,12 @@ import { useState } from "react";
 import type { ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import { rsvpStateSchema, rsvpStatus } from "@zappaloo/shared";
-import type { Companion, EventPart, RsvpAnswerRequest, RsvpState } from "@zappaloo/shared";
+import type { Companion, ProgramItem, RsvpAnswerRequest, RsvpState } from "@zappaloo/shared";
 import { apiRequest } from "../app/api.ts";
 import { useSession } from "../app/session.ts";
 import { useAdminData, useErrorText } from "../admin/data.ts";
 import { FlowShell } from "../guest/Shells.tsx";
-import { CompanionForm, CompanionsCard, MenuFields, PartsBlock } from "./Companions.tsx";
+import { AttendanceBlock, CompanionForm, CompanionsCard, MenuFields } from "./Companions.tsx";
 import { answerOf, answeredAll, attendanceOf, attendsAny, needsMenu, personOf } from "./person.ts";
 import type { PersonValue } from "./person.ts";
 import { useEventFormat } from "./format.ts";
@@ -124,13 +124,14 @@ function WizardForm({
   const format = useEventFormat();
   const answer = state.answer;
   const initial: PersonValue = {
-    attendance: answer ? attendanceOf(answer, state.parts) : {},
+    attendance: answer ? attendanceOf(answer, state.programItems, state.perItem) : {},
     menuId: answer?.menuId ?? null,
     allergies: answer?.allergies ?? "",
+    personType: state.personType,
   };
-  // A part added after the answer is open: the wizard starts at the attendance again.
+  // A program item added after the answer is open: the wizard starts at the attendance again.
   const [step, setStep] = useState<Step>(
-    answer && (state.closed || answeredAll(initial, state.parts)) ? "summary" : 1,
+    answer && (state.closed || answeredAll(initial, state.programItems)) ? "summary" : 1,
   );
   const [view, setView] = useState<View>(WIZARD);
   const [own, setOwn] = useState<PersonValue>(initial);
@@ -142,42 +143,45 @@ function WizardForm({
 
   const admin = mode.kind === "admin";
   const locked = state.closed && !admin;
-  const { parts, menus } = state;
-  const time = (part: EventPart) =>
-    part.place
-      ? t("rsvp.partWhen", { time: format.time(part.startsAt), place: part.place })
-      : format.time(part.startsAt);
+  const { programItems, menus } = state;
+  const time = (programItem: ProgramItem) =>
+    programItem.place
+      ? t("rsvp.programItemWhen", {
+          time: format.time(programItem.startsAt),
+          place: programItem.place,
+        })
+      : format.time(programItem.startsAt);
 
   const valueOf = (companion: Companion): PersonValue =>
-    edits[companion.id] ?? personOf(companion, parts);
+    edits[companion.id] ?? personOf(companion, programItems, state.perItem);
   const approved = state.companions.filter((c) => c.status === "approved");
   /** Persons the RSVP is about: the guest and the companions that are not rejected. */
   const companions = state.companions.filter((c) => c.status !== "rejected");
   const attendingCompanions = companions.filter((c) => attendsAny(valueOf(c)));
-  // The guest and the approved companions answer every part in step 1.
+  // The guest and the approved companions answer every program item in step 1.
   const ownAnswered =
-    answeredAll(own, parts) && approved.every((c) => answeredAll(valueOf(c), parts));
+    answeredAll(own, programItems) && approved.every((c) => answeredAll(valueOf(c), programItems));
   const nobody = !attendsAny(own) && attendingCompanions.length === 0;
   const menuMissing =
-    (attendsAny(own) && needsMenu(own, parts, menus) && own.menuId === null) ||
+    (attendsAny(own) && needsMenu(own, programItems, menus) && own.menuId === null) ||
     attendingCompanions.some((c) => {
       const value = valueOf(c);
-      return needsMenu(value, parts, menus) && value.menuId === null;
+      return needsMenu(value, programItems, menus) && value.menuId === null;
     });
 
   async function submit() {
     setSending(true);
     const body: RsvpAnswerRequest = {
-      ...answerOf(own, parts, menus),
+      ...answerOf(own, programItems, menus),
       ...(state.songEnabled && attendsAny(own)
         ? { songWish: songWish.trim() === "" ? null : songWish.trim() }
         : {}),
-      // A pending request with an open part keeps its answer; it is completed in its own form.
+      // A pending request with an open program item keeps its answer; it is completed in its own form.
       companions: companions
-        .filter((c) => answeredAll(valueOf(c), parts))
+        .filter((c) => answeredAll(valueOf(c), programItems))
         .map((c) => ({
           companionId: c.id,
-          ...answerOf(valueOf(c), parts, menus),
+          ...answerOf(valueOf(c), programItems, menus),
         })),
     };
     const result = await apiRequest("PUT", path, { body, csrfToken: session.csrfToken });
@@ -218,7 +222,8 @@ function WizardForm({
     return (
       <CompanionForm
         key={view.companion?.id ?? "new"}
-        parts={parts}
+        perItem={state.perItem}
+        programItems={programItems}
         menus={menus}
         time={time}
         frame={(body, footer) => (
@@ -256,11 +261,13 @@ function WizardForm({
   if (step === "summary" || (locked && !answer)) {
     const status = rsvpStatus(
       answer !== null,
-      parts.map((part) => part.id),
-      answer?.attendingPartIds ?? [],
-      answer?.declinedPartIds ?? [],
+      programItems.map((programItem) => programItem.id),
+      answer?.attendingItemIds ?? [],
+      answer?.declinedItemIds ?? [],
     );
     const attending = status === "attending";
+    // With one answer per person a person with a yes anywhere is shown as attending everywhere.
+    const summaryAttendance = answer ? attendanceOf(answer, programItems, state.perItem) : {};
     const menuName = (id: number | null) => menus.find((menu) => menu.id === id)?.name;
     return (
       <Frame
@@ -270,7 +277,7 @@ function WizardForm({
         closeLabel={t("rsvp.close")}
         footer={
           <>
-            {!locked && parts.length > 0 && (
+            {!locked && programItems.length > 0 && (
               <button
                 type="button"
                 className="btn ghost"
@@ -301,15 +308,15 @@ function WizardForm({
           <>
             <div className="card">
               <ul className="list">
-                {parts.map((part) => (
-                  <li key={part.id} className="li">
-                    <b className="grow">{part.name}</b>
-                    {answer.attendingPartIds.includes(part.id) ? (
+                {programItems.map((programItem) => (
+                  <li key={programItem.id} className="li">
+                    <b className="grow">{programItem.name}</b>
+                    {summaryAttendance[programItem.id] === true ? (
                       <span className="tag ok">{t("rsvp.attending")}</span>
-                    ) : answer.declinedPartIds.includes(part.id) ? (
+                    ) : summaryAttendance[programItem.id] === false ? (
                       <span className="tag">{t("rsvp.notAttending")}</span>
                     ) : (
-                      <span className="tag warn">{t("rsvp.openPart")}</span>
+                      <span className="tag warn">{t("rsvp.openProgramItem")}</span>
                     )}
                   </li>
                 ))}
@@ -348,17 +355,19 @@ function WizardForm({
                             .join(" · ")}
                         </span>
                       </div>
-                      <span
-                        className={
-                          companion.status === "approved"
-                            ? "tag ok"
-                            : companion.status === "pending"
-                              ? "tag warn"
-                              : "tag bad"
-                        }
-                      >
-                        {t(`rsvp.companions.status.${companion.status}`)}
-                      </span>
+                      {(state.companionApproval || companion.status !== "approved") && (
+                        <span
+                          className={
+                            companion.status === "approved"
+                              ? "tag ok"
+                              : companion.status === "pending"
+                                ? "tag warn"
+                                : "tag bad"
+                          }
+                        >
+                          {t(`rsvp.companions.status.${companion.status}`)}
+                        </span>
+                      )}
                     </li>
                   ))}
                   {state.songEnabled && answer.songWish && (
@@ -398,9 +407,9 @@ function WizardForm({
             <button
               type="button"
               className="btn"
-              disabled={!ownAnswered || parts.length === 0 || sending}
+              disabled={!ownAnswered || programItems.length === 0 || sending}
               onClick={() => {
-                // Declining every part skips to the summary.
+                // Declining every program item skips to the summary.
                 if (nobody) void submit();
                 else setStep(2);
               }}
@@ -412,14 +421,15 @@ function WizardForm({
       >
         {header(1)}
         <h1 className="h1">{t("rsvp.greeting", { name: state.name })}</h1>
-        {parts.length === 0 ? (
-          <p className="muted">{t("rsvp.noParts")}</p>
+        {programItems.length === 0 ? (
+          <p className="muted">{t("rsvp.noProgramItems")}</p>
         ) : (
           <>
-            <p className="muted">{t("rsvp.intro")}</p>
+            <p className="muted">{t(state.perItem ? "rsvp.intro" : "rsvp.introOnce")}</p>
             {deadline}
-            <PartsBlock
-              parts={parts}
+            <AttendanceBlock
+              perItem={state.perItem}
+              programItems={programItems}
               value={own.attendance}
               time={time}
               onChange={(attendance) => {
@@ -429,8 +439,10 @@ function WizardForm({
             {approved.map((companion) => (
               <div key={companion.id} className="stack">
                 <b className="sm">{companion.name}</b>
-                <PartsBlock
-                  parts={parts}
+                <AttendanceBlock
+                  perItem={state.perItem}
+                  name={companion.name}
+                  programItems={programItems}
                   value={valueOf(companion).attendance}
                   time={time}
                   onChange={(attendance) => {
@@ -486,23 +498,25 @@ function WizardForm({
               <b>{state.name}</b>
               <span className="tag">{t("rsvp.you")}</span>
             </div>
-            <MenuFields value={own} onChange={setOwn} parts={parts} menus={menus} />
+            <MenuFields value={own} onChange={setOwn} programItems={programItems} menus={menus} />
           </div>
         )}
         {attendingCompanions.map((companion) => (
           <div key={companion.id} className="card">
             <div className="row">
               <b>{companion.name}</b>
-              <span className={companion.status === "approved" ? "tag ok" : "tag warn"}>
-                {t(`rsvp.companions.status.${companion.status}`)}
-              </span>
+              {(state.companionApproval || companion.status !== "approved") && (
+                <span className={companion.status === "approved" ? "tag ok" : "tag warn"}>
+                  {t(`rsvp.companions.status.${companion.status}`)}
+                </span>
+              )}
             </div>
             <MenuFields
               value={valueOf(companion)}
               onChange={(next) => {
                 setEdits({ ...edits, [companion.id]: next });
               }}
-              parts={parts}
+              programItems={programItems}
               menus={menus}
               label={companion.name}
             />
@@ -541,7 +555,8 @@ function WizardForm({
       <h1 className="h1">{t("rsvp.companions.stepTitle")}</h1>
       <CompanionsCard
         companions={state.companions}
-        parts={parts}
+        approval={state.companionApproval}
+        programItems={programItems}
         menus={menus}
         admin={admin}
         locked={locked}
@@ -565,7 +580,6 @@ function WizardForm({
               }}
             />
           </label>
-          <span className="hint">{t("rsvp.songHint")}</span>
         </div>
       )}
       {alert}

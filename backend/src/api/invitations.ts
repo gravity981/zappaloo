@@ -7,11 +7,10 @@ import {
   createInvitationsResponseSchema,
   invitationListSchema,
   invitationPreviewSchema,
-  invitationSchema,
-  invitedPartsRequestSchema,
   issuedInvitationSchema,
   redeemResponseSchema,
   registerRequestSchema,
+  revokeResponseSchema,
 } from "@zappaloo/shared";
 import type { IssuedInvitation } from "@zappaloo/shared";
 import type { FastifyReply } from "fastify";
@@ -45,8 +44,7 @@ const STATUSES: Partial<Record<string, number>> = {
   already_vip: 409,
   not_regenerable: 409,
   not_revocable: 409,
-  part_not_found: 404,
-  parts_not_editable: 409,
+  program_item_not_found: 404,
 };
 
 /** Answers an invitation error; `failure` counts it against the address and everyone. */
@@ -104,7 +102,7 @@ const invitationPlugin: FastifyPluginAsyncZod<AuthOptions> = (app, options) => {
       },
     },
     async (request, reply) => {
-      const { guests, expiresAt, partIds } = request.body;
+      const { guests, expiresAt, programItemIds, personType } = request.body;
       if (expiresAt !== undefined && new Date(expiresAt) <= new Date()) {
         return sendError(reply, 400, {
           code: "validation_failed",
@@ -116,32 +114,10 @@ const invitationPlugin: FastifyPluginAsyncZod<AuthOptions> = (app, options) => {
           guests,
           expiresAt === undefined ? undefined : new Date(expiresAt),
           actor(request),
-          partIds,
+          programItemIds,
+          personType,
         );
         return await reply.status(201).send({ invitations: created.map(issued) });
-      } catch (error) {
-        return fail(reply, error);
-      }
-    },
-  );
-
-  // The parts an invitation is for (RSVP-02, UX decision 31).
-  app.put(
-    "/api/admin/invitations/:id/parts",
-    {
-      ...admin,
-      schema: {
-        querystring: noQuery,
-        params: idParams,
-        body: invitedPartsRequestSchema,
-        response: { 200: invitationSchema },
-      },
-    },
-    async (request, reply) => {
-      try {
-        return await reply.send(
-          invitations.setParts(request.params.id, request.body.partIds, actor(request)),
-        );
       } catch (error) {
         return fail(reply, error);
       }
@@ -156,7 +132,7 @@ const invitationPlugin: FastifyPluginAsyncZod<AuthOptions> = (app, options) => {
         querystring: noQuery,
         params: idParams,
         body: noBody,
-        response: { 200: invitationSchema },
+        response: { 200: revokeResponseSchema },
       },
     },
     async (request, reply) => {
@@ -166,6 +142,20 @@ const invitationPlugin: FastifyPluginAsyncZod<AuthOptions> = (app, options) => {
         return fail(reply, error);
       }
     },
+  );
+
+  // "Aufräumen": deletes the revoked and replaced invitations (INV-21).
+  app.post(
+    "/api/admin/invitations/cleanup",
+    {
+      ...admin,
+      schema: {
+        querystring: noQuery,
+        body: noBody,
+        response: { 200: z.object({ deleted: z.number().int() }) },
+      },
+    },
+    (request) => ({ deleted: invitations.cleanup(actor(request)) }),
   );
 
   app.post(

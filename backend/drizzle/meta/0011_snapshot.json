@@ -1,8 +1,8 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "6080a302-304d-4eac-866a-0d29eec524f5",
-  "prevId": "689d0fe6-651a-4dad-ae80-74ccb8ed869c",
+  "id": "73840b75-c8ba-44f5-9a5d-808caa7a40e1",
+  "prevId": "2a788a6e-0e10-46d9-bfc9-f0a8cadaa8c5",
   "tables": {
     "access_releases": {
       "name": "access_releases",
@@ -118,6 +118,209 @@
       "uniqueConstraints": {},
       "checkConstraints": {}
     },
+    "companion_attendance": {
+      "name": "companion_attendance",
+      "columns": {
+        "event_id": {
+          "name": "event_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "companion_id": {
+          "name": "companion_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "program_item_id": {
+          "name": "program_item_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "attending": {
+          "name": "attending",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "companion_attendance_event_id_events_id_fk": {
+          "name": "companion_attendance_event_id_events_id_fk",
+          "tableFrom": "companion_attendance",
+          "tableTo": "events",
+          "columnsFrom": ["event_id"],
+          "columnsTo": ["id"],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "companion_attendance_companion_id_companions_id_fk": {
+          "name": "companion_attendance_companion_id_companions_id_fk",
+          "tableFrom": "companion_attendance",
+          "tableTo": "companions",
+          "columnsFrom": ["companion_id"],
+          "columnsTo": ["id"],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "companion_attendance_program_item_id_program_items_id_fk": {
+          "name": "companion_attendance_program_item_id_program_items_id_fk",
+          "tableFrom": "companion_attendance",
+          "tableTo": "program_items",
+          "columnsFrom": ["program_item_id"],
+          "columnsTo": ["id"],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "companion_attendance_companion_id_program_item_id_pk": {
+          "columns": ["companion_id", "program_item_id"],
+          "name": "companion_attendance_companion_id_program_item_id_pk"
+        }
+      },
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "companions": {
+      "name": "companions",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "integer",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": true
+        },
+        "event_id": {
+          "name": "event_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "host_user_id": {
+          "name": "host_user_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "person_type": {
+          "name": "person_type",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "'adult'"
+        },
+        "note": {
+          "name": "note",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "status": {
+          "name": "status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "'pending'"
+        },
+        "menu_id": {
+          "name": "menu_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "allergies": {
+          "name": "allergies",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "decided_at": {
+          "name": "decided_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        }
+      },
+      "indexes": {
+        "companions_host": {
+          "name": "companions_host",
+          "columns": ["host_user_id"],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "companions_event_id_events_id_fk": {
+          "name": "companions_event_id_events_id_fk",
+          "tableFrom": "companions",
+          "tableTo": "events",
+          "columnsFrom": ["event_id"],
+          "columnsTo": ["id"],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "companions_host_user_id_users_id_fk": {
+          "name": "companions_host_user_id_users_id_fk",
+          "tableFrom": "companions",
+          "tableTo": "users",
+          "columnsFrom": ["host_user_id"],
+          "columnsTo": ["id"],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "companions_menu_id_menu_options_id_fk": {
+          "name": "companions_menu_id_menu_options_id_fk",
+          "tableFrom": "companions",
+          "tableTo": "menu_options",
+          "columnsFrom": ["menu_id"],
+          "columnsTo": ["id"],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
+        "companions_event_id_host_user_id_memberships_event_id_user_id_fk": {
+          "name": "companions_event_id_host_user_id_memberships_event_id_user_id_fk",
+          "tableFrom": "companions",
+          "tableTo": "memberships",
+          "columnsFrom": ["event_id", "host_user_id"],
+          "columnsTo": ["event_id", "user_id"],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
     "event_features": {
       "name": "event_features",
       "columns": {
@@ -161,88 +364,6 @@
           "name": "event_features_event_id_name_pk"
         }
       },
-      "uniqueConstraints": {},
-      "checkConstraints": {}
-    },
-    "event_parts": {
-      "name": "event_parts",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "integer",
-          "primaryKey": true,
-          "notNull": true,
-          "autoincrement": true
-        },
-        "event_id": {
-          "name": "event_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "name": {
-          "name": "name",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "starts_at": {
-          "name": "starts_at",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "place": {
-          "name": "place",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "has_meal": {
-          "name": "has_meal",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false,
-          "default": false
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        }
-      },
-      "indexes": {
-        "event_parts_event": {
-          "name": "event_parts_event",
-          "columns": ["event_id"],
-          "isUnique": false
-        },
-        "event_parts_meal": {
-          "name": "event_parts_meal",
-          "columns": ["event_id"],
-          "isUnique": true,
-          "where": "\"event_parts\".\"has_meal\" = 1"
-        }
-      },
-      "foreignKeys": {
-        "event_parts_event_id_events_id_fk": {
-          "name": "event_parts_event_id_events_id_fk",
-          "tableFrom": "event_parts",
-          "tableTo": "events",
-          "columnsFrom": ["event_id"],
-          "columnsTo": ["id"],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
       "uniqueConstraints": {},
       "checkConstraints": {}
     },
@@ -340,6 +461,47 @@
       },
       "indexes": {},
       "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "footer_notice": {
+      "name": "footer_notice",
+      "columns": {
+        "event_id": {
+          "name": "event_id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "copyright": {
+          "name": "copyright",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "footer_notice_event_id_events_id_fk": {
+          "name": "footer_notice_event_id_events_id_fk",
+          "tableFrom": "footer_notice",
+          "tableTo": "events",
+          "columnsFrom": ["event_id"],
+          "columnsTo": ["id"],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
       "checkConstraints": {}
@@ -498,70 +660,6 @@
       "uniqueConstraints": {},
       "checkConstraints": {}
     },
-    "invitation_parts": {
-      "name": "invitation_parts",
-      "columns": {
-        "event_id": {
-          "name": "event_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "invitation_id": {
-          "name": "invitation_id",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "part_id": {
-          "name": "part_id",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        }
-      },
-      "indexes": {},
-      "foreignKeys": {
-        "invitation_parts_event_id_events_id_fk": {
-          "name": "invitation_parts_event_id_events_id_fk",
-          "tableFrom": "invitation_parts",
-          "tableTo": "events",
-          "columnsFrom": ["event_id"],
-          "columnsTo": ["id"],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
-        "invitation_parts_invitation_id_invitations_id_fk": {
-          "name": "invitation_parts_invitation_id_invitations_id_fk",
-          "tableFrom": "invitation_parts",
-          "tableTo": "invitations",
-          "columnsFrom": ["invitation_id"],
-          "columnsTo": ["id"],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        },
-        "invitation_parts_part_id_event_parts_id_fk": {
-          "name": "invitation_parts_part_id_event_parts_id_fk",
-          "tableFrom": "invitation_parts",
-          "tableTo": "event_parts",
-          "columnsFrom": ["part_id"],
-          "columnsTo": ["id"],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {
-        "invitation_parts_invitation_id_part_id_pk": {
-          "columns": ["invitation_id", "part_id"],
-          "name": "invitation_parts_invitation_id_part_id_pk"
-        }
-      },
-      "uniqueConstraints": {},
-      "checkConstraints": {}
-    },
     "invitations": {
       "name": "invitations",
       "columns": {
@@ -642,6 +740,13 @@
           "primaryKey": false,
           "notNull": false,
           "autoincrement": false
+        },
+        "user_id": {
+          "name": "user_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
         }
       },
       "indexes": {
@@ -680,6 +785,15 @@
           "tableFrom": "invitations",
           "tableTo": "invitations",
           "columnsFrom": ["replaced_by"],
+          "columnsTo": ["id"],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "invitations_user_id_users_id_fk": {
+          "name": "invitations_user_id_users_id_fk",
+          "tableFrom": "invitations",
+          "tableTo": "users",
+          "columnsFrom": ["user_id"],
           "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
@@ -753,8 +867,8 @@
       "uniqueConstraints": {},
       "checkConstraints": {}
     },
-    "membership_parts": {
-      "name": "membership_parts",
+    "membership_program_items": {
+      "name": "membership_program_items",
       "columns": {
         "event_id": {
           "name": "event_id",
@@ -770,8 +884,8 @@
           "notNull": true,
           "autoincrement": false
         },
-        "part_id": {
-          "name": "part_id",
+        "program_item_id": {
+          "name": "program_item_id",
           "type": "integer",
           "primaryKey": false,
           "notNull": true,
@@ -780,36 +894,36 @@
       },
       "indexes": {},
       "foreignKeys": {
-        "membership_parts_event_id_events_id_fk": {
-          "name": "membership_parts_event_id_events_id_fk",
-          "tableFrom": "membership_parts",
+        "membership_program_items_event_id_events_id_fk": {
+          "name": "membership_program_items_event_id_events_id_fk",
+          "tableFrom": "membership_program_items",
           "tableTo": "events",
           "columnsFrom": ["event_id"],
           "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
-        "membership_parts_user_id_users_id_fk": {
-          "name": "membership_parts_user_id_users_id_fk",
-          "tableFrom": "membership_parts",
+        "membership_program_items_user_id_users_id_fk": {
+          "name": "membership_program_items_user_id_users_id_fk",
+          "tableFrom": "membership_program_items",
           "tableTo": "users",
           "columnsFrom": ["user_id"],
           "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
-        "membership_parts_part_id_event_parts_id_fk": {
-          "name": "membership_parts_part_id_event_parts_id_fk",
-          "tableFrom": "membership_parts",
-          "tableTo": "event_parts",
-          "columnsFrom": ["part_id"],
+        "membership_program_items_program_item_id_program_items_id_fk": {
+          "name": "membership_program_items_program_item_id_program_items_id_fk",
+          "tableFrom": "membership_program_items",
+          "tableTo": "program_items",
+          "columnsFrom": ["program_item_id"],
           "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
-        "membership_parts_event_id_user_id_memberships_event_id_user_id_fk": {
-          "name": "membership_parts_event_id_user_id_memberships_event_id_user_id_fk",
-          "tableFrom": "membership_parts",
+        "membership_program_items_event_id_user_id_memberships_event_id_user_id_fk": {
+          "name": "membership_program_items_event_id_user_id_memberships_event_id_user_id_fk",
+          "tableFrom": "membership_program_items",
           "tableTo": "memberships",
           "columnsFrom": ["event_id", "user_id"],
           "columnsTo": ["event_id", "user_id"],
@@ -818,9 +932,9 @@
         }
       },
       "compositePrimaryKeys": {
-        "membership_parts_event_id_user_id_part_id_pk": {
-          "columns": ["event_id", "user_id", "part_id"],
-          "name": "membership_parts_event_id_user_id_part_id_pk"
+        "membership_program_items_event_id_user_id_program_item_id_pk": {
+          "columns": ["event_id", "user_id", "program_item_id"],
+          "name": "membership_program_items_event_id_user_id_program_item_id_pk"
         }
       },
       "uniqueConstraints": {},
@@ -920,6 +1034,14 @@
           "primaryKey": false,
           "notNull": false,
           "autoincrement": false
+        },
+        "person_type": {
+          "name": "person_type",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "'adult'"
         },
         "vip_invitation_id": {
           "name": "vip_invitation_id",
@@ -1109,6 +1231,129 @@
       "uniqueConstraints": {},
       "checkConstraints": {}
     },
+    "privacy_notice": {
+      "name": "privacy_notice",
+      "columns": {
+        "event_id": {
+          "name": "event_id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "markdown": {
+          "name": "markdown",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "privacy_notice_event_id_events_id_fk": {
+          "name": "privacy_notice_event_id_events_id_fk",
+          "tableFrom": "privacy_notice",
+          "tableTo": "events",
+          "columnsFrom": ["event_id"],
+          "columnsTo": ["id"],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "program_items": {
+      "name": "program_items",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "integer",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": true
+        },
+        "event_id": {
+          "name": "event_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "starts_at": {
+          "name": "starts_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "place": {
+          "name": "place",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "has_meal": {
+          "name": "has_meal",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        }
+      },
+      "indexes": {
+        "program_items_event": {
+          "name": "program_items_event",
+          "columns": ["event_id"],
+          "isUnique": false
+        },
+        "program_items_meal": {
+          "name": "program_items_meal",
+          "columns": ["event_id"],
+          "isUnique": true,
+          "where": "\"program_items\".\"has_meal\" = 1"
+        }
+      },
+      "foreignKeys": {
+        "program_items_event_id_events_id_fk": {
+          "name": "program_items_event_id_events_id_fk",
+          "tableFrom": "program_items",
+          "tableTo": "events",
+          "columnsFrom": ["event_id"],
+          "columnsTo": ["id"],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
     "rsvp_answers": {
       "name": "rsvp_answers",
       "columns": {
@@ -1220,8 +1465,8 @@
           "notNull": true,
           "autoincrement": false
         },
-        "part_id": {
-          "name": "part_id",
+        "program_item_id": {
+          "name": "program_item_id",
           "type": "integer",
           "primaryKey": false,
           "notNull": true,
@@ -1255,11 +1500,11 @@
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
-        "rsvp_attendance_part_id_event_parts_id_fk": {
-          "name": "rsvp_attendance_part_id_event_parts_id_fk",
+        "rsvp_attendance_program_item_id_program_items_id_fk": {
+          "name": "rsvp_attendance_program_item_id_program_items_id_fk",
           "tableFrom": "rsvp_attendance",
-          "tableTo": "event_parts",
-          "columnsFrom": ["part_id"],
+          "tableTo": "program_items",
+          "columnsFrom": ["program_item_id"],
           "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
@@ -1275,9 +1520,9 @@
         }
       },
       "compositePrimaryKeys": {
-        "rsvp_attendance_event_id_user_id_part_id_pk": {
-          "columns": ["event_id", "user_id", "part_id"],
-          "name": "rsvp_attendance_event_id_user_id_part_id_pk"
+        "rsvp_attendance_event_id_user_id_program_item_id_pk": {
+          "columns": ["event_id", "user_id", "program_item_id"],
+          "name": "rsvp_attendance_event_id_user_id_program_item_id_pk"
         }
       },
       "uniqueConstraints": {},
@@ -1299,6 +1544,30 @@
           "primaryKey": false,
           "notNull": false,
           "autoincrement": false
+        },
+        "song_enabled": {
+          "name": "song_enabled",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": true
+        },
+        "per_item": {
+          "name": "per_item",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": false
+        },
+        "companion_approval": {
+          "name": "companion_approval",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": false
         }
       },
       "indexes": {},
@@ -1399,8 +1668,16 @@
           "name": "username",
           "type": "text",
           "primaryKey": false,
-          "notNull": true,
+          "notNull": false,
           "autoincrement": false
+        },
+        "status": {
+          "name": "status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "'inactive'"
         },
         "display_name": {
           "name": "display_name",
@@ -1451,9 +1728,78 @@
           "name": "users_username_unique",
           "columns": ["username"],
           "isUnique": true
+        },
+        "users_verified_email": {
+          "name": "users_verified_email",
+          "columns": ["lower(\"email\")"],
+          "isUnique": true,
+          "where": "\"users\".\"email_status\" = 'verified'"
         }
       },
       "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "waiting_config": {
+      "name": "waiting_config",
+      "columns": {
+        "event_id": {
+          "name": "event_id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "opening_at": {
+          "name": "opening_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "countdown_enabled": {
+          "name": "countdown_enabled",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": false
+        },
+        "text_none": {
+          "name": "text_none",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "text_attending": {
+          "name": "text_attending",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "text_declined": {
+          "name": "text_declined",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "waiting_config_event_id_events_id_fk": {
+          "name": "waiting_config_event_id_events_id_fk",
+          "tableFrom": "waiting_config",
+          "tableTo": "events",
+          "columnsFrom": ["event_id"],
+          "columnsTo": ["id"],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
       "checkConstraints": {}
@@ -1467,6 +1813,14 @@
     "columns": {}
   },
   "internal": {
-    "indexes": {}
+    "indexes": {
+      "users_verified_email": {
+        "columns": {
+          "lower(\"email\")": {
+            "isExpression": true
+          }
+        }
+      }
+    }
   }
 }

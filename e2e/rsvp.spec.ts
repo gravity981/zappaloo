@@ -2,7 +2,7 @@ import { expect, test } from "@playwright/test";
 import { clientAddress, PASSWORD, signInAsAdmin } from "./support.ts";
 import de from "../frontend/src/i18n/locales/de/common.json" with { type: "json" };
 
-test("[RSVP-01][RSVP-02][RSVP-03][RSVP-04][RSVP-05][RSVP-06][SEC-11][DATA-05] a guest answers the RSVP for the invited parts; the admin sees it and changes it", async ({
+test("[RSVP-01][RSVP-02][RSVP-03][RSVP-04][RSVP-05][RSVP-06][RSVP-11][ACC-17][SEC-11][DATA-05] a guest answers the RSVP once for the invited program items; the admin sees it and changes it", async ({
   page,
   context,
   browser,
@@ -22,18 +22,24 @@ test("[RSVP-01][RSVP-02][RSVP-03][RSVP-04][RSVP-05][RSVP-06][SEC-11][DATA-05] a 
   await expect(
     page.getByRole("status").filter({ hasText: de.admin.rsvpSettings.saved }),
   ).toBeVisible();
-  // The example parts and menus of the seeded event are there, one part has the meal.
+  // The example program items and menus of the seeded event are there, one program item has the meal.
   await expect(page.getByText(de.admin.rsvpSettings.mealTag, { exact: true })).toBeVisible();
 
-  // An invitation for every part except the party.
+  // An invitation for every program item except the party.
   await page.goto("/admin/invitations");
   await page.getByLabel(de.admin.invitations.names).fill(name);
-  const invitedTo = page.getByRole("group", { name: de.admin.invitations.parts });
+  const invitedTo = page.getByRole("group", { name: de.admin.invitations.programItems });
   await invitedTo.getByRole("button", { name: "Party" }).click();
   await page.getByRole("button", { name: /Einladung erstellen/ }).click();
   const codeCell = page.locator(".invitation-code");
   await expect(codeCell).toHaveText(/^[A-Z0-9]{6}$/);
   const code = (await codeCell.textContent()) ?? "";
+
+  // The guest is on the guest list before the card is redeemed: without an answer (ACC-17).
+  await page.goto("/admin/rsvp");
+  await expect(page.getByRole("row", { name: new RegExp(name) })).toContainText(
+    de.admin.rsvp.statuses.none,
+  );
 
   // The guest redeems the invitation in a browser of their own and answers.
   const guestContext = await browser.newContext({
@@ -50,14 +56,13 @@ test("[RSVP-01][RSVP-02][RSVP-03][RSVP-04][RSVP-05][RSVP-06][SEC-11][DATA-05] a 
   await expect(
     guest.getByRole("heading", { name: de.rsvp.greeting.replace("{{name}}", name) }),
   ).toBeVisible();
-  // Only the invited parts are offered.
-  await expect(guest.getByRole("group", { name: "Party" })).toHaveCount(0);
-  await guest.getByRole("button", { name: `Trauung: ${de.rsvp.attending}` }).click();
-  await guest.getByRole("button", { name: `Apéro: ${de.rsvp.attending}` }).click();
-  await guest.getByRole("button", { name: `Dinner: ${de.rsvp.attending}` }).click();
+  // One answer for the invited program items (the default, RSVP-11); the party is not among them.
+  await expect(guest.getByText("Trauung · Apéro · Dinner")).toBeVisible();
+  await expect(guest.getByRole("button", { name: `Trauung: ${de.rsvp.attending}` })).toHaveCount(0);
+  await guest.getByRole("button", { name: de.rsvp.yes, exact: true }).click();
   await guest.getByRole("button", { name: de.rsvp.next }).click();
 
-  // The menu is asked because the guest attends the meal part, and it is required.
+  // The menu is asked because the guest attends the meal program item, and it is required.
   await expect(guest.getByRole("button", { name: de.rsvp.next })).toBeDisabled();
   await guest.getByRole("button", { name: "Vegetarisch" }).click();
   await guest.getByLabel(de.rsvp.allergies).fill("Nüsse");
@@ -84,7 +89,7 @@ test("[RSVP-01][RSVP-02][RSVP-03][RSVP-04][RSVP-05][RSVP-06][SEC-11][DATA-05] a 
   );
   const csv = await page.request.get("/api/admin/rsvp/export");
   expect(await csv.text()).toContain(
-    `${name};zugesagt;ja;ja;ja;;Vegetarisch;ABBA – Dancing Queen;Nüsse`,
+    `${name};${de.personTypes.adult};zugesagt;ja;ja;ja;;Vegetarisch;ABBA – Dancing Queen;Nüsse`,
   );
 
   // Allergies reach nobody but the admin: the guest has no access to the overview.
@@ -94,15 +99,12 @@ test("[RSVP-01][RSVP-02][RSVP-03][RSVP-04][RSVP-05][RSVP-06][SEC-11][DATA-05] a 
   await row.getByRole("link", { name: `${de.admin.rsvp.edit}: ${name}` }).click();
   await expect(page.getByText(de.rsvp.adminMode)).toBeVisible();
   await page.getByRole("button", { name: de.rsvp.change }).click();
-  await page.getByRole("button", { name: `Apéro: ${de.rsvp.notAttending}` }).click();
-  await page.getByRole("button", { name: de.rsvp.next }).click();
-  await page.getByRole("button", { name: de.rsvp.next }).click();
+  await page.getByRole("button", { name: de.rsvp.no, exact: true }).click();
   await page.getByRole("button", { name: de.rsvp.send }).click();
   await expect(page.getByRole("button", { name: de.rsvp.change })).toBeVisible();
   await guest.reload();
-  await expect(guest.getByText("Trauung")).toBeVisible();
   await expect(
-    guest.getByRole("listitem").filter({ hasText: "Apéro" }).getByText(de.rsvp.notAttending),
+    guest.getByRole("heading", { name: de.rsvp.declined.replace("{{name}}", name) }),
   ).toBeVisible();
 
   // The card "Zuletzt" tells about it.

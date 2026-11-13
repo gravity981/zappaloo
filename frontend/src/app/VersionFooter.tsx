@@ -26,7 +26,7 @@ export default function VersionFooter() {
 
   return (
     <footer className="version-footer">
-      <Link to="/datenschutz">{t("footer.privacy")}</Link>{" "}
+      <Link to="/datenschutz">{t("footer.privacy")}</Link> ·{" "}
       <span>
         {t("footer.version", { version: displayVersion(__APP_VERSION__, serverVersion) })}
       </span>

@@ -16,7 +16,7 @@ Everything on prod is real: take the time at the steps marked **STOP**.
 - [ ] **Prod:** `DOMAIN` points to the host's public IP, ports 80 and 443 are forwarded to it, and you have a real SMTP account (host, port, user, password, a sender address).
 - [ ] **Staging:** reachable in your LAN. If it runs on the same machine as prod: ports 8080/8443 and Mailpit's 8025.
 - [ ] If the image is private: a GitHub token with only `read:packages` in `ghcr-token` (mode 600) and `GHCR_USER` in `.env`.
-- [ ] Facts about the event at hand: name, time zone, the parts (name, time, place; which has the meal), the menu list, the RSVP deadline, the guest names, optional icon PNGs (see 5.6).
+- [ ] Facts about the event at hand: name, time zone, the program items (name, time, place; which has the meal), the menu list, the RSVP deadline, the guest names, optional icon PNGs (see 5.6).
 
 ---
 
@@ -104,7 +104,7 @@ docker compose exec app zappaloo create-admin tester --vip     # prints a one-ti
 
 - [ ] Open the link, set a password, sign in.
 - [ ] The form *Veranstaltung einrichten* appears: name, time zone, language → *Einrichtung abschliessen*.
-- [ ] Einstellungen → *Rückmeldung*: add two parts (one with the meal), a menu, a deadline. *Footer*: edit the *Fusszeile* line, see it under the page.
+- [ ] Einstellungen → *Rückmeldung*: add two program items (one with the meal), a menu, a deadline. *Footer*: edit the *Fusszeile* line, see it under the page.
 - [ ] Einladungen: create one invitation for a test guest, *Karten drucken* (look at the print preview). Open the invitation link in a second browser profile or phone, register, answer the RSVP.
 - [ ] The platform is closed: the guest sees the waiting page and the RSVP, not the website.
 - [ ] Einstellungen → *Plattform öffnen* with the mail option: the "Die Tür ist offen" mail arrives in Mailpit (needs a verified address of the guest: add one in the guest's profile and confirm it with the mail). *Wieder schliessen* closes it again.
@@ -222,7 +222,7 @@ They are part of the full backup (`events/`).
 
 ## 6. Initial setup of the event, accounts and invitations
 
-Sign in at `https://DOMAIN` with the admin. Do the steps in this order: invitations need the parts, and the platform stays closed until you open it.
+Sign in at `https://DOMAIN` with the admin. Do the steps in this order: invitations need the program items, and the platform stays closed until you open it.
 
 ### 6.1 The event
 
@@ -230,7 +230,7 @@ Sign in at `https://DOMAIN` with the admin. Do the steps in this order: invitati
 
 ### 6.2 Einstellungen
 
-- [ ] **Rückmeldung:** the event parts (name, time, place), the part with the meal marked, the menu list (children's menu included), the RSVP deadline (last day), the song wish question on or off.
+- [ ] **Rückmeldung:** the program items (name, time, place), the program item with the meal marked, the menu list (children's menu included), the RSVP deadline (last day), the song wish question on or off.
 - [ ] **Plattform öffnen / Warteseite:** the three waiting-page texts (defaults exist), an optional opening date and the countdown switch. **Do not open the platform now.** It stays closed until the day you decide.
 - [ ] **Datenschutz:** read the German default text; it is a draft and needs your legal review. Edit it if needed.
 - [ ] **Fusszeile:** the copyright line under every page (default `© <year> <event name>`); leave it or change it.
@@ -243,7 +243,7 @@ Sign in at `https://DOMAIN` with the admin. Do the steps in this order: invitati
 
 ### 6.4 Invitations (Einladungen)
 
-- [ ] *Neue Einladungen*: one guest name per line, *Eingeladen zu* (the chips: the parts each guest may answer for), an optional expiry date → *Einladungen erstellen*.
+- [ ] *Neue Einladungen*: one guest name per line, *Eingeladen zu* (the chips: the program items each guest may answer for), an optional expiry date → *Einladungen erstellen*.
 - [ ] **The codes are visible only now.** *Karten drucken* before you leave the page (print preview, or save as PDF). Lost a code? *Neu erzeugen* on the row makes a new one and replaces the old.
 - [ ] Check one card end to end: scan the QR code with a phone, redeem, answer the RSVP, look at it under *Rückmeldungen*. Then *Widerrufen* that test invitation if it was not meant for a real guest (invitations can be revoked, not deleted), or create it with a name you can recognise.
 - [ ] Hand the cards out.

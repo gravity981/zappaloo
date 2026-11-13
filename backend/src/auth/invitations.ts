@@ -2,20 +2,22 @@
 // 6-character string; only its SHA-256 is stored, so the plain code exists only in the
 // response that creates or regenerates it (INV-02, INV-14).
 import { randomBytes } from "node:crypto";
-import { and, desc, eq } from "drizzle-orm";
-import type { Invitation, InvitationStatus, User } from "@zappaloo/shared";
+import { and, desc, eq, ne, notInArray, or } from "drizzle-orm";
+import type { Invitation, InvitationStatus, PersonType, User } from "@zappaloo/shared";
 import type { Database } from "../database/database.ts";
 import {
-  eventParts,
-  invitationParts,
+  companions,
+  guestGroupMembers,
   invitations,
-  membershipParts,
+  membershipProgramItems,
   membershipRoles,
   memberships,
+  programItems,
+  rsvpAnswers,
+  rsvpAttendance,
+  users,
 } from "../database/schema.ts";
-import { SELF_ACTOR } from "../event/service.ts";
 import type { Actor, EventService } from "../event/service.ts";
-import { attendingNow, pruneAnswers } from "../rsvp/cleanup.ts";
 import { assertPasswordAllowed } from "./accounts.ts";
 import type { AccountService } from "./accounts.ts";
 import { hashPassword } from "./password.ts";
@@ -31,8 +33,7 @@ export type InvitationErrorCode =
   | "invitation_not_found"
   | "not_regenerable"
   | "not_revocable"
-  | "part_not_found"
-  | "parts_not_editable";
+  | "program_item_not_found";
 
 export class InvitationError extends Error {
   override name = "InvitationError";
@@ -64,6 +65,7 @@ export function normalizeCode(input: string): string | undefined {
 
 type Row = typeof invitations.$inferSelect;
 type Tx = Parameters<Parameters<Database["db"]["transaction"]>[0]>[0];
+type Reader = Pick<Database["db"], "select">;
 
 export interface IssuedCode {
   invitation: Invitation;
@@ -98,8 +100,14 @@ export class InvitationService {
     return row.status;
   }
 
-  #toInvitation(row: Row, partIds: number[]): Invitation {
+  #toInvitation(
+    row: Row,
+    programItemIds: number[],
+    removesGuest: boolean,
+    personType: PersonType = "adult",
+  ): Invitation {
     return {
+      personType,
       id: row.id,
       guestName: row.guestName,
       note: row.note,
@@ -108,31 +116,74 @@ export class InvitationService {
       createdAt: row.createdAt.toISOString(),
       redeemedAt: row.redeemedAt?.toISOString() ?? null,
       redeemedBy: row.redeemedBy,
-      partIds,
+      programItemIds,
+      userId: row.userId,
+      removesGuest,
     };
   }
 
   /**
-   * The parts of an invitation: its own list, or, once redeemed, those of the account that
-   * redeemed it, which the admin can also change in the account panel (RSVP-02).
+   * The program items of an invitation are those of the guest's account (7.1.2), so the
+   * invitation row and the account panel edit the same list.
    */
-  #partIds(tx: Pick<Database["db"], "select">, row: Row): number[] {
-    const eventId = this.#event.eventId;
-    const rows =
-      row.status === "redeemed" && row.redeemedBy !== null
-        ? tx
-            .select({ partId: membershipParts.partId })
-            .from(membershipParts)
-            .where(
-              and(eq(membershipParts.eventId, eventId), eq(membershipParts.userId, row.redeemedBy)),
-            )
-            .all()
-        : tx
-            .select({ partId: invitationParts.partId })
-            .from(invitationParts)
-            .where(eq(invitationParts.invitationId, row.id))
-            .all();
-    return rows.map((r) => r.partId).sort((a, b) => a - b);
+  #programItemIds(tx: Reader, row: Row): number[] {
+    if (row.userId === null) return [];
+    return tx
+      .select({ programItemId: membershipProgramItems.programItemId })
+      .from(membershipProgramItems)
+      .where(
+        and(
+          eq(membershipProgramItems.eventId, this.#event.eventId),
+          eq(membershipProgramItems.userId, row.userId),
+        ),
+      )
+      .all()
+      .map((r) => r.programItemId)
+      .sort((a, b) => a - b);
+  }
+
+  /**
+   * Whether revoking this code removes the guest (INV-20): it is open (active or expired), the
+   * account's last open code, and the account was never activated.
+   */
+  #removesGuest(tx: Reader, row: Row): boolean {
+    if (row.status !== "active" || row.userId === null) return false;
+    const account = tx
+      .select({ status: users.status })
+      .from(users)
+      .where(eq(users.id, row.userId))
+      .get();
+    if (account?.status !== "inactive") return false;
+    const others = tx
+      .select({ id: invitations.id, status: invitations.status })
+      .from(invitations)
+      .where(and(eq(invitations.userId, row.userId), ne(invitations.id, row.id)))
+      .all();
+    // A code that was redeemed before means the account was activated once: it stays.
+    return !others.some((other) => other.status === "active" || other.status === "redeemed");
+  }
+
+  /** The person type of the invitation's guest (RSVP-13), the account's. */
+  #personType(tx: Reader, row: Row): PersonType {
+    if (row.userId === null) return "adult";
+    return (
+      tx
+        .select({ personType: memberships.personType })
+        .from(memberships)
+        .where(
+          and(eq(memberships.eventId, this.#event.eventId), eq(memberships.userId, row.userId)),
+        )
+        .get()?.personType ?? "adult"
+    );
+  }
+
+  #view(tx: Reader, row: Row): Invitation {
+    return this.#toInvitation(
+      row,
+      this.#programItemIds(tx, row),
+      this.#removesGuest(tx, row),
+      this.#personType(tx, row),
+    );
   }
 
   list(): Invitation[] {
@@ -143,40 +194,79 @@ export class InvitationService {
       .where(eq(invitations.eventId, this.#event.eventId))
       .orderBy(desc(invitations.id))
       .all()
-      .map((row) => this.#toInvitation(row, this.#partIds(db, row)));
+      .map((row) => this.#view(db, row));
   }
 
-  /** Every part of the event must exist; undefined means all parts (RSVP-02). */
-  #resolveParts(tx: Pick<Database["db"], "select">, partIds: number[] | undefined): number[] {
+  /** Every program item of the event must exist; undefined means all program items (RSVP-02). */
+  #resolveProgramItems(tx: Reader, programItemIds: number[] | undefined): number[] {
     const all = tx
-      .select({ id: eventParts.id })
-      .from(eventParts)
-      .where(eq(eventParts.eventId, this.#event.eventId))
+      .select({ id: programItems.id })
+      .from(programItems)
+      .where(eq(programItems.eventId, this.#event.eventId))
       .all()
       .map((r) => r.id);
-    if (partIds === undefined) return all.sort((a, b) => a - b);
-    const wanted = [...new Set(partIds)].sort((a, b) => a - b);
+    if (programItemIds === undefined) return all.sort((a, b) => a - b);
+    const wanted = [...new Set(programItemIds)].sort((a, b) => a - b);
     if (wanted.some((id) => !all.includes(id))) {
-      throw new InvitationError("part_not_found", "no such event part");
+      throw new InvitationError("program_item_not_found", "no such program item");
     }
     return wanted;
   }
 
-  /** One invitation per guest, all with the same optional expiry date (INV-01, INV-04). */
+  /**
+   * One invitation per guest, all with the same optional expiry date (INV-01, INV-04). Each guest
+   * gets an inactive account at once (ACC-17, 7.1.2), so they are on the guest list before the
+   * card is redeemed.
+   */
   create(
     guests: { name: string; note?: string | undefined }[],
     expiresAt: Date | undefined,
     actor: Actor,
-    /** The parts the guests are invited to; undefined: all parts of the event. */
-    partIds?: number[],
+    /** The program items the guests are invited to; undefined: all program items of the event. */
+    programItemIds?: number[],
+    /** The person type of the guests (RSVP-13); undefined: adult. */
+    personType: PersonType = "adult",
   ): IssuedCode[] {
     return this.#database.db.transaction((tx) => {
-      const parts = this.#resolveParts(tx, partIds);
+      const programItems = this.#resolveProgramItems(tx, programItemIds);
       return guests.map((guest) => {
-        const issued = this.#insert(tx, guest.name, guest.note ?? null, expiresAt, parts);
+        const account = tx
+          .insert(users)
+          .values({
+            displayName: guest.name,
+            status: "inactive",
+            createdAt: this.#now(),
+            updatedAt: this.#now(),
+          })
+          .returning({ id: users.id })
+          .get();
+        const issued = this.#insert(tx, {
+          guestName: guest.name,
+          note: guest.note ?? null,
+          expiresAt,
+          userId: account.id,
+        });
+        const eventId = this.#event.eventId;
+        tx.insert(memberships)
+          .values({
+            eventId,
+            userId: account.id,
+            createdAt: this.#now(),
+            vipAssignment: "invitation_code",
+            vipInvitationId: issued.invitation.id,
+            personType,
+          })
+          .run();
+        tx.insert(membershipRoles).values({ eventId, userId: account.id, role: "vip" }).run();
+        for (const programItemId of programItems) {
+          tx.insert(membershipProgramItems)
+            .values({ eventId, userId: account.id, programItemId })
+            .run();
+        }
+        const invitation = { ...issued.invitation, programItemIds: programItems, personType };
         // The id only: the guest's name is in the invitation, not copied into the log.
-        this.#event.audit(actor, "invitation.create", { invitationId: issued.invitation.id }, tx);
-        return issued;
+        this.#event.audit(actor, "invitation.create", { invitationId: invitation.id }, tx);
+        return { ...issued, invitation };
       });
     });
   }
@@ -185,7 +275,7 @@ export class InvitationService {
    * A code no invitation has had yet. With a few hundred codes among about a billion a
    * collision is rare, but it would fail the whole batch on the unique index; so draw again.
    */
-  #unusedCode(tx: Pick<Database["db"], "select">): string {
+  #unusedCode(tx: Reader): string {
     for (let attempt = 0; attempt < 10; attempt += 1) {
       const code = this.#newCode();
       const taken = tx
@@ -200,33 +290,26 @@ export class InvitationService {
 
   #insert(
     tx: Tx,
-    guestName: string,
-    note: string | null,
-    expiresAt: Date | undefined,
-    partIds: number[],
+    input: { guestName: string; note: string | null; expiresAt: Date | undefined; userId: number },
   ): IssuedCode {
     const code = this.#unusedCode(tx);
     const row = tx
       .insert(invitations)
       .values({
         eventId: this.#event.eventId,
-        guestName,
-        note,
+        guestName: input.guestName,
+        note: input.note,
         codeHash: hashToken(normalizeCode(code) ?? code),
-        expiresAt: expiresAt ?? null,
+        expiresAt: input.expiresAt ?? null,
         createdAt: this.#now(),
+        userId: input.userId,
       })
       .returning()
       .get();
-    for (const partId of partIds) {
-      tx.insert(invitationParts)
-        .values({ eventId: this.#event.eventId, invitationId: row.id, partId })
-        .run();
-    }
-    return { invitation: this.#toInvitation(row, partIds), code };
+    return { invitation: this.#toInvitation(row, [], false), code };
   }
 
-  #get(tx: Pick<Database["db"], "select">, id: number): Row {
+  #get(tx: Reader, id: number): Row {
     const row = tx
       .select()
       .from(invitations)
@@ -238,23 +321,39 @@ export class InvitationService {
 
   /**
    * Revokes an active code (INV-05). An expired code needs no revoking, a redeemed one stays
-   * redeemed (INV-10), and a revoked or replaced one is already dead (9.6.1).
+   * redeemed (INV-10), and a revoked or replaced one is already dead (9.6.1). If it was the last
+   * open code of an account that was never activated, the guest is removed with it (INV-20).
    */
-  revoke(id: number, actor: Actor): Invitation {
+  revoke(id: number, actor: Actor): Invitation & { guestRemoved: boolean } {
     return this.#database.db.transaction((tx) => {
       const row = this.#get(tx, id);
       const status = this.#status(row);
       if (status !== "active") {
         throw new InvitationError("not_revocable", `a ${status} code cannot be revoked`);
       }
+      const removes = this.#removesGuest(tx, row);
+      const programItemIds = this.#programItemIds(tx, row);
       const updated = tx
         .update(invitations)
         .set({ status: "revoked" })
         .where(and(eq(invitations.id, id), eq(invitations.status, "active")))
         .returning()
         .get();
-      this.#event.audit(actor, "invitation.revoke", { invitationId: id }, tx);
-      return this.#toInvitation(updated, this.#partIds(tx, updated));
+      if (removes && row.userId !== null) {
+        // The account with its invitations, answer entered by an admin and companions.
+        this.#accounts.deleteUserRows(tx, row.userId);
+      }
+      this.#event.audit(
+        actor,
+        "invitation.revoke",
+        { invitationId: id, ...(removes ? { guestRemoved: true } : {}) },
+        tx,
+      );
+      return {
+        ...this.#toInvitation(updated, programItemIds, false),
+        userId: removes ? null : updated.userId,
+        guestRemoved: removes,
+      };
     });
   }
 
@@ -265,13 +364,29 @@ export class InvitationService {
   regenerate(id: number, expiresAt: Date | undefined, actor: Actor): IssuedCode {
     return this.#database.db.transaction((tx) => {
       const row = this.#get(tx, id);
-      if (row.status !== "active") {
+      if (row.status !== "active" || row.userId === null) {
         throw new InvitationError("not_regenerable", `a ${row.status} code cannot be regenerated`);
       }
-      const issued = this.#insert(tx, row.guestName, row.note, expiresAt, this.#partIds(tx, row));
+      const issued = this.#insert(tx, {
+        guestName: row.guestName,
+        note: row.note,
+        expiresAt,
+        userId: row.userId,
+      });
       tx.update(invitations)
         .set({ status: "replaced", replacedBy: issued.invitation.id })
         .where(eq(invitations.id, id))
+        .run();
+      // The account points to the code that is in use now.
+      tx.update(memberships)
+        .set({ vipInvitationId: issued.invitation.id })
+        .where(
+          and(
+            eq(memberships.eventId, this.#event.eventId),
+            eq(memberships.userId, row.userId),
+            eq(memberships.vipInvitationId, id),
+          ),
+        )
         .run();
       this.#event.audit(
         actor,
@@ -279,61 +394,39 @@ export class InvitationService {
         { invitationId: id, newInvitationId: issued.invitation.id },
         tx,
       );
-      return issued;
+      return {
+        ...issued,
+        invitation: {
+          ...issued.invitation,
+          programItemIds: this.#programItemIds(tx, row),
+          personType: this.#personType(tx, row),
+        },
+      };
     });
   }
 
   /**
-   * Changes the parts of an invitation (RSVP-02, UX decision 31): its own list while the code
-   * is active or expired, the account's parts once it is redeemed. A revoked or replaced code
-   * is dead and keeps what it had.
+   * Deletes the revoked and replaced invitations (INV-21). Redeemed, active and expired ones stay.
+   * Returns how many were deleted.
    */
-  setParts(id: number, partIds: number[], actor: Actor): Invitation {
+  cleanup(actor: Actor): number {
     return this.#database.db.transaction((tx) => {
-      const row = this.#get(tx, id);
-      const status = this.#status(row);
-      if (status === "revoked" || status === "replaced") {
-        throw new InvitationError("parts_not_editable", `a ${status} code cannot be changed`);
-      }
-      const parts = this.#resolveParts(tx, partIds);
-      const eventId = this.#event.eventId;
-      tx.delete(invitationParts).where(eq(invitationParts.invitationId, id)).run();
-      for (const partId of parts) {
-        tx.insert(invitationParts).values({ eventId, invitationId: id, partId }).run();
-      }
-      if (row.status === "redeemed" && row.redeemedBy !== null) {
-        const before = attendingNow(tx, eventId, row.redeemedBy);
-        tx.delete(membershipParts)
-          .where(
-            and(eq(membershipParts.eventId, eventId), eq(membershipParts.userId, row.redeemedBy)),
-          )
-          .run();
-        for (const partId of parts) {
-          tx.insert(membershipParts).values({ eventId, userId: row.redeemedBy, partId }).run();
-        }
-        // Answers for parts no longer invited go, as with the account panel (7.4.1).
-        pruneAnswers(tx, eventId, row.redeemedBy, before);
-      }
-      this.#event.audit(actor, "invitation.parts", { invitationId: id, partIds: parts }, tx);
-      return this.#toInvitation(row, this.#partIds(tx, row));
+      const gone = tx
+        .delete(invitations)
+        .where(
+          and(
+            eq(invitations.eventId, this.#event.eventId),
+            or(eq(invitations.status, "revoked"), eq(invitations.status, "replaced")),
+          ),
+        )
+        .run().changes;
+      this.#event.audit(actor, "invitation.cleanup", { count: gone }, tx);
+      return gone;
     });
   }
 
-  /** The invitation's parts become the parts of the guest who redeemed it. */
-  #copyPartsToMember(tx: Tx, invitationId: number, userId: number): void {
-    const eventId = this.#event.eventId;
-    const rows = tx
-      .select({ partId: invitationParts.partId })
-      .from(invitationParts)
-      .where(eq(invitationParts.invitationId, invitationId))
-      .all();
-    for (const { partId } of rows) {
-      tx.insert(membershipParts).values({ eventId, userId, partId }).onConflictDoNothing().run();
-    }
-  }
-
   /** The invitation of a typed or scanned code, if it is a valid code at all. */
-  #find(tx: Pick<Database["db"], "select">, input: string): Row {
+  #find(tx: Reader, input: string): Row {
     const code = normalizeCode(input);
     const row =
       code &&
@@ -366,8 +459,9 @@ export class InvitationService {
   }
 
   /**
-   * A new guest registers and redeems the code in one step (INV-07): the account is created
-   * with `vip` and the code is marked redeemed in one transaction (INV-08).
+   * A new guest registers and redeems the code in one step (INV-07): the inactive account of the
+   * invitation gets its username, password and optional address and becomes active, and the
+   * code is marked redeemed, in one transaction (INV-08).
    */
   async redeemWithNewAccount(
     input: string,
@@ -385,31 +479,49 @@ export class InvitationService {
     return this.#database.db.transaction((tx) => {
       const row = this.#find(tx, input);
       this.#assertRedeemable(row);
-      const user = this.#accounts.createUser(
-        {
-          username: account.username,
-          displayName: account.displayName ?? row.guestName,
-          roles: ["vip"],
-          passwordHash,
-          invitationId: row.id,
-          email: account.email,
-        },
-        SELF_ACTOR,
+      if (row.userId === null) {
+        throw new InvitationError("invalid_invitation", "this code is not valid");
+      }
+      // Marking the code first: only one transaction can flip it (INV-08).
+      markRedeemed(tx, row.id, row.userId, this.#now());
+      const owner = tx
+        .select({ displayName: users.displayName })
+        .from(users)
+        .where(eq(users.id, row.userId))
+        .get();
+      const user = this.#accounts.activateInvited(tx, row.userId, {
+        username: account.username,
+        displayName: account.displayName ?? owner?.displayName ?? row.guestName,
+        passwordHash,
+        email: account.email,
+      });
+      tx.update(memberships)
+        .set({ vipAssignment: "invitation_code", vipInvitationId: row.id })
+        .where(
+          and(eq(memberships.eventId, this.#event.eventId), eq(memberships.userId, row.userId)),
+        )
+        .run();
+      this.#event.audit(
+        `user:${String(user.id)}`,
+        "invitation.redeem",
+        { invitationId: row.id, userId: user.id, method: "register" },
         tx,
       );
-      markRedeemed(tx, row.id, user.id, this.#now());
-      this.#copyPartsToMember(tx, row.id, user.id);
-      return user;
+      return { ...user, roles: ["vip"] };
     });
   }
 
   /**
-   * A signed-in user without `vip` redeems the code and keeps their account (INV-07, ACC-07).
+   * A signed-in user without `vip` redeems the code and keeps their account (INV-07, ACC-07): the
+   * invited person's inactive account is merged into it (7.1.2).
    */
   redeemForUser(input: string, userId: number): User {
     return this.#database.db.transaction((tx) => {
       const row = this.#find(tx, input);
       this.#assertRedeemable(row);
+      if (row.userId === null) {
+        throw new InvitationError("invalid_invitation", "this code is not valid");
+      }
       const eventId = this.#event.eventId;
       const has = tx
         .select()
@@ -423,17 +535,69 @@ export class InvitationService {
         )
         .get();
       if (has) throw new InvitationError("already_vip", "this account already is a VIP");
+      const invited = row.userId;
+      markRedeemed(tx, row.id, userId, this.#now());
+      // The signed-in account becomes the guest ...
       tx.insert(membershipRoles).values({ eventId, userId, role: "vip" }).run();
       tx.update(memberships)
-        .set({ vipAssignment: "invitation_code", vipInvitationId: row.id })
+        .set({
+          vipAssignment: "invitation_code",
+          vipInvitationId: row.id,
+          personType: this.#personType(tx, row),
+        })
         .where(and(eq(memberships.eventId, eventId), eq(memberships.userId, userId)))
         .run();
-      markRedeemed(tx, row.id, userId, this.#now());
-      this.#copyPartsToMember(tx, row.id, userId);
+      // ... and takes over what hangs on the invited person's account.
+      tx.update(membershipProgramItems)
+        .set({ userId })
+        .where(
+          and(
+            eq(membershipProgramItems.eventId, eventId),
+            eq(membershipProgramItems.userId, invited),
+          ),
+        )
+        .run();
+      tx.update(rsvpAnswers)
+        .set({ userId })
+        .where(and(eq(rsvpAnswers.eventId, eventId), eq(rsvpAnswers.userId, invited)))
+        .run();
+      tx.update(rsvpAttendance)
+        .set({ userId })
+        .where(and(eq(rsvpAttendance.eventId, eventId), eq(rsvpAttendance.userId, invited)))
+        .run();
+      tx.update(companions)
+        .set({ hostUserId: userId })
+        .where(and(eq(companions.eventId, eventId), eq(companions.hostUserId, invited)))
+        .run();
+      // A group both accounts are in stays as it is: that membership of the invited account goes
+      // with the account.
+      const mine = tx
+        .select({ groupId: guestGroupMembers.groupId })
+        .from(guestGroupMembers)
+        .where(and(eq(guestGroupMembers.eventId, eventId), eq(guestGroupMembers.userId, userId)))
+        .all()
+        .map((member) => member.groupId);
+      tx.update(guestGroupMembers)
+        .set({ userId })
+        .where(
+          and(
+            eq(guestGroupMembers.eventId, eventId),
+            eq(guestGroupMembers.userId, invited),
+            ...(mine.length > 0 ? [notInArray(guestGroupMembers.groupId, mine)] : []),
+          ),
+        )
+        .run();
+      // The invitations of the invited account (replaced codes) move too, then it is deleted.
+      tx.update(invitations).set({ userId }).where(eq(invitations.userId, invited)).run();
+      tx.update(invitations)
+        .set({ redeemedBy: userId })
+        .where(eq(invitations.redeemedBy, invited))
+        .run();
+      tx.delete(users).where(eq(users.id, invited)).run();
       this.#event.audit(
         `user:${String(userId)}`,
-        "user.roles",
-        { userId, vipAssignment: "invitation_code", invitationId: row.id },
+        "invitation.redeem",
+        { invitationId: row.id, userId, method: "merge", mergedUserId: invited },
         tx,
       );
       const user = this.#accounts.getUser(userId);

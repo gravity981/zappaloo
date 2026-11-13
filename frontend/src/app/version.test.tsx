@@ -40,6 +40,21 @@ describe("version in the footer", () => {
     expect(await screen.findByText(`Version ${__APP_VERSION__}-rc.3`)).toBeInTheDocument();
   });
 
+  it("[OPS-08][SEC-09] the footer line reads «Datenschutz · Version x.y.z»", async () => {
+    serverReports(__APP_VERSION__);
+    render(
+      <MemoryRouter>
+        <VersionFooter />
+      </MemoryRouter>,
+    );
+    await screen.findByText(`Version ${__APP_VERSION__}`);
+    expect(
+      screen
+        .getByRole("contentinfo")
+        .textContent.startsWith(`Datenschutz · Version ${__APP_VERSION__}`),
+    ).toBe(true);
+  });
+
   it("[OPS-08] the footer still shows the compiled-in version when the server is unreachable", async () => {
     vi.stubGlobal(
       "fetch",

@@ -32,7 +32,7 @@ export function passwordResetMail(
       `Hallo\n\nFür das Konto "${username}" bei ${eventName} wurde ein neues Passwort angefordert. ` +
       `Du kannst es mit diesem Link festlegen:\n\n${url}\n\n` +
       `Der Link ist ${String(validHours)} Stunden gültig und funktioniert nur einmal. ` +
-      "Falls du das nicht angefordert hast, kannst du diese Nachricht ignorieren; dein Passwort bleibt unverändert.\n",
+      "Falls du das nicht angefordert hast, kannst du diese Nachricht ignorieren. Dein Passwort bleibt unverändert.\n",
   };
 }
 

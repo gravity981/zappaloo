@@ -56,6 +56,11 @@ function appliedCount(sqlite: Sqlite.Database): number {
  */
 export function runMigrations(database: Database, migrationsDir = MIGRATIONS_DIR): number {
   const before = appliedCount(database.sqlite);
+  // SQLite changes a column by rebuilding its table, and dropping a table with foreign keys on
+  // deletes what references it. So the migrations run with foreign keys off (the pragma does
+  // nothing inside the transaction of the migrator, hence outside of it), and the keys are
+  // checked afterwards.
+  database.sqlite.pragma("foreign_keys = OFF");
   try {
     migrate(database.db, { migrationsFolder: migrationsDir, migrationsTable: MIGRATIONS_TABLE });
   } catch (error) {
@@ -65,6 +70,14 @@ export function runMigrations(database: Database, migrationsDir = MIGRATIONS_DIR
     throw new MigrationError(`database migration failed, nothing was applied: ${reason}`, {
       cause: error,
     });
+  } finally {
+    database.sqlite.pragma("foreign_keys = ON");
+  }
+  const broken = database.sqlite.pragma("foreign_key_check") as unknown[];
+  if (broken.length > 0) {
+    throw new MigrationError(
+      `the migrations were applied, but ${String(broken.length)} rows break a foreign key: restore the backup taken before the update`,
+    );
   }
   return appliedCount(database.sqlite) - before;
 }

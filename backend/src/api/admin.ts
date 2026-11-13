@@ -14,6 +14,7 @@ import {
   groupRequestSchema,
   groupSchema,
   setCapabilitiesRequestSchema,
+  personTypeRequestSchema,
   setRolesRequestSchema,
   userSchema,
 } from "@zappaloo/shared";
@@ -47,6 +48,10 @@ function fail(reply: FastifyReply, error: unknown): FastifyReply {
       group_name_taken: 409,
       last_admin: 409,
       not_staff: 409,
+      roles_locked: 409,
+      own_account: 409,
+      not_active: 409,
+      not_blocked: 409,
     };
     const status = statuses[error.code];
     if (status !== undefined)
@@ -110,6 +115,48 @@ const adminPlugin: FastifyPluginAsyncZod<AuthOptions> = (
     () => ({ users: accounts.listUsers() }),
   );
 
+  // Blocking and unblocking an account (ACC-18) and deleting it (ACC-19).
+  for (const [path, run] of [
+    [
+      "block",
+      (id: number, by: number) => {
+        accounts.blockUser(id, by);
+      },
+    ],
+    [
+      "unblock",
+      (id: number, by: number) => {
+        accounts.unblockUser(id, by);
+      },
+    ],
+  ] as const) {
+    app.post(
+      `/api/admin/users/:id/${path}`,
+      { ...admin, schema: { querystring: noQuery, params: userParams, body: noBody } },
+      (request, reply) => {
+        try {
+          run(request.params.id, signedIn(request).user.id);
+          return reply.status(204).send();
+        } catch (error) {
+          return fail(reply, error);
+        }
+      },
+    );
+  }
+
+  app.delete(
+    "/api/admin/users/:id",
+    { ...admin, schema: { querystring: noQuery, params: userParams, body: noBody } },
+    (request, reply) => {
+      try {
+        accounts.adminDeleteUser(request.params.id, signedIn(request).user.id);
+        return reply.status(204).send();
+      } catch (error) {
+        return fail(reply, error);
+      }
+    },
+  );
+
   // The complete set of roles: what the admin leaves out is revoked, all others stay (ROLE-09).
   app.put(
     "/api/admin/users/:id/roles",
@@ -127,6 +174,23 @@ const adminPlugin: FastifyPluginAsyncZod<AuthOptions> = (
         return await reply.send(
           accounts.setRoles(request.params.id, request.body.roles, actor(request)),
         );
+      } catch (error) {
+        return fail(reply, error);
+      }
+    },
+  );
+
+  // The person type of a guest (RSVP-13).
+  app.put(
+    "/api/admin/users/:id/person-type",
+    {
+      ...admin,
+      schema: { querystring: noQuery, params: userParams, body: personTypeRequestSchema },
+    },
+    (request, reply) => {
+      try {
+        accounts.setPersonType(request.params.id, request.body.personType, actor(request));
+        return reply.status(204).send();
       } catch (error) {
         return fail(reply, error);
       }

@@ -252,7 +252,7 @@ const commands: Record<string, Command> = {
             throw error;
           }
           io.out(
-            `The example event "${EXAMPLE_EVENT.name}" is set up, with event parts, menus and an RSVP deadline.`,
+            `The example event "${EXAMPLE_EVENT.name}" is set up, with program items, menus and an RSVP deadline.`,
           );
           return 0;
         }

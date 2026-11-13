@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it } from "vitest";
 import type {
   ActivityEntry,
-  EventPart,
+  ProgramItem,
   IssuedInvitation,
   MenuOption,
   Role,
@@ -54,7 +54,7 @@ async function makeUser(ctx: TestContext, username: string, roles: Role[]): Prom
   };
 }
 
-/** A set-up event with an admin, the parts Trauung, Apéro, Dinner (meal), Party and two menus. */
+/** A set-up event with an admin, the program items Trauung, Apéro, Dinner (meal), Party and two menus. */
 async function setup() {
   const ctx = await createTestApp();
   context = ctx;
@@ -88,86 +88,93 @@ async function setup() {
       raw: response,
     };
   };
-  const parts: EventPart[] = [];
+  const programItems: ProgramItem[] = [];
   for (const [name, hour, hasMeal] of [
     ["Trauung", 14, false],
     ["Apéro", 15, false],
     ["Dinner", 18, true],
     ["Party", 22, false],
   ] as const) {
-    const made = await call<EventPart>(root, "POST", "/api/admin/rsvp/parts", {
+    const made = await call<ProgramItem>(root, "POST", "/api/admin/rsvp/program-items", {
       name,
       startsAt: `2027-06-12T${String(hour)}:00:00.000Z`,
       place: "Linde",
       hasMeal,
     });
     expect(made.status).toBe(201);
-    parts.push(must(made.body));
+    programItems.push(must(made.body));
   }
+  // The tests of this file answer per program item and approve companions (the settings of
+  // 7.4.1); the defaults of 7.4.2 are tested on their own.
+  await call(root, "PUT", "/api/admin/rsvp/per-item", { enabled: true });
+  await call(root, "PUT", "/api/admin/rsvp/companion-approval", { enabled: true });
   const menus: MenuOption[] = [];
   for (const name of ["Fleisch", "Vegetarisch"]) {
     const made = await call<MenuOption>(root, "POST", "/api/admin/rsvp/menus", { name });
     menus.push(must(made.body));
   }
-  /** A guest account, invited to the given parts (default: all four). */
-  const guest = async (username: string, partIds = parts.map((p) => p.id)) => {
+  /** A guest account, invited to the given program items (default: all four). */
+  const guest = async (username: string, programItemIds = programItems.map((p) => p.id)) => {
     const who = await makeUser(ctx, username, ["vip"]);
-    await call(root, "PUT", `/api/admin/users/${String(who.id)}/parts`, { partIds });
+    await call(root, "PUT", `/api/admin/users/${String(who.id)}/program-items`, { programItemIds });
     return who;
   };
-  return { ctx, root, call, get, parts, menus, guest };
+  return { ctx, root, call, get, programItems, menus, guest };
 }
 
-const ids = (parts: EventPart[], ...names: string[]) =>
-  parts.filter((p) => names.includes(p.name)).map((p) => p.id);
-const yes = (parts: EventPart[], ...names: string[]) =>
-  parts.map((p) => ({ partId: p.id, attending: names.includes(p.name) }));
+const ids = (programItems: ProgramItem[], ...names: string[]) =>
+  programItems.filter((p) => names.includes(p.name)).map((p) => p.id);
+const yes = (programItems: ProgramItem[], ...names: string[]) =>
+  programItems.map((p) => ({ programItemId: p.id, attending: names.includes(p.name) }));
 
-describe("event parts, menus and the deadline", () => {
-  it("[RSVP-02] the admin creates, changes and deletes event parts; at most one has the meal", async () => {
-    const { root, call, get, parts } = await setup();
-    const config = (await get<{ parts: EventPart[] }>(root, "/api/admin/rsvp/config")).body;
-    expect(config.parts.map((p) => p.name)).toEqual(["Trauung", "Apéro", "Dinner", "Party"]);
-    expect(config.parts.filter((p) => p.hasMeal).map((p) => p.name)).toEqual(["Dinner"]);
+describe("program items, menus and the deadline", () => {
+  it("[RSVP-02] the admin creates, changes and deletes program items; at most one has the meal", async () => {
+    const { root, call, get, programItems } = await setup();
+    const config = (await get<{ programItems: ProgramItem[] }>(root, "/api/admin/rsvp/config"))
+      .body;
+    expect(config.programItems.map((p) => p.name)).toEqual(["Trauung", "Apéro", "Dinner", "Party"]);
+    expect(config.programItems.filter((p) => p.hasMeal).map((p) => p.name)).toEqual(["Dinner"]);
 
-    // Marking another part moves the meal.
-    const apero = must(parts.find((p) => p.name === "Apéro"));
-    const moved = await call<EventPart>(
+    // Marking another program item moves the meal.
+    const apero = must(programItems.find((p) => p.name === "Apéro"));
+    const moved = await call<ProgramItem>(
       root,
       "PATCH",
-      `/api/admin/rsvp/parts/${String(apero.id)}`,
+      `/api/admin/rsvp/program-items/${String(apero.id)}`,
       {
         hasMeal: true,
       },
     );
     expect(moved.body?.hasMeal).toBe(true);
-    const after = (await get<{ parts: EventPart[] }>(root, "/api/admin/rsvp/config")).body;
-    expect(after.parts.filter((p) => p.hasMeal).map((p) => p.name)).toEqual(["Apéro"]);
+    const after = (await get<{ programItems: ProgramItem[] }>(root, "/api/admin/rsvp/config")).body;
+    expect(after.programItems.filter((p) => p.hasMeal).map((p) => p.name)).toEqual(["Apéro"]);
 
-    // Parts are ordered by time, not by creation.
-    await call(root, "PATCH", `/api/admin/rsvp/parts/${String(apero.id)}`, {
+    // Program items are ordered by time, not by creation.
+    await call(root, "PATCH", `/api/admin/rsvp/program-items/${String(apero.id)}`, {
       startsAt: "2027-06-12T10:00:00.000Z",
       place: null,
     });
-    const reordered = (await get<{ parts: EventPart[] }>(root, "/api/admin/rsvp/config")).body;
-    expect(reordered.parts[0]?.name).toBe("Apéro");
-    expect(reordered.parts[0]?.place).toBeNull();
+    const reordered = (await get<{ programItems: ProgramItem[] }>(root, "/api/admin/rsvp/config"))
+      .body;
+    expect(reordered.programItems[0]?.name).toBe("Apéro");
+    expect(reordered.programItems[0]?.place).toBeNull();
 
-    expect((await call(root, "DELETE", `/api/admin/rsvp/parts/${String(apero.id)}`)).status).toBe(
-      204,
-    );
-    expect((await call(root, "DELETE", `/api/admin/rsvp/parts/${String(apero.id)}`)).status).toBe(
-      404,
-    );
-    expect((await call(root, "PATCH", "/api/admin/rsvp/parts/999", { name: "X" })).status).toBe(
-      404,
-    );
+    expect(
+      (await call(root, "DELETE", `/api/admin/rsvp/program-items/${String(apero.id)}`)).status,
+    ).toBe(204);
+    expect(
+      (await call(root, "DELETE", `/api/admin/rsvp/program-items/${String(apero.id)}`)).status,
+    ).toBe(404);
+    expect(
+      (await call(root, "PATCH", "/api/admin/rsvp/program-items/999", { name: "X" })).status,
+    ).toBe(404);
   });
 
   it("[RSVP-02][RSVP-03] input is validated and only admins change the configuration", async () => {
     const { ctx, root, call, guest } = await setup();
     expect(
-      (await call(root, "POST", "/api/admin/rsvp/parts", { name: "", startsAt: "x" })).status,
+      (await call(root, "POST", "/api/admin/rsvp/program-items", { name: "", startsAt: "x" }))
+        .status,
     ).toBe(400);
     expect((await call(root, "POST", "/api/admin/rsvp/menus", { name: " " })).status).toBe(400);
     expect(
@@ -175,10 +182,14 @@ describe("event parts, menus and the deadline", () => {
     ).toBe(400);
     const anna = await guest("anna");
     for (const [method, url, payload] of [
-      ["POST", "/api/admin/rsvp/parts", { name: "X", startsAt: "2027-06-12T10:00:00.000Z" }],
+      [
+        "POST",
+        "/api/admin/rsvp/program-items",
+        { name: "X", startsAt: "2027-06-12T10:00:00.000Z" },
+      ],
       ["POST", "/api/admin/rsvp/menus", { name: "X" }],
       ["PUT", "/api/admin/rsvp/deadline", { deadline: null }],
-      ["PUT", "/api/admin/users/1/parts", { partIds: [] }],
+      ["PUT", "/api/admin/users/1/program-items", { programItemIds: [] }],
     ] as const) {
       expect((await call(anna, method, url, payload)).status, url).toBe(403);
     }
@@ -229,7 +240,7 @@ describe("event parts, menus and the deadline", () => {
   });
 });
 
-describe("invited parts", () => {
+describe("invited program items", () => {
   async function invite(
     ctx: TestContext,
     root: SignedIn,
@@ -251,12 +262,12 @@ describe("invited parts", () => {
       payload: { username, password: PASSWORD },
     });
 
-  it("[RSVP-02] an invitation carries its parts, all parts by default, and the guest gets them", async () => {
-    const { ctx, root, get, parts } = await setup();
-    const some = await invite(ctx, root, { partIds: ids(parts, "Apéro", "Dinner") });
+  it("[RSVP-02] an invitation carries its program items, all program items by default, and the guest gets them", async () => {
+    const { ctx, root, get, programItems } = await setup();
+    const some = await invite(ctx, root, { programItemIds: ids(programItems, "Apéro", "Dinner") });
     const all = await invite(ctx, root, {});
-    expect(some.partIds).toEqual(ids(parts, "Apéro", "Dinner"));
-    expect(all.partIds).toEqual(parts.map((p) => p.id));
+    expect(some.programItemIds).toEqual(ids(programItems, "Apéro", "Dinner"));
+    expect(all.programItemIds).toEqual(programItems.map((p) => p.id));
 
     expect((await redeem(ctx, some.code, "erika")).statusCode).toBe(201);
     const login = await ctx.app.inject({
@@ -266,191 +277,208 @@ describe("invited parts", () => {
     });
     const cookie = `${SESSION_COOKIE}=${login.cookies.find((c) => c.name === SESSION_COOKIE)?.value ?? ""}`;
     const state = (await get<RsvpState>({ cookie, csrf: "", id: 0 }, "/api/rsvp")).body;
-    expect(state.parts.map((p) => p.name)).toEqual(["Apéro", "Dinner"]);
+    expect(state.programItems.map((p) => p.name)).toEqual(["Apéro", "Dinner"]);
     expect(state.name).toBe("Erika Huber");
 
-    // The invitation list shows the parts of the account once redeemed.
+    // The invitation list shows the program items of the account once redeemed.
     const list = (
-      await get<{ invitations: { id: number; partIds: number[] }[] }>(
+      await get<{ invitations: { id: number; programItemIds: number[] }[] }>(
         root,
         "/api/admin/invitations",
       )
     ).body;
-    expect(list.invitations.find((i) => i.id === some.id)?.partIds).toEqual(
-      ids(parts, "Apéro", "Dinner"),
+    expect(list.invitations.find((i) => i.id === some.id)?.programItemIds).toEqual(
+      ids(programItems, "Apéro", "Dinner"),
     );
   });
 
-  it("[RSVP-02] an unknown part is refused when creating an invitation", async () => {
+  it("[RSVP-02] an unknown program item is refused when creating an invitation", async () => {
     const { ctx, root } = await setup();
     const response = await ctx.app.inject({
       method: "POST",
       url: "/api/admin/invitations",
       headers: as(root),
-      payload: { guests: [{ name: "X" }], partIds: [999] },
+      payload: { guests: [{ name: "X" }], programItemIds: [999] },
     });
     expect(response.statusCode).toBe(404);
   });
 
-  it("[RSVP-02] the admin changes the parts per invitation, before and after it is redeemed; a regenerated code keeps them", async () => {
-    const { ctx, root, call, get, parts } = await setup();
-    const first = await invite(ctx, root, { partIds: ids(parts, "Trauung") });
-    const changed = await call<{ partIds: number[] }>(
-      root,
-      "PUT",
-      `/api/admin/invitations/${String(first.id)}/parts`,
-      { partIds: ids(parts, "Trauung", "Dinner") },
-    );
-    expect(changed.body?.partIds).toEqual(ids(parts, "Trauung", "Dinner"));
+  it("[RSVP-02] the program items of an invitation are those of the guest's account: the admin changes them in the account panel, before and after redeeming, and a regenerated code keeps them", async () => {
+    const { ctx, root, call, get, programItems } = await setup();
+    const first = await invite(ctx, root, { programItemIds: ids(programItems, "Trauung") });
+    const panel = (userId: number | null, names: string[]) =>
+      call(root, "PUT", `/api/admin/users/${String(userId)}/program-items`, {
+        programItemIds: ids(programItems, ...names),
+      });
+    expect((await panel(first.userId, ["Trauung", "Dinner"])).status).toBe(200);
+    const listed = () =>
+      get<{ invitations: IssuedInvitation[] }>(root, "/api/admin/invitations").then((r) =>
+        r.body.invitations.map((i) => [i.id, i.programItemIds]),
+      );
+    expect(await listed()).toEqual([[first.id, ids(programItems, "Trauung", "Dinner")]]);
+    // There is no way to change them on the invitation row any more.
+    expect(
+      (
+        await call(root, "PUT", `/api/admin/invitations/${String(first.id)}/program-items`, {
+          programItemIds: [],
+        })
+      ).status,
+    ).toBe(404);
 
     const regenerated = await call<IssuedInvitation>(
       root,
       "POST",
       `/api/admin/invitations/${String(first.id)}/regenerate`,
     );
-    expect(regenerated.body?.partIds).toEqual(ids(parts, "Trauung", "Dinner"));
-    // The replaced code is dead and cannot be changed any more.
-    expect(
-      (await call(root, "PUT", `/api/admin/invitations/${String(first.id)}/parts`, { partIds: [] }))
-        .status,
-    ).toBe(409);
+    expect(regenerated.body?.programItemIds).toEqual(ids(programItems, "Trauung", "Dinner"));
 
     const code = must(regenerated.body);
     await redeem(ctx, code.code, "erika");
-    const after = await call<{ partIds: number[] }>(
-      root,
-      "PUT",
-      `/api/admin/invitations/${String(code.id)}/parts`,
-      { partIds: ids(parts, "Party") },
-    );
-    expect(after.body?.partIds).toEqual(ids(parts, "Party"));
+    expect((await panel(code.userId, ["Party"])).status).toBe(200);
     const users = (
-      await get<{ users: { username: string; invitedPartIds: number[] }[] }>(
+      await get<{ users: { username: string; invitedProgramItemIds: number[] }[] }>(
         root,
         "/api/admin/users",
       )
     ).body.users;
-    expect(users.find((u) => u.username === "erika")?.invitedPartIds).toEqual(ids(parts, "Party"));
+    expect(users.find((u) => u.username === "erika")?.invitedProgramItemIds).toEqual(
+      ids(programItems, "Party"),
+    );
   });
 
-  it("[RSVP-02] a vip made by an admin is invited to all parts; revoking vip clears them", async () => {
-    const { ctx, root, call, get, parts } = await setup();
+  it("[RSVP-02] a vip made by an admin is invited to the program items of the form; revoking vip clears them", async () => {
+    const { ctx, root, call, get, programItems } = await setup();
     const created = await call<{ user: { id: number } }>(root, "POST", "/api/admin/users", {
       username: "oma",
       roles: ["vip"],
+      programItemIds: programItems.map((p) => p.id),
     });
     const id = created.body?.user.id ?? 0;
     const users = () =>
-      get<{ users: { id: number; invitedPartIds: number[] }[] }>(root, "/api/admin/users").then(
-        (r) => r.body.users.find((u) => u.id === id)?.invitedPartIds,
-      );
-    expect(await users()).toEqual(parts.map((p) => p.id));
+      get<{ users: { id: number; invitedProgramItemIds: number[] }[] }>(
+        root,
+        "/api/admin/users",
+      ).then((r) => r.body.users.find((u) => u.id === id)?.invitedProgramItemIds);
+    expect(await users()).toEqual(programItems.map((p) => p.id));
 
-    // The account panel changes them; unknown parts are refused.
-    await call(root, "PUT", `/api/admin/users/${String(id)}/parts`, {
-      partIds: ids(parts, "Dinner"),
+    // The account panel changes them; unknown program items are refused.
+    await call(root, "PUT", `/api/admin/users/${String(id)}/program-items`, {
+      programItemIds: ids(programItems, "Dinner"),
     });
-    expect(await users()).toEqual(ids(parts, "Dinner"));
+    expect(await users()).toEqual(ids(programItems, "Dinner"));
     expect(
-      (await call(root, "PUT", `/api/admin/users/${String(id)}/parts`, { partIds: [999] })).status,
+      (
+        await call(root, "PUT", `/api/admin/users/${String(id)}/program-items`, {
+          programItemIds: [999],
+        })
+      ).status,
     ).toBe(404);
 
-    // A user without vip has no parts; promoting through the roles gives all parts.
+    // A user without vip has no program items; promoting through the roles gives all program items.
     const helper = await makeUser(ctx, "helfer", ["staff"]);
     expect(
-      (await call(root, "PUT", `/api/admin/users/${String(helper.id)}/parts`, { partIds: [] }))
-        .status,
+      (
+        await call(root, "PUT", `/api/admin/users/${String(helper.id)}/program-items`, {
+          programItemIds: [],
+        })
+      ).status,
     ).toBe(409);
     await call(root, "PUT", `/api/admin/users/${String(helper.id)}/roles`, {
       roles: ["staff", "vip"],
     });
-    const helperParts = (
-      await get<{ users: { id: number; invitedPartIds: number[] }[] }>(root, "/api/admin/users")
-    ).body.users.find((u) => u.id === helper.id)?.invitedPartIds;
-    expect(helperParts).toEqual(parts.map((p) => p.id));
+    const helperProgramItems = (
+      await get<{ users: { id: number; invitedProgramItemIds: number[] }[] }>(
+        root,
+        "/api/admin/users",
+      )
+    ).body.users.find((u) => u.id === helper.id)?.invitedProgramItemIds;
+    expect(helperProgramItems).toEqual(programItems.map((p) => p.id));
     await call(root, "PUT", `/api/admin/users/${String(helper.id)}/roles`, { roles: ["staff"] });
     const cleared = (
-      await get<{ users: { id: number; invitedPartIds: number[] }[] }>(root, "/api/admin/users")
-    ).body.users.find((u) => u.id === helper.id)?.invitedPartIds;
+      await get<{ users: { id: number; invitedProgramItemIds: number[] }[] }>(
+        root,
+        "/api/admin/users",
+      )
+    ).body.users.find((u) => u.id === helper.id)?.invitedProgramItemIds;
     expect(cleared).toEqual([]);
   });
 });
 
 describe("answering the RSVP", () => {
-  it("[RSVP-01] a guest sees only the parts they are invited to and answers yes or no for each", async () => {
-    const { get, call, parts, guest, menus } = await setup();
-    const anna = await guest("anna", ids(parts, "Apéro", "Dinner"));
+  it("[RSVP-01] a guest sees only the program items they are invited to and answers yes or no for each", async () => {
+    const { get, call, programItems, guest, menus } = await setup();
+    const anna = await guest("anna", ids(programItems, "Apéro", "Dinner"));
     const state = (await get<RsvpState>(anna, "/api/rsvp")).body;
-    expect(state.parts.map((p) => p.name)).toEqual(["Apéro", "Dinner"]);
+    expect(state.programItems.map((p) => p.name)).toEqual(["Apéro", "Dinner"]);
     expect(state.answer).toBeNull();
     expect(state.menus.map((m) => m.name)).toEqual(["Fleisch", "Vegetarisch"]);
     expect(state.closed).toBe(false);
 
     const saved = await call<RsvpState>(anna, "PUT", "/api/rsvp", {
       attendance: yes(
-        parts.filter((p) => ["Apéro", "Dinner"].includes(p.name)),
+        programItems.filter((p) => ["Apéro", "Dinner"].includes(p.name)),
         "Apéro",
         "Dinner",
       ),
       menuId: menus[1]?.id,
     });
     expect(saved.status).toBe(200);
-    expect(saved.body?.answer?.attendingPartIds).toEqual(ids(parts, "Apéro", "Dinner"));
+    expect(saved.body?.answer?.attendingItemIds).toEqual(ids(programItems, "Apéro", "Dinner"));
     expect(saved.body?.answer?.menuId).toBe(menus[1]?.id);
 
     // Changing the answer replaces it.
     const changed = await call<RsvpState>(anna, "PUT", "/api/rsvp", {
       attendance: yes(
-        parts.filter((p) => ["Apéro", "Dinner"].includes(p.name)),
+        programItems.filter((p) => ["Apéro", "Dinner"].includes(p.name)),
         "Apéro",
       ),
     });
-    expect(changed.body?.answer?.attendingPartIds).toEqual(ids(parts, "Apéro"));
+    expect(changed.body?.answer?.attendingItemIds).toEqual(ids(programItems, "Apéro"));
     expect(changed.body?.answer?.menuId).toBeNull();
   });
 
-  it("[RSVP-01] every invited part must be answered once, and no other part", async () => {
-    const { call, parts, guest } = await setup();
-    const anna = await guest("anna", ids(parts, "Apéro", "Dinner"));
+  it("[RSVP-01] every invited program item must be answered once, and no other program item", async () => {
+    const { call, programItems, guest } = await setup();
+    const anna = await guest("anna", ids(programItems, "Apéro", "Dinner"));
     const [apero, dinner, trauung] = [
-      must(parts.find((p) => p.name === "Apéro")),
-      must(parts.find((p) => p.name === "Dinner")),
-      must(parts.find((p) => p.name === "Trauung")),
+      must(programItems.find((p) => p.name === "Apéro")),
+      must(programItems.find((p) => p.name === "Dinner")),
+      must(programItems.find((p) => p.name === "Trauung")),
     ];
     const attempt = async (attendance: unknown) =>
       (await call(anna, "PUT", "/api/rsvp", { attendance })).status;
-    expect(await attempt([{ partId: apero.id, attending: true }])).toBe(400); // Dinner missing
+    expect(await attempt([{ programItemId: apero.id, attending: true }])).toBe(400); // Dinner missing
     expect(
       await attempt([
-        { partId: apero.id, attending: true },
-        { partId: dinner.id, attending: false },
-        { partId: trauung.id, attending: true },
+        { programItemId: apero.id, attending: true },
+        { programItemId: dinner.id, attending: false },
+        { programItemId: trauung.id, attending: true },
       ]),
     ).toBe(400); // not invited
     expect(
       await attempt([
-        { partId: apero.id, attending: true },
-        { partId: apero.id, attending: false },
+        { programItemId: apero.id, attending: true },
+        { programItemId: apero.id, attending: false },
       ]),
     ).toBe(400); // twice
     expect(await attempt("yes")).toBe(400);
   });
 
-  it("[RSVP-03] the menu is asked only for guests attending the meal part, and then it is required", async () => {
-    const { call, get, parts, guest, menus } = await setup();
+  it("[RSVP-03] the menu is asked only for guests attending the meal program item, and then it is required", async () => {
+    const { call, get, programItems, guest, menus } = await setup();
     const anna = await guest("anna");
     const put = (body: Record<string, unknown>) => call<RsvpState>(anna, "PUT", "/api/rsvp", body);
 
     // Attending the dinner without a menu choice.
-    const missing = await put({ attendance: yes(parts, "Dinner") });
+    const missing = await put({ attendance: yes(programItems, "Dinner") });
     expect(missing.status).toBe(400);
     expect((missing.body as unknown as { error: { code: string } }).error.code).toBe(
       "menu_required",
     );
-    expect((await put({ attendance: yes(parts, "Dinner"), menuId: 999 })).status).toBe(400);
+    expect((await put({ attendance: yes(programItems, "Dinner"), menuId: 999 })).status).toBe(400);
 
     const ok = await put({
-      attendance: yes(parts, "Dinner", "Party"),
+      attendance: yes(programItems, "Dinner", "Party"),
       menuId: menus[0]?.id,
       allergies: "Nüsse",
       songWish: "ABBA – Dancing Queen",
@@ -458,38 +486,43 @@ describe("answering the RSVP", () => {
     expect(ok.body?.answer).toMatchObject({ menuId: menus[0]?.id, allergies: "Nüsse" });
 
     // Not attending the meal: no menu is asked and a chosen one is not kept.
-    const noMeal = await put({ attendance: yes(parts, "Trauung", "Party"), menuId: menus[0]?.id });
+    const noMeal = await put({
+      attendance: yes(programItems, "Trauung", "Party"),
+      menuId: menus[0]?.id,
+    });
     expect(noMeal.status).toBe(200);
     expect(noMeal.body?.answer?.menuId).toBeNull();
     expect((await get<RsvpState>(anna, "/api/rsvp")).body.answer?.menuId).toBeNull();
   });
 
-  it("[RSVP-03] without menu options, or without a meal part, nobody has to choose", async () => {
-    const { root, call, parts, guest, menus } = await setup();
+  it("[RSVP-03] without menu options, or without a meal program item, nobody has to choose", async () => {
+    const { root, call, programItems, guest, menus } = await setup();
     const anna = await guest("anna");
     for (const menu of menus)
       await call(root, "DELETE", `/api/admin/rsvp/menus/${String(menu.id)}`);
     expect(
-      (await call(anna, "PUT", "/api/rsvp", { attendance: yes(parts, "Dinner") })).status,
+      (await call(anna, "PUT", "/api/rsvp", { attendance: yes(programItems, "Dinner") })).status,
     ).toBe(200);
   });
 
-  it("[RSVP-06] the song wish is optional; declining every part keeps no menu, allergies or song wish", async () => {
-    const { call, get, parts, guest, menus } = await setup();
+  it("[RSVP-06] the song wish is optional; declining every program item keeps no menu, allergies or song wish", async () => {
+    const { call, get, programItems, guest, menus } = await setup();
     const anna = await guest("anna");
     const first = await call<RsvpState>(anna, "PUT", "/api/rsvp", {
-      attendance: yes(parts, "Trauung"),
+      attendance: yes(programItems, "Trauung"),
     });
     expect(first.body?.answer?.songWish).toBeNull();
     await call(anna, "PUT", "/api/rsvp", {
-      attendance: yes(parts, "Dinner"),
+      attendance: yes(programItems, "Dinner"),
       menuId: menus[0]?.id,
       allergies: "Laktose",
       songWish: "Queen",
     });
-    const declined = await call<RsvpState>(anna, "PUT", "/api/rsvp", { attendance: yes(parts) });
+    const declined = await call<RsvpState>(anna, "PUT", "/api/rsvp", {
+      attendance: yes(programItems),
+    });
     expect(declined.body?.answer).toMatchObject({
-      attendingPartIds: [],
+      attendingItemIds: [],
       menuId: null,
       allergies: null,
       songWish: null,
@@ -498,7 +531,7 @@ describe("answering the RSVP", () => {
     expect(
       (
         await call(anna, "PUT", "/api/rsvp", {
-          attendance: yes(parts, "Trauung"),
+          attendance: yes(programItems, "Trauung"),
           songWish: "x".repeat(201),
         })
       ).status,
@@ -506,19 +539,25 @@ describe("answering the RSVP", () => {
   });
 
   it("[RSVP-01] only guests answer: an admin or staff member without vip has no RSVP", async () => {
-    const { ctx, root, call, parts } = await setup();
+    const { ctx, root, call, programItems } = await setup();
     const helper = await makeUser(ctx, "helfer", ["staff"]);
-    expect((await call(root, "PUT", "/api/rsvp", { attendance: yes(parts) })).status).toBe(403);
-    expect((await call(helper, "PUT", "/api/rsvp", { attendance: yes(parts) })).status).toBe(403);
+    expect((await call(root, "PUT", "/api/rsvp", { attendance: yes(programItems) })).status).toBe(
+      403,
+    );
+    expect((await call(helper, "PUT", "/api/rsvp", { attendance: yes(programItems) })).status).toBe(
+      403,
+    );
     expect((await ctx.app.inject({ url: "/api/rsvp" })).statusCode).toBe(401);
   });
 
   it("[CFG-03] the RSVP routes are unavailable while the rsvp feature is off", async () => {
-    const { ctx, root, call, get, parts, guest } = await setup();
+    const { ctx, root, call, get, programItems, guest } = await setup();
     const anna = await guest("anna");
     ctx.event.setFeature("rsvp", false, "cli");
     expect((await get(anna, "/api/rsvp")).status).toBe(404);
-    expect((await call(anna, "PUT", "/api/rsvp", { attendance: yes(parts) })).status).toBe(404);
+    expect((await call(anna, "PUT", "/api/rsvp", { attendance: yes(programItems) })).status).toBe(
+      404,
+    );
     expect((await get(root, "/api/admin/rsvp")).status).toBe(404);
     ctx.event.setFeature("rsvp", true, "cli");
     expect((await get(anna, "/api/rsvp")).status).toBe(200);
@@ -527,7 +566,7 @@ describe("answering the RSVP", () => {
 
 describe("the deadline", () => {
   it("[RSVP-04] a guest can change the RSVP until the deadline day is over", async () => {
-    const { call, get, parts, guest, root } = await setup();
+    const { call, get, programItems, guest, root } = await setup();
     const anna = await guest("anna");
     await call(root, "PUT", "/api/admin/rsvp/deadline", { deadline: "2999-01-01" });
     expect((await get<RsvpState>(anna, "/api/rsvp")).body).toMatchObject({
@@ -535,65 +574,68 @@ describe("the deadline", () => {
       closed: false,
     });
     expect(
-      (await call(anna, "PUT", "/api/rsvp", { attendance: yes(parts, "Trauung") })).status,
+      (await call(anna, "PUT", "/api/rsvp", { attendance: yes(programItems, "Trauung") })).status,
     ).toBe(200);
   });
 
   it("[RSVP-04] after the deadline a guest cannot change the RSVP, but an admin can in admin mode", async () => {
-    const { call, get, parts, guest, root } = await setup();
+    const { call, get, programItems, guest, root } = await setup();
     const anna = await guest("anna");
-    await call(anna, "PUT", "/api/rsvp", { attendance: yes(parts, "Trauung") });
+    await call(anna, "PUT", "/api/rsvp", { attendance: yes(programItems, "Trauung") });
     await call(root, "PUT", "/api/admin/rsvp/deadline", { deadline: "2020-01-01" });
 
     const state = (await get<RsvpState>(anna, "/api/rsvp")).body;
     expect(state.closed).toBe(true);
     // The guest still sees the answer (read-only).
-    expect(state.answer?.attendingPartIds).toEqual(ids(parts, "Trauung"));
-    const refused = await call(anna, "PUT", "/api/rsvp", { attendance: yes(parts, "Party") });
+    expect(state.answer?.attendingItemIds).toEqual(ids(programItems, "Trauung"));
+    const refused = await call(anna, "PUT", "/api/rsvp", {
+      attendance: yes(programItems, "Party"),
+    });
     expect(refused.status).toBe(403);
     expect((refused.body as { error: { code: string } }).error.code).toBe("rsvp_closed");
 
     const adminState = await get<RsvpState>(root, `/api/admin/rsvp/guests/${String(anna.id)}`);
-    expect(adminState.body.answer?.attendingPartIds).toEqual(ids(parts, "Trauung"));
+    expect(adminState.body.answer?.attendingItemIds).toEqual(ids(programItems, "Trauung"));
     const changed = await call<RsvpState>(
       root,
       "PUT",
       `/api/admin/rsvp/guests/${String(anna.id)}`,
       {
-        attendance: yes(parts, "Party"),
+        attendance: yes(programItems, "Party"),
       },
     );
     expect(changed.status).toBe(200);
-    expect(changed.body?.answer?.attendingPartIds).toEqual(ids(parts, "Party"));
-    expect((await get<RsvpState>(anna, "/api/rsvp")).body.answer?.attendingPartIds).toEqual(
-      ids(parts, "Party"),
+    expect(changed.body?.answer?.attendingItemIds).toEqual(ids(programItems, "Party"));
+    expect((await get<RsvpState>(anna, "/api/rsvp")).body.answer?.attendingItemIds).toEqual(
+      ids(programItems, "Party"),
     );
 
     // Admin mode is for admins and for guests only.
     expect(
       (
         await call(anna, "PUT", `/api/admin/rsvp/guests/${String(anna.id)}`, {
-          attendance: yes(parts),
+          attendance: yes(programItems),
         })
       ).status,
     ).toBe(403);
     expect(
       (
         await call(root, "PUT", `/api/admin/rsvp/guests/${String(root.id)}`, {
-          attendance: yes(parts),
+          attendance: yes(programItems),
         })
       ).status,
     ).toBe(409);
     expect(
-      (await call(root, "PUT", "/api/admin/rsvp/guests/999", { attendance: yes(parts) })).status,
+      (await call(root, "PUT", "/api/admin/rsvp/guests/999", { attendance: yes(programItems) }))
+        .status,
     ).toBe(404);
   });
 
   it("[RSVP-04] every admin change is audited with ids only", async () => {
-    const { ctx, call, parts, guest, root, menus } = await setup();
+    const { ctx, call, programItems, guest, root, menus } = await setup();
     const anna = await guest("anna");
     await call(root, "PUT", `/api/admin/rsvp/guests/${String(anna.id)}`, {
-      attendance: yes(parts, "Dinner"),
+      attendance: yes(programItems, "Dinner"),
       menuId: menus[0]?.id,
       allergies: "Zöliakie",
     });
@@ -604,20 +646,20 @@ describe("the deadline", () => {
 });
 
 describe("the admin overview", () => {
-  it("[RSVP-05] shows totals per part and menu, the guest table and who has not answered", async () => {
-    const { get, call, parts, guest, root, menus } = await setup();
+  it("[RSVP-05] shows totals per program item and menu, the guest table and who has not answered", async () => {
+    const { get, call, programItems, guest, root, menus } = await setup();
     const anna = await guest("anna");
-    const ben = await guest("ben", ids(parts, "Apéro", "Dinner"));
+    const ben = await guest("ben", ids(programItems, "Apéro", "Dinner"));
     await guest("cleo");
     await call(anna, "PUT", "/api/rsvp", {
-      attendance: yes(parts, "Trauung", "Apéro", "Dinner"),
+      attendance: yes(programItems, "Trauung", "Apéro", "Dinner"),
       menuId: menus[0]?.id,
       allergies: "Nüsse",
       songWish: "ABBA",
     });
     await call(ben, "PUT", "/api/rsvp", {
       attendance: yes(
-        parts.filter((p) => ["Apéro", "Dinner"].includes(p.name)),
+        programItems.filter((p) => ["Apéro", "Dinner"].includes(p.name)),
         "Apéro",
       ),
     });
@@ -625,7 +667,8 @@ describe("the admin overview", () => {
     const overview = (await get<RsvpOverview>(root, "/api/admin/rsvp")).body;
     expect(overview.answered).toBe(2);
     expect(overview.total).toBe(3);
-    const total = (name: string) => overview.totals.find((t) => t.partId === ids(parts, name)[0]);
+    const total = (name: string) =>
+      overview.totals.find((t) => t.programItemId === ids(programItems, name)[0]);
     expect(total("Trauung")).toMatchObject({ yes: 1, no: 0 });
     expect(total("Apéro")).toMatchObject({ yes: 2, no: 0 });
     expect(total("Dinner")).toMatchObject({ yes: 1, no: 1 });
@@ -640,9 +683,9 @@ describe("the admin overview", () => {
   });
 
   it("[RSVP-05] a guest who declined everything counts as answered but not attending", async () => {
-    const { get, call, parts, guest, root } = await setup();
+    const { get, call, programItems, guest, root } = await setup();
     const anna = await guest("anna");
-    await call(anna, "PUT", "/api/rsvp", { attendance: yes(parts) });
+    await call(anna, "PUT", "/api/rsvp", { attendance: yes(programItems) });
     const overview = (await get<RsvpOverview>(root, "/api/admin/rsvp")).body;
     expect(overview.guests[0]?.status).toBe("declined");
     expect(overview.answered).toBe(1);
@@ -650,12 +693,12 @@ describe("the admin overview", () => {
   });
 
   it("[SEC-11] allergies reach only admins and the guest's own answer", async () => {
-    const { ctx, get, call, parts, guest, root, menus } = await setup();
+    const { ctx, get, call, programItems, guest, root, menus } = await setup();
     const anna = await guest("anna");
     const ben = await guest("ben");
     const staff = await makeUser(ctx, "helfer", ["staff", "vip"]);
     await call(anna, "PUT", "/api/rsvp", {
-      attendance: yes(parts, "Dinner"),
+      attendance: yes(programItems, "Dinner"),
       menuId: menus[0]?.id,
       allergies: "GEHEIM-ALLERGIE",
     });
@@ -674,10 +717,10 @@ describe("the admin overview", () => {
   });
 
   it("[RSVP-05] exports the guest table as CSV, safe against formulas", async () => {
-    const { get, call, parts, guest, root, menus } = await setup();
+    const { get, call, programItems, guest, root, menus } = await setup();
     const anna = await guest("anna");
     await call(anna, "PUT", "/api/rsvp", {
-      attendance: yes(parts, "Trauung", "Dinner"),
+      attendance: yes(programItems, "Trauung", "Dinner"),
       menuId: menus[1]?.id,
       allergies: '=HYPERLINK("http://x")',
       songWish: 'Abba; Dancing "Queen"',
@@ -687,11 +730,11 @@ describe("the admin overview", () => {
     expect(response.headers["content-type"]).toContain("text/csv");
     expect(response.headers["content-disposition"]).toContain("attachment");
     const lines = response.body.trim().split("\r\n");
-    expect(lines[0]).toBe("Name;Status;Trauung;Apéro;Dinner;Party;Menü;Songwunsch;Allergien");
+    expect(lines[0]).toBe("Name;Typ;Status;Trauung;Apéro;Dinner;Party;Menü;Songwunsch;Allergien");
     expect(lines[1]).toBe(
-      'anna;zugesagt;ja;nein;ja;nein;Vegetarisch;"Abba; Dancing ""Queen""";"\'=HYPERLINK(""http://x"")"',
+      'anna;Erwachsen;zugesagt;ja;nein;ja;nein;Vegetarisch;"Abba; Dancing ""Queen""";"\'=HYPERLINK(""http://x"")"',
     );
-    expect(lines[2]).toBe("ben;ohne Antwort;;;;;;;");
+    expect(lines[2]).toBe("ben;Erwachsen;ohne Antwort;;;;;;;");
   });
 });
 
@@ -703,7 +746,7 @@ describe("reminders", () => {
   }
 
   it("[RSVP-07] reminds only guests without an answer who have a verified address", async () => {
-    const { ctx, call, get, parts, guest, root } = await setup();
+    const { ctx, call, get, programItems, guest, root } = await setup();
     const anna = await guest("anna");
     const ben = await guest("ben");
     const cleo = await guest("cleo");
@@ -711,7 +754,7 @@ describe("reminders", () => {
     verify(ctx, anna.id, "anna@example.ch");
     verify(ctx, ben.id, "ben@example.ch");
     verify(ctx, cleo.id, "cleo@example.ch", "unverified");
-    await call(anna, "PUT", "/api/rsvp", { attendance: yes(parts, "Trauung") });
+    await call(anna, "PUT", "/api/rsvp", { attendance: yes(programItems, "Trauung") });
     await call(root, "PUT", "/api/admin/rsvp/deadline", { deadline: "2999-05-01" });
 
     expect((await get<RsvpOverview>(root, "/api/admin/rsvp")).body.reminderCount).toBe(1);
@@ -768,10 +811,10 @@ describe("the activity card", () => {
   };
 
   it("[DATA-05] lists guest-related changes with names resolved when displayed, newest first", async () => {
-    const { ctx, root, call, parts, guest } = await setup();
+    const { ctx, root, call, programItems, guest } = await setup();
     const anna = await guest("anna");
     await call(root, "PUT", "/api/admin/rsvp/deadline", { deadline: "2027-05-01" });
-    await call(anna, "PUT", "/api/rsvp", { attendance: yes(parts, "Trauung") });
+    await call(anna, "PUT", "/api/rsvp", { attendance: yes(programItems, "Trauung") });
     const entries = await latest(ctx, root);
     expect(entries.slice(0, 2).map((e) => [e.action, e.name])).toEqual([
       ["rsvp.answer", "anna"],
@@ -803,10 +846,10 @@ describe("the activity card", () => {
     const actions = entries.map((e) => e.action);
     expect(actions).not.toContain("user.roles");
     expect(actions).not.toContain("session.login");
-    // Of the account entries only the invited parts are listed: they are about the guest.
+    // Of the account entries only the invited program items are listed: they are about the guest.
     expect(
       actions.every(
-        (a) => a === "user.parts" || (!a.startsWith("user.") && !a.startsWith("session.")),
+        (a) => a === "user.program_items" || (!a.startsWith("user.") && !a.startsWith("session.")),
       ),
     ).toBe(true);
   });
@@ -877,15 +920,21 @@ describe("the song wish switch", () => {
   });
 
   it("[RSVP-06] while it is off no song wish is taken, an earlier one stays, and it is not exported", async () => {
-    const { get, call, parts, guest, root } = await setup();
+    const { get, call, programItems, guest, root } = await setup();
     const anna = await guest("anna");
     const ben = await guest("ben");
-    await call(anna, "PUT", "/api/rsvp", { attendance: yes(parts, "Trauung"), songWish: "ABBA" });
+    await call(anna, "PUT", "/api/rsvp", {
+      attendance: yes(programItems, "Trauung"),
+      songWish: "ABBA",
+    });
     await call(root, "PUT", "/api/admin/rsvp/song", { enabled: false });
 
     // Ben cannot slip a wish in; Anna changes her answer and keeps hers.
-    await call(ben, "PUT", "/api/rsvp", { attendance: yes(parts, "Trauung"), songWish: "Queen" });
-    await call(anna, "PUT", "/api/rsvp", { attendance: yes(parts, "Trauung", "Party") });
+    await call(ben, "PUT", "/api/rsvp", {
+      attendance: yes(programItems, "Trauung"),
+      songWish: "Queen",
+    });
+    await call(anna, "PUT", "/api/rsvp", { attendance: yes(programItems, "Trauung", "Party") });
     const overview = (await get<RsvpOverview>(root, "/api/admin/rsvp")).body;
     expect(overview.songEnabled).toBe(false);
     expect(overview.guests.map((g) => [g.name, g.songWish])).toEqual([
@@ -893,7 +942,7 @@ describe("the song wish switch", () => {
       ["ben", null],
     ]);
     const header = (await get(root, "/api/admin/rsvp/export")).raw.body.split("\r\n")[0];
-    expect(header).toBe("Name;Status;Trauung;Apéro;Dinner;Party;Menü;Allergien");
+    expect(header).toBe("Name;Typ;Status;Trauung;Apéro;Dinner;Party;Menü;Allergien");
 
     // Switched on again, the wish is there and can be changed.
     await call(root, "PUT", "/api/admin/rsvp/song", { enabled: true });
@@ -920,87 +969,100 @@ describe("the song wish switch", () => {
 describe("answers after the invitation changes (7.4.1, decided 2026-11-11)", () => {
   const guestRow = (overview: RsvpOverview, userId: number) =>
     must(overview.guests.find((g) => g.userId === userId));
-  const total = (overview: RsvpOverview, partId: number | undefined) =>
-    must(overview.totals.find((t) => t.partId === partId));
+  const total = (overview: RsvpOverview, programItemId: number | undefined) =>
+    must(overview.totals.find((t) => t.programItemId === programItemId));
 
-  it("[RSVP-02] removing a part from a redeemed invitation removes the answer for it", async () => {
-    const { ctx, root, call, get, parts } = await setup();
+  it("[RSVP-02] removing a program item from a redeemed invitation removes the answer for it", async () => {
+    const { ctx, root, call, get, programItems } = await setup();
     const zora = await makeUser(ctx, "zora", []);
     const [issued] = ctx.auth.invitations.create([{ name: "Zora" }], undefined, "cli");
     const invitation = must(issued);
     ctx.auth.invitations.redeemForUser(invitation.code, zora.id);
     await call(zora, "PUT", "/api/rsvp", {
-      attendance: yes(parts, "Trauung", "Party"),
+      attendance: yes(programItems, "Trauung", "Party"),
     });
-    const [trauung, , , party] = ids(parts, "Trauung", "Apéro", "Dinner", "Party");
+    const [trauung, , , party] = ids(programItems, "Trauung", "Apéro", "Dinner", "Party");
 
-    const changed = await call(
-      root,
-      "PUT",
-      `/api/admin/invitations/${String(invitation.invitation.id)}/parts`,
-      { partIds: ids(parts, "Trauung", "Apéro") },
-    );
+    const changed = await call(root, "PUT", `/api/admin/users/${String(zora.id)}/program-items`, {
+      programItemIds: ids(programItems, "Trauung", "Apéro"),
+    });
     expect(changed.status).toBe(200);
     const overview = (await get<RsvpOverview>(root, "/api/admin/rsvp")).body;
-    expect(guestRow(overview, zora.id).attendingPartIds).toEqual([trauung]);
-    expect(total(overview, party)).toEqual({ partId: party, yes: 0, no: 0 });
+    expect(guestRow(overview, zora.id).attendingItemIds).toEqual([trauung]);
+    expect(total(overview, party)).toEqual({
+      programItemId: party,
+      yes: 0,
+      no: 0,
+      yesByType: { adult: 0, child: 0 },
+    });
     const state = (await get<RsvpState>(zora, "/api/rsvp")).body;
-    expect(state.answer?.attendingPartIds).toEqual([trauung]);
+    expect(state.answer?.attendingItemIds).toEqual([trauung]);
   });
 
-  it("[RSVP-02][RSVP-05] a part added after the answer is not answered yet: no totals, an empty CSV cell", async () => {
-    const { root, call, get, parts, guest } = await setup();
-    const [trauung, apero] = ids(parts, "Trauung", "Apéro");
+  it("[RSVP-02][RSVP-05] a program item added after the answer is not answered yet: no totals, an empty CSV cell", async () => {
+    const { root, call, get, programItems, guest } = await setup();
+    const [trauung, apero] = ids(programItems, "Trauung", "Apéro");
     const anna = await guest("anna", [must(trauung)]);
     const ben = await guest("ben", [must(trauung)]);
-    await call(anna, "PUT", "/api/rsvp", { attendance: [{ partId: trauung, attending: true }] });
-    await call(ben, "PUT", "/api/rsvp", { attendance: [{ partId: trauung, attending: false }] });
+    await call(anna, "PUT", "/api/rsvp", {
+      attendance: [{ programItemId: trauung, attending: true }],
+    });
+    await call(ben, "PUT", "/api/rsvp", {
+      attendance: [{ programItemId: trauung, attending: false }],
+    });
     for (const who of [anna, ben]) {
-      await call(root, "PUT", `/api/admin/users/${String(who.id)}/parts`, {
-        partIds: [trauung, apero],
+      await call(root, "PUT", `/api/admin/users/${String(who.id)}/program-items`, {
+        programItemIds: [trauung, apero],
       });
     }
 
     const overview = (await get<RsvpOverview>(root, "/api/admin/rsvp")).body;
-    expect(total(overview, apero)).toEqual({ partId: apero, yes: 0, no: 0 });
-    // Anna still attends; Ben declined the rest and has no answer for the new part.
+    expect(total(overview, apero)).toEqual({
+      programItemId: apero,
+      yes: 0,
+      no: 0,
+      yesByType: { adult: 0, child: 0 },
+    });
+    // Anna still attends; Ben declined the rest and has no answer for the new program item.
     expect(guestRow(overview, anna.id)).toMatchObject({
       status: "attending",
-      declinedPartIds: [],
+      declinedItemIds: [],
     });
     expect(guestRow(overview, ben.id)).toMatchObject({
       status: "none",
-      declinedPartIds: [trauung],
+      declinedItemIds: [trauung],
     });
     const csv = (await get(root, "/api/admin/rsvp/export")).raw.body.split("\r\n");
-    expect(csv.find((line) => line.startsWith("anna;"))).toMatch(/^anna;zugesagt;ja;;;;/);
-    expect(csv.find((line) => line.startsWith("ben;"))).toMatch(/^ben;ohne Antwort;nein;;;;/);
-    // The guest's state tells the wizard which part is open.
+    expect(csv.find((line) => line.startsWith("anna;"))).toMatch(/^anna;Erwachsen;zugesagt;ja;;;;/);
+    expect(csv.find((line) => line.startsWith("ben;"))).toMatch(
+      /^ben;Erwachsen;ohne Antwort;nein;;;;/,
+    );
+    // The guest's state tells the wizard which program item is open.
     const state = (await get<RsvpState>(ben, "/api/rsvp")).body;
-    expect(state.answer).toMatchObject({ attendingPartIds: [], declinedPartIds: [trauung] });
+    expect(state.answer).toMatchObject({ attendingItemIds: [], declinedItemIds: [trauung] });
   });
 
   it("[RSVP-02] a guest whose only yes disappears goes back to no answer", async () => {
-    const { root, call, get, parts, menus, guest } = await setup();
-    const [trauung, dinner] = ids(parts, "Trauung", "Dinner");
+    const { root, call, get, programItems, menus, guest } = await setup();
+    const [trauung, dinner] = ids(programItems, "Trauung", "Dinner");
     const anna = await guest("anna", [must(trauung), must(dinner)]);
     await call(anna, "PUT", "/api/rsvp", {
       attendance: [
-        { partId: trauung, attending: false },
-        { partId: dinner, attending: true },
+        { programItemId: trauung, attending: false },
+        { programItemId: dinner, attending: true },
       ],
       menuId: menus[0]?.id,
       allergies: "Nüsse",
     });
-    // The part is deleted: the guest attends nothing they answered with yes.
-    expect((await call(root, "DELETE", `/api/admin/rsvp/parts/${String(dinner)}`)).status).toBe(
-      204,
-    );
+    // The program item is deleted: the guest attends nothing they answered with yes.
+    expect(
+      (await call(root, "DELETE", `/api/admin/rsvp/program-items/${String(dinner)}`)).status,
+    ).toBe(204);
     const overview = (await get<RsvpOverview>(root, "/api/admin/rsvp")).body;
     expect(guestRow(overview, anna.id)).toMatchObject({
       status: "none",
-      attendingPartIds: [],
-      declinedPartIds: [],
+      attendingItemIds: [],
+      declinedItemIds: [],
       menuId: null,
       allergies: null,
     });
@@ -1008,44 +1070,48 @@ describe("answers after the invitation changes (7.4.1, decided 2026-11-11)", () 
   });
 
   it("[RSVP-09] a companion whose only yes is removed from the invitation goes back to no answer", async () => {
-    const { root, call, get, parts, guest } = await setup();
-    const [trauung, party] = ids(parts, "Trauung", "Party");
+    const { root, call, get, programItems, guest } = await setup();
+    const [trauung, party] = ids(programItems, "Trauung", "Party");
     const anna = await guest("anna", [must(trauung), must(party)]);
     const attendance = [
-      { partId: trauung, attending: true },
-      { partId: party, attending: false },
+      { programItemId: trauung, attending: true },
+      { programItemId: party, attending: false },
     ];
     await call(anna, "PUT", "/api/rsvp", { attendance });
     const made = await call<RsvpState>(anna, "POST", "/api/rsvp/companions", {
       name: "Mia",
+      personType: "adult",
       attendance: [
-        { partId: trauung, attending: false },
-        { partId: party, attending: true },
+        { programItemId: trauung, attending: false },
+        { programItemId: party, attending: true },
       ],
       allergies: "Laktose",
     });
     const mia = must(made.body?.companions[0]);
-    await call(root, "PUT", `/api/admin/users/${String(anna.id)}/parts`, { partIds: [trauung] });
+    await call(root, "PUT", `/api/admin/users/${String(anna.id)}/program-items`, {
+      programItemIds: [trauung],
+    });
     const state = (await get<RsvpState>(anna, "/api/rsvp")).body;
     // Anna keeps her yes; Mia's answer is gone, so the wizard asks for it again.
-    expect(state.answer?.attendingPartIds).toEqual([trauung]);
+    expect(state.answer?.attendingItemIds).toEqual([trauung]);
     expect(state.companions.find((c) => c.id === mia.id)).toMatchObject({
-      attendingPartIds: [],
-      declinedPartIds: [],
+      attendingItemIds: [],
+      declinedItemIds: [],
       allergies: null,
     });
   });
 
   it("[RSVP-02][SEC-11] revoking vip deletes the answer, the allergies and the companions", async () => {
-    const { ctx, root, call, get, parts, guest } = await setup();
+    const { ctx, root, call, get, programItems, guest } = await setup();
     const anna = await guest("anna");
     await call(anna, "PUT", "/api/rsvp", {
-      attendance: yes(parts, "Trauung"),
+      attendance: yes(programItems, "Trauung"),
       allergies: "Nüsse",
     });
     await call(anna, "POST", "/api/rsvp/companions", {
       name: "Mia",
-      attendance: yes(parts, "Trauung"),
+      personType: "adult",
+      attendance: yes(programItems, "Trauung"),
       allergies: "Laktose",
     });
     const revoked = await call(root, "PUT", `/api/admin/users/${String(anna.id)}/roles`, {
@@ -1063,7 +1129,7 @@ describe("answers after the invitation changes (7.4.1, decided 2026-11-11)", () 
       "rsvp_attendance",
       "companions",
       "companion_attendance",
-      "membership_parts",
+      "membership_program_items",
     ]) {
       expect(count(table), table).toBe(0);
     }
@@ -1078,14 +1144,137 @@ describe("answers after the invitation changes (7.4.1, decided 2026-11-11)", () 
   });
 
   it("[RSVP-09] the navigation badge reads the number of pending requests alone", async () => {
-    const { root, call, get, parts, guest } = await setup();
+    const { root, call, get, programItems, guest } = await setup();
     const anna = await guest("anna");
     await call(anna, "POST", "/api/rsvp/companions", {
       name: "Mia",
-      attendance: yes(parts, "Trauung"),
+      personType: "adult",
+      attendance: yes(programItems, "Trauung"),
     });
     const pending = await get<{ pendingCount: number }>(root, "/api/admin/rsvp/pending");
-    expect(pending.body).toEqual({ pendingCount: 1 });
+    expect(pending.body).toEqual({ pendingCount: 1, companionApproval: true });
     expect((await get(anna, "/api/admin/rsvp/pending")).status).toBe(403);
+  });
+});
+
+describe("one answer or one per program item (RSVP-11, 7.4.2)", () => {
+  interface Config {
+    perItem: boolean;
+  }
+
+  it("[RSVP-11] one answer per person is the default; an answer must be the same yes or no for every program item", async () => {
+    const ctx = await createTestApp();
+    context = ctx;
+    const root0 = await makeUser(ctx, "root", ["admin"]);
+    const config = await ctx.app.inject({
+      url: "/api/admin/rsvp/config",
+      headers: { cookie: root0.cookie },
+    });
+    expect(config.json<Config>().perItem).toBe(false);
+    await ctx.close();
+    context = undefined;
+
+    const { call, get, programItems, guest, root } = await setup();
+    await call(root, "PUT", "/api/admin/rsvp/per-item", { enabled: false });
+    const erika = await guest("erika");
+    const mixed = await call(erika, "PUT", "/api/rsvp", {
+      attendance: yes(programItems, "Trauung", "Apéro"),
+    });
+    expect(mixed.status).toBe(400);
+    expect((mixed.body as { error: { code: string } }).error.code).toBe("invalid_attendance");
+    const menuId = must((await get<RsvpState>(erika, "/api/rsvp")).body.menus[0]).id;
+    const everything = await call<RsvpState>(erika, "PUT", "/api/rsvp", {
+      attendance: yes(programItems, "Trauung", "Apéro", "Dinner", "Party"),
+      menuId,
+    });
+    expect(everything.status).toBe(200);
+    const nothing = await call<RsvpState>(erika, "PUT", "/api/rsvp", {
+      attendance: yes(programItems),
+    });
+    expect(nothing.status).toBe(200);
+  });
+
+  it("[RSVP-11] the answer is stored per program item; a program item added later takes the existing answer", async () => {
+    const { call, get, programItems, menus, guest, root } = await setup();
+    await call(root, "PUT", "/api/admin/rsvp/per-item", { enabled: false });
+    const [trauung, apero, dinner, party] = programItems;
+    const invited = [must(trauung).id, must(apero).id];
+    const erika = await guest("erika", invited);
+    const nina = await guest("nina", invited);
+    const lukas = await guest("lukas", invited);
+    const answer = (who: SignedIn, yesOrNo: boolean) =>
+      call<RsvpState>(who, "PUT", "/api/rsvp", {
+        attendance: invited.map((programItemId) => ({ programItemId, attending: yesOrNo })),
+      });
+    expect((await answer(erika, true)).status).toBe(200);
+    expect((await answer(nina, false)).status).toBe(200);
+    // A companion of erika answers yes as well.
+    const added = await call<RsvpState>(erika, "POST", "/api/rsvp/companions", {
+      name: "Mia",
+      personType: "adult",
+      attendance: invited.map((programItemId) => ({ programItemId, attending: true })),
+    });
+    expect(added.status).toBe(201);
+
+    // The admin adds Dinner and Party to the invitations (lukas has not answered).
+    const all = [...invited, must(dinner).id, must(party).id];
+    for (const who of [erika, nina, lukas]) {
+      await call(root, "PUT", `/api/admin/users/${String(who.id)}/program-items`, {
+        programItemIds: all,
+      });
+    }
+    const erikaState = (await get<RsvpState>(erika, "/api/rsvp")).body;
+    expect(erikaState.answer?.attendingItemIds).toEqual(all);
+    expect(erikaState.answer?.declinedItemIds).toEqual([]);
+    expect(erikaState.companions[0]?.attendingItemIds).toEqual(all);
+    // Dinner is the meal item: the new yes asks for a menu the next time; the status stays.
+    expect(erikaState.answer?.menuId).toBeNull();
+    expect(menus.length).toBeGreaterThan(0);
+    const ninaState = (await get<RsvpState>(nina, "/api/rsvp")).body;
+    expect(ninaState.answer?.declinedItemIds).toEqual(all);
+    // Someone who has not answered stays unanswered: nothing is made up for them.
+    const lukasState = (await get<RsvpState>(lukas, "/api/rsvp")).body;
+    expect(lukasState.answer).toBeNull();
+    const overview = (await get<RsvpOverview>(root, "/api/admin/rsvp")).body;
+    // erika says yes and nina no for every program item, also for the new ones; the companion
+    // is still pending (approval is on in this setup) and does not count.
+    expect(overview.totals.map((t) => [t.yes, t.no])).toEqual([
+      [1, 1],
+      [1, 1],
+      [1, 1],
+      [1, 1],
+    ]);
+  });
+
+  it("[RSVP-11] switching to one answer keeps what is stored until the next save", async () => {
+    const { ctx, call, get, programItems, menus, guest, root } = await setup();
+    const erika = await guest("erika");
+    const mixed = await call<RsvpState>(erika, "PUT", "/api/rsvp", {
+      attendance: yes(programItems, "Trauung", "Dinner"),
+      menuId: menus[0]?.id,
+    });
+    expect(mixed.status).toBe(200);
+    expect((await get<Config>(root, "/api/admin/rsvp/config")).body.perItem).toBe(true);
+
+    expect((await call(erika, "PUT", "/api/admin/rsvp/per-item", { enabled: false })).status).toBe(
+      403,
+    );
+    expect((await call(root, "PUT", "/api/admin/rsvp/per-item", { enabled: 1 })).status).toBe(400);
+    expect((await call(root, "PUT", "/api/admin/rsvp/per-item", { enabled: false })).status).toBe(
+      204,
+    );
+    // Nothing is rewritten by the switch itself.
+    const stored = (await get<RsvpState>(erika, "/api/rsvp")).body;
+    expect(stored.perItem).toBe(false);
+    expect(stored.answer?.attendingItemIds).toHaveLength(2);
+    expect(stored.answer?.declinedItemIds).toHaveLength(2);
+    // The next save is one answer for all.
+    const next = await call<RsvpState>(erika, "PUT", "/api/rsvp", {
+      attendance: yes(programItems, "Trauung", "Apéro", "Dinner", "Party"),
+      menuId: menus[0]?.id,
+    });
+    expect(next.body?.answer?.attendingItemIds).toHaveLength(4);
+    const entry = ctx.event.auditEntries().find((e) => e.action === "rsvp.per_item");
+    expect(entry?.details).toEqual({ to: false });
   });
 });

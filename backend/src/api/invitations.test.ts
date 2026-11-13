@@ -196,7 +196,7 @@ describe("redeeming a code", () => {
     );
     expect(results.map((r) => r.statusCode).sort()).toEqual([201, 410, 410, 410, 410]);
     expect(
-      ctx.auth.accounts.listUsers().filter((u) => u.username.startsWith("user-")),
+      ctx.auth.accounts.listUsers().filter((u) => (u.username ?? "").startsWith("user-")),
     ).toHaveLength(1);
   });
 
@@ -243,7 +243,13 @@ describe("redeeming a code", () => {
     expect(response.json()).toMatchObject({
       user: { id: helper.id, username: "helper", roles: ["staff", "vip"] },
     });
-    expect(ctx.auth.accounts.listUsers()).toHaveLength(usersBefore);
+    // The inactive account of the invitation is merged into the signed-in one and gone.
+    expect(ctx.auth.accounts.listUsers()).toHaveLength(usersBefore - 1);
+    expect(ctx.auth.invitations.list()[0]).toMatchObject({
+      status: "redeemed",
+      redeemedBy: helper.id,
+      userId: helper.id,
+    });
     const row = ctx.database.db
       .select()
       .from(memberships)
@@ -498,16 +504,17 @@ describe("expiry, revocation and replacement", () => {
       headers: as(root),
     });
     expect(revoke.statusCode, revoke.body).toBe(200);
-    expect(revoke.json()).toMatchObject({ status: "revoked" });
+    // The guest never registered, so revoking the only code removes the guest (INV-20).
+    expect(revoke.json()).toMatchObject({ status: "revoked", guestRemoved: true });
     const attempt = await register(ctx, invitation?.code ?? "", "anna");
-    expect(attempt.statusCode).toBe(410);
-    expect(attempt.json()).toMatchObject({ error: { code: "invitation_revoked" } });
+    expect(attempt.statusCode).toBe(404);
+    expect(attempt.json()).toMatchObject({ error: { code: "invalid_invitation" } });
     const again = await ctx.app.inject({
       method: "POST",
       url: `/api/admin/invitations/${String(invitation?.id)}/revoke`,
       headers: as(root),
     });
-    expect(again.statusCode).toBe(409);
+    expect(again.statusCode).toBe(404);
   });
 
   it("[INV-05][INV-06] regenerating replaces the code: the old one is invalid, the new one works", async () => {
@@ -567,7 +574,8 @@ describe("expiry, revocation and replacement", () => {
         .list()
         .map((i) => i.status)
         .sort(),
-    ).toEqual(["active", "active", "expired", "redeemed", "replaced", "revoked"].sort());
+      // A revoked code of a guest who never registered is gone with the guest (INV-20).
+    ).toEqual(["active", "active", "expired", "redeemed", "replaced"].sort());
   });
 
   it("[INV-09] vip stays after the code expires, is revoked or replaced", async () => {
@@ -600,7 +608,8 @@ describe("expiry, revocation and replacement", () => {
     const id = registered.json<{ user: { id: number } }>().user.id;
     await makeUser(ctx, "second", ["admin"]);
     await ctx.auth.accounts.deleteAccount(id, PASSWORD);
-    expect(ctx.auth.invitations.list()[0]).toMatchObject({ status: "redeemed", redeemedBy: null });
+    // The guest-list entry stays (7.1.2): the code is still redeemed by the same, now inactive, account.
+    expect(ctx.auth.invitations.list()[0]).toMatchObject({ status: "redeemed", redeemedBy: id });
     expect((await register(ctx, invitation?.code ?? "", "anna")).statusCode).toBe(410);
   });
 });
@@ -647,5 +656,366 @@ describe("assigning vip without a code", () => {
 
     ctx.auth.accounts.setRoles(promoted.id, [], "cli");
     expect(method("ben")).toBeNull();
+  });
+});
+
+describe("an account per invitation (ACC-17, INV-20; 7.1.2)", () => {
+  interface AdminUserBody {
+    id: number;
+    username: string | null;
+    status: string;
+    displayName: string;
+    roles: string[];
+    invitedProgramItemIds: number[];
+  }
+
+  async function users(ctx: TestContext, root: SignedIn) {
+    const response = await ctx.app.inject({ url: "/api/admin/users", headers: as(root) });
+    return response.json<{ users: AdminUserBody[] }>().users;
+  }
+
+  const items = (ctx: TestContext) => {
+    const made = ["Trauung", "Dinner"].map((name, i) =>
+      ctx.auth.rsvp.createProgramItem(
+        { name, startsAt: `2027-06-12T${String(12 + i * 4)}:00:00.000Z`, hasMeal: i === 1 },
+        "cli",
+      ),
+    );
+    return made.map((item) => item.id);
+  };
+
+  it("[ACC-17] creating an invitation creates an inactive account on the guest list, with its program items", async () => {
+    const ctx = await setup();
+    const root = await admin(ctx);
+    const [trauung] = items(ctx);
+    const [anna] = (
+      await ctx.app.inject({
+        method: "POST",
+        url: "/api/admin/invitations",
+        headers: as(root),
+        payload: { guests: [{ name: "Anna Muster" }], programItemIds: [trauung] },
+      })
+    ).json<{ invitations: IssuedInvitation[] }>().invitations;
+
+    const account = (await users(ctx, root)).find((u) => u.displayName === "Anna Muster");
+    expect(account).toMatchObject({
+      username: null,
+      status: "inactive",
+      roles: ["vip"],
+      invitedProgramItemIds: [trauung],
+    });
+    expect(anna).toMatchObject({ userId: account?.id, programItemIds: [trauung] });
+    // The guest is in the RSVP overview as "ohne Antwort"; nobody can sign in or be reminded.
+    const overview = ctx.auth.rsvp.overview();
+    expect(overview.guests.find((g) => g.userId === account?.id)).toMatchObject({
+      name: "Anna Muster",
+      status: "none",
+      verifiedEmail: false,
+    });
+    expect(overview.total).toBe(1);
+    expect(ctx.auth.rsvp.reminderRecipients()).toEqual([]);
+    // Its roles are locked until the guest registers.
+    const locked = await ctx.app.inject({
+      method: "PUT",
+      url: `/api/admin/users/${String(account?.id)}/roles`,
+      headers: as(root),
+      payload: { roles: ["vip", "staff"] },
+    });
+    expect(locked.statusCode).toBe(409);
+    expect(locked.json()).toMatchObject({ error: { code: "roles_locked" } });
+  });
+
+  it("[ACC-17] registering activates the same account; the program items of the invitation and the account panel are one list", async () => {
+    const ctx = await setup();
+    const root = await admin(ctx);
+    const [trauung, dinner] = items(ctx);
+    const [invitation] = await createInvitations(ctx, root, ["Anna Muster"]);
+    const before = (await users(ctx, root)).find((u) => u.displayName === "Anna Muster");
+
+    // The admin changes the program items in the account panel: the invitation shows them.
+    const changed = await ctx.app.inject({
+      method: "PUT",
+      url: `/api/admin/users/${String(invitation?.userId)}/program-items`,
+      headers: as(root),
+      payload: { programItemIds: [dinner] },
+    });
+    expect(changed.statusCode).toBe(200);
+    expect(ctx.auth.invitations.list()[0]?.programItemIds).toEqual([dinner]);
+    expect(
+      (await users(ctx, root)).find((u) => u.id === before?.id)?.invitedProgramItemIds,
+    ).toEqual([dinner]);
+
+    const registered = await register(ctx, invitation?.code ?? "", "anna", {
+      displayName: "Anna M.",
+      email: "anna@example.org",
+    });
+    expect(registered.statusCode, registered.body).toBe(201);
+    expect(registered.json()).toMatchObject({
+      user: { id: before?.id, username: "anna", displayName: "Anna M.", roles: ["vip"] },
+    });
+    const after = (await users(ctx, root)).find((u) => u.id === before?.id);
+    expect(after).toMatchObject({
+      username: "anna",
+      status: "active",
+      invitedProgramItemIds: [dinner],
+    });
+    expect(ctx.auth.invitations.list()[0]).toMatchObject({
+      status: "redeemed",
+      redeemedBy: before?.id,
+      userId: before?.id,
+    });
+    expect(trauung).toBeDefined();
+    // Now the guest signs in, and the audit log names the method.
+    await login(ctx, "anna");
+    expect(ctx.event.auditEntries().find((e) => e.action === "invitation.redeem")?.details).toEqual(
+      { invitationId: invitation?.id, userId: before?.id, method: "register" },
+    );
+  });
+
+  it("[ACC-17] a taken username leaves the code and the inactive account as they were", async () => {
+    const ctx = await setup();
+    const root = await admin(ctx);
+    const [invitation] = await createInvitations(ctx, root, ["Anna"]);
+    const taken = await register(ctx, invitation?.code ?? "", "root");
+    expect(taken.statusCode).toBe(409);
+    expect(ctx.auth.invitations.list()[0]?.status).toBe("active");
+    expect((await users(ctx, root)).find((u) => u.displayName === "Anna")?.status).toBe("inactive");
+    expect((await register(ctx, invitation?.code ?? "", "anna")).statusCode).toBe(201);
+  });
+
+  it("[ACC-17] a regenerated code belongs to the same account; the old one is dead", async () => {
+    const ctx = await setup();
+    const root = await admin(ctx);
+    const [invitation] = await createInvitations(ctx, root, ["Anna"]);
+    const fresh = ctx.auth.invitations.regenerate(invitation?.id ?? 0, undefined, "cli");
+    expect(fresh.invitation.userId).toBe(invitation?.userId);
+    expect((await register(ctx, invitation?.code ?? "", "anna")).statusCode).toBe(410);
+    const registered = await register(ctx, fresh.code, "anna");
+    expect(registered.statusCode).toBe(201);
+    expect(registered.json()).toMatchObject({ user: { id: invitation?.userId } });
+    const row = ctx.database.db
+      .select()
+      .from(memberships)
+      .all()
+      .find((m) => m.userId === invitation?.userId);
+    expect(row?.vipInvitationId).toBe(fresh.invitation.id);
+  });
+
+  it("[INV-20] revoking the last open code of a never-activated account removes the guest with their RSVP and companions", async () => {
+    const ctx = await setup();
+    const root = await admin(ctx);
+    const everything = items(ctx);
+    const [keep, drop] = await createInvitations(ctx, root, ["Bleibt", "Geht"]);
+    const list = ctx.auth.invitations.list();
+    expect(list.find((i) => i.id === drop?.id)?.removesGuest).toBe(true);
+    // The admin answered for the guest (e.g. by phone), and added a companion.
+    const attendance = everything.map((programItemId) => ({ programItemId, attending: false }));
+    ctx.auth.rsvp.answer(drop?.userId ?? 0, { attendance }, "cli", true);
+    ctx.auth.rsvp.requestCompanion(
+      drop?.userId ?? 0,
+      { name: "Begleitung", personType: "adult", attendance },
+      "cli",
+    );
+
+    const response = await ctx.app.inject({
+      method: "POST",
+      url: `/api/admin/invitations/${String(drop?.id)}/revoke`,
+      headers: as(root),
+    });
+    expect(response.json()).toMatchObject({ status: "revoked", guestRemoved: true });
+    const names = (await users(ctx, root)).map((u) => u.displayName);
+    expect(names).toContain("Bleibt");
+    expect(names).not.toContain("Geht");
+    expect(ctx.auth.rsvp.overview().total).toBe(1);
+    expect(ctx.auth.invitations.list().map((i) => i.id)).toEqual([keep?.id]);
+    const count = (table: string) =>
+      (ctx.database.sqlite.prepare(`SELECT COUNT(*) AS n FROM ${table}`).get() as { n: number }).n;
+    expect(count("rsvp_answers")).toBe(0);
+    expect(count("rsvp_attendance")).toBe(0);
+    expect(count("companions")).toBe(0);
+    // The audit entry has ids only.
+    const audit = ctx.event.auditEntries().find((e) => e.action === "invitation.revoke");
+    expect(audit?.details).toEqual({ invitationId: drop?.id, guestRemoved: true });
+    expect(JSON.stringify(ctx.event.auditEntries())).not.toContain("Geht");
+  });
+
+  it("[ACC-07][INV-07] a signed-in account without vip takes over the invited person's program items, person type, RSVP, companions and groups", async () => {
+    const ctx = await setup();
+    const root = await admin(ctx);
+    const [trauung, dinner] = items(ctx);
+    const helper = await makeUser(ctx, "helper", ["staff"]);
+    const [invitation] = await createInvitations(ctx, root, ["Helper Hans"]);
+    const invited = invitation?.userId ?? 0;
+    ctx.auth.accounts.setPersonType(invited, "child", "cli");
+    // What the admin entered for the invited person before the card was redeemed.
+    ctx.auth.rsvp.answer(
+      invited,
+      {
+        attendance: [
+          { programItemId: trauung ?? 0, attending: true },
+          { programItemId: dinner ?? 0, attending: true },
+        ],
+        menuId: undefined,
+      },
+      "cli",
+      true,
+    );
+    ctx.auth.rsvp.requestCompanion(
+      invited,
+      {
+        name: "Begleitung",
+        personType: "adult",
+        attendance: [
+          { programItemId: trauung ?? 0, attending: true },
+          { programItemId: dinner ?? 0, attending: true },
+        ],
+      },
+      "cli",
+    );
+    const group = ctx.auth.groups.create("Familie", "cli");
+    ctx.auth.groups.addMember(group.id, invited, "cli");
+    // A group both accounts are in must not stop the merge.
+    const both = ctx.auth.groups.create("Helfer", "cli");
+    ctx.auth.groups.addMember(both.id, invited, "cli");
+    ctx.auth.groups.addMember(both.id, helper.id, "cli");
+
+    const session = await login(ctx, "helper");
+    const response = await ctx.app.inject({
+      method: "POST",
+      url: `/api/invitations/${invitation?.code ?? ""}/redeem`,
+      headers: as(session),
+    });
+    expect(response.statusCode, response.body).toBe(200);
+    expect(response.json()).toMatchObject({
+      user: { id: helper.id, username: "helper", roles: ["staff", "vip"] },
+    });
+    // The signed-in account is the guest now; the invited person's account is gone.
+    expect(ctx.auth.rsvp.invitedProgramItemIds(helper.id)).toEqual([trauung, dinner]);
+    expect(ctx.auth.rsvp.state(helper.id).answer?.attendingItemIds).toEqual([trauung, dinner]);
+    expect(ctx.auth.rsvp.state(helper.id).companions.map((c) => c.name)).toEqual(["Begleitung"]);
+    expect(ctx.auth.rsvp.state(helper.id).personType).toBe("child");
+    expect(ctx.auth.groups.list().map((g) => g.memberIds)).toEqual([[helper.id], [helper.id]]);
+    const names = (await users(ctx, root)).map((u) => u.id);
+    expect(names).not.toContain(invited);
+    expect(ctx.event.auditEntries().find((e) => e.action === "invitation.redeem")?.details).toEqual(
+      { invitationId: invitation?.id, userId: helper.id, method: "merge", mergedUserId: invited },
+    );
+  });
+
+  it("[ACC-07] an account that already has vip gets 409 and the code stays usable", async () => {
+    const ctx = await setup();
+    const root = await admin(ctx);
+    await makeUser(ctx, "anna", ["vip"]);
+    const [invitation] = await createInvitations(ctx, root, ["Someone"]);
+    const session = await login(ctx, "anna");
+    const response = await ctx.app.inject({
+      method: "POST",
+      url: `/api/invitations/${invitation?.code ?? ""}/redeem`,
+      headers: as(session),
+    });
+    expect(response.statusCode).toBe(409);
+    expect(response.json()).toMatchObject({ error: { code: "already_vip" } });
+    expect(ctx.auth.invitations.list()[0]?.status).toBe("active");
+    expect((await users(ctx, root)).filter((u) => u.status === "inactive")).toHaveLength(1);
+  });
+
+  it("[ACC-12] a guest an admin promoted without an invitation stays on the guest list too, with the display name", async () => {
+    const ctx = await setup();
+    const root = await admin(ctx);
+    const oma = await makeUser(ctx, "oma", ["vip"]);
+    ctx.auth.accounts.updateProfile(oma.id, { displayName: "Oma Rosa" });
+    const session = await login(ctx, "oma");
+    const removed = await ctx.app.inject({
+      method: "DELETE",
+      url: "/api/profile",
+      headers: as(session),
+      payload: { password: PASSWORD },
+    });
+    expect(removed.statusCode).toBe(204);
+    // There is no invitation to take a guest name from: the display name stays.
+    expect((await users(ctx, root)).find((u) => u.id === oma.id)).toMatchObject({
+      username: null,
+      status: "inactive",
+      displayName: "Oma Rosa",
+      roles: ["vip"],
+      vipAssignment: "admin_promotion",
+    });
+    expect(ctx.auth.rsvp.overview().guests.map((g) => g.name)).toEqual(["Oma Rosa"]);
+  });
+
+  it("[ACC-17][ACC-12] a guest who deletes their account stays on the guest list as an inactive account", async () => {
+    const ctx = await setup();
+    const root = await admin(ctx);
+    const everything = items(ctx);
+    const [invitation] = await createInvitations(ctx, root, ["Anna Muster"]);
+    await register(ctx, invitation?.code ?? "", "anna", { email: "anna@example.org" });
+    const userId = invitation?.userId ?? 0;
+    ctx.auth.rsvp.answer(
+      userId,
+      { attendance: everything.map((programItemId) => ({ programItemId, attending: true })) },
+      "cli",
+      true,
+    );
+    const session = await login(ctx, "anna");
+    const removed = await ctx.app.inject({
+      method: "DELETE",
+      url: "/api/profile",
+      headers: as(session),
+      payload: { password: PASSWORD },
+    });
+    expect(removed.statusCode).toBe(204);
+
+    const account = (await users(ctx, root)).find((u) => u.id === userId);
+    expect(account).toMatchObject({
+      username: null,
+      status: "inactive",
+      displayName: "Anna Muster",
+      roles: ["vip"],
+    });
+    // Login, address and sessions are gone; the entry and its RSVP stay; the code stays redeemed.
+    const login2 = await ctx.app.inject({
+      method: "POST",
+      url: "/api/session",
+      payload: { username: "anna", password: PASSWORD },
+    });
+    expect(login2.statusCode).toBe(401);
+    expect(
+      (await ctx.app.inject({ url: "/api/session", headers: { cookie: session.cookie } })).json(),
+    ).toMatchObject({ user: null });
+    expect(ctx.auth.rsvp.overview().guests[0]).toMatchObject({
+      name: "Anna Muster",
+      status: "attending",
+    });
+    expect(ctx.auth.invitations.list()[0]).toMatchObject({ status: "redeemed", userId });
+    // An inactive account is not a guest who can be uninvited by revoking: the code is redeemed.
+    expect(ctx.auth.invitations.list()[0]?.removesGuest).toBe(false);
+  });
+
+  it("[ACC-17] an account an admin creates is inactive until its setup link is used, and cannot sign in before", async () => {
+    const ctx = await setup();
+    const root = await admin(ctx);
+    const created = await ctx.app.inject({
+      method: "POST",
+      url: "/api/admin/users",
+      headers: as(root),
+      payload: { username: "helper", roles: ["staff"] },
+    });
+    expect(created.statusCode).toBe(201);
+    expect((await users(ctx, root)).find((u) => u.username === "helper")?.status).toBe("inactive");
+    const token = created.json<{ setupUrl: string }>().setupUrl.split("/").at(-1);
+    const early = await ctx.app.inject({
+      method: "POST",
+      url: "/api/session",
+      payload: { username: "helper", password: PASSWORD },
+    });
+    expect(early.statusCode).toBe(401);
+    const set = await ctx.app.inject({
+      method: "POST",
+      url: "/api/password/set",
+      payload: { token, newPassword: PASSWORD },
+    });
+    expect(set.statusCode).toBe(204);
+    expect((await users(ctx, root)).find((u) => u.username === "helper")?.status).toBe("active");
+    await login(ctx, "helper");
   });
 });

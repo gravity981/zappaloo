@@ -62,9 +62,7 @@ test("[ACS-10][ACS-11][ACS-12][ACS-13] a guest of the closed platform sees the d
 
   // The guest answers the RSVP from the waiting page; the text changes with the status.
   await guest.getByRole("link", { name: de.waiting.answer }).click();
-  for (const part of ["Trauung", "Apéro", "Dinner", "Party"]) {
-    await guest.getByRole("button", { name: `${part}: ${de.rsvp.notAttending}` }).click();
-  }
+  await guest.getByRole("button", { name: de.rsvp.no, exact: true }).click();
   await guest.getByRole("button", { name: de.rsvp.send }).click();
   await guest.goto("/");
   await expect(guest.getByText(/Schade, dass du nicht dabei sein kannst/)).toBeVisible();

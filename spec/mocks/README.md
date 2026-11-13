@@ -54,7 +54,7 @@ The decisions behind the mocks, by question number in the prototype's "Questions
 | 28 | Minigame from the website | Starts full-screen; closing returns to the page. |
 | 29 | Treasure found | Shows the hint of one item not found yet. |
 | 30 | Admin on phones | Everything responsive; tables are tuned for desktop. |
-| 31 | Invited parts | Set per batch when creating invitations, editable per invitation afterwards. |
+| 31 | Invited program items | Set per batch when creating invitations. The invitation list shows them as read-only letters (T A D P). Changed afterwards in the account panel only (changed 2026-11-12). |
 | 32 | Seating plan | Drag and drop only, no auto-fill. |
 | 33 | Content editor | One "Veröffentlichen" button, live at once; no drafts. |
 | 34 | Settings | One page with sections; the "Wie kennst du das Paar?" list has its own section. |
@@ -91,9 +91,9 @@ Written into sw-architecture.md 7.4.1, 10.4 and 24 as well.
 |---|---|---|
 | 49 | Countdown | Optional: a switch "Countdown auf der Warteseite zeigen" in the card "Plattform öffnen", separate from the opening date (which `{openingDate}` shows), default off. The countdown disappears at zero; the text stays (ACS-13). |
 | 50 | Admin changes an RSVP | The allergies card in Rückmeldungen becomes a guest table (name, status, parts, menu, song wish, allergies as a column only admins see, status filter). "Bearbeiten" opens the RSVP wizard in admin mode, also after the deadline (RSVP-04). |
-| 51 | Menu | Tied to the meal part, which the admin marks among the event parts (name, time, place); asked only for persons attending it. One menu list for everyone, children's menu included. |
+| 51 | Menu | Tied to the meal program item, which the admin marks among the program items (name, time, place); asked only for persons attending it. One menu list for everyone, children's menu included. |
 | 52 | Approved companions | Their VIP changes attendance, menu and allergies in the wizard until the deadline, without a new approval; the name only the admin. Pending requests: edit or withdraw (Q10). |
-| 53 | Invited parts without an invitation | "Eingeladen zu" chips in the account panel for vip accounts without an invitation; a new account is invited to all parts, and "Konto anlegen" has no chips (decided 2026-11-11: the parts are changed in the account panel afterwards). With an invitation, its parts apply (changed under Einladungen). Revoking vip needs a second click ("vip entziehen"), because the guest's RSVP with allergies and companions is deleted with it. |
+| 53 | Invited parts without an invitation (superseded 2026-11-12, see stage 3.9) | "Eingeladen zu" chips in the account panel for vip accounts without an invitation; a new account is invited to all parts, and "Konto anlegen" has no chips (decided 2026-11-11: the parts are changed in the account panel afterwards). With an invitation, its parts apply (changed under Einladungen). Revoking vip needs a second click ("vip entziehen"), because the guest's RSVP with allergies and companions is deleted with it. |
 | 54 | Waiting-page texts | Edited in Einstellungen only; the content editor has no "Warteseite" page. |
 | 55 | Privacy notice | Public page `/datenschutz` (new screen), linked on every page: login, waiting page, RSVP wizard, website "Mehr", admin area. German default text; the admin edits it as Markdown in Einstellungen (SEC-09). |
 | 56 | Closing again | Once open, the card "Plattform öffnen" offers "Wieder schliessen", without an email. The "Die Tür ist offen" email and the RSVP reminder go to verified addresses only; their counts count those. |
@@ -102,3 +102,24 @@ Written into sw-architecture.md 7.4.1, 10.4 and 24 as well.
 | 59 | Release 1 pages | Every page a guest sees before the opening follows its mock: login, enter code (six boxes), register (username suggested from the guest's name, optional email), forgot password, set password, confirm email, not found, privacy notice, RSVP in the flow frame, profile (account part), waiting page. The three pages without a mock were drawn on 2026-11-11 and confirmed by the project owner the same day (built in step 3h). |
 | 60 | Install hint | A slim dismissible strip on the waiting page and a permanent card "App" in the profile; both appear only in a mobile browser, never in the installed app, and there is no pop-up on the first visit (decided 2026-11-11, step 3.5c). The install page is a flow page: Android with the browser's install button, iOS with the three Share-menu steps, and the note that the app asks for the password once more. |
 | 61 | Footer notice | Under "Datenschutz · Version" on the pages with the footer (public pages, RSVP, profile, admin area), not on the waiting page: the admin's copyright line (small, only slightly stronger than the rest), a fixed license sentence and the links "Quellcode" and "Lizenz" (translated). Edited in the card "Fusszeile" in Einstellungen; "Lizenz" opens the public page `/license` (decided 2026-11-11, step 3.5d). |
+
+## UX decisions for stage 3.9 (2026-11-12, findings of the Release 1 pilot)
+
+Written into sw-architecture.md 7.1.2, 7.4.2 and 8.3 as well. The screens are drawn into the mock at the start of the step that builds them (implementation-plan.md, stage 3.9).
+
+| Topic | Decision |
+|---|---|
+| Program item | "Programmpunkt" replaces "Teil" in every text. Earlier decisions that say "parts" (21, 31, 50 – 53) mean program items. |
+| One answer | With "Pro Programmpunkt zusagen" off (the default), step 1 of the RSVP asks each person once ("Ja" / "Nein") and lists their program items. |
+| Quiet pages | The RSVP step with companions and songs has no instructions around the list and the song field. The settings switches have one short sentence. Filter chips, buttons and their hint belong in the card of the table they act on (Einladungen like Konten & Rollen). |
+| Plain sentences | Texts use short, full sentences and no semicolons. |
+| Adding companions | "Begleitperson hinzufügen" instead of "beantragen". With "Begleitpersonen bestätigen" off (the default) an added person has no status tag and counts right away. The person type is chosen with chips, no default. With approval off the guest removes an added person until the deadline. The admin removes one from the guest table in Rückmeldungen (second click). |
+| Person type | Chips "Erwachsen" and "Kind" per batch when creating invitations, in the account panel and in the companion form (right under the name, no title). The invitation list shows one letter (E, K) and cannot change it. For a child the menu in step 2 is optional. Rückmeldungen shows the totals by type and a column "Typ". |
+| Konten & Rollen | Columns Benutzername (empty while inactive) · Name (current display name) · Status (aktiv / inaktiv / gesperrt) · Rollen · Fähigkeiten. Filter chips with counts and a search. No invitation information in the table. |
+| Account panel | Inactive with an invitation: state, "Zur Einladung", person type, roles locked, groups, "Eingeladen zu", no password section, "Konto löschen". Inactive and created by an admin: free roles and "Neuen Einrichtungslink erstellen" instead (decided 2026-11-12). Active: as before plus person type, "Konto sperren" and "Konto löschen". Blocked: "Entsperren", no reset link. "Eingeladen zu" appears for every account with vip. |
+| Konto anlegen | Ticking vip shows the program item chips, none selected. At least one is required (replaces 53). |
+| Einladungen | "Aufräumen (n)" deletes revoked and replaced invitations after a second click. Revoking the last open invitation of a never-activated guest asks "Widerrufen und Gast entfernen". |
+| Redeeming while signed in | "Diese Einladung für «Gastname» zu deinem Konto «Benutzername» hinzufügen?" with "Nicht du? Abmelden". |
+| Deleting the own account | The confirmation says that the RSVP with companions and allergies stays with the hosts until after the event. |
+| Phones | Wide admin tables scroll inside their own box. The page never moves sideways. |
+| Footer | "Datenschutz · Version x.y.z" with a middle dot, as in 19.6. |

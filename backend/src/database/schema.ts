@@ -84,8 +84,15 @@ export const users = sqliteTable(
   "users",
   {
     id: integer("id").primaryKey({ autoIncrement: true }),
-    /** Login name, lower case, never changes. */
-    username: text("username").notNull().unique(),
+    /**
+     * Login name, lower case, never changes once set. Null while the account is inactive and was
+     * created for an invitation (7.1.2); the unique index allows several empty values.
+     */
+    username: text("username").unique(),
+    /** `inactive`: never activated, cannot sign in; `active`; `blocked` by an admin (ACC-17, ACC-18). */
+    status: text("status", { enum: ["inactive", "active", "blocked"] })
+      .notNull()
+      .default("inactive"),
     displayName: text("display_name").notNull(),
     email: text("email"),
     emailStatus: text("email_status", { enum: ["unverified", "verified"] })
@@ -117,6 +124,10 @@ export const memberships = sqliteTable(
     createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull(),
     /** How `vip` was granted (INV-11); null without the role. Cleared when vip is revoked. */
     vipAssignment: text("vip_assignment", { enum: ["invitation_code", "admin_promotion"] }),
+    /** Adult or child (RSVP-13); the admin sets it, the guest never sees it. */
+    personType: text("person_type", { enum: ["adult", "child"] })
+      .notNull()
+      .default("adult"),
     /** For `invitation_code`: the invitation that was redeemed. */
     vipInvitationId: integer("vip_invitation_id").references(
       (): AnySQLiteColumn => invitations.id,
@@ -281,6 +292,8 @@ export const invitations = sqliteTable(
     redeemedBy: integer("redeemed_by").references(() => users.id, { onDelete: "set null" }),
     /** For a `replaced` code: the code that took its place. */
     replacedBy: integer("replaced_by").references((): AnySQLiteColumn => invitations.id),
+    /** The invited person's account, inactive until the code is redeemed (ACC-17, 7.1.2). */
+    userId: integer("user_id").references(() => users.id),
   },
   (table) => [index("invitations_event").on(table.eventId)],
 );
@@ -302,9 +315,9 @@ export const accessReleases = sqliteTable(
 
 // --- RSVP (sw-architecture.md 7.4, 7.4.1) -------------------------------------------------
 
-/** Event parts: ceremony, aperitif, dinner, party (RSVP-02). At most one has the meal. */
-export const eventParts = sqliteTable(
-  "event_parts",
+/** Program items: ceremony, aperitif, dinner, party (RSVP-02). At most one has the meal. */
+export const programItems = sqliteTable(
+  "program_items",
   {
     id: integer("id").primaryKey({ autoIncrement: true }),
     eventId: text("event_id")
@@ -317,8 +330,8 @@ export const eventParts = sqliteTable(
     createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull(),
   },
   (table) => [
-    index("event_parts_event").on(table.eventId),
-    uniqueIndex("event_parts_meal")
+    index("program_items_event").on(table.eventId),
+    uniqueIndex("program_items_meal")
       .on(table.eventId)
       .where(sql`${table.hasMeal} = 1`),
   ],
@@ -347,28 +360,15 @@ export const rsvpConfig = sqliteTable("rsvp_config", {
   deadline: text("deadline"),
   /** Whether the RSVP asks for a song wish (RSVP-06); the admin switches it. */
   songEnabled: integer("song_enabled", { mode: "boolean" }).notNull().default(true),
+  /** Yes or no per program item (RSVP-11); off: one answer per person, stored for every item. */
+  perItem: integer("per_item", { mode: "boolean" }).notNull().default(false),
+  /** Whether an added accompanying person waits for the admin's approval (RSVP-12). */
+  companionApproval: integer("companion_approval", { mode: "boolean" }).notNull().default(false),
 });
 
-/** The parts an invitation is for; copied to the membership when the code is redeemed. */
-export const invitationParts = sqliteTable(
-  "invitation_parts",
-  {
-    eventId: text("event_id")
-      .notNull()
-      .references(() => events.id),
-    invitationId: integer("invitation_id")
-      .notNull()
-      .references(() => invitations.id, { onDelete: "cascade" }),
-    partId: integer("part_id")
-      .notNull()
-      .references(() => eventParts.id, { onDelete: "cascade" }),
-  },
-  (table) => [primaryKey({ columns: [table.invitationId, table.partId] })],
-);
-
-/** The parts a `vip` is invited to (RSVP-02). */
-export const membershipParts = sqliteTable(
-  "membership_parts",
+/** The program items a `vip` is invited to (RSVP-02). */
+export const membershipProgramItems = sqliteTable(
+  "membership_program_items",
   {
     eventId: text("event_id")
       .notNull()
@@ -376,12 +376,12 @@ export const membershipParts = sqliteTable(
     userId: integer("user_id")
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
-    partId: integer("part_id")
+    programItemId: integer("program_item_id")
       .notNull()
-      .references(() => eventParts.id, { onDelete: "cascade" }),
+      .references(() => programItems.id, { onDelete: "cascade" }),
   },
   (table) => [
-    primaryKey({ columns: [table.eventId, table.userId, table.partId] }),
+    primaryKey({ columns: [table.eventId, table.userId, table.programItemId] }),
     ofMembership(table),
   ],
 );
@@ -405,7 +405,7 @@ export const rsvpAnswers = sqliteTable(
   (table) => [primaryKey({ columns: [table.eventId, table.userId] }), ofMembership(table)],
 );
 
-/** Yes or no per invited part (RSVP-01). */
+/** Yes or no per invited program item (RSVP-01). */
 export const rsvpAttendance = sqliteTable(
   "rsvp_attendance",
   {
@@ -415,13 +415,13 @@ export const rsvpAttendance = sqliteTable(
     userId: integer("user_id")
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
-    partId: integer("part_id")
+    programItemId: integer("program_item_id")
       .notNull()
-      .references(() => eventParts.id, { onDelete: "cascade" }),
+      .references(() => programItems.id, { onDelete: "cascade" }),
     attending: integer("attending", { mode: "boolean" }).notNull(),
   },
   (table) => [
-    primaryKey({ columns: [table.eventId, table.userId, table.partId] }),
+    primaryKey({ columns: [table.eventId, table.userId, table.programItemId] }),
     ofMembership(table),
   ],
 );
@@ -443,6 +443,10 @@ export const companions = sqliteTable(
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
     name: text("name").notNull(),
+    /** Adult or child (RSVP-13); the guest chooses it when adding, the admin changes it. */
+    personType: text("person_type", { enum: ["adult", "child"] })
+      .notNull()
+      .default("adult"),
     /** An optional note for the admin, e.g. "my daughter, 6" (RSVP-10). */
     note: text("note"),
     status: text("status", { enum: ["pending", "approved", "rejected"] })
@@ -463,7 +467,7 @@ export const companions = sqliteTable(
   ],
 );
 
-/** Yes or no per part for a companion, for the parts the guest is invited to. */
+/** Yes or no per program item for a companion, for the program items the guest is invited to. */
 export const companionAttendance = sqliteTable(
   "companion_attendance",
   {
@@ -473,12 +477,12 @@ export const companionAttendance = sqliteTable(
     companionId: integer("companion_id")
       .notNull()
       .references(() => companions.id, { onDelete: "cascade" }),
-    partId: integer("part_id")
+    programItemId: integer("program_item_id")
       .notNull()
-      .references(() => eventParts.id, { onDelete: "cascade" }),
+      .references(() => programItems.id, { onDelete: "cascade" }),
     attending: integer("attending", { mode: "boolean" }).notNull(),
   },
-  (table) => [primaryKey({ columns: [table.companionId, table.partId] })],
+  (table) => [primaryKey({ columns: [table.companionId, table.programItemId] })],
 );
 
 // --- Waiting page (sw-architecture.md 10.4; ACS-11, ACS-13) -------------------------------

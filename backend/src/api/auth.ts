@@ -69,7 +69,7 @@ export interface AuthOptions {
   access: AccessService;
   /** Personal invitation codes (INV-01 – INV-12). */
   invitations: InvitationService;
-  /** The RSVP, event parts and menus (RSVP-01 – RSVP-07). */
+  /** The RSVP, program items and menus (RSVP-01 – RSVP-07). */
   rsvp: RsvpService;
   /** Opening and closing the platform, and the privacy notice (ACS-14, SEC-09). */
   platform: PlatformService;
@@ -243,7 +243,7 @@ const authPlugin: FastifyPluginAsyncZod<AuthOptions> = async (app, options) => {
     const unsigned = cookie ? request.unsignCookie(cookie) : undefined;
     if (unsigned?.valid && unsigned.value) {
       const session = sessions.resolve(unsigned.value);
-      const user = session && accounts.getUser(session.userId);
+      const user = session && accounts.getSessionUser(session.userId);
       if (session && user) {
         request.auth = { user, token: unsigned.value, csrfToken: session.csrfToken };
         if (session.renewed) {
@@ -566,7 +566,8 @@ const authPlugin: FastifyPluginAsyncZod<AuthOptions> = async (app, options) => {
     },
   );
 
-  // An admin creates a one-time password-reset link for a user and hands it over (ACC-10).
+  // An admin creates a one-time link for a user and hands it over: a reset link for an active
+  // account (ACC-10), a new setup link for an inactive account an admin created (ACC-20).
   app.post(
     "/api/admin/users/:id/reset-link",
     {
@@ -579,15 +580,21 @@ const authPlugin: FastifyPluginAsyncZod<AuthOptions> = async (app, options) => {
       },
     },
     async (request, reply) => {
-      const user = accounts.getUser(request.params.id);
-      if (!user) {
-        return sendError(reply, 404, { code: "user_not_found", message: "There is no such user." });
+      let link;
+      try {
+        link = accounts.createAdminLink(
+          request.params.id,
+          `user:${String(signedIn(request).user.id)}`,
+        );
+      } catch (error) {
+        if (error instanceof AccountError && error.code === "user_not_found") {
+          return sendError(reply, 404, { code: error.code, message: "There is no such user." });
+        }
+        if (error instanceof AccountError && error.code === "not_active") {
+          return sendError(reply, 409, { code: error.code, message: error.message });
+        }
+        throw error;
       }
-      const link = accounts.createLink(
-        user.id,
-        "reset",
-        `user:${String(signedIn(request).user.id)}`,
-      );
       return reply.status(201).send({
         resetUrl: setPasswordUrl(options.publicUrl, link.token),
         expiresAt: link.expiresAt.toISOString(),
@@ -608,6 +615,13 @@ const authPlugin: FastifyPluginAsyncZod<AuthOptions> = async (app, options) => {
     },
     async (request, reply) => {
       const actor = `user:${String(signedIn(request).user.id)}`;
+      // The form of an admin names the program items of a new guest; the CLI invites to all (ACC-20).
+      if (request.body.roles.includes("vip") && !request.body.programItemIds?.length) {
+        return sendError(reply, 400, {
+          code: "program_items_required",
+          message: "choose at least one program item",
+        });
+      }
       try {
         const { user, link } = accounts.createUserWithSetupLink(request.body, actor);
         return await reply.status(201).send({
@@ -618,6 +632,12 @@ const authPlugin: FastifyPluginAsyncZod<AuthOptions> = async (app, options) => {
       } catch (error) {
         if (error instanceof AccountError && error.code === "username_taken") {
           return sendError(reply, 409, { code: "username_taken", message: error.message });
+        }
+        if (error instanceof AccountError && error.code === "program_items_required") {
+          return sendError(reply, 400, { code: error.code, message: error.message });
+        }
+        if (error instanceof AccountError && error.code === "program_item_not_found") {
+          return sendError(reply, 404, { code: error.code, message: error.message });
         }
         throw error;
       }

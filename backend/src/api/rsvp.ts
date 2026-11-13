@@ -1,4 +1,4 @@
-// RSVP: the guests' wizard, the admin's event parts, menus, deadline and overview, reminders,
+// RSVP: the guests' wizard, the admin's program items, menus, deadline and overview, reminders,
 // the CSV export, and the card "Zuletzt" (RSVP-01 – RSVP-07, SEC-11, DATA-05;
 // sw-architecture.md 7.4, 7.4.1).
 import fp from "fastify-plugin";
@@ -8,10 +8,10 @@ import {
   companionRenameSchema,
   companionRequestSchema,
   deadlineRequestSchema,
-  eventPartRequestSchema,
-  eventPartSchema,
-  eventPartUpdateSchema,
-  invitedPartsRequestSchema,
+  programItemRequestSchema,
+  programItemSchema,
+  programItemUpdateSchema,
+  invitedProgramItemsRequestSchema,
   menuOptionSchema,
   menuRequestSchema,
   remindResponseSchema,
@@ -20,6 +20,8 @@ import {
   rsvpOverviewSchema,
   rsvpPendingSchema,
   songEnabledRequestSchema,
+  perItemRequestSchema,
+  companionApprovalRequestSchema,
   rsvpStateSchema,
 } from "@zappaloo/shared";
 import type { FastifyReply } from "fastify";
@@ -36,7 +38,7 @@ const noBody = z.null().optional();
 const idParams = z.strictObject({ id: z.coerce.number().int().positive() });
 
 const STATUSES: Record<string, number> = {
-  part_not_found: 404,
+  program_item_not_found: 404,
   menu_not_found: 404,
   user_not_found: 404,
   not_a_guest: 409,
@@ -196,7 +198,20 @@ const rsvpPlugin: FastifyPluginAsyncZod<AuthOptions> = (app, options) => {
     },
     async (request, reply) => {
       try {
-        rsvp.renameCompanion(request.params.id, request.body.name, actor(request));
+        rsvp.renameCompanion(request.params.id, request.body, actor(request));
+        return await reply.status(204).send();
+      } catch (error) {
+        return fail(reply, error);
+      }
+    },
+  );
+
+  app.delete(
+    "/api/admin/rsvp/companions/:id",
+    { ...adminFeature, schema: { querystring: noQuery, params: idParams, body: noBody } },
+    async (request, reply) => {
+      try {
+        rsvp.removeCompanion(request.params.id, actor(request));
         return await reply.status(204).send();
       } catch (error) {
         return fail(reply, error);
@@ -229,33 +244,58 @@ const rsvpPlugin: FastifyPluginAsyncZod<AuthOptions> = (app, options) => {
     },
   );
 
-  app.post(
-    "/api/admin/rsvp/parts",
+  app.put(
+    "/api/admin/rsvp/per-item",
+    { ...admin, schema: { querystring: noQuery, body: perItemRequestSchema } },
+    async (request, reply) => {
+      rsvp.setPerItem(request.body.enabled, actor(request));
+      return await reply.status(204).send();
+    },
+  );
+
+  app.put(
+    "/api/admin/rsvp/companion-approval",
     {
       ...admin,
       schema: {
         querystring: noQuery,
-        body: eventPartRequestSchema,
-        response: { 201: eventPartSchema },
+        body: companionApprovalRequestSchema,
+        response: { 200: z.object({ approved: z.number().int() }) },
       },
     },
-    async (request, reply) => reply.status(201).send(rsvp.createPart(request.body, actor(request))),
+    (request) => rsvp.setCompanionApproval(request.body.enabled, actor(request)),
+  );
+
+  app.post(
+    "/api/admin/rsvp/program-items",
+    {
+      ...admin,
+      schema: {
+        querystring: noQuery,
+        body: programItemRequestSchema,
+        response: { 201: programItemSchema },
+      },
+    },
+    async (request, reply) =>
+      reply.status(201).send(rsvp.createProgramItem(request.body, actor(request))),
   );
 
   app.patch(
-    "/api/admin/rsvp/parts/:id",
+    "/api/admin/rsvp/program-items/:id",
     {
       ...admin,
       schema: {
         querystring: noQuery,
         params: idParams,
-        body: eventPartUpdateSchema,
-        response: { 200: eventPartSchema },
+        body: programItemUpdateSchema,
+        response: { 200: programItemSchema },
       },
     },
     async (request, reply) => {
       try {
-        return await reply.send(rsvp.updatePart(request.params.id, request.body, actor(request)));
+        return await reply.send(
+          rsvp.updateProgramItem(request.params.id, request.body, actor(request)),
+        );
       } catch (error) {
         return fail(reply, error);
       }
@@ -263,11 +303,11 @@ const rsvpPlugin: FastifyPluginAsyncZod<AuthOptions> = (app, options) => {
   );
 
   app.delete(
-    "/api/admin/rsvp/parts/:id",
+    "/api/admin/rsvp/program-items/:id",
     { ...admin, schema: { querystring: noQuery, params: idParams, body: noBody } },
     async (request, reply) => {
       try {
-        rsvp.deletePart(request.params.id, actor(request));
+        rsvp.deleteProgramItem(request.params.id, actor(request));
         return await reply.status(204).send();
       } catch (error) {
         return fail(reply, error);
@@ -324,26 +364,26 @@ const rsvpPlugin: FastifyPluginAsyncZod<AuthOptions> = (app, options) => {
     },
   );
 
-  // The parts a guest account is invited to (account panel, "Eingeladen zu").
+  // The program items a guest account is invited to (account panel, "Eingeladen zu").
   app.put(
-    "/api/admin/users/:id/parts",
+    "/api/admin/users/:id/program-items",
     {
       ...admin,
       schema: {
         querystring: noQuery,
         params: idParams,
-        body: invitedPartsRequestSchema,
-        response: { 200: invitedPartsRequestSchema },
+        body: invitedProgramItemsRequestSchema,
+        response: { 200: invitedProgramItemsRequestSchema },
       },
     },
     async (request, reply) => {
       try {
-        const partIds = rsvp.setInvitedParts(
+        const programItemIds = rsvp.setInvitedProgramItems(
           request.params.id,
-          request.body.partIds,
+          request.body.programItemIds,
           actor(request),
         );
-        return await reply.send({ partIds });
+        return await reply.send({ programItemIds });
       } catch (error) {
         return fail(reply, error);
       }
@@ -361,7 +401,7 @@ const rsvpPlugin: FastifyPluginAsyncZod<AuthOptions> = (app, options) => {
   app.get(
     "/api/admin/rsvp/pending",
     { ...adminFeature, schema: { querystring: noQuery, response: { 200: rsvpPendingSchema } } },
-    () => ({ pendingCount: rsvp.pendingCount() }),
+    () => ({ pendingCount: rsvp.pendingCount(), companionApproval: rsvp.companionApproval() }),
   );
 
   app.get(

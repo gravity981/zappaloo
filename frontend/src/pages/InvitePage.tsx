@@ -189,7 +189,12 @@ function Redeem({ code }: { code: string }) {
           <p className="muted">{t("invite.alreadyVip")}</p>
         ) : (
           <>
-            <p className="muted">{t("invite.redeemHint", { user: session.user.displayName })}</p>
+            <p className="muted">
+              {t("invite.mergeQuestion", {
+                guest: guestName,
+                user: session.user.username,
+              })}
+            </p>
             {error && (
               <p role="alert" className="error">
                 {errorText(error)}
@@ -203,6 +208,20 @@ function Redeem({ code }: { code: string }) {
             >
               {t("invite.redeem")}
             </button>
+            <p className="sm">
+              {t("invite.notYou")}{" "}
+              <button
+                type="button"
+                className="link"
+                onClick={() => {
+                  // The message of a failed attempt belongs to the account that is leaving.
+                  setError(undefined);
+                  void session.logout();
+                }}
+              >
+                {t("invite.logout")}
+              </button>
+            </p>
           </>
         )}
       </BareShell>

@@ -459,6 +459,11 @@
 }
 :is(.admin, .guest) .scroll {
   overflow-x: auto;
+  /* the containing block of the visually hidden texts in the table, so they scroll with it and
+     never widen the page (an absolute child escapes the clipping of a static box) */
+  position: relative;
+  /* a swipe at the end of the table does not move the page */
+  overscroll-behavior-x: contain;
 }
 :is(.admin, .guest) .table {
   width: 100%;
@@ -641,7 +646,7 @@
 :is(.admin, .guest) .rsvp-actions .btn:last-child:not(:first-child) {
   margin-left: auto;
 }
-:is(.admin, .guest) .rsvp-part {
+:is(.admin, .guest) .rsvp-program-item {
   display: flex;
   align-items: center;
   gap: 10px;
@@ -649,10 +654,10 @@
   padding: 8px 0;
   border-bottom: 1px solid var(--a-fill);
 }
-:is(.admin, .guest) .rsvp-part:last-child {
+:is(.admin, .guest) .rsvp-program-item:last-child {
   border-bottom: 0;
 }
-:is(.admin, .guest) .rsvp-part .grow {
+:is(.admin, .guest) .rsvp-program-item .grow {
   min-width: 10rem;
 }
 :is(.admin, .guest) .lock {
@@ -664,6 +669,10 @@
   grid-template-columns: 6rem 1fr auto;
   gap: 8px;
   align-items: center;
+}
+/* one bar for everyone, without a name in front (one answer per person) */
+:is(.admin, .guest) .bar-row.single {
+  grid-template-columns: 1fr auto;
 }
 :is(.admin, .guest) .bar-row .track {
   display: flex;

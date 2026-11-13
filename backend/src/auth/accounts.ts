@@ -1,17 +1,26 @@
 // Accounts, event roles and one-time links (ACC-04, ACC-06, ACC-08, ACC-14,
 // ACC-15; sw-architecture.md 7.1.1).
-import { and, eq, inArray, isNotNull, isNull, lte, ne, or, sql } from "drizzle-orm";
-import type { AdminUser, Capability, ProfileUpdate, Role, User } from "@zappaloo/shared";
+import { and, desc, eq, inArray, isNotNull, isNull, lte, ne, or, sql } from "drizzle-orm";
+import type {
+  AdminUser,
+  Capability,
+  PersonType,
+  ProfileUpdate,
+  Role,
+  User,
+} from "@zappaloo/shared";
 import type { Database } from "../database/database.ts";
 import {
-  eventParts,
+  programItems,
   guestGroupMembers,
   guestGroups,
+  invitations,
   membershipCapabilities,
-  membershipParts,
+  membershipProgramItems,
   membershipRoles,
   memberships,
   oneTimeLinks,
+  sessions,
   users,
 } from "../database/schema.ts";
 import { SELF_ACTOR } from "../event/service.ts";
@@ -29,7 +38,14 @@ export type AccountErrorCode =
   | "last_admin"
   | "not_staff"
   | "password_is_username"
-  | "email_taken";
+  | "email_taken"
+  | "roles_locked"
+  | "own_account"
+  | "not_active"
+  | "not_inactive"
+  | "not_blocked"
+  | "program_items_required"
+  | "program_item_not_found";
 
 export class AccountError extends Error {
   override name = "AccountError";
@@ -76,17 +92,37 @@ export class AccountService {
     this.#now = now;
   }
 
-  /** A `vip` without an invitation (admin promotion) starts invited to every part (RSVP-02). */
-  #inviteToAllParts(tx: Tx, userId: number): void {
+  /** The chosen program items of a new `vip` (ACC-20); every one must exist. */
+  #inviteToProgramItems(tx: Tx, userId: number, programItemIds: number[]): void {
     const eventId = this.#event.eventId;
-    const parts = tx
-      .select({ id: eventParts.id })
-      .from(eventParts)
-      .where(eq(eventParts.eventId, eventId))
+    const known = new Set(
+      tx
+        .select({ id: programItems.id })
+        .from(programItems)
+        .where(eq(programItems.eventId, eventId))
+        .all()
+        .map((row) => row.id),
+    );
+    const wanted = [...new Set(programItemIds)];
+    if (wanted.some((id) => !known.has(id))) {
+      throw new AccountError("program_item_not_found", "no such program item");
+    }
+    for (const programItemId of wanted) {
+      tx.insert(membershipProgramItems).values({ eventId, userId, programItemId }).run();
+    }
+  }
+
+  /** A `vip` without an invitation (admin promotion) starts invited to every program item (RSVP-02). */
+  #inviteToAllProgramItems(tx: Tx, userId: number): void {
+    const eventId = this.#event.eventId;
+    const items = tx
+      .select({ id: programItems.id })
+      .from(programItems)
+      .where(eq(programItems.eventId, eventId))
       .all();
-    for (const { id } of parts) {
-      tx.insert(membershipParts)
-        .values({ eventId, userId, partId: id })
+    for (const { id } of items) {
+      tx.insert(membershipProgramItems)
+        .values({ eventId, userId, programItemId: id })
         .onConflictDoNothing()
         .run();
     }
@@ -119,7 +155,9 @@ export class AccountService {
       : [];
     return {
       id: row.id,
-      username: row.username,
+      // Only an inactive account created for an invitation has no username (7.1.2); it is never
+      // sent to a client as a session user (`listUsers` words it as null).
+      username: row.username ?? "",
       displayName: row.displayName,
       email: row.email,
       emailStatus: row.emailStatus,
@@ -131,6 +169,15 @@ export class AccountService {
   getUser(id: number): User | undefined {
     const row = this.#database.db.select().from(users).where(eq(users.id, id)).get();
     return row && this.#toUser(row);
+  }
+
+  /**
+   * The user of a session: only an active account has one (7.1.2). Blocking deletes the sessions,
+   * and this check holds even if one is left over.
+   */
+  getSessionUser(id: number): User | undefined {
+    const row = this.#database.db.select().from(users).where(eq(users.id, id)).get();
+    return row?.status === "active" ? this.#toUser(row) : undefined;
   }
 
   findUser(username: string): User | undefined {
@@ -157,6 +204,8 @@ export class AccountService {
       invitationId?: number;
       /** An address given at registration; it stays unverified until the guest verifies it. */
       email?: string | undefined;
+      /** The program items of a `vip` an admin promotes; undefined: all program items. */
+      programItemIds?: number[] | undefined;
     },
     actor: Actor,
     /** Inside the transaction of the caller. */
@@ -172,6 +221,9 @@ export class AccountService {
         .insert(users)
         .values({
           username,
+          // An account is active once its owner has a password (7.1.2): at once when it is
+          // created with one (redeemed invitations), otherwise with the setup link.
+          status: input.passwordHash === undefined ? "inactive" : "active",
           displayName: input.displayName ?? username,
           passwordHash: input.passwordHash ?? null,
           email: input.email ?? null,
@@ -200,7 +252,8 @@ export class AccountService {
           .run();
       }
       if (input.roles.includes("vip") && input.invitationId === undefined) {
-        this.#inviteToAllParts(tx, row.id);
+        if (input.programItemIds === undefined) this.#inviteToAllProgramItems(tx, row.id);
+        else this.#inviteToProgramItems(tx, row.id, input.programItemIds);
       }
       this.#event.audit(
         actor === SELF_ACTOR ? `user:${String(row.id)}` : actor,
@@ -229,9 +282,18 @@ export class AccountService {
    * never leaves an account without a password and without a link.
    */
   createUserWithSetupLink(
-    input: { username: string; displayName?: string | undefined; roles: Role[] },
+    input: {
+      username: string;
+      displayName?: string | undefined;
+      roles: Role[];
+      programItemIds?: number[] | undefined;
+    },
     actor: Actor,
   ): { user: User; link: IssuedLink } {
+    // A guest created by an admin needs its program items in the same form (ACC-20).
+    if (input.roles.includes("vip") && input.programItemIds?.length === 0) {
+      throw new AccountError("program_items_required", "choose at least one program item");
+    }
     return this.#database.db.transaction((tx) => {
       const user = this.createUser(input, actor, tx);
       return { user, link: this.createLink(user.id, "setup", actor, undefined, tx) };
@@ -270,7 +332,8 @@ export class AccountService {
    */
   async verifyLogin(identifier: string, password: string): Promise<User | undefined> {
     const row = this.#findForLogin(identifier);
-    if (!row?.passwordHash) {
+    // Only an active account signs in; the others get the answer of a wrong password.
+    if (!row?.passwordHash || row.status !== "active") {
       await verifyDummyPassword(password);
       return undefined;
     }
@@ -304,7 +367,7 @@ export class AccountService {
     if (!row.passwordHash || !(await verifyPassword(row.passwordHash, current))) {
       throw new AccountError("invalid_password", "the current password is wrong");
     }
-    assertPasswordAllowed(row.username, next);
+    assertPasswordAllowed(row.username ?? "", next);
     const passwordHash = await hashPassword(next);
     this.#database.db.transaction((tx) => {
       tx.update(users)
@@ -366,6 +429,23 @@ export class AccountService {
     return { token, expiresAt };
   }
 
+  /**
+   * The link an admin hands over in the account panel (ACC-10, ACC-20): a reset link for an
+   * active account, a new setup link for an inactive account an admin created. A blocked account
+   * gets none (ACC-18), and an invited guest without a username registers with the invitation.
+   */
+  createAdminLink(userId: number, actor: Actor): IssuedLink {
+    return this.#database.db.transaction((tx) => {
+      const row = tx.select().from(users).where(eq(users.id, userId)).get();
+      if (!row) throw new AccountError("user_not_found", "no such user");
+      if (row.status === "blocked" || row.username === null) {
+        throw new AccountError("not_active", "an account in this state gets no link");
+      }
+      const purpose = row.status === "active" ? "reset" : "setup";
+      return this.createLink(userId, purpose, actor, undefined, tx);
+    });
+  }
+
   /** The setup or reset link of a token, if it can still be used. */
   #usableLink(tx: Pick<Database["db"], "select">, token: string) {
     const link = tx
@@ -391,7 +471,7 @@ export class AccountService {
       .from(users)
       .where(eq(users.id, link.userId))
       .get();
-    if (!owner || link.purpose === "verify") {
+    if (!owner?.username || link.purpose === "verify") {
       throw new AccountError("invalid_link", "the link is unknown, expired or already used");
     }
     return { purpose: link.purpose, username: owner.username };
@@ -409,21 +489,64 @@ export class AccountService {
       .from(users)
       .where(eq(users.id, checked.userId))
       .get();
-    if (!owner)
+    if (!owner?.username)
       throw new AccountError("invalid_link", "the link is unknown, expired or already used");
     assertPasswordAllowed(owner.username, password);
     const passwordHash = await hashPassword(password);
     return this.#database.db.transaction((tx) => {
       const link = this.#usableLink(tx, token);
       this.#voidLinks(tx, link.userId);
+      // The first password activates an account that was created without one (7.1.2).
       const row = tx
         .update(users)
-        .set({ passwordHash, updatedAt: this.#now() })
+        .set({
+          passwordHash,
+          status: sql`CASE WHEN ${users.status} = 'inactive' THEN 'active' ELSE ${users.status} END`,
+          updatedAt: this.#now(),
+        })
         .where(eq(users.id, link.userId))
         .returning()
         .get();
       return this.#toUser(row);
     });
+  }
+
+  /**
+   * An invited guest registers: the inactive account that was created with the invitation gets
+   * its username, password and optional address and becomes active (ACC-17, 7.1.2). Inside the
+   * transaction that also marks the code redeemed.
+   */
+  activateInvited(
+    tx: Tx,
+    userId: number,
+    input: {
+      username: string;
+      displayName: string;
+      passwordHash: string;
+      email?: string | undefined;
+    },
+  ): User {
+    const username = input.username.toLowerCase();
+    if (tx.select({ id: users.id }).from(users).where(eq(users.username, username)).get()) {
+      throw new AccountError("username_taken", `the username "${username}" is already taken`);
+    }
+    const row = tx
+      .update(users)
+      .set({
+        username,
+        status: "active",
+        displayName: input.displayName,
+        passwordHash: input.passwordHash,
+        email: input.email ?? null,
+        emailStatus: "unverified",
+        updatedAt: this.#now(),
+      })
+      .where(and(eq(users.id, userId), eq(users.status, "inactive"), isNull(users.passwordHash)))
+      .returning()
+      .all()[0];
+    // The account of an open invitation is always inactive. Anything else is a broken state.
+    if (!row) throw new AccountError("not_inactive", "the invited account is already activated");
+    return this.#toUser(row);
   }
 
   /**
@@ -500,6 +623,8 @@ export class AccountService {
       .from(users)
       .where(
         and(
+          // A blocked account gets no mail and no new link (ACC-18).
+          eq(users.status, "active"),
           eq(users.emailStatus, "verified"),
           or(eq(users.username, needle), eq(sql`lower(${users.email})`, needle)),
         ),
@@ -536,9 +661,172 @@ export class AccountService {
       if (this.#isLastAdmin(tx, userId)) {
         throw new AccountError("last_admin", "the last admin cannot delete the account");
       }
-      tx.delete(users).where(eq(users.id, userId)).run(); // memberships, roles, sessions, links cascade
-      this.#event.audit(`user:${String(userId)}`, "user.delete", { userId }, tx);
+      const guest = tx
+        .select({ role: membershipRoles.role })
+        .from(membershipRoles)
+        .where(
+          and(
+            eq(membershipRoles.eventId, this.#event.eventId),
+            eq(membershipRoles.userId, userId),
+            eq(membershipRoles.role, "vip"),
+          ),
+        )
+        .get();
+      if (guest) {
+        this.#retireGuest(tx, userId);
+        this.#event.audit(`user:${String(userId)}`, "user.delete", { userId, kept: true }, tx);
+      } else {
+        this.deleteUserRows(tx, userId);
+        this.#event.audit(`user:${String(userId)}`, "user.delete", { userId }, tx);
+      }
     });
+  }
+
+  /**
+   * The admin sets the person type of a guest (RSVP-13). Companions have their own type.
+   */
+  setPersonType(userId: number, personType: PersonType, actor: Actor): void {
+    this.#database.db.transaction((tx) => {
+      const eventId = this.#event.eventId;
+      const done = tx
+        .update(memberships)
+        .set({ personType })
+        .where(and(eq(memberships.eventId, eventId), eq(memberships.userId, userId)))
+        .run();
+      if (done.changes !== 1) throw new AccountError("user_not_found", "no such user");
+      this.#event.audit(actor, "user.person_type", { userId, personType }, tx);
+    });
+  }
+
+  /**
+   * An admin blocks an active account (ACC-18): it cannot sign in, its sessions end and its open
+   * setup and reset links are voided at once; roles, groups, RSVP and companions stay.
+   */
+  blockUser(userId: number, actorUserId: number): void {
+    this.#database.db.transaction((tx) => {
+      const row = tx.select().from(users).where(eq(users.id, userId)).get();
+      if (!row) throw new AccountError("user_not_found", "no such user");
+      if (userId === actorUserId) {
+        throw new AccountError("own_account", "an admin cannot block their own account");
+      }
+      if (row.status !== "active") {
+        throw new AccountError("not_active", "only an active account can be blocked");
+      }
+      if (this.#isLastAdmin(tx, userId)) {
+        throw new AccountError("last_admin", "the last admin cannot be blocked");
+      }
+      tx.update(users)
+        .set({ status: "blocked", updatedAt: this.#now() })
+        .where(eq(users.id, userId))
+        .run();
+      tx.delete(sessions).where(eq(sessions.userId, userId)).run();
+      this.#voidLinks(tx, userId);
+      this.#event.audit(`user:${String(actorUserId)}`, "user.block", { userId }, tx);
+    });
+  }
+
+  /** Lifts a block: the account is active again with its old password (ACC-18). */
+  unblockUser(userId: number, actorUserId: number): void {
+    this.#database.db.transaction((tx) => {
+      const row = tx.select().from(users).where(eq(users.id, userId)).get();
+      if (!row) throw new AccountError("user_not_found", "no such user");
+      if (row.status !== "blocked") {
+        throw new AccountError("not_blocked", "the account is not blocked");
+      }
+      tx.update(users)
+        .set({ status: "active", updatedAt: this.#now() })
+        .where(eq(users.id, userId))
+        .run();
+      this.#event.audit(`user:${String(actorUserId)}`, "user.unblock", { userId }, tx);
+    });
+  }
+
+  /**
+   * An admin deletes an account in any state with its RSVP, companions and all its invitations
+   * (ACC-19). Not their own account (that is the profile) and not the last admin.
+   */
+  adminDeleteUser(userId: number, actorUserId: number): void {
+    this.#database.db.transaction((tx) => {
+      const row = tx.select({ id: users.id }).from(users).where(eq(users.id, userId)).get();
+      if (!row) throw new AccountError("user_not_found", "no such user");
+      if (userId === actorUserId) {
+        throw new AccountError("own_account", "an admin deletes their own account in the profile");
+      }
+      if (this.#isLastAdmin(tx, userId)) {
+        throw new AccountError("last_admin", "the last admin cannot be deleted");
+      }
+      this.deleteUserRows(tx, userId);
+      this.#event.audit(`user:${String(actorUserId)}`, "user.admin_delete", { userId }, tx);
+    });
+  }
+
+  /**
+   * The guest's own deletion (7.1.2): the login goes, the guest-list entry stays. The account
+   * goes back to `inactive` with the guest name of its invitation as display name; its program
+   * items, `vip`, groups and RSVP with companions stay, other roles are removed.
+   */
+  #retireGuest(tx: Tx, userId: number): void {
+    const eventId = this.#event.eventId;
+    const invitation = tx
+      .select({ guestName: invitations.guestName })
+      .from(invitations)
+      .where(eq(invitations.userId, userId))
+      .orderBy(desc(invitations.id))
+      .get();
+    tx.delete(sessions).where(eq(sessions.userId, userId)).run();
+    tx.delete(oneTimeLinks).where(eq(oneTimeLinks.userId, userId)).run();
+    tx.delete(membershipRoles)
+      .where(
+        and(
+          eq(membershipRoles.eventId, eventId),
+          eq(membershipRoles.userId, userId),
+          ne(membershipRoles.role, "vip"),
+        ),
+      )
+      .run();
+    tx.delete(membershipCapabilities)
+      .where(
+        and(eq(membershipCapabilities.eventId, eventId), eq(membershipCapabilities.userId, userId)),
+      )
+      .run();
+    tx.update(users)
+      .set({
+        username: null,
+        status: "inactive",
+        email: null,
+        emailStatus: "unverified",
+        passwordHash: null,
+        ...(invitation ? { displayName: invitation.guestName } : {}),
+        updatedAt: this.#now(),
+      })
+      .where(eq(users.id, userId))
+      .run();
+  }
+
+  /**
+   * Deletes the account row with what hangs on it: membership, roles, sessions and links by
+   * cascade, and its invitations, whatever their status (7.1.2). The guest's RSVP and companions
+   * go with the membership (`forgetGuest`). Older replaced codes without an account stay, for
+   * "Aufräumen" (INV-21).
+   */
+  deleteUserRows(tx: Tx, userId: number): void {
+    forgetGuest(tx, this.#event.eventId, userId);
+    const own = tx
+      .select({ id: invitations.id })
+      .from(invitations)
+      .where(eq(invitations.userId, userId))
+      .all()
+      .map((row) => row.id);
+    if (own.length > 0) {
+      // A code that was replaced before stage 3.9 has no account and still points to its
+      // successor (`replaced_by`). It lets go of it, so the successor can be deleted.
+      tx.update(invitations)
+        .set({ replacedBy: null })
+        .where(and(inArray(invitations.replacedBy, own), isNull(invitations.userId)))
+        .run();
+    }
+    tx.delete(invitations).where(eq(invitations.userId, userId)).run();
+    tx.delete(users).where(eq(users.id, userId)).run();
   }
 
   /** True if the user is the only admin of the event. */
@@ -557,7 +845,11 @@ export class AccountService {
   listUsers(): AdminUser[] {
     const { db } = this.#database;
     const rows = db
-      .select({ user: users, vipAssignment: memberships.vipAssignment })
+      .select({
+        user: users,
+        vipAssignment: memberships.vipAssignment,
+        personType: memberships.personType,
+      })
       .from(users)
       .innerJoin(memberships, eq(memberships.userId, users.id))
       .where(eq(memberships.eventId, this.#event.eventId))
@@ -575,16 +867,22 @@ export class AccountService {
       .orderBy(guestGroups.name)
       .all();
     const invited = db
-      .select({ userId: membershipParts.userId, partId: membershipParts.partId })
-      .from(membershipParts)
-      .where(eq(membershipParts.eventId, this.#event.eventId))
+      .select({
+        userId: membershipProgramItems.userId,
+        programItemId: membershipProgramItems.programItemId,
+      })
+      .from(membershipProgramItems)
+      .where(eq(membershipProgramItems.eventId, this.#event.eventId))
       .all();
-    return rows.map(({ user, vipAssignment }) => ({
+    return rows.map(({ user, vipAssignment, personType }) => ({
       ...this.#toUser(user),
+      personType,
+      username: user.username,
+      status: user.status,
       vipAssignment,
-      invitedPartIds: invited
+      invitedProgramItemIds: invited
         .filter((p) => p.userId === user.id)
-        .map((p) => p.partId)
+        .map((p) => p.programItemId)
         .sort((a, b) => a - b),
       groups: groups.filter((g) => g.userId === user.id).map(({ id, name }) => ({ id, name })),
     }));
@@ -601,6 +899,20 @@ export class AccountService {
       const row = tx.select().from(users).where(eq(users.id, userId)).get();
       if (!row) throw new AccountError("user_not_found", "no such user");
       const current = this.#toUser(row).roles;
+      // An account created for an invitation keeps exactly `vip` until its owner registers.
+      if (
+        row.status === "inactive" &&
+        tx
+          .select({ id: invitations.id })
+          .from(invitations)
+          .where(eq(invitations.userId, userId))
+          .get()
+      ) {
+        throw new AccountError(
+          "roles_locked",
+          "the roles of an invited guest are locked until registration",
+        );
+      }
       if (current.includes("admin") && !wanted.includes("admin") && this.#isLastAdmin(tx, userId)) {
         throw new AccountError("last_admin", "the last admin cannot lose the admin role");
       }
@@ -621,7 +933,7 @@ export class AccountService {
       }
       // Direct promotion needs no code; revoking vip forgets how it was granted (INV-11).
       const gainedVip = wanted.includes("vip") && !current.includes("vip");
-      if (gainedVip) this.#inviteToAllParts(tx, userId);
+      if (gainedVip) this.#inviteToAllProgramItems(tx, userId);
       // Revoking vip also deletes the RSVP: answer, allergies and companions (7.4.1, SEC-11).
       if (!wanted.includes("vip") && current.includes("vip")) forgetGuest(tx, eventId, userId);
       if (gainedVip || (!wanted.includes("vip") && current.includes("vip"))) {

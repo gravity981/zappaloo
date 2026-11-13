@@ -1,11 +1,11 @@
-// Rückmeldungen (RSVP-05, RSVP-07, SEC-11; sw-architecture.md 8.3, 7.4.1): totals per part,
-// the menus of the meal part, the guest table with the admin-only allergy column, the CSV
+// Rückmeldungen (RSVP-05, RSVP-07, SEC-11; sw-architecture.md 8.3, 7.4.1): totals per program item,
+// the menus of the meal program item, the guest table with the admin-only allergy column, the CSV
 // export and reminders. A row opens the RSVP wizard in admin mode.
 import { Fragment, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Link } from "react-router";
-import { remindResponseSchema, rsvpOverviewSchema } from "@zappaloo/shared";
-import type { RsvpStatus } from "@zappaloo/shared";
+import { PERSON_TYPES, remindResponseSchema, rsvpOverviewSchema } from "@zappaloo/shared";
+import type { PersonType, RsvpStatus } from "@zappaloo/shared";
 import { useAdminCall, useAdminData, useErrorText } from "./data.ts";
 import { notifyRsvpChanged } from "./pending.ts";
 
@@ -30,11 +30,36 @@ export default function AdminRsvpPage() {
   const [message, setMessage] = useState<{ ok: boolean; text: string }>();
   /** While a request runs its buttons are off, so a double click sends nothing twice. */
   const [busy, setBusy] = useState<"remind" | number>();
+  /** The accompanying person whose removal waits for the second click. */
+  const [removing, setRemoving] = useState<number>();
 
   async function decide(id: number, decision: "approve" | "reject") {
     setBusy(id);
     const result = await call("POST", `/api/admin/rsvp/companions/${String(id)}/${decision}`);
     setBusy(undefined);
+    setMessage(result.ok ? undefined : { ok: false, text: errorText(result.errorCode) });
+    reload();
+    notifyRsvpChanged();
+  }
+
+  /** "35 Erwachsene, 5 Kinder": the types that are there (RSVP-15). */
+  const byType = (counts: Record<PersonType, number>) =>
+    PERSON_TYPES.filter((type) => counts[type] > 0)
+      .map((type) => t(`personTypesCount.${type}`, { count: counts[type] }))
+      .join(", ");
+  /** "42 ja (37 Erwachsene, 5 Kinder) · 3 nein". */
+  const yesNo = (total: { yes: number; no: number; yesByType: Record<PersonType, number> }) =>
+    t("admin.rsvp.yesNo", {
+      yes: total.yes,
+      no: total.no,
+      types: total.yes > 0 ? ` (${byType(total.yesByType)})` : "",
+    });
+
+  async function removeCompanion(id: number) {
+    setBusy(id);
+    const result = await call("DELETE", `/api/admin/rsvp/companions/${String(id)}`);
+    setBusy(undefined);
+    setRemoving(undefined);
     setMessage(result.ok ? undefined : { ok: false, text: errorText(result.errorCode) });
     reload();
     notifyRsvpChanged();
@@ -66,8 +91,9 @@ export default function AdminRsvpPage() {
   }
   if (!data) return <h1 className="h1">{t("admin.rsvp.title")}</h1>;
 
-  const meal = data.parts.find((part) => part.hasMeal);
-  const partName = (id: number) => data.parts.find((part) => part.id === id)?.name ?? "";
+  const meal = data.programItems.find((programItem) => programItem.hasMeal);
+  const programItemName = (id: number) =>
+    data.programItems.find((programItem) => programItem.id === id)?.name ?? "";
   const menuName = (id: number | null) =>
     id === null
       ? t("admin.rsvp.noChoice")
@@ -77,7 +103,14 @@ export default function AdminRsvpPage() {
       ? data.guests.length
       : data.guests.filter((guest) => guest.status === status).length;
   const shown = filter === undefined ? data.guests : data.guests.filter((g) => g.status === filter);
-  const widest = Math.max(1, ...data.totals.map((total) => total.yes + total.no));
+  // One answer for everyone: one bar that counts persons (guests are invited to different program
+  // items, so no program item has everyone). Per program item: one bar each.
+  const bars = data.perItem
+    ? data.totals
+    : data.programItems.length > 0
+      ? [{ programItemId: 0, ...data.personTotals }]
+      : [];
+  const widest = Math.max(1, ...bars.map((total) => total.yes + total.no));
   const menuWidest = Math.max(1, ...data.menuTotals.map((total) => total.count));
 
   return (
@@ -102,7 +135,7 @@ export default function AdminRsvpPage() {
         </p>
       )}
 
-      {data.pendingCount > 0 && (
+      {data.companionApproval && data.pendingCount > 0 && (
         <section className="card strong" aria-labelledby="rsvp-requests">
           <b id="rsvp-requests">{t("admin.rsvp.requests", { count: data.pendingCount })}</b>
           <ul className="list">
@@ -142,25 +175,29 @@ export default function AdminRsvpPage() {
       )}
 
       <div className="grid-2">
-        <section className="card" aria-labelledby="rsvp-per-part">
-          <b id="rsvp-per-part">{t("admin.rsvp.perPart")}</b>
-          {data.parts.length === 0 && <span className="hint">{t("admin.rsvp.noParts")}</span>}
-          {data.totals.map((total) => (
-            <div key={total.partId} className="bar-row">
-              <span>{partName(total.partId)}</span>
+        <section className="card" aria-labelledby="rsvp-per-program-item">
+          <b id="rsvp-per-program-item">
+            {t(data.perItem ? "admin.rsvp.perProgramItem" : "admin.rsvp.overview")}
+          </b>
+          {data.programItems.length === 0 && (
+            <span className="hint">{t("admin.rsvp.noProgramItems")}</span>
+          )}
+          {bars.map((total) => (
+            <div key={total.programItemId} className={data.perItem ? "bar-row" : "bar-row single"}>
+              {data.perItem && <span>{programItemName(total.programItemId)}</span>}
               <div className="track" aria-hidden="true">
                 <i style={{ width: `${String((total.yes / widest) * 100)}%` }} />
                 <i className="no" style={{ width: `${String((total.no / widest) * 100)}%` }} />
               </div>
-              <span className="sm">{t("admin.rsvp.yesNo", { yes: total.yes, no: total.no })}</span>
+              <span className="sm">{yesNo(total)}</span>
             </div>
           ))}
         </section>
         <section className="card" aria-labelledby="rsvp-menus">
           <b id="rsvp-menus">
-            {meal ? t("admin.rsvp.menus", { part: meal.name }) : t("admin.rsvp.menusNoMeal")}
+            {meal ? t("admin.rsvp.menus", { programItem: meal.name }) : t("admin.rsvp.menusNoMeal")}
           </b>
-          {!meal && <span className="hint">{t("admin.rsvp.noMealPart")}</span>}
+          {!meal && <span className="hint">{t("admin.rsvp.noMealProgramItem")}</span>}
           {data.menuTotals.map((total) => (
             <div key={total.menuId ?? "none"} className="bar-row">
               <span>{menuName(total.menuId)}</span>
@@ -200,8 +237,9 @@ export default function AdminRsvpPage() {
             <thead>
               <tr>
                 <th>{t("admin.rsvp.name")}</th>
+                <th>{t("admin.rsvp.type")}</th>
                 <th>{t("admin.rsvp.status")}</th>
-                <th>{t("admin.rsvp.parts")}</th>
+                <th>{t("admin.rsvp.programItems")}</th>
                 <th>{t("admin.rsvp.menu")}</th>
                 {data.songEnabled && <th>{t("admin.rsvp.song")}</th>}
                 <th>🔒 {t("admin.rsvp.allergies")}</th>
@@ -213,7 +251,7 @@ export default function AdminRsvpPage() {
             <tbody>
               {shown.length === 0 && (
                 <tr>
-                  <td colSpan={data.songEnabled ? 7 : 6}>{t("admin.rsvp.noGuests")}</td>
+                  <td colSpan={data.songEnabled ? 8 : 7}>{t("admin.rsvp.noGuests")}</td>
                 </tr>
               )}
               {shown.map((guest) => (
@@ -222,16 +260,18 @@ export default function AdminRsvpPage() {
                     <td>
                       <b>{guest.name}</b>
                     </td>
+                    <td className="sm">{t(`personTypes.${guest.personType}`)}</td>
                     <td>
                       <span className={STATUS_TAG[guest.status]}>
                         {t(`admin.rsvp.statuses.${guest.status}`)}
                       </span>
                     </td>
                     <td>
-                      {guest.attendingPartIds.map(partName).join(", ") || t("admin.rsvp.none")}
+                      {guest.attendingItemIds.map(programItemName).join(", ") ||
+                        t("admin.rsvp.none")}
                     </td>
                     <td>
-                      {meal && guest.attendingPartIds.includes(meal.id)
+                      {meal && guest.attendingItemIds.includes(meal.id)
                         ? menuName(guest.menuId)
                         : t("admin.rsvp.none")}
                     </td>
@@ -258,20 +298,59 @@ export default function AdminRsvpPage() {
                             {t("admin.rsvp.companionOf", { name: guest.name })}
                           </span>
                         </td>
+                        <td className="sm">{t(`personTypes.${c.personType}`)}</td>
                         <td>
-                          <span className="tag ok">{t("admin.rsvp.companionStatus.approved")}</span>
+                          {data.companionApproval && (
+                            <span className="tag ok">
+                              {t("admin.rsvp.companionStatus.approved")}
+                            </span>
+                          )}
                         </td>
                         <td>
-                          {c.attendingPartIds.map(partName).join(", ") || t("admin.rsvp.none")}
+                          {c.attendingItemIds.map(programItemName).join(", ") ||
+                            t("admin.rsvp.none")}
                         </td>
                         <td>
-                          {meal && c.attendingPartIds.includes(meal.id)
+                          {meal && c.attendingItemIds.includes(meal.id)
                             ? menuName(c.menuId)
                             : t("admin.rsvp.none")}
                         </td>
                         {data.songEnabled && <td>{t("admin.rsvp.none")}</td>}
                         <td>{c.allergies ?? t("admin.rsvp.none")}</td>
-                        <td />
+                        <td className="actions">
+                          {removing === c.id ? (
+                            <span className="row" role="alertdialog" aria-label={c.name}>
+                              <button
+                                type="button"
+                                className="btn danger sm"
+                                disabled={busy === c.id}
+                                onClick={() => void removeCompanion(c.id)}
+                              >
+                                {t("admin.rsvp.removeFinal")}
+                              </button>
+                              <button
+                                type="button"
+                                className="btn ghost sm"
+                                onClick={() => {
+                                  setRemoving(undefined);
+                                }}
+                              >
+                                {t("admin.cancel")}
+                              </button>
+                            </span>
+                          ) : (
+                            <button
+                              type="button"
+                              className="btn ghost sm"
+                              aria-label={`${t("admin.rsvp.remove")}: ${c.name}`}
+                              onClick={() => {
+                                setRemoving(c.id);
+                              }}
+                            >
+                              {t("admin.rsvp.remove")}
+                            </button>
+                          )}
+                        </td>
                       </tr>
                     ))}
                 </Fragment>

@@ -1,4 +1,4 @@
-import { screen, waitFor, within } from "@testing-library/react";
+import { fireEvent, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import { initI18n } from "../i18n/i18n.ts";
 import { anna, fakeBackend, renderAt, user } from "../test/backend.tsx";
@@ -35,14 +35,15 @@ const companion = (changes: Record<string, unknown> = {}) => {
     name: "Mia Huber",
     note: "Meine Tochter, 6 Jahre",
     status: "pending",
-    attendingPartIds: [1, 3] as number[],
+    personType: "adult",
+    attendingItemIds: [1, 3] as number[],
     menuId: 4,
     allergies: null,
     ...changes,
   };
-  // Every part the person does not attend is answered with no, unless the test says otherwise.
+  // Every program item the person does not attend is answered with no, unless the test says otherwise.
   return {
-    declinedPartIds: PARTS.map((p) => p.id).filter((id) => !value.attendingPartIds.includes(id)),
+    declinedItemIds: PARTS.map((p) => p.id).filter((id) => !value.attendingItemIds.includes(id)),
     ...value,
   };
 };
@@ -53,11 +54,14 @@ function state(changes: Record<string, unknown> = {}) {
     deadline: "2027-05-01",
     closed: false,
     songEnabled: true,
-    parts: PARTS,
+    perItem: true,
+    personType: "adult",
+    companionApproval: true,
+    programItems: PARTS,
     menus: MENUS,
     answer: {
-      attendingPartIds: [1],
-      declinedPartIds: [3],
+      attendingItemIds: [1],
+      declinedItemIds: [3],
       menuId: null,
       allergies: null,
       songWish: null,
@@ -110,12 +114,12 @@ describe("accompanying persons in the wizard", () => {
     expect(
       within(row("Hans Graf")).getByRole("button", { name: "Entfernen: Hans Graf" }),
     ).toBeInTheDocument();
+    // No instructions around the list: the page stays quiet (decided 2026-11-12).
+    expect(screen.queryByText(/Teilnahme, Menü und Allergien/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Wer ein eigenes Handy hat/)).not.toBeInTheDocument();
     expect(
-      screen.getByText(
-        /Teilnahme, Menü und Allergien bestätigter Personen änderst du in den Schritten 1 und 2/,
-      ),
-    ).toBeInTheDocument();
-    expect(screen.getByText(/Wer ein eigenes Handy hat/)).toBeInTheDocument();
+      screen.queryByText(/Dieses Lied bringt dich auf die Tanzfläche/),
+    ).not.toBeInTheDocument();
   });
 
   it("[RSVP-08] the guest requests a person: name, note, attendance, menu and allergies", async () => {
@@ -129,14 +133,22 @@ describe("accompanying persons in the wizard", () => {
     });
     renderAt("/rsvp");
     await toStepThree();
-    user.click(screen.getByRole("button", { name: "+ Begleitperson beantragen" }));
+    user.click(screen.getByRole("button", { name: "+ Begleitperson hinzufügen" }));
 
     // The form has the title of the flow frame.
     expect(
-      await screen.findByText("Begleitperson beantragen", { selector: "b" }),
+      await screen.findByText("Begleitperson hinzufügen", { selector: "b" }),
     ).toBeInTheDocument();
-    const submit = screen.getByRole("button", { name: "Beantragen" });
+    const submit = screen.getByRole("button", { name: "Hinzufügen" });
     expect(submit).toBeDisabled();
+    // The type chips sit right under the name field, before the optional note, with no title.
+    const name = screen.getByLabelText("Name");
+    const types = screen.getByRole("group", { name: "Typ" });
+    const note = screen.getByLabelText("Notiz für die Gastgeber (optional)");
+    expect(name.compareDocumentPosition(types) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(types.compareDocumentPosition(note) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(screen.queryByText("Typ", { selector: "span" })).not.toBeInTheDocument();
+    expect(within(types).queryByRole("button", { name: "Baby" })).not.toBeInTheDocument();
     user.type(screen.getByLabelText("Name"), "Mia Huber");
     user.type(
       screen.getByLabelText("Notiz für die Gastgeber (optional)"),
@@ -144,9 +156,12 @@ describe("accompanying persons in the wizard", () => {
     );
     user.click(screen.getByRole("button", { name: "Trauung: Dabei" }));
     user.click(screen.getByRole("button", { name: "Dinner: Dabei" }));
-    // The meal part needs a menu.
+    // The meal program item needs a menu.
     expect(submit).toBeDisabled();
     user.click(screen.getByRole("button", { name: "Mia Huber: Kindermenü" }));
+    // The type has no default: the guest must choose it (RSVP-13).
+    expect(submit).toBeDisabled();
+    user.click(screen.getByRole("button", { name: "Kind" }));
     expect(submit).toBeEnabled();
     user.click(submit);
 
@@ -156,10 +171,11 @@ describe("accompanying persons in the wizard", () => {
       csrf: "csrf-1",
       body: {
         name: "Mia Huber",
+        personType: "child",
         note: "Meine Tochter, 6 Jahre",
         attendance: [
-          { partId: 1, attending: true },
-          { partId: 3, attending: true },
+          { programItemId: 1, attending: true },
+          { programItemId: 3, attending: true },
         ],
         menuId: 4,
       },
@@ -192,8 +208,8 @@ describe("accompanying persons in the wizard", () => {
     ).toMatchObject({
       name: "Mia Maria Huber",
       attendance: [
-        { partId: 1, attending: true },
-        { partId: 3, attending: true },
+        { programItemId: 1, attending: true },
+        { programItemId: 3, attending: true },
       ],
       menuId: 4,
     });
@@ -218,7 +234,7 @@ describe("accompanying persons in the wizard", () => {
     user.click(screen.getByRole("button", { name: "Weiter" }));
     user.click(await screen.findByRole("button", { name: "Fleisch" }));
     user.click(screen.getByRole("button", { name: "Weiter" }));
-    user.click(await screen.findByRole("button", { name: "+ Begleitperson beantragen" }));
+    user.click(await screen.findByRole("button", { name: "+ Begleitperson hinzufügen" }));
     user.click(await screen.findByRole("button", { name: "Abbrechen" }));
     // Back at step 3 with the song field of an attending guest; going back keeps the menu.
     await screen.findByRole("heading", { name: "Begleitpersonen & Musik" });
@@ -231,8 +247,8 @@ describe("accompanying persons in the wizard", () => {
 
   it("[RSVP-10] a request saved in its form wins over what the steps held for that person", async () => {
     const answer = {
-      attendingPartIds: [1, 3],
-      declinedPartIds: [],
+      attendingItemIds: [1, 3],
+      declinedItemIds: [],
       menuId: 1,
       allergies: null,
       songWish: null,
@@ -273,7 +289,7 @@ describe("accompanying persons in the wizard", () => {
       name: "Noah Huber",
       status: "approved",
       note: null,
-      attendingPartIds: [3],
+      attendingItemIds: [3],
       menuId: 4,
     });
     const calls = fakeBackend({
@@ -305,8 +321,8 @@ describe("accompanying persons in the wizard", () => {
         {
           companionId: 8,
           attendance: [
-            { partId: 1, attending: true },
-            { partId: 3, attending: false },
+            { programItemId: 1, attending: true },
+            { programItemId: 3, attending: false },
           ],
           allergies: "Laktose",
         },
@@ -314,23 +330,23 @@ describe("accompanying persons in the wizard", () => {
     });
   });
 
-  it("[RSVP-09] declining every part for the guest and the approved persons skips to the summary", async () => {
-    const noah = companion({ id: 8, name: "Noah", status: "approved", attendingPartIds: [] });
+  it("[RSVP-09] declining every program item for the guest and the approved persons skips to the summary", async () => {
+    const noah = companion({ id: 8, name: "Noah", status: "approved", attendingItemIds: [] });
     const calls = fakeBackend({
       "GET /api/session": () => asGuest,
       "GET /api/rsvp": () => ({
         status: 200,
         body: state({
           answer: null,
-          companions: [noah, companion({ id: 7, attendingPartIds: [] })],
+          companions: [noah, companion({ id: 7, attendingItemIds: [] })],
         }),
       }),
       "PUT /api/rsvp": () => ({
         status: 200,
         body: state({
           answer: {
-            attendingPartIds: [],
-            declinedPartIds: [1, 3],
+            attendingItemIds: [],
+            declinedItemIds: [1, 3],
             menuId: null,
             allergies: null,
             songWish: null,
@@ -356,15 +372,15 @@ describe("accompanying persons in the wizard", () => {
         {
           companionId: 8,
           attendance: [
-            { partId: 1, attending: false },
-            { partId: 3, attending: false },
+            { programItemId: 1, attending: false },
+            { programItemId: 3, attending: false },
           ],
         },
         {
           companionId: 7,
           attendance: [
-            { partId: 1, attending: false },
-            { partId: 3, attending: false },
+            { programItemId: 1, attending: false },
+            { programItemId: 3, attending: false },
           ],
         },
       ],
@@ -415,7 +431,7 @@ describe("accompanying persons in the wizard", () => {
     user.click(must(next[0]));
     await screen.findByRole("heading", { name: "Begleitpersonen & Musik" });
     expect(
-      screen.queryByRole("button", { name: /Begleitperson beantragen/ }),
+      screen.queryByRole("button", { name: /Begleitperson hinzufügen/ }),
     ).not.toBeInTheDocument();
     expect(
       screen.queryByRole("button", { name: "Zurückziehen: Mia Huber" }),
@@ -424,11 +440,13 @@ describe("accompanying persons in the wizard", () => {
     user.click(screen.getByRole("button", { name: "Umbenennen: Noah Huber" }));
     const field = screen.getByLabelText("Name");
     user.type(field, "Noah Beat Huber");
+    // The type changes like the name, by the admin (RSVP-13).
+    fireEvent.change(screen.getByLabelText("Typ"), { target: { value: "adult" } });
     user.click(screen.getByRole("button", { name: "Speichern" }));
     expect(await screen.findByText("Noah Beat Huber")).toBeInTheDocument();
     expect(calls.find((c) => c.method === "PATCH")).toMatchObject({
       csrf: "csrf-9",
-      body: { name: "Noah Beat Huber" },
+      body: { name: "Noah Beat Huber", personType: "adult" },
     });
   });
 });
@@ -437,18 +455,23 @@ describe("Rückmeldungen: companion requests", () => {
   const overview = (changes: Record<string, unknown> = {}) => ({
     deadline: null,
     songEnabled: true,
-    parts: PARTS,
+    perItem: true,
+    personType: "adult",
+    companionApproval: true,
+    programItems: PARTS,
     menus: MENUS,
     totals: [],
+    personTotals: { yes: 0, no: 0, yesByType: { adult: 0, child: 0 } },
     menuTotals: [],
     guests: [
       {
         userId: 5,
+        personType: "adult",
         name: "Erika Huber",
         status: "attending",
-        invitedPartIds: [1, 3],
-        attendingPartIds: [1],
-        declinedPartIds: [3],
+        invitedProgramItemIds: [1, 3],
+        attendingItemIds: [1],
+        declinedItemIds: [3],
         menuId: null,
         songWish: null,
         allergies: null,
@@ -467,7 +490,7 @@ describe("Rückmeldungen: companion requests", () => {
           name: "Noah Huber",
           status: "approved",
           note: null,
-          attendingPartIds: [3],
+          attendingItemIds: [3],
           menuId: 1,
           allergies: "Laktose",
         }),
@@ -518,7 +541,10 @@ describe("Rückmeldungen: companion requests", () => {
       "GET /api/session": () => asAdmin,
       "GET /api/admin/rsvp": () => ({ status: 200, body: overview({ pendingCount: 3 }) }),
       // The badge asks for the count alone, not for the guest table.
-      "GET /api/admin/rsvp/pending": () => ({ status: 200, body: { pendingCount: 3 } }),
+      "GET /api/admin/rsvp/pending": () => ({
+        status: 200,
+        body: { pendingCount: 3, companionApproval: true },
+      }),
       "GET /api/admin/activity": () => ({ status: 200, body: { entries: [] } }),
     });
     renderAt("/admin");
@@ -539,5 +565,175 @@ describe("Rückmeldungen: companion requests", () => {
     renderAt("/admin");
     expect(await screen.findByText("Keine Anfragen")).toBeInTheDocument();
     expect(screen.queryByRole("img", { name: /offene Anfragen/ })).not.toBeInTheDocument();
+  });
+});
+
+describe("companion approval off (RSVP-12, 7.4.2)", () => {
+  it("[RSVP-12] an added person has no status tag; the guest removes them with one click until the deadline", async () => {
+    let current = state({
+      companionApproval: false,
+      companions: [companion({ status: "approved" })],
+    });
+    const calls = fakeBackend({
+      "GET /api/session": () => asGuest,
+      "GET /api/rsvp": () => ({ status: 200, body: current }),
+      "DELETE /api/rsvp/companions/7": () => {
+        current = state({ companionApproval: false, companions: [] });
+        return { status: 200, body: current };
+      },
+    });
+    renderAt("/rsvp");
+    await toStepThree();
+    const row = must(
+      screen.getAllByRole("listitem").find((item) => within(item).queryByText("Mia Huber")),
+    );
+    expect(within(row).queryByText("Bestätigt")).not.toBeInTheDocument();
+    expect(within(row).queryByText("Wartet auf Bestätigung")).not.toBeInTheDocument();
+    // The texts say "hinzufügen", never "beantragen".
+    expect(screen.getByRole("button", { name: "+ Begleitperson hinzufügen" })).toBeInTheDocument();
+    user.click(within(row).getByRole("button", { name: "Entfernen: Mia Huber" }));
+    await waitFor(() => {
+      expect(screen.queryByText("Mia Huber")).not.toBeInTheDocument();
+    });
+    expect(calls.find((c) => c.method === "DELETE")?.csrf).toBe("csrf-1");
+  });
+
+  it("[RSVP-12] with approval on an approved person cannot be removed by the guest", async () => {
+    fakeBackend({
+      "GET /api/session": () => asGuest,
+      "GET /api/rsvp": () => ({
+        status: 200,
+        body: state({ companions: [companion({ status: "approved" })] }),
+      }),
+    });
+    renderAt("/rsvp");
+    await toStepThree();
+    expect(screen.getByText("Bestätigt")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Entfernen: Mia Huber" })).not.toBeInTheDocument();
+  });
+
+  it("[RSVP-12] after the deadline the guest cannot remove an added person", async () => {
+    fakeBackend({
+      "GET /api/session": () => asGuest,
+      "GET /api/rsvp": () => ({
+        status: 200,
+        body: state({
+          closed: true,
+          companionApproval: false,
+          companions: [companion({ status: "approved" })],
+        }),
+      }),
+    });
+    renderAt("/rsvp");
+    expect(await screen.findByText("Mia Huber")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Entfernen/ })).not.toBeInTheDocument();
+  });
+
+  it("[RSVP-12] Rückmeldungen has no requests card, no badge and no tile; the admin removes a person with a second click", async () => {
+    const overviewOff = {
+      deadline: null,
+      songEnabled: true,
+      perItem: true,
+      personType: "adult",
+      companionApproval: false,
+      pendingCount: 0,
+      programItems: PARTS,
+      menus: MENUS,
+      totals: [],
+      personTotals: { yes: 0, no: 0, yesByType: { adult: 0, child: 0 } },
+      menuTotals: [],
+      guests: [
+        {
+          userId: 5,
+          personType: "adult",
+          name: "Erika Huber",
+          status: "attending",
+          invitedProgramItemIds: [1, 3],
+          attendingItemIds: [1],
+          declinedItemIds: [3],
+          menuId: null,
+          songWish: null,
+          allergies: null,
+          verifiedEmail: false,
+        },
+      ],
+      companions: [
+        {
+          ...companion({ id: 8, name: "Noah Huber", status: "approved", note: null }),
+          hostUserId: 5,
+          hostName: "Erika Huber",
+        },
+      ],
+      answered: 1,
+      total: 1,
+      reminderCount: 0,
+    };
+    let current = overviewOff;
+    const calls = fakeBackend({
+      "GET /api/session": () => asAdmin,
+      "GET /api/admin/rsvp": () => ({ status: 200, body: current }),
+      "GET /api/admin/rsvp/pending": () => ({
+        status: 200,
+        body: { pendingCount: 0, companionApproval: false },
+      }),
+      "GET /api/admin/activity": () => ({ status: 200, body: { entries: [] } }),
+      "DELETE /api/admin/rsvp/companions/8": () => {
+        current = { ...overviewOff, companions: [] };
+        return { status: 204 };
+      },
+    });
+    renderAt("/admin/rsvp");
+    const table = await screen.findByRole("table");
+    const noah = within(table).getByRole("row", { name: /Noah Huber/ });
+    expect(screen.queryByText(/Begleitpersonen-Anfragen/)).not.toBeInTheDocument();
+    expect(within(noah).queryByText("bestätigt")).not.toBeInTheDocument();
+
+    // The first click only asks; the second one removes.
+    user.click(within(noah).getByRole("button", { name: "Entfernen: Noah Huber" }));
+    expect(calls.some((c) => c.method === "DELETE")).toBe(false);
+    user.click(within(noah).getByRole("button", { name: "Endgültig entfernen" }));
+    await waitFor(() => {
+      expect(screen.queryByText("Noah Huber")).not.toBeInTheDocument();
+    });
+    expect(calls.find((c) => c.method === "DELETE")?.csrf).toBe("csrf-9");
+  });
+
+  it("[RSVP-12] Übersicht shows the tile Begleitpersonen only while approval is on", async () => {
+    fakeBackend({
+      "GET /api/session": () => asAdmin,
+      "GET /api/admin/rsvp": () => ({
+        status: 200,
+        body: {
+          deadline: null,
+          songEnabled: true,
+          perItem: true,
+          personType: "adult",
+          companionApproval: false,
+          pendingCount: 0,
+          programItems: PARTS,
+          menus: MENUS,
+          totals: [],
+          personTotals: { yes: 0, no: 0, yesByType: { adult: 0, child: 0 } },
+          menuTotals: [],
+          guests: [],
+          companions: [],
+          answered: 0,
+          total: 0,
+          reminderCount: 0,
+        },
+      }),
+      "GET /api/admin/rsvp/pending": () => ({
+        status: 200,
+        body: { pendingCount: 0, companionApproval: false },
+      }),
+      "GET /api/admin/activity": () => ({ status: 200, body: { entries: [] } }),
+    });
+    renderAt("/admin");
+    expect(await screen.findByText("Rückmeldungen")).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.getByText("0 / 0")).toBeInTheDocument();
+    });
+    expect(screen.queryByText("Keine Anfragen")).not.toBeInTheDocument();
+    expect(screen.queryByText("Begleitpersonen", { selector: ".eyebrow" })).not.toBeInTheDocument();
   });
 });
