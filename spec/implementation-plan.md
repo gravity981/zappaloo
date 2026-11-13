@@ -317,14 +317,14 @@ Re-verified: ACS-10, SEC-09, CNT-06.
 - Decided while building 4d (proposed, to confirm): "now" is the latest entry that has started and has not ended (an entry without an end lasts until the next one starts); "next" is the first entry after now. The event day is the calendar day of the first program item in the event's time zone. The start page shortcuts lead to "Programm" first, then to the pages under "Mehr". The mock admin card shows the end time in the list (the mock had no end time).
 Requirements: WEB-07, WEB-09, WEB-10 (the event day).
 
-**4e – Theme package.** Mock first: card "Design" in `admin-settings` (active theme, import, findings of a refused package, "Standard-Design verwenden").
-- Import with the validator of 19.7, all or nothing. The return to the default theme. Audit entries.
-- The guest stylesheet reads its colours and fonts from the theme. `GET /api/site` carries the theme. Fonts are served from the installation. The countdown on the start page uses the `display` font, or the heading font without one (THM-06).
-- The app icons and the manifest colours come from the theme. The folder `icons/` in the data volume is no longer read.
-- An example theme package in the repository, built by a script, for dev, tests and as a template for the project owner. The runbook describes the package.
-- Tests: one per validator rule with a broken package, the unchanged theme after a refused import, the import and the return to the default end to end.
-Requirements: THM-01, THM-02, THM-03, THM-04, THM-05, THM-06.
-Re-verified: PWA-01, PWA-02, PWA-03.
+**4e – Theme package.** Split into smaller steps, each committed on its own (decided 2026-11-14). Requirements: THM-01 – THM-06 (sw-architecture.md 19.7); re-verified PWA-01, PWA-02, PWA-03.
+- **4e-1 – Mock.** Card "Design" in `admin-settings`: active theme, import, reset with a second click, findings of a refused package. Done in the mock (no code).
+- **4e-2 – Validator.** The package reader (gzip and tar, limits, paths), `manifest.json` and `theme.json` checks, PNG sizes, WOFF2 signature, contrast. Returns all findings. One test per validator rule with a broken package. No storage, no routes.
+- **4e-3 – Import and return.** `POST /api/admin/theme` and `DELETE /api/admin/theme`, the table of the active theme (migration), the folder per import, audit entries `theme.import` and `theme.reset` on the card "Zuletzt". A refused package leaves the active theme unchanged. Tests for the import, the return and the unchanged theme after a refusal.
+- **4e-4 – Serving.** `GET /api/site` carries the theme; fonts are served under `/theme/fonts/<file>` without sign-in; the guest pages apply the colours and the font faces (the admin area keeps its neutral look); the countdown uses `display` (THM-06).
+- **4e-5 – Icons and manifest.** App icons and manifest colours come from the active theme, or from the defaults when there is none. The folder `icons/` in the data volume is no longer read (PWA-02).
+- **4e-6 – Card in the admin area.** The card "Design" as in the mock: state, import with findings, reset with a second click.
+- **4e-7 – Example and runbook.** A script builds the example package in the repository; the runbook (infrastructure/deploy/README.md) describes the package; an end-to-end test imports the example and returns to the default.
 
 **4f – Generic core and stage report.**
 - CFG-01: a test shapes two fresh installations of the same build differently (name, theme package, pages, program items) through the admin API alone and checks that each serves its own. A check that the source holds no event-specific names or texts outside the example event and the tests.

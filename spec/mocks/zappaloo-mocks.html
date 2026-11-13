@@ -1458,6 +1458,12 @@ add({
       <div class="m-grid-d2">${field("Name", inp("as-name", "Anna & Ben"))}${field("Zeitzone", inp("as-tz", "Europe/Zurich", 'list="tz-list"'))}</div>
       ${field("Standardsprache", `<select class="m-input" id="as-lang" style="width:auto"><option selected>Deutsch</option></select>`)}
       <button class="m-btn" style="align-self:flex-start">Speichern</button></div>
+    <div class="m-card"><div class="m-row2"><b class="m-h2" style="flex:1">Design</b><span class="m-tag ok">Aktiv: Sommerfest</span></div>
+      <span class="m-muted sm">Format 1 · importiert am 12.11.2026 um 18:04. Das Design gilt für die Website und die Gästeseiten sowie für die Icons der App. Die Verwaltung bleibt neutral.</span>
+      <div class="m-row2"><button class="m-btn soft sm">${ic("cam")} Design importieren</button><button class="m-btn ghost sm">Standard-Design verwenden</button></div>
+      <span class="m-hint">Ein Paket als .tar.gz, höchstens 10 MB. Es wird ganz geprüft; ein fehlerhaftes Paket ändert nichts. «Standard-Design verwenden» braucht einen zweiten Klick.</span>
+      <div class="m-card flat"><b class="sm">Das Paket wurde abgelehnt</b><span class="m-hint">Das aktive Design bleibt unverändert. Alle Befunde:</span>
+        <ul class="m-list sm"><li>icons/icon-192.png: 200 × 200 statt 192 × 192</li><li>theme.json: das Feld «shadow» ist unbekannt</li><li>Kontrast «text» auf «surface»: 3,1 : 1 (mindestens 4,5 : 1)</li></ul></div></div>
     <div class="m-card strong"><div class="m-row2"><b class="m-h2" style="flex:1">Plattform öffnen</b><span class="m-tag warn">Geschlossen</span></div>
       <p class="m-muted sm">Bis zur Öffnung sehen Gäste nur die Warteseite und die Rückmeldung. Staff und Admins haben vollen Zugang.</p>
       ${field("Angekündigtes Öffnungsdatum (optional)", inp("as-open", "2027-05-15T18:00", 'type="datetime-local" style="width:auto"'), "Erscheint im Platzhalter {openingDate}.")}
