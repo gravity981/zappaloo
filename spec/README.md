@@ -53,7 +53,7 @@ Status values: **specified** (requirements written, not implemented) · **in pro
 | PRES | Guest presence (wandering figures, speech bubble with profile) and seating | 3.6 | 13 (2 withdrawn) | 6 | specified |
 | HUNT | Treasure hunt | 3.7 | 7 | 8 | specified |
 | MG | Minigames, results, highscores | 4 | 13 | 8 | specified |
-| WEB | Classic website | 5 | 9 | 4, 5, 7, 8 | specified |
+| WEB | Classic website | 5 | 11 | 4, 5, 7, 8 | specified |
 | LANG | Language and i18n | 5.3 | 2 | 1, 4 | in progress |
 | SCR | Event screen (photo wall, live rankings) | 5.4 | 5 (2 withdrawn) | 7, 8 | specified |
 | CNT | Shared content base, Markdown editing, images, places | 6 | 7 | 4, 5, 7 | specified |
@@ -76,8 +76,8 @@ Status values: **specified** (requirements written, not implemented) · **in pro
 | GB | Guestbook — merged into PHO | 13.6 | 0 (4 withdrawn) | – | withdrawn |
 | PWA | Installable app (manifest, icons, home screen) | 19.5 | 5 | 3.5 | implemented |
 | LIC | Copyright and license notice in the footer | 19.6 | 3 | 3.5 | implemented |
-| THM | Theme package (app icons, colours, fonts) | 19.7 | 5 | 4 | specified |
-| | **Total** | | **241** (274 IDs, 33 withdrawn) | | |
+| THM | Theme package (app icons, colours, fonts) | 19.7 | 6 | 4 | specified |
+| | **Total** | | **244** (277 IDs, 33 withdrawn) | | |
 
 Sections with no requirement table describe architecture and technology choices: 15 (stack), 16 (frontend), 17 (backend), 26 (project structure), 27 (decision summary), 28 (stages) and 29 (principles). Section 30 lists what is out of scope for the first version.
 
@@ -144,6 +144,7 @@ Sections with no requirement table describe architecture and technology choices:
 | 2026-11-11 | **Footer with copyright and license notice** (stage 3.5, step 3.5d, sw-architecture.md 19.6, LIC-01 – LIC-03). Below "Datenschutz · Version x.y.z": an admin-editable copyright line (default `© <year> <event name>`), the fixed AGPL-3.0 sentence and the links "Source code" (operator's `SOURCE_URL`) and "License" (public page `/license`). The repository must be public before the Release 1 go-live. The go-live is now step 3.5f. |
 | 2026-11-12 | **Findings from the Release 1 pilot** (new stage 3.9; sw-architecture.md 7.1.2, 7.4.2; ACC-17 – ACC-20, INV-20, INV-21, RSVP-11 – RSVP-15; RSVP-01, RSVP-08 – RSVP-10 reworded). Every invitation creates an inactive account at once, so invited guests are on the guest list before they redeem; accounts are active, inactive or blocked; a guest's own account deletion removes the login but keeps the hosts' guest-list entry until the shutdown; admins can delete accounts. One RSVP answer for all program items by default, approval of accompanying persons off by default, person types adult / child with an optional menu for children. "Event part" becomes "program item" (Programmpunkt). |
 | 2026-11-13 | **Event configuration and content: four channels** (plan review of stage 4; sw-architecture.md 6.2, 14.4, 19.1.1, 19.7; CNT-06, CNT-07, THM-01 – THM-05, MAP-16; WEB-02, WEB-07, PWA-02, CFG-01, MAP-01, MAP-04 – MAP-06, MAP-08, MAP-09, MAP-14 reworded). An event is shaped through the admin area, a theme package, a world package and the feature data. Nothing is placed on the server by hand. The theme package (app icons, `theme.json`, fonts) is a versioned `tar.gz` that an admin imports as a whole after a validator has checked it, and the admin can return to the default theme. The map importer becomes a world importer: one package with maps, tilesets, objects, the door scene and the avatar editor assets, all or nothing, because the art of the world must match in style. Dialogues and NPC texts are edited in the browser, and "Spielwelt" keeps assigning the object actions. Content: pages start empty and carry no access conditions in stage 4, images are uploaded, places are their own records, and a map is an uploaded picture with "In Google Maps öffnen". Considered and rejected: an embedded Google map (reading a page would send data to Google) and theme settings edited field by field in Einstellungen. The program items are the schedule. Copying an event to another installation is out of scope. |
+| 2026-11-13 | **Start page with a fixed layout** (step 4b; sw-architecture.md 5.6, 6.2, 19.7; WEB-10, WEB-11, THM-06 added). The `home` mock showed a countdown card that the spec had left out. Before the event day the start page shows the hero image, the welcome text, the countdown card, the RSVP card and the shortcuts. On the event day it shows "now / next", the feature cards and the shortcuts. The hosts edit the hero image (uncropped, with an alt text), the welcome text and the countdown switch (default on) in Inhalte. The countdown counts the days to the first program item and uses the theme's new `display` font, or the heading font without one. It is calm like the rest of the website, without the pixel style of the game world. Considered and rejected: elements such as a countdown placed inside the Markdown text, and pages built from blocks. |
 
 ## Open points
 

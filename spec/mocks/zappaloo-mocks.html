@@ -1123,12 +1123,12 @@ function seatingBody(compact) {
     <b>An deinem Tisch</b><div class="m-list">${mates.map(([n, b, g]) => `<div class="m-li"><div class="m-av">${n.split(" ").map((s) => s[0]).join("")}</div><div class="grow"><b>${n}</b>${g ? `<span class="sm">${g}</span>` : ""}</div><span class="m-tag">${b}</span></div>`).join("")}</div>`;
 }
 add({
-  id: "home", group: "web", title: "Start page", path: "/home", reqs: ["WEB-01", "WEB-02", "WEB-04", "WEB-07", "GAME-12"],
+  id: "home", group: "web", title: "Start page", path: "/home", reqs: ["WEB-01", "WEB-02", "WEB-04", "WEB-07", "WEB-10", "WEB-11", "THM-06", "GAME-12"],
   variants: [["before", "Before the event"], ["eventday", "Event day"]],
-  shows: ["Bottom tab bar on phones (Start · Programm · Hochladen · Erinnerungen · Mehr). A top nav on desktop.", "“Spielwelt” always in the header.", "Before the event: countdown, RSVP status, quick links.", "Event day: now/next on top, table, upload and quiz shortcuts."],
+  shows: ["Bottom tab bar on phones (Start · Programm · Hochladen · Erinnerungen · Mehr). A top nav on desktop.", "“Spielwelt” always in the header.", "Fixed layout (decided 2026-11-13). The hosts edit the hero image, the welcome text and the countdown switch in Inhalte, not the arrangement.", "Before the event day: the hero image (optional, full width, uncropped; without it the text moves up), the welcome text, “Spielwelt betreten” (stage 5), then the countdown card, the RSVP card and the shortcuts (“Programm” and the first three pages visible in “Mehr”).", "Countdown: calendar days to the day of the first program item, with its date and place. “Noch 1 Tag” the day before, gone on the event day and without program items. The number uses the theme's display font, or the heading font without one. Calm, not pixel style.", "Event day (from the start of the day of the first program item): now/next on top, then the cards of the features that exist (seat stage 6, upload stage 7, quiz stage 8), then the shortcuts. No hero image, welcome text, countdown or RSVP card."],
   qs: [
     { q: "Are these the right five tabs? “Erinnerungen” groups the gallery and the keepsake page.", p: "Mock: as shown. Info pages (Anreise, FAQ, …) live under “Mehr”." },
-    { q: "What content does the home page carry? Is it editable Markdown, structured blocks, or both?", p: "Mock: an editable welcome block (Markdown) plus fixed system cards (RSVP status, now/next, links)." },
+    { q: "What content does the home page carry? Is it editable Markdown, structured blocks, or both?", p: "Decided 2026-11-13: a fixed layout. The hosts edit the hero image, the welcome text (Markdown) and the countdown switch. The cards are fixed (sw-architecture.md 5.6)." },
   ],
   render: (v) => site("home", v === "eventday" ? `
     <div class="m-nownext"><div><span class="when">Jetzt</span><div class="grow"><b>Apéro</b><span class="m-muted sm">seit 15:30 · Schlossgarten</span></div><button class="m-btn soft sm" data-go="game">${ic("pin")} Hingehen</button></div><div><span class="when">Danach</span><div class="grow"><b>Dinner</b><span class="m-muted sm">18:30 · Landgasthof Linde</span></div></div></div>
@@ -1136,13 +1136,14 @@ add({
       <div class="m-card" data-go="seating" style="cursor:pointer"><span class="m-eyebrow">Wo sitze ich?</span><b class="m-h2">Tisch Edelweiss</b><span class="m-muted sm">mit Lukas, Sara und 5 weiteren</span></div>
       <div class="m-card" data-go="upload" style="cursor:pointer"><span class="m-eyebrow">Schnappschuss</span><b class="m-h2">Teile deinen Moment</b><span class="m-muted sm">Erscheint nach kurzer Prüfung auf der Fotowand.</span></div>
       <div class="m-card" data-go="highscores" style="cursor:pointer"><span class="m-eyebrow">Paar-Quiz · live</span><b class="m-h2">Du bist auf Rang 7</b><span class="m-muted sm">Noch 2 Versuche</span></div>
-    </div>` : `
+    </div>
+    <div class="m-grid2">${[["Programm", "programme"], ["Anreise", "info"], ["Unterkunft", "info"], ["FAQ", "info"]].map(([l, g]) => `<button class="m-btn soft" data-go="${g}">${l}</button>`).join("")}</div>` : `
     <div class="m-grid-d2">
-      <div class="m-stack">${ph("Bild des Paars / Pixel-Art-Titel", "16/9")}
+      <div class="m-stack">${ph("Titelbild (optional) · im Editor gewählt, ungeschnitten", "16/9")}
         <div class="m-md"><h1>Wir heiraten!</h1><p>Wir freuen uns riesig, diesen Tag mit euch zu feiern. Hier findet ihr alles, was ihr wissen müsst – und hinter dem Knopf «Spielwelt» wartet eine kleine Überraschung.</p></div>
         <button class="m-btn" data-go="game" style="align-self:flex-start">${ic("play")} Spielwelt betreten</button></div>
       <div class="m-stack">
-        <div class="m-card strong"><span class="m-eyebrow">Noch</span><b class="m-pixel" style="font-size:30px">214 Tage</b><span class="m-muted sm">${EVENT.date} · Muri bei Bern</span></div>
+        <div class="m-card strong"><span class="m-eyebrow">Noch</span><b style="font:600 30px/1.1 var(--f-display)">214 Tage</b><span class="m-muted sm">${EVENT.date} · Kirche Muri</span></div>
         <div class="m-card"><div class="m-row2"><b>Deine Rückmeldung</b><span class="m-tag ok">Dabei</span></div><span class="m-muted sm">Trauung, Apéro, Dinner · Mia beantragt</span><a class="sm" data-go="rsvp-done">Ansehen oder ändern</a></div>
         <div class="m-grid2">${[["Programm", "programme"], ["Anreise", "info"], ["Unterkunft", "info"], ["FAQ", "info"]].map(([l, g]) => `<button class="m-btn soft" data-go="${g}">${l}</button>`).join("")}</div>
       </div>
@@ -1378,8 +1379,8 @@ add({
 });
 add({
   id: "admin-content", group: "admin", title: "Content editor", path: "/admin/content", reqs: ["CNT-05", "CNT-06", "CNT-07", "WEB-03", "LANG-02"],
-  variants: [["list", "List"], ["page", "Edit page"], ["place", "Edit place"]],
-  shows: ["List (refined 2026-11-13): only two cards. «Seiten» starts with the Startseite and then the pages in the order of «Mehr»; the arrows move a page up or down. «Orte» lists the places. Each row ends in › and is highlighted under the pointer, like the «Mehr» list. A click on the row opens its editor. The arrows only move the page. «+ Seite» and «+ Ort» open an empty editor.", "Page editor (own screen, /admin/content/pages/:id): title and address, Markdown editor with a live preview, the images of this page, the places it shows, «In «Mehr» sichtbar» and «Veröffentlichen». «Veröffentlichen» is live at once; there are no drafts. A hidden page is still reached by its address. The Startseite uses the same screen without address, visibility and places.", "Images belong to one page. «Bild hochladen» takes a JPEG, PNG or WebP up to 10 MB, checked by its content, and stores it unchanged. «Markdown kopieren» puts ![Beschreibung](/api/content/images/ID) into the clipboard. Deleting a page deletes its images.", "Place editor (own screen, /admin/content/places/:id): name, optional address, optional Google Maps link (https only) and the map image of this place with its own «Kartenbild hochladen», «Ersetzen» and «Entfernen». The map image is not one of the page images. A place that a program item or a page uses cannot be deleted; the message names where it is used.", "Deleting a page or a place takes a second click. No «Programm» entry: the programme is the schedule and stays in Einstellungen."],
+  variants: [["list", "List"], ["page", "Edit page"], ["start", "Edit start page"], ["place", "Edit place"]],
+  shows: ["List (refined 2026-11-13): only two cards. «Seiten» starts with the Startseite and then the pages in the order of «Mehr»; the arrows move a page up or down. «Orte» lists the places. Each row ends in › and is highlighted under the pointer, like the «Mehr» list. A click on the row opens its editor. The arrows only move the page. «+ Seite» and «+ Ort» open an empty editor.", "Page editor (own screen, /admin/content/pages/:id): title and address, Markdown editor with a live preview, the images of this page, the places it shows, «In «Mehr» sichtbar» and «Veröffentlichen». «Veröffentlichen» is live at once; there are no drafts. A hidden page is still reached by its address.", "Start page editor (/admin/content/start, decided 2026-11-13): the same screen without title, address, visibility and places. On top the hero image («Bild wählen» from the images of the start page or a new upload, «Entfernen», alt text; shown uncropped). Below the text the switch «Countdown auf der Startseite zeigen» (default on). The hero image cannot be removed from the image list while it is the hero image. The layout of the start page itself is fixed (WEB-10, WEB-11).","Images belong to one page. «Bild hochladen» takes a JPEG, PNG or WebP up to 10 MB, checked by its content, and stores it unchanged. «Markdown kopieren» puts ![Beschreibung](/api/content/images/ID) into the clipboard. Deleting a page deletes its images.", "Place editor (own screen, /admin/content/places/:id): name, optional address, optional Google Maps link (https only) and the map image of this place with its own «Kartenbild hochladen», «Ersetzen» and «Entfernen». The map image is not one of the page images. A place that a program item or a page uses cannot be deleted; the message names where it is used.", "Deleting a page or a place takes a second click. No «Programm» entry: the programme is the schedule and stays in Einstellungen."],
   qs: [],
   render: (v) => {
     const back = `<a class="sm" data-go="admin-content" data-variant="list">‹ Inhalte</a>`;
@@ -1392,6 +1393,18 @@ add({
         <span class="m-hint">JPEG, PNG oder WebP, höchstens 10 MB.</span></div>
       <div class="m-card"><span class="m-eyebrow">Orte auf dieser Seite</span><div class="m-chips" data-multi>${[["Kirche Muri", true], ["Landgasthof Linde", true], ["Schlossgarten", false]].map(([p, on]) => `<button class="m-chip ${on ? "on" : ""}">${p}</button>`).join("")}</div><span class="m-hint">Die Seite zeigt sie als Karten neben dem Text.</span></div>
       <div class="m-row2"><button class="m-btn">Veröffentlichen</button><span class="m-hint">In «Mehr» sichtbar ${sw(true)}</span><span class="grow"></span><button class="m-btn ghost sm">Seite löschen</button></div>`);
+    if (v === "start") return admin("admin-content", `${back}<div class="m-sethead"><h1 class="m-h1 grow">Startseite</h1></div>
+      <div class="m-card"><span class="m-eyebrow">Titelbild (optional)</span>${ph("titelbild.png", "16/9", "max-width:360px")}
+        <div class="m-row2"><button class="m-btn soft sm">${ic("cam")} Bild wählen</button><button class="m-btn ghost sm">Entfernen</button></div>
+        ${field("Beschreibung (Alt-Text)", inp("ac-hero-alt", "Das Paar vor der Kirche"))}
+        <span class="m-hint">Ein Bild der Startseite oder ein neues. Es erscheint in voller Breite und wird nicht zugeschnitten.</span></div>
+      <div class="m-mdsplit"><div class="m-stack">${area("ac-start-md", "# Wir heiraten!\n\nWir freuen uns riesig, diesen Tag mit euch zu feiern. Hier findet ihr alles, was ihr wissen müsst.")}</div>
+        <div class="m-card"><span class="m-eyebrow">Vorschau</span>${ph("titelbild.png", "16/9")}<div class="m-md"><h1>Wir heiraten!</h1><p>Wir freuen uns riesig, diesen Tag mit euch zu feiern. Hier findet ihr alles, was ihr wissen müsst.</p></div></div></div>
+      <div class="m-card"><div class="m-row2"><span class="m-eyebrow grow" style="flex:1">Bilder der Startseite</span><button class="m-btn soft sm">${ic("cam")} Bild hochladen</button></div>
+        <div class="m-list sm">${[["titelbild.png", "PNG · 310 KB · Titelbild"], ["apero.jpg", "JPEG · 180 KB · nicht im Text"]].map(([n, d]) => `<div class="m-li"><div class="grow" style="flex:1"><b class="sm">${n}</b><span class="m-hint">${d}</span></div><button class="m-btn ghost sm">Markdown kopieren</button></div>`).join("")}</div>
+        <span class="m-hint">JPEG, PNG oder WebP, höchstens 10 MB.</span></div>
+      <div class="m-card"><div class="m-setrow"><div class="grow"><b class="sm">Countdown auf der Startseite zeigen</b><span class="m-hint">Zählt die Tage bis zum ersten Programmpunkt und verschwindet am Festtag.</span></div>${sw(true)}</div></div>
+      <div class="m-row2"><button class="m-btn">Veröffentlichen</button></div>`);
     if (v === "place") return admin("admin-content", `${back}<div class="m-sethead"><h1 class="m-h1 grow">Kirche Muri</h1></div>
       <div class="m-card"><div class="m-grid-d2">${field("Name", inp("pl-name", "Kirche Muri"))}${field("Adresse (optional)", inp("pl-addr", "Kirchstrasse 1"))}</div>
         ${field("Google-Maps-Link (optional)", inp("pl-maps", "https://maps.app.goo.gl/Kirche-Muri"), "Nur https-Links zu Google Maps. Der Link öffnet sich in einem neuen Tab. Nichts wird von Google eingebettet.")}</div>
@@ -1401,7 +1414,7 @@ add({
       <span class="m-hint">Ein Ort, den ein Programmpunkt oder eine Seite nutzt, lässt sich nicht löschen.</span>`);
     return admin("admin-content", `<div class="m-sethead"><h1 class="m-h1 grow">Inhalte</h1></div>
       <div class="m-card"><div class="m-row2"><span class="m-eyebrow grow" style="flex:1">Seiten</span><button class="m-btn soft sm" data-go="admin-content" data-variant="page">${ic("plus")} Seite</button></div>
-        <div class="m-list"><div class="m-li link" data-go="admin-content" data-variant="page"><div class="grow" style="flex:1"><b>Startseite</b><span class="m-hint">Begrüssungstext</span></div>${ic("next")}</div>
+        <div class="m-list"><div class="m-li link" data-go="admin-content" data-variant="start"><div class="grow" style="flex:1"><b>Startseite</b><span class="m-hint">Titelbild, Begrüssungstext, Countdown</span></div>${ic("next")}</div>
         ${[["Das Fest", "das-fest", true], ["Anreise & Parkieren", "anreise-parkieren", true], ["Unterkunft", "unterkunft", true], ["FAQ", "faq", false]].map(([t, s, more]) => `<div class="m-li link" data-go="admin-content" data-variant="page"><div class="grow" style="flex:1"><b>${t}</b><span class="m-hint">/p/${s}${more ? "" : " · nicht in «Mehr»"}</span></div><button class="m-btn ghost sm" data-move aria-label="nach oben">↑</button><button class="m-btn ghost sm" data-move aria-label="nach unten">↓</button>${ic("next")}</div>`).join("")}</div></div>
       <div class="m-card"><div class="m-row2"><span class="m-eyebrow grow" style="flex:1">Orte</span><button class="m-btn soft sm" data-go="admin-content" data-variant="place">${ic("plus")} Ort</button></div>
         <div class="m-list">${[["Kirche Muri", "Kirchstrasse 1"], ["Landgasthof Linde", "Dorfstrasse 20"], ["Schlossgarten", ""]].map(([n, a]) => `<div class="m-li link" data-go="admin-content" data-variant="place"><div class="grow" style="flex:1"><b>${n}</b><span class="m-hint">${a || "ohne Adresse"}</span></div>${ic("next")}</div>`).join("")}</div></div>`);
@@ -1554,7 +1567,7 @@ const DECIDED = {
   17: "No buttons at the bottom (the bar at the top stays). Information also opens when the player clicks an object in the world: the avatar walks to it, stops in front of it, and the overlay opens (church → programme, restaurant → table finder). Clickable objects sparkle now and then at random (no wobble, wobbling arrows mark portals).",
   18: "Yes, links stay in the overlay.",
   19: "Yes, these five tabs.",
-  20: "As in the mock: editable welcome block plus fixed system cards.",
+  20: "Fixed layout (changed 2026-11-13). The hosts edit the hero image, the welcome text and the countdown switch in Inhalte. The cards are fixed: countdown, RSVP and shortcuts before the event day, now/next, feature cards and shortcuts on the event day (sw-architecture.md 5.6).",
   21: "Hide uninvited program items and say so in one line.",
   22: "Plain Markdown for every page.",
   23: "Only the table.",
@@ -1597,7 +1610,7 @@ const DECIDED = {
 };
 const GLOBAL_QS = [
   { q: "Visual theme: when do we decide the look (colours, fonts, pixel style of the UI)?", p: "These mocks are deliberately neutral. theme.json fields are specified in stage 4." },
-  { q: "Does the website get its own pixel-art accents (headings, icons) or stay a calm, classic site?", p: "Proposal: calm website, pixel accents only in game-related places (countdown, game buttons, event screen)." },
+  { q: "Does the website get its own pixel-art accents (headings, icons) or stay a calm, classic site?", p: "Proposal: calm website, pixel accents only in game-related places (game buttons, event screen). The countdown on the start page is calm and uses the theme's display font (decided 2026-11-13)." },
 ];
 
 /* ---------- pixel art: avatars ---------- */

@@ -39,7 +39,8 @@
   - [5.3 Language](#53-language)
   - [5.4 Event Screen](#54-event-screen)
   - [5.5 Now and Next](#55-now-and-next)
-  - [5.6 Requirements](#56-requirements)
+  - [5.6 Start Page (decided 2026-11-13, stage 4)](#56-start-page-decided-2026-11-13-stage-4)
+  - [5.7 Requirements](#57-requirements)
 - [6. Shared Content and Data Base](#6-shared-content-and-data-base)
   - [6.1 Requirements](#61-requirements)
   - [6.2 Content Model (decided 2026-11-13, stage 4)](#62-content-model-decided-2026-11-13-stage-4)
@@ -600,12 +601,25 @@ The screen is opened through a read-only screen link created by the admin. The l
 On the event day, guests mostly want to know: what is happening now, and what comes next?
 
 - The program items are the schedule (decided 2026-11-13). There is no second list. A program item has a name, a start time, an optional end time, a place (6.2) and, from stage 5, optionally the map that represents the place. The admin edits them in Einstellungen, where the RSVP already uses them (7.4.1).
-- On the event day, the website start page shows the current and the next entry, in the event's timezone. The game world shows no "now / next" (decided 2026-11-10).
+- On the event day, the website start page shows the current and the next entry, in the event's timezone, in a card at the top of its event-day layout (5.6). The game world shows no "now / next" (decided 2026-11-10).
 - The programme shows a guest only the program items they are invited to, with one line saying so.
 - Changes to the schedule by the admin are visible immediately, e.g. when dinner starts later.
 - If an entry has a map, "Go there" opens that map in the game.
 
-## 5.6 Requirements
+## 5.6 Start Page (decided 2026-11-13, stage 4)
+
+The start page has a fixed layout. The hosts edit its content, not its arrangement. Everything they edit on it is in Inhalte, in the editor of the start page (6.2).
+
+- **Before the event day:** the hero image (optional), the welcome text, the countdown card, the RSVP card and the shortcuts. On a wide screen the hero image and the welcome text form the left column and the cards the right one.
+- **Hero image.** One of the start page's images (6.2), picked in the editor ("Bild wählen" from its images or a new upload, "Entfernen") with an alt text. It is shown in full width at its own aspect ratio and is not cropped, so a drawn title is not cut off. Without a hero image the welcome text moves up.
+- **Countdown card.** It counts the calendar days in the event's time zone from today to the day of the first program item: "Noch 214 Tage", "Noch 1 Tag". Its second line shows the date of that day and the place of the first program item. It disappears when the event day starts, and there is no card without program items. The switch "Countdown auf der Startseite zeigen" in the editor of the start page (default on) hides it. It is separate from the countdown of the waiting page (ACS-13).
+- **Countdown font.** The number uses the theme's `display` font (19.7). Without one it uses the heading font. The card is calm like the rest of the website and does not take the pixel style of the game world.
+- **RSVP card.** The guest's answer with its status and "Ansehen oder ändern".
+- **Shortcuts.** At most four buttons: "Programm" and the first three pages visible in "Mehr", in the admin's order. They are not picked separately.
+- **On the event day** (from the start of the day of the first program item, in the event's time zone): "now / next" on top (5.5, WEB-07), then the cards of the features that exist (seat, snapshot upload, quiz, each with its stage), then the shortcuts. The hero image, the welcome text, the countdown and the RSVP card are not shown. The welcome text and the pages stay reachable through "Mehr".
+- **"Spielwelt betreten"** below the welcome text comes with the game world (stage 5, GAME-12).
+
+## 5.7 Requirements
 
 | ID | Requirement | Prio |
 |---|---|---|
@@ -618,6 +632,8 @@ On the event day, guests mostly want to know: what is happening now, and what co
 | WEB-07 | The program items are the schedule (name, start time, optional end time, place, optional map; reworded 2026-11-13); on the event day, the website start page shows the current and the next entry in the event's timezone, and schedule changes are visible immediately; the game world shows no "now / next" (decided 2026-11-10). | Should |
 | WEB-08 | A schedule entry with a map offers "Go there", which opens that map in the game. | Could |
 | WEB-09 | The programme shows a guest only the program items they are invited to, with one line saying so. | Should |
+| WEB-10 | The start page has a fixed layout (5.6). Before the event day it shows an optional hero image, the welcome text, the countdown card, the RSVP card and shortcuts. On the event day it shows "now / next", the cards of the existing features and the shortcuts. The hosts pick the hero image (uncropped, with an alt text) and edit the welcome text in Inhalte (added 2026-11-13). | Must |
+| WEB-11 | Before the event day the start page shows a countdown card with the calendar days to the day of the first program item, in the event's time zone, and the date and place of that item. It disappears on the event day and without program items. A switch in the editor of the start page (default on) hides it (added 2026-11-13). | Should |
 | LANG-01 | All UI strings are externalised through an i18n framework; German is the default and initially only UI language. | Must |
 | LANG-02 | Every content item (pages, dialogues, NPC texts, information objects) is stored with a language key; initially only German (`de`) is maintained. | Must |
 | SCR-01 | A full-screen event screen rotates between the active panels (photo wall, minigame leaderboards, treasure hunt ranking) without user interaction; the admin chooses the panels and the rotation interval. | Must |
@@ -678,8 +694,8 @@ Everything a guest reads on the website is edited in the admin area "Inhalte" an
 
 - **Pages.** A page has a slug (its address is `/p/<slug>`), a title, a Markdown text per language (LANG-02, only `de` for now), the switch "In «Mehr» sichtbar" and a position in the list. Admins and staff with `editWebsiteContent` create, rename, order and delete pages. There are no drafts. "Veröffentlichen" is live at once (UX decision 33).
 - **A fresh installation has no pages.** Nothing is seeded. The hosts write the pages they need (WEB-02).
-- **Start page text.** The welcome block of the start page is a text of the same kind. It is edited in Inhalte but is not in the page list. The cards around it (RSVP status, now / next, shortcuts) are fixed (UX decision 20).
-- **Images** (CNT-06). An image is uploaded in the editor and placed in a text with the usual Markdown image syntax. Accepted are JPEG, PNG and WebP up to 10 MB. The type is checked by the file's content, not by its name. The image is stored as uploaded. Stage 4 does not resize or convert images (the upload pipeline of stage 7 does that for contributions). Images from other sites stay removed from every text (10.4, SEC-05). An image is served at `/api/content/images/<id>` to signed-in users only. An image belongs to one owner: the start page, one page, or one place as its map image (decided 2026-11-13, mock Q62). An image can be deleted. «Entfernen» is refused while the owner’s text still uses it. Deleting a page deletes its images; removing a map image unsets it on the place. Map images are not page images.
+- **Start page.** The welcome block of the start page is a text of the same kind. It is edited in Inhalte, in the first row of the page list, without address, visibility and places. Its editor also holds the hero image (one of its images, with an alt text) and the switch "Countdown auf der Startseite zeigen" (default on). The layout and the cards around the text are fixed (5.6, UX decision 20, changed 2026-11-13).
+- **Images** (CNT-06). An image is uploaded in the editor and placed in a text with the usual Markdown image syntax. Accepted are JPEG, PNG and WebP up to 10 MB. The type is checked by the file's content, not by its name. The image is stored as uploaded. Stage 4 does not resize or convert images (the upload pipeline of stage 7 does that for contributions). Images from other sites stay removed from every text (10.4, SEC-05). An image is served at `/api/content/images/<id>` to signed-in users only. An image belongs to one owner: the start page, one page, or one place as its map image (decided 2026-11-13, mock Q62). An image can be deleted. «Entfernen» is refused while the owner’s text still uses it or while it is the hero image of the start page. Deleting a page deletes its images; removing a map image unsets it on the place. Map images are not page images.
 - **Places** (CNT-07). A place has a name, an optional address, an optional Google Maps link and an optional map image. The map is an uploaded picture. Nothing is embedded from Google, so reading a page sends no data to Google. The button "In Google Maps öffnen" opens the link in a new tab. Only `https` links to Google Maps are accepted. A program item refers to a place instead of carrying a free text. The existing place texts of the program items become places by a migration. A page can list places. They are shown as cards next to its text. *Proposed 2026-11-13 (step 4b): the accepted Google Maps links are `https` links to `google.com` or `www.google.com` with a path under `/maps`, `maps.google.com`, `maps.app.goo.gl` and `goo.gl` with a path under `/maps`. A place that a program item or a page uses cannot be deleted; the message names the uses. The migration makes one place per distinct program-item place text in each event (same name, no address, no link, no map) and removes the free-text column.*
 - **Dialogues and NPC texts** (stage 5). They are content items edited in the browser like pages (CNT-05). A game object refers to one by `contentId` (CNT-03). They are not part of the world package (14.4).
 - **Program items** are the schedule (5.5). They stay in Einstellungen and are not edited in Inhalte.
@@ -2050,6 +2066,10 @@ The format version covers the layout of the package and the fields of `theme.jso
     "heading": {
       "family": "Playfair Display",
       "files": [{ "file": "playfair-700.woff2", "weight": 700, "style": "normal" }]
+    },
+    "display": {
+      "family": "Cormorant",
+      "files": [{ "file": "cormorant-600.woff2", "weight": 600, "style": "normal" }]
     }
   }
 }
@@ -2058,7 +2078,7 @@ The format version covers the layout of the package and the fields of `theme.jso
 | Field | Rule |
 |---|---|
 | `colors` | Required, with exactly these seven keys. Each value is `#rrggbb`. `background` is the page, `surface` cards and fields, `text` and `muted` the two text colours, `line` borders, `accent` buttons and highlights, `onAccent` the text on them. |
-| `fonts` | Optional. `body` and `heading` are each optional. Without one, the platform's font is used for it. |
+| `fonts` | Optional. `body`, `heading` and `display` are each optional. Without `body` or `heading`, the platform's font is used for it. `display` is for large numbers, today the countdown on the start page (5.6). Without it, the heading font is used (added 2026-11-13). |
 | `family` | 1–40 characters: letters, digits, spaces and hyphens. |
 | `files` | 1–4 entries per font. `file` is a file name in `fonts/`. `weight` is 100–900 in steps of 100. `style` is `normal` or `italic`. |
 
@@ -2086,6 +2106,7 @@ The answer to a refused package lists every finding with its file and reason.
 | THM-03 | A validator checks the whole package (archive, layout, file names, types and sizes, the fields of both JSON files, colours and their contrast, fonts). An invalid package is refused with its findings, and the active theme stays unchanged. | Must |
 | THM-04 | A package is applied only as a whole. It replaces icons, colours and fonts together, and nothing can be imported on its own. | Must |
 | THM-05 | The admin can return to the platform's default theme. Imports and the return are audited. | Must |
+| THM-06 | `theme.json` can name a third font, `display`, used for the countdown on the start page. Without it the heading font is used (added 2026-11-13). | Should |
 
 ---
 
@@ -2760,7 +2781,7 @@ Requirements: ACC-17 – ACC-20, INV-20, INV-21, RSVP-11 – RSVP-15 (RSVP-01, R
 ## Stage 4 – Content and Website
 
 - Content model with language keys: pages, images, places (6.2).
-- Website pages, responsive layout, Markdown editing.
+- Website pages, responsive layout, Markdown editing. The start page with its fixed layout, hero image and countdown card (5.6).
 - Program items as the schedule, with "now / next".
 - Theme package: app icons, colours and fonts, imported by the admin (19.7).
 

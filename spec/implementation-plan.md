@@ -273,9 +273,10 @@ Replanned 2026-11-13 after a review of the plan against stages 3 to 3.9 and a cl
 - **CNT-02 and CNT-03 are partially implemented** after stage 4 (test-strategy.md, section 5). Dialogues, NPC texts and the reference from a game object follow in step 5d, albums in step 7d.
 - **SEC-05** was delivered with the privacy notice (steps 3d and 3i) and leaves the "not yet implemented" list. Stage 4 reuses the renderer.
 - **CFG-01 and CFG-04 get tests** (step 4f).
+- **Start page with a fixed layout** (decided 2026-11-13, during step 4b; sw-architecture.md 5.6, WEB-10, WEB-11, THM-06). The `home` mock showed a countdown card that the plan had left out. Before the event day the start page shows the hero image, the welcome text, the countdown card, the RSVP card and the shortcuts. On the event day it shows "now / next", the feature cards and the shortcuts. The hosts edit the hero image (uncropped, with an alt text), the welcome text and the countdown switch (default on) in the editor of the start page in Inhalte. The countdown counts the days to the first program item and uses the theme's new `display` font, or the heading font without one, not a pixel font. Considered and rejected: elements such as a countdown placed inside the Markdown text, and pages built from blocks.
 
 **Proposals to confirm before the stage starts** (written into the spec as proposed):
-- The fields of `theme.json` and the validator's limits (19.7): seven colours, two optional fonts, WOFF2 only, 10 MB per package, a contrast check.
+- The fields of `theme.json` and the validator's limits (19.7): seven colours, three optional fonts (`display` added 2026-11-13), WOFF2 only, 10 MB per package, a contrast check.
 - The theme changes the website and the guest pages. The admin area keeps its neutral look.
 - Content images: JPEG, PNG and WebP up to 10 MB, stored as uploaded, without resizing in stage 4 (6.2).
 - A page lists its places as cards next to the text (6.2).
@@ -300,28 +301,28 @@ Re-verified: SEC-05, DATA-05.
 Requirements: CNT-06, CNT-07.
 Re-verified: RSVP-01, RSVP-05 (the place of a program item), SEC-05.
 
-**4c – Website.** Mock screens: `home` (variant "Before the event"), `info`, `more`.
+**4c – Website.** Mock screens: `home` (variant "Before the event"), `info`, `more`, `admin-content` (variant "Edit start page").
 - The website frame: bottom tab bar on phones and top navigation on desktop, with Start, Programm and Mehr. Later stages add their tabs.
-- Start page with the welcome text, the RSVP card and shortcuts to the pages. Content page `/p/<slug>`. "Mehr" with the visible pages in the admin's order, the profile, Verwaltung and Inhalte for those who may use them, Datenschutz and Abmelden.
+- Start page in its fixed layout before the event day (5.6): the hero image, the welcome text, the countdown card, the RSVP card and the shortcuts ("Programm" and the first three pages visible in "Mehr"). The editor of the start page in Inhalte gains the hero image (picked from its images, alt text, "Entfernen") and the switch "Countdown auf der Startseite zeigen" (default on). An image that is the hero image cannot be removed. The countdown is tested with fake timers across midnight in the event's time zone, without program items and with the switch off. Content page `/p/<slug>`. "Mehr" with the visible pages in the admin's order, the profile, Verwaltung and Inhalte for those who may use them, Datenschutz and Abmelden.
 - Until stage 5, a signed-in user of an open platform lands on the start page. Restricted guests of a closed platform still see only the waiting page. The new routes join the closed-platform list and its test that walks every route (10.4).
 - No part of the website loads Phaser. The pages work at phone, tablet and desktop widths.
-Requirements: WEB-01, WEB-02, WEB-03, WEB-04.
-Re-verified: ACS-10, SEC-09.
+Requirements: WEB-01, WEB-02, WEB-03, WEB-04, WEB-10 (before the event day), WEB-11.
+Re-verified: ACS-10, SEC-09, CNT-06.
 
 **4d – Programme and "now / next".** Mock screens: `programme` (all three variants), `home` (variant "Event day"), `admin-settings` (card Rückmeldung with the end time).
 - Program items gain an optional end time.
 - The programme page shows the program items the guest is invited to as a timeline, with the line that says so. On the event day past entries are greyed out and the current one is marked.
-- The start page shows the current and the next program item on the event day, in the event's time zone. A change by the admin shows at once. "Hingehen" follows in step 5d (WEB-08).
+- The start page switches to its event-day layout from the start of the day of the first program item (5.6): "now / next" on top, then the shortcuts. The hero image, the welcome text, the countdown and the RSVP card are not shown. "now / next" shows the current and the next program item, in the event's time zone. A change by the admin shows at once. "Hingehen" follows in step 5d (WEB-08).
 - The header of the public pages shows the event's date.
-Requirements: WEB-07, WEB-09.
+Requirements: WEB-07, WEB-09, WEB-10 (the event day).
 
 **4e – Theme package.** Mock first: card "Design" in `admin-settings` (active theme, import, findings of a refused package, "Standard-Design verwenden").
 - Import with the validator of 19.7, all or nothing. The return to the default theme. Audit entries.
-- The guest stylesheet reads its colours and fonts from the theme. `GET /api/site` carries the theme. Fonts are served from the installation.
+- The guest stylesheet reads its colours and fonts from the theme. `GET /api/site` carries the theme. Fonts are served from the installation. The countdown on the start page uses the `display` font, or the heading font without one (THM-06).
 - The app icons and the manifest colours come from the theme. The folder `icons/` in the data volume is no longer read.
 - An example theme package in the repository, built by a script, for dev, tests and as a template for the project owner. The runbook describes the package.
 - Tests: one per validator rule with a broken package, the unchanged theme after a refused import, the import and the return to the default end to end.
-Requirements: THM-01, THM-02, THM-03, THM-04, THM-05.
+Requirements: THM-01, THM-02, THM-03, THM-04, THM-05, THM-06.
 Re-verified: PWA-01, PWA-02, PWA-03.
 
 **4f – Generic core and stage report.**
