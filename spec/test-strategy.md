@@ -99,10 +99,10 @@ All active requirements are listed here until their stage is delivered. Shrink t
 | MAP | MAP-01 – MAP-06, MAP-08 – MAP-10, MAP-12 – MAP-16 | 14 |
 | CFG | CFG-01, CFG-04 | 2 |
 | THM | THM-01 – THM-05 | 5 |
-| OPS | OPS-02, OPS-12, OPS-13 | 3 |
+| OPS | OPS-13 | 1 |
 | SEC | SEC-04, SEC-06 – SEC-08 | 4 |
 | PERF | PERF-01, PERF-03, PERF-04 | 3 |
-| **Total** | | **132** |
+| **Total** | | **130** |
 
 The stage each requirement belongs to is listed in `sw-architecture.md`, section 28.
 
@@ -117,12 +117,9 @@ The stage each requirement belongs to is listed in `sw-architecture.md`, section
 
 **Not yet tested** (decided 2026-11-11). These requirements are implemented and their automated tests pass, but the check in a real environment that completes them has not been done. They stay on this list until it has been done and recorded in the manual test protocol. The requirement report does not read this list; it is kept by hand.
 
-- PWA-01, PWA-02: manifest and icons through Caddy (the deployment test of step 3.5a could not run in the devcontainer). Where and when: the first release candidate on staging (step 3.5e).
-- PWA-03, PWA-04, PWA-05: add to the home screen on a real iPhone (Safari) and a real Android phone (Chrome): icon, name, no browser bars, safe areas, sign-in after the install, the install prompt and the hint. Where and when: the first release candidate on staging (step 3.5e).
-- LIC-03: the link "Quellcode" opens a public repository, and the license page shows the AGPL. Where and when: the released version on prod (step 3.5f); the repository must be public by then.
-- OPS-02: Let's Encrypt and live updates through Caddy on the production host. Where and when: the released version on prod (step 3.5f).
+The list is empty (cleared 2026-11-13). PWA-01 – PWA-05, LIC-03 and OPS-02 were checked on prod and are recorded as `pass` rows in [manual-test-protocol.md](manual-test-protocol.md). OPS-02 and OPS-12 (tag ruleset, recorded the same day) left the "not yet implemented" list.
 
-**When this list is done:** once Release 1 runs on prod and works, and stage 4 starts, the checks are recorded as `pass` rows in [manual-test-protocol.md](manual-test-protocol.md) (environment: staging or prod), OPS-02 leaves the "not yet implemented" list, and these rows are deleted.
+**When a requirement is added here:** the entry names the check, where and when it is done. Once the check is recorded as a `pass` row in the manual test protocol, the entry is deleted, and the requirement leaves the "not yet implemented" list if it was kept there for this check.
 
 ## 6. Verification beyond CI, and open decisions
 
