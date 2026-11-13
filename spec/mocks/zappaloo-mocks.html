@@ -215,6 +215,7 @@ select.m-input { appearance: auto; }
 .m-li:last-child { border-bottom: 0; }
 .m-li > .grow { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
 .m-li.link { cursor: pointer; }
+.m-li.link:hover { background: var(--w-line); margin: 0 -8px; padding-left: 8px; padding-right: 8px; border-radius: 8px; }
 .m-av { width: 40px; height: 40px; border-radius: 50%; background: var(--w-fill); border: 1.5px solid var(--w-line); display: grid; place-items: center; font-weight: 600; font-size: 13px; color: var(--w-muted); flex: none; }
 .m-av.lg { width: 72px; height: 72px; font-size: 20px; }
 .m-ph {
@@ -1377,35 +1378,34 @@ add({
 });
 add({
   id: "admin-content", group: "admin", title: "Content editor", path: "/admin/content", reqs: ["CNT-05", "CNT-06", "CNT-07", "WEB-03", "LANG-02"],
-  shows: ["Startseite with its welcome text, above the pages. The pages follow in the order of «Mehr»; the arrows move a page up or down.", "Markdown editor with a live preview. «Veröffentlichen» is live at once; there are no drafts.", "«In «Mehr» sichtbar» decides whether a page is listed under «Mehr». A hidden page is still reached by its address.", "Images (step 4b): «Bild hochladen» takes a JPEG, PNG or WebP up to 10 MB, checked by its content, and stores it unchanged. Each image in the list has «Markdown kopieren», which puts ![Beschreibung](/api/content/images/ID) into the clipboard.", "Places (step 4b): a list and a form with name, optional address, optional Google Maps link (https only) and an optional map image picked from the images. A place that a program item or a page uses cannot be deleted; the message names where it is used.", "A page lists the places it shows as cards next to its text (cards on the website come with step 4c).", "Deleting a page takes a second click. No «Programm» entry: the programme is the schedule and stays in Einstellungen."],
-  qs: [{ q: "Can an image be deleted in stage 4?", p: "Proposal: no. Markdown references to an image cannot be checked cheaply, so a deletion could break pages silently. A later step adds deletion with a check of the uses." }],
-  render: () => admin("admin-content", `<div class="m-sethead"><h1 class="m-h1 grow">Inhalte</h1><button class="m-btn soft sm">${ic("plus")} Seite</button></div>
-    <div class="m-mdsplit">
-      <div class="m-stack">
-        <div class="m-card"><div class="m-list"><div class="m-li"><div class="grow" style="flex:1"><b>Startseite</b><span class="m-hint">Begrüssungstext · nicht in der Liste</span></div></div></div>
-          <span class="m-eyebrow">Seiten</span>
-          <div class="m-list">${[["Das Fest", "das-fest", true], ["Anreise & Parkieren", "anreise-parkieren", true], ["Unterkunft", "unterkunft", true], ["FAQ", "faq", false]].map(([t, s, more]) => `<div class="m-li"><div class="grow" style="flex:1"><b>${t}</b><span class="m-hint">/p/${s} · ${more ? "In «Mehr»" : "Nicht in «Mehr»"}</span></div><button class="m-btn ghost sm" aria-label="nach oben">↑</button><button class="m-btn ghost sm" aria-label="nach unten">↓</button></div>`).join("")}</div></div>
-        <div class="m-card"><div class="m-row2"><span class="m-eyebrow grow" style="flex:1">Orte</span><button class="m-btn soft sm">${ic("plus")} Ort</button></div>
-          <div class="m-list">${[["Kirche Muri", "Kirchstrasse 1", true], ["Landgasthof Linde", "Dorfstrasse 20", true], ["Schlossgarten", "", false]].map(([n, a, map]) => `<div class="m-li"><div class="grow" style="flex:1"><b>${n}</b><span class="m-hint">${a || "ohne Adresse"} · ${map ? "mit Karte" : "ohne Karte"}</span></div><button class="m-btn soft sm">Bearbeiten</button></div>`).join("")}</div>
-          <span class="m-hint">Ein Ort, den ein Programmpunkt oder eine Seite nutzt, lässt sich nicht löschen.</span></div>
-      </div>
-      <div class="m-stack">
-        <div class="m-card">${field("Titel", inp("ac-title", "Anreise & Parkieren"))}${field("Adresse", inp("ac-slug", "anreise-parkieren"), "Die Seite ist unter /p/anreise-parkieren zu finden.")}</div>
-        <div class="m-mdsplit"><div class="m-stack">${area("ac-md", "# Anreise & Parkieren\n\n## Mit dem ÖV\nAb Bern HB mit der S-Bahn bis Muri bei Bern (12 Min.), dann 5 Minuten zu Fuss zur Kirche.\n\n## Mit dem Auto\nParkplätze hat es beim **Landgasthof Linde**.\n\n- Kirche Muri, Kirchstrasse 1\n- Landgasthof Linde, Dorfstrasse 20")}
-          <div class="m-row2"><button class="m-btn ghost sm">${ic("cam")} Bild hochladen</button><span class="m-hint">JPEG, PNG oder WebP, höchstens 10 MB</span></div>
-          <div class="m-list sm">${[["bild-1.jpg", "JPEG · 240 KB"], ["karte-muri.png", "PNG · 96 KB"]].map(([n, d]) => `<div class="m-li"><div class="grow" style="flex:1"><b class="sm">${n}</b><span class="m-hint">${d}</span></div><button class="m-btn ghost sm">Markdown kopieren</button></div>`).join("")}</div></div>
-        <div class="m-card"><span class="m-eyebrow">Vorschau</span><div class="m-md"><h1>Anreise & Parkieren</h1><h2>Mit dem ÖV</h2><p>Ab Bern HB mit der S-Bahn bis Muri bei Bern (12 Min.), dann 5 Minuten zu Fuss zur Kirche.</p><h2>Mit dem Auto</h2><p>Parkplätze hat es beim <b>Landgasthof Linde</b>.</p><ul><li>Kirche Muri, Kirchstrasse 1</li><li>Landgasthof Linde, Dorfstrasse 20</li></ul></div></div></div>
-        <div class="m-card"><span class="m-eyebrow">Orte auf dieser Seite</span><span class="m-hint">Die Seite zeigt sie als Karten neben dem Text.</span>
-          <div class="m-chips" data-multi>${[["Kirche Muri", true], ["Landgasthof Linde", true], ["Schlossgarten", false]].map(([p, on]) => `<button class="m-chip ${on ? "on" : ""}">${p}</button>`).join("")}</div></div>
-        <div class="m-row2"><button class="m-btn">Veröffentlichen</button><span class="m-hint">Sprache: Deutsch (de) · In «Mehr» sichtbar ${sw(true)}</span><span class="grow"></span><button class="m-btn ghost sm">Seite löschen</button></div>
-      </div>
-    </div>
-    <div class="m-card"><span class="m-eyebrow">Ort bearbeiten</span>
-      <div class="m-grid-d2">${field("Name", inp("pl-name", "Kirche Muri"))}${field("Adresse (optional)", inp("pl-addr", "Kirchstrasse 1"))}</div>
-      ${field("Google-Maps-Link (optional)", inp("pl-maps", "https://maps.app.goo.gl/Kirche-Muri"), "Nur https-Links zu Google Maps. Der Link öffnet sich in einem neuen Tab; nichts wird von Google eingebettet.")}
-      ${field("Kartenbild (optional)", `<select class="m-input" id="pl-map" style="width:auto"><option>karte-muri.png</option><option>Kein Kartenbild</option></select>`, "Ein hochgeladenes Bild aus der Liste oben.")}
-      <div class="m-row2"><button class="m-btn">Speichern</button><span class="grow"></span><button class="m-btn ghost sm">Löschen</button></div>
-    </div>`),
+  variants: [["list", "List"], ["page", "Edit page"], ["place", "Edit place"]],
+  shows: ["List (refined 2026-11-13): only two cards. «Seiten» starts with the Startseite and then the pages in the order of «Mehr»; the arrows move a page up or down. «Orte» lists the places. Each row ends in › and is highlighted under the pointer, like the «Mehr» list. A click on the row opens its editor. The arrows only move the page. «+ Seite» and «+ Ort» open an empty editor.", "Page editor (own screen, /admin/content/pages/:id): title and address, Markdown editor with a live preview, the images of this page, the places it shows, «In «Mehr» sichtbar» and «Veröffentlichen». «Veröffentlichen» is live at once; there are no drafts. A hidden page is still reached by its address. The Startseite uses the same screen without address, visibility and places.", "Images belong to one page. «Bild hochladen» takes a JPEG, PNG or WebP up to 10 MB, checked by its content, and stores it unchanged. «Markdown kopieren» puts ![Beschreibung](/api/content/images/ID) into the clipboard. Deleting a page deletes its images.", "Place editor (own screen, /admin/content/places/:id): name, optional address, optional Google Maps link (https only) and the map image of this place with its own «Kartenbild hochladen», «Ersetzen» and «Entfernen». The map image is not one of the page images. A place that a program item or a page uses cannot be deleted; the message names where it is used.", "Deleting a page or a place takes a second click. No «Programm» entry: the programme is the schedule and stays in Einstellungen."],
+  qs: [{ n: 62, q: "Can an image be deleted?", p: "Proposal: yes, now that an image belongs to one page. «Entfernen» is refused while the page's Markdown still uses the image; only that one text has to be checked." }],
+  render: (v) => {
+    const back = `<a class="sm" data-go="admin-content" data-variant="list">‹ Inhalte</a>`;
+    if (v === "page") return admin("admin-content", `${back}<div class="m-sethead"><h1 class="m-h1 grow">Anreise & Parkieren</h1></div>
+      <div class="m-card">${field("Titel", inp("ac-title", "Anreise & Parkieren"))}${field("Adresse", inp("ac-slug", "anreise-parkieren"), "Die Seite ist unter /p/anreise-parkieren zu finden.")}</div>
+      <div class="m-mdsplit"><div class="m-stack">${area("ac-md", "# Anreise & Parkieren\n\n## Mit dem ÖV\nAb Bern HB mit der S-Bahn bis Muri bei Bern (12 Min.), dann 5 Minuten zu Fuss zur Kirche.\n\n![Bahnhof Muri](/api/content/images/7)\n\n## Mit dem Auto\nParkplätze hat es beim **Landgasthof Linde**.")}</div>
+        <div class="m-card"><span class="m-eyebrow">Vorschau</span><div class="m-md"><h1>Anreise & Parkieren</h1><h2>Mit dem ÖV</h2><p>Ab Bern HB mit der S-Bahn bis Muri bei Bern (12 Min.), dann 5 Minuten zu Fuss zur Kirche.</p>${ph("Bahnhof Muri", "16/9")}<h2>Mit dem Auto</h2><p>Parkplätze hat es beim <b>Landgasthof Linde</b>.</p></div></div></div>
+      <div class="m-card"><div class="m-row2"><span class="m-eyebrow grow" style="flex:1">Bilder dieser Seite</span><button class="m-btn soft sm">${ic("cam")} Bild hochladen</button></div>
+        <div class="m-list sm">${[["bahnhof-muri.jpg", "JPEG · 240 KB · im Text"], ["parkplatz.png", "PNG · 96 KB · nicht im Text"]].map(([n, d]) => `<div class="m-li"><div class="grow" style="flex:1"><b class="sm">${n}</b><span class="m-hint">${d}</span></div><button class="m-btn ghost sm">Markdown kopieren</button></div>`).join("")}</div>
+        <span class="m-hint">JPEG, PNG oder WebP, höchstens 10 MB.</span></div>
+      <div class="m-card"><span class="m-eyebrow">Orte auf dieser Seite</span><div class="m-chips" data-multi>${[["Kirche Muri", true], ["Landgasthof Linde", true], ["Schlossgarten", false]].map(([p, on]) => `<button class="m-chip ${on ? "on" : ""}">${p}</button>`).join("")}</div><span class="m-hint">Die Seite zeigt sie als Karten neben dem Text.</span></div>
+      <div class="m-row2"><button class="m-btn">Veröffentlichen</button><span class="m-hint">In «Mehr» sichtbar ${sw(true)}</span><span class="grow"></span><button class="m-btn ghost sm">Seite löschen</button></div>`);
+    if (v === "place") return admin("admin-content", `${back}<div class="m-sethead"><h1 class="m-h1 grow">Kirche Muri</h1></div>
+      <div class="m-card"><div class="m-grid-d2">${field("Name", inp("pl-name", "Kirche Muri"))}${field("Adresse (optional)", inp("pl-addr", "Kirchstrasse 1"))}</div>
+        ${field("Google-Maps-Link (optional)", inp("pl-maps", "https://maps.app.goo.gl/Kirche-Muri"), "Nur https-Links zu Google Maps. Der Link öffnet sich in einem neuen Tab. Nichts wird von Google eingebettet.")}</div>
+      <div class="m-card"><span class="m-eyebrow">Kartenbild (optional)</span>${ph("karte-muri.png", "16/9", "max-width:360px")}
+        <div class="m-row2"><button class="m-btn soft sm">${ic("cam")} Ersetzen</button><button class="m-btn ghost sm">Entfernen</button></div><span class="m-hint">JPEG, PNG oder WebP, höchstens 10 MB. Ohne Kartenbild heisst der Knopf «Kartenbild hochladen».</span></div>
+      <div class="m-row2"><button class="m-btn">Speichern</button><span class="grow"></span><button class="m-btn ghost sm">Ort löschen</button></div>
+      <span class="m-hint">Ein Ort, den ein Programmpunkt oder eine Seite nutzt, lässt sich nicht löschen.</span>`);
+    return admin("admin-content", `<div class="m-sethead"><h1 class="m-h1 grow">Inhalte</h1></div>
+      <div class="m-card"><div class="m-row2"><span class="m-eyebrow grow" style="flex:1">Seiten</span><button class="m-btn soft sm" data-go="admin-content" data-variant="page">${ic("plus")} Seite</button></div>
+        <div class="m-list"><div class="m-li link" data-go="admin-content" data-variant="page"><div class="grow" style="flex:1"><b>Startseite</b><span class="m-hint">Begrüssungstext</span></div>${ic("next")}</div>
+        ${[["Das Fest", "das-fest", true], ["Anreise & Parkieren", "anreise-parkieren", true], ["Unterkunft", "unterkunft", true], ["FAQ", "faq", false]].map(([t, s, more]) => `<div class="m-li link" data-go="admin-content" data-variant="page"><div class="grow" style="flex:1"><b>${t}</b><span class="m-hint">/p/${s}${more ? "" : " · nicht in «Mehr»"}</span></div><button class="m-btn ghost sm" data-move aria-label="nach oben">↑</button><button class="m-btn ghost sm" data-move aria-label="nach unten">↓</button>${ic("next")}</div>`).join("")}</div></div>
+      <div class="m-card"><div class="m-row2"><span class="m-eyebrow grow" style="flex:1">Orte</span><button class="m-btn soft sm" data-go="admin-content" data-variant="place">${ic("plus")} Ort</button></div>
+        <div class="m-list">${[["Kirche Muri", "Kirchstrasse 1"], ["Landgasthof Linde", "Dorfstrasse 20"], ["Schlossgarten", ""]].map(([n, a]) => `<div class="m-li link" data-go="admin-content" data-variant="place"><div class="grow" style="flex:1"><b>${n}</b><span class="m-hint">${a || "ohne Adresse"}</span></div>${ic("next")}</div>`).join("")}</div></div>`);
+  },
 });
 add({
   id: "admin-world", group: "admin", title: "Game world: objects & portals", path: "/admin/world", reqs: ["MAP-05", "MAP-08", "MAP-15", "GAME-05", "GAME-06"],
@@ -2161,6 +2161,7 @@ function wire(root) {
     if (cm) { cm.classList.toggle("on"); return; }
     const t = e.target.closest("[data-switch]");
     if (t) { t.classList.toggle("on"); return; }
+    if (e.target.closest("[data-move]")) return;
     const g = e.target.closest("[data-go]");
     if (g) { e.preventDefault(); go(g.dataset.go, g.dataset.variant); }
   });
