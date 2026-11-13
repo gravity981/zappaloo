@@ -1,6 +1,6 @@
 // Helpers for backend tests: a fresh data directory and database per test, and
 // the app built on top of them (requests via app.inject, no port opened).
-import { mkdtempSync, rmSync } from "node:fs";
+import { copyFileSync, mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { FastifyInstance } from "fastify";
@@ -27,6 +27,25 @@ export function tempDir(prefix = "zappaloo-test-"): { path: string; remove: () =
       rmSync(path, { recursive: true, force: true });
     },
   };
+}
+
+// Migrating a database takes most of the setup of a test. The migrations run once per test file
+// on a template; each test copies the template (the migrations themselves are checked by
+// `npm run migration-check`).
+let template: string | undefined;
+
+function migratedTemplate(): string {
+  if (!template) {
+    const dir = tempDir("zappaloo-template-");
+    const file = join(dir.path, "template.sqlite");
+    const database = openDatabase(file);
+    runMigrations(database);
+    database.close();
+    // Removed when the test file's worker exits; a copy never outlives its test.
+    process.once("exit", dir.remove);
+    template = file;
+  }
+  return template;
 }
 
 export interface TestContext {
@@ -57,8 +76,8 @@ export async function createTestApp(
   const dir = tempDir();
   const paths = dataPaths(join(dir.path, "data"));
   ensureDataDirs(paths);
+  copyFileSync(migratedTemplate(), paths.database);
   const database = openDatabase(paths.database);
-  runMigrations(database);
   ensureEvent(database);
   const event = EventService.forInstallation(database);
   if (setup) event.setup(EXAMPLE_EVENT, "cli");
