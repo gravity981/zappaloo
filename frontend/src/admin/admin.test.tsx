@@ -52,7 +52,14 @@ describe("admin area", () => {
       within(nav)
         .getAllByRole("link")
         .map((link) => link.textContent),
-    ).toEqual(["Übersicht", "Einladungen", "Rückmeldungen", "Konten & Rollen", "Einstellungen"]);
+    ).toEqual([
+      "Übersicht",
+      "Einladungen",
+      "Rückmeldungen",
+      "Konten & Rollen",
+      "Inhalte",
+      "Einstellungen",
+    ]);
     expect(await screen.findByText("Plattform geschlossen")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Zur Website" })).toHaveAttribute("href", "/");
   });

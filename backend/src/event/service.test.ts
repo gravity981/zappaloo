@@ -199,6 +199,8 @@ describe("data model", () => {
       "audit_log",
       "companion_attendance",
       "companions",
+      "content_pages",
+      "content_texts",
       "event_features",
       "event_settings",
       "footer_notice",

@@ -522,3 +522,48 @@ export const footerNotice = sqliteTable("footer_notice", {
   copyright: text("copyright").notNull(),
   updatedAt: integer("updated_at", { mode: "timestamp_ms" }).notNull(),
 });
+
+// --- Content base (sw-architecture.md 6.2; CNT-01 – CNT-05, LANG-02) -----------------------
+
+/**
+ * A page of the website, addressed as `/p/<slug>`. Its title and text are in `content_texts`
+ * under the item `page:<id>`. Positions are the order of the list, from 0.
+ */
+export const contentPages = sqliteTable(
+  "content_pages",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    eventId: text("event_id")
+      .notNull()
+      .references(() => events.id),
+    slug: text("slug").notNull(),
+    /** "In «Mehr» sichtbar". A hidden page is still reached by its address. */
+    inMore: integer("in_more", { mode: "boolean" }).notNull(),
+    position: integer("position").notNull(),
+    createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull(),
+    updatedAt: integer("updated_at", { mode: "timestamp_ms" }).notNull(),
+  },
+  (table) => [
+    uniqueIndex("content_pages_slug").on(table.eventId, table.slug),
+    index("content_pages_order").on(table.eventId, table.position),
+  ],
+);
+
+/**
+ * A content text per language key (LANG-02). `item` is `start` for the welcome text of the
+ * start page or `page:<id>` for a page. Titles are empty for the start page.
+ */
+export const contentTexts = sqliteTable(
+  "content_texts",
+  {
+    eventId: text("event_id")
+      .notNull()
+      .references(() => events.id),
+    item: text("item").notNull(),
+    language: text("language").notNull(),
+    title: text("title").notNull(),
+    markdown: text("markdown").notNull(),
+    updatedAt: integer("updated_at", { mode: "timestamp_ms" }).notNull(),
+  },
+  (table) => [primaryKey({ columns: [table.eventId, table.item, table.language] })],
+);

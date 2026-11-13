@@ -4,6 +4,7 @@ import type { RouteObject } from "react-router";
 import AdminHomePage from "../admin/AdminHomePage.tsx";
 import AdminInvitationsPage from "../admin/AdminInvitationsPage.tsx";
 import AdminLayout from "../admin/AdminLayout.tsx";
+import AdminContentPage from "../admin/AdminContentPage.tsx";
 import AdminRsvpGuestPage from "../admin/AdminRsvpGuestPage.tsx";
 import AdminRsvpPage from "../admin/AdminRsvpPage.tsx";
 import AdminSettingsPage from "../admin/AdminSettingsPage.tsx";
@@ -80,6 +81,7 @@ export const routes: RouteObject[] = [
               { path: "rsvp", element: <AdminRsvpPage /> },
               { path: "rsvp/guests/:id", element: <AdminRsvpGuestPage /> },
               { path: "users", element: <AdminUsersPage /> },
+              { path: "content", element: <AdminContentPage /> },
               { path: "settings", element: <AdminSettingsPage /> },
               { path: "*", element: <NotFoundPage /> },
             ],

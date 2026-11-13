@@ -89,9 +89,8 @@ All active requirements are listed here until their stage is delivered. Shrink t
 | HUNT | HUNT-01 – HUNT-07 | 7 |
 | MG | MG-01 – MG-13 | 13 |
 | WEB | WEB-01 – WEB-09 | 9 |
-| LANG | LANG-02 | 1 |
 | SCR | SCR-01, SCR-02, SCR-04, SCR-05, SCR-07 | 5 |
-| CNT | CNT-01 – CNT-07 | 7 |
+| CNT | CNT-02, CNT-03, CNT-06, CNT-07 | 4 |
 | AVA | AVA-01 – AVA-04 | 4 |
 | ACS | ACS-04 | 1 |
 | PHO | PHO-01 – PHO-03, PHO-05 – PHO-19 | 18 |
@@ -102,7 +101,7 @@ All active requirements are listed here until their stage is delivered. Shrink t
 | OPS | OPS-13 | 1 |
 | SEC | SEC-04, SEC-06 – SEC-08 | 4 |
 | PERF | PERF-01, PERF-03, PERF-04 | 3 |
-| **Total** | | **130** |
+| **Total** | | **126** |
 
 The stage each requirement belongs to is listed in `sw-architecture.md`, section 28.
 

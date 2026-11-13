@@ -359,6 +359,11 @@ export const ACTIVITY_ACTIONS = [
   "event.set",
   "feature.set",
   "setting.set",
+  "content.page.create",
+  "content.page.update",
+  "content.page.delete",
+  "content.pages.order",
+  "content.start.set",
 ] as const;
 export type ActivityAction = (typeof ACTIVITY_ACTIONS)[number];
 

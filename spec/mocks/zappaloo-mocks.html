@@ -1376,14 +1376,23 @@ add({
     <div class="m-grid-d3">${[["Edelweiss", 8, ["Erika Huber", "Mia Huber ↳", "Lukas Meier", "Sara Keller", "Tom B."]], ["Enzian", 8, ["Familie Brunner (4)", "Lea's Eltern (2)"]], ["Brauttisch", 6, ["Lea", "Jonas", "Trauzeugen (4)"]]].map(([t, c, g]) => `<div class="m-card"><div class="m-row2"><b class="grow" style="flex:1">${t}</b><span class="m-hint">${g.length >= 5 ? 5 : g.length} / ${c}</span></div><div class="m-list sm">${g.map((n) => `<div class="m-li" style="padding:7px 0">${n}</div>`).join("")}</div></div>`).join("")}</div>`),
 });
 add({
-  id: "admin-content", group: "admin", title: "Content editor", path: "/admin/content", reqs: ["CNT-05", "WEB-03", "LANG-02", "WEB-07"],
-  shows: ["Page list (order and visibility = navigation under “Mehr”).", "Markdown editor with live preview. Publish is live at once.", "Programme as structured entries, not Markdown."],
-  qs: [{ q: "Need drafts (save without publishing), or is publish-on-save fine?", p: "Spec: changes are live at once. Mock: one “Veröffentlichen” button." }],
+  id: "admin-content", group: "admin", title: "Content editor", path: "/admin/content", reqs: ["CNT-05", "WEB-03", "LANG-02"],
+  shows: ["Startseite with its welcome text, above the pages. The pages follow in the order of «Mehr»; the arrows move a page up or down.", "Markdown editor with a live preview. «Veröffentlichen» is live at once; there are no drafts.", "«In «Mehr» sichtbar» decides whether a page is listed under «Mehr». A hidden page is still reached by its address.", "Deleting a page takes a second click. Images and places come with step 4b.", "No «Programm» entry: the programme is the schedule and stays in Einstellungen."],
+  qs: [],
   render: () => admin("admin-content", `<div class="m-sethead"><h1 class="m-h1 grow">Inhalte</h1><button class="m-btn soft sm">${ic("plus")} Seite</button></div>
-    ${chips(["Start", "Das Fest", "Programm", "Anreise & Parkieren", "Unterkunft", "FAQ", "Kontakt"], [3])}
-    <div class="m-mdsplit"><div class="m-stack">${field("Titel", inp("ac-title", "Anreise & Parkieren"))}${area("ac-md", "# Anreise & Parkieren\n\n## Mit dem ÖV\nAb Bern HB mit der S-Bahn bis Muri bei Bern (12 Min.), dann 5 Minuten zu Fuss zur Kirche.\n\n## Mit dem Auto\nParkplätze hat es beim **Landgasthof Linde**.\n\n- Kirche Muri, Kirchstrasse 1\n- Landgasthof Linde, Dorfstrasse 20")}</div>
-    <div class="m-card"><span class="m-eyebrow">Vorschau</span><div class="m-md"><h1>Anreise & Parkieren</h1><h2>Mit dem ÖV</h2><p>Ab Bern HB mit der S-Bahn bis Muri bei Bern (12 Min.), dann 5 Minuten zu Fuss zur Kirche.</p><h2>Mit dem Auto</h2><p>Parkplätze hat es beim <b>Landgasthof Linde</b>.</p><ul><li>Kirche Muri, Kirchstrasse 1</li><li>Landgasthof Linde, Dorfstrasse 20</li></ul></div></div></div>
-    <div class="m-row2"><button class="m-btn">Veröffentlichen</button><span class="m-hint">Sprache: Deutsch (de) · In «Mehr» sichtbar ${sw(true)}</span></div>`),
+    <div class="m-mdsplit">
+      <div class="m-card"><div class="m-list">
+        <div class="m-li"><div class="grow" style="flex:1"><b>Startseite</b><span class="m-hint">Begrüssungstext · nicht in der Liste</span></div></div>
+      </div>
+      <span class="m-eyebrow">Seiten</span>
+      <div class="m-list">${[["Das Fest", "das-fest", true], ["Anreise & Parkieren", "anreise-parkieren", true], ["Unterkunft", "unterkunft", true], ["FAQ", "faq", false]].map(([t, s, more]) => `<div class="m-li"><div class="grow" style="flex:1"><b>${t}</b><span class="m-hint">/p/${s} · ${more ? "In «Mehr»" : "Nicht in «Mehr»"}</span></div><button class="m-btn ghost sm" aria-label="nach oben">↑</button><button class="m-btn ghost sm" aria-label="nach unten">↓</button></div>`).join("")}</div></div>
+      <div class="m-stack">
+        <div class="m-card">${field("Titel", inp("ac-title", "Anreise & Parkieren"))}${field("Adresse", inp("ac-slug", "anreise-parkieren"), "Die Seite ist unter /p/anreise-parkieren zu finden.")}</div>
+        <div class="m-mdsplit"><div class="m-stack">${area("ac-md", "# Anreise & Parkieren\n\n## Mit dem ÖV\nAb Bern HB mit der S-Bahn bis Muri bei Bern (12 Min.), dann 5 Minuten zu Fuss zur Kirche.\n\n## Mit dem Auto\nParkplätze hat es beim **Landgasthof Linde**.\n\n- Kirche Muri, Kirchstrasse 1\n- Landgasthof Linde, Dorfstrasse 20")}</div>
+        <div class="m-card"><span class="m-eyebrow">Vorschau</span><div class="m-md"><h1>Anreise & Parkieren</h1><h2>Mit dem ÖV</h2><p>Ab Bern HB mit der S-Bahn bis Muri bei Bern (12 Min.), dann 5 Minuten zu Fuss zur Kirche.</p><h2>Mit dem Auto</h2><p>Parkplätze hat es beim <b>Landgasthof Linde</b>.</p><ul><li>Kirche Muri, Kirchstrasse 1</li><li>Landgasthof Linde, Dorfstrasse 20</li></ul></div></div></div>
+        <div class="m-row2"><button class="m-btn">Veröffentlichen</button><span class="m-hint">Sprache: Deutsch (de) · In «Mehr» sichtbar ${sw(true)}</span><span class="grow"></span><button class="m-btn ghost sm">Seite löschen</button></div>
+      </div>
+    </div>`),
 });
 add({
   id: "admin-world", group: "admin", title: "Game world: objects & portals", path: "/admin/world", reqs: ["MAP-05", "MAP-08", "MAP-15", "GAME-05", "GAME-06"],

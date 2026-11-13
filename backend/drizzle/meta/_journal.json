@@ -85,6 +85,13 @@
       "when": 1794513647979,
       "tag": "0011_person_types",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "6",
+      "when": 1794563019915,
+      "tag": "0012_content_base",
+      "breakpoints": true
     }
   ]
 }

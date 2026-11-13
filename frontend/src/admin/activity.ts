@@ -13,6 +13,8 @@ const NAMELESS = [
   "platform.close",
   "privacy.set",
   "event.setup",
+  "content.pages.order",
+  "content.start.set",
 ];
 
 type Translate = (key: string, options?: Record<string, unknown>) => string;

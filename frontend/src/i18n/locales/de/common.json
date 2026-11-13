@@ -87,7 +87,8 @@
       "users": "Konten & Rollen",
       "settings": "Einstellungen",
       "rsvp": "Rückmeldungen",
-      "rsvpBadge": "{{count}} offene Anfragen"
+      "rsvpBadge": "{{count}} offene Anfragen",
+      "content": "Inhalte"
     },
     "home": {
       "title": "Übersicht",
@@ -352,7 +353,15 @@
       "platform_close": "Plattform wieder geschlossen",
       "platform_close_unnamed": "Plattform wieder geschlossen",
       "privacy_set": "Datenschutzerklärung geändert",
-      "privacy_set_unnamed": "Datenschutzerklärung geändert"
+      "privacy_set_unnamed": "Datenschutzerklärung geändert",
+      "content_page_create": "Die Seite «{{name}}» wurde angelegt",
+      "content_page_create_unnamed": "Eine Seite wurde angelegt",
+      "content_page_update": "Die Seite «{{name}}» wurde geändert",
+      "content_page_update_unnamed": "Eine Seite wurde geändert",
+      "content_page_delete": "Die Seite «{{name}}» wurde gelöscht",
+      "content_page_delete_unnamed": "Eine Seite wurde gelöscht",
+      "content_pages_order": "Die Reihenfolge der Seiten wurde geändert",
+      "content_start_set": "Der Begrüssungstext der Startseite wurde geändert"
     },
     "rsvp": {
       "title": "Rückmeldungen",
@@ -487,6 +496,34 @@
       "save": "Speichern",
       "reset": "Zurücksetzen",
       "saved": "Gespeichert."
+    },
+    "content": {
+      "title": "Inhalte",
+      "newPage": "Seite",
+      "start": "Startseite",
+      "startHint": "Begrüssungstext · nicht in der Liste",
+      "pages": "Seiten",
+      "pagesNone": "Noch keine Seiten. Lege die erste Seite an.",
+      "listed": "/p/{{slug}} · {{state}}",
+      "inMore": "In «Mehr»",
+      "notInMore": "Nicht in «Mehr»",
+      "moveUp": "Nach oben",
+      "moveDown": "Nach unten",
+      "titleField": "Titel",
+      "slugField": "Adresse",
+      "slugHint": "Die Seite ist unter /p/{{slug}} zu finden.",
+      "text": "Text (Markdown)",
+      "startText": "Begrüssungstext der Startseite",
+      "preview": "Vorschau",
+      "moreSwitch": "In «Mehr» sichtbar",
+      "moreHint": "Eine Seite, die nicht in «Mehr» steht, ist trotzdem unter ihrer Adresse erreichbar.",
+      "publish": "Veröffentlichen",
+      "saved": "Veröffentlicht.",
+      "delete": "Seite löschen",
+      "deleteConfirm": "Endgültig löschen",
+      "invalid": "Bitte prüfe Titel und Adresse. Die Adresse darf nur Kleinbuchstaben, Ziffern und Bindestriche enthalten.",
+      "languageHint": "Sprache: Deutsch (de). Änderungen sind sofort live.",
+      "choose": "Wähle links eine Seite oder die Startseite aus."
     }
   },
   "home": {
@@ -697,7 +734,10 @@
     "platform_closed": "Die Tür ist noch zu. Sobald sie aufgeht, sagen wir dir Bescheid.",
     "already_open": "Die Plattform ist schon offen.",
     "already_closed": "Die Plattform ist schon geschlossen.",
-    "email_taken": "Diese E-Mail-Adresse ist schon bei einem anderen Konto bestätigt. Trage im Profil eine andere ein."
+    "email_taken": "Diese E-Mail-Adresse ist schon bei einem anderen Konto bestätigt. Trage im Profil eine andere ein.",
+    "slug_taken": "Diese Adresse gibt es schon.",
+    "page_not_found": "Diese Seite gibt es nicht mehr.",
+    "order_mismatch": "Die Reihenfolge ist veraltet. Lade die Seite neu."
   },
   "notSetUp": {
     "title": "Noch nicht eingerichtet",

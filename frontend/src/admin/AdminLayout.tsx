@@ -1,10 +1,10 @@
 // The shell of the admin area (sw-architecture.md 8.3, ROLE-07): header with the platform state
-// and the way back to the website, navigation with the pages that exist. Only admins get in;
-// the server refuses everyone else's calls anyway. Until the event is set up (CFG-02) the area
-// shows only the setup form.
+// and the way back to the website, navigation with the pages that exist. Admins get in; staff with
+// `editWebsiteContent` get in too, and see only "Inhalte" (ROLE-06). The server refuses everyone
+// else's calls anyway. Until the event is set up (CFG-02) the area shows only the setup form.
 import "../app/ui.css";
 import { useTranslation } from "react-i18next";
-import { Link, Navigate, NavLink, Outlet } from "react-router";
+import { Link, Navigate, NavLink, Outlet, useLocation } from "react-router";
 import { useEvent } from "../app/event.ts";
 import { useSession } from "../app/session.ts";
 import VersionFooter from "../app/VersionFooter.tsx";
@@ -23,22 +23,35 @@ function PendingBadge() {
   );
 }
 
-/** Later steps add their pages here (Rückmeldungen, Sitzplan, Inhalte, Spielwelt, Moderation). */
+/** Later steps add their pages here (Rückmeldungen, Sitzplan, Spielwelt, Moderation). */
 const PAGES = [
   { to: "/admin", label: "admin.nav.home", end: true },
   { to: "/admin/invitations", label: "admin.nav.invitations", end: false },
   { to: "/admin/rsvp", label: "admin.nav.rsvp", end: false },
   { to: "/admin/users", label: "admin.nav.users", end: false },
+  { to: "/admin/content", label: "admin.nav.content", end: false },
   { to: "/admin/settings", label: "admin.nav.settings", end: false },
 ] as const;
+
+/** The pages staff with `editWebsiteContent` may use; the rest is for admins (ROLE-06, ROLE-07). */
+const STAFF_PAGES: readonly string[] = ["/admin/content"];
 
 export default function AdminLayout() {
   const { t } = useTranslation();
   const session = useSession();
   const event = useEvent();
+  const location = useLocation();
   if (!session.ready) return null;
-  if (!session.user?.roles.includes("admin")) return <Navigate to="/" replace />;
-  if (event && !event.setupComplete) {
+  const roles = session.user?.roles ?? [];
+  const admin = roles.includes("admin");
+  const staffEditor =
+    roles.includes("staff") && (session.user?.capabilities ?? []).includes("editWebsiteContent");
+  if (!admin && !staffEditor) return <Navigate to="/" replace />;
+  // A staff member gets only the content editor; every other address leads there.
+  if (!admin && !location.pathname.startsWith("/admin/content")) {
+    return <Navigate to="/admin/content" replace />;
+  }
+  if (admin && event && !event.setupComplete) {
     return (
       <div className="admin setup">
         <header className="admin-head no-print">
@@ -67,7 +80,7 @@ export default function AdminLayout() {
         <Link to="/">{t("admin.toWebsite")}</Link>
       </header>
       <nav className="admin-nav no-print" aria-label={t("admin.title")}>
-        {PAGES.map((page) => (
+        {PAGES.filter((page) => admin || STAFF_PAGES.includes(page.to)).map((page) => (
           <NavLink key={page.to} to={page.to} end={page.end}>
             {t(page.label)}
             {page.to === "/admin/rsvp" && event?.features.rsvp && <PendingBadge />}
