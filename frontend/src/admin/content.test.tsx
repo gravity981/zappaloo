@@ -23,7 +23,15 @@ const editor = {
 };
 const asEditor = { status: 200, body: { user: editor, csrfToken: "csrf-2" } };
 
-/** The content as `GET /api/content` answers it: the start text and the pages in order. */
+const place = {
+  id: 3,
+  name: "Kirche Muri",
+  address: "Kirchstrasse 1",
+  mapsUrl: null,
+  mapImageId: null,
+};
+
+/** The content as `GET /api/content` answers it: the start text, the pages in order, the places. */
 const content = {
   startMarkdown: "Willkommen!",
   pages: [
@@ -46,9 +54,10 @@ describe("the content editor", () => {
     const calls = fakeBackend({
       "GET /api/session": () => asAdmin,
       "GET /api/content": () => ({ status: 200, body: content }),
+      "GET /api/content/images?item=start": () => ({ status: 200, body: { images: [] } }),
       "PUT /api/content/start": () => ({ status: 200, body: content }),
     });
-    renderAt("/admin/content");
+    renderAt("/admin/content/pages/start");
     const field = await screen.findByLabelText("Begrüssungstext der Startseite");
     expect(field).toHaveValue("Willkommen!");
     user.type(field, "# Hallo\n\nSchön, dass du da bist.");
@@ -68,7 +77,7 @@ describe("the content editor", () => {
     });
     renderAt("/admin/content");
     user.click(await screen.findByRole("button", { name: "+ Seite" }));
-    user.type(screen.getByLabelText("Titel"), "Anreise & Parkieren");
+    user.type(await screen.findByLabelText("Titel"), "Anreise & Parkieren");
     expect(screen.getByLabelText("Adresse")).toHaveValue("anreise-parkieren");
     user.type(screen.getByLabelText("Text (Markdown)"), "Mit dem Zug.");
     user.click(screen.getByRole("switch", { name: "In «Mehr» sichtbar" }));
@@ -87,7 +96,7 @@ describe("the content editor", () => {
     });
   });
 
-  it("[CNT-05] pages move up and down; the server takes the whole new order", async () => {
+  it("[CNT-05] pages move up and down on the list; the server takes the whole new order", async () => {
     const calls = fakeBackend({
       "GET /api/session": () => asAdmin,
       "GET /api/content": () => ({ status: 200, body: content }),
@@ -135,29 +144,21 @@ describe("the content editor", () => {
   });
 });
 
-const place = {
-  id: 3,
-  name: "Kirche Muri",
-  address: "Kirchstrasse 1",
-  mapsUrl: null,
-  mapImageId: null,
-};
-
 describe("places and images of the content editor", () => {
-  it("[CNT-06] an admin uploads an image and gets the Markdown that shows it", async () => {
+  it("[CNT-06] an admin uploads an image to the start page and gets the Markdown that shows it", async () => {
     let images: unknown[] = [];
     const calls = fakeBackend({
       "GET /api/session": () => asAdmin,
       "GET /api/content": () => ({ status: 200, body: content }),
-      "GET /api/content/images": () => ({ status: 200, body: { images } }),
-      "POST /api/content/images": () => {
+      "GET /api/content/images?item=start": () => ({ status: 200, body: { images } }),
+      "POST /api/content/images?item=start": () => {
         images = [
           { id: 5, mime: "image/jpeg", bytes: 2048, createdAt: "2027-01-01T10:00:00.000Z" },
         ];
         return { status: 200, body: { image: images[0] } };
       },
     });
-    renderAt("/admin/content");
+    renderAt("/admin/content/pages/start");
     const input = await screen.findByLabelText("Bild hochladen");
     fireEvent.change(input, {
       target: { files: [new File(["bytes"], "bild.jpg", { type: "image/jpeg" })] },
@@ -165,17 +166,42 @@ describe("places and images of the content editor", () => {
     expect(await screen.findByText("Bild 5 · JPEG · 2 KB")).toBeInTheDocument();
     expect(screen.getByText("![Bild](/api/content/images/5)")).toBeInTheDocument();
     const upload = calls.find(
-      (call) => call.method === "POST" && call.path === "/api/content/images",
+      (call) => call.method === "POST" && call.path === "/api/content/images?item=start",
     );
     expect(upload?.csrf).toBe("csrf-1");
   });
 
-  it("[CNT-07] an editor adds a place; a link that is not https to Google Maps is refused", async () => {
+  it("[CNT-06] an image that the text still shows cannot be removed; the message says so", async () => {
+    fakeBackend({
+      "GET /api/session": () => asAdmin,
+      "GET /api/content": () => ({
+        status: 200,
+        body: { ...content, startMarkdown: "![x](/api/content/images/5)" },
+      }),
+      "GET /api/content/images?item=start": () => ({
+        status: 200,
+        body: {
+          images: [
+            { id: 5, mime: "image/jpeg", bytes: 2048, createdAt: "2027-01-01T10:00:00.000Z" },
+          ],
+        },
+      }),
+      "DELETE /api/content/images/5": () => ({
+        status: 409,
+        body: { error: { code: "image_in_use", message: "the text still uses the image" } },
+      }),
+    });
+    renderAt("/admin/content/pages/start");
+    expect(await screen.findByText("im Text")).toBeInTheDocument();
+    user.click(screen.getByRole("button", { name: "Entfernen" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent("Das Bild steht noch im Text");
+  });
+
+  it("[CNT-07] an admin adds a place; a link that is not https to Google Maps is refused", async () => {
     let places: unknown[] = [];
     const calls = fakeBackend({
       "GET /api/session": () => asAdmin,
       "GET /api/content": () => ({ status: 200, body: { ...content, places } }),
-      "GET /api/content/images": () => ({ status: 200, body: { images: [] } }),
       "POST /api/content/places": () => {
         places = [
           {
@@ -191,7 +217,7 @@ describe("places and images of the content editor", () => {
     });
     renderAt("/admin/content");
     user.click(await screen.findByRole("button", { name: "+ Ort" }));
-    user.type(screen.getByLabelText("Name"), "Kirche Muri");
+    user.type(await screen.findByLabelText("Name"), "Kirche Muri");
     user.type(screen.getByLabelText("Adresse (optional)"), "Kirchstrasse 1");
     user.type(
       screen.getByLabelText("Google-Maps-Link (optional)"),
@@ -229,17 +255,15 @@ describe("places and images of the content editor", () => {
     fakeBackend({
       "GET /api/session": () => asAdmin,
       "GET /api/content": () => ({ status: 200, body: { ...content, places: [place] } }),
-      "GET /api/content/images": () => ({ status: 200, body: { images: [] } }),
+      "GET /api/content/images?item=place:3": () => ({ status: 200, body: { images: [] } }),
       "DELETE /api/content/places/3": () => ({
         status: 409,
         body: { error: { code: "place_in_use", message: "the place is used" } },
       }),
     });
     renderAt("/admin/content");
-    const [edit] = await screen.findAllByRole("button", { name: "Bearbeiten" });
-    if (!edit) throw new Error("no place to edit");
-    user.click(edit);
-    user.click(screen.getByRole("button", { name: "Ort löschen" }));
+    user.click(await screen.findByRole("link", { name: /Kirche Muri/ }));
+    user.click(await screen.findByRole("button", { name: "Ort löschen" }));
     user.click(screen.getByRole("button", { name: "Endgültig löschen" }));
     expect(await screen.findByRole("alert")).toHaveTextContent("Der Ort wird noch genutzt");
   });
@@ -248,12 +272,12 @@ describe("places and images of the content editor", () => {
     const calls = fakeBackend({
       "GET /api/session": () => asAdmin,
       "GET /api/content": () => ({ status: 200, body: { ...content, places: [place] } }),
-      "GET /api/content/images": () => ({ status: 200, body: { images: [] } }),
+      "GET /api/content/images?item=page:1": () => ({ status: 200, body: { images: [] } }),
       "PUT /api/content/pages/1": () => ({ status: 200, body: { ...content, places: [place] } }),
     });
     renderAt("/admin/content");
-    user.click(await screen.findByRole("button", { name: "Das Fest" }));
-    user.click(screen.getByRole("button", { name: "Kirche Muri" }));
+    user.click(await screen.findByRole("link", { name: /Das Fest/ }));
+    user.click(await screen.findByRole("button", { name: "Kirche Muri" }));
     expect(screen.getByRole("button", { name: "Kirche Muri" })).toHaveAttribute(
       "aria-pressed",
       "true",
@@ -269,5 +293,40 @@ describe("places and images of the content editor", () => {
     ).toMatchObject({
       placeIds: [3],
     });
+  });
+});
+
+describe("finding fixes of the list and the editors", () => {
+  it("[CNT-05] a published new page returns to the list, not to an empty screen", async () => {
+    const created = {
+      ...content,
+      pages: [
+        ...content.pages,
+        { id: 7, slug: "neu", title: "Neu", markdown: "", inMore: true, position: 2, placeIds: [] },
+      ],
+    };
+    fakeBackend({
+      "GET /api/session": () => asAdmin,
+      "GET /api/content": () => ({ status: 200, body: created }),
+      "POST /api/content/pages": () => ({ status: 200, body: created }),
+    });
+    renderAt("/admin/content/pages/new");
+    user.type(await screen.findByLabelText("Titel"), "Neu");
+    user.click(screen.getByRole("button", { name: "Veröffentlichen" }));
+    expect(await screen.findByRole("heading", { name: "Inhalte" })).toBeInTheDocument();
+    expect(
+      screen.queryByText("Wähle links eine Seite oder die Startseite aus."),
+    ).not.toBeInTheDocument();
+  });
+
+  it("[CNT-05] the chevron is the last thing in a row, after the up and down buttons", async () => {
+    fakeBackend({
+      "GET /api/session": () => asAdmin,
+      "GET /api/content": () => ({ status: 200, body: content }),
+    });
+    renderAt("/admin/content");
+    const row = (await screen.findByRole("link", { name: /Das Fest/ })).closest("li");
+    expect(row?.lastElementChild).toHaveTextContent("›");
+    expect(row?.querySelectorAll("button").length).toBe(2);
   });
 });

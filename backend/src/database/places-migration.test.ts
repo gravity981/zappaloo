@@ -26,7 +26,11 @@ describe("the places migration (CNT-07)", () => {
       .sort();
     const before = files.filter((file) => file < "0013_");
     const after = files.filter((file) => file >= "0013_");
-    expect(after).toEqual(["0013_content_places_and_images.sql", "0014_program_item_places.sql"]);
+    expect(after).toEqual([
+      "0013_content_places_and_images.sql",
+      "0014_program_item_places.sql",
+      "0015_image_owners.sql",
+    ]);
     const apply = (file: string) => {
       sqlite.exec(readFileSync(join(MIGRATIONS_DIR, file), "utf8"));
     };

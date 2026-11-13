@@ -5,6 +5,8 @@ import AdminHomePage from "../admin/AdminHomePage.tsx";
 import AdminInvitationsPage from "../admin/AdminInvitationsPage.tsx";
 import AdminLayout from "../admin/AdminLayout.tsx";
 import AdminContentPage from "../admin/AdminContentPage.tsx";
+import ContentPageEditor from "../admin/ContentPageEditor.tsx";
+import ContentPlaceEditor from "../admin/ContentPlaceEditor.tsx";
 import AdminRsvpGuestPage from "../admin/AdminRsvpGuestPage.tsx";
 import AdminRsvpPage from "../admin/AdminRsvpPage.tsx";
 import AdminSettingsPage from "../admin/AdminSettingsPage.tsx";
@@ -81,7 +83,15 @@ export const routes: RouteObject[] = [
               { path: "rsvp", element: <AdminRsvpPage /> },
               { path: "rsvp/guests/:id", element: <AdminRsvpGuestPage /> },
               { path: "users", element: <AdminUsersPage /> },
-              { path: "content", element: <AdminContentPage /> },
+              {
+                // Inhalte: the list, and the editors of a page and of a place (UX mock admin-content).
+                path: "content",
+                children: [
+                  { index: true, element: <AdminContentPage /> },
+                  { path: "pages/:id", element: <ContentPageEditor /> },
+                  { path: "places/:id", element: <ContentPlaceEditor /> },
+                ],
+              },
               { path: "settings", element: <AdminSettingsPage /> },
               { path: "*", element: <NotFoundPage /> },
             ],

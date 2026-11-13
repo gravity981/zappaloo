@@ -1,6 +1,7 @@
 // The content base: pages, the start page text, places and images (CNT-01 – CNT-07, LANG-02;
-// sw-architecture.md 6.2). Every change of a text, a place or a page runs in one transaction with
-// its audit entry, which holds ids only. Image files are written to `$DATA_DIR/events/<event>/content/`.
+// sw-architecture.md 6.2). Every change of a text, a place, a page or an image runs in one
+// transaction with its audit entry, which holds ids only. Image files are written to
+// `$DATA_DIR/events/<event>/content/`; a file is removed after its row is gone.
 import { randomUUID } from "node:crypto";
 import { mkdir, unlink, writeFile } from "node:fs/promises";
 import { join } from "node:path";
@@ -11,6 +12,7 @@ import type {
   ContentPage,
   ContentPlace,
   ContentResponse,
+  ImageItem,
   OrderRequest,
   PageRequest,
   PlaceRequest,
@@ -35,6 +37,7 @@ export type ContentErrorCode =
   | "place_not_found"
   | "place_in_use"
   | "image_not_found"
+  | "image_in_use"
   | "image_type"
   | "image_too_large";
 
@@ -51,6 +54,15 @@ export class ContentError extends Error {
 /** The item of the start page's welcome text in `content_texts`. */
 const START_ITEM = "start";
 const pageItem = (id: number) => `page:${String(id)}`;
+const placeItem = (id: number) => `place:${String(id)}`;
+
+/** The URL an image is served at; a text uses an image with it (`![…](URL)`). */
+const imageUrl = (id: number) => `/api/content/images/${String(id)}`;
+
+/** Whether a text uses the image: the URL, and not a longer number that starts with it. */
+export function usesImage(markdown: string, id: number): boolean {
+  return new RegExp(`${imageUrl(id)}(?!\\d)`).test(markdown);
+}
 
 /** A stored image as the editor lists it, and the file it is served from. */
 export interface StoredImage {
@@ -197,9 +209,9 @@ export class ContentService {
     });
   }
 
-  /** Deletes a page, its text and its places. */
-  deletePage(id: number, actor: Actor): void {
-    this.#database.db.transaction((tx) => {
+  /** Deletes a page, its text, its places and its images (their files too). */
+  async deletePage(id: number, actor: Actor): Promise<void> {
+    const files = this.#database.db.transaction((tx) => {
       this.#page(tx, id);
       tx.delete(contentPagePlaces).where(eq(contentPagePlaces.pageId, id)).run();
       tx.delete(contentTexts)
@@ -208,8 +220,11 @@ export class ContentService {
         )
         .run();
       tx.delete(contentPages).where(eq(contentPages.id, id)).run();
+      const images = this.#removeImagesOf(tx, pageItem(id));
       this.#event.audit(actor, "content.page.delete", { pageId: id }, tx);
+      return images;
     });
+    await this.#unlinkFiles(files);
   }
 
   /** Puts the pages in the given order. The list must name every page exactly once. */
@@ -243,10 +258,12 @@ export class ContentService {
     });
   }
 
-  /** Adds a place (CNT-07). */
+  /** Adds a place (CNT-07). Its map image is uploaded to the saved place. */
   createPlace(input: PlaceRequest, actor: Actor): ContentPlace {
+    if (input.mapImageId !== null) {
+      throw new ContentError("image_not_found", "the map image is uploaded to a saved place");
+    }
     return this.#database.db.transaction((tx) => {
-      this.#requireImage(tx, input.mapImageId);
       const now = this.#now();
       const row = tx
         .insert(contentPlaces)
@@ -255,7 +272,7 @@ export class ContentService {
           name: input.name,
           address: input.address,
           mapsUrl: input.mapsUrl,
-          mapImageId: input.mapImageId,
+          mapImageId: null,
           createdAt: now,
           updatedAt: now,
         })
@@ -270,7 +287,7 @@ export class ContentService {
   updatePlace(id: number, input: PlaceRequest, actor: Actor): ContentPlace {
     return this.#database.db.transaction((tx) => {
       this.#place(tx, id);
-      this.#requireImage(tx, input.mapImageId);
+      this.#requireMapImage(tx, input.mapImageId, id);
       const row = tx
         .update(contentPlaces)
         .set({
@@ -288,9 +305,9 @@ export class ContentService {
     });
   }
 
-  /** Deletes a place that no program item and no page uses (the uses are named in the error). */
-  deletePlace(id: number, actor: Actor): void {
-    this.#database.db.transaction((tx) => {
+  /** Deletes a place that no program item and no page uses, with its map image (the uses are named). */
+  async deletePlace(id: number, actor: Actor): Promise<void> {
+    const files = this.#database.db.transaction((tx) => {
       this.#place(tx, id);
       const items = tx
         .select({ value: count() })
@@ -308,17 +325,21 @@ export class ContentService {
           `the place is used by ${String(items ?? 0)} program items and ${String(pages ?? 0)} pages`,
         );
       }
+      // The place refers to its map image, so the place goes first.
       tx.delete(contentPlaces).where(eq(contentPlaces.id, id)).run();
+      const images = this.#removeImagesOf(tx, placeItem(id));
       this.#event.audit(actor, "content.place.delete", { placeId: id }, tx);
+      return images;
     });
+    await this.#unlinkFiles(files);
   }
 
-  /** The uploaded images, newest first (CNT-06). */
-  images(): ContentImage[] {
+  /** The images of one owner, newest first (CNT-06). */
+  images(item: ImageItem): ContentImage[] {
     return this.#database.db
       .select()
       .from(contentImages)
-      .where(eq(contentImages.eventId, this.#event.eventId))
+      .where(and(eq(contentImages.eventId, this.#event.eventId), eq(contentImages.item, item)))
       .orderBy(contentImages.id)
       .all()
       .reverse()
@@ -331,26 +352,30 @@ export class ContentService {
   }
 
   /**
-   * Stores an uploaded image (CNT-06). Its type is taken from the content; anything other than
+   * Stores an image of `item` (CNT-06). Its type is taken from the content; anything other than
    * JPEG, PNG or WebP is refused, and the file is kept as uploaded.
    */
-  async saveImage(bytes: Buffer, actor: Actor): Promise<ContentImage> {
+  async saveImage(bytes: Buffer, item: ImageItem, actor: Actor): Promise<ContentImage> {
     if (bytes.length > IMAGE_MAX_BYTES) {
       throw new ContentError("image_too_large", "the image is larger than 10 MB");
     }
     const detected = detectImage(bytes);
     if (!detected)
       throw new ContentError("image_type", "the file is not a JPEG, PNG or WebP image");
-    const directory = join(this.#eventsDir, this.#event.eventId, "content");
+    this.#requireOwner(this.#database.db, item);
+    const directory = this.#directory();
     const fileName = `${randomUUID()}.${detected.extension}`;
     await mkdir(directory, { recursive: true });
     await writeFile(join(directory, fileName), bytes);
     try {
       return this.#database.db.transaction((tx) => {
+        // The owner may have been removed while the file was written.
+        this.#requireOwner(tx, item);
         const row = tx
           .insert(contentImages)
           .values({
             eventId: this.#event.eventId,
+            item,
             fileName,
             mime: detected.mime,
             bytes: bytes.length,
@@ -372,18 +397,82 @@ export class ContentService {
     }
   }
 
+  /**
+   * Removes an image. A text that still uses it refuses (`image_in_use`); the map image of a place
+   * is simply unset.
+   */
+  async deleteImage(id: number, actor: Actor): Promise<void> {
+    const file = this.#database.db.transaction((tx) => {
+      const row = this.#image(tx, id);
+      if (row.item === "start" || row.item.startsWith("page:")) {
+        const text = tx
+          .select({ markdown: contentTexts.markdown })
+          .from(contentTexts)
+          .where(
+            and(
+              eq(contentTexts.eventId, this.#event.eventId),
+              eq(contentTexts.item, row.item),
+              eq(contentTexts.language, CONTENT_LANGUAGE),
+            ),
+          )
+          .get();
+        if (text && usesImage(text.markdown, id)) {
+          throw new ContentError("image_in_use", "the text still uses the image");
+        }
+      } else {
+        tx.update(contentPlaces)
+          .set({ mapImageId: null, updatedAt: this.#now() })
+          .where(eq(contentPlaces.mapImageId, id))
+          .run();
+      }
+      tx.delete(contentImages).where(eq(contentImages.id, id)).run();
+      this.#event.audit(actor, "content.image.delete", { imageId: id }, tx);
+      return row.fileName;
+    });
+    await this.#unlinkFiles([file]);
+  }
+
   /** The file of an image of this event, for serving it (CNT-06). */
   image(id: number): StoredImage {
-    const row = this.#database.db
+    const row = this.#image(this.#database.db, id);
+    return {
+      mime: row.mime as ImageType,
+      path: join(this.#directory(), row.fileName),
+    };
+  }
+
+  #directory(): string {
+    return join(this.#eventsDir, this.#event.eventId, "content");
+  }
+
+  #image(tx: Pick<Database["db"], "select">, id: number) {
+    const row = tx
       .select()
       .from(contentImages)
       .where(and(eq(contentImages.id, id), eq(contentImages.eventId, this.#event.eventId)))
       .get();
     if (!row) throw new ContentError("image_not_found", `image ${String(id)} does not exist`);
-    return {
-      mime: row.mime as ImageType,
-      path: join(this.#eventsDir, this.#event.eventId, "content", row.fileName),
-    };
+    return row;
+  }
+
+  /** Deletes the image rows of an owner and returns their file names (removed after commit). */
+  #removeImagesOf(tx: Pick<Database["db"], "select" | "delete">, item: string): string[] {
+    const rows = tx
+      .select({ id: contentImages.id, fileName: contentImages.fileName })
+      .from(contentImages)
+      .where(and(eq(contentImages.eventId, this.#event.eventId), eq(contentImages.item, item)))
+      .all();
+    for (const row of rows) {
+      tx.delete(contentImages).where(eq(contentImages.id, row.id)).run();
+    }
+    return rows.map((row) => row.fileName);
+  }
+
+  /** Removes image files; a file that is already gone is no error. */
+  async #unlinkFiles(fileNames: readonly string[]): Promise<void> {
+    for (const fileName of fileNames) {
+      await unlink(join(this.#directory(), fileName)).catch(() => undefined);
+    }
   }
 
   #page(tx: Pick<Database["db"], "select">, id: number) {
@@ -411,15 +500,22 @@ export class ContentService {
     for (const id of new Set(ids)) this.#place(tx, id);
   }
 
-  /** A map image must be an image of this event; `null` is no image. */
-  #requireImage(tx: Pick<Database["db"], "select">, id: number | null): void {
+  /** The owner of an image must exist: the start page, a page, or a place. */
+  #requireOwner(tx: Pick<Database["db"], "select">, item: ImageItem): void {
+    if (item === "start") return;
+    const [kind, rawId] = item.split(":");
+    const id = Number(rawId);
+    if (kind === "page") this.#page(tx, id);
+    else this.#place(tx, id);
+  }
+
+  /** A map image must be an image of this place; `null` is no image. */
+  #requireMapImage(tx: Pick<Database["db"], "select">, id: number | null, placeId: number): void {
     if (id === null) return;
-    const row = tx
-      .select({ id: contentImages.id })
-      .from(contentImages)
-      .where(and(eq(contentImages.id, id), eq(contentImages.eventId, this.#event.eventId)))
-      .get();
-    if (!row) throw new ContentError("image_not_found", `image ${String(id)} does not exist`);
+    const row = this.#image(tx, id);
+    if (row.item !== placeItem(placeId)) {
+      throw new ContentError("image_not_found", "the image is not the map image of this place");
+    }
   }
 
   /** Replaces the places a page lists. */

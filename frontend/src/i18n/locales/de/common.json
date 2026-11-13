@@ -368,7 +368,8 @@
       "content_place_update_unnamed": "Ein Ort wurde geändert",
       "content_place_delete": "Der Ort «{{name}}» wurde gelöscht",
       "content_place_delete_unnamed": "Ein Ort wurde gelöscht",
-      "content_image_upload": "Ein Bild wurde hochgeladen"
+      "content_image_upload": "Ein Bild wurde hochgeladen",
+      "content_image_delete": "Ein Bild wurde gelöscht"
     },
     "rsvp": {
       "title": "Rückmeldungen",
@@ -510,7 +511,7 @@
       "title": "Inhalte",
       "newPage": "Seite",
       "start": "Startseite",
-      "startHint": "Begrüssungstext · nicht in der Liste",
+      "startHint": "Begrüssungstext",
       "pages": "Seiten",
       "pagesNone": "Noch keine Seiten. Lege die erste Seite an.",
       "listed": "/p/{{slug}} · {{state}}",
@@ -540,7 +541,6 @@
       "imageLabel": "Bild {{id}} · {{type}} · {{kb}} KB",
       "imageAlt": "Bild",
       "imageOption": "Bild {{id}}",
-      "copyMarkdown": "Markdown kopieren",
       "copied": "Kopiert",
       "places": "Orte",
       "placesHint": "Orte, auf die Programmpunkte und Seiten verweisen.",
@@ -564,7 +564,23 @@
       "placeInUse": "Ein Ort, den ein Programmpunkt oder eine Seite nutzt, lässt sich nicht löschen.",
       "pagePlaces": "Orte auf dieser Seite",
       "pagePlacesHint": "Die Seite zeigt sie als Karten neben dem Text.",
-      "cancel": "Abbrechen"
+      "cancel": "Abbrechen",
+      "address": "/p/{{slug}}",
+      "hiddenFromMore": "nicht in «Mehr»",
+      "imageInText": "im Text",
+      "imageNotInText": "nicht im Text",
+      "removeImage": "Entfernen",
+      "pageImages": "Bilder dieser Seite",
+      "startImages": "Bilder der Startseite",
+      "imagesAfterSave": "Speichern Sie die Seite zuerst, dann können Sie Bilder hochladen.",
+      "placeImagesAfterSave": "Speichern Sie den Ort zuerst, dann können Sie ein Kartenbild hochladen.",
+      "placeMapTitle": "Kartenbild (optional)",
+      "uploadMap": "Kartenbild hochladen",
+      "replaceMap": "Ersetzen",
+      "removeMap": "Entfernen",
+      "mapImageHint": "JPEG, PNG oder WebP, höchstens 10 MB. Ohne Kartenbild heisst der Knopf «Kartenbild hochladen».",
+      "newPageTitle": "Neue Seite",
+      "copyMarkdown": "Markdown kopieren"
     }
   },
   "home": {
@@ -785,7 +801,8 @@
     "image_type": "Die Datei ist kein JPEG, PNG oder WebP.",
     "image_too_large": "Das Bild ist grösser als 10 MB.",
     "fst_err_ctp_body_too_large": "Das Bild ist grösser als 10 MB.",
-    "fst_err_ctp_invalid_media_type": "Die Datei ist kein JPEG, PNG oder WebP."
+    "fst_err_ctp_invalid_media_type": "Die Datei ist kein JPEG, PNG oder WebP.",
+    "image_in_use": "Das Bild steht noch im Text. Entferne es dort zuerst."
   },
   "notSetUp": {
     "title": "Noch nicht eingerichtet",

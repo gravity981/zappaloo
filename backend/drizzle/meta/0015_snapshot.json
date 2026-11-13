@@ -1,8 +1,8 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "b751be90-f083-4383-9751-2b21e4ac249e",
-  "prevId": "49e1fb06-2704-4418-adac-d393e4e4ac08",
+  "id": "b2d311ee-fcb3-4d04-aa8d-a7efbffb78dc",
+  "prevId": "b751be90-f083-4383-9751-2b21e4ac249e",
   "tables": {
     "access_releases": {
       "name": "access_releases",
@@ -337,6 +337,14 @@
           "primaryKey": false,
           "notNull": true,
           "autoincrement": false
+        },
+        "item": {
+          "name": "item",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "'start'"
         },
         "file_name": {
           "name": "file_name",

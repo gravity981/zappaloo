@@ -578,6 +578,8 @@ export const contentImages = sqliteTable("content_images", {
   eventId: text("event_id")
     .notNull()
     .references(() => events.id),
+  /** Whose the image is: `start`, `page:<id>` or `place:<id>` (the map image of a place). */
+  item: text("item").notNull().default("start"),
   fileName: text("file_name").notNull(),
   mime: text("mime").notNull(),
   bytes: integer("bytes").notNull(),

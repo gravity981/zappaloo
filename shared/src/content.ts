@@ -82,7 +82,17 @@ export const contentImageSchema = z.object({
 });
 export type ContentImage = z.infer<typeof contentImageSchema>;
 
-/** `GET /api/content/images` (editor). */
+/**
+ * Whose an image is (6.2): the start page (`start`), one page (`page:<id>`) or one place, as its map
+ * image (`place:<id>`). Images belong to exactly one of them.
+ */
+export const imageItemSchema = z.string().regex(/^(start|page:[1-9]\d*|place:[1-9]\d*)$/);
+export type ImageItem = z.infer<typeof imageItemSchema>;
+
+/** The owner of the images a request lists or uploads: `?item=page:3`. */
+export const imagesQuerySchema = z.strictObject({ item: imageItemSchema });
+
+/** `GET /api/content/images?item=…` (editor). */
 export const imagesResponseSchema = z.object({ images: z.array(contentImageSchema) });
 export type ImagesResponse = z.infer<typeof imagesResponseSchema>;
 

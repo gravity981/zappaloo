@@ -10,6 +10,7 @@ import {
   IMAGE_TYPES,
   contentImageSchema,
   contentResponseSchema,
+  imagesQuerySchema,
   imagesResponseSchema,
   orderRequestSchema,
   pageRequestSchema,
@@ -41,6 +42,7 @@ function fail(reply: FastifyReply, error: unknown): FastifyReply {
       place_not_found: 404,
       place_in_use: 409,
       image_not_found: 404,
+      image_in_use: 409,
       image_type: 415,
       image_too_large: 413,
     } as const;
@@ -128,7 +130,7 @@ const contentPlugin: FastifyPluginAsyncZod<ContentOptions> = (app, { content }) 
     },
     async (request, reply) => {
       try {
-        content.deletePage(request.params.id, actor(request));
+        await content.deletePage(request.params.id, actor(request));
         return await reply.send(content.get());
       } catch (error) {
         return fail(reply, error);
@@ -197,7 +199,7 @@ const contentPlugin: FastifyPluginAsyncZod<ContentOptions> = (app, { content }) 
     },
     async (request, reply) => {
       try {
-        content.deletePlace(request.params.id, actor(request));
+        await content.deletePlace(request.params.id, actor(request));
         return await reply.send(content.get());
       } catch (error) {
         return fail(reply, error);
@@ -210,12 +212,12 @@ const contentPlugin: FastifyPluginAsyncZod<ContentOptions> = (app, { content }) 
     {
       ...editor,
       schema: {
-        querystring: noQuery,
+        querystring: imagesQuerySchema,
         response: { 200: imagesResponseSchema },
       },
     },
-    async (_request, reply) => {
-      return await reply.send({ images: content.images() });
+    async (request, reply) => {
+      return await reply.send({ images: content.images(request.query.item) });
     },
   );
 
@@ -224,15 +226,31 @@ const contentPlugin: FastifyPluginAsyncZod<ContentOptions> = (app, { content }) 
     {
       ...editor,
       schema: {
-        querystring: noQuery,
+        querystring: imagesQuerySchema,
         body: z.instanceof(Buffer),
         response: { 200: z.object({ image: contentImageSchema }) },
       },
     },
     async (request, reply) => {
       try {
-        const image = await content.saveImage(request.body, actor(request));
+        const image = await content.saveImage(request.body, request.query.item, actor(request));
         return await reply.send({ image });
+      } catch (error) {
+        return fail(reply, error);
+      }
+    },
+  );
+
+  app.delete(
+    "/api/content/images/:id",
+    {
+      ...editor,
+      schema: { querystring: noQuery, params: pageParams, body: noBody },
+    },
+    async (request, reply) => {
+      try {
+        await content.deleteImage(request.params.id, actor(request));
+        return await reply.status(204).send();
       } catch (error) {
         return fail(reply, error);
       }

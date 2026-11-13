@@ -369,6 +369,7 @@ export const ACTIVITY_ACTIONS = [
   "content.place.update",
   "content.place.delete",
   "content.image.upload",
+  "content.image.delete",
 ] as const;
 export type ActivityAction = (typeof ACTIVITY_ACTIONS)[number];
 

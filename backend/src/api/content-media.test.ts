@@ -36,10 +36,17 @@ async function staffWithContentCapability(ctx: TestContext, username: string): P
   return headers;
 }
 
-function upload(ctx: TestContext, headers: Headers, bytes: Buffer, contentType: string) {
+/** Uploads an image for `item`: the start page by default, or `page:<id>` or `place:<id>`. */
+function upload(
+  ctx: TestContext,
+  headers: Headers,
+  bytes: Buffer,
+  contentType: string,
+  item = "start",
+) {
   return ctx.app.inject({
     method: "POST",
-    url: "/api/content/images",
+    url: `/api/content/images?item=${item}`,
     headers: { ...headers, "content-type": contentType },
     payload: bytes,
   });
@@ -85,7 +92,7 @@ describe("images (CNT-06)", () => {
     const image = bodyOf<{ image: ContentImage }>(sent).image;
     expect(image.mime).toBe("image/jpeg");
 
-    const listed = await ctx.app.inject({ url: "/api/content/images", headers: admin });
+    const listed = await ctx.app.inject({ url: "/api/content/images?item=start", headers: admin });
     expect(bodyOf<{ images: ContentImage[] }>(listed).images.map((i) => i.id)).toEqual([image.id]);
 
     const served = await ctx.app.inject({
@@ -158,31 +165,161 @@ describe("images (CNT-06)", () => {
 });
 
 describe("places (CNT-07)", () => {
-  it("[CNT-07] a place has a name, an address, a Google Maps link and a map image of the event", async () => {
+  it("[CNT-07] a place has a name, an address, a Google Maps link and its own map image", async () => {
     context = await createTestApp();
     const ctx = context;
     const admin = await signIn(ctx, "boss", ["admin"]);
-    const image = bodyOf<{ image: ContentImage }>(await upload(ctx, admin, PNG, "image/png"));
-
-    const created = await createPlace(ctx, admin, {
-      mapsUrl: "https://maps.app.goo.gl/AbC123",
-      mapImageId: image.image.id,
+    const placed = await createPlace(ctx, admin, { mapsUrl: "https://maps.app.goo.gl/AbC123" });
+    expect(placed.statusCode).toBe(200);
+    const id = placeId(placed, "Kirche Muri");
+    const map = bodyOf<{ image: ContentImage }>(
+      await upload(ctx, admin, PNG, "image/png", `place:${String(id)}`),
+    );
+    const linked = await ctx.app.inject({
+      method: "PUT",
+      url: `/api/content/places/${String(id)}`,
+      headers: admin,
+      payload: {
+        name: "Kirche Muri",
+        address: "Kirchstrasse 1",
+        mapsUrl: "https://maps.app.goo.gl/AbC123",
+        mapImageId: map.image.id,
+      },
     });
-    expect(created.statusCode).toBe(200);
-    const place = bodyOf<ContentResponse>(created).places[0];
-    if (!place) throw new Error("the place was not saved");
-    expect(place).toMatchObject({
-      name: "Kirche Muri",
+    expect(linked.statusCode).toBe(200);
+    expect(bodyOf<ContentResponse>(linked).places.find((p) => p.id === id)).toMatchObject({
       address: "Kirchstrasse 1",
       mapsUrl: "https://maps.app.goo.gl/AbC123",
-      mapImageId: image.image.id,
+      mapImageId: map.image.id,
     });
 
-    const unknownImage = await createPlace(ctx, admin, { name: "Schloss", mapImageId: 999 });
-    expect(unknownImage.statusCode).toBe(404);
-    expect(errorCode(unknownImage)).toBe("image_not_found");
+    // A map image must be the image of this place, not an image of a page.
+    const other = bodyOf<{ image: ContentImage }>(await upload(ctx, admin, PNG, "image/png"));
+    const wrong = await ctx.app.inject({
+      method: "PUT",
+      url: `/api/content/places/${String(id)}`,
+      headers: admin,
+      payload: { name: "Kirche Muri", address: null, mapsUrl: null, mapImageId: other.image.id },
+    });
+    expect(wrong.statusCode).toBe(404);
+    expect(errorCode(wrong)).toBe("image_not_found");
+
+    // A new place has no map image yet: it is uploaded to the saved place.
+    const withImage = await createPlace(ctx, admin, { name: "Schloss", mapImageId: map.image.id });
+    expect(withImage.statusCode).toBe(404);
   });
 
+  it("[CNT-06] an image belongs to one owner; an unknown owner is refused", async () => {
+    context = await createTestApp();
+    const ctx = context;
+    const admin = await signIn(ctx, "boss", ["admin"]);
+    const created = await ctx.app.inject({
+      method: "POST",
+      url: "/api/content/pages",
+      headers: admin,
+      payload: page([]),
+    });
+    const pageId = bodyOf<ContentResponse>(created).pages[0]?.id ?? 0;
+    const onPage = bodyOf<{ image: ContentImage }>(
+      await upload(ctx, admin, JPEG, "image/jpeg", `page:${String(pageId)}`),
+    );
+    const listed = await ctx.app.inject({
+      url: `/api/content/images?item=page:${String(pageId)}`,
+      headers: admin,
+    });
+    expect(bodyOf<{ images: ContentImage[] }>(listed).images.map((i) => i.id)).toEqual([
+      onPage.image.id,
+    ]);
+    const start = await ctx.app.inject({ url: "/api/content/images?item=start", headers: admin });
+    expect(bodyOf<{ images: ContentImage[] }>(start).images).toEqual([]);
+
+    const unknown = await upload(ctx, admin, JPEG, "image/jpeg", "page:999");
+    expect(unknown.statusCode).toBe(404);
+    expect(errorCode(unknown)).toBe("page_not_found");
+  });
+
+  it("[CNT-06] a text that uses an image keeps it; an unused image is deleted with its file", async () => {
+    context = await createTestApp();
+    const ctx = context;
+    const admin = await signIn(ctx, "boss", ["admin"]);
+    const first = bodyOf<{ image: ContentImage }>(await upload(ctx, admin, JPEG, "image/jpeg"));
+    const second = bodyOf<{ image: ContentImage }>(await upload(ctx, admin, PNG, "image/png"));
+    // The start text uses the second image; the first one is free to go.
+    await ctx.app.inject({
+      method: "PUT",
+      url: "/api/content/start",
+      headers: admin,
+      payload: { markdown: `![Bild](/api/content/images/${String(second.image.id)})` },
+    });
+    const inUse = await ctx.app.inject({
+      method: "DELETE",
+      url: `/api/content/images/${String(second.image.id)}`,
+      headers: admin,
+    });
+    expect(inUse.statusCode).toBe(409);
+    expect(errorCode(inUse)).toBe("image_in_use");
+
+    const free = await ctx.app.inject({
+      method: "DELETE",
+      url: `/api/content/images/${String(first.image.id)}`,
+      headers: admin,
+    });
+    expect(free.statusCode).toBe(204);
+    const gone = await ctx.app.inject({
+      url: `/api/content/images/${String(first.image.id)}`,
+      headers: admin,
+    });
+    expect(gone.statusCode).toBe(404);
+  });
+
+  it("[CNT-06][CNT-07] deleting a page or a place deletes its images", async () => {
+    context = await createTestApp();
+    const ctx = context;
+    const admin = await signIn(ctx, "boss", ["admin"]);
+    const created = await ctx.app.inject({
+      method: "POST",
+      url: "/api/content/pages",
+      headers: admin,
+      payload: page([]),
+    });
+    const pageId = bodyOf<ContentResponse>(created).pages[0]?.id ?? 0;
+    const pageImage = bodyOf<{ image: ContentImage }>(
+      await upload(ctx, admin, JPEG, "image/jpeg", `page:${String(pageId)}`),
+    );
+    const removedPage = await ctx.app.inject({
+      method: "DELETE",
+      url: `/api/content/pages/${String(pageId)}`,
+      headers: admin,
+    });
+    expect(removedPage.statusCode).toBe(200);
+    const pageGone = await ctx.app.inject({
+      url: `/api/content/images/${String(pageImage.image.id)}`,
+      headers: admin,
+    });
+    expect(pageGone.statusCode).toBe(404);
+
+    const id = placeId(await createPlace(ctx, admin), "Kirche Muri");
+    const map = bodyOf<{ image: ContentImage }>(
+      await upload(ctx, admin, PNG, "image/png", `place:${String(id)}`),
+    );
+    await ctx.app.inject({
+      method: "PUT",
+      url: `/api/content/places/${String(id)}`,
+      headers: admin,
+      payload: { name: "Kirche Muri", address: null, mapsUrl: null, mapImageId: map.image.id },
+    });
+    // Removing the map image unsets it on the place.
+    const removedMap = await ctx.app.inject({
+      method: "DELETE",
+      url: `/api/content/images/${String(map.image.id)}`,
+      headers: admin,
+    });
+    expect(removedMap.statusCode).toBe(204);
+    const placeAfter = bodyOf<ContentResponse>(
+      await ctx.app.inject({ url: "/api/content", headers: admin }),
+    ).places.find((p) => p.id === id);
+    expect(placeAfter?.mapImageId).toBeNull();
+  });
   it("[CNT-07] only https links to Google Maps are accepted", async () => {
     context = await createTestApp();
     const ctx = context;

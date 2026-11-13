@@ -457,6 +457,41 @@
   text-align: left;
   cursor: pointer;
 }
+/* A row that opens its editor (UX mock admin-content, `.m-li.link`): the whole row is highlighted
+   under the pointer with the mock's margins and padding; the › is the last thing in the row. */
+:is(.admin, .guest) .li.li-row:hover,
+:is(.admin, .guest) .li.li-row:focus-within {
+  background: var(--a-line);
+  margin: 0 -8px;
+  padding-left: 8px;
+  padding-right: 8px;
+  border-radius: 8px;
+}
+:is(.admin, .guest) .li-main {
+  flex: 1 1 11rem;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  color: inherit;
+  text-decoration: none;
+}
+:is(.admin, .guest) .li-main b {
+  font-weight: 700;
+}
+:is(.admin, .guest) .chevron {
+  color: var(--a-muted);
+  font-size: 1.25rem;
+  line-height: 1;
+  text-decoration: none;
+}
+:is(.admin, .guest) .map-preview {
+  display: block;
+  max-width: 360px;
+  width: 100%;
+  height: auto;
+  border-radius: 8px;
+  border: 1px solid var(--a-line);
+}
 :is(.admin, .guest) .scroll {
   overflow-x: auto;
   /* the containing block of the visually hidden texts in the table, so they scroll with it and

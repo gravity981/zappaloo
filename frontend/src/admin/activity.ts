@@ -16,6 +16,7 @@ const NAMELESS = [
   "content.pages.order",
   "content.start.set",
   "content.image.upload",
+  "content.image.delete",
 ];
 
 type Translate = (key: string, options?: Record<string, unknown>) => string;
