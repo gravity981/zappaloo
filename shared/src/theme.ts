@@ -137,6 +137,7 @@ export const themeFindingSchema = z.object({
   code: z.string(),
   detail: z.string(),
 });
+export type ThemeFinding = z.infer<typeof themeFindingSchema>;
 
 /** A refused import: the error and every finding of the package. */
 export const themeRefusalSchema = z.object({

@@ -1,7 +1,7 @@
 // Einstellungen (sw-architecture.md 8.3): one page with sections. In stage 2 the event's
 // name, time zone and language (CFG-06), the RSVP settings (RSVP-02, RSVP-03, RSVP-04) and the
 // feature switches (CFG-03, CFG-05); opening the platform, waiting page texts, privacy notice,
-// links and guest profiles come with their steps.
+// links and guest profiles come with their steps. The Design card (19.7) follows the identity.
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { FEATURE_NAMES } from "@zappaloo/shared";
@@ -14,6 +14,7 @@ import type { EventIdentity } from "./identity.ts";
 import FooterSettingsCard from "./FooterSettingsCard.tsx";
 import PrivacySettingsCard from "./PrivacySettingsCard.tsx";
 import RsvpSettingsCard from "./RsvpSettingsCard.tsx";
+import ThemeSettingsCard from "./ThemeSettingsCard.tsx";
 import WaitingSettingsCards from "./WaitingSettingsCards.tsx";
 import { Switch } from "./ui.tsx";
 
@@ -61,6 +62,7 @@ export default function AdminSettingsPage() {
           />
         </section>
       )}
+      {event?.setupComplete && <ThemeSettingsCard />}
       {event?.setupComplete && <WaitingSettingsCards />}
       {event?.setupComplete && <PrivacySettingsCard />}
       {event?.setupComplete && <FooterSettingsCard />}
