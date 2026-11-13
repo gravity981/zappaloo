@@ -34,8 +34,8 @@ Each release goes into production. From Release 1 on, real guest data is stored,
 | 2 | Accounts, roles and access | 1 | done |
 | 3 | RSVP and waiting page | – | done |
 | 3.5 | Installable app (home screen icon, no browser chrome) | 1 | done |
-| 3.9 | Findings from the Release 1 pilot | 1 (updates) | next |
-| 4 | Content and website | Opening | open |
+| 3.9 | Findings from the Release 1 pilot | 1 (updates) | done |
+| 4 | Content and website | Opening | next |
 | 5 | Game world and world importer | Opening | open |
 | 6 | Living world | Opening | open |
 | 7 | Contributions and event screen | Event-ready | open |
@@ -255,7 +255,7 @@ Requirements: none new.
 Replanned 2026-11-13 after a review of the plan against stages 3 to 3.9 and a clearer picture of "event configuration and content" (sw-architecture.md 19.1.1). Branch `feature/stage-4`.
 
 **Before the stage starts:**
-- Stage 3.9 is complete, and step 3.9g (update on prod) is done. The "not yet tested" list in test-strategy.md, section 5, is cleared (done 2026-11-13: the device and prod checks of stage 3.5 are recorded in the manual test protocol).
+- Stage 3.9 is complete, and step 3.9g (update on prod) is done (confirmed by the project owner on 2026-11-13). The "not yet tested" list in test-strategy.md, section 5, is cleared (done 2026-11-13: the device and prod checks of stage 3.5 are recorded in the manual test protocol).
 - The project owner confirms the proposals below.
 - Texts for the first event's pages (at least drafts) and a theme package for the first event (icons, colours, fonts). Both are needed for the Opening, not for building the steps. The steps use test data.
 
@@ -639,6 +639,8 @@ After each completed stage, Claude appends a report with this structure to secti
 - The requirement report's stage table reads whole stage numbers only, so stages 3.5 and 3.9 appear under stage 3.
 
 ### Stage 3.9 – Findings from the Release 1 Pilot (2026-11-12, written after the code steps)
+
+**Update 2026-11-13:** step 3.9g is done. The project owner deployed the update to prod, so stage 3.9 is complete and stage 4 is next. The table below shows the state when the report was written.
 
 **Summary:** Guests answer the RSVP once for all their program items and add companions without waiting for approval. Every invited person is on the guest list from the moment the invitation is created. Admins see the state of each account, can block and delete accounts, clean up old invitations and give every person a type. The update to prod (step 3.9g) is still to do and needs the project owner.
 
