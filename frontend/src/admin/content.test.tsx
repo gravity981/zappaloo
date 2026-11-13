@@ -1,4 +1,4 @@
-import { screen, waitFor, within } from "@testing-library/react";
+import { fireEvent, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import { initI18n } from "../i18n/i18n.ts";
 import { anna, fakeBackend, renderAt, user } from "../test/backend.tsx";
@@ -34,9 +34,11 @@ const content = {
       markdown: "# Das Fest",
       inMore: true,
       position: 0,
+      placeIds: [],
     },
-    { id: 2, slug: "faq", title: "FAQ", markdown: "", inMore: false, position: 1 },
+    { id: 2, slug: "faq", title: "FAQ", markdown: "", inMore: false, position: 1, placeIds: [] },
   ],
+  places: [],
 };
 
 describe("the content editor", () => {
@@ -81,6 +83,7 @@ describe("the content editor", () => {
       title: "Anreise & Parkieren",
       markdown: "Mit dem Zug.",
       inMore: false,
+      placeIds: [],
     });
   });
 
@@ -129,5 +132,142 @@ describe("the content editor", () => {
     expect(
       await screen.findByRole("heading", { name: "Willkommen bei Zappaloo" }),
     ).toBeInTheDocument();
+  });
+});
+
+const place = {
+  id: 3,
+  name: "Kirche Muri",
+  address: "Kirchstrasse 1",
+  mapsUrl: null,
+  mapImageId: null,
+};
+
+describe("places and images of the content editor", () => {
+  it("[CNT-06] an admin uploads an image and gets the Markdown that shows it", async () => {
+    let images: unknown[] = [];
+    const calls = fakeBackend({
+      "GET /api/session": () => asAdmin,
+      "GET /api/content": () => ({ status: 200, body: content }),
+      "GET /api/content/images": () => ({ status: 200, body: { images } }),
+      "POST /api/content/images": () => {
+        images = [
+          { id: 5, mime: "image/jpeg", bytes: 2048, createdAt: "2027-01-01T10:00:00.000Z" },
+        ];
+        return { status: 200, body: { image: images[0] } };
+      },
+    });
+    renderAt("/admin/content");
+    const input = await screen.findByLabelText("Bild hochladen");
+    fireEvent.change(input, {
+      target: { files: [new File(["bytes"], "bild.jpg", { type: "image/jpeg" })] },
+    });
+    expect(await screen.findByText("Bild 5 · JPEG · 2 KB")).toBeInTheDocument();
+    expect(screen.getByText("![Bild](/api/content/images/5)")).toBeInTheDocument();
+    const upload = calls.find(
+      (call) => call.method === "POST" && call.path === "/api/content/images",
+    );
+    expect(upload?.csrf).toBe("csrf-1");
+  });
+
+  it("[CNT-07] an editor adds a place; a link that is not https to Google Maps is refused", async () => {
+    let places: unknown[] = [];
+    const calls = fakeBackend({
+      "GET /api/session": () => asAdmin,
+      "GET /api/content": () => ({ status: 200, body: { ...content, places } }),
+      "GET /api/content/images": () => ({ status: 200, body: { images: [] } }),
+      "POST /api/content/places": () => {
+        places = [
+          {
+            id: 3,
+            name: "Kirche Muri",
+            address: "Kirchstrasse 1",
+            mapsUrl: "https://maps.app.goo.gl/Kirche",
+            mapImageId: null,
+          },
+        ];
+        return { status: 200, body: { ...content, places } };
+      },
+    });
+    renderAt("/admin/content");
+    user.click(await screen.findByRole("button", { name: "+ Ort" }));
+    user.type(screen.getByLabelText("Name"), "Kirche Muri");
+    user.type(screen.getByLabelText("Adresse (optional)"), "Kirchstrasse 1");
+    user.type(
+      screen.getByLabelText("Google-Maps-Link (optional)"),
+      "http://maps.google.com/?q=Muri",
+    );
+    user.click(screen.getByRole("button", { name: "Speichern" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "Der Link muss https zu Google Maps sein.",
+    );
+    expect(
+      calls.some((call) => call.method === "POST" && call.path === "/api/content/places"),
+    ).toBe(false);
+
+    user.type(
+      screen.getByLabelText("Google-Maps-Link (optional)"),
+      "https://maps.app.goo.gl/Kirche",
+    );
+    user.click(screen.getByRole("button", { name: "Speichern" }));
+    await waitFor(() => {
+      expect(
+        calls.some((call) => call.method === "POST" && call.path === "/api/content/places"),
+      ).toBe(true);
+    });
+    expect(
+      calls.find((call) => call.method === "POST" && call.path === "/api/content/places")?.body,
+    ).toEqual({
+      name: "Kirche Muri",
+      address: "Kirchstrasse 1",
+      mapsUrl: "https://maps.app.goo.gl/Kirche",
+      mapImageId: null,
+    });
+  });
+
+  it("[CNT-07] a place that a page or a program item uses is not deleted; the message says why", async () => {
+    fakeBackend({
+      "GET /api/session": () => asAdmin,
+      "GET /api/content": () => ({ status: 200, body: { ...content, places: [place] } }),
+      "GET /api/content/images": () => ({ status: 200, body: { images: [] } }),
+      "DELETE /api/content/places/3": () => ({
+        status: 409,
+        body: { error: { code: "place_in_use", message: "the place is used" } },
+      }),
+    });
+    renderAt("/admin/content");
+    const [edit] = await screen.findAllByRole("button", { name: "Bearbeiten" });
+    if (!edit) throw new Error("no place to edit");
+    user.click(edit);
+    user.click(screen.getByRole("button", { name: "Ort löschen" }));
+    user.click(screen.getByRole("button", { name: "Endgültig löschen" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent("Der Ort wird noch genutzt");
+  });
+
+  it("[CNT-07] a page lists the places it chooses; the choice is saved with the page", async () => {
+    const calls = fakeBackend({
+      "GET /api/session": () => asAdmin,
+      "GET /api/content": () => ({ status: 200, body: { ...content, places: [place] } }),
+      "GET /api/content/images": () => ({ status: 200, body: { images: [] } }),
+      "PUT /api/content/pages/1": () => ({ status: 200, body: { ...content, places: [place] } }),
+    });
+    renderAt("/admin/content");
+    user.click(await screen.findByRole("button", { name: "Das Fest" }));
+    user.click(screen.getByRole("button", { name: "Kirche Muri" }));
+    expect(screen.getByRole("button", { name: "Kirche Muri" })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+    user.click(screen.getByRole("button", { name: "Veröffentlichen" }));
+    await waitFor(() => {
+      expect(
+        calls.some((call) => call.method === "PUT" && call.path === "/api/content/pages/1"),
+      ).toBe(true);
+    });
+    expect(
+      calls.find((call) => call.method === "PUT" && call.path === "/api/content/pages/1")?.body,
+    ).toMatchObject({
+      placeIds: [3],
+    });
   });
 });

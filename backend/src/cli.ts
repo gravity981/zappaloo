@@ -1,7 +1,8 @@
 // Command-line interface `zappaloo` (sw-architecture.md 23.8). Runs inside the
 // application container (`docker compose exec app zappaloo <command>`) or from
 // source (`npm run cli -- <command>`). Commands are added with their features.
-import { RsvpService, seedExampleRsvp } from "./rsvp/service.ts";
+import { EXAMPLE_PLACE_NAMES, RsvpService, seedExampleRsvp } from "./rsvp/service.ts";
+import { ContentService } from "./content/service.ts";
 import { createReadStream, createWriteStream, mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
@@ -199,6 +200,49 @@ const commands: Record<string, Command> = {
       });
     },
   },
+  "dev-admin": {
+    summary:
+      "Create an admin account with a given password (dev only; the password rules do not apply)",
+    usage: "dev-admin USERNAME PASSWORD",
+    run: async (args, io) => {
+      const [name, password] = args;
+      if (!name || !password || args.length > 2) {
+        return usageError(io, "dev-admin USERNAME PASSWORD");
+      }
+      // Checked before the configuration is loaded: a production configuration may not load here.
+      const appEnv = io.env.APP_ENV ?? "(unset)";
+      if (appEnv !== "dev") {
+        io.err(`dev-admin is for dev only; APP_ENV is ${appEnv}.`);
+        return 1;
+      }
+      const config = loadConfig(io.env);
+      const username = usernameSchema.safeParse(name);
+      if (!username.success) {
+        io.err(`Invalid username "${name}": ${username.error.issues[0]?.message ?? "invalid"}.`);
+        return 1;
+      }
+      const database = openDatabase(dataPaths(config.DATA_DIR).database);
+      try {
+        const accounts = new AccountService(database, EventService.forInstallation(database));
+        // Development only: the password rules are not applied here (see setDevPassword).
+        const { user } = accounts.createUserWithSetupLink(
+          { username: username.data, roles: ["admin"] },
+          CLI_ACTOR,
+        );
+        await accounts.setDevPassword(user.id, password);
+        io.out(`Admin account "${user.username}" created with the given password.`);
+        return 0;
+      } catch (error) {
+        if (error instanceof AccountError) {
+          io.err(error.message);
+          return 1;
+        }
+        throw error;
+      } finally {
+        database.close();
+      }
+    },
+  },
   "reset-password": {
     summary: "Print a one-time link (valid 24 hours) where the user sets a new password",
     usage: "reset-password USERNAME",
@@ -241,7 +285,22 @@ const commands: Record<string, Command> = {
           const seeded = EventService.forInstallation(database);
           try {
             seeded.setup(EXAMPLE_EVENT, CLI_ACTOR);
-            seedExampleRsvp(new RsvpService(database, seeded), CLI_ACTOR);
+            // The example places come first; the program items refer to them (CNT-07).
+            const content = new ContentService(database, seeded, paths.events);
+            const placeIds = new Map<string, number>(
+              EXAMPLE_PLACE_NAMES.map((name) => [
+                name,
+                content.createPlace(
+                  { name, address: null, mapsUrl: null, mapImageId: null },
+                  CLI_ACTOR,
+                ).id,
+              ]),
+            );
+            seedExampleRsvp(new RsvpService(database, seeded), CLI_ACTOR, (name) => {
+              const id = placeIds.get(name);
+              if (id === undefined) throw new Error(`no example place ${name}`);
+              return id;
+            });
           } catch (error) {
             if (error instanceof EventError && error.code === "already_set_up") {
               io.err(

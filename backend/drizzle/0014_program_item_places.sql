@@ -1,0 +1,1 @@
+ALTER TABLE `program_items` DROP COLUMN `place`;

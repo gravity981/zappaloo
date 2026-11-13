@@ -1,24 +1,31 @@
-// Inhalte (sw-architecture.md 6.2, CNT-05; UX mock `admin-content`): the start page text and the
-// website pages, in the order of "Mehr", with Markdown and a live preview. Changes are live at
-// once; there are no drafts. Admins and staff with `editWebsiteContent` get in (ROLE-06, ROLE-07).
+// Inhalte (sw-architecture.md 6.2, CNT-05 – CNT-07; UX mock `admin-content`): the start page text,
+// the website pages in the order of "Mehr" with Markdown and a live preview, the places, and the
+// uploaded images. Changes are live at once; there are no drafts. Admins and staff with
+// `editWebsiteContent` get in (ROLE-06, ROLE-07).
 import { useState } from "react";
 import type { SubmitEvent } from "react";
 import { useTranslation } from "react-i18next";
 import {
   CONTENT_MAX_LENGTH,
   contentResponseSchema,
+  imagesResponseSchema,
   pageRequestSchema,
+  placeRequestSchema,
   startRequestSchema,
 } from "@zappaloo/shared";
-import type { ContentPage, PageRequest } from "@zappaloo/shared";
+import type { ContentImage, ContentPage, ContentPlace, PageRequest } from "@zappaloo/shared";
+import { apiRequest } from "../app/api.ts";
 import Markdown from "../app/Markdown.tsx";
+import { useSession } from "../app/session.ts";
 import { useAdminCall, useAdminData, useErrorText } from "./data.ts";
-import { Switch } from "./ui.tsx";
+import { Switch, ToggleChip } from "./ui.tsx";
 
 const CONTENT_PATH = "/api/content";
 const PAGES_PATH = "/api/content/pages";
 const ORDER_PATH = "/api/content/order";
 const START_PATH = "/api/content/start";
+const PLACES_PATH = "/api/content/places";
+const IMAGES_PATH = "/api/content/images";
 
 /** What the editor shows: the start page text, one page, or a new page. */
 type Selection = { kind: "start" } | { kind: "page"; id: number } | { kind: "new" };
@@ -75,26 +82,29 @@ function TextField({
 interface EditorProps {
   /** The page being edited; undefined for a new page. */
   page?: ContentPage;
+  /** The places of the event; the page lists some of them (CNT-07). */
+  places: ContentPlace[];
   /** Saves the page and returns an error text, or undefined. */
   onSave: (input: PageRequest) => Promise<string | undefined>;
   onDelete?: () => Promise<void>;
 }
 
-/** Title, address, text, visibility and publish of one page. */
-function PageEditor({ page, onSave, onDelete }: EditorProps) {
+/** Title, address, text, places, visibility and publish of one page. */
+function PageEditor({ page, places, onSave, onDelete }: EditorProps) {
   const { t } = useTranslation();
   const [title, setTitle] = useState(page?.title ?? "");
   const [slug, setSlug] = useState(page?.slug ?? "");
   const [slugEdited, setSlugEdited] = useState(page !== undefined);
   const [markdown, setMarkdown] = useState(page?.markdown ?? "");
   const [inMore, setInMore] = useState(page?.inMore ?? true);
+  const [placeIds, setPlaceIds] = useState<number[]>(page?.placeIds ?? []);
   const [error, setError] = useState<string>();
   const [saved, setSaved] = useState(false);
   const [confirming, setConfirming] = useState(false);
 
   async function submit(event: SubmitEvent<HTMLFormElement>) {
     event.preventDefault();
-    const input = { title: title.trim(), slug: slug.trim(), markdown, inMore };
+    const input = { title: title.trim(), slug: slug.trim(), markdown, inMore, placeIds };
     const parsed = pageRequestSchema.safeParse(input);
     if (!parsed.success) {
       setError(t("admin.content.invalid"));
@@ -150,6 +160,30 @@ function PageEditor({ page, onSave, onDelete }: EditorProps) {
           setSaved(false);
         }}
       />
+      <div className="card">
+        <span className="eyebrow">{t("admin.content.pagePlaces")}</span>
+        <span className="hint">{t("admin.content.pagePlacesHint")}</span>
+        {places.length === 0 && <span className="hint">{t("admin.content.placesNone")}</span>}
+        <div className="row">
+          {places.map((place) => (
+            <ToggleChip
+              key={place.id}
+              small
+              pressed={placeIds.includes(place.id)}
+              onToggle={() => {
+                setPlaceIds((current) =>
+                  current.includes(place.id)
+                    ? current.filter((id) => id !== place.id)
+                    : [...current, place.id],
+                );
+                setSaved(false);
+              }}
+            >
+              {place.name}
+            </ToggleChip>
+          ))}
+        </div>
+      </div>
       <div className="row">
         <Switch
           checked={inMore}
@@ -241,11 +275,309 @@ function StartEditor({
   );
 }
 
+/** The form of one place (CNT-07); `place` undefined is a new place. */
+function PlaceForm({
+  place,
+  images,
+  onSaved,
+  onCancel,
+}: {
+  place?: ContentPlace;
+  images: ContentImage[];
+  onSaved: () => void;
+  onCancel: () => void;
+}) {
+  const { t } = useTranslation();
+  const call = useAdminCall();
+  const errorText = useErrorText();
+  const [name, setName] = useState(place?.name ?? "");
+  const [address, setAddress] = useState(place?.address ?? "");
+  const [mapsUrl, setMapsUrl] = useState(place?.mapsUrl ?? "");
+  const [mapImageId, setMapImageId] = useState(
+    place?.mapImageId === null || place?.mapImageId === undefined ? "" : String(place.mapImageId),
+  );
+  const [error, setError] = useState<string>();
+  const [confirming, setConfirming] = useState(false);
+
+  async function save(event: SubmitEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const parsed = placeRequestSchema.safeParse({
+      name: name.trim(),
+      address: address.trim() === "" ? null : address.trim(),
+      mapsUrl: mapsUrl.trim() === "" ? null : mapsUrl.trim(),
+      mapImageId: mapImageId === "" ? null : Number(mapImageId),
+    });
+    if (!parsed.success) {
+      setError(t("admin.content.placeInvalid"));
+      return;
+    }
+    const result = place
+      ? await call("PUT", `${PLACES_PATH}/${String(place.id)}`, parsed.data)
+      : await call("POST", PLACES_PATH, parsed.data);
+    if (result.ok) onSaved();
+    else setError(errorText(result.errorCode));
+  }
+
+  async function remove() {
+    if (!place) return;
+    if (!confirming) {
+      setConfirming(true);
+      return;
+    }
+    const result = await call("DELETE", `${PLACES_PATH}/${String(place.id)}`);
+    if (result.ok) onSaved();
+    else setError(errorText(result.errorCode));
+  }
+
+  return (
+    <form className="card stack" onSubmit={(event) => void save(event)}>
+      <span className="eyebrow">
+        {place ? t("admin.content.placeEditTitle") : t("admin.content.newPlaceTitle")}
+      </span>
+      {error && (
+        <p role="alert" className="error">
+          {error}
+        </p>
+      )}
+      <label className="field">
+        <span>{t("admin.content.placeName")}</span>
+        <input
+          className="input"
+          value={name}
+          maxLength={120}
+          onChange={(event) => {
+            setName(event.target.value);
+          }}
+        />
+      </label>
+      <label className="field">
+        <span>{t("admin.content.placeAddress")}</span>
+        <input
+          className="input"
+          value={address}
+          maxLength={200}
+          onChange={(event) => {
+            setAddress(event.target.value);
+          }}
+        />
+      </label>
+      <label className="field">
+        <span>{t("admin.content.placeLink")}</span>
+        <input
+          className="input"
+          type="url"
+          value={mapsUrl}
+          maxLength={500}
+          onChange={(event) => {
+            setMapsUrl(event.target.value);
+          }}
+        />
+      </label>
+      <small className="hint">{t("admin.content.placeLinkHint")}</small>
+      <label className="field">
+        <span>{t("admin.content.placeMap")}</span>
+        <select
+          className="input"
+          value={mapImageId}
+          onChange={(event) => {
+            setMapImageId(event.target.value);
+          }}
+        >
+          <option value="">{t("admin.content.noMap")}</option>
+          {images.map((image) => (
+            <option key={image.id} value={image.id}>
+              {t("admin.content.imageOption", { id: image.id })}
+            </option>
+          ))}
+        </select>
+      </label>
+      <div className="row">
+        <button type="submit" className="btn sm">
+          {t("admin.content.placeSave")}
+        </button>
+        <button type="button" className="btn ghost sm" onClick={onCancel}>
+          {t("admin.content.cancel")}
+        </button>
+        <span className="grow" />
+        {place && (
+          <button type="button" className="btn ghost sm" onClick={() => void remove()}>
+            {confirming ? t("admin.content.deleteConfirm") : t("admin.content.placeDelete")}
+          </button>
+        )}
+      </div>
+    </form>
+  );
+}
+
+/** The places (CNT-07): a list, and the form of the one being edited or added. */
+function PlacesPanel({
+  places,
+  images,
+  onChanged,
+}: {
+  places: ContentPlace[];
+  images: ContentImage[];
+  onChanged: () => void;
+}) {
+  const { t } = useTranslation();
+  /** The place being edited, "new" for a new one, or undefined. */
+  const [editing, setEditing] = useState<number | "new">();
+  const current = places.find((place) => place.id === editing);
+  return (
+    <section className="card" aria-labelledby="places-title">
+      <div className="row">
+        <b id="places-title" className="grow">
+          {t("admin.content.places")}
+        </b>
+        <button
+          type="button"
+          className="btn soft sm"
+          onClick={() => {
+            setEditing("new");
+          }}
+        >
+          + {t("admin.content.newPlace")}
+        </button>
+      </div>
+      <span className="hint">{t("admin.content.placesHint")}</span>
+      {places.length === 0 && <span className="hint">{t("admin.content.placesNone")}</span>}
+      <ul className="list">
+        {places.map((place) => (
+          <li key={place.id} className="li">
+            <span className="grow">
+              <b>{place.name}</b>{" "}
+              <span className="hint">
+                {place.address ?? t("admin.content.placeNoAddress")} ·{" "}
+                {place.mapImageId === null
+                  ? t("admin.content.placeNoMap")
+                  : t("admin.content.placeMapYes")}
+              </span>
+            </span>
+            <button
+              type="button"
+              className="btn soft sm"
+              onClick={() => {
+                setEditing(place.id);
+              }}
+            >
+              {t("admin.content.placeEdit")}
+            </button>
+          </li>
+        ))}
+      </ul>
+      <span className="hint">{t("admin.content.placeInUse")}</span>
+      {editing !== undefined && (editing === "new" || current) && (
+        <PlaceForm
+          key={String(editing)}
+          place={editing === "new" ? undefined : current}
+          images={images}
+          onSaved={() => {
+            setEditing(undefined);
+            onChanged();
+          }}
+          onCancel={() => {
+            setEditing(undefined);
+          }}
+        />
+      )}
+    </section>
+  );
+}
+
+/** The Markdown that shows an uploaded image in a text (CNT-06). */
+function imageMarkdown(alt: string, id: number): string {
+  return `![${alt}](${IMAGES_PATH}/${String(id)})`;
+}
+
+/** The uploaded images (CNT-06): upload, and the Markdown that shows each one. */
+function ImagesPanel({ images, onChanged }: { images: ContentImage[]; onChanged: () => void }) {
+  const { t } = useTranslation();
+  const { csrfToken } = useSession();
+  const errorText = useErrorText();
+  const [error, setError] = useState<string>();
+  const [copied, setCopied] = useState<number>();
+
+  async function upload(file: File | undefined) {
+    if (!file) return;
+    const result = await apiRequest("POST", IMAGES_PATH, { csrfToken, raw: file });
+    if (result.ok) {
+      setError(undefined);
+      onChanged();
+    } else {
+      setError(errorText(result.errorCode));
+    }
+  }
+
+  function copy(id: number) {
+    const markdown = imageMarkdown(t("admin.content.imageAlt"), id);
+    try {
+      void navigator.clipboard
+        .writeText(markdown)
+        .then(() => {
+          setCopied(id);
+        })
+        .catch(() => undefined);
+    } catch {
+      // No clipboard (plain http): the Markdown is shown in the list for copying by hand.
+    }
+  }
+
+  return (
+    <section className="card" aria-labelledby="images-title">
+      <b id="images-title">{t("admin.content.images")}</b>
+      <span className="hint">{t("admin.content.imagesHint")}</span>
+      {error && (
+        <p role="alert" className="error">
+          {error}
+        </p>
+      )}
+      <label className="btn soft sm">
+        {t("admin.content.uploadImage")}
+        <input
+          type="file"
+          accept="image/jpeg,image/png,image/webp"
+          hidden
+          onChange={(event) => {
+            void upload(event.target.files?.[0]);
+            event.target.value = "";
+          }}
+        />
+      </label>
+      {images.length === 0 && <span className="hint">{t("admin.content.imagesNone")}</span>}
+      <ul className="list sm">
+        {images.map((image) => (
+          <li key={image.id} className="li">
+            <span className="grow">
+              {t("admin.content.imageLabel", {
+                id: image.id,
+                type: image.mime.replace("image/", "").toUpperCase(),
+                kb: Math.round(image.bytes / 1024),
+              })}
+              <br />
+              <span className="hint">{imageMarkdown(t("admin.content.imageAlt"), image.id)}</span>
+            </span>
+            <button
+              type="button"
+              className="btn ghost sm"
+              onClick={() => {
+                copy(image.id);
+              }}
+            >
+              {copied === image.id ? t("admin.content.copied") : t("admin.content.copyMarkdown")}
+            </button>
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
+}
+
 export default function AdminContentPage() {
   const { t } = useTranslation();
   const call = useAdminCall();
   const errorText = useErrorText();
   const { data, reload } = useAdminData(CONTENT_PATH, contentResponseSchema);
+  const { data: imageList, reload: reloadImages } = useAdminData(IMAGES_PATH, imagesResponseSchema);
   const [selection, setSelection] = useState<Selection>({ kind: "start" });
   const [error, setError] = useState<string>();
   if (!data) return null;
@@ -314,64 +646,69 @@ export default function AdminContentPage() {
         </p>
       )}
       <div className="grid-2">
-        <section className="card" aria-label={t("admin.content.pages")}>
-          <ul className="list">
-            <li className="li">
-              <button
-                type="button"
-                className="link grow"
-                aria-pressed={selection.kind === "start"}
-                onClick={() => {
-                  setSelection({ kind: "start" });
-                }}
-              >
-                <b>{t("admin.content.start")}</b>
-              </button>
-              <span className="hint">{t("admin.content.startHint")}</span>
-            </li>
-          </ul>
-          <span className="eyebrow">{t("admin.content.pages")}</span>
-          {data.pages.length === 0 && <span className="hint">{t("admin.content.pagesNone")}</span>}
-          <ul className="list">
-            {data.pages.map((page, index) => (
-              <li key={page.id} className="li">
+        <section className="stack">
+          <section className="card" aria-label={t("admin.content.pages")}>
+            <ul className="list">
+              <li className="li">
                 <button
                   type="button"
                   className="link grow"
-                  aria-pressed={selection.kind === "page" && selection.id === page.id}
+                  aria-pressed={selection.kind === "start"}
                   onClick={() => {
-                    setSelection({ kind: "page", id: page.id });
+                    setSelection({ kind: "start" });
                   }}
                 >
-                  <b>{page.title}</b>
+                  <b>{t("admin.content.start")}</b>
                 </button>
-                <span className="hint">
-                  {t("admin.content.listed", {
-                    slug: page.slug,
-                    state: page.inMore ? t("admin.content.inMore") : t("admin.content.notInMore"),
-                  })}
-                </span>
-                <button
-                  type="button"
-                  className="btn ghost sm"
-                  aria-label={t("admin.content.moveUp")}
-                  disabled={index === 0}
-                  onClick={() => void move(index, -1)}
-                >
-                  ↑
-                </button>
-                <button
-                  type="button"
-                  className="btn ghost sm"
-                  aria-label={t("admin.content.moveDown")}
-                  disabled={index === data.pages.length - 1}
-                  onClick={() => void move(index, 1)}
-                >
-                  ↓
-                </button>
+                <span className="hint">{t("admin.content.startHint")}</span>
               </li>
-            ))}
-          </ul>
+            </ul>
+            <span className="eyebrow">{t("admin.content.pages")}</span>
+            {data.pages.length === 0 && (
+              <span className="hint">{t("admin.content.pagesNone")}</span>
+            )}
+            <ul className="list">
+              {data.pages.map((page, index) => (
+                <li key={page.id} className="li">
+                  <button
+                    type="button"
+                    className="link grow"
+                    aria-pressed={selection.kind === "page" && selection.id === page.id}
+                    onClick={() => {
+                      setSelection({ kind: "page", id: page.id });
+                    }}
+                  >
+                    <b>{page.title}</b>
+                  </button>
+                  <span className="hint">
+                    {t("admin.content.listed", {
+                      slug: page.slug,
+                      state: page.inMore ? t("admin.content.inMore") : t("admin.content.notInMore"),
+                    })}
+                  </span>
+                  <button
+                    type="button"
+                    className="btn ghost sm"
+                    aria-label={t("admin.content.moveUp")}
+                    disabled={index === 0}
+                    onClick={() => void move(index, -1)}
+                  >
+                    ↑
+                  </button>
+                  <button
+                    type="button"
+                    className="btn ghost sm"
+                    aria-label={t("admin.content.moveDown")}
+                    disabled={index === data.pages.length - 1}
+                    onClick={() => void move(index, 1)}
+                  >
+                    ↓
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </section>
+          <PlacesPanel places={data.places} images={imageList?.images ?? []} onChanged={reload} />
         </section>
         <section className="stack">
           {selection.kind === "start" && (
@@ -386,12 +723,17 @@ export default function AdminContentPage() {
             />
           )}
           {selection.kind === "new" && (
-            <PageEditor key="new" onSave={(input) => savePage(undefined, input)} />
+            <PageEditor
+              key="new"
+              places={data.places}
+              onSave={(input) => savePage(undefined, input)}
+            />
           )}
           {selected && (
             <PageEditor
               key={selectionKey(selection)}
               page={selected}
+              places={data.places}
               onSave={(input) => savePage(selected.id, input)}
               onDelete={() => deletePage(selected.id)}
             />
@@ -399,6 +741,7 @@ export default function AdminContentPage() {
           {selection.kind === "page" && !selected && (
             <p className="hint">{t("admin.content.choose")}</p>
           )}
+          <ImagesPanel images={imageList?.images ?? []} onChanged={reloadImages} />
         </section>
       </div>
     </>

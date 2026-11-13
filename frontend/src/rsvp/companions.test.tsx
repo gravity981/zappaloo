@@ -21,8 +21,22 @@ const admin = { ...anna, id: 9, username: "lea", displayName: "Lea", roles: ["ad
 const asAdmin = { status: 200, body: { user: admin, csrfToken: "csrf-9" } };
 
 const PARTS = [
-  { id: 1, name: "Trauung", startsAt: "2027-06-12T12:00:00.000Z", place: null, hasMeal: false },
-  { id: 3, name: "Dinner", startsAt: "2027-06-12T16:30:00.000Z", place: null, hasMeal: true },
+  {
+    id: 1,
+    name: "Trauung",
+    startsAt: "2027-06-12T12:00:00.000Z",
+    placeId: null,
+    place: null,
+    hasMeal: false,
+  },
+  {
+    id: 3,
+    name: "Dinner",
+    startsAt: "2027-06-12T16:30:00.000Z",
+    placeId: null,
+    place: null,
+    hasMeal: true,
+  },
 ];
 const MENUS = [
   { id: 1, name: "Fleisch" },

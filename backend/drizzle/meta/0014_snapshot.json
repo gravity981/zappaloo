@@ -1,8 +1,8 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "29db6f42-3dff-4fb1-bef2-ca746ef7daed",
-  "prevId": "73840b75-c8ba-44f5-9a5d-808caa7a40e1",
+  "id": "b751be90-f083-4383-9751-2b21e4ac249e",
+  "prevId": "49e1fb06-2704-4418-adac-d393e4e4ac08",
   "tables": {
     "access_releases": {
       "name": "access_releases",
@@ -321,6 +321,132 @@
       "uniqueConstraints": {},
       "checkConstraints": {}
     },
+    "content_images": {
+      "name": "content_images",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "integer",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": true
+        },
+        "event_id": {
+          "name": "event_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "file_name": {
+          "name": "file_name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "mime": {
+          "name": "mime",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "bytes": {
+          "name": "bytes",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "content_images_event_id_events_id_fk": {
+          "name": "content_images_event_id_events_id_fk",
+          "tableFrom": "content_images",
+          "tableTo": "events",
+          "columnsFrom": ["event_id"],
+          "columnsTo": ["id"],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "content_page_places": {
+      "name": "content_page_places",
+      "columns": {
+        "event_id": {
+          "name": "event_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "page_id": {
+          "name": "page_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "place_id": {
+          "name": "place_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "content_page_places_event_id_events_id_fk": {
+          "name": "content_page_places_event_id_events_id_fk",
+          "tableFrom": "content_page_places",
+          "tableTo": "events",
+          "columnsFrom": ["event_id"],
+          "columnsTo": ["id"],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "content_page_places_page_id_content_pages_id_fk": {
+          "name": "content_page_places_page_id_content_pages_id_fk",
+          "tableFrom": "content_page_places",
+          "tableTo": "content_pages",
+          "columnsFrom": ["page_id"],
+          "columnsTo": ["id"],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "content_page_places_place_id_content_places_id_fk": {
+          "name": "content_page_places_place_id_content_places_id_fk",
+          "tableFrom": "content_page_places",
+          "tableTo": "content_places",
+          "columnsFrom": ["place_id"],
+          "columnsTo": ["id"],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "content_page_places_page_id_place_id_pk": {
+          "columns": ["page_id", "place_id"],
+          "name": "content_page_places_page_id_place_id_pk"
+        }
+      },
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
     "content_pages": {
       "name": "content_pages",
       "columns": {
@@ -392,6 +518,97 @@
           "tableFrom": "content_pages",
           "tableTo": "events",
           "columnsFrom": ["event_id"],
+          "columnsTo": ["id"],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "content_places": {
+      "name": "content_places",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "integer",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": true
+        },
+        "event_id": {
+          "name": "event_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "address": {
+          "name": "address",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "maps_url": {
+          "name": "maps_url",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "map_image_id": {
+          "name": "map_image_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        }
+      },
+      "indexes": {
+        "content_places_event": {
+          "name": "content_places_event",
+          "columns": ["event_id"],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "content_places_event_id_events_id_fk": {
+          "name": "content_places_event_id_events_id_fk",
+          "tableFrom": "content_places",
+          "tableTo": "events",
+          "columnsFrom": ["event_id"],
+          "columnsTo": ["id"],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "content_places_map_image_id_content_images_id_fk": {
+          "name": "content_places_map_image_id_content_images_id_fk",
+          "tableFrom": "content_places",
+          "tableTo": "content_images",
+          "columnsFrom": ["map_image_id"],
           "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
@@ -1450,9 +1667,9 @@
           "notNull": true,
           "autoincrement": false
         },
-        "place": {
-          "name": "place",
-          "type": "text",
+        "place_id": {
+          "name": "place_id",
+          "type": "integer",
           "primaryKey": false,
           "notNull": false,
           "autoincrement": false
@@ -1492,6 +1709,15 @@
           "tableFrom": "program_items",
           "tableTo": "events",
           "columnsFrom": ["event_id"],
+          "columnsTo": ["id"],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "program_items_place_id_content_places_id_fk": {
+          "name": "program_items_place_id_content_places_id_fk",
+          "tableFrom": "program_items",
+          "tableTo": "content_places",
+          "columnsFrom": ["place_id"],
           "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"

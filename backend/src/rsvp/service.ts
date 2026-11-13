@@ -23,6 +23,7 @@ import type { Database } from "../database/database.ts";
 import {
   companionAttendance,
   companions,
+  contentPlaces,
   programItems,
   membershipProgramItems,
   membershipRoles,
@@ -41,6 +42,7 @@ import { closesAt } from "./deadline.ts";
 
 export type RsvpErrorCode =
   | "program_item_not_found"
+  | "place_not_found"
   | "menu_not_found"
   | "user_not_found"
   | "not_a_guest"
@@ -74,11 +76,13 @@ type Tx = Parameters<Parameters<Database["db"]["transaction"]>[0]>[0];
 type Reader = Pick<Database["db"], "select">;
 type ProgramItemRow = typeof programItems.$inferSelect;
 
-const toProgramItem = (row: ProgramItemRow): ProgramItem => ({
+/** A program item as the API serves it; `names` maps place ids to the places' names (CNT-07). */
+const toProgramItem = (row: ProgramItemRow, names: ReadonlyMap<number, string>): ProgramItem => ({
   id: row.id,
   name: row.name,
   startsAt: row.startsAt.toISOString(),
-  place: row.place,
+  placeId: row.placeId,
+  place: row.placeId === null ? null : (names.get(row.placeId) ?? null),
   hasMeal: row.hasMeal,
 });
 
@@ -158,13 +162,36 @@ export class RsvpService {
   // --- Deadline, program items and menus (Einstellungen › Rückmeldung) -----------------------------
 
   #programItems(reader: Reader = this.#database.db): ProgramItem[] {
+    const names = this.#placeNames(reader);
     return reader
       .select()
       .from(programItems)
       .where(eq(programItems.eventId, this.#event.eventId))
       .orderBy(asc(programItems.startsAt), asc(programItems.id))
       .all()
-      .map(toProgramItem);
+      .map((row) => toProgramItem(row, names));
+  }
+
+  /** The names of this event's places by id (CNT-07). */
+  #placeNames(reader: Reader): Map<number, string> {
+    return new Map(
+      reader
+        .select({ id: contentPlaces.id, name: contentPlaces.name })
+        .from(contentPlaces)
+        .where(eq(contentPlaces.eventId, this.#event.eventId))
+        .all()
+        .map((row) => [row.id, row.name] as const),
+    );
+  }
+
+  /** A place a program item refers to must be a place of this event (CNT-07). */
+  #requirePlace(tx: Reader, id: number): void {
+    const row = tx
+      .select({ id: contentPlaces.id })
+      .from(contentPlaces)
+      .where(and(eq(contentPlaces.id, id), eq(contentPlaces.eventId, this.#event.eventId)))
+      .get();
+    if (!row) throw new RsvpError("place_not_found", "no such place");
   }
 
   #menus(reader: Reader = this.#database.db): MenuOption[] {
@@ -331,20 +358,21 @@ export class RsvpService {
   createProgramItem(input: ProgramItemRequest, actor: Actor): ProgramItem {
     return this.#database.db.transaction((tx) => {
       if (input.hasMeal) this.#clearMeal(tx);
+      if (input.placeId) this.#requirePlace(tx, input.placeId);
       const row = tx
         .insert(programItems)
         .values({
           eventId: this.#event.eventId,
           name: input.name,
           startsAt: new Date(input.startsAt),
-          place: input.place ?? null,
+          placeId: input.placeId ?? null,
           hasMeal: input.hasMeal ?? false,
           createdAt: this.#now(),
         })
         .returning()
         .get();
       this.#event.audit(actor, "rsvp.program_item.create", { programItemId: row.id }, tx);
-      return toProgramItem(row);
+      return toProgramItem(row, this.#placeNames(tx));
     });
   }
 
@@ -352,19 +380,20 @@ export class RsvpService {
     return this.#database.db.transaction((tx) => {
       this.#programItem(tx, id);
       if (changes.hasMeal) this.#clearMeal(tx);
+      if (changes.placeId) this.#requirePlace(tx, changes.placeId);
       const row = tx
         .update(programItems)
         .set({
           ...(changes.name === undefined ? {} : { name: changes.name }),
           ...(changes.startsAt === undefined ? {} : { startsAt: new Date(changes.startsAt) }),
-          ...(changes.place === undefined ? {} : { place: changes.place }),
+          ...(changes.placeId === undefined ? {} : { placeId: changes.placeId }),
           ...(changes.hasMeal === undefined ? {} : { hasMeal: changes.hasMeal }),
         })
         .where(eq(programItems.id, id))
         .returning()
         .get();
       this.#event.audit(actor, "rsvp.program_item.update", { programItemId: id }, tx);
-      return toProgramItem(row);
+      return toProgramItem(row, this.#placeNames(tx));
     });
   }
 
@@ -1233,8 +1262,23 @@ export class RsvpService {
   }
 }
 
-/** The example RSVP setup of dev and test (`zappaloo event seed-example`, CFG-07). */
-export function seedExampleRsvp(rsvp: RsvpService, actor: Actor): void {
+/** The places of the example event; the seed creates them before its program items. */
+export const EXAMPLE_PLACE_NAMES = [
+  "Kirche Muri",
+  "Schlossgarten",
+  "Landgasthof Linde",
+  "Linde, Saal",
+] as const;
+
+/**
+ * The example RSVP setup of dev and test (`zappaloo event seed-example`, CFG-07). `placeId` gives
+ * the id of an example place by its name.
+ */
+export function seedExampleRsvp(
+  rsvp: RsvpService,
+  actor: Actor,
+  placeId: (name: string) => number,
+): void {
   const programItems: [string, string, string, boolean][] = [
     ["Trauung", "2027-06-12T12:00:00.000Z", "Kirche Muri", false],
     ["Apéro", "2027-06-12T13:30:00.000Z", "Schlossgarten", false],
@@ -1242,7 +1286,7 @@ export function seedExampleRsvp(rsvp: RsvpService, actor: Actor): void {
     ["Party", "2027-06-12T20:00:00.000Z", "Linde, Saal", false],
   ];
   for (const [name, startsAt, place, hasMeal] of programItems) {
-    rsvp.createProgramItem({ name, startsAt, place, hasMeal }, actor);
+    rsvp.createProgramItem({ name, startsAt, placeId: placeId(place), hasMeal }, actor);
   }
   for (const name of ["Fleisch", "Vegetarisch", "Vegan", "Kindermenü"])
     rsvp.createMenu(name, actor);

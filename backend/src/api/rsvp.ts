@@ -39,6 +39,7 @@ const idParams = z.strictObject({ id: z.coerce.number().int().positive() });
 
 const STATUSES: Record<string, number> = {
   program_item_not_found: 404,
+  place_not_found: 404,
   menu_not_found: 404,
   user_not_found: 404,
   not_a_guest: 409,
@@ -276,8 +277,13 @@ const rsvpPlugin: FastifyPluginAsyncZod<AuthOptions> = (app, options) => {
         response: { 201: programItemSchema },
       },
     },
-    async (request, reply) =>
-      reply.status(201).send(rsvp.createProgramItem(request.body, actor(request))),
+    async (request, reply) => {
+      try {
+        return await reply.status(201).send(rsvp.createProgramItem(request.body, actor(request)));
+      } catch (error) {
+        return fail(reply, error);
+      }
+    },
   );
 
   app.patch(

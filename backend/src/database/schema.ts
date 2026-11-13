@@ -325,7 +325,8 @@ export const programItems = sqliteTable(
       .references(() => events.id),
     name: text("name").notNull(),
     startsAt: integer("starts_at", { mode: "timestamp_ms" }).notNull(),
-    place: text("place"),
+    /** The place of the program item (CNT-07); an item without a place has none. */
+    placeId: integer("place_id").references((): AnySQLiteColumn => contentPlaces.id),
     hasMeal: integer("has_meal", { mode: "boolean" }).notNull().default(false),
     createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull(),
   },
@@ -566,4 +567,57 @@ export const contentTexts = sqliteTable(
     updatedAt: integer("updated_at", { mode: "timestamp_ms" }).notNull(),
   },
   (table) => [primaryKey({ columns: [table.eventId, table.item, table.language] })],
+);
+
+/**
+ * An image uploaded in the content editor (CNT-06). The file lies in
+ * `$DATA_DIR/events/<event>/content/` under `fileName`; `mime` is the type found by its content.
+ */
+export const contentImages = sqliteTable("content_images", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  eventId: text("event_id")
+    .notNull()
+    .references(() => events.id),
+  fileName: text("file_name").notNull(),
+  mime: text("mime").notNull(),
+  bytes: integer("bytes").notNull(),
+  createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull(),
+});
+
+/**
+ * A place (CNT-07): program items and pages refer to it. The map image is optional; the link
+ * opens Google Maps in a new tab and is never embedded.
+ */
+export const contentPlaces = sqliteTable(
+  "content_places",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    eventId: text("event_id")
+      .notNull()
+      .references(() => events.id),
+    name: text("name").notNull(),
+    address: text("address"),
+    mapsUrl: text("maps_url"),
+    mapImageId: integer("map_image_id").references(() => contentImages.id),
+    createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull(),
+    updatedAt: integer("updated_at", { mode: "timestamp_ms" }).notNull(),
+  },
+  (table) => [index("content_places_event").on(table.eventId)],
+);
+
+/** The places a page lists as cards next to its text (CNT-07). */
+export const contentPagePlaces = sqliteTable(
+  "content_page_places",
+  {
+    eventId: text("event_id")
+      .notNull()
+      .references(() => events.id),
+    pageId: integer("page_id")
+      .notNull()
+      .references(() => contentPages.id),
+    placeId: integer("place_id")
+      .notNull()
+      .references(() => contentPlaces.id),
+  },
+  (table) => [primaryKey({ columns: [table.pageId, table.placeId] })],
 );

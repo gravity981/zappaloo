@@ -94,7 +94,7 @@ export async function buildApp(options: AppOptions): Promise<FastifyInstance> {
   await app.register(platformRoutes, options.auth);
   await app.register(footerRoutes, options.auth);
   await app.register(contentRoutes, {
-    content: new ContentService(options.database, options.event),
+    content: new ContentService(options.database, options.event, options.eventsDir),
   });
   await app.register(eventApiRoutes, { event: options.event, footer: options.auth.footer });
   await app.register(pwaRoutes, {

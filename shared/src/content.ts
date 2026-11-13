@@ -1,5 +1,5 @@
-// The content base: website pages and the start page text (CNT-01 – CNT-05, LANG-02;
-// sw-architecture.md 6.2). Each text is stored per language key; only German is maintained.
+// The content base: website pages, the start page text, places and images (CNT-01 – CNT-07,
+// LANG-02; sw-architecture.md 6.2). Each text is stored per language key; only German is maintained.
 import { z } from "zod";
 
 /** The one language the content is maintained in (LANG-02). */
@@ -9,6 +9,13 @@ export const PAGE_TITLE_MAX_LENGTH = 120;
 export const PAGE_SLUG_MAX_LENGTH = 60;
 /** The longest Markdown text of a page or of the start page. */
 export const CONTENT_MAX_LENGTH = 50_000;
+/** The largest image upload (CNT-06, 6.2). */
+export const IMAGE_MAX_BYTES = 10 * 1024 * 1024;
+/** The image types the editor accepts; the type is taken from the file's content (6.2). */
+export const IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp"] as const;
+export const PLACE_NAME_MAX_LENGTH = 120;
+export const PLACE_ADDRESS_MAX_LENGTH = 200;
+const PLACE_LINK_MAX_LENGTH = 500;
 
 /** A page address part: lower-case letters, digits and single hyphens, e.g. `anreise-parkieren`. */
 export const pageSlugSchema = z
@@ -21,6 +28,64 @@ export const pageSlugSchema = z
 export const pageTitleSchema = z.string().trim().min(1).max(PAGE_TITLE_MAX_LENGTH);
 export const contentMarkdownSchema = z.string().max(CONTENT_MAX_LENGTH);
 
+/**
+ * A Google Maps link (6.2): `https` only, to `maps.google.com`, `maps.app.goo.gl`, or to
+ * `google.com`, `www.google.com` and `goo.gl` with a path under `/maps`. Nothing is embedded.
+ */
+export function isGoogleMapsUrl(value: string): boolean {
+  // `https://host[/path, ?query or #fragment]`: no user information and no port (the host
+  // pattern does not allow `@` or `:`), so the link cannot point somewhere else.
+  const match = /^https:\/\/([a-z0-9.-]+)([/?#].*)?$/i.exec(value);
+  if (!match) return false;
+  const host = (match[1] ?? "").toLowerCase();
+  const path = match[2] ?? "";
+  if (host === "maps.google.com" || host === "maps.app.goo.gl") return true;
+  if (["google.com", "www.google.com", "goo.gl"].includes(host)) {
+    return /^\/maps([/?#]|$)/.test(path);
+  }
+  return false;
+}
+
+/** One place (CNT-07): a name, an optional address, an optional Google Maps link and map image. */
+export const placeNameSchema = z.string().trim().min(1).max(PLACE_NAME_MAX_LENGTH);
+export const placeRequestSchema = z.strictObject({
+  name: placeNameSchema,
+  address: z.string().trim().min(1).max(PLACE_ADDRESS_MAX_LENGTH).nullable(),
+  mapsUrl: z
+    .string()
+    .trim()
+    .min(1)
+    .max(PLACE_LINK_MAX_LENGTH)
+    .refine(isGoogleMapsUrl, "a https link to Google Maps")
+    .nullable(),
+  /** An uploaded image (`GET /api/content/images/<id>`), or none. */
+  mapImageId: z.number().int().positive().nullable(),
+});
+export type PlaceRequest = z.infer<typeof placeRequestSchema>;
+
+export const contentPlaceSchema = z.object({
+  id: z.number().int().positive(),
+  name: z.string(),
+  address: z.string().nullable(),
+  mapsUrl: z.string().nullable(),
+  mapImageId: z.number().int().positive().nullable(),
+});
+export type ContentPlace = z.infer<typeof contentPlaceSchema>;
+
+/** One uploaded image as the editor lists it (CNT-06). */
+export const contentImageSchema = z.object({
+  id: z.number().int().positive(),
+  mime: z.enum(IMAGE_TYPES),
+  bytes: z.number().int().nonnegative(),
+  /** ISO date-time of the upload. */
+  createdAt: z.string(),
+});
+export type ContentImage = z.infer<typeof contentImageSchema>;
+
+/** `GET /api/content/images` (editor). */
+export const imagesResponseSchema = z.object({ images: z.array(contentImageSchema) });
+export type ImagesResponse = z.infer<typeof imagesResponseSchema>;
+
 /** One page as the website and the editor read it (`/p/<slug>`). */
 export const contentPageSchema = z.object({
   id: z.number().int().positive(),
@@ -31,14 +96,17 @@ export const contentPageSchema = z.object({
   inMore: z.boolean(),
   /** Position in the list, from 0. */
   position: z.number().int().nonnegative(),
+  /** The places the page lists as cards next to its text (CNT-07). */
+  placeIds: z.array(z.number().int().positive()),
 });
 export type ContentPage = z.infer<typeof contentPageSchema>;
 
-/** `GET /api/content` (signed in): the start page text and all pages in their order. */
+/** `GET /api/content` (signed in): the start page text, all pages in their order, the places. */
 export const contentResponseSchema = z.object({
   /** The welcome block of the start page; empty until the admin writes it. */
   startMarkdown: z.string(),
   pages: z.array(contentPageSchema),
+  places: z.array(contentPlaceSchema),
 });
 export type ContentResponse = z.infer<typeof contentResponseSchema>;
 
@@ -48,6 +116,8 @@ export const pageRequestSchema = z.strictObject({
   title: pageTitleSchema,
   markdown: contentMarkdownSchema,
   inMore: z.boolean(),
+  /** The places the page lists; each one exists. */
+  placeIds: z.array(z.number().int().positive()).max(100).default([]),
 });
 export type PageRequest = z.infer<typeof pageRequestSchema>;
 

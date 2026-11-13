@@ -8,6 +8,7 @@ import type { Database } from "../database/database.ts";
 import {
   auditLog,
   companions,
+  contentPlaces,
   contentTexts,
   programItems,
   invitations,
@@ -129,6 +130,17 @@ export class ActivityService {
             ),
           )
           .get()?.title ?? null
+      );
+    }
+    // A place is named by its name; a deleted place is unnamed (CNT-07).
+    const placeId = num(row.details.placeId);
+    if (placeId !== undefined) {
+      return (
+        db
+          .select({ name: contentPlaces.name })
+          .from(contentPlaces)
+          .where(and(eq(contentPlaces.eventId, this.#event.eventId), eq(contentPlaces.id, placeId)))
+          .get()?.name ?? null
       );
     }
     const programItemId = num(row.details.programItemId);

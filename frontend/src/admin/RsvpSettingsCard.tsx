@@ -1,11 +1,17 @@
 // Einstellungen › Rückmeldung (RSVP-02, RSVP-03, RSVP-04; sw-architecture.md 7.4.1): the
-// deadline, the program items (name, start, place, which one has the meal) and the one list of
-// menu options.
+// deadline, the program items (name, start, place from Inhalte, which one has the meal) and the one
+// list of menu options.
 import { useState } from "react";
 import type { SubmitEvent } from "react";
 import { useTranslation } from "react-i18next";
-import { instantToLocal, localToInstant, rsvpConfigSchema } from "@zappaloo/shared";
-import type { ProgramItem } from "@zappaloo/shared";
+import { Link } from "react-router";
+import {
+  contentResponseSchema,
+  instantToLocal,
+  localToInstant,
+  rsvpConfigSchema,
+} from "@zappaloo/shared";
+import type { ContentPlace, ProgramItem } from "@zappaloo/shared";
 import { fieldText } from "../app/forms.ts";
 import { useEventFormat } from "../rsvp/format.ts";
 import { useAdminCall, useAdminData, useErrorText } from "./data.ts";
@@ -13,6 +19,7 @@ import { notifyRsvpChanged } from "./pending.ts";
 import { Switch } from "./ui.tsx";
 
 const PROGRAM_ITEMS_PATH = "/api/admin/rsvp/program-items";
+const CONTENT_PATH = "/api/content";
 const SONG_PATH = "/api/admin/rsvp/song";
 const PER_ITEM_PATH = "/api/admin/rsvp/per-item";
 const APPROVAL_PATH = "/api/admin/rsvp/companion-approval";
@@ -20,11 +27,14 @@ const APPROVAL_PATH = "/api/admin/rsvp/companion-approval";
 /** The form of one program item; `programItem` undefined is a new one. */
 function ProgramItemForm({
   programItem,
+  places,
   timeZone,
   onSubmit,
   onCancel,
 }: {
   programItem?: ProgramItem;
+  /** The places of Inhalte (CNT-07) the item can refer to. */
+  places: ContentPlace[];
   timeZone: string;
   onSubmit: (body: object) => Promise<void>;
   onCancel: () => void;
@@ -33,11 +43,11 @@ function ProgramItemForm({
   function submit(event: SubmitEvent<HTMLFormElement>) {
     event.preventDefault();
     const form = new FormData(event.currentTarget);
-    const place = fieldText(form, "place").trim();
+    const placeId = fieldText(form, "placeId");
     void onSubmit({
       name: fieldText(form, "name"),
       startsAt: localToInstant(fieldText(form, "startsAt"), timeZone).toISOString(),
-      place: place === "" ? null : place,
+      placeId: placeId === "" ? null : Number(placeId),
       hasMeal: form.get("hasMeal") !== null,
     });
   }
@@ -66,12 +76,19 @@ function ProgramItemForm({
         </label>
         <label className="field">
           <span>{t("admin.rsvpSettings.programItemPlace")}</span>
-          <input
-            className="input"
-            name="place"
-            maxLength={100}
-            defaultValue={programItem?.place ?? ""}
-          />
+          <select className="input" name="placeId" defaultValue={programItem?.placeId ?? ""}>
+            <option value="">{t("admin.rsvpSettings.noPlace")}</option>
+            {places.map((place) => (
+              <option key={place.id} value={place.id}>
+                {place.name}
+              </option>
+            ))}
+          </select>
+          {places.length === 0 && (
+            <small className="hint">
+              <Link to="/admin/content">{t("admin.rsvpSettings.placesFirst")}</Link>
+            </small>
+          )}
         </label>
       </div>
       <label className="row sm">
@@ -96,6 +113,7 @@ export default function RsvpSettingsCard() {
   const errorText = useErrorText();
   const format = useEventFormat();
   const { data, reload } = useAdminData("/api/admin/rsvp/config", rsvpConfigSchema);
+  const { data: content } = useAdminData(CONTENT_PATH, contentResponseSchema);
   const [error, setError] = useState<string>();
   const [saved, setSaved] = useState(false);
   /** The program item being edited, "new" for the add form, or undefined. */
@@ -251,6 +269,7 @@ export default function RsvpSettingsCard() {
             <li key={programItem.id}>
               <ProgramItemForm
                 programItem={programItem}
+                places={content?.places ?? []}
                 timeZone={format.timeZone}
                 onCancel={() => {
                   setEditing(undefined);
@@ -323,6 +342,7 @@ export default function RsvpSettingsCard() {
       )}
       {editing === "new" ? (
         <ProgramItemForm
+          places={content?.places ?? []}
           timeZone={format.timeZone}
           onCancel={() => {
             setEditing(undefined);

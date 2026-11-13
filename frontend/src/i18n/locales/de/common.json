@@ -361,7 +361,14 @@
       "content_page_delete": "Die Seite «{{name}}» wurde gelöscht",
       "content_page_delete_unnamed": "Eine Seite wurde gelöscht",
       "content_pages_order": "Die Reihenfolge der Seiten wurde geändert",
-      "content_start_set": "Der Begrüssungstext der Startseite wurde geändert"
+      "content_start_set": "Der Begrüssungstext der Startseite wurde geändert",
+      "content_place_create": "Der Ort «{{name}}» wurde angelegt",
+      "content_place_create_unnamed": "Ein Ort wurde angelegt",
+      "content_place_update": "Der Ort «{{name}}» wurde geändert",
+      "content_place_update_unnamed": "Ein Ort wurde geändert",
+      "content_place_delete": "Der Ort «{{name}}» wurde gelöscht",
+      "content_place_delete_unnamed": "Ein Ort wurde gelöscht",
+      "content_image_upload": "Ein Bild wurde hochgeladen"
     },
     "rsvp": {
       "title": "Rückmeldungen",
@@ -447,7 +454,9 @@
       "approvalOffConfirm_one": "{{count}} offene Anfrage wird mit dem Ausschalten angenommen.",
       "approvalOffConfirm_other": "{{count}} offene Anfragen werden mit dem Ausschalten angenommen.",
       "approvalOffFinal": "Ausschalten und annehmen",
-      "songHint": "Die Rückmeldung fragt nach einem Lieblingslied. Schaltest du es aus, wird nichts gefragt. Bisherige Wünsche bleiben gespeichert."
+      "songHint": "Die Rückmeldung fragt nach einem Lieblingslied. Schaltest du es aus, wird nichts gefragt. Bisherige Wünsche bleiben gespeichert.",
+      "noPlace": "Kein Ort",
+      "placesFirst": "Noch keine Orte: Lege sie zuerst in Inhalte an."
     },
     "waiting": {
       "openingTitle": "Plattform öffnen",
@@ -523,7 +532,39 @@
       "deleteConfirm": "Endgültig löschen",
       "invalid": "Bitte prüfe Titel und Adresse. Die Adresse darf nur Kleinbuchstaben, Ziffern und Bindestriche enthalten.",
       "languageHint": "Sprache: Deutsch (de). Änderungen sind sofort live.",
-      "choose": "Wähle links eine Seite oder die Startseite aus."
+      "choose": "Wähle links eine Seite oder die Startseite aus.",
+      "images": "Bilder",
+      "imagesHint": "JPEG, PNG oder WebP, höchstens 10 MB. Bilder werden unverändert gespeichert.",
+      "uploadImage": "Bild hochladen",
+      "imagesNone": "Noch keine Bilder hochgeladen.",
+      "imageLabel": "Bild {{id}} · {{type}} · {{kb}} KB",
+      "imageAlt": "Bild",
+      "imageOption": "Bild {{id}}",
+      "copyMarkdown": "Markdown kopieren",
+      "copied": "Kopiert",
+      "places": "Orte",
+      "placesHint": "Orte, auf die Programmpunkte und Seiten verweisen.",
+      "placesNone": "Noch keine Orte.",
+      "newPlace": "Ort",
+      "newPlaceTitle": "Neuer Ort",
+      "placeEditTitle": "Ort bearbeiten",
+      "placeName": "Name",
+      "placeAddress": "Adresse (optional)",
+      "placeLink": "Google-Maps-Link (optional)",
+      "placeLinkHint": "Nur https-Links zu Google Maps. Der Link öffnet sich in einem neuen Tab; nichts wird von Google eingebettet.",
+      "placeMap": "Kartenbild (optional)",
+      "noMap": "Kein Kartenbild",
+      "placeSave": "Speichern",
+      "placeDelete": "Ort löschen",
+      "placeEdit": "Bearbeiten",
+      "placeInvalid": "Bitte prüfe Name und Google-Maps-Link. Der Link muss https zu Google Maps sein.",
+      "placeNoAddress": "ohne Adresse",
+      "placeNoMap": "ohne Karte",
+      "placeMapYes": "mit Karte",
+      "placeInUse": "Ein Ort, den ein Programmpunkt oder eine Seite nutzt, lässt sich nicht löschen.",
+      "pagePlaces": "Orte auf dieser Seite",
+      "pagePlacesHint": "Die Seite zeigt sie als Karten neben dem Text.",
+      "cancel": "Abbrechen"
     }
   },
   "home": {
@@ -737,7 +778,14 @@
     "email_taken": "Diese E-Mail-Adresse ist schon bei einem anderen Konto bestätigt. Trage im Profil eine andere ein.",
     "slug_taken": "Diese Adresse gibt es schon.",
     "page_not_found": "Diese Seite gibt es nicht mehr.",
-    "order_mismatch": "Die Reihenfolge ist veraltet. Lade die Seite neu."
+    "order_mismatch": "Die Reihenfolge ist veraltet. Lade die Seite neu.",
+    "place_not_found": "Dieser Ort gibt es nicht mehr.",
+    "place_in_use": "Der Ort wird noch genutzt. Ändere zuerst die Programmpunkte oder Seiten, die ihn nutzen.",
+    "image_not_found": "Dieses Bild gibt es nicht mehr.",
+    "image_type": "Die Datei ist kein JPEG, PNG oder WebP.",
+    "image_too_large": "Das Bild ist grösser als 10 MB.",
+    "fst_err_ctp_body_too_large": "Das Bild ist grösser als 10 MB.",
+    "fst_err_ctp_invalid_media_type": "Die Datei ist kein JPEG, PNG oder WebP."
   },
   "notSetUp": {
     "title": "Noch nicht eingerichtet",

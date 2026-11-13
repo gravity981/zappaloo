@@ -2,7 +2,24 @@
   // Development servers without Docker or Caddy (README.md, "Quick start").
   // Run with Ctrl+Shift+P → "Tasks: Run Task" → "dev", then open http://localhost:5173.
   "version": "2.0.0",
+  "inputs": [
+    {
+      "id": "resetConfirm",
+      "type": "pickString",
+      "description": "Delete all development data (database, uploads, maps, images) and load the example event? Stop \"dev: backend\" first.",
+      "options": ["Cancel", "Clear and seed"],
+      "default": "Cancel"
+    }
+  ],
   "tasks": [
+    {
+      "label": "db: clear and seed (dev)",
+      "detail": "Deletes the development database and uploads, then loads the example event and the admin account admin (password admin; asks first; dev only). Stop \"dev: backend\" before.",
+      "type": "shell",
+      "command": "if [ \"${input:resetConfirm}\" = 'Clear and seed' ]; then npm run db:reset-dev; else echo 'Cancelled, nothing was deleted.'; fi",
+      "presentation": { "panel": "dedicated", "clear": true },
+      "problemMatcher": []
+    },
     {
       "label": "dev",
       "detail": "Backend (port 3000) and frontend (port 5173) in dev mode",

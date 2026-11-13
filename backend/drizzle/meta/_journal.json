@@ -92,6 +92,20 @@
       "when": 1794563019915,
       "tag": "0012_content_base",
       "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "6",
+      "when": 1794569242360,
+      "tag": "0013_content_places_and_images",
+      "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "6",
+      "when": 1794569258313,
+      "tag": "0014_program_item_places",
+      "breakpoints": true
     }
   ]
 }
