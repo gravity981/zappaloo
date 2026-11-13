@@ -2092,7 +2092,7 @@ The format version covers the layout of the package and the fields of `theme.jso
 - Every font file is a WOFF2 file of at most 2 MB. There are at most 8 font files. Every font file is named in `theme.json`, and every file named there exists.
 - `text` on `background`, `text` on `surface` and `onAccent` on `accent` each reach a contrast of 4.5 : 1, so a theme cannot make the pages unreadable. When `waiting` is given, `text` on `card` and `onButton` on `button` reach 4.5 : 1 too.
 
-The `waiting` entry was added to format version 1 before any package was released (the theme is not in a release yet); no package exists that it would change. From the first release on, a new field raises the version as described above.
+The `waiting` entry was added to format version 1 before any package was released (the theme is not in a release yet); no package exists that it would change. The project owner confirmed this exception on 2026-11-13. From the first release on, a new field raises the version as described above.
 
 The answer to a refused package lists every finding with its file and reason.
 

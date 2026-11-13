@@ -275,7 +275,7 @@
       "title": "Veranstaltung",
       "hint": "Name, Zeitzone und Sprache lassen sich jederzeit ändern. Die Zeitzone bestimmt, wie Zeiten angezeigt werden, nicht die gespeicherten Zeiten.",
       "name": "Name",
-      "namePlaceholder": "z. B. Anna & Ben",
+      "namePlaceholder": "Name der Veranstaltung",
       "timezone": "Zeitzone",
       "timezoneHint": "Aus der Liste wählen oder eintippen, z. B. Europe/Zurich.",
       "language": "Standardsprache",

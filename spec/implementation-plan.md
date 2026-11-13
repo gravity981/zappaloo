@@ -35,8 +35,8 @@ Each release goes into production. From Release 1 on, real guest data is stored,
 | 3 | RSVP and waiting page | – | done |
 | 3.5 | Installable app (home screen icon, no browser chrome) | 1 | done |
 | 3.9 | Findings from the Release 1 pilot | 1 (updates) | done |
-| 4 | Content and website | Opening | next |
-| 5 | Game world and world importer | Opening | open |
+| 4 | Content and website | Opening | done |
+| 5 | Game world and world importer | Opening | next |
 | 6 | Living world | Opening | open |
 | 7 | Contributions and event screen | Event-ready | open |
 | 8 | Minigames, treasure hunt and highscores | Event-ready | open |
@@ -694,3 +694,61 @@ After each completed stage, Claude appends a report with this structure to secti
 - Migration 0010 rebuilds the users table. The migrator now runs with foreign keys off and checks them afterwards. A violation cannot be rolled back at that point, so the pre-deploy backup is the safety net. Try it on staging with the prod backup first.
 - In this devcontainer, foreground `docker run` and `docker compose exec` lose the output of our CLI. The smoke test of the image and 9 deployment tests fail because of it, also on the commit before stage 3.9. Detached containers work. Run the image build and the deployment test on the CI runner or another machine before the release candidate.
 - The requirement report's stage table reads whole stage numbers only, so stages 3.5 and 3.9 appear under stage 3.
+
+### Stage 4 – Content and Website (2026-11-13, written after the stage)
+
+Guests see the website: a start page with the hero image, the welcome text and the countdown, the content pages and "Mehr", and the programme with "now" and "next" on the event day. The admin edits the content (pages, images, places, the start page) in Inhalte, and imports a theme package in Einstellungen › Design. The website, the guest pages and the app icons take the event's colours and fonts from the package; the admin area keeps its neutral look. Stage 4 leaves CNT-02 and CNT-03 open, because their game-world parts belong to stage 5.
+
+**Steps:**
+- **4a – Content base and editor:** done. Pages, the start text and the order of the pages in "Mehr".
+- **4b – Images and places:** done. Images per owner (start, page, place), places with an optional map image.
+- **4c – Website:** done. Start page, content page, "Mehr", the website frame.
+- **4d – Programme and "now / next":** done. Timeline, now and next on the event day, the end time of program items.
+- **4e – Theme package:** done, in seven steps. 4e-1 mock; 4e-2 validator; 4e-3 import and return; 4e-4 serving (`/api/site`, font files, the guest pages); 4e-5 icons and manifest colours from the theme; 4e-6 card "Design"; 4e-7 example package (a build output, attached to each release), runbook section "The theme", end-to-end test.
+- **4f – Generic core and stage report:** done. CFG-01 (two installations shaped through the admin API alone, and a check that the source holds no event-specific names outside the example event and the tests), CFG-04 (every event record carries `event1`, no second event can be created), this report.
+- **Changed during the stage:** the waiting card takes its colours from an optional `waiting` entry of the theme (19.7); the programme's text shows only when items are hidden (WEB-09); the admin's Design card shows the default and the second-click states (mock updated); the German UI placeholder for the event name no longer names an example event.
+
+**Requirements:** 22 of 24 planned for this stage, all with passing tests (requirement report). CNT-02 and CNT-03 are open until stage 5. Overall: 133 of 244 active requirements implemented, 123 with passing tests. The other ten are the ones whose deployment-test results are stale (see below); none is from stage 4.
+
+**Tests:**
+- Unit and integration (Vitest): 832 tests in 81 files, all passing (`npm test`, run before the report).
+- End-to-end (Playwright): 77 passed, 27 skipped (the project-specific skips), none failed (`npm run test:e2e`).
+- Deployment test (`npm run test:deploy`): not run in this stage. Its results are stale, and 11 requirement errors come from them (ACC-05, ACC-11, ACC-14, CFG-02, CFG-07, OPS-02, OPS-05, OPS-13, OPS-15, OPS-16, SEC-01).
+- Manual checks on a phone: none recorded for stage 4.
+
+**Spec changes and deviations:**
+- Written into the spec during the stage: 5.6 (start page), 6.2 (content model, images, places), 19.5 (icons from the theme), 19.7 (theme package, including the `waiting` entry and the serving rules), WEB-09 (text), PWA-02 (wording), THM-06 (the countdown's display font, added 2026-11-13), the not-yet list in `test-strategy.md`.
+- Deviation, confirmed by the project owner on 2026-11-13: the `waiting` entry was added to format version 1 before any theme package was released. Section 19.7 records this. From the first release on, a new field raises the version.
+- The site response has `theme: null` for the default theme. This is an implementation detail that the spec does not name.
+- Mock: the admin's Design card has four states (active, default, refused, second click). The findings show the server's English details, as agreed.
+
+**Overall status:**
+
+| Stage | Content | Status |
+|---|---|---|
+| 1 | Walking skeleton and deployment | done |
+| 2 | Accounts, roles and access | done |
+| 3 | RSVP and waiting page | done |
+| 3.5 | Installable app | done |
+| 3.9 | Findings from the Release 1 pilot | done |
+| 4 | Content and website | done (CNT-02, CNT-03 finish in stage 5) |
+| 5 | Game world and world importer | next |
+| 6 | Living world | open |
+| 7 | Contributions and event screen | open |
+| 8 | Minigames, treasure hunt and highscores | open |
+| 9 | Event readiness | open |
+| 10 | After the event | open |
+
+**Remaining requirements by stage** (from the requirement report, whole stage numbers): stage 1 → 1; 2 → 0; 3 → 0; 4 → 2 (CNT-02, CNT-03); 5 → 37; 6 → 14; 7 → 30; 8 → 22; 9 → 1; 10 → 4. In total 111 of 244 active requirements not yet implemented.
+
+**Waiting on the project owner:**
+- Decide where the release artifacts live: the root `dist/` folder, or a separate `artifacts/` folder. The frontend build stays in `frontend/dist/`.
+- Go-ahead for `npm run test:deploy`, to clear the stale deployment results.
+- The prod update: the old `icons/` folder in the data volume is no longer read. Import a theme package right after the update (the note in the plan's stage 4 part).
+- A new release candidate before the next promotion. The promotion takes the example package from the candidate's release, and candidates built before this stage have none.
+- Confirm the preconditions and steps of stage 5 before it starts.
+
+**Risks and notes:**
+- Before the site response arrives, the first page load shows the default look, then the theme. A new theme shows on the next page load (19.7).
+- The example package has placeholder icons and no fonts. The font path is covered by tests, but no real font has been checked in a browser.
+- The requirement report's stage table reads whole stage numbers only, so 3.5 and 3.9 count under stage 3.
