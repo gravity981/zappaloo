@@ -107,7 +107,7 @@ test("[WEB-04][SEC-09] the start page, a content page and Mehr fit the width of 
     },
   });
   expect(created.ok()).toBe(true);
-  for (const path of ["/", "/mehr", `/p/${slug}`]) {
+  for (const path of ["/", "/programme", "/mehr", `/p/${slug}`]) {
     await page.goto(path);
     await expect(page.getByRole("link", { name: "Datenschutz" }).first()).toBeVisible();
     expect(await overflow(page), path).toBeLessThanOrEqual(0);

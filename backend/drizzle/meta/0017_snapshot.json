@@ -1,8 +1,8 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "96d5e1aa-88fa-4a69-8cdb-3af6957da9d0",
-  "prevId": "b2d311ee-fcb3-4d04-aa8d-a7efbffb78dc",
+  "id": "6764982c-4a19-498d-8459-5fa215a13a07",
+  "prevId": "96d5e1aa-88fa-4a69-8cdb-3af6957da9d0",
   "tables": {
     "access_releases": {
       "name": "access_releases",
@@ -1738,6 +1738,13 @@
           "type": "integer",
           "primaryKey": false,
           "notNull": true,
+          "autoincrement": false
+        },
+        "ends_at": {
+          "name": "ends_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
           "autoincrement": false
         },
         "place_id": {

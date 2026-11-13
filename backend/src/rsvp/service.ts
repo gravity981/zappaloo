@@ -42,6 +42,7 @@ import { closesAt } from "./deadline.ts";
 
 export type RsvpErrorCode =
   | "program_item_not_found"
+  | "invalid_time"
   | "place_not_found"
   | "menu_not_found"
   | "user_not_found"
@@ -81,6 +82,7 @@ const toProgramItem = (row: ProgramItemRow, names: ReadonlyMap<number, string>):
   id: row.id,
   name: row.name,
   startsAt: row.startsAt.toISOString(),
+  endsAt: row.endsAt?.toISOString() ?? null,
   placeId: row.placeId,
   place: row.placeId === null ? null : (names.get(row.placeId) ?? null),
   hasMeal: row.hasMeal,
@@ -358,6 +360,9 @@ export class RsvpService {
   createProgramItem(input: ProgramItemRequest, actor: Actor): ProgramItem {
     return this.#database.db.transaction((tx) => {
       if (input.hasMeal) this.#clearMeal(tx);
+      if (input.endsAt && new Date(input.endsAt) <= new Date(input.startsAt)) {
+        throw new RsvpError("invalid_time", "the end must be after the start");
+      }
       if (input.placeId) this.#requirePlace(tx, input.placeId);
       const row = tx
         .insert(programItems)
@@ -365,6 +370,7 @@ export class RsvpService {
           eventId: this.#event.eventId,
           name: input.name,
           startsAt: new Date(input.startsAt),
+          endsAt: input.endsAt ? new Date(input.endsAt) : null,
           placeId: input.placeId ?? null,
           hasMeal: input.hasMeal ?? false,
           createdAt: this.#now(),
@@ -378,7 +384,12 @@ export class RsvpService {
 
   updateProgramItem(id: number, changes: ProgramItemUpdate, actor: Actor): ProgramItem {
     return this.#database.db.transaction((tx) => {
-      this.#programItem(tx, id);
+      const current = this.#programItem(tx, id);
+      const start = changes.startsAt === undefined ? current.startsAt : new Date(changes.startsAt);
+      const end =
+        changes.endsAt === undefined ? current.endsAt : changes.endsAt && new Date(changes.endsAt);
+      if (end && end <= start)
+        throw new RsvpError("invalid_time", "the end must be after the start");
       if (changes.hasMeal) this.#clearMeal(tx);
       if (changes.placeId) this.#requirePlace(tx, changes.placeId);
       const row = tx
@@ -386,6 +397,9 @@ export class RsvpService {
         .set({
           ...(changes.name === undefined ? {} : { name: changes.name }),
           ...(changes.startsAt === undefined ? {} : { startsAt: new Date(changes.startsAt) }),
+          ...(changes.endsAt === undefined
+            ? {}
+            : { endsAt: changes.endsAt ? new Date(changes.endsAt) : null }),
           ...(changes.placeId === undefined ? {} : { placeId: changes.placeId }),
           ...(changes.hasMeal === undefined ? {} : { hasMeal: changes.hasMeal }),
         })

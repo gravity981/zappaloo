@@ -65,7 +65,15 @@ export function fakeBackend(handlers: Record<string, () => { status: number; bod
           }),
         );
       if (path === "/api/website" && !handlers["GET /api/website"])
-        return Promise.resolve(Response.json({ countdown: null }));
+        return Promise.resolve(
+          Response.json({
+            countdown: null,
+            eventDay: false,
+            eventDate: null,
+            now: null,
+            next: null,
+          }),
+        );
       if (path === "/api/event" && !handlers["GET /api/event"])
         return Promise.resolve(Response.json(event));
       const handler = handlers[`${method} ${path}`];

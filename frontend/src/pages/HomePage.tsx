@@ -1,7 +1,8 @@
-// The start page before the event day (sw-architecture.md 5.6, WEB-10, WEB-11; UX mock `home`,
-// variant "Before the event"): the hero image (uncropped, with its alt text), the welcome text, the
-// countdown card, the RSVP card and the shortcuts to the pages under "Mehr". The event-day layout
-// comes with step 4d. While the platform is closed a guest lands on the waiting page (ACS-10).
+// The start page (sw-architecture.md 5.6, WEB-10, WEB-11; UX mock `home`). Before the event day: the
+// hero image (uncropped, with its alt text), the welcome text, the countdown card, the RSVP card and
+// the shortcuts. On the event day: "now" and "next" on top, then the shortcuts (WEB-07). The shortcuts
+// lead to "Programm" and to the pages under "Mehr". While the platform is closed a guest lands on the
+// waiting page (ACS-10).
 import { useTranslation } from "react-i18next";
 import { Link } from "react-router";
 import {
@@ -10,25 +11,19 @@ import {
   rsvpStatus,
   websiteResponseSchema,
 } from "@zappaloo/shared";
-import type { Countdown, RsvpState } from "@zappaloo/shared";
+import type { Countdown, RsvpState, ScheduleEntryView } from "@zappaloo/shared";
 import Markdown from "../app/Markdown.tsx";
 import { useFeature } from "../app/event.ts";
 import { useApiData } from "../app/useApi.ts";
 import { useRestricted } from "../app/restricted.ts";
 import { useSession } from "../app/session.ts";
+import { useEventFormat } from "../rsvp/format.ts";
 import WaitingPage from "../waiting/WaitingPage.tsx";
 
 /** The countdown card (WEB-11): the days, and the date and place of the first program item. */
 function CountdownCard({ countdown }: { countdown: Countdown }) {
-  const { t, i18n } = useTranslation();
-  // The day is a calendar day of the event; noon in UTC shows it on the same day everywhere.
-  const day = new Intl.DateTimeFormat(i18n.language, {
-    weekday: "short",
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-    timeZone: "UTC",
-  }).format(new Date(`${countdown.date}T12:00:00Z`));
+  const { t } = useTranslation();
+  const format = useEventFormat();
   return (
     <section className="card strong" aria-labelledby="countdown-title">
       <span className="eyebrow" id="countdown-title">
@@ -36,7 +31,7 @@ function CountdownCard({ countdown }: { countdown: Countdown }) {
       </span>
       <b className="countdown-days">{t("website.countdownDays", { count: countdown.days })}</b>
       <span className="hint">
-        {day}
+        {format.dayShort(countdown.date)}
         {countdown.placeName ? ` · ${countdown.placeName}` : ""}
       </span>
     </section>
@@ -70,6 +65,36 @@ function RsvpCard({ state }: { state: RsvpState }) {
   );
 }
 
+/** "now" or "next" on the event day: the entry, its time and its place. */
+function NowNextCard({
+  label,
+  entry,
+  current,
+}: {
+  label: string;
+  entry: ScheduleEntryView;
+  current: boolean;
+}) {
+  const { t } = useTranslation();
+  const format = useEventFormat();
+  const time =
+    entry.endsAt !== null
+      ? `${format.time(entry.startsAt)}–${format.time(entry.endsAt)}`
+      : current
+        ? t("website.since", { time: format.time(entry.startsAt) })
+        : format.time(entry.startsAt);
+  return (
+    <section className="card">
+      <span className="eyebrow">{label}</span>
+      <b>{entry.name}</b>
+      <span className="hint">
+        {time}
+        {entry.placeName ? ` · ${entry.placeName}` : ""}
+      </span>
+    </section>
+  );
+}
+
 export default function HomePage() {
   const { t } = useTranslation();
   const restricted = useRestricted();
@@ -82,7 +107,37 @@ export default function HomePage() {
   if (restricted) return <WaitingPage />;
   if (!content) return null;
 
-  const shortcuts = content.pages.filter((page) => page.inMore);
+  const shortcuts = (
+    <nav className="shortcuts" aria-label={t("website.shortcuts")}>
+      <Link className="btn soft" to="/programme">
+        {t("nav.programme")}
+      </Link>
+      {content.pages
+        .filter((page) => page.inMore)
+        .map((page) => (
+          <Link key={page.id} className="btn soft" to={`/p/${page.slug}`}>
+            {page.title}
+          </Link>
+        ))}
+    </nav>
+  );
+
+  if (website?.eventDay) {
+    return (
+      <section className="start">
+        <div className="start-main">
+          {website.now !== null && (
+            <NowNextCard label={t("website.now")} entry={website.now} current />
+          )}
+          {website.next !== null && (
+            <NowNextCard label={t("website.next")} entry={website.next} current={false} />
+          )}
+        </div>
+        <div className="start-side">{shortcuts}</div>
+      </section>
+    );
+  }
+
   const hero = content.start.heroImageId;
   return (
     <section className="start">
@@ -99,15 +154,7 @@ export default function HomePage() {
       <div className="start-side">
         {website?.countdown && <CountdownCard countdown={website.countdown} />}
         {rsvp && <RsvpCard state={rsvp} />}
-        {shortcuts.length > 0 && (
-          <nav className="shortcuts" aria-label={t("website.shortcuts")}>
-            {shortcuts.map((page) => (
-              <Link key={page.id} className="btn soft" to={`/p/${page.slug}`}>
-                {page.title}
-              </Link>
-            ))}
-          </nav>
-        )}
+        {shortcuts}
       </div>
     </section>
   );

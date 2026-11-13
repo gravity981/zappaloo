@@ -164,11 +164,48 @@ export const countdownSchema = z.object({
 });
 export type Countdown = z.infer<typeof countdownSchema>;
 
-/** `GET /api/website` (signed in): what the website computes for the start page. */
+/** One entry of the schedule as the website shows it (WEB-07). */
+export const scheduleEntrySchema = z.object({
+  id: z.number().int().positive(),
+  name: z.string(),
+  /** ISO date-time. */
+  startsAt: z.string(),
+  /** ISO date-time, or null when the entry has no end. */
+  endsAt: z.string().nullable(),
+  placeName: z.string().nullable(),
+});
+export type ScheduleEntryView = z.infer<typeof scheduleEntrySchema>;
+
+/**
+ * `GET /api/website` (signed in): what the website computes for the start page. On the event day
+ * (from the day of the first program item, in the event's time zone) the start page shows "now" and
+ * "next" instead of the countdown (WEB-07, WEB-10).
+ */
 export const websiteResponseSchema = z.object({
   countdown: countdownSchema.nullable(),
+  eventDay: z.boolean(),
+  /** The day of the first program item, `2027-06-12`, or null without program items. */
+  eventDate: z.string().nullable(),
+  now: scheduleEntrySchema.nullable(),
+  next: scheduleEntrySchema.nullable(),
 });
 export type WebsiteResponse = z.infer<typeof websiteResponseSchema>;
+
+/** How an entry looks on the programme page: greyed out once past, marked while current. */
+export const entryStatusSchema = z.enum(["past", "now", "upcoming"]);
+
+/**
+ * `GET /api/programme` (signed in): the program items the guest is invited to, as a timeline (WEB-09).
+ * Outside the event day every entry is "upcoming".
+ */
+export const programmeResponseSchema = z.object({
+  /** True when the programme leaves out program items the guest is not invited to (WEB-09). */
+  hidden: z.boolean(),
+  eventDay: z.boolean(),
+  eventDate: z.string().nullable(),
+  items: z.array(scheduleEntrySchema.extend({ status: entryStatusSchema })),
+});
+export type ProgrammeResponse = z.infer<typeof programmeResponseSchema>;
 
 /** `PUT /api/content/order`: every page id once, in the new order. */
 export const orderRequestSchema = z.strictObject({

@@ -1,17 +1,21 @@
-// The website frame (sw-architecture.md 5.6, WEB-04; UX mock `site`): the event's name in the
-// header, and one navigation with Start and Mehr. On a phone that navigation is the bottom tab bar;
-// on a wide screen it sits in the header, with "Spielwelt" and the profile. While the platform is
-// closed a guest sees only the waiting page and the way back to it (ACS-10).
+// The website frame (sw-architecture.md 5.6, WEB-04; UX mock `site`): the event's name and date in
+// the header, and one navigation with Start, Programm and Mehr. On a phone that navigation is the
+// bottom tab bar; on a wide screen it sits in the header, with "Spielwelt" and the profile at the
+// right end. While the platform is closed a guest sees only the waiting page and the way back to it
+// (ACS-10).
 import "./ui.css";
 import { useTranslation } from "react-i18next";
 import { NavLink, Outlet, useLocation } from "react-router";
+import { websiteResponseSchema } from "@zappaloo/shared";
 import { useSiteName } from "../guest/site.ts";
+import { useEventFormat } from "../rsvp/format.ts";
 import { useFeature } from "./event.ts";
+import { useApiData } from "./useApi.ts";
 import { useRestricted } from "./restricted.ts";
 import { useSession } from "./session.ts";
-import VersionFooter from "./VersionFooter.tsx";
-import { SiteIcon } from "./siteIcons.tsx";
 import { SITE_ICON_PATHS } from "./siteIconPaths.ts";
+import { SiteIcon } from "./siteIcons.tsx";
+import VersionFooter from "./VersionFooter.tsx";
 
 /** The initials of a name, for the avatar in the header ("Erika Huber" → "EH"). */
 function initials(name: string): string {
@@ -29,15 +33,23 @@ export default function Layout() {
   const restricted = useRestricted();
   const session = useSession();
   const rsvp = useFeature("rsvp");
+  const format = useEventFormat();
   const { pathname } = useLocation();
   const name = useSiteName();
+  const website = useApiData(
+    restricted || !session.user ? undefined : "/api/website",
+    websiteResponseSchema,
+  );
   // The waiting page is a full-screen scene of its own.
   if (restricted && pathname === "/") return <Outlet />;
   const vip = session.user?.roles.includes("vip") ?? false;
   return (
     <div className="guest guest-site">
       <header className="guest-site-head">
-        <b>{name ?? t("app.name")}</b>
+        <div className="site-brand">
+          <b>{name ?? t("app.name")}</b>
+          {website?.eventDate && <small>{format.dayShort(website.eventDate)}</small>}
+        </div>
         <nav className="site-nav" aria-label={t("nav.site")}>
           {restricted ? (
             <>
@@ -52,6 +64,10 @@ export default function Layout() {
               <NavLink to="/" end>
                 <SiteIcon path={SITE_ICON_PATHS.home} />
                 <span>{t("nav.home")}</span>
+              </NavLink>
+              <NavLink to="/programme">
+                <SiteIcon path={SITE_ICON_PATHS.calendar} />
+                <span>{t("nav.programme")}</span>
               </NavLink>
               <NavLink to="/mehr">
                 <SiteIcon path={SITE_ICON_PATHS.menu} />

@@ -39,6 +39,7 @@ const idParams = z.strictObject({ id: z.coerce.number().int().positive() });
 
 const STATUSES: Record<string, number> = {
   program_item_not_found: 404,
+  invalid_time: 400,
   place_not_found: 404,
   menu_not_found: 404,
   user_not_found: 404,

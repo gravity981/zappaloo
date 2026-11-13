@@ -325,6 +325,8 @@ export const programItems = sqliteTable(
       .references(() => events.id),
     name: text("name").notNull(),
     startsAt: integer("starts_at", { mode: "timestamp_ms" }).notNull(),
+    /** The optional end of the program item (WEB-07); null when it has none. */
+    endsAt: integer("ends_at", { mode: "timestamp_ms" }),
     /** The place of the program item (CNT-07); an item without a place has none. */
     placeId: integer("place_id").references((): AnySQLiteColumn => contentPlaces.id),
     hasMeal: integer("has_meal", { mode: "boolean" }).notNull().default(false),

@@ -562,7 +562,7 @@ const qr = () => `<div class="m-qr"><canvas data-qr width="25" height="25"></can
 
 const EVENT = { couple: "Lea & Jonas", date: "Sa, 12. Juni 2027" };
 const PROGRAM_ITEMS = [
-  ["Trauung", "14:00", "Kirche Muri"],
+  ["Trauung", "14:00", "Kirche Muri", "15:00"],
   ["Apéro", "15:30", "Schlossgarten"],
   ["Dinner", "18:30", "Landgasthof Linde"],
   ["Party", "22:00", "Linde, Saal"],
@@ -1471,7 +1471,7 @@ add({
         <div class="m-setrow"><div class="grow"><b class="sm">Pro Programmpunkt zusagen</b><span class="m-hint">Aus: Gäste antworten einmal für alle ihre Programmpunkte. Ein: Ja oder Nein pro Programmpunkt.</span></div>${sw(false)}</div>
         <div class="m-setrow"><div class="grow"><b class="sm">Begleitpersonen bestätigen</b><span class="m-hint">Aus: Eine hinzugefügte Begleitperson zählt sofort. Ein: Du bestätigst jede Anfrage.</span></div>${sw(false)}</div>
         <span class="m-eyebrow">Programmpunkte</span>
-        <div class="m-list">${PROGRAM_ITEMS.map((p) => `<div class="m-li"><div class="grow"><b>${p[0]}${p[0] === "Dinner" ? ' <span class="m-tag ok">Essen</span>' : ""}</b><span class="m-hint">12.06.2027 ${p[1]} · ${p[2]}</span></div><button class="m-btn soft sm">Bearbeiten</button><button class="m-btn ghost sm">Löschen</button></div>`).join("")}</div>
+        <div class="m-list">${PROGRAM_ITEMS.map((p) => `<div class="m-li"><div class="grow"><b>${p[0]}${p[0] === "Dinner" ? ' <span class="m-tag ok">Essen</span>' : ""}</b><span class="m-hint">12.06.2027 ${p[1]}${p[3] ? "–" + p[3] : ""} · ${p[2]}</span></div><button class="m-btn soft sm">Bearbeiten</button><button class="m-btn ghost sm">Löschen</button></div>`).join("")}</div>
         <button class="m-btn ghost sm" style="align-self:flex-start">${ic("plus")} Programmpunkt hinzufügen</button>
         <span class="m-hint">Ein Programmpunkt hat Name, Uhrzeit und einen Ort aus der Liste der Orte in Inhalte (kein Freitext). Ein Programmpunkt kann das Essen haben: Nur dafür wird das Menü gefragt.</span>
         <span class="m-eyebrow">Menüs (für alle)</span><div class="m-chips">${MENUS.map((p) => `<span class="m-chip">${p}</span>`).join("")}<button class="m-chip">${ic("plus")}</button></div></div>

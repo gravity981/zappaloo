@@ -43,6 +43,10 @@ const site = {
 
 const countdownOf = (days: number) => ({
   countdown: { days, date: "2027-06-12", placeName: "Kirche Muri" },
+  eventDay: false,
+  eventDate: "2027-06-12",
+  now: null,
+  next: null,
 });
 
 describe("the start page (WEB-10, WEB-11)", () => {
@@ -56,7 +60,7 @@ describe("the start page (WEB-10, WEB-11)", () => {
     expect(await screen.findByAltText("Das Paar vor der Kirche")).toBeInTheDocument();
     expect(screen.getByText("Willkommen!")).toBeInTheDocument();
     expect(screen.getByText("3 Tage")).toBeInTheDocument();
-    expect(screen.getByText(/Sa\., 12\.06\.2027 · Kirche Muri/)).toBeInTheDocument();
+    expect(screen.getByText(/Sa\., 12\. Juni 2027 · Kirche Muri/)).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Anreise & Parkieren" })).toHaveAttribute(
       "href",
       "/p/anreise",
@@ -79,7 +83,10 @@ describe("the start page (WEB-10, WEB-11)", () => {
     fakeBackend({
       "GET /api/session": () => signedIn,
       "GET /api/content": () => ({ status: 200, body: site }),
-      "GET /api/website": () => ({ status: 200, body: { countdown: null } }),
+      "GET /api/website": () => ({
+        status: 200,
+        body: { countdown: null, eventDay: false, eventDate: null, now: null, next: null },
+      }),
     });
     renderAt("/");
     expect(await screen.findByText("Willkommen!")).toBeInTheDocument();
@@ -192,5 +199,141 @@ describe("the website frame (WEB-04, WEB-01)", () => {
       const source = readFileSync(new URL(file, import.meta.url), "utf8");
       expect(source, file).not.toMatch(/phaser|\.\.\/game\//i);
     }
+  });
+});
+
+describe("the schedule (WEB-07, WEB-09, WEB-10)", () => {
+  const programme = {
+    hidden: true,
+    eventDay: true,
+    eventDate: "2027-06-12",
+    items: [
+      {
+        id: 1,
+        name: "Trauung",
+        startsAt: "2027-06-12T10:00:00.000Z",
+        endsAt: "2027-06-12T10:45:00.000Z",
+        placeName: "Kirche Muri",
+        status: "past",
+      },
+      {
+        id: 2,
+        name: "Apéro",
+        startsAt: "2027-06-12T11:30:00.000Z",
+        endsAt: null,
+        placeName: "Schlossgarten",
+        status: "now",
+      },
+      {
+        id: 3,
+        name: "Dinner",
+        startsAt: "2027-06-12T14:30:00.000Z",
+        endsAt: null,
+        placeName: "Landgasthof Linde",
+        status: "upcoming",
+      },
+    ],
+  };
+
+  it("[WEB-09] the programme shows only the invited items, with one line that says so, and greys out the past", async () => {
+    fakeBackend({
+      "GET /api/session": () => signedIn,
+      "GET /api/programme": () => ({ status: 200, body: programme }),
+    });
+    renderAt("/programme");
+    expect(
+      await screen.findByText("Du siehst nur die Programmpunkte, zu denen du eingeladen bist."),
+    ).toBeInTheDocument();
+    const past = screen.getByText("Trauung").closest("li");
+    expect(past).toHaveClass("past");
+    expect(screen.getByText("Apéro").closest("li")).toHaveClass("now");
+    expect(screen.getByText("Jetzt")).toBeInTheDocument();
+    expect(screen.getByText("Dinner").closest("li")).toHaveClass("upcoming");
+    // "Hingehen" comes with stage 5.
+    expect(screen.queryByRole("button", { name: "Hingehen" })).not.toBeInTheDocument();
+  });
+
+  it("[WEB-09] without hidden items the programme has no line about invitations", async () => {
+    fakeBackend({
+      "GET /api/session": () => signedIn,
+      "GET /api/programme": () => ({ status: 200, body: { ...programme, hidden: false } }),
+    });
+    renderAt("/programme");
+    expect(await screen.findByText("Trauung")).toBeInTheDocument();
+    expect(
+      screen.queryByText("Du siehst nur die Programmpunkte, zu denen du eingeladen bist."),
+    ).not.toBeInTheDocument();
+  });
+
+  it("[WEB-09] a guest without invitations gets a line that says so", async () => {
+    fakeBackend({
+      "GET /api/session": () => signedIn,
+      "GET /api/programme": () => ({ status: 200, body: { ...programme, items: [] } }),
+    });
+    renderAt("/programme");
+    expect(
+      await screen.findByText("Für dich sind noch keine Programmpunkte festgelegt."),
+    ).toBeInTheDocument();
+  });
+
+  it("[WEB-07][WEB-10] on the event day the start page shows now and next, and no countdown, hero or welcome text", async () => {
+    fakeBackend({
+      "GET /api/session": () => signedIn,
+      "GET /api/content": () => ({ status: 200, body: site }),
+      "GET /api/website": () => ({
+        status: 200,
+        body: {
+          countdown: null,
+          eventDay: true,
+          eventDate: "2027-06-12",
+          now: {
+            id: 2,
+            name: "Apéro",
+            startsAt: "2027-06-12T11:30:00.000Z",
+            endsAt: null,
+            placeName: "Schlossgarten",
+          },
+          next: {
+            id: 3,
+            name: "Dinner",
+            startsAt: "2027-06-12T14:30:00.000Z",
+            endsAt: null,
+            placeName: "Landgasthof Linde",
+          },
+        },
+      }),
+    });
+    renderAt("/");
+    expect(await screen.findByText("Jetzt")).toBeInTheDocument();
+    expect(screen.getByText("Apéro")).toBeInTheDocument();
+    expect(screen.getByText("Danach")).toBeInTheDocument();
+    expect(screen.getByText("Dinner")).toBeInTheDocument();
+    expect(screen.queryByAltText("Das Paar vor der Kirche")).not.toBeInTheDocument();
+    expect(screen.queryByText("Willkommen!")).not.toBeInTheDocument();
+    expect(screen.queryByText(/^Noch$/)).not.toBeInTheDocument();
+    const shortcuts = screen.getByRole("navigation", { name: "Abkürzungen" });
+    expect(within(shortcuts).getByRole("link", { name: "Programm" })).toHaveAttribute(
+      "href",
+      "/programme",
+    );
+  });
+
+  it("[WEB-07] the header shows the event's date, and the navigation has Start, Programm and Mehr", async () => {
+    fakeBackend({
+      "GET /api/session": () => signedIn,
+      "GET /api/content": () => ({ status: 200, body: site }),
+      "GET /api/website": () => ({
+        status: 200,
+        body: { countdown: null, eventDay: false, eventDate: "2027-06-12", now: null, next: null },
+      }),
+    });
+    renderAt("/");
+    expect(await screen.findByText(/Sa\., 12\. Juni 2027/)).toBeInTheDocument();
+    const nav = screen.getByRole("navigation", { name: "Website" });
+    expect(
+      within(nav)
+        .getAllByRole("link")
+        .map((link) => link.textContent),
+    ).toEqual(["Start", "Programm", "Mehr"]);
   });
 });

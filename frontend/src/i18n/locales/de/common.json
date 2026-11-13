@@ -12,7 +12,8 @@
     "rsvp": "Rückmeldung",
     "waiting": "Warteseite",
     "more": "Mehr",
-    "site": "Website"
+    "site": "Website",
+    "programme": "Programm"
   },
   "invite": {
     "title": "Einladung einlösen",
@@ -459,7 +460,8 @@
       "approvalOffFinal": "Ausschalten und annehmen",
       "songHint": "Die Rückmeldung fragt nach einem Lieblingslied. Schaltest du es aus, wird nichts gefragt. Bisherige Wünsche bleiben gespeichert.",
       "noPlace": "Kein Ort",
-      "placesFirst": "Noch keine Orte: Lege sie zuerst in Inhalte an."
+      "placesFirst": "Noch keine Orte: Lege sie zuerst in Inhalte an.",
+      "programItemEnd": "Ende (optional)"
     },
     "waiting": {
       "openingTitle": "Plattform öffnen",
@@ -926,6 +928,12 @@
     "shortcuts": "Abkürzungen",
     "myProfile": "Mein Profil",
     "adminOnly": "nur für Admins",
-    "privacy": "Datenschutz"
+    "privacy": "Datenschutz",
+    "invitedOnly": "Du siehst nur die Programmpunkte, zu denen du eingeladen bist.",
+    "noProgramme": "Für dich sind noch keine Programmpunkte festgelegt.",
+    "now": "Jetzt",
+    "next": "Danach",
+    "since": "seit {{time}}",
+    "programmeAria": "Programm"
   }
 }

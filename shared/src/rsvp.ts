@@ -26,6 +26,8 @@ export const programItemSchema = z.object({
   name: z.string(),
   /** ISO date-time. */
   startsAt: z.string(),
+  /** ISO date-time of the end, or null: the item has no end (WEB-07). */
+  endsAt: z.string().nullable(),
   /** The place from Inhalte (CNT-07), or none; `place` is its name, read-only. */
   placeId: z.number().int().positive().nullable(),
   place: z.string().nullable(),
@@ -41,6 +43,7 @@ export type MenuOption = z.infer<typeof menuOptionSchema>;
 export const programItemRequestSchema = z.strictObject({
   name: programItemNameSchema,
   startsAt: z.iso.datetime(),
+  endsAt: z.iso.datetime().nullable().optional(),
   placeId: z.number().int().positive().nullable().optional(),
   hasMeal: z.boolean().optional(),
 });
@@ -49,6 +52,7 @@ export const programItemUpdateSchema = z
   .strictObject({
     name: programItemNameSchema.optional(),
     startsAt: z.iso.datetime().optional(),
+    endsAt: z.iso.datetime().nullable().optional(),
     placeId: z.number().int().positive().nullable().optional(),
     hasMeal: z.boolean().optional(),
   })

@@ -99,7 +99,7 @@ export async function buildApp(options: AppOptions): Promise<FastifyInstance> {
     content: new ContentService(options.database, options.event, options.eventsDir),
   });
   await app.register(websiteRoutes, {
-    website: new WebsiteService(options.database, options.event),
+    website: new WebsiteService(options.database, options.event, options.auth.rsvp),
   });
   await app.register(eventApiRoutes, { event: options.event, footer: options.auth.footer });
   await app.register(pwaRoutes, {

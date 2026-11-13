@@ -1304,3 +1304,81 @@
 .more .card {
   padding: 4px 16px;
 }
+
+/* The programme (UX mock programme): a timeline with the time, a rail and the entry. Entries that are
+   over are greyed out; the current one is marked (WEB-07). */
+.timeline {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+}
+.tl {
+  display: grid;
+  grid-template-columns: 56px 16px minmax(0, 1fr);
+  gap: 8px;
+  padding-bottom: 18px;
+}
+.tl-time {
+  font-weight: 600;
+  padding-top: 2px;
+}
+.tl-rail {
+  position: relative;
+  display: block;
+}
+.tl-rail::before {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 14px;
+  bottom: -18px;
+  width: 1px;
+  background: var(--a-line);
+  transform: translateX(-50%);
+}
+.tl:last-child .tl-rail::before {
+  display: none;
+}
+.tl-rail::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 6px;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  border: 2px solid var(--a-ink);
+  background: var(--a-card);
+  transform: translateX(-50%);
+}
+.tl.past {
+  opacity: 0.45;
+}
+.tl.now .tl-rail::after {
+  background: var(--a-ink);
+}
+.tl-card {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.programme {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* The header's name with the event's date under it (UX mock site). */
+.site-brand {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.site-brand small {
+  color: var(--a-muted);
+  font-size: 12px;
+  line-height: 1.3;
+}

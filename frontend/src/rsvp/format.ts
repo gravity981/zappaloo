@@ -22,6 +22,24 @@ export function useEventFormat() {
         month: "numeric",
         year: "numeric",
       }),
+    /** `Sa., 12. Juni 2027`, the header and the countdown of the start page. */
+    dayShort: (date: string) =>
+      new Date(`${date}T12:00:00Z`).toLocaleDateString(i18n.language, {
+        timeZone: "UTC",
+        weekday: "short",
+        day: "numeric",
+        month: "long",
+        year: "numeric",
+      }),
+    /** `Samstag, 12. Juni 2027`, for a calendar day (the programme's heading). */
+    dayWithWeekday: (date: string) =>
+      new Date(`${date}T12:00:00Z`).toLocaleDateString(i18n.language, {
+        timeZone: "UTC",
+        weekday: "long",
+        day: "numeric",
+        month: "long",
+        year: "numeric",
+      }),
     /** `1. Mai 2027`, for a calendar day (`YYYY-MM-DD`) such as the RSVP deadline. */
     day: (date: string) =>
       new Date(`${date}T12:00:00Z`).toLocaleDateString(i18n.language, {

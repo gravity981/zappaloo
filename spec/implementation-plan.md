@@ -314,6 +314,7 @@ Re-verified: ACS-10, SEC-09, CNT-06.
 - The programme page shows the program items the guest is invited to as a timeline, with the line that says so. On the event day past entries are greyed out and the current one is marked.
 - The start page switches to its event-day layout from the start of the day of the first program item (5.6): "now / next" on top, then the shortcuts. The hero image, the welcome text, the countdown and the RSVP card are not shown. "now / next" shows the current and the next program item, in the event's time zone. A change by the admin shows at once. "Hingehen" follows in step 5d (WEB-08).
 - The header of the public pages shows the event's date.
+- Decided while building 4d (proposed, to confirm): "now" is the latest entry that has started and has not ended (an entry without an end lasts until the next one starts); "next" is the first entry after now. The event day is the calendar day of the first program item in the event's time zone. The start page shortcuts lead to "Programm" first, then to the pages under "Mehr". The mock admin card shows the end time in the list (the mock had no end time).
 Requirements: WEB-07, WEB-09, WEB-10 (the event day).
 
 **4e – Theme package.** Mock first: card "Design" in `admin-settings` (active theme, import, findings of a refused package, "Standard-Design verwenden").

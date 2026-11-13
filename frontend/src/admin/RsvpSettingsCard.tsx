@@ -44,9 +44,11 @@ function ProgramItemForm({
     event.preventDefault();
     const form = new FormData(event.currentTarget);
     const placeId = fieldText(form, "placeId");
+    const endsAtValue = fieldText(form, "endsAt");
     void onSubmit({
       name: fieldText(form, "name"),
       startsAt: localToInstant(fieldText(form, "startsAt"), timeZone).toISOString(),
+      endsAt: endsAtValue === "" ? null : localToInstant(endsAtValue, timeZone).toISOString(),
       placeId: placeId === "" ? null : Number(placeId),
       hasMeal: form.get("hasMeal") !== null,
     });
@@ -72,6 +74,17 @@ function ProgramItemForm({
             type="datetime-local"
             required
             defaultValue={programItem ? instantToLocal(programItem.startsAt, timeZone) : undefined}
+          />
+        </label>
+        <label className="field">
+          <span>{t("admin.rsvpSettings.programItemEnd")}</span>
+          <input
+            className="input"
+            name="endsAt"
+            type="datetime-local"
+            defaultValue={
+              programItem?.endsAt ? instantToLocal(programItem.endsAt, timeZone) : undefined
+            }
           />
         </label>
         <label className="field">
@@ -296,6 +309,7 @@ export default function RsvpSettingsCard() {
                 )}
                 <span className="hint">
                   {format.date(programItem.startsAt)} {format.time(programItem.startsAt)}
+                  {programItem.endsAt !== null && `–${format.time(programItem.endsAt)}`}
                   {programItem.place && ` · ${programItem.place}`}
                 </span>
               </div>
