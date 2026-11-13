@@ -33,9 +33,7 @@ describe("admin area", () => {
   it("[ROLE-07] only admins get in; others are sent to the start page", async () => {
     fakeBackend({ "GET /api/session": () => signedIn });
     renderAt("/admin/users");
-    expect(
-      await screen.findByRole("heading", { name: "Willkommen bei Zappaloo" }),
-    ).toBeInTheDocument();
+    expect(await screen.findByText("Willkommen!")).toBeInTheDocument();
     expect(screen.queryByRole("link", { name: "Verwaltung" })).not.toBeInTheDocument();
   });
 
@@ -44,15 +42,23 @@ describe("admin area", () => {
       "GET /api/session": () => asAdmin,
       "GET /api/event": () => ({ status: 200, body: closedEvent }),
     });
-    renderAt("/");
-    user.click(await screen.findByRole("link", { name: "Verwaltung" }));
+    // The admin area is reached from "Mehr" (UX mock more).
+    renderAt("/mehr");
+    user.click(await screen.findByRole("link", { name: /Verwaltung/ }));
     expect(await screen.findByRole("heading", { name: "Übersicht" })).toBeInTheDocument();
     const nav = screen.getByRole("navigation", { name: "Verwaltung" });
     expect(
       within(nav)
         .getAllByRole("link")
         .map((link) => link.textContent),
-    ).toEqual(["Übersicht", "Einladungen", "Rückmeldungen", "Konten & Rollen", "Einstellungen"]);
+    ).toEqual([
+      "Übersicht",
+      "Einladungen",
+      "Rückmeldungen",
+      "Konten & Rollen",
+      "Inhalte",
+      "Einstellungen",
+    ]);
     expect(await screen.findByText("Plattform geschlossen")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Zur Website" })).toHaveAttribute("href", "/");
   });
@@ -697,6 +703,8 @@ describe("accounts, roles and groups", () => {
               id: 1,
               name: "Trauung",
               startsAt: "2027-06-12T12:00:00.000Z",
+              endsAt: null,
+              placeId: null,
               place: null,
               hasMeal: false,
             },
@@ -704,6 +712,8 @@ describe("accounts, roles and groups", () => {
               id: 2,
               name: "Dinner",
               startsAt: "2027-06-12T16:00:00.000Z",
+              endsAt: null,
+              placeId: null,
               place: null,
               hasMeal: true,
             },

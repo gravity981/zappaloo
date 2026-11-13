@@ -469,6 +469,41 @@ describe("event setup commands", () => {
     return join(dir.path, "data");
   }
 
+  it("[CFG-07] dev-admin creates the admin admin with password admin in dev only, outside the password rules", async () => {
+    const dataDir = emptyDataDir();
+    for (const appEnv of ["staging", "prod", "test"]) {
+      const refused = await run(["dev-admin", "admin", "admin"], {
+        DATA_DIR: dataDir,
+        APP_ENV: appEnv,
+      });
+      expect(refused.code, appEnv).toBe(1);
+      expect(refused.err, appEnv).toContain("dev only");
+    }
+    // Unset is not dev: removing APP_ENV must not turn a deployment into a dev installation.
+    const unset = await run(["dev-admin", "admin", "admin"], { DATA_DIR: dataDir });
+    expect(unset.code).toBe(1);
+    expect(unset.err).toContain("dev only");
+    expect(existsSync(dataPaths(dataDir).database)).toBe(false);
+
+    await run(["event", "seed-example"], { DATA_DIR: dataDir, APP_ENV: "dev" });
+    const created = await run(["dev-admin", "admin", "admin"], {
+      DATA_DIR: dataDir,
+      APP_ENV: "dev",
+    });
+    expect(created).toEqual({
+      code: 0,
+      out: 'Admin account "admin" created with the given password.',
+      err: "",
+    });
+    const database = openDatabase(dataPaths(dataDir).database);
+    try {
+      const accounts = new AccountService(database, EventService.forInstallation(database));
+      expect((await accounts.verifyLogin("admin", "admin"))?.roles).toEqual(["admin"]);
+    } finally {
+      database.close();
+    }
+  });
+
   it("[CFG-07] seed-example sets up an empty installation that never started, in dev and test", async () => {
     const dataDir = emptyDataDir();
     const result = await run(["event", "seed-example"], { DATA_DIR: dataDir, APP_ENV: "test" });

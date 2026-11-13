@@ -11,6 +11,12 @@ import type { EventService } from "./event/service.ts";
 import { routeTable } from "./api/access.ts";
 import { adminRoutes } from "./api/admin.ts";
 import { authRoutes } from "./api/auth.ts";
+import { contentRoutes } from "./api/content.ts";
+import { themeRoutes } from "./api/theme.ts";
+import { ThemeService } from "./theme/service.ts";
+import { websiteRoutes } from "./api/website.ts";
+import { WebsiteService } from "./website/service.ts";
+import { ContentService } from "./content/service.ts";
 import type { AuthOptions } from "./api/auth.ts";
 import { invitationRoutes } from "./api/invitations.ts";
 import { eventApiRoutes } from "./api/event.ts";
@@ -91,10 +97,18 @@ export async function buildApp(options: AppOptions): Promise<FastifyInstance> {
   await app.register(waitingRoutes, options.auth);
   await app.register(platformRoutes, options.auth);
   await app.register(footerRoutes, options.auth);
-  await app.register(eventApiRoutes, { event: options.event, footer: options.auth.footer });
+  await app.register(contentRoutes, {
+    content: new ContentService(options.database, options.event, options.eventsDir),
+  });
+  await app.register(websiteRoutes, {
+    website: new WebsiteService(options.database, options.event, options.auth.rsvp),
+  });
+  const theme = new ThemeService(options.database, options.event, options.eventsDir);
+  await app.register(themeRoutes, { theme });
+  await app.register(eventApiRoutes, { event: options.event, footer: options.auth.footer, theme });
   await app.register(pwaRoutes, {
     event: options.event,
-    icons: new AppIcons(options.eventsDir),
+    icons: new AppIcons(theme),
   });
 
   const frontendDir = options.frontendDir && resolve(options.frontendDir);

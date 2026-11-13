@@ -2,12 +2,14 @@
 // guest-related changes and changes to settings and content, read from the audit log. The log
 // holds ids only (7.1.1), so names are looked up when the entries are shown.
 import { desc, eq, inArray, and } from "drizzle-orm";
-import { ACTIVITY_ACTIONS } from "@zappaloo/shared";
+import { ACTIVITY_ACTIONS, CONTENT_LANGUAGE } from "@zappaloo/shared";
 import type { ActivityAction, ActivityEntry } from "@zappaloo/shared";
 import type { Database } from "../database/database.ts";
 import {
   auditLog,
   companions,
+  contentPlaces,
+  contentTexts,
   programItems,
   invitations,
   menuOptions,
@@ -110,6 +112,34 @@ export class ActivityService {
           .select({ name: companions.name })
           .from(companions)
           .where(eq(companions.id, companionId))
+          .get()?.name ?? null
+      );
+    }
+    // A page is named by its title; a deleted page has no text any more, so the entry is unnamed.
+    const pageId = num(row.details.pageId);
+    if (pageId !== undefined) {
+      return (
+        db
+          .select({ title: contentTexts.title })
+          .from(contentTexts)
+          .where(
+            and(
+              eq(contentTexts.eventId, this.#event.eventId),
+              eq(contentTexts.item, `page:${String(pageId)}`),
+              eq(contentTexts.language, CONTENT_LANGUAGE),
+            ),
+          )
+          .get()?.title ?? null
+      );
+    }
+    // A place is named by its name; a deleted place is unnamed (CNT-07).
+    const placeId = num(row.details.placeId);
+    if (placeId !== undefined) {
+      return (
+        db
+          .select({ name: contentPlaces.name })
+          .from(contentPlaces)
+          .where(and(eq(contentPlaces.eventId, this.#event.eventId), eq(contentPlaces.id, placeId)))
           .get()?.name ?? null
       );
     }

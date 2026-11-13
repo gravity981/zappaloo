@@ -54,6 +54,26 @@ export function fakeBackend(handlers: Record<string, () => { status: number; bod
       });
       if (path === "/api/version")
         return Promise.resolve(Response.json({ version: "0.0.0", commit: "x" }));
+      // The start page reads these; a test that needs other answers sets its own handlers.
+      if (path === "/api/content" && !handlers["GET /api/content"])
+        return Promise.resolve(
+          Response.json({
+            startMarkdown: "Willkommen!",
+            pages: [],
+            places: [],
+            start: { heroImageId: null, heroAlt: null, countdown: true },
+          }),
+        );
+      if (path === "/api/website" && !handlers["GET /api/website"])
+        return Promise.resolve(
+          Response.json({
+            countdown: null,
+            eventDay: false,
+            eventDate: null,
+            now: null,
+            next: null,
+          }),
+        );
       if (path === "/api/event" && !handlers["GET /api/event"])
         return Promise.resolve(Response.json(event));
       const handler = handlers[`${method} ${path}`];
@@ -95,4 +115,5 @@ export const SITE = {
   name: "Lea & Jonas",
   copyright: "© 2027 Lea & Jonas",
   sourceUrl: "https://example.org/zappaloo-source",
+  theme: null,
 };

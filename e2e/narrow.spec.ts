@@ -84,3 +84,32 @@ test("[RSVP-02][SEC-09] no admin page scrolls sideways on a phone", async ({
     expect(await page.evaluate(() => window.scrollX), `${path} scrollX`).toBe(0);
   }
 });
+
+/** Step 4c (WEB-04): the start page, "Mehr" and a content page fit a phone, also with long texts. */
+test("[WEB-04][SEC-09] the start page, a content page and Mehr fit the width of a phone", async ({
+  page,
+  context,
+}, testInfo) => {
+  test.skip(!testInfo.project.name.startsWith("mobile"), "phones only");
+  await signInAsAdmin(page, context);
+  const session = (await (await page.request.get("/api/session")).json()) as { csrfToken: string };
+  // Each browser project creates its own page: the addresses are unique.
+  const slug = `langer-titel-${testInfo.project.name}`;
+  const created = await page.request.post("/api/content/pages", {
+    headers: { "x-csrf-token": session.csrfToken },
+    data: {
+      slug,
+      title: "Ein sehr langer Seitentitel, der auf dem Telefon umbrechen muss",
+      markdown:
+        "# Anreise\n\nEin sehr langes Wort: Donaudampfschifffahrtsgesellschaftskapitaenspatent.",
+      inMore: true,
+      placeIds: [],
+    },
+  });
+  expect(created.ok()).toBe(true);
+  for (const path of ["/", "/programme", "/mehr", `/p/${slug}`]) {
+    await page.goto(path);
+    await expect(page.getByRole("link", { name: "Datenschutz" }).first()).toBeVisible();
+    expect(await overflow(page), path).toBeLessThanOrEqual(0);
+  }
+});

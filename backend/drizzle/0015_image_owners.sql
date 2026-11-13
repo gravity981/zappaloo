@@ -1,0 +1,1 @@
+ALTER TABLE `content_images` ADD `item` text DEFAULT 'start' NOT NULL;

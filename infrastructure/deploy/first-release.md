@@ -206,15 +206,9 @@ mkdir -p backups
 
 Copy the file to your off-site storage. It holds personal data: mode 600, delete it at shutdown.
 
-### 5.6 Optional: your own icons
+### 5.6 Optional: your own icons and colours
 
-Four finished PNGs: `icon-192.png` (192×192), `icon-512.png` (512×512), `icon-maskable-512.png` (512×512, content inside the central 80 %), `apple-touch-icon.png` (180×180). A file of the wrong size is ignored and the Z icon is used instead. The commands were not run for this runbook; check that the icons show:
-
-```sh
-docker compose exec app mkdir -p /data/events/event1/icons
-for f in icon-192.png icon-512.png icon-maskable-512.png apple-touch-icon.png; do docker compose cp "$f" "app:/data/events/event1/icons/$f"; done
-curl -sI "https://DOMAIN/app-icons/icon-512.png" | head -3
-```
+The look of the website and the app icons come from a theme package. The package, the import in Einstellungen › Design and the example are described in [The theme](README.md#the-theme) of this runbook.
 
 They are part of the full backup (`events/`).
 

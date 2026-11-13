@@ -1,0 +1,1 @@
+ALTER TABLE `program_items` ADD `ends_at` integer;

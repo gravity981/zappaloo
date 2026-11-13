@@ -215,6 +215,7 @@ select.m-input { appearance: auto; }
 .m-li:last-child { border-bottom: 0; }
 .m-li > .grow { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
 .m-li.link { cursor: pointer; }
+.m-li.link:hover { background: var(--w-line); margin: 0 -8px; padding-left: 8px; padding-right: 8px; border-radius: 8px; }
 .m-av { width: 40px; height: 40px; border-radius: 50%; background: var(--w-fill); border: 1.5px solid var(--w-line); display: grid; place-items: center; font-weight: 600; font-size: 13px; color: var(--w-muted); flex: none; }
 .m-av.lg { width: 72px; height: 72px; font-size: 20px; }
 .m-ph {
@@ -561,7 +562,7 @@ const qr = () => `<div class="m-qr"><canvas data-qr width="25" height="25"></can
 
 const EVENT = { couple: "Lea & Jonas", date: "Sa, 12. Juni 2027" };
 const PROGRAM_ITEMS = [
-  ["Trauung", "14:00", "Kirche Muri"],
+  ["Trauung", "14:00", "Kirche Muri", "15:00"],
   ["Apéro", "15:30", "Schlossgarten"],
   ["Dinner", "18:30", "Landgasthof Linde"],
   ["Party", "22:00", "Linde, Saal"],
@@ -1122,12 +1123,12 @@ function seatingBody(compact) {
     <b>An deinem Tisch</b><div class="m-list">${mates.map(([n, b, g]) => `<div class="m-li"><div class="m-av">${n.split(" ").map((s) => s[0]).join("")}</div><div class="grow"><b>${n}</b>${g ? `<span class="sm">${g}</span>` : ""}</div><span class="m-tag">${b}</span></div>`).join("")}</div>`;
 }
 add({
-  id: "home", group: "web", title: "Start page", path: "/home", reqs: ["WEB-01", "WEB-02", "WEB-04", "WEB-07", "GAME-12"],
+  id: "home", group: "web", title: "Start page", path: "/home", reqs: ["WEB-01", "WEB-02", "WEB-04", "WEB-07", "WEB-10", "WEB-11", "THM-06", "GAME-12"],
   variants: [["before", "Before the event"], ["eventday", "Event day"]],
-  shows: ["Bottom tab bar on phones (Start · Programm · Hochladen · Erinnerungen · Mehr). A top nav on desktop.", "“Spielwelt” always in the header.", "Before the event: countdown, RSVP status, quick links.", "Event day: now/next on top, table, upload and quiz shortcuts."],
+  shows: ["Bottom tab bar on phones (Start · Programm · Hochladen · Erinnerungen · Mehr). A top nav on desktop.", "“Spielwelt” always in the header.", "Fixed layout (decided 2026-11-13). The hosts edit the hero image, the welcome text and the countdown switch in Inhalte, not the arrangement.", "Before the event day: the hero image (optional, full width, uncropped; without it the text moves up), the welcome text, “Spielwelt betreten” (stage 5), then the countdown card, the RSVP card and the shortcuts (“Programm” and the first three pages visible in “Mehr”).", "Countdown: calendar days to the day of the first program item, with its date and place. “Noch 1 Tag” the day before, gone on the event day and without program items. The number uses the theme's display font, or the heading font without one. Calm, not pixel style.", "Event day (from the start of the day of the first program item): now/next on top, then the cards of the features that exist (seat stage 6, upload stage 7, quiz stage 8), then the shortcuts. No hero image, welcome text, countdown or RSVP card."],
   qs: [
     { q: "Are these the right five tabs? “Erinnerungen” groups the gallery and the keepsake page.", p: "Mock: as shown. Info pages (Anreise, FAQ, …) live under “Mehr”." },
-    { q: "What content does the home page carry? Is it editable Markdown, structured blocks, or both?", p: "Mock: an editable welcome block (Markdown) plus fixed system cards (RSVP status, now/next, links)." },
+    { q: "What content does the home page carry? Is it editable Markdown, structured blocks, or both?", p: "Decided 2026-11-13: a fixed layout. The hosts edit the hero image, the welcome text (Markdown) and the countdown switch. The cards are fixed (sw-architecture.md 5.6)." },
   ],
   render: (v) => site("home", v === "eventday" ? `
     <div class="m-nownext"><div><span class="when">Jetzt</span><div class="grow"><b>Apéro</b><span class="m-muted sm">seit 15:30 · Schlossgarten</span></div><button class="m-btn soft sm" data-go="game">${ic("pin")} Hingehen</button></div><div><span class="when">Danach</span><div class="grow"><b>Dinner</b><span class="m-muted sm">18:30 · Landgasthof Linde</span></div></div></div>
@@ -1135,13 +1136,14 @@ add({
       <div class="m-card" data-go="seating" style="cursor:pointer"><span class="m-eyebrow">Wo sitze ich?</span><b class="m-h2">Tisch Edelweiss</b><span class="m-muted sm">mit Lukas, Sara und 5 weiteren</span></div>
       <div class="m-card" data-go="upload" style="cursor:pointer"><span class="m-eyebrow">Schnappschuss</span><b class="m-h2">Teile deinen Moment</b><span class="m-muted sm">Erscheint nach kurzer Prüfung auf der Fotowand.</span></div>
       <div class="m-card" data-go="highscores" style="cursor:pointer"><span class="m-eyebrow">Paar-Quiz · live</span><b class="m-h2">Du bist auf Rang 7</b><span class="m-muted sm">Noch 2 Versuche</span></div>
-    </div>` : `
+    </div>
+    <div class="m-grid2">${[["Programm", "programme"], ["Anreise", "info"], ["Unterkunft", "info"], ["FAQ", "info"]].map(([l, g]) => `<button class="m-btn soft" data-go="${g}">${l}</button>`).join("")}</div>` : `
     <div class="m-grid-d2">
-      <div class="m-stack">${ph("Bild des Paars / Pixel-Art-Titel", "16/9")}
+      <div class="m-stack">${ph("Titelbild (optional) · im Editor gewählt, ungeschnitten", "16/9")}
         <div class="m-md"><h1>Wir heiraten!</h1><p>Wir freuen uns riesig, diesen Tag mit euch zu feiern. Hier findet ihr alles, was ihr wissen müsst – und hinter dem Knopf «Spielwelt» wartet eine kleine Überraschung.</p></div>
         <button class="m-btn" data-go="game" style="align-self:flex-start">${ic("play")} Spielwelt betreten</button></div>
       <div class="m-stack">
-        <div class="m-card strong"><span class="m-eyebrow">Noch</span><b class="m-pixel" style="font-size:30px">214 Tage</b><span class="m-muted sm">${EVENT.date} · Muri bei Bern</span></div>
+        <div class="m-card strong"><span class="m-eyebrow">Noch</span><b style="font:600 30px/1.1 var(--f-display)">214 Tage</b><span class="m-muted sm">${EVENT.date} · Kirche Muri</span></div>
         <div class="m-card"><div class="m-row2"><b>Deine Rückmeldung</b><span class="m-tag ok">Dabei</span></div><span class="m-muted sm">Trauung, Apéro, Dinner · Mia beantragt</span><a class="sm" data-go="rsvp-done">Ansehen oder ändern</a></div>
         <div class="m-grid2">${[["Programm", "programme"], ["Anreise", "info"], ["Unterkunft", "info"], ["FAQ", "info"]].map(([l, g]) => `<button class="m-btn soft" data-go="${g}">${l}</button>`).join("")}</div>
       </div>
@@ -1376,14 +1378,47 @@ add({
     <div class="m-grid-d3">${[["Edelweiss", 8, ["Erika Huber", "Mia Huber ↳", "Lukas Meier", "Sara Keller", "Tom B."]], ["Enzian", 8, ["Familie Brunner (4)", "Lea's Eltern (2)"]], ["Brauttisch", 6, ["Lea", "Jonas", "Trauzeugen (4)"]]].map(([t, c, g]) => `<div class="m-card"><div class="m-row2"><b class="grow" style="flex:1">${t}</b><span class="m-hint">${g.length >= 5 ? 5 : g.length} / ${c}</span></div><div class="m-list sm">${g.map((n) => `<div class="m-li" style="padding:7px 0">${n}</div>`).join("")}</div></div>`).join("")}</div>`),
 });
 add({
-  id: "admin-content", group: "admin", title: "Content editor", path: "/admin/content", reqs: ["CNT-05", "WEB-03", "LANG-02", "WEB-07"],
-  shows: ["Page list (order and visibility = navigation under “Mehr”).", "Markdown editor with live preview. Publish is live at once.", "Programme as structured entries, not Markdown."],
-  qs: [{ q: "Need drafts (save without publishing), or is publish-on-save fine?", p: "Spec: changes are live at once. Mock: one “Veröffentlichen” button." }],
-  render: () => admin("admin-content", `<div class="m-sethead"><h1 class="m-h1 grow">Inhalte</h1><button class="m-btn soft sm">${ic("plus")} Seite</button></div>
-    ${chips(["Start", "Das Fest", "Programm", "Anreise & Parkieren", "Unterkunft", "FAQ", "Kontakt"], [3])}
-    <div class="m-mdsplit"><div class="m-stack">${field("Titel", inp("ac-title", "Anreise & Parkieren"))}${area("ac-md", "# Anreise & Parkieren\n\n## Mit dem ÖV\nAb Bern HB mit der S-Bahn bis Muri bei Bern (12 Min.), dann 5 Minuten zu Fuss zur Kirche.\n\n## Mit dem Auto\nParkplätze hat es beim **Landgasthof Linde**.\n\n- Kirche Muri, Kirchstrasse 1\n- Landgasthof Linde, Dorfstrasse 20")}</div>
-    <div class="m-card"><span class="m-eyebrow">Vorschau</span><div class="m-md"><h1>Anreise & Parkieren</h1><h2>Mit dem ÖV</h2><p>Ab Bern HB mit der S-Bahn bis Muri bei Bern (12 Min.), dann 5 Minuten zu Fuss zur Kirche.</p><h2>Mit dem Auto</h2><p>Parkplätze hat es beim <b>Landgasthof Linde</b>.</p><ul><li>Kirche Muri, Kirchstrasse 1</li><li>Landgasthof Linde, Dorfstrasse 20</li></ul></div></div></div>
-    <div class="m-row2"><button class="m-btn">Veröffentlichen</button><span class="m-hint">Sprache: Deutsch (de) · In «Mehr» sichtbar ${sw(true)}</span></div>`),
+  id: "admin-content", group: "admin", title: "Content editor", path: "/admin/content", reqs: ["CNT-05", "CNT-06", "CNT-07", "WEB-03", "LANG-02"],
+  variants: [["list", "List"], ["page", "Edit page"], ["start", "Edit start page"], ["place", "Edit place"]],
+  shows: ["List (refined 2026-11-13): only two cards. «Seiten» starts with the Startseite and then the pages in the order of «Mehr»; the arrows move a page up or down. «Orte» lists the places. Each row ends in › and is highlighted under the pointer, like the «Mehr» list. A click on the row opens its editor. The arrows only move the page. «+ Seite» and «+ Ort» open an empty editor.", "Page editor (own screen, /admin/content/pages/:id): title and address, Markdown editor with a live preview, the images of this page, the places it shows, «In «Mehr» sichtbar» and «Veröffentlichen». «Veröffentlichen» is live at once; there are no drafts. A hidden page is still reached by its address.", "Start page editor (/admin/content/start, decided 2026-11-13): the same screen without title, address, visibility and places. On top the hero image («Bild wählen» from the images of the start page or a new upload, «Entfernen», alt text; shown uncropped). Below the text the switch «Countdown auf der Startseite zeigen» (default on). The hero image cannot be removed from the image list while it is the hero image. The layout of the start page itself is fixed (WEB-10, WEB-11).","Images belong to one page. «Bild hochladen» takes a JPEG, PNG or WebP up to 10 MB, checked by its content, and stores it unchanged. «Markdown kopieren» puts ![Beschreibung](/api/content/images/ID) into the clipboard. Deleting a page deletes its images.", "Place editor (own screen, /admin/content/places/:id): name, optional address, optional Google Maps link (https only) and the map image of this place with its own «Kartenbild hochladen», «Ersetzen» and «Entfernen». The map image is not one of the page images. A place that a program item or a page uses cannot be deleted; the message names where it is used.", "Deleting a page or a place takes a second click. No «Programm» entry: the programme is the schedule and stays in Einstellungen."],
+  qs: [],
+  render: (v) => {
+    const back = `<a class="sm" data-go="admin-content" data-variant="list">‹ Inhalte</a>`;
+    if (v === "page") return admin("admin-content", `${back}<div class="m-sethead"><h1 class="m-h1 grow">Anreise & Parkieren</h1></div>
+      <div class="m-card">${field("Titel", inp("ac-title", "Anreise & Parkieren"))}${field("Adresse", inp("ac-slug", "anreise-parkieren"), "Die Seite ist unter /p/anreise-parkieren zu finden.")}</div>
+      <div class="m-mdsplit"><div class="m-stack">${area("ac-md", "# Anreise & Parkieren\n\n## Mit dem ÖV\nAb Bern HB mit der S-Bahn bis Muri bei Bern (12 Min.), dann 5 Minuten zu Fuss zur Kirche.\n\n![Bahnhof Muri](/api/content/images/7)\n\n## Mit dem Auto\nParkplätze hat es beim **Landgasthof Linde**.")}</div>
+        <div class="m-card"><span class="m-eyebrow">Vorschau</span><div class="m-md"><h1>Anreise & Parkieren</h1><h2>Mit dem ÖV</h2><p>Ab Bern HB mit der S-Bahn bis Muri bei Bern (12 Min.), dann 5 Minuten zu Fuss zur Kirche.</p>${ph("Bahnhof Muri", "16/9")}<h2>Mit dem Auto</h2><p>Parkplätze hat es beim <b>Landgasthof Linde</b>.</p></div></div></div>
+      <div class="m-card"><div class="m-row2"><span class="m-eyebrow grow" style="flex:1">Bilder dieser Seite</span><button class="m-btn soft sm">${ic("cam")} Bild hochladen</button></div>
+        <div class="m-list sm">${[["bahnhof-muri.jpg", "JPEG · 240 KB · im Text"], ["parkplatz.png", "PNG · 96 KB · nicht im Text"]].map(([n, d]) => `<div class="m-li"><div class="grow" style="flex:1"><b class="sm">${n}</b><span class="m-hint">${d}</span></div><button class="m-btn ghost sm">Markdown kopieren</button></div>`).join("")}</div>
+        <span class="m-hint">JPEG, PNG oder WebP, höchstens 10 MB.</span></div>
+      <div class="m-card"><span class="m-eyebrow">Orte auf dieser Seite</span><div class="m-chips" data-multi>${[["Kirche Muri", true], ["Landgasthof Linde", true], ["Schlossgarten", false]].map(([p, on]) => `<button class="m-chip ${on ? "on" : ""}">${p}</button>`).join("")}</div><span class="m-hint">Die Seite zeigt sie als Karten neben dem Text.</span></div>
+      <div class="m-row2"><button class="m-btn">Veröffentlichen</button><span class="m-hint">In «Mehr» sichtbar ${sw(true)}</span><span class="grow"></span><button class="m-btn ghost sm">Seite löschen</button></div>`);
+    if (v === "start") return admin("admin-content", `${back}<div class="m-sethead"><h1 class="m-h1 grow">Startseite</h1></div>
+      <div class="m-card"><span class="m-eyebrow">Titelbild (optional)</span>${ph("titelbild.png", "16/9", "max-width:360px")}
+        <div class="m-row2"><button class="m-btn soft sm">${ic("cam")} Bild wählen</button><button class="m-btn ghost sm">Entfernen</button></div>
+        ${field("Beschreibung (Alt-Text)", inp("ac-hero-alt", "Das Paar vor der Kirche"))}
+        <span class="m-hint">Ein Bild der Startseite oder ein neues. Es erscheint in voller Breite und wird nicht zugeschnitten.</span></div>
+      <div class="m-mdsplit"><div class="m-stack">${area("ac-start-md", "# Wir heiraten!\n\nWir freuen uns riesig, diesen Tag mit euch zu feiern. Hier findet ihr alles, was ihr wissen müsst.")}</div>
+        <div class="m-card"><span class="m-eyebrow">Vorschau</span>${ph("titelbild.png", "16/9")}<div class="m-md"><h1>Wir heiraten!</h1><p>Wir freuen uns riesig, diesen Tag mit euch zu feiern. Hier findet ihr alles, was ihr wissen müsst.</p></div></div></div>
+      <div class="m-card"><div class="m-row2"><span class="m-eyebrow grow" style="flex:1">Bilder der Startseite</span><button class="m-btn soft sm">${ic("cam")} Bild hochladen</button></div>
+        <div class="m-list sm">${[["titelbild.png", "PNG · 310 KB · Titelbild"], ["apero.jpg", "JPEG · 180 KB · nicht im Text"]].map(([n, d]) => `<div class="m-li"><div class="grow" style="flex:1"><b class="sm">${n}</b><span class="m-hint">${d}</span></div><button class="m-btn ghost sm">Markdown kopieren</button></div>`).join("")}</div>
+        <span class="m-hint">JPEG, PNG oder WebP, höchstens 10 MB.</span></div>
+      <div class="m-card"><div class="m-setrow"><div class="grow"><b class="sm">Countdown auf der Startseite zeigen</b><span class="m-hint">Zählt die Tage bis zum ersten Programmpunkt und verschwindet am Festtag.</span></div>${sw(true)}</div></div>
+      <div class="m-row2"><button class="m-btn">Veröffentlichen</button></div>`);
+    if (v === "place") return admin("admin-content", `${back}<div class="m-sethead"><h1 class="m-h1 grow">Kirche Muri</h1></div>
+      <div class="m-card"><div class="m-grid-d2">${field("Name", inp("pl-name", "Kirche Muri"))}${field("Adresse (optional)", inp("pl-addr", "Kirchstrasse 1"))}</div>
+        ${field("Google-Maps-Link (optional)", inp("pl-maps", "https://maps.app.goo.gl/Kirche-Muri"), "Nur https-Links zu Google Maps. Der Link öffnet sich in einem neuen Tab. Nichts wird von Google eingebettet.")}</div>
+      <div class="m-card"><span class="m-eyebrow">Kartenbild (optional)</span>${ph("karte-muri.png", "16/9", "max-width:360px")}
+        <div class="m-row2"><button class="m-btn soft sm">${ic("cam")} Ersetzen</button><button class="m-btn ghost sm">Entfernen</button></div><span class="m-hint">JPEG, PNG oder WebP, höchstens 10 MB. Ohne Kartenbild heisst der Knopf «Kartenbild hochladen».</span></div>
+      <div class="m-row2"><button class="m-btn">Speichern</button><span class="grow"></span><button class="m-btn ghost sm">Ort löschen</button></div>
+      <span class="m-hint">Ein Ort, den ein Programmpunkt oder eine Seite nutzt, lässt sich nicht löschen.</span>`);
+    return admin("admin-content", `<div class="m-sethead"><h1 class="m-h1 grow">Inhalte</h1></div>
+      <div class="m-card"><div class="m-row2"><span class="m-eyebrow grow" style="flex:1">Seiten</span><button class="m-btn soft sm" data-go="admin-content" data-variant="page">${ic("plus")} Seite</button></div>
+        <div class="m-list"><div class="m-li link" data-go="admin-content" data-variant="start"><div class="grow" style="flex:1"><b>Startseite</b><span class="m-hint">Titelbild, Begrüssungstext, Countdown</span></div>${ic("next")}</div>
+        ${[["Das Fest", "das-fest", true], ["Anreise & Parkieren", "anreise-parkieren", true], ["Unterkunft", "unterkunft", true], ["FAQ", "faq", false]].map(([t, s, more]) => `<div class="m-li link" data-go="admin-content" data-variant="page"><div class="grow" style="flex:1"><b>${t}</b><span class="m-hint">/p/${s}${more ? "" : " · nicht in «Mehr»"}</span></div><button class="m-btn ghost sm" data-move aria-label="nach oben">↑</button><button class="m-btn ghost sm" data-move aria-label="nach unten">↓</button>${ic("next")}</div>`).join("")}</div></div>
+      <div class="m-card"><div class="m-row2"><span class="m-eyebrow grow" style="flex:1">Orte</span><button class="m-btn soft sm" data-go="admin-content" data-variant="place">${ic("plus")} Ort</button></div>
+        <div class="m-list">${[["Kirche Muri", "Kirchstrasse 1"], ["Landgasthof Linde", "Dorfstrasse 20"], ["Schlossgarten", ""]].map(([n, a]) => `<div class="m-li link" data-go="admin-content" data-variant="place"><div class="grow" style="flex:1"><b>${n}</b><span class="m-hint">${a || "ohne Adresse"}</span></div>${ic("next")}</div>`).join("")}</div></div>`);
+  },
 });
 add({
   id: "admin-world", group: "admin", title: "Game world: objects & portals", path: "/admin/world", reqs: ["MAP-05", "MAP-08", "MAP-15", "GAME-05", "GAME-06"],
@@ -1411,18 +1446,29 @@ add({
   },
 });
 add({
-  id: "admin-settings", group: "admin", title: "Settings & opening", path: "/admin/settings", reqs: ["ACS-10", "ACS-11", "ACS-13", "ACS-14", "PHO-18", "RSVP-04", "PRES-15", "CFG-02", "CFG-03", "SCR-04", "SCR-07", "PHO-14"],
-  shows: ["One page with sections.", "Opening the platform with an optional “Die Tür ist offen” email (verified addresses only). An optional opening date and, separately, the switch for the countdown (decided 2026-11-11). Once open, the card offers “Wieder schliessen” (no email).", "RSVP deadline, program items (name, time, place, one program item marked as the meal) and one menu list.", "Waiting page texts with placeholders (only here, not in Inhalte).", "Privacy notice as Markdown (SEC-09).", "Features. Upload links and screen links (create, QR, revoke, per screen link: show the upload QR now and then).", "Guest profiles: the “Wie kennst du das Paar?” list, in its own section."],
+  id: "admin-settings", group: "admin", title: "Settings & opening", path: "/admin/settings", reqs: ["ACS-10", "ACS-11", "ACS-13", "ACS-14", "PHO-18", "RSVP-04", "PRES-15", "CFG-02", "CFG-03", "SCR-04", "SCR-07", "PHO-14", "THM-01", "THM-03", "THM-05"],
+  variants: [["active", "Design aktiv"], ["default", "Standard-Design"], ["refused", "Paket abgelehnt"], ["confirm", "Zweiter Klick"]],
+  shows: ["One page with sections.", "Design (decided 2026-11-13, stage 4): the active theme with its format and the time of the import. “Design importieren” takes a .tar.gz package as a whole. A refused package lists every finding (the findings are shown in English, as the server gives them) and the active theme stays as it was. “Standard-Design verwenden” asks for a second click (Ja / Abbrechen) before it removes the package. Without a package the card says that the platform’s default applies.", "Opening the platform with an optional “Die Tür ist offen” email (verified addresses only). An optional opening date and, separately, the switch for the countdown (decided 2026-11-11). Once open, the card offers “Wieder schliessen” (no email).", "RSVP deadline, program items (name, time, place, one program item marked as the meal) and one menu list.", "Waiting page texts with placeholders (only here, not in Inhalte).", "Privacy notice as Markdown (SEC-09).", "Features. Upload links and screen links (create, QR, revoke, per screen link: show the upload QR now and then).", "Guest profiles: the “Wie kennst du das Paar?” list, in its own section."],
   qs: [
     { q: "One long settings page, or split into tabs (Öffnung · Rückmeldung · Funktionen · Links)?", p: "Mock: one page with sections. Splitting is easy later." },
     { n: 54, q: "Where are the waiting-page texts edited: Einstellungen or the content editor?", p: "Proposal: Einstellungen only. The content editor has no “Warteseite” page." },
     { n: 56, q: "When the countdown reaches zero before the platform opens, and after opening: what happens?", p: "Proposal: the countdown disappears at zero (the text stays). The admin can close the platform again, without an email." },
   ],
-  render: () => admin("admin-settings", `<h1 class="m-h1">Einstellungen</h1>
+  render: (v) => {
+    const dv = v || "active";
+    const designTag = dv === "default" ? '<span class="m-tag line">Standard-Design</span>' : '<span class="m-tag ok">Aktiv: Sommerfest</span>';
+    const designInfo = dv === "default" ? "Es gilt das Standard-Design der Plattform." : "Format 1 · importiert am 12.11.2026 um 18:04. Das Design gilt für die Website und die Gästeseiten sowie für die Icons der App. Die Verwaltung bleibt neutral.";
+    const designButtons = dv === "confirm" ? '<button class="m-btn soft sm">Ja, Standard-Design verwenden</button><button class="m-btn ghost sm">Abbrechen</button>' : '<button class="m-btn soft sm">Design importieren</button>' + (dv === "default" ? "" : '<button class="m-btn ghost sm">Standard-Design verwenden</button>');
+    const designFindings = dv !== "refused" ? "" : '<div class="m-card flat"><b class="sm">Das Paket wurde abgelehnt</b><span class="m-hint">Das aktive Design bleibt unverändert. Alle Befunde:</span><ul class="m-list sm"><li>icons/icon-192.png: falsche Grösse (200 × 200 instead of 192 × 192)</li><li>theme.json: Feld unbekannt oder ungültig (unknown field «shadow»)</li><li>theme.json: Kontrast zu gering («text» on «surface»: 3.1 : 1 (at least 4.5 : 1))</li></ul></div>';
+    return admin("admin-settings", `<h1 class="m-h1">Einstellungen</h1>
     <div class="m-card"><b>Veranstaltung</b><span class="m-hint">Name, Zeitzone und Sprache lassen sich jederzeit ändern. Die Zeitzone bestimmt, wie Zeiten angezeigt werden, nicht die gespeicherten Zeiten.</span>
       <div class="m-grid-d2">${field("Name", inp("as-name", "Anna & Ben"))}${field("Zeitzone", inp("as-tz", "Europe/Zurich", 'list="tz-list"'))}</div>
       ${field("Standardsprache", `<select class="m-input" id="as-lang" style="width:auto"><option selected>Deutsch</option></select>`)}
       <button class="m-btn" style="align-self:flex-start">Speichern</button></div>
+    <div class="m-card"><div class="m-row2"><b class="m-h2" style="flex:1">Design</b>${designTag}</div>
+      <span class="m-muted sm">${designInfo}</span>
+      <div class="m-row2">${designButtons}</div>
+      <span class="m-hint">Ein Paket als .tar.gz, höchstens 10 MB. Es wird ganz geprüft; ein fehlerhaftes Paket ändert nichts. «Standard-Design verwenden» braucht einen zweiten Klick.</span>${designFindings}</div>
     <div class="m-card strong"><div class="m-row2"><b class="m-h2" style="flex:1">Plattform öffnen</b><span class="m-tag warn">Geschlossen</span></div>
       <p class="m-muted sm">Bis zur Öffnung sehen Gäste nur die Warteseite und die Rückmeldung. Staff und Admins haben vollen Zugang.</p>
       ${field("Angekündigtes Öffnungsdatum (optional)", inp("as-open", "2027-05-15T18:00", 'type="datetime-local" style="width:auto"'), "Erscheint im Platzhalter {openingDate}.")}
@@ -1436,9 +1482,9 @@ add({
         <div class="m-setrow"><div class="grow"><b class="sm">Pro Programmpunkt zusagen</b><span class="m-hint">Aus: Gäste antworten einmal für alle ihre Programmpunkte. Ein: Ja oder Nein pro Programmpunkt.</span></div>${sw(false)}</div>
         <div class="m-setrow"><div class="grow"><b class="sm">Begleitpersonen bestätigen</b><span class="m-hint">Aus: Eine hinzugefügte Begleitperson zählt sofort. Ein: Du bestätigst jede Anfrage.</span></div>${sw(false)}</div>
         <span class="m-eyebrow">Programmpunkte</span>
-        <div class="m-list">${PROGRAM_ITEMS.map((p) => `<div class="m-li"><div class="grow"><b>${p[0]}${p[0] === "Dinner" ? ' <span class="m-tag ok">Essen</span>' : ""}</b><span class="m-hint">12.06.2027 ${p[1]} · ${p[2]}</span></div><button class="m-btn soft sm">Bearbeiten</button><button class="m-btn ghost sm">Löschen</button></div>`).join("")}</div>
+        <div class="m-list">${PROGRAM_ITEMS.map((p) => `<div class="m-li"><div class="grow"><b>${p[0]}${p[0] === "Dinner" ? ' <span class="m-tag ok">Essen</span>' : ""}</b><span class="m-hint">12.06.2027 ${p[1]}${p[3] ? "–" + p[3] : ""} · ${p[2]}</span></div><button class="m-btn soft sm">Bearbeiten</button><button class="m-btn ghost sm">Löschen</button></div>`).join("")}</div>
         <button class="m-btn ghost sm" style="align-self:flex-start">${ic("plus")} Programmpunkt hinzufügen</button>
-        <span class="m-hint">Ein Programmpunkt hat Name, Uhrzeit und Ort. Ein Programmpunkt kann das Essen haben: Nur dafür wird das Menü gefragt.</span>
+        <span class="m-hint">Ein Programmpunkt hat Name, Uhrzeit und einen Ort aus der Liste der Orte in Inhalte (kein Freitext). Ein Programmpunkt kann das Essen haben: Nur dafür wird das Menü gefragt.</span>
         <span class="m-eyebrow">Menüs (für alle)</span><div class="m-chips">${MENUS.map((p) => `<span class="m-chip">${p}</span>`).join("")}<button class="m-chip">${ic("plus")}</button></div></div>
       <div class="m-card"><b>Funktionen</b>${[["Minigames", 1], ["Schnappschüsse", 1], ["Galerie", 1], ["Gästebuch", 1], ["Schatzsuche", 1], ["Eventscreen", 1], ["Galerie für Gäste freigegeben", 0]].map(([n, o]) => `<div class="m-setrow"><div class="grow"><b class="sm">${n}</b></div>${sw(o)}</div>`).join("")}</div>
     </div>
@@ -1458,7 +1504,8 @@ add({
       <div class="m-card"><b>Eventscreen-Links</b><div class="m-list"><div class="m-li"><div class="grow"><b>Beamer Saal</b><span class="m-hint">Fotowand, Paar-Quiz · Wechsel alle 20 s</span></div><button class="m-btn ghost sm">Widerrufen</button></div></div><button class="m-btn soft sm" style="align-self:flex-start">${ic("plus")} Screen-Link</button>
         <div class="m-setrow"><div class="grow"><b class="sm">Upload-QR einblenden</b><span class="m-hint">Link «Allgemein» · 15 s alle 2 Min, unten rechts</span></div>${sw(true)}</div></div>
     </div>
-    <div class="m-card"><b>Gästeprofile</b><span class="m-hint">Auswahl für «Wie kennst du das Paar?» in Profil und Sprechblase.</span><div class="m-chips">${HOW.map((h) => `<span class="m-chip">${h}</span>`).join("")}<button class="m-chip">${ic("plus")}</button></div></div>`),
+    <div class="m-card"><b>Gästeprofile</b><span class="m-hint">Auswahl für «Wie kennst du das Paar?» in Profil und Sprechblase.</span><div class="m-chips">${HOW.map((h) => `<span class="m-chip">${h}</span>`).join("")}<button class="m-chip">${ic("plus")}</button></div></div>`);
+  },
 });
 add({
   id: "admin-setup", group: "admin", title: "Event setup (first start)", path: "/admin (event not set up yet)", reqs: ["CFG-02", "CFG-06", "CFG-07"],
@@ -1532,7 +1579,7 @@ const DECIDED = {
   17: "No buttons at the bottom (the bar at the top stays). Information also opens when the player clicks an object in the world: the avatar walks to it, stops in front of it, and the overlay opens (church → programme, restaurant → table finder). Clickable objects sparkle now and then at random (no wobble, wobbling arrows mark portals).",
   18: "Yes, links stay in the overlay.",
   19: "Yes, these five tabs.",
-  20: "As in the mock: editable welcome block plus fixed system cards.",
+  20: "Fixed layout (changed 2026-11-13). The hosts edit the hero image, the welcome text and the countdown switch in Inhalte. The cards are fixed: countdown, RSVP and shortcuts before the event day, now/next, feature cards and shortcuts on the event day (sw-architecture.md 5.6).",
   21: "Hide uninvited program items and say so in one line.",
   22: "Plain Markdown for every page.",
   23: "Only the table.",
@@ -1575,7 +1622,7 @@ const DECIDED = {
 };
 const GLOBAL_QS = [
   { q: "Visual theme: when do we decide the look (colours, fonts, pixel style of the UI)?", p: "These mocks are deliberately neutral. theme.json fields are specified in stage 4." },
-  { q: "Does the website get its own pixel-art accents (headings, icons) or stay a calm, classic site?", p: "Proposal: calm website, pixel accents only in game-related places (countdown, game buttons, event screen)." },
+  { q: "Does the website get its own pixel-art accents (headings, icons) or stay a calm, classic site?", p: "Proposal: calm website, pixel accents only in game-related places (game buttons, event screen). The countdown on the start page is calm and uses the theme's display font (decided 2026-11-13)." },
 ];
 
 /* ---------- pixel art: avatars ---------- */
@@ -2139,6 +2186,7 @@ function wire(root) {
     if (cm) { cm.classList.toggle("on"); return; }
     const t = e.target.closest("[data-switch]");
     if (t) { t.classList.toggle("on"); return; }
+    if (e.target.closest("[data-move]")) return;
     const g = e.target.closest("[data-go]");
     if (g) { e.preventDefault(); go(g.dataset.go, g.dataset.variant); }
   });

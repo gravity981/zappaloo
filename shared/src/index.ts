@@ -1,5 +1,6 @@
 export * from "./api/errors.ts";
 export * from "./access.ts";
+export * from "./content.ts";
 export * from "./account.ts";
 export * from "./api/system.ts";
 export * from "./event.ts";
@@ -11,3 +12,4 @@ export * from "./version.ts";
 export * from "./time.ts";
 export * from "./waiting.ts";
 export * from "./platform.ts";
+export * from "./theme.ts";

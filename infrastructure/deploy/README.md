@@ -57,7 +57,26 @@ docker compose exec app zappaloo event setting platformOpen on
 
 `zappaloo event seed-example` sets up the example event for development and tests; it refuses staging and prod.
 
-The theme and static graphics, once they exist (stage 4 onwards), live in the data volume at `/data/events/event1/` and are part of the full backup (`events/`).
+The theme of the event (its look and app icons) is described in [The theme](#the-theme). It lives in the data volume at `/data/events/event1/theme/` and is part of the full backup (`events/`).
+
+## The theme
+
+The website, the guest pages and the app icons take their look from a theme package (sw-architecture.md 19.7). Without one, the platform's default look applies, and the admin area keeps its neutral look either way.
+
+**The package** is a `tar.gz` of at most 10 MB, unpacked at most 20 MB, with the files at the root of the archive (no folder around them):
+
+- `manifest.json`: `kind` `zappaloo-theme`, `formatVersion` `1`, and a `name` the admin recognises the package by.
+- `theme.json`: `colors` (seven `#rrggbb` values: `background`, `surface`, `text`, `muted`, `line`, `accent`, `onAccent`), and optionally `waiting` (the waiting card's `card`, `text`, `button` and `onButton`) and `fonts` (`body`, `heading`, `display`: the countdown's number).
+- `icons/icon-192.png` (192×192), `icons/icon-512.png` (512×512), `icons/apple-touch-icon.png` (180×180), and optionally `icons/icon-maskable-512.png` (512×512, the content inside the central 80 %).
+- Optionally, WOFF2 font files in `fonts/`, at most eight and 2 MB each, each named in `theme.json`.
+
+The validator checks the whole package before anything changes. Text must reach a contrast of 4.5 : 1 on the background, on the surface, on the accent and, with the waiting card, on its own surface and button.
+
+**Import and return** are in the admin area: Einstellungen › Design. A package is imported as a whole. A refused package lists every finding, with its file, and changes nothing. "Standard-Design verwenden" asks for a second click before it removes the package. Both are in the audit log.
+
+**The example** is attached to each release as `zappaloo-theme-example.tar.gz`, next to the bundle. It has the colours of the wedding mock (name `Sommerfest`), placeholder icons and no fonts. It is a build output, not a file of the repository: `npm run build:example-theme` writes it into `dist/`.
+
+A guest who already added the site to the home screen keeps the old icon until they add it again; the browser stores it when the app is installed.
 
 ## Deploy
 

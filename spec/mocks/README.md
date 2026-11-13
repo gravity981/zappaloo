@@ -43,7 +43,7 @@ The decisions behind the mocks, by question number in the prototype's "Questions
 | 43 | Discoverability | The sparkle plus a hint at the first entry, "Tippe auf Dinge, die funkeln" (GAME-17). |
 | 18 | Overlay links | Links inside an overlay stay in the overlay. |
 | 19 | Website tabs | Start · Programm · Hochladen · Erinnerungen · Mehr (bottom tab bar on phones, top nav on desktop). |
-| 20 | Start page | Editable welcome block plus fixed system cards (RSVP status, now / next, shortcuts). |
+| 20 | Start page | Fixed layout. The hosts edit the hero image, the welcome text and the countdown switch. The cards are fixed (RSVP status, countdown, now / next, shortcuts). Changed 2026-11-13, see "Start page" under stage 4. |
 | 21 | Programme | Only the parts the guest is invited to, with one line saying so (WEB-09). |
 | 22 | Content pages | Plain Markdown for every page, FAQ included. |
 | 23 | Table finder | The table and tablemates only, no seat. |
@@ -135,5 +135,8 @@ Written into sw-architecture.md 6.2, 19.1.1 and 19.7 as well. The mock screens a
 | Content editor | Inhalte lists the pages, the start page text and the places. It has no "Programm" entry, because the program items are the schedule and stay in Einstellungen › Rückmeldung (with an optional end time and a place picked from the places). |
 | Images | Uploaded in the editor and placed with the Markdown image syntax (CNT-06). |
 | Places and maps | A place card shows the uploaded map picture, the address and "In Google Maps öffnen". No map is embedded (CNT-07). |
-| Theme | Card "Design" in Einstellungen: the active theme, the import of a theme package, the findings of a refused package and "Standard-Design verwenden" with a second click. No download (THM-01 – THM-05). |
+| Theme | Card "Design" in Einstellungen: the active theme, the import of a theme package, the findings of a refused package and "Standard-Design verwenden" with a second click. No download (THM-01 – THM-06). |
 | World | The admin entry "Spielwelt" keeps the object actions per map. Its tab "Karten & Import" becomes the world importer for one whole package (stage 5, MAP-16). |
+| Start page (decided 2026-11-13, step 4b) | Fixed layout (sw-architecture.md 5.6). Before the event day: hero image, welcome text, then the countdown card, the RSVP card and the shortcuts ("Programm" and the first three pages visible in "Mehr"). On the event day: "now / next", the feature cards, the shortcuts. No hero image, welcome text, countdown or RSVP card that day (WEB-10). "Spielwelt betreten" comes with stage 5. |
+| Hero image | Picked in the editor of the start page ("Bild wählen" from its images or a new upload, "Entfernen", alt text). Shown in full width, uncropped. Without one the welcome text moves up. |
+| Countdown | "Noch 214 Tage", "Noch 1 Tag": calendar days to the day of the first program item, with its date and place. Gone on the event day and without program items. The switch "Countdown auf der Startseite zeigen" (default on) is in the editor of the start page, not in Einstellungen. Its number uses the theme's `display` font, or the heading font without one. It is calm like the website, not pixel style (WEB-11, THM-06; replaces the countdown among the pixel accents of decision 39). |

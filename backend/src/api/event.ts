@@ -8,12 +8,15 @@ import { eventResponseSchema, siteResponseSchema } from "@zappaloo/shared";
 import type { FeatureName } from "@zappaloo/shared";
 import type { FooterService } from "../event/footer.ts";
 import type { EventService } from "../event/service.ts";
+import { siteTheme } from "../theme/site.ts";
+import type { ThemeService } from "../theme/service.ts";
 import { PUBLIC } from "./access.ts";
 import { sendError } from "./validation.ts";
 
 export interface EventApiOptions {
   event: EventService;
   footer: FooterService;
+  theme: ThemeService;
 }
 
 export const eventApiRoutes: FastifyPluginCallbackZod<EventApiOptions> = (app, options, done) => {
@@ -29,6 +32,7 @@ export const eventApiRoutes: FastifyPluginCallbackZod<EventApiOptions> = (app, o
       name: options.event.get().name,
       copyright: options.footer.copyright(),
       sourceUrl: options.footer.sourceUrl,
+      theme: siteTheme(options.theme.active()),
     }),
   );
 

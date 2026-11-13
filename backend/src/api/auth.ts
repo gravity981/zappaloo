@@ -193,6 +193,26 @@ export function requireRole(role: Role) {
 }
 
 /**
+ * `preHandler`: 401 unless signed in, 403 unless the user is an admin (ROLE-07) or staff with the
+ * capability `editWebsiteContent` (ROLE-06). Used by the content editor (sw-architecture.md 6.2).
+ */
+export async function requireContentEditor(
+  request: FastifyRequest,
+  reply: FastifyReply,
+): Promise<FastifyReply | undefined> {
+  if (!request.auth) {
+    return sendError(reply, 401, { code: "unauthorized", message: "Sign in first." });
+  }
+  const { roles, capabilities } = request.auth.user;
+  if (roles.includes("admin")) return undefined;
+  if (roles.includes("staff") && capabilities.includes("editWebsiteContent")) return undefined;
+  return sendError(reply, 403, {
+    code: "forbidden",
+    message: 'The capability "editWebsiteContent" is required.',
+  });
+}
+
+/**
  * `preHandler`: 401 unless signed in, 403 unless the user is staff with the capability (ROLE-06).
  * An admin does not pass without being staff with it (ROLE-08).
  */

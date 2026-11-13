@@ -1,8 +1,10 @@
 /* The shared look of the guest pages and the admin area (sw-architecture.md 8.3, UX mocks in
    spec/mocks/): tokens, buttons, fields, cards, chips, tags, lists and tables. The admin page
    frame (.admin, .admin-head, .admin-nav) belongs to the admin area only; the guest shells
-   (.guest-bare, .guest-flow) are at the end. Stage 4's theme replaces the tokens (--a-*). */
-:is(.admin, .guest) {
+   (.guest-bare, .guest-flow) are at the end. The tokens (--a-*) have their defaults on .admin and
+   on .themed, the wrapper of the website and the guest pages, which carries the event's theme
+   (sw-architecture.md 19.7; frontend/src/app/ThemeScope.tsx). */
+:is(.admin, .themed) {
   --a-bg: #f4f4f1;
   --a-card: #ffffff;
   --a-ink: #1f1f1d;
@@ -10,16 +12,19 @@
   --a-line: #d5d5ce;
   --a-fill: #e8e8e2;
   --a-dark: #2a2a28;
+  --a-on-dark: #ffffff;
   --a-badge: #c4422e;
   --a-ok: #2d7a4c;
   --a-warn: #a06a00;
+  /* The heading font; the countdown's number uses the display font, else the heading font. */
   --a-display: system-ui, sans-serif;
-
+  --a-number-font: var(--a-display);
+  --a-body-font: system-ui, sans-serif;
+}
+:is(.admin, .guest) {
   background: var(--a-bg);
   color: var(--a-ink);
-  font:
-    14px/1.45 system-ui,
-    sans-serif;
+  font: 14px/1.45 var(--a-body-font);
   color-scheme: light;
 }
 .admin {
@@ -47,7 +52,7 @@
 /* shell */
 .admin-head {
   background: var(--a-dark);
-  color: #fff;
+  color: var(--a-on-dark);
   display: flex;
   align-items: center;
   gap: 10px;
@@ -109,7 +114,9 @@
 }
 :is(.admin, .guest) .version-footer {
   padding: 0;
-  /* "Datenschutz · Version x.y.z" sits in the middle, above the centred notice (LIC-01) */
+  /* "Datenschutz · Version x.y.z" sits in the middle, above the centred notice (LIC-01). The space
+     above it keeps a card that ends the page from touching it. */
+  margin-top: 32px;
   text-align: center;
 }
 
@@ -184,7 +191,7 @@
   padding: 0 18px;
   border-radius: 10px;
   background: var(--a-dark);
-  color: #fff;
+  color: var(--a-on-dark);
   border: 1.5px solid var(--a-dark);
   font: inherit;
   font-weight: 600;
@@ -456,6 +463,41 @@
   color: inherit;
   text-align: left;
   cursor: pointer;
+}
+/* A row that opens its editor (UX mock admin-content, `.m-li.link`): the whole row is highlighted
+   under the pointer with the mock's margins and padding; the › is the last thing in the row. */
+:is(.admin, .guest) .li.li-row:hover,
+:is(.admin, .guest) .li.li-row:focus-within {
+  background: var(--a-line);
+  margin: 0 -8px;
+  padding-left: 8px;
+  padding-right: 8px;
+  border-radius: 8px;
+}
+:is(.admin, .guest) .li-main {
+  flex: 1 1 11rem;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  color: inherit;
+  text-decoration: none;
+}
+:is(.admin, .guest) .li-main b {
+  font-weight: 700;
+}
+:is(.admin, .guest) .chevron {
+  color: var(--a-muted);
+  font-size: 1.25rem;
+  line-height: 1;
+  text-decoration: none;
+}
+:is(.admin, .guest) .map-preview {
+  display: block;
+  max-width: 360px;
+  width: 100%;
+  height: auto;
+  border-radius: 8px;
+  border: 1px solid var(--a-line);
 }
 :is(.admin, .guest) .scroll {
   overflow-x: auto;
@@ -971,7 +1013,7 @@
 }
 .guest-site-head b {
   font: 600 16px/1.15 var(--a-display);
-  margin-right: auto;
+  margin-right: 16px;
 }
 .guest-site-head nav {
   display: flex;
@@ -1088,4 +1130,261 @@
   margin: 0;
   max-height: 60vh;
   overflow: auto;
+}
+
+/* The website frame (UX mock `site`): one navigation; the bottom tab bar on a phone, the header
+   on a wide screen. */
+.site-nav {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+  /* The tabs stay left, next to the name; Spielwelt and the profile go to the right end. */
+  margin-right: auto;
+}
+.site-nav a,
+.site-head-r a {
+  color: inherit;
+  text-decoration: none;
+}
+.site-head-r {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+  margin-left: auto;
+}
+.site-nav a.active {
+  font-weight: 600;
+}
+@media (max-width: 719px) {
+  .site-nav {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    justify-content: space-around;
+    gap: 0;
+    background: var(--a-card, #ffffff);
+    border-top: 1px solid var(--a-line);
+    padding: 6px 0 calc(6px + env(safe-area-inset-bottom));
+    z-index: 10;
+  }
+  .site-nav a {
+    flex: 1;
+    text-align: center;
+    padding: 8px 0;
+    color: var(--a-muted);
+    font-size: 14px;
+  }
+  .site-nav a.active {
+    color: var(--a-ink, #1f1f1d);
+  }
+  .guest-site-main {
+    padding-bottom: 88px;
+  }
+}
+@media (min-width: 720px) {
+  .guest-site-main {
+    padding-bottom: 24px;
+  }
+}
+
+/* The start page (WEB-10, WEB-11): the hero and the welcome text, then the cards; two columns on a
+   wide screen, one column on a phone. */
+.start {
+  display: grid;
+  gap: 24px;
+}
+@media (min-width: 900px) {
+  .start {
+    grid-template-columns: 1fr 1fr;
+    align-items: start;
+  }
+}
+.start-main,
+.start-side {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-width: 0;
+}
+.hero {
+  display: block;
+  width: 100%;
+  height: auto;
+  border-radius: 14px;
+}
+.countdown-days {
+  display: block;
+  font-size: 30px;
+  line-height: 1.1;
+  font-weight: 600;
+  font-family: var(--a-number-font);
+}
+.shortcuts {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+.shortcuts .btn {
+  justify-content: center;
+}
+
+/* A page of the website and «Mehr» (UX mock `info`, `more`). */
+.crumb {
+  color: var(--a-muted);
+  font-size: 14px;
+  margin-bottom: 12px;
+}
+.page-grid {
+  display: grid;
+  gap: 24px;
+}
+@media (min-width: 900px) {
+  .page-grid {
+    grid-template-columns: 2fr 1fr;
+    align-items: start;
+  }
+}
+.page-text {
+  min-width: 0;
+}
+.place-card {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.more {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* The frame's icons, the active entry without a pill, and the avatar (UX mock site). */
+.site-icon {
+  width: 20px;
+  height: 20px;
+  flex: none;
+}
+.site-nav a {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.site-nav a.active,
+.guest-site-head nav a.site-nav-active {
+  background: none;
+}
+.site-head-r .btn {
+  min-height: 36px;
+  gap: 8px;
+}
+.site-avatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: var(--a-fill);
+  border: 1.5px solid var(--a-line);
+  color: var(--a-muted);
+  font-size: 13px;
+  font-weight: 600;
+  text-decoration: none;
+}
+@media (max-width: 719px) {
+  .site-nav a {
+    flex-direction: column;
+    gap: 2px;
+    font-size: 10.5px;
+  }
+  .site-nav a.active span {
+    font-weight: 600;
+  }
+}
+.start {
+  margin-bottom: 24px;
+}
+
+/* The cards of "Mehr" hold their list rows with the mock's padding (UX mock more: 4px and 16px). */
+.more .card {
+  padding: 4px 16px;
+}
+
+/* The programme (UX mock programme): a timeline with the time, a rail and the entry. Entries that are
+   over are greyed out; the current one is marked (WEB-07). */
+.timeline {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+}
+.tl {
+  display: grid;
+  grid-template-columns: 56px 16px minmax(0, 1fr);
+  gap: 8px;
+  padding-bottom: 18px;
+}
+.tl-time {
+  font-weight: 600;
+  padding-top: 2px;
+}
+.tl-rail {
+  position: relative;
+  display: block;
+}
+.tl-rail::before {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 14px;
+  bottom: -18px;
+  width: 1px;
+  background: var(--a-line);
+  transform: translateX(-50%);
+}
+.tl:last-child .tl-rail::before {
+  display: none;
+}
+.tl-rail::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 6px;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  border: 2px solid var(--a-ink);
+  background: var(--a-card);
+  transform: translateX(-50%);
+}
+.tl.past {
+  opacity: 0.45;
+}
+.tl.now .tl-rail::after {
+  background: var(--a-ink);
+}
+.tl-card {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.programme {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* The header's name with the event's date under it (UX mock site). */
+.site-brand {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.site-brand small {
+  color: var(--a-muted);
+  font-size: 12px;
+  line-height: 1.3;
 }

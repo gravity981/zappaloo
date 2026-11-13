@@ -4,15 +4,21 @@ import type { RouteObject } from "react-router";
 import AdminHomePage from "../admin/AdminHomePage.tsx";
 import AdminInvitationsPage from "../admin/AdminInvitationsPage.tsx";
 import AdminLayout from "../admin/AdminLayout.tsx";
+import AdminContentPage from "../admin/AdminContentPage.tsx";
+import ContentPageEditor from "../admin/ContentPageEditor.tsx";
+import ContentPlaceEditor from "../admin/ContentPlaceEditor.tsx";
 import AdminRsvpGuestPage from "../admin/AdminRsvpGuestPage.tsx";
 import AdminRsvpPage from "../admin/AdminRsvpPage.tsx";
 import AdminSettingsPage from "../admin/AdminSettingsPage.tsx";
 import AdminUsersPage from "../admin/AdminUsersPage.tsx";
+import ContentPage from "../pages/ContentPage.tsx";
 import ForgotPasswordPage from "../pages/ForgotPasswordPage.tsx";
 import GamePage from "../pages/GamePage.tsx";
 import HomePage from "../pages/HomePage.tsx";
 import InstallPage from "../pages/InstallPage.tsx";
 import InvitePage from "../pages/InvitePage.tsx";
+import MorePage from "../pages/MorePage.tsx";
+import ProgrammePage from "../pages/ProgrammePage.tsx";
 import LicensePage from "../pages/LicensePage.tsx";
 import LoginPage from "../pages/LoginPage.tsx";
 import NotFoundPage from "../pages/NotFoundPage.tsx";
@@ -25,12 +31,15 @@ import Layout from "./Layout.tsx";
 import RequireOpen from "./RequireOpen.tsx";
 import RequireSignIn from "./RequireSignIn.tsx";
 import Root from "./Root.tsx";
+import { ThemeScope } from "./ThemeScope.tsx";
 
 export const routes: RouteObject[] = [
   {
     element: <Root />,
     children: [
       {
+        // The website and the guest pages carry the event's theme; the admin area does not.
+        element: <ThemeScope />,
         children: [
           // Reachable without sign-in (ACS-09), each page in the frame of the mock (the bare
           // frame). Upload-link pages and the event screen join this list with their features.
@@ -57,7 +66,13 @@ export const routes: RouteObject[] = [
                   {
                     // Pages of the open platform; guests wait at the front door until it opens.
                     element: <RequireOpen />,
-                    children: [{ path: "game", element: <GamePage /> }],
+                    children: [
+                      { path: "game", element: <GamePage /> },
+                      // The website pages: a content page and "Mehr" (WEB-02, WEB-05).
+                      { path: "p/:slug", element: <ContentPage /> },
+                      { path: "mehr", element: <MorePage /> },
+                      { path: "programme", element: <ProgrammePage /> },
+                    ],
                   },
                   { path: "profile", element: <ProfilePage /> },
                   { path: "*", element: <NotFoundPage /> },
@@ -80,6 +95,15 @@ export const routes: RouteObject[] = [
               { path: "rsvp", element: <AdminRsvpPage /> },
               { path: "rsvp/guests/:id", element: <AdminRsvpGuestPage /> },
               { path: "users", element: <AdminUsersPage /> },
+              {
+                // Inhalte: the list, and the editors of a page and of a place (UX mock admin-content).
+                path: "content",
+                children: [
+                  { index: true, element: <AdminContentPage /> },
+                  { path: "pages/:id", element: <ContentPageEditor /> },
+                  { path: "places/:id", element: <ContentPlaceEditor /> },
+                ],
+              },
               { path: "settings", element: <AdminSettingsPage /> },
               { path: "*", element: <NotFoundPage /> },
             ],

@@ -89,6 +89,14 @@ async function setup() {
     };
   };
   const programItems: ProgramItem[] = [];
+  // The place of the program items is a place of Inhalte (CNT-07).
+  const placed = await call<{ places: { id: number; name: string }[] }>(
+    root,
+    "POST",
+    "/api/content/places",
+    { name: "Linde", address: null, mapsUrl: null, mapImageId: null },
+  );
+  const lindeId = must(must(placed.body).places.find((place) => place.name === "Linde")).id;
   for (const [name, hour, hasMeal] of [
     ["Trauung", 14, false],
     ["Apéro", 15, false],
@@ -98,7 +106,7 @@ async function setup() {
     const made = await call<ProgramItem>(root, "POST", "/api/admin/rsvp/program-items", {
       name,
       startsAt: `2027-06-12T${String(hour)}:00:00.000Z`,
-      place: "Linde",
+      placeId: lindeId,
       hasMeal,
     });
     expect(made.status).toBe(201);
@@ -152,7 +160,7 @@ describe("program items, menus and the deadline", () => {
     // Program items are ordered by time, not by creation.
     await call(root, "PATCH", `/api/admin/rsvp/program-items/${String(apero.id)}`, {
       startsAt: "2027-06-12T10:00:00.000Z",
-      place: null,
+      placeId: null,
     });
     const reordered = (await get<{ programItems: ProgramItem[] }>(root, "/api/admin/rsvp/config"))
       .body;

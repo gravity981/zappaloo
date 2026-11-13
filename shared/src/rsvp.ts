@@ -14,7 +14,6 @@ export const personTypeRequestSchema = z.strictObject({ personType: personTypeSc
 export type PersonTypeRequest = z.infer<typeof personTypeRequestSchema>;
 
 export const programItemNameSchema = z.string().trim().min(1).max(60);
-export const placeSchema = z.string().trim().min(1).max(100);
 export const menuNameSchema = z.string().trim().min(1).max(60);
 export const allergiesSchema = z.string().trim().min(1).max(500);
 export const songWishSchema = z.string().trim().min(1).max(200);
@@ -27,6 +26,10 @@ export const programItemSchema = z.object({
   name: z.string(),
   /** ISO date-time. */
   startsAt: z.string(),
+  /** ISO date-time of the end, or null: the item has no end (WEB-07). */
+  endsAt: z.string().nullable(),
+  /** The place from Inhalte (CNT-07), or none; `place` is its name, read-only. */
+  placeId: z.number().int().positive().nullable(),
   place: z.string().nullable(),
   /** The program item that has the meal: the menu is asked only for persons attending it. */
   hasMeal: z.boolean(),
@@ -40,7 +43,8 @@ export type MenuOption = z.infer<typeof menuOptionSchema>;
 export const programItemRequestSchema = z.strictObject({
   name: programItemNameSchema,
   startsAt: z.iso.datetime(),
-  place: placeSchema.nullable().optional(),
+  endsAt: z.iso.datetime().nullable().optional(),
+  placeId: z.number().int().positive().nullable().optional(),
   hasMeal: z.boolean().optional(),
 });
 export type ProgramItemRequest = z.infer<typeof programItemRequestSchema>;
@@ -48,7 +52,8 @@ export const programItemUpdateSchema = z
   .strictObject({
     name: programItemNameSchema.optional(),
     startsAt: z.iso.datetime().optional(),
-    place: placeSchema.nullable().optional(),
+    endsAt: z.iso.datetime().nullable().optional(),
+    placeId: z.number().int().positive().nullable().optional(),
     hasMeal: z.boolean().optional(),
   })
   .refine((value) => Object.keys(value).length > 0, { message: "name at least one value" });
@@ -359,6 +364,18 @@ export const ACTIVITY_ACTIONS = [
   "event.set",
   "feature.set",
   "setting.set",
+  "content.page.create",
+  "content.page.update",
+  "content.page.delete",
+  "content.pages.order",
+  "content.start.set",
+  "content.place.create",
+  "content.place.update",
+  "content.place.delete",
+  "content.image.upload",
+  "content.image.delete",
+  "theme.import",
+  "theme.reset",
 ] as const;
 export type ActivityAction = (typeof ACTIVITY_ACTIONS)[number];
 

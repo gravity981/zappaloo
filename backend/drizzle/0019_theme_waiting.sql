@@ -1,0 +1,1 @@
+ALTER TABLE `theme_active` ADD `waiting` text;

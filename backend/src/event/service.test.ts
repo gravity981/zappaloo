@@ -110,7 +110,7 @@ describe("event in the database", () => {
     expect(event.features().treasureHunt).toBe(true);
   });
 
-  it("an installation serves exactly one event", () => {
+  it("[CFG-04] an installation serves exactly one event", () => {
     const database = migratedDatabase();
     expect(() => EventService.forInstallation(database)).toThrow(/no event yet/);
     ensureEvent(database);
@@ -199,6 +199,12 @@ describe("data model", () => {
       "audit_log",
       "companion_attendance",
       "companions",
+      "content_images",
+      "content_page_places",
+      "content_pages",
+      "content_places",
+      "content_start",
+      "content_texts",
       "event_features",
       "event_settings",
       "footer_notice",
@@ -215,6 +221,7 @@ describe("data model", () => {
       "rsvp_answers",
       "rsvp_attendance",
       "rsvp_config",
+      "theme_active",
       "waiting_config",
     ]);
     for (const { name } of tables) {

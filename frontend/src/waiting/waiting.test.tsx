@@ -135,18 +135,14 @@ describe("the waiting page", () => {
       "GET /api/event": closed,
     });
     renderAt("/");
-    expect(
-      await screen.findByRole("heading", { name: "Willkommen bei Zappaloo" }),
-    ).toBeInTheDocument();
+    expect(await screen.findByText("Willkommen!")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Spielwelt" })).toBeInTheDocument();
   });
 
   it("[ACS-10] once the platform is open, guests see the website", async () => {
     fakeBackend({ "GET /api/session": () => asGuest });
     renderAt("/");
-    expect(
-      await screen.findByRole("heading", { name: "Willkommen bei Zappaloo" }),
-    ).toBeInTheDocument();
+    expect(await screen.findByText("Willkommen!")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Spielwelt" })).toBeInTheDocument();
   });
 });

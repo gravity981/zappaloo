@@ -512,6 +512,26 @@ export class AccountService {
   }
 
   /**
+   * Development only (CLI `dev-admin`, which checks APP_ENV): sets the password of an account
+   * without the password rules, so the example admin can be "admin" with "admin". Activates the
+   * account and voids its open links. Nothing else calls this.
+   */
+  async setDevPassword(userId: number, password: string): Promise<void> {
+    const passwordHash = await hashPassword(password);
+    this.#database.db.transaction((tx) => {
+      this.#voidLinks(tx, userId);
+      tx.update(users)
+        .set({
+          passwordHash,
+          status: sql`CASE WHEN ${users.status} = 'inactive' THEN 'active' ELSE ${users.status} END`,
+          updatedAt: this.#now(),
+        })
+        .where(eq(users.id, userId))
+        .run();
+    });
+  }
+
+  /**
    * An invited guest registers: the inactive account that was created with the invitation gets
    * its username, password and optional address and becomes active (ACC-17, 7.1.2). Inside the
    * transaction that also marks the code redeemed.

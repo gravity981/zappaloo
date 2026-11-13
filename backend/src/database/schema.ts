@@ -325,7 +325,10 @@ export const programItems = sqliteTable(
       .references(() => events.id),
     name: text("name").notNull(),
     startsAt: integer("starts_at", { mode: "timestamp_ms" }).notNull(),
-    place: text("place"),
+    /** The optional end of the program item (WEB-07); null when it has none. */
+    endsAt: integer("ends_at", { mode: "timestamp_ms" }),
+    /** The place of the program item (CNT-07); an item without a place has none. */
+    placeId: integer("place_id").references((): AnySQLiteColumn => contentPlaces.id),
     hasMeal: integer("has_meal", { mode: "boolean" }).notNull().default(false),
     createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull(),
   },
@@ -521,4 +524,138 @@ export const footerNotice = sqliteTable("footer_notice", {
     .references(() => events.id),
   copyright: text("copyright").notNull(),
   updatedAt: integer("updated_at", { mode: "timestamp_ms" }).notNull(),
+});
+
+// --- Content base (sw-architecture.md 6.2; CNT-01 – CNT-05, LANG-02) -----------------------
+
+/**
+ * A page of the website, addressed as `/p/<slug>`. Its title and text are in `content_texts`
+ * under the item `page:<id>`. Positions are the order of the list, from 0.
+ */
+export const contentPages = sqliteTable(
+  "content_pages",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    eventId: text("event_id")
+      .notNull()
+      .references(() => events.id),
+    slug: text("slug").notNull(),
+    /** "In «Mehr» sichtbar". A hidden page is still reached by its address. */
+    inMore: integer("in_more", { mode: "boolean" }).notNull(),
+    position: integer("position").notNull(),
+    createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull(),
+    updatedAt: integer("updated_at", { mode: "timestamp_ms" }).notNull(),
+  },
+  (table) => [
+    uniqueIndex("content_pages_slug").on(table.eventId, table.slug),
+    index("content_pages_order").on(table.eventId, table.position),
+  ],
+);
+
+/**
+ * A content text per language key (LANG-02). `item` is `start` for the welcome text of the
+ * start page or `page:<id>` for a page. Titles are empty for the start page.
+ */
+export const contentTexts = sqliteTable(
+  "content_texts",
+  {
+    eventId: text("event_id")
+      .notNull()
+      .references(() => events.id),
+    item: text("item").notNull(),
+    language: text("language").notNull(),
+    title: text("title").notNull(),
+    markdown: text("markdown").notNull(),
+    updatedAt: integer("updated_at", { mode: "timestamp_ms" }).notNull(),
+  },
+  (table) => [primaryKey({ columns: [table.eventId, table.item, table.language] })],
+);
+
+/**
+ * An image uploaded in the content editor (CNT-06). The file lies in
+ * `$DATA_DIR/events/<event>/content/` under `fileName`; `mime` is the type found by its content.
+ */
+export const contentImages = sqliteTable("content_images", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  eventId: text("event_id")
+    .notNull()
+    .references(() => events.id),
+  /** Whose the image is: `start`, `page:<id>` or `place:<id>` (the map image of a place). */
+  item: text("item").notNull().default("start"),
+  fileName: text("file_name").notNull(),
+  mime: text("mime").notNull(),
+  bytes: integer("bytes").notNull(),
+  createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull(),
+});
+
+/**
+ * A place (CNT-07): program items and pages refer to it. The map image is optional; the link
+ * opens Google Maps in a new tab and is never embedded.
+ */
+export const contentPlaces = sqliteTable(
+  "content_places",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    eventId: text("event_id")
+      .notNull()
+      .references(() => events.id),
+    name: text("name").notNull(),
+    address: text("address"),
+    mapsUrl: text("maps_url"),
+    mapImageId: integer("map_image_id").references(() => contentImages.id),
+    createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull(),
+    updatedAt: integer("updated_at", { mode: "timestamp_ms" }).notNull(),
+  },
+  (table) => [index("content_places_event").on(table.eventId)],
+);
+
+/** The places a page lists as cards next to its text (CNT-07). */
+export const contentPagePlaces = sqliteTable(
+  "content_page_places",
+  {
+    eventId: text("event_id")
+      .notNull()
+      .references(() => events.id),
+    pageId: integer("page_id")
+      .notNull()
+      .references(() => contentPages.id),
+    placeId: integer("place_id")
+      .notNull()
+      .references(() => contentPlaces.id),
+  },
+  (table) => [primaryKey({ columns: [table.pageId, table.placeId] })],
+);
+
+/**
+ * The settings of the start page (sw-architecture.md 5.6, WEB-10, WEB-11): the hero image (one of
+ * the start page's images, with its alt text) and the countdown switch (default on).
+ */
+export const contentStart = sqliteTable("content_start", {
+  eventId: text("event_id")
+    .primaryKey()
+    .references(() => events.id),
+  heroImageId: integer("hero_image_id").references(() => contentImages.id),
+  heroAlt: text("hero_alt"),
+  countdown: integer("countdown", { mode: "boolean" }).notNull().default(true),
+  updatedAt: integer("updated_at", { mode: "timestamp_ms" }).notNull(),
+});
+
+/**
+ * The active theme of the event (sw-architecture.md 19.7, THM-04): one row. Its files lie in
+ * `$DATA_DIR/events/<event>/theme/<importId>/`; the platform's default theme has no row.
+ */
+export const themeActive = sqliteTable("theme_active", {
+  eventId: text("event_id")
+    .primaryKey()
+    .references(() => events.id),
+  importId: text("import_id").notNull(),
+  name: text("name").notNull(),
+  formatVersion: integer("format_version").notNull(),
+  importedAt: integer("imported_at", { mode: "timestamp_ms" }).notNull(),
+  /** The seven colours as JSON. */
+  colors: text("colors").notNull(),
+  /** The fonts as JSON, or null when the package names none. */
+  fonts: text("fonts"),
+  /** The waiting card's colours as JSON, or null when the package names none (19.7). */
+  waiting: text("waiting"),
 });

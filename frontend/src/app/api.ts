@@ -34,10 +34,12 @@ export function onSessionEnded(listener: () => void): () => void {
 export async function apiRequest(
   method: "GET" | "POST" | "PUT" | "PATCH" | "DELETE",
   path: string,
-  options: { body?: unknown; csrfToken?: string | null } = {},
+  options: { body?: unknown; raw?: Blob; csrfToken?: string | null } = {},
 ): Promise<ApiResult> {
   const headers: Record<string, string> = {};
   if (options.body !== undefined) headers["content-type"] = "application/json";
+  // A file (an image upload) is sent as its own bytes, with its own type (CNT-06).
+  if (options.raw !== undefined) headers["content-type"] = options.raw.type;
   if (options.csrfToken) headers["x-csrf-token"] = options.csrfToken;
   let response: Response;
   try {
@@ -45,7 +47,10 @@ export async function apiRequest(
       method,
       headers,
       credentials: "same-origin",
-      ...(options.body === undefined ? {} : { body: JSON.stringify(options.body) }),
+      ...(options.raw !== undefined ? { body: options.raw } : {}),
+      ...(options.raw === undefined && options.body !== undefined
+        ? { body: JSON.stringify(options.body) }
+        : {}),
     });
   } catch {
     return { ok: false, status: 0, body: undefined, errorCode: NETWORK_ERROR };

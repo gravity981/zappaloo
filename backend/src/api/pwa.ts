@@ -33,7 +33,7 @@ const pwaPlugin: FastifyPluginAsyncZod<PwaOptions> = (app, { event, icons }) => 
       reply
         .type("image/png")
         .header("cache-control", "public, max-age=3600")
-        .send(icons.icon(event.eventId, request.params.file).bytes),
+        .send(icons.icon(request.params.file).bytes),
   );
 
   return Promise.resolve();

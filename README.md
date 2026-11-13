@@ -20,6 +20,8 @@ You need VS Code with the Dev Containers extension and Docker. Everything else (
 
 3. Open http://localhost:5173.
 
+To start over with the example event (empty database, example places, program and menus), stop "dev: backend" and run the task "db: clear and seed (dev)" (or `npm run db:reset-dev`). It deletes the development database, uploads, maps and images after a confirmation, then creates the admin account `admin` with the password `admin`. It works only with `APP_ENV=dev`, not on staging or prod.
+
 | Port | What |
 |---|---|
 | 5173 | Frontend (Vite dev server) |

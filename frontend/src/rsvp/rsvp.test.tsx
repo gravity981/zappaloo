@@ -16,10 +16,36 @@ const admin = { ...anna, id: 9, username: "lea", displayName: "Lea", roles: ["ad
 const asAdmin = { status: 200, body: { user: admin, csrfToken: "csrf-9" } };
 
 const PARTS = [
-  { id: 1, name: "Trauung", startsAt: "2027-06-12T12:00:00.000Z", place: "Kirche", hasMeal: false },
-  { id: 2, name: "Apéro", startsAt: "2027-06-12T13:30:00.000Z", place: null, hasMeal: false },
-  { id: 3, name: "Dinner", startsAt: "2027-06-12T16:30:00.000Z", place: "Linde", hasMeal: true },
+  {
+    id: 1,
+    name: "Trauung",
+    startsAt: "2027-06-12T12:00:00.000Z",
+    endsAt: null,
+    placeId: 1,
+    place: "Kirche",
+    hasMeal: false,
+  },
+  {
+    id: 2,
+    name: "Apéro",
+    startsAt: "2027-06-12T13:30:00.000Z",
+    endsAt: null,
+    placeId: null,
+    place: null,
+    hasMeal: false,
+  },
+  {
+    id: 3,
+    name: "Dinner",
+    startsAt: "2027-06-12T16:30:00.000Z",
+    endsAt: null,
+    placeId: 2,
+    place: "Linde",
+    hasMeal: true,
+  },
 ];
+/** A place of Inhalte the program item form can choose (CNT-07). */
+const PLACE_SAAL = { id: 7, name: "Saal", address: null, mapsUrl: null, mapImageId: null };
 const MENUS = [
   { id: 1, name: "Fleisch" },
   { id: 2, name: "Vegetarisch" },
@@ -323,7 +349,8 @@ describe("the RSVP wizard", () => {
       "GET /api/rsvp": () => ({ status: 200, body: state() }),
     });
     renderAt("/");
-    expect(await screen.findByRole("link", { name: "Rückmeldung" })).toHaveAttribute(
+    // The RSVP is a card on the start page (UX mock home).
+    expect(await screen.findByRole("link", { name: "Ansehen oder ändern" })).toHaveAttribute(
       "href",
       "/rsvp",
     );
@@ -523,12 +550,23 @@ describe("Einstellungen › Rückmeldung", () => {
     const calls = fakeBackend({
       "GET /api/session": () => asAdmin,
       "GET /api/admin/rsvp/config": () => ({ status: 200, body: config }),
+      "GET /api/content": () => ({
+        status: 200,
+        body: {
+          startMarkdown: "",
+          pages: [],
+          places: [PLACE_SAAL],
+          start: { heroImageId: null, heroAlt: null, countdown: true },
+        },
+      }),
       "POST /api/admin/rsvp/program-items": () => ({
         status: 201,
         body: {
           id: 4,
           name: "Party",
           startsAt: "2027-06-12T20:00:00.000Z",
+          endsAt: null,
+          placeId: 7,
           place: "Saal",
           hasMeal: false,
         },
@@ -542,7 +580,7 @@ describe("Einstellungen › Rückmeldung", () => {
     const form = within(start.closest("form") as HTMLElement);
     user.type(form.getByLabelText("Name"), "Party");
     user.type(start, "2027-06-12T22:00");
-    user.type(form.getByLabelText("Ort (optional)"), "Saal");
+    user.type(form.getByLabelText("Ort (optional)"), "7");
     user.click(form.getByRole("button", { name: "Speichern" }));
     await waitFor(() => {
       expect(calls.some((c) => c.method === "POST")).toBe(true);
@@ -551,7 +589,8 @@ describe("Einstellungen › Rückmeldung", () => {
     expect(calls.find((c) => c.method === "POST")?.body).toEqual({
       name: "Party",
       startsAt: "2027-06-12T20:00:00.000Z",
-      place: "Saal",
+      endsAt: null,
+      placeId: 7,
       hasMeal: false,
     });
   });
