@@ -108,7 +108,7 @@ export async function buildApp(options: AppOptions): Promise<FastifyInstance> {
   await app.register(eventApiRoutes, { event: options.event, footer: options.auth.footer, theme });
   await app.register(pwaRoutes, {
     event: options.event,
-    icons: new AppIcons(options.eventsDir),
+    icons: new AppIcons(theme),
   });
 
   const frontendDir = options.frontendDir && resolve(options.frontendDir);

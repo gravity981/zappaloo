@@ -206,15 +206,9 @@ mkdir -p backups
 
 Copy the file to your off-site storage. It holds personal data: mode 600, delete it at shutdown.
 
-### 5.6 Optional: your own icons
+### 5.6 Optional: your own icons and colours
 
-Four finished PNGs: `icon-192.png` (192×192), `icon-512.png` (512×512), `icon-maskable-512.png` (512×512, content inside the central 80 %), `apple-touch-icon.png` (180×180). A file of the wrong size is ignored and the Z icon is used instead. The commands were not run for this runbook; check that the icons show:
-
-```sh
-docker compose exec app mkdir -p /data/events/event1/icons
-for f in icon-192.png icon-512.png icon-maskable-512.png apple-touch-icon.png; do docker compose cp "$f" "app:/data/events/event1/icons/$f"; done
-curl -sI "https://DOMAIN/app-icons/icon-512.png" | head -3
-```
+The app icons and the colours of the web app come from a theme package (sw-architecture.md 19.7): a `tar.gz` with four PNG icons, `theme.json` (colours, fonts) and the font files. The admin imports it as a whole, and returns to the built-in look at any time. The card "Design" in the admin settings does this (step 4e-6); the step that builds an example package and describes its layout here follows with 4e-7. Until then the built-in icons and colours apply, and the `icons/` folder of older installations is no longer read.
 
 They are part of the full backup (`events/`).
 

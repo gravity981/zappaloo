@@ -1,6 +1,7 @@
-import { mkdirSync, writeFileSync } from "node:fs";
+import { existsSync, readdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
+import { buildThemeArchive, encodePng, validThemeFiles, VALID_COLORS } from "../theme/build.ts";
 import { createTestApp, signIn } from "../test-support.ts";
 import type { TestContext } from "../test-support.ts";
 import { ICON_FILES, isPngOfSize } from "../pwa/app-icons.ts";
@@ -27,10 +28,22 @@ function pngHeader(width: number, height = width): Buffer {
   ]);
 }
 
-function putIcon(ctx: TestContext, file: string, bytes: Buffer): void {
-  const dir = join(ctx.paths.events, ctx.event.eventId, "icons");
-  mkdirSync(dir, { recursive: true });
-  writeFileSync(join(dir, file), bytes);
+/** Imports a theme package as the admin (19.7); the icons of the package are then the event's. */
+async function importTheme(ctx: TestContext, files: Record<string, Buffer>) {
+  const admin = await signIn(ctx, "boss", ["admin"]);
+  const response = await ctx.app.inject({
+    method: "POST",
+    url: "/api/admin/theme",
+    headers: { ...admin, "content-type": "application/gzip" },
+    payload: buildThemeArchive(files),
+  });
+  expect(response.statusCode).toBe(200);
+}
+
+/** The folder of the active theme's files. */
+function activeThemeFolder(ctx: TestContext): string {
+  const [folder] = readdirSync(join(ctx.paths.events, ctx.event.eventId, "theme"));
+  return join(ctx.paths.events, ctx.event.eventId, "theme", folder ?? "");
 }
 
 interface Manifest {
@@ -116,30 +129,51 @@ describe("the app icons (PWA-02)", () => {
     }
   });
 
-  it("[PWA-02] serves the event's own icon from the data directory and tells the manifest", async () => {
+  it("[PWA-02] serves the icons of the active theme, and the manifest asks for them with a new version", async () => {
     context = await createTestApp();
     const ctx = context;
     const before = (await ctx.app.inject("/manifest.webmanifest")).json<Manifest>();
-    const own = pngHeader(512);
-    own.write("OWN!", own.length - 4, "latin1");
-    putIcon(ctx, "icon-512.png", own);
+    const own = encodePng(512, 512, [200, 30, 30]);
+    await importTheme(ctx, validThemeFiles({ "icons/icon-512.png": own }));
     const response = await ctx.app.inject("/app-icons/icon-512.png");
     expect(response.rawPayload.equals(own)).toBe(true);
     const after = (await ctx.app.inject("/manifest.webmanifest")).json<Manifest>();
     expect(after.icons[1]?.src).not.toBe(before.icons[1]?.src);
-    expect(after.icons[0]?.src).toBe(before.icons[0]?.src);
+    // The icon the theme does not carry is still the built-in one, as the optional maskable icon.
+    const maskable = await ctx.app.inject("/app-icons/icon-maskable-512.png");
+    expect(isPngOfSize(maskable.rawPayload, 512)).toBe(true);
+    expect(maskable.rawPayload.equals(own)).toBe(false);
   });
 
-  it("[PWA-02] replaces a file of the wrong size, a file that is no PNG and a huge file by the default", async () => {
+  it("[PWA-02] the manifest colours come from the theme, and return to the platform's when the theme is removed", async () => {
     context = await createTestApp();
     const ctx = context;
-    putIcon(ctx, "icon-192.png", pngHeader(191));
-    putIcon(ctx, "icon-512.png", Buffer.from("<svg></svg>".repeat(10)));
-    putIcon(
+    const admin = await signIn(ctx, "chef", ["admin"]);
+    const colors = { ...VALID_COLORS, background: "#fbf8f3", accent: "#1d4f91" };
+    await importTheme(
       ctx,
-      "apple-touch-icon.png",
-      Buffer.concat([pngHeader(180), Buffer.alloc(1024 * 1024)]),
+      validThemeFiles({ "theme.json": Buffer.from(JSON.stringify({ colors })) }),
     );
+    const themed = (await ctx.app.inject("/manifest.webmanifest")).json<Manifest>();
+    expect(themed.theme_color).toBe("#1d4f91");
+    expect(themed.background_color).toBe("#fbf8f3");
+    await ctx.app.inject({ method: "DELETE", url: "/api/admin/theme", headers: admin });
+    const back = (await ctx.app.inject("/manifest.webmanifest")).json<Manifest>();
+    expect(back.theme_color).toBe("#2a2a28");
+    expect(back.background_color).toBe("#f4f4f1");
+    expect((await ctx.app.inject("/app-icons/icon-192.png")).rawPayload.length).toBeLessThan(
+      10_000,
+    );
+  });
+
+  it("[PWA-02] replaces an icon of the wrong size or a file that is no PNG in the theme by the default", async () => {
+    context = await createTestApp();
+    const ctx = context;
+    await importTheme(ctx, validThemeFiles());
+    const folder = activeThemeFolder(ctx);
+    writeFileSync(join(folder, "icons", "icon-192.png"), pngHeader(191));
+    writeFileSync(join(folder, "icons", "icon-512.png"), Buffer.from("<svg></svg>".repeat(10)));
+    writeFileSync(join(folder, "icons", "apple-touch-icon.png"), pngHeader(179));
     for (const [file, size] of [
       ["icon-192.png", 192],
       ["icon-512.png", 512],
@@ -150,6 +184,7 @@ describe("the app icons (PWA-02)", () => {
       expect(isPngOfSize(response.rawPayload, size)).toBe(true);
       expect(response.rawPayload.length).toBeLessThan(10_000);
     }
+    expect(existsSync(folder)).toBe(true);
   });
 
   it("[PWA-02] serves only the four known names, nothing from elsewhere", async () => {

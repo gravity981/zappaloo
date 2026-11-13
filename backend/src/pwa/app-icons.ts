@@ -1,12 +1,14 @@
-// The event's app icons and the web app manifest (PWA-01, PWA-02; sw-architecture.md 19.5).
+// The event's app icons and the web app manifest (PWA-01, PWA-02; sw-architecture.md 19.5, 19.7).
 //
-// The icons are finished PNGs in `$DATA_DIR/events/<eventId>/icons/`; the platform does not
-// resize images. A file that is missing, not a PNG, of the wrong size or too large is replaced
-// by the built-in default, so the install always works.
-import { existsSync, readFileSync, statSync } from "node:fs";
+// The icons and the manifest colours come from the active theme package (19.7). Without a theme,
+// or for an icon the theme does not carry (the maskable icon is optional), the built-in default
+// is served. A file that is not a PNG of the exact size is replaced by the default too, so the
+// install always works.
+import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import type { EventResponse } from "@zappaloo/shared";
+import type { ThemeService } from "../theme/service.ts";
 
 /** The four icon files and the exact pixel size of each (19.5). */
 export const ICON_FILES = {
@@ -19,12 +21,9 @@ export const ICON_FILES = {
 export type IconFile = keyof typeof ICON_FILES;
 export const ICON_NAMES = Object.keys(ICON_FILES) as [IconFile, ...IconFile[]];
 
-/** A bigger file is not an app icon; it is not read into memory either. */
-const MAX_ICON_BYTES = 1024 * 1024;
-
 const DEFAULT_DIR = join(dirname(fileURLToPath(import.meta.url)), "default-icons");
 
-/** The neutral colours of the manifest until `theme.json` sets them (stage 4). */
+/** The colours of the manifest while the default theme applies: the platform's own tokens (ui.css). */
 export const MANIFEST_COLORS = { theme: "#2a2a28", background: "#f4f4f1" } as const;
 
 const PNG_SIGNATURE = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
@@ -46,43 +45,41 @@ function shortName(name: string): string {
 
 export interface Icon {
   bytes: Buffer;
-  /** True if the event's own file is used, false for the built-in default. */
+  /** True if the active theme's file is used, false for the built-in default. */
   custom: boolean;
-  /** Changes when the file is replaced; the manifest asks for the icon with it. */
+  /** Changes with every theme import; the manifest asks for the icon with it. */
   version: string;
 }
 
 export class AppIcons {
-  readonly #eventsDir: string;
+  readonly #theme: ThemeService;
 
-  constructor(eventsDir: string) {
-    this.#eventsDir = eventsDir;
+  constructor(theme: ThemeService) {
+    this.#theme = theme;
   }
 
-  /** The event's icon if it is valid, otherwise the default. */
-  icon(eventId: string, file: IconFile): Icon {
-    const path = join(this.#eventsDir, eventId, "icons", file);
-    try {
-      if (existsSync(path)) {
-        const stat = statSync(path);
-        if (stat.isFile() && stat.size <= MAX_ICON_BYTES) {
-          const bytes = readFileSync(path);
-          if (isPngOfSize(bytes, ICON_FILES[file])) {
-            return { bytes, custom: true, version: `${String(stat.mtimeMs)}-${String(stat.size)}` };
-          }
+  /** The active theme's icon if it is a valid PNG of its size, otherwise the default. */
+  icon(file: IconFile): Icon {
+    const active = this.#theme.active();
+    if (active !== undefined) {
+      try {
+        const bytes = readFileSync(join(this.#theme.directory, active.importId, "icons", file));
+        if (isPngOfSize(bytes, ICON_FILES[file])) {
+          return { bytes, custom: true, version: active.importId };
         }
+      } catch {
+        // Missing or unreadable: the default is used.
       }
-    } catch {
-      // Unreadable: the default is used.
     }
     return { bytes: readFileSync(join(DEFAULT_DIR, file)), custom: false, version: "default" };
   }
 
-  /** The web app manifest of the event (PWA-01). */
+  /** The web app manifest of the event (PWA-01): name and icons from the event, colours from the theme. */
   manifest(event: EventResponse): Record<string, unknown> {
     const name = event.name ?? "Zappaloo";
+    const colors = this.#theme.active()?.colors;
     const src = (file: IconFile) =>
-      `/app-icons/${file}?v=${encodeURIComponent(this.icon(event.id, file).version)}`;
+      `/app-icons/${file}?v=${encodeURIComponent(this.icon(file).version)}`;
     return {
       name,
       short_name: shortName(name),
@@ -90,8 +87,8 @@ export class AppIcons {
       start_url: "/",
       scope: "/",
       display: "standalone",
-      theme_color: MANIFEST_COLORS.theme,
-      background_color: MANIFEST_COLORS.background,
+      theme_color: colors?.accent ?? MANIFEST_COLORS.theme,
+      background_color: colors?.background ?? MANIFEST_COLORS.background,
       icons: [
         { src: src("icon-192.png"), sizes: "192x192", type: "image/png", purpose: "any" },
         { src: src("icon-512.png"), sizes: "512x512", type: "image/png", purpose: "any" },
