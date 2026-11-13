@@ -115,4 +115,5 @@ export const SITE = {
   name: "Lea & Jonas",
   copyright: "© 2027 Lea & Jonas",
   sourceUrl: "https://example.org/zappaloo-source",
+  theme: null,
 };

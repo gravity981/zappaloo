@@ -2097,7 +2097,7 @@ The answer to a refused package lists every finding with its file and reason.
 
 **Default theme.** "Standard-Design verwenden" removes the active package after a second click. The platform's default colours, fonts and icon apply again. The imported package cannot be downloaded.
 
-**Serving.** The public `GET /api/site` carries the active theme (colours, font faces and a version that changes with every import), so the pages without sign-in are themed too. The font files are served under `/theme/fonts/<file>` without sign-in, like the app icons. A new theme shows on the next page load. The card "Design" shows the active theme's name, its format version and the time of the import. Only an admin imports or removes a theme. Both are audited (`theme.import`, `theme.reset`) and appear on the card "Zuletzt".
+**Serving.** The public `GET /api/site` carries the active theme (colours, font faces and a version that changes with every import), so the pages without sign-in are themed too. The font files are served under `/theme/fonts/<file>` without sign-in, like the app icons. A new theme shows on the next page load. The card "Design" shows the active theme's name, its format version and the time of the import. Only an admin imports or removes a theme. Both are audited (`theme.import`, `theme.reset`) and appear on the card "Zuletzt". The site carries `theme: null` while the default applies. A font URL carries the import's version as `?v=`, only the files the active theme names are served, and they are cached for a year, since a new import has new URLs.
 
 | ID | Requirement | Prio |
 |---|---|---|

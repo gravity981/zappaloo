@@ -6,7 +6,7 @@ import { randomUUID } from "node:crypto";
 import { mkdir, rename, rm, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { eq } from "drizzle-orm";
-import type { ThemeStatus } from "@zappaloo/shared";
+import type { ThemeJson, ThemeStatus } from "@zappaloo/shared";
 import type { Database } from "../database/database.ts";
 import { themeActive } from "../database/schema.ts";
 import type { Actor, EventService } from "../event/service.ts";
@@ -29,8 +29,8 @@ export interface ActiveTheme {
   name: string;
   formatVersion: number;
   importedAt: Date;
-  colors: Record<string, string>;
-  fonts: Record<string, unknown> | null;
+  colors: ThemeJson["colors"];
+  fonts: ThemeJson["fonts"] | null;
 }
 
 export class ThemeService {
@@ -69,8 +69,8 @@ export class ThemeService {
       name: row.name,
       formatVersion: row.formatVersion,
       importedAt: row.importedAt,
-      colors: JSON.parse(row.colors) as Record<string, string>,
-      fonts: row.fonts === null ? null : (JSON.parse(row.fonts) as Record<string, unknown>),
+      colors: JSON.parse(row.colors) as ThemeJson["colors"],
+      fonts: row.fonts === null ? null : (JSON.parse(row.fonts) as ThemeJson["fonts"]),
     };
   }
 
@@ -149,7 +149,7 @@ export class ThemeService {
         formatVersion: themePackage.manifest.formatVersion,
         importedAt,
         colors: themePackage.theme.colors,
-        fonts: (themePackage.theme.fonts ?? null) as Record<string, unknown> | null,
+        fonts: themePackage.theme.fonts ?? null,
       };
     } catch (error) {
       await rm(staging, { recursive: true, force: true });

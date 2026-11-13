@@ -1,8 +1,10 @@
 /* The shared look of the guest pages and the admin area (sw-architecture.md 8.3, UX mocks in
    spec/mocks/): tokens, buttons, fields, cards, chips, tags, lists and tables. The admin page
    frame (.admin, .admin-head, .admin-nav) belongs to the admin area only; the guest shells
-   (.guest-bare, .guest-flow) are at the end. Stage 4's theme replaces the tokens (--a-*). */
-:is(.admin, .guest) {
+   (.guest-bare, .guest-flow) are at the end. The tokens (--a-*) have their defaults on .admin and
+   on .themed, the wrapper of the website and the guest pages, which carries the event's theme
+   (sw-architecture.md 19.7; frontend/src/app/ThemeScope.tsx). */
+:is(.admin, .themed) {
   --a-bg: #f4f4f1;
   --a-card: #ffffff;
   --a-ink: #1f1f1d;
@@ -10,16 +12,19 @@
   --a-line: #d5d5ce;
   --a-fill: #e8e8e2;
   --a-dark: #2a2a28;
+  --a-on-dark: #ffffff;
   --a-badge: #c4422e;
   --a-ok: #2d7a4c;
   --a-warn: #a06a00;
+  /* The heading font; the countdown's number uses the display font, else the heading font. */
   --a-display: system-ui, sans-serif;
-
+  --a-number-font: var(--a-display);
+  --a-body-font: system-ui, sans-serif;
+}
+:is(.admin, .guest) {
   background: var(--a-bg);
   color: var(--a-ink);
-  font:
-    14px/1.45 system-ui,
-    sans-serif;
+  font: 14px/1.45 var(--a-body-font);
   color-scheme: light;
 }
 .admin {
@@ -47,7 +52,7 @@
 /* shell */
 .admin-head {
   background: var(--a-dark);
-  color: #fff;
+  color: var(--a-on-dark);
   display: flex;
   align-items: center;
   gap: 10px;
@@ -186,7 +191,7 @@
   padding: 0 18px;
   border-radius: 10px;
   background: var(--a-dark);
-  color: #fff;
+  color: var(--a-on-dark);
   border: 1.5px solid var(--a-dark);
   font: inherit;
   font-weight: 600;
@@ -1213,6 +1218,7 @@
   font-size: 30px;
   line-height: 1.1;
   font-weight: 600;
+  font-family: var(--a-number-font);
 }
 .shortcuts {
   display: grid;

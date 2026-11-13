@@ -76,6 +76,33 @@ export const themeJsonSchema = z.strictObject({
 });
 export type ThemeJson = z.infer<typeof themeJsonSchema>;
 
+/** A font face the pages without sign-in load: the family and its files, with their URLs. */
+const siteFontSchema = z.strictObject({
+  family: z.string(),
+  files: z.array(
+    z.strictObject({
+      url: z.string(),
+      weight: z.number().int(),
+      style: z.enum(["normal", "italic"]),
+    }),
+  ),
+});
+
+/**
+ * The active theme as the pages without sign-in apply it (`GET /api/site`, 19.7). `version`
+ * changes with every import, so the font URLs and the cache follow it.
+ */
+export const siteThemeSchema = z.strictObject({
+  version: z.string(),
+  colors: themeJsonSchema.shape.colors,
+  fonts: z.strictObject({
+    body: siteFontSchema.optional(),
+    heading: siteFontSchema.optional(),
+    display: siteFontSchema.optional(),
+  }),
+});
+export type SiteTheme = z.infer<typeof siteThemeSchema>;
+
 /** The active theme as the admin area shows it (`GET /api/admin/theme`). */
 export const themeStatusSchema = z.object({
   active: z

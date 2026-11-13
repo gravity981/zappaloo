@@ -31,12 +31,15 @@ import Layout from "./Layout.tsx";
 import RequireOpen from "./RequireOpen.tsx";
 import RequireSignIn from "./RequireSignIn.tsx";
 import Root from "./Root.tsx";
+import { ThemeScope } from "./ThemeScope.tsx";
 
 export const routes: RouteObject[] = [
   {
     element: <Root />,
     children: [
       {
+        // The website and the guest pages carry the event's theme; the admin area does not.
+        element: <ThemeScope />,
         children: [
           // Reachable without sign-in (ACS-09), each page in the frame of the mock (the bare
           // frame). Upload-link pages and the event screen join this list with their features.

@@ -1,6 +1,7 @@
 // The event of an installation (sw-architecture.md 19): its setup data and the API
 // representation with the current toggles.
 import { z } from "zod";
+import { siteThemeSchema } from "./theme.ts";
 
 /** Features an event can switch on or off (CFG-03). */
 export const FEATURE_NAMES = [
@@ -90,6 +91,8 @@ export const siteResponseSchema = z.object({
   name: z.string().nullable(),
   copyright: z.string().nullable(),
   sourceUrl: z.string(),
+  /** The active theme (19.7), or null while the platform's default theme applies. */
+  theme: siteThemeSchema.nullable(),
 });
 export type SiteResponse = z.infer<typeof siteResponseSchema>;
 

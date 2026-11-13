@@ -2,7 +2,7 @@ import { existsSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import type { ThemeStatus } from "@zappaloo/shared";
-import { buildThemeArchive, validThemeFiles } from "../theme/build.ts";
+import { buildThemeArchive, validThemeFiles, VALID_COLORS } from "../theme/build.ts";
 import { createTestApp, signIn } from "../test-support.ts";
 import type { TestContext } from "../test-support.ts";
 
@@ -33,7 +33,7 @@ function themeFolders(ctx: TestContext): string[] {
 }
 
 describe("the theme of the event (THM-01, THM-03, THM-04, THM-05)", () => {
-  it(" an admin imports a package, and the admin area shows it as the active theme", async () => {
+  it("an admin imports a package, and the admin area shows it as the active theme", async () => {
     context = await createTestApp();
     const ctx = context;
     const admin = await signIn(ctx, "boss", ["admin"]);
@@ -50,7 +50,7 @@ describe("the theme of the event (THM-01, THM-03, THM-04, THM-05)", () => {
     ).toBeGreaterThan(0);
   });
 
-  it(" a refused package is answered with every finding, and the active theme stays as it was", async () => {
+  it("a refused package is answered with every finding, and the active theme stays as it was", async () => {
     context = await createTestApp();
     const ctx = context;
     const admin = await signIn(ctx, "boss", ["admin"]);
@@ -74,7 +74,7 @@ describe("the theme of the event (THM-01, THM-03, THM-04, THM-05)", () => {
     expect(themeFolders(ctx)).toHaveLength(1);
   });
 
-  it(" a package of a format version the platform does not read is refused", async () => {
+  it("a package of a format version the platform does not read is refused", async () => {
     context = await createTestApp();
     const ctx = context;
     const admin = await signIn(ctx, "boss", ["admin"]);
@@ -90,7 +90,7 @@ describe("the theme of the event (THM-01, THM-03, THM-04, THM-05)", () => {
     ]);
   });
 
-  it(" an archive that is not gzip is refused before anything is written", async () => {
+  it("an archive that is not gzip is refused before anything is written", async () => {
     context = await createTestApp();
     const ctx = context;
     const admin = await signIn(ctx, "boss", ["admin"]);
@@ -100,7 +100,7 @@ describe("the theme of the event (THM-01, THM-03, THM-04, THM-05)", () => {
     expect(themeFolders(ctx)).toEqual([]);
   });
 
-  it(" importing again replaces the previous package and removes its folder", async () => {
+  it("importing again replaces the previous package and removes its folder", async () => {
     context = await createTestApp();
     const ctx = context;
     const admin = await signIn(ctx, "boss", ["admin"]);
@@ -110,7 +110,7 @@ describe("the theme of the event (THM-01, THM-03, THM-04, THM-05)", () => {
     expect(themeFolders(ctx)).toHaveLength(1);
   });
 
-  it(" the return to the default theme removes the package, and both steps are audited", async () => {
+  it("the return to the default theme removes the package, and both steps are audited", async () => {
     context = await createTestApp();
     const ctx = context;
     const admin = await signIn(ctx, "boss", ["admin"]);
@@ -129,7 +129,7 @@ describe("the theme of the event (THM-01, THM-03, THM-04, THM-05)", () => {
     expect(actions).toContain("theme.reset");
   });
 
-  it(" only admins import, read or return the theme", async () => {
+  it("only admins import, read or return the theme", async () => {
     context = await createTestApp();
     const ctx = context;
     const guest = await signIn(ctx, "anna", ["vip"]);
@@ -144,11 +144,85 @@ describe("the theme of the event (THM-01, THM-03, THM-04, THM-05)", () => {
     ).toBe(403);
   });
 
-  it(" a package above 10 MB is refused by its size", async () => {
+  it("a package above 10 MB is refused by its size", async () => {
     context = await createTestApp();
     const ctx = context;
     const admin = await signIn(ctx, "boss", ["admin"]);
     const tooLarge = await upload(ctx, admin, Buffer.alloc(10 * 1024 * 1024 + 1));
     expect(tooLarge.statusCode).toBe(413);
+  });
+});
+
+/** A package with a theme of its own colours and two font faces (body and display). */
+function fontThemeFiles(): Record<string, Buffer> {
+  const face = (bytes: string) => Buffer.concat([Buffer.from("wOF2"), Buffer.from(bytes)]);
+  return validThemeFiles({
+    "theme.json": Buffer.from(
+      JSON.stringify({
+        colors: { ...VALID_COLORS, accent: "#1d4f91" },
+        fonts: {
+          body: {
+            family: "Lora",
+            files: [{ file: "lora-400.woff2", weight: 400, style: "normal" }],
+          },
+          display: {
+            family: "Cormorant",
+            files: [{ file: "cormorant-600.woff2", weight: 600, style: "normal" }],
+          },
+        },
+      }),
+    ),
+    "fonts/lora-400.woff2": face("lora"),
+    "fonts/cormorant-600.woff2": face("cormorant"),
+  });
+}
+
+describe("the theme on the pages without sign-in (THM-01, THM-04)", () => {
+  it("the site carries the default as null, and the active theme with its font URLs", async () => {
+    context = await createTestApp();
+    const ctx = context;
+    expect((await ctx.app.inject("/api/site")).json<{ theme: unknown }>().theme).toBeNull();
+    const admin = await signIn(ctx, "boss", ["admin"]);
+    await upload(ctx, admin, buildThemeArchive(fontThemeFiles()));
+    const site = (await ctx.app.inject("/api/site")).json<{
+      theme: {
+        version: string;
+        colors: Record<string, string>;
+        fonts: Record<string, { family: string; files: { url: string; weight: number }[] }>;
+      };
+    }>().theme;
+    expect(site.colors.accent).toBe("#1d4f91");
+    expect(site.fonts.body?.family).toBe("Lora");
+    expect(site.fonts.heading).toBeUndefined();
+    expect(site.fonts.display?.family).toBe("Cormorant");
+    // The URL names the file and carries the import's version, so a new theme never reads an old file.
+    expect(site.fonts.display?.files[0]).toMatchObject({
+      url: `/theme/fonts/cormorant-600.woff2?v=${site.version}`,
+      weight: 600,
+    });
+  });
+
+  it("the font files of the active theme are served without sign-in, and nothing else", async () => {
+    context = await createTestApp();
+    const ctx = context;
+    const admin = await signIn(ctx, "boss", ["admin"]);
+    await upload(ctx, admin, buildThemeArchive(fontThemeFiles()));
+    const font = await ctx.app.inject("/theme/fonts/lora-400.woff2?v=anything");
+    expect(font.statusCode).toBe(200);
+    expect(font.headers["content-type"]).toBe("font/woff2");
+    expect(font.rawPayload.toString("latin1")).toBe("wOF2lora");
+    // A file the theme does not name is not served, whatever its name.
+    expect((await ctx.app.inject("/theme/fonts/..%2Fmanifest.json")).statusCode).toBe(404);
+    expect((await ctx.app.inject("/theme/fonts/missing.woff2")).statusCode).toBe(404);
+  });
+
+  it("the return to the default theme removes the site theme and its fonts", async () => {
+    context = await createTestApp();
+    const ctx = context;
+    const admin = await signIn(ctx, "boss", ["admin"]);
+    await upload(ctx, admin, buildThemeArchive(fontThemeFiles()));
+    await ctx.app.inject({ method: "DELETE", url: "/api/admin/theme", headers: admin });
+    expect((await ctx.app.inject("/api/site")).json<{ theme: unknown }>().theme).toBeNull();
+    expect((await ctx.app.inject("/theme/fonts/lora-400.woff2")).statusCode).toBe(404);
   });
 });

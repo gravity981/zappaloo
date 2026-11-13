@@ -26,6 +26,7 @@ describe("the brand of the pages without sign-in (ACS-09, SEC-09)", () => {
       name: "Event Muster",
       copyright: expect.stringMatching(/^© \d{4} Event Muster$/) as string,
       sourceUrl: "https://github.com/gravity981/zappaloo",
+      theme: null,
     });
   });
 

@@ -103,10 +103,9 @@ export async function buildApp(options: AppOptions): Promise<FastifyInstance> {
   await app.register(websiteRoutes, {
     website: new WebsiteService(options.database, options.event, options.auth.rsvp),
   });
-  await app.register(themeRoutes, {
-    theme: new ThemeService(options.database, options.event, options.eventsDir),
-  });
-  await app.register(eventApiRoutes, { event: options.event, footer: options.auth.footer });
+  const theme = new ThemeService(options.database, options.event, options.eventsDir);
+  await app.register(themeRoutes, { theme });
+  await app.register(eventApiRoutes, { event: options.event, footer: options.auth.footer, theme });
   await app.register(pwaRoutes, {
     event: options.event,
     icons: new AppIcons(options.eventsDir),
