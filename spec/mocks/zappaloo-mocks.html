@@ -1446,24 +1446,29 @@ add({
   },
 });
 add({
-  id: "admin-settings", group: "admin", title: "Settings & opening", path: "/admin/settings", reqs: ["ACS-10", "ACS-11", "ACS-13", "ACS-14", "PHO-18", "RSVP-04", "PRES-15", "CFG-02", "CFG-03", "SCR-04", "SCR-07", "PHO-14"],
-  shows: ["One page with sections.", "Opening the platform with an optional “Die Tür ist offen” email (verified addresses only). An optional opening date and, separately, the switch for the countdown (decided 2026-11-11). Once open, the card offers “Wieder schliessen” (no email).", "RSVP deadline, program items (name, time, place, one program item marked as the meal) and one menu list.", "Waiting page texts with placeholders (only here, not in Inhalte).", "Privacy notice as Markdown (SEC-09).", "Features. Upload links and screen links (create, QR, revoke, per screen link: show the upload QR now and then).", "Guest profiles: the “Wie kennst du das Paar?” list, in its own section."],
+  id: "admin-settings", group: "admin", title: "Settings & opening", path: "/admin/settings", reqs: ["ACS-10", "ACS-11", "ACS-13", "ACS-14", "PHO-18", "RSVP-04", "PRES-15", "CFG-02", "CFG-03", "SCR-04", "SCR-07", "PHO-14", "THM-01", "THM-03", "THM-05"],
+  variants: [["active", "Design aktiv"], ["default", "Standard-Design"], ["refused", "Paket abgelehnt"], ["confirm", "Zweiter Klick"]],
+  shows: ["One page with sections.", "Design (decided 2026-11-13, stage 4): the active theme with its format and the time of the import. “Design importieren” takes a .tar.gz package as a whole. A refused package lists every finding (the findings are shown in English, as the server gives them) and the active theme stays as it was. “Standard-Design verwenden” asks for a second click (Ja / Abbrechen) before it removes the package. Without a package the card says that the platform’s default applies.", "Opening the platform with an optional “Die Tür ist offen” email (verified addresses only). An optional opening date and, separately, the switch for the countdown (decided 2026-11-11). Once open, the card offers “Wieder schliessen” (no email).", "RSVP deadline, program items (name, time, place, one program item marked as the meal) and one menu list.", "Waiting page texts with placeholders (only here, not in Inhalte).", "Privacy notice as Markdown (SEC-09).", "Features. Upload links and screen links (create, QR, revoke, per screen link: show the upload QR now and then).", "Guest profiles: the “Wie kennst du das Paar?” list, in its own section."],
   qs: [
     { q: "One long settings page, or split into tabs (Öffnung · Rückmeldung · Funktionen · Links)?", p: "Mock: one page with sections. Splitting is easy later." },
     { n: 54, q: "Where are the waiting-page texts edited: Einstellungen or the content editor?", p: "Proposal: Einstellungen only. The content editor has no “Warteseite” page." },
     { n: 56, q: "When the countdown reaches zero before the platform opens, and after opening: what happens?", p: "Proposal: the countdown disappears at zero (the text stays). The admin can close the platform again, without an email." },
   ],
-  render: () => admin("admin-settings", `<h1 class="m-h1">Einstellungen</h1>
+  render: (v) => {
+    const dv = v || "active";
+    const designTag = dv === "default" ? '<span class="m-tag line">Standard-Design</span>' : '<span class="m-tag ok">Aktiv: Sommerfest</span>';
+    const designInfo = dv === "default" ? "Es gilt das Standard-Design der Plattform." : "Format 1 · importiert am 12.11.2026 um 18:04. Das Design gilt für die Website und die Gästeseiten sowie für die Icons der App. Die Verwaltung bleibt neutral.";
+    const designButtons = dv === "confirm" ? '<button class="m-btn soft sm">Ja, Standard-Design verwenden</button><button class="m-btn ghost sm">Abbrechen</button>' : '<button class="m-btn soft sm">Design importieren</button>' + (dv === "default" ? "" : '<button class="m-btn ghost sm">Standard-Design verwenden</button>');
+    const designFindings = dv !== "refused" ? "" : '<div class="m-card flat"><b class="sm">Das Paket wurde abgelehnt</b><span class="m-hint">Das aktive Design bleibt unverändert. Alle Befunde:</span><ul class="m-list sm"><li>icons/icon-192.png: falsche Grösse (200 × 200 instead of 192 × 192)</li><li>theme.json: Feld unbekannt oder ungültig (unknown field «shadow»)</li><li>theme.json: Kontrast zu gering («text» on «surface»: 3.1 : 1 (at least 4.5 : 1))</li></ul></div>';
+    return admin("admin-settings", `<h1 class="m-h1">Einstellungen</h1>
     <div class="m-card"><b>Veranstaltung</b><span class="m-hint">Name, Zeitzone und Sprache lassen sich jederzeit ändern. Die Zeitzone bestimmt, wie Zeiten angezeigt werden, nicht die gespeicherten Zeiten.</span>
       <div class="m-grid-d2">${field("Name", inp("as-name", "Anna & Ben"))}${field("Zeitzone", inp("as-tz", "Europe/Zurich", 'list="tz-list"'))}</div>
       ${field("Standardsprache", `<select class="m-input" id="as-lang" style="width:auto"><option selected>Deutsch</option></select>`)}
       <button class="m-btn" style="align-self:flex-start">Speichern</button></div>
-    <div class="m-card"><div class="m-row2"><b class="m-h2" style="flex:1">Design</b><span class="m-tag ok">Aktiv: Sommerfest</span></div>
-      <span class="m-muted sm">Format 1 · importiert am 12.11.2026 um 18:04. Das Design gilt für die Website und die Gästeseiten sowie für die Icons der App. Die Verwaltung bleibt neutral.</span>
-      <div class="m-row2"><button class="m-btn soft sm">${ic("cam")} Design importieren</button><button class="m-btn ghost sm">Standard-Design verwenden</button></div>
-      <span class="m-hint">Ein Paket als .tar.gz, höchstens 10 MB. Es wird ganz geprüft; ein fehlerhaftes Paket ändert nichts. «Standard-Design verwenden» braucht einen zweiten Klick.</span>
-      <div class="m-card flat"><b class="sm">Das Paket wurde abgelehnt</b><span class="m-hint">Das aktive Design bleibt unverändert. Alle Befunde:</span>
-        <ul class="m-list sm"><li>icons/icon-192.png: 200 × 200 statt 192 × 192</li><li>theme.json: das Feld «shadow» ist unbekannt</li><li>Kontrast «text» auf «surface»: 3,1 : 1 (mindestens 4,5 : 1)</li></ul></div></div>
+    <div class="m-card"><div class="m-row2"><b class="m-h2" style="flex:1">Design</b>${designTag}</div>
+      <span class="m-muted sm">${designInfo}</span>
+      <div class="m-row2">${designButtons}</div>
+      <span class="m-hint">Ein Paket als .tar.gz, höchstens 10 MB. Es wird ganz geprüft; ein fehlerhaftes Paket ändert nichts. «Standard-Design verwenden» braucht einen zweiten Klick.</span>${designFindings}</div>
     <div class="m-card strong"><div class="m-row2"><b class="m-h2" style="flex:1">Plattform öffnen</b><span class="m-tag warn">Geschlossen</span></div>
       <p class="m-muted sm">Bis zur Öffnung sehen Gäste nur die Warteseite und die Rückmeldung. Staff und Admins haben vollen Zugang.</p>
       ${field("Angekündigtes Öffnungsdatum (optional)", inp("as-open", "2027-05-15T18:00", 'type="datetime-local" style="width:auto"'), "Erscheint im Platzhalter {openingDate}.")}
@@ -1499,7 +1504,8 @@ add({
       <div class="m-card"><b>Eventscreen-Links</b><div class="m-list"><div class="m-li"><div class="grow"><b>Beamer Saal</b><span class="m-hint">Fotowand, Paar-Quiz · Wechsel alle 20 s</span></div><button class="m-btn ghost sm">Widerrufen</button></div></div><button class="m-btn soft sm" style="align-self:flex-start">${ic("plus")} Screen-Link</button>
         <div class="m-setrow"><div class="grow"><b class="sm">Upload-QR einblenden</b><span class="m-hint">Link «Allgemein» · 15 s alle 2 Min, unten rechts</span></div>${sw(true)}</div></div>
     </div>
-    <div class="m-card"><b>Gästeprofile</b><span class="m-hint">Auswahl für «Wie kennst du das Paar?» in Profil und Sprechblase.</span><div class="m-chips">${HOW.map((h) => `<span class="m-chip">${h}</span>`).join("")}<button class="m-chip">${ic("plus")}</button></div></div>`),
+    <div class="m-card"><b>Gästeprofile</b><span class="m-hint">Auswahl für «Wie kennst du das Paar?» in Profil und Sprechblase.</span><div class="m-chips">${HOW.map((h) => `<span class="m-chip">${h}</span>`).join("")}<button class="m-chip">${ic("plus")}</button></div></div>`);
+  },
 });
 add({
   id: "admin-setup", group: "admin", title: "Event setup (first start)", path: "/admin (event not set up yet)", reqs: ["CFG-02", "CFG-06", "CFG-07"],
