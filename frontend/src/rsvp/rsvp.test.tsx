@@ -375,6 +375,7 @@ describe("Rückmeldungen", () => {
       { programItemId: 2, yes: 1, no: 2, yesByType: { adult: 1, child: 0 } },
       { programItemId: 3, yes: 2, no: 1, yesByType: { adult: 2, child: 0 } },
     ],
+    personTotals: { yes: 2, no: 1, yesByType: { adult: 2, child: 0 } },
     menuTotals: [
       { menuId: 1, count: 1 },
       { menuId: 2, count: 1 },
@@ -434,7 +435,7 @@ describe("Rückmeldungen", () => {
     });
     renderAt("/admin/rsvp");
     expect(await screen.findByRole("heading", { name: "Rückmeldungen" })).toBeInTheDocument();
-    expect(await screen.findAllByText(/2 ja · 1 nein/)).toHaveLength(2);
+    expect(await screen.findAllByText("2 ja (2 Erwachsene) · 1 nein")).toHaveLength(2);
     expect(screen.getByText("Menüs (Dinner)")).toBeInTheDocument();
     const table = screen.getByRole("table");
     expect(within(table).getByRole("columnheader", { name: /Allergien/ })).toBeInTheDocument();
@@ -676,6 +677,13 @@ describe("invited program items", () => {
     renderAt("/admin/invitations");
     // Trauung and Dinner: T D, with the names as the title. Apéro is not invited.
     const letters = await screen.findByText("T D");
+    expect(screen.getAllByRole("columnheader").map((th) => th.textContent)).toEqual([
+      "Gast",
+      "Programmpunkte",
+      "Typ",
+      "Status",
+      "Aktionen",
+    ]);
     expect(letters).toHaveAttribute("title", "Trauung, Dinner");
     // Nothing to click: the program items are changed in the account panel.
     expect(screen.queryByRole("button", { name: "Dinner: Anna Muster" })).not.toBeInTheDocument();
@@ -711,7 +719,7 @@ describe("invited program items", () => {
           ],
         },
       }),
-      "PUT /api/admin/users/1/program items": () => ({
+      "PUT /api/admin/users/1/program-items": () => ({
         status: 200,
         body: { programItemIds: [1, 2, 3] },
       }),
@@ -838,6 +846,7 @@ describe("Übersicht", () => {
     programItems: PARTS,
     menus: MENUS,
     totals: [],
+    personTotals: { yes: 0, no: 0, yesByType: { adult: 0, child: 0 } },
     menuTotals: [],
     guests: [],
     companions: [],
@@ -981,6 +990,7 @@ describe("the song wish switch", () => {
           programItems: PARTS,
           menus: MENUS,
           totals: [],
+          personTotals: { yes: 0, no: 0, yesByType: { adult: 0, child: 0 } },
           menuTotals: [],
           guests: [],
           companions: [],
@@ -1133,7 +1143,12 @@ describe("one answer per person (RSVP-11, 7.4.2)", () => {
       "GET /api/admin/rsvp/config": () => config({}),
       "PUT /api/admin/rsvp/per-item": () => ({ status: 204 }),
       "PUT /api/admin/rsvp/companion-approval": () => ({ status: 200, body: { approved: 3 } }),
+      "GET /api/admin/rsvp/pending": () => ({
+        status: 200,
+        body: { pendingCount: 3, companionApproval: true },
+      }),
     });
+    const badgeLoads = () => calls.filter((c) => c.path === "/api/admin/rsvp/pending").length;
     renderAt("/admin/settings");
     const perItem = await screen.findByRole("switch", { name: "Pro Programmpunkt zusagen" });
     expect(perItem).toHaveAttribute("aria-checked", "true");
@@ -1151,9 +1166,14 @@ describe("one answer per person (RSVP-11, 7.4.2)", () => {
     user.click(within(dialog).getByRole("button", { name: "Abbrechen" }));
     expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument();
     user.click(screen.getByRole("switch", { name: "Begleitpersonen bestätigen" }));
+    const loadsBefore = badgeLoads();
     user.click(await screen.findByRole("button", { name: "Ausschalten und annehmen" }));
     await waitFor(() => {
       expect(calls.some((c) => c.path.endsWith("/companion-approval"))).toBe(true);
+    });
+    // The badge of the navigation asks again: the requests are approved now.
+    await waitFor(() => {
+      expect(badgeLoads()).toBeGreaterThan(loadsBefore);
     });
     expect(calls.find((c) => c.path.endsWith("/companion-approval"))?.body).toEqual({
       enabled: false,
@@ -1195,6 +1215,7 @@ describe("person types (RSVP-13, RSVP-14, RSVP-15)", () => {
     companionApproval: false,
     programItems: PARTS,
     menus: MENUS,
+    personTotals: { yes: 0, no: 0, yesByType: { adult: 0, child: 0 } },
     menuTotals: [],
     guests: [],
     companions: [],
@@ -1213,16 +1234,19 @@ describe("person types (RSVP-13, RSVP-14, RSVP-15)", () => {
           ...overviewBase,
           totals: [
             { programItemId: 1, yes: 42, no: 3, yesByType: { adult: 37, child: 5 } },
-            { programItemId: 2, yes: 10, no: 0, yesByType: { adult: 10, child: 0 } },
+            { programItemId: 2, yes: 2, no: 0, yesByType: { adult: 1, child: 1 } },
             { programItemId: 3, yes: 0, no: 4, yesByType: { adult: 0, child: 0 } },
           ],
         },
       }),
     });
     renderAt("/admin/rsvp");
-    expect(await screen.findByText("42 ja · 3 nein (37 Erwachsene, 5 Kinder)")).toBeInTheDocument();
-    expect(screen.getByText("10 ja · 0 nein (10 Erwachsene)")).toBeInTheDocument();
+    expect(await screen.findByText("42 ja (37 Erwachsene, 5 Kinder) · 3 nein")).toBeInTheDocument();
+    // One of a type is worded in the singular.
+    expect(screen.getByText("2 ja (1 erwachsene Person, 1 Kind) · 0 nein")).toBeInTheDocument();
     expect(screen.getByText("0 ja · 4 nein")).toBeInTheDocument();
+    // The note of an empty guest table spans all eight columns.
+    expect(screen.getByText("Noch keine Gäste.").closest("td")).toHaveAttribute("colspan", "8");
     expect(screen.getByText("Pro Programmpunkt")).toBeInTheDocument();
   });
 
@@ -1234,16 +1258,21 @@ describe("person types (RSVP-13, RSVP-14, RSVP-15)", () => {
         body: {
           ...overviewBase,
           perItem: false,
+          // Guests are invited to different program items, so no program item counts everyone.
           totals: [
-            { programItemId: 1, yes: 42, no: 3, yesByType: { adult: 37, child: 5 } },
+            { programItemId: 1, yes: 30, no: 1, yesByType: { adult: 28, child: 2 } },
             { programItemId: 2, yes: 42, no: 3, yesByType: { adult: 37, child: 5 } },
-            { programItemId: 3, yes: 42, no: 3, yesByType: { adult: 37, child: 5 } },
+            { programItemId: 3, yes: 20, no: 2, yesByType: { adult: 20, child: 0 } },
           ],
+          personTotals: { yes: 45, no: 4, yesByType: { adult: 39, child: 6 } },
         },
       }),
     });
     renderAt("/admin/rsvp");
-    expect(await screen.findAllByText("42 ja · 3 nein (37 Erwachsene, 5 Kinder)")).toHaveLength(1);
+    // The bar counts persons: whoever attends anything, whoever declined everything.
+    expect(await screen.findByText("45 ja (39 Erwachsene, 6 Kinder) · 4 nein")).toBeInTheDocument();
+    expect(document.querySelectorAll(".bar-row.single")).toHaveLength(1);
+    expect(screen.queryByText(/^30 ja/)).not.toBeInTheDocument();
     expect(screen.getByText("Übersicht", { selector: "b" })).toBeInTheDocument();
     expect(screen.queryByText("Pro Programmpunkt")).not.toBeInTheDocument();
     expect(screen.queryByText("Trauung", { selector: ".bar-row span" })).not.toBeInTheDocument();
@@ -1265,6 +1294,12 @@ describe("person types (RSVP-13, RSVP-14, RSVP-15)", () => {
     // The menu is there, but nothing is missing without it.
     expect(screen.getByText("Menü (Dinner)")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Weiter" })).toBeEnabled();
+    // A menu chosen by mistake is left open again with a second click.
+    const chip = screen.getByRole("button", { name: "Fleisch" });
+    user.click(chip);
+    expect(chip).toHaveAttribute("aria-pressed", "true");
+    user.click(chip);
+    expect(chip).toHaveAttribute("aria-pressed", "false");
   });
 
   it("[RSVP-14] an adult must choose the menu before going on", async () => {

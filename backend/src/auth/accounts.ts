@@ -42,6 +42,7 @@ export type AccountErrorCode =
   | "roles_locked"
   | "own_account"
   | "not_active"
+  | "not_inactive"
   | "not_blocked"
   | "program_items_required"
   | "program_item_not_found";
@@ -168,6 +169,15 @@ export class AccountService {
   getUser(id: number): User | undefined {
     const row = this.#database.db.select().from(users).where(eq(users.id, id)).get();
     return row && this.#toUser(row);
+  }
+
+  /**
+   * The user of a session: only an active account has one (7.1.2). Blocking deletes the sessions,
+   * and this check holds even if one is left over.
+   */
+  getSessionUser(id: number): User | undefined {
+    const row = this.#database.db.select().from(users).where(eq(users.id, id)).get();
+    return row?.status === "active" ? this.#toUser(row) : undefined;
   }
 
   findUser(username: string): User | undefined {
@@ -419,6 +429,23 @@ export class AccountService {
     return { token, expiresAt };
   }
 
+  /**
+   * The link an admin hands over in the account panel (ACC-10, ACC-20): a reset link for an
+   * active account, a new setup link for an inactive account an admin created. A blocked account
+   * gets none (ACC-18), and an invited guest without a username registers with the invitation.
+   */
+  createAdminLink(userId: number, actor: Actor): IssuedLink {
+    return this.#database.db.transaction((tx) => {
+      const row = tx.select().from(users).where(eq(users.id, userId)).get();
+      if (!row) throw new AccountError("user_not_found", "no such user");
+      if (row.status === "blocked" || row.username === null) {
+        throw new AccountError("not_active", "an account in this state gets no link");
+      }
+      const purpose = row.status === "active" ? "reset" : "setup";
+      return this.createLink(userId, purpose, actor, undefined, tx);
+    });
+  }
+
   /** The setup or reset link of a token, if it can still be used. */
   #usableLink(tx: Pick<Database["db"], "select">, token: string) {
     const link = tx
@@ -516,7 +543,9 @@ export class AccountService {
       })
       .where(and(eq(users.id, userId), eq(users.status, "inactive"), isNull(users.passwordHash)))
       .returning()
-      .get();
+      .all()[0];
+    // The account of an open invitation is always inactive. Anything else is a broken state.
+    if (!row) throw new AccountError("not_inactive", "the invited account is already activated");
     return this.#toUser(row);
   }
 
@@ -594,6 +623,8 @@ export class AccountService {
       .from(users)
       .where(
         and(
+          // A blocked account gets no mail and no new link (ACC-18).
+          eq(users.status, "active"),
           eq(users.emailStatus, "verified"),
           or(eq(users.username, needle), eq(sql`lower(${users.email})`, needle)),
         ),
@@ -775,10 +806,25 @@ export class AccountService {
   /**
    * Deletes the account row with what hangs on it: membership, roles, sessions and links by
    * cascade, and its invitations, whatever their status (7.1.2). The guest's RSVP and companions
-   * go with the membership (`forgetGuest`).
+   * go with the membership (`forgetGuest`). Older replaced codes without an account stay, for
+   * "Aufräumen" (INV-21).
    */
   deleteUserRows(tx: Tx, userId: number): void {
     forgetGuest(tx, this.#event.eventId, userId);
+    const own = tx
+      .select({ id: invitations.id })
+      .from(invitations)
+      .where(eq(invitations.userId, userId))
+      .all()
+      .map((row) => row.id);
+    if (own.length > 0) {
+      // A code that was replaced before stage 3.9 has no account and still points to its
+      // successor (`replaced_by`). It lets go of it, so the successor can be deleted.
+      tx.update(invitations)
+        .set({ replacedBy: null })
+        .where(and(inArray(invitations.replacedBy, own), isNull(invitations.userId)))
+        .run();
+    }
     tx.delete(invitations).where(eq(invitations.userId, userId)).run();
     tx.delete(users).where(eq(users.id, userId)).run();
   }

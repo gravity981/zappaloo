@@ -9,9 +9,10 @@ import type { ProgramItem } from "@zappaloo/shared";
 import { fieldText } from "../app/forms.ts";
 import { useEventFormat } from "../rsvp/format.ts";
 import { useAdminCall, useAdminData, useErrorText } from "./data.ts";
+import { notifyRsvpChanged } from "./pending.ts";
 import { Switch } from "./ui.tsx";
 
-const PARTS_PATH = "/api/admin/rsvp/program-items";
+const PROGRAM_ITEMS_PATH = "/api/admin/rsvp/program-items";
 const SONG_PATH = "/api/admin/rsvp/song";
 const PER_ITEM_PATH = "/api/admin/rsvp/per-item";
 const APPROVAL_PATH = "/api/admin/rsvp/companion-approval";
@@ -112,6 +113,8 @@ export default function RsvpSettingsCard() {
     if (result.ok) {
       setError(undefined);
       reload();
+      // Switching the approval changes the badge of the navigation (RSVP-12).
+      if (path === APPROVAL_PATH) notifyRsvpChanged();
     } else {
       setError(errorText(result.errorCode));
     }
@@ -325,7 +328,7 @@ export default function RsvpSettingsCard() {
             setEditing(undefined);
           }}
           onSubmit={async (body) => {
-            if (await run("POST", PARTS_PATH, body)) setEditing(undefined);
+            if (await run("POST", PROGRAM_ITEMS_PATH, body)) setEditing(undefined);
           }}
         />
       ) : (

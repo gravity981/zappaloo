@@ -386,6 +386,67 @@ describe("accounts, roles and groups", () => {
     ).toBeDisabled();
   });
 
+  it("[ACC-17][ACC-18][ACC-20] the panel of an inactive account says so; only one an admin created gets a new setup link, a blocked one gets no link", async () => {
+    const calls = fakeBackend({
+      "GET /api/session": () => asAdmin,
+      "GET /api/admin/users": () => ({
+        status: 200,
+        body: {
+          users: [
+            account({ id: 2, username: null, displayName: "Ben Offen", status: "inactive" }),
+            account({
+              id: 3,
+              username: "oma",
+              displayName: "Oma Rosa",
+              status: "inactive",
+              vipAssignment: "admin_promotion",
+            }),
+            account({ id: 4, username: "cleo", displayName: "Cleo Gesperrt", status: "blocked" }),
+          ],
+        },
+      }),
+      "GET /api/admin/groups": () => ({ status: 200, body: { groups: [] } }),
+      "POST /api/admin/users/3/reset-link": () => ({
+        status: 201,
+        body: { resetUrl: "http://x/set-password/new", expiresAt: "2026-11-13T10:00:00.000Z" },
+      }),
+    });
+    renderAt("/admin/users");
+
+    // Invited, not registered: the state, the way to the invitation, locked roles, no password.
+    user.click(await screen.findByRole("button", { name: "Konto Ben Offen bearbeiten" }));
+    let panel = await screen.findByRole("dialog", { name: "Ben Offen" });
+    expect(within(panel).getByText("noch kein Benutzername")).toBeInTheDocument();
+    expect(within(panel).getByText("Noch nicht angemeldet.")).toBeInTheDocument();
+    expect(within(panel).getByRole("link", { name: "Zur Einladung" })).toHaveAttribute(
+      "href",
+      "/admin/invitations",
+    );
+    expect(within(panel).getByRole("button", { name: "vip" })).toBeDisabled();
+    expect(within(panel).queryByText("Passwort")).not.toBeInTheDocument();
+    expect(within(panel).getByRole("button", { name: "Konto löschen" })).toBeInTheDocument();
+    expect(within(panel).queryByRole("button", { name: "Konto sperren" })).not.toBeInTheDocument();
+    user.click(within(panel).getByRole("button", { name: "Schliessen" }));
+
+    // Created by an admin, link not used yet: free roles and a new setup link.
+    user.click(screen.getByRole("button", { name: "Konto Oma Rosa bearbeiten" }));
+    panel = await screen.findByRole("dialog", { name: "Oma Rosa" });
+    expect(within(panel).queryByRole("link", { name: "Zur Einladung" })).not.toBeInTheDocument();
+    expect(within(panel).getByRole("button", { name: "vip" })).toBeEnabled();
+    user.click(within(panel).getByRole("button", { name: "Neuen Einrichtungslink erstellen" }));
+    expect(await within(panel).findByLabelText("Link zum Festlegen des Passworts")).toHaveValue(
+      "http://x/set-password/new",
+    );
+    expect(calls.some((c) => c.path === "/api/admin/users/3/reset-link")).toBe(true);
+    user.click(within(panel).getByRole("button", { name: "Schliessen" }));
+
+    // Blocked: no link until the account is unblocked.
+    user.click(screen.getByRole("button", { name: "Konto Cleo Gesperrt bearbeiten" }));
+    panel = await screen.findByRole("dialog", { name: "Cleo Gesperrt" });
+    expect(within(panel).queryByText("Passwort")).not.toBeInTheDocument();
+    expect(within(panel).getByRole("button", { name: "Entsperren" })).toBeInTheDocument();
+  });
+
   it("[ACC-17][ACC-18] the table filters by state with counts and searches name and username", async () => {
     fakeBackend({
       "GET /api/session": () => asAdmin,
@@ -665,6 +726,7 @@ describe("accounts, roles and groups", () => {
           users: [
             account({ groups: [{ id: 4, name: "Trauzeugen" }] }),
             account({ id: 2, username: "ben", displayName: "Ben" }),
+            account({ id: 3, username: null, displayName: "Carla Offen", status: "inactive" }),
           ],
         },
       }),
@@ -695,6 +757,9 @@ describe("accounts, roles and groups", () => {
     user.click(screen.getByRole("button", { name: /Trauzeugen/ }));
     const panel = await screen.findByRole("dialog", { name: "Trauzeugen" });
     expect(within(panel).getByText("1 Person")).toBeInTheDocument();
+    // An invited guest who has not registered has no username: the name alone, no empty brackets.
+    expect(within(panel).getByRole("option", { name: "Ben (ben)" })).toBeInTheDocument();
+    expect(within(panel).getByRole("option", { name: "Carla Offen" })).toBeInTheDocument();
     user.type(within(panel).getByLabelText("Person hinzufügen"), "2");
     user.click(within(panel).getByRole("button", { name: "Hinzufügen" }));
     user.click(within(panel).getByRole("button", { name: "Anna aus der Gruppe entfernen" }));

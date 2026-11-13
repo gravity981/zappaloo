@@ -839,13 +839,14 @@ describe("an account per invitation (ACC-17, INV-20; 7.1.2)", () => {
     expect(JSON.stringify(ctx.event.auditEntries())).not.toContain("Geht");
   });
 
-  it("[ACC-07][INV-07] a signed-in account without vip takes over the invited person's program items, RSVP, companions and groups", async () => {
+  it("[ACC-07][INV-07] a signed-in account without vip takes over the invited person's program items, person type, RSVP, companions and groups", async () => {
     const ctx = await setup();
     const root = await admin(ctx);
     const [trauung, dinner] = items(ctx);
     const helper = await makeUser(ctx, "helper", ["staff"]);
     const [invitation] = await createInvitations(ctx, root, ["Helper Hans"]);
     const invited = invitation?.userId ?? 0;
+    ctx.auth.accounts.setPersonType(invited, "child", "cli");
     // What the admin entered for the invited person before the card was redeemed.
     ctx.auth.rsvp.answer(
       invited,
@@ -859,8 +860,24 @@ describe("an account per invitation (ACC-17, INV-20; 7.1.2)", () => {
       "cli",
       true,
     );
+    ctx.auth.rsvp.requestCompanion(
+      invited,
+      {
+        name: "Begleitung",
+        personType: "adult",
+        attendance: [
+          { programItemId: trauung ?? 0, attending: true },
+          { programItemId: dinner ?? 0, attending: true },
+        ],
+      },
+      "cli",
+    );
     const group = ctx.auth.groups.create("Familie", "cli");
     ctx.auth.groups.addMember(group.id, invited, "cli");
+    // A group both accounts are in must not stop the merge.
+    const both = ctx.auth.groups.create("Helfer", "cli");
+    ctx.auth.groups.addMember(both.id, invited, "cli");
+    ctx.auth.groups.addMember(both.id, helper.id, "cli");
 
     const session = await login(ctx, "helper");
     const response = await ctx.app.inject({
@@ -875,7 +892,9 @@ describe("an account per invitation (ACC-17, INV-20; 7.1.2)", () => {
     // The signed-in account is the guest now; the invited person's account is gone.
     expect(ctx.auth.rsvp.invitedProgramItemIds(helper.id)).toEqual([trauung, dinner]);
     expect(ctx.auth.rsvp.state(helper.id).answer?.attendingItemIds).toEqual([trauung, dinner]);
-    expect(ctx.auth.groups.list()[0]?.memberIds).toEqual([helper.id]);
+    expect(ctx.auth.rsvp.state(helper.id).companions.map((c) => c.name)).toEqual(["Begleitung"]);
+    expect(ctx.auth.rsvp.state(helper.id).personType).toBe("child");
+    expect(ctx.auth.groups.list().map((g) => g.memberIds)).toEqual([[helper.id], [helper.id]]);
     const names = (await users(ctx, root)).map((u) => u.id);
     expect(names).not.toContain(invited);
     expect(ctx.event.auditEntries().find((e) => e.action === "invitation.redeem")?.details).toEqual(
@@ -898,6 +917,30 @@ describe("an account per invitation (ACC-17, INV-20; 7.1.2)", () => {
     expect(response.json()).toMatchObject({ error: { code: "already_vip" } });
     expect(ctx.auth.invitations.list()[0]?.status).toBe("active");
     expect((await users(ctx, root)).filter((u) => u.status === "inactive")).toHaveLength(1);
+  });
+
+  it("[ACC-12] a guest an admin promoted without an invitation stays on the guest list too, with the display name", async () => {
+    const ctx = await setup();
+    const root = await admin(ctx);
+    const oma = await makeUser(ctx, "oma", ["vip"]);
+    ctx.auth.accounts.updateProfile(oma.id, { displayName: "Oma Rosa" });
+    const session = await login(ctx, "oma");
+    const removed = await ctx.app.inject({
+      method: "DELETE",
+      url: "/api/profile",
+      headers: as(session),
+      payload: { password: PASSWORD },
+    });
+    expect(removed.statusCode).toBe(204);
+    // There is no invitation to take a guest name from: the display name stays.
+    expect((await users(ctx, root)).find((u) => u.id === oma.id)).toMatchObject({
+      username: null,
+      status: "inactive",
+      displayName: "Oma Rosa",
+      roles: ["vip"],
+      vipAssignment: "admin_promotion",
+    });
+    expect(ctx.auth.rsvp.overview().guests.map((g) => g.name)).toEqual(["Oma Rosa"]);
   });
 
   it("[ACC-17][ACC-12] a guest who deletes their account stays on the guest list as an inactive account", async () => {

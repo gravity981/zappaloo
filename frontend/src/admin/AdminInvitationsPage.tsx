@@ -2,7 +2,7 @@
 // revokes and replaces them, and prints the cards (INV-01, INV-04, INV-05, INV-14). The plain
 // code exists only in the response that creates or regenerates it, so the print view comes
 // right away and not again. Each invitation states the program items it is for (RSVP-02).
-import { useState } from "react";
+import { useRef, useState } from "react";
 import type { SubmitEvent } from "react";
 import { useTranslation } from "react-i18next";
 import {
@@ -82,13 +82,15 @@ export default function AdminInvitationsPage() {
   const { data, reload } = useAdminData("/api/admin/invitations", invitationListSchema);
   const { data: config } = useAdminData("/api/admin/rsvp/config", rsvpConfigSchema);
   const programItems = config?.programItems ?? [];
-  /** The program items chosen for the new batch; every program item until the admin chooses. */
   /** The person type of the new batch (RSVP-13). */
   const [batchType, setBatchType] = useState<PersonType>("adult");
   /** The invited program items of an invitation, in the order of the program. */
   const invited = (invitation: { programItemIds: number[] }) =>
     programItems.filter((programItem) => invitation.programItemIds.includes(programItem.id));
+  /** The program items chosen for the new batch; every program item until the admin chooses. */
   const [chosen, setChosen] = useState<number[]>();
+  /** True while revoking, cleaning up or regenerating runs: a second click does nothing. */
+  const busy = useRef(false);
   const batchProgramItems = chosen ?? programItems.map((programItem) => programItem.id);
   const [cards, setCards] = useState<IssuedInvitation[]>([]);
   const [names, setNames] = useState("");
@@ -121,7 +123,10 @@ export default function AdminInvitationsPage() {
   const [confirmRemove, setConfirmRemove] = useState<number>();
 
   async function revoke(id: number) {
+    if (busy.current) return;
+    busy.current = true;
     const result = await call("POST", `/api/admin/invitations/${String(id)}/revoke`);
+    busy.current = false;
     setConfirmRemove(undefined);
     setError(result.ok ? undefined : errorText(result.errorCode));
     reload();
@@ -131,14 +136,20 @@ export default function AdminInvitationsPage() {
   const [confirmCleanup, setConfirmCleanup] = useState(false);
 
   async function cleanup() {
+    if (busy.current) return;
+    busy.current = true;
     const result = await call("POST", "/api/admin/invitations/cleanup");
+    busy.current = false;
     setConfirmCleanup(false);
     setError(result.ok ? undefined : errorText(result.errorCode));
     reload();
   }
 
   async function regenerate(id: number) {
+    if (busy.current) return;
+    busy.current = true;
     const result = await call("POST", `/api/admin/invitations/${String(id)}/regenerate`);
+    busy.current = false;
     const parsed = issuedInvitationSchema.safeParse(result.body);
     if (result.ok && parsed.success) {
       setCards([parsed.data]);
@@ -274,9 +285,9 @@ export default function AdminInvitationsPage() {
             <thead>
               <tr>
                 <th>{t("admin.invitations.guest")}</th>
-                <th>{t("admin.invitations.status")}</th>
                 <th>{t("admin.invitations.programItemsColumn")}</th>
                 <th>{t("admin.personType")}</th>
+                <th>{t("admin.invitations.status")}</th>
                 <th>
                   <span className="visually-hidden">{t("admin.invitations.actions")}</span>
                 </th>
@@ -297,11 +308,6 @@ export default function AdminInvitationsPage() {
                         </span>
                       </>
                     )}
-                  </td>
-                  <td>
-                    <span className={STATUS_TAG[invitation.status]}>
-                      {t(`admin.invitations.statuses.${invitation.status}`)}
-                    </span>
                   </td>
                   <td>
                     {/* One letter per invited program item, read only. The account panel changes them. */}
@@ -327,6 +333,11 @@ export default function AdminInvitationsPage() {
                     >
                       {t(`personTypesShort.${invitation.personType}`)}
                     </abbr>
+                  </td>
+                  <td>
+                    <span className={STATUS_TAG[invitation.status]}>
+                      {t(`admin.invitations.statuses.${invitation.status}`)}
+                    </span>
                   </td>
                   <td className="actions">
                     {(invitation.status === "active" || invitation.status === "expired") && (

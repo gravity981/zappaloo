@@ -461,6 +461,7 @@ describe("Rückmeldungen: companion requests", () => {
     programItems: PARTS,
     menus: MENUS,
     totals: [],
+    personTotals: { yes: 0, no: 0, yesByType: { adult: 0, child: 0 } },
     menuTotals: [],
     guests: [
       {
@@ -639,6 +640,7 @@ describe("companion approval off (RSVP-12, 7.4.2)", () => {
       programItems: PARTS,
       menus: MENUS,
       totals: [],
+      personTotals: { yes: 0, no: 0, yesByType: { adult: 0, child: 0 } },
       menuTotals: [],
       guests: [
         {
@@ -711,6 +713,7 @@ describe("companion approval off (RSVP-12, 7.4.2)", () => {
           programItems: PARTS,
           menus: MENUS,
           totals: [],
+          personTotals: { yes: 0, no: 0, yesByType: { adult: 0, child: 0 } },
           menuTotals: [],
           guests: [],
           companions: [],

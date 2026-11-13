@@ -42,11 +42,18 @@ export default function AdminRsvpPage() {
     notifyRsvpChanged();
   }
 
-  /** "35 Erwachsene, 5 Kinder, 2 Babys": the types that are there (RSVP-15). */
+  /** "35 Erwachsene, 5 Kinder": the types that are there (RSVP-15). */
   const byType = (counts: Record<PersonType, number>) =>
     PERSON_TYPES.filter((type) => counts[type] > 0)
-      .map((type) => `${String(counts[type])} ${t(`personTypesPlural.${type}`)}`)
+      .map((type) => t(`personTypesCount.${type}`, { count: counts[type] }))
       .join(", ");
+  /** "42 ja (37 Erwachsene, 5 Kinder) · 3 nein". */
+  const yesNo = (total: { yes: number; no: number; yesByType: Record<PersonType, number> }) =>
+    t("admin.rsvp.yesNo", {
+      yes: total.yes,
+      no: total.no,
+      types: total.yes > 0 ? ` (${byType(total.yesByType)})` : "",
+    });
 
   async function removeCompanion(id: number) {
     setBusy(id);
@@ -96,7 +103,14 @@ export default function AdminRsvpPage() {
       ? data.guests.length
       : data.guests.filter((guest) => guest.status === status).length;
   const shown = filter === undefined ? data.guests : data.guests.filter((g) => g.status === filter);
-  const widest = Math.max(1, ...data.totals.map((total) => total.yes + total.no));
+  // One answer for everyone: one bar that counts persons (guests are invited to different program
+  // items, so no program item has everyone). Per program item: one bar each.
+  const bars = data.perItem
+    ? data.totals
+    : data.programItems.length > 0
+      ? [{ programItemId: 0, ...data.personTotals }]
+      : [];
+  const widest = Math.max(1, ...bars.map((total) => total.yes + total.no));
   const menuWidest = Math.max(1, ...data.menuTotals.map((total) => total.count));
 
   return (
@@ -168,18 +182,14 @@ export default function AdminRsvpPage() {
           {data.programItems.length === 0 && (
             <span className="hint">{t("admin.rsvp.noProgramItems")}</span>
           )}
-          {/* One answer for everyone: all program items have the same totals, one bar is enough. */}
-          {(data.perItem ? data.totals : data.totals.slice(0, 1)).map((total) => (
+          {bars.map((total) => (
             <div key={total.programItemId} className={data.perItem ? "bar-row" : "bar-row single"}>
               {data.perItem && <span>{programItemName(total.programItemId)}</span>}
               <div className="track" aria-hidden="true">
                 <i style={{ width: `${String((total.yes / widest) * 100)}%` }} />
                 <i className="no" style={{ width: `${String((total.no / widest) * 100)}%` }} />
               </div>
-              <span className="sm">
-                {t("admin.rsvp.yesNo", { yes: total.yes, no: total.no })}
-                {total.yes > 0 && ` (${byType(total.yesByType)})`}
-              </span>
+              <span className="sm">{yesNo(total)}</span>
             </div>
           ))}
         </section>
@@ -241,7 +251,7 @@ export default function AdminRsvpPage() {
             <tbody>
               {shown.length === 0 && (
                 <tr>
-                  <td colSpan={data.songEnabled ? 7 : 6}>{t("admin.rsvp.noGuests")}</td>
+                  <td colSpan={data.songEnabled ? 8 : 7}>{t("admin.rsvp.noGuests")}</td>
                 </tr>
               )}
               {shown.map((guest) => (

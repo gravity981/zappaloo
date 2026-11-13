@@ -7,7 +7,7 @@ export interface PersonValue {
   attendance: Record<number, boolean>;
   menuId: number | null;
   allergies: string;
-  /** A baby is not asked for a menu (RSVP-14). */
+  /** A child may leave the menu open (RSVP-14). */
   personType: PersonType;
 }
 

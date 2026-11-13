@@ -34,8 +34,8 @@ Each release goes into production. From Release 1 on, real guest data is stored,
 | 2 | Accounts, roles and access | 1 | done |
 | 3 | RSVP and waiting page | – | done |
 | 3.5 | Installable app (home screen icon, no browser chrome) | 1 | done |
-| 3.9 | Findings from the Release 1 pilot | 1 (updates) | done |
-| 4 | Content and website | Opening | next |
+| 3.9 | Findings from the Release 1 pilot | 1 (updates) | next |
+| 4 | Content and website | Opening | open |
 | 5 | Game world and map importer | Opening | open |
 | 6 | Living world | Opening | open |
 | 7 | Contributions and event screen | Event-ready | open |
@@ -230,7 +230,7 @@ Re-verified: RSVP-02, RSVP-05, SEC-09, OPS-08.
 Requirements: none new.
 Re-verified: RSVP-01 – RSVP-10, DATA-05 and the migration check against the latest release's schema.
 
-**3.9c – RSVP settings.** Mock first: `rsvp-parts` with one answer per person, `admin-settings` card Rückmeldung with the two switches, `rsvp-companion` with "Begleitperson hinzufügen" with and without approval. Then: switch "Pro Programmpunkt zusagen" (off by default), one answer stored for every invited program item, program items added later take the existing answer, the warning about mixed answers when switching. Switch "Begleitpersonen bestätigen" (off by default), switching off approves pending requests after a confirmation, badge and tile only with approval on. Texts "hinzufügen". The guest removes an added person until the deadline (approval off), the admin removes one in Rückmeldungen. The migration sets both switches to their defaults, so pending requests on prod are approved by the update.
+**3.9c – RSVP settings.** Mock first: `rsvp-parts` with one answer per person, `admin-settings` card Rückmeldung with the two switches, `rsvp-companion` with "Begleitperson hinzufügen" with and without approval. Then: switch "Pro Programmpunkt zusagen" (off by default), one answer stored for every invited program item, program items added later take the existing answer. (The planned warning about mixed answers when switching was dropped while building: the setting has one short sentence.) Switch "Begleitpersonen bestätigen" (off by default), switching off approves pending requests after a confirmation, badge and tile only with approval on. Texts "hinzufügen". The guest removes an added person until the deadline (approval off), the admin removes one in Rückmeldungen. The migration sets both switches to their defaults, so pending requests on prod are approved by the update.
 Requirements: RSVP-11, RSVP-12. RSVP-01, RSVP-08, RSVP-09, RSVP-10 (reworded).
 
 **3.9d – Every invited person has an account.** Mock first: `invite-register` (activates the account, variant for a signed-in account without `vip`: "zu deinem Konto hinzufügen"), `profile` (the confirmation of "Konto löschen" says what stays), `admin-invitations` (revoke with "Widerrufen und Gast entfernen"), `admin-rsvp` (inactive guests as "ohne Antwort"). Then: `users.status` and a nullable username. Creating an invitation creates its inactive account (`invitations.user_id`, program items on the membership only). Registration activates it. Merge into a signed-in account without `vip`. Revoking the last open invitation of a never-activated account deletes it (INV-20). Deleting an account deletes its invitations. A guest's own deletion keeps the guest-list entry as inactive. Inactive accounts cannot sign in and get no reminder. New default privacy text. The migration of existing data (7.1.2). Tests include the concurrency test of redemption (INV-08) with the account, the merge, the migration on a database with v1.0.2 data, and the sign-in refusal of inactive accounts.
@@ -244,6 +244,8 @@ Re-verified: ACC-08, ACC-10, ACC-14, ROLE-01, ROLE-09.
 **3.9f – Person types.** Mock first: `admin-invitations` (type per batch, one letter per row), `admin-users` (type in the panel), `rsvp-companion` (type chips, required), `rsvp-people` (optional menu for a child), `admin-rsvp` (totals by type, column "Typ"). Then: `person_type` on memberships and companions (adult for existing data), the menu rule takes the type, totals, guest table and CSV by type.
 Requirements: RSVP-13, RSVP-14, RSVP-15.
 Re-verified: RSVP-03, RSVP-05.
+
+**3.9h – Fixes from the stage-3.9 review** (added 2026-11-12, before 3.9g). A guest whose card was replaced before the update can be deleted and uninvited (an old replaced code no longer blocks it). The single bar "Übersicht" counts persons instead of the first program item (`personTotals`), with the text "42 ja (37 Erwachsene, 5 Kinder) · 3 nein". The merge takes over the person type and survives a shared group. A blocked account gets no reset mail, no link from an admin and no reminder, and a session counts only for an active account. An inactive account an admin created gets "Neuen Einrichtungslink erstellen". A child's menu can be left open again. Smaller fixes in Rückmeldungen, Konten & Rollen, Einladungen (column order as in the mock, no double requests) and the invitation page. Tests: API and component tests for each fix, a Playwright flow for blocking, deleting, revoking with removal and "Aufräumen", one for the merge, and the guest's answer page in the phone-width check.
 
 **3.9g – Update on prod.** Image build and deployment test. Staging restored from the latest prod backup and updated, so the migrations run on real data (OPS-13). Release candidate, promotion and deployment to prod with the pre-deploy backup. Manual checks on a phone (swipe, RSVP with one answer, adding a companion, redeeming a card for a pre-created account). The admin copies the new "Löschen" paragraph into the privacy notice on prod (7.1.2), because an edited notice keeps its text. Status report for stage 3.9.
 Requirements: none new.
@@ -263,7 +265,7 @@ Follow-up from stage 2: the content routes use `requireCapability("editWebsiteCo
 **4b – Website.** Website pages, configurable per event, responsive, usable without the game; generic platform core with one event per installation.
 Requirements: WEB-01, WEB-02, WEB-03, WEB-04, CFG-01, CFG-04.
 
-**4c – Schedule and "now / next".** Structured schedule; current and next entry on the start page (the game world shows no "now / next", decided 2026-11-10); the programme shows only the parts the guest is invited to.
+**4c – Schedule and "now / next".** Structured schedule; current and next entry on the start page (the game world shows no "now / next", decided 2026-11-10); the programme shows only the program items the guest is invited to.
 Requirements: WEB-07, WEB-09.
 
 ### Stage 5 – Game World and Map Importer
@@ -299,7 +301,7 @@ Requirements: MAP-12, MAP-13, MAP-14.
 
 **Steps:**
 
-**6a – Wandering figures.** Figures of attending guests in the wander areas of the maps of their event parts; own avatar instead of own figure; simulated per device.
+**6a – Wandering figures.** Figures of attending guests in the wander areas of the maps of their program items; own avatar instead of own figure; simulated per device.
 Requirements: PRES-01, PRES-02, PRES-04, PRES-08, AVA-04.
 
 **6b – Profiles and speech bubble.** Profile photo, greeting, "How I know the couple" with relation list; speech bubble opening for the nearest figure; admin can remove profile data.
@@ -574,11 +576,11 @@ After each completed stage, Claude appends a report with this structure to secti
 
 **Summary:** Guests answer the RSVP once for all their program items and add companions without waiting for approval. Every invited person is on the guest list from the moment the invitation is created. Admins see the state of each account, can block and delete accounts, clean up old invitations and give every person a type. The update to prod (step 3.9g) is still to do and needs the project owner.
 
-**Steps:** 3.9a Fixes from the pilot (phone swipe, footer) – done. 3.9b Program item instead of part – done. 3.9c RSVP settings – done. 3.9d Every invited person has an account – done. 3.9e Konten & Rollen and Einladungen – done. 3.9f Person types – done. Review rounds between the steps changed texts and layout (see below). 3.9g Update on prod – the image builds and the app starts healthy with all 12 migrations. The smoke test and 9 of 19 deployment tests cannot pass in this devcontainer (see risks). Staging restore with a prod backup, release candidate, prod deployment, phone checks and the privacy paragraph wait for the project owner.
+**Steps:** 3.9a Fixes from the pilot (phone swipe, footer) – done. 3.9b Program item instead of part – done. 3.9c RSVP settings – done. 3.9d Every invited person has an account – done. 3.9e Konten & Rollen and Einladungen – done. 3.9f Person types – done. 3.9h Fixes from the stage review – done. Review rounds between the steps changed texts and layout (see below). 3.9g Update on prod – the image builds and the app starts healthy with all 12 migrations. The smoke test and 9 of 19 deployment tests cannot pass in this devcontainer (see risks). Staging restore with a prod backup, release candidate, prod deployment, phone checks and the privacy paragraph wait for the project owner.
 
 **Requirements:** 11 of 11 planned for this stage (ACC-17 – ACC-20, INV-20, INV-21, RSVP-11 – RSVP-15) with passing tests. RSVP-01 and RSVP-08 – RSVP-10 are reworded and re-verified. Overall: 107 of 232 active requirements, all with passing Vitest and Playwright tests. 125 are not yet implemented.
 
-**Tests:** 2026-11-12 on `feature/stage-3.9`: Vitest 688 tests passed (707 results in the report, 659 tagged). Playwright 69 passed and 19 skipped by design, none failed. The requirement report is OK without the deployment results. With them it reports 9 requirements as failed, because their deployment tests fail in this devcontainer (see risks). Migration check OK for all 12 migrations, including tests with data for 0008 (rename), 0009 (RSVP settings), 0010 (accounts per invitation) and 0011 (person types). Deployment test: 10 of 19 passed. The 9 failures show empty output from `docker run` and `docker compose exec` in this devcontainer. An image built from the commit before stage 3.9 behaves the same, so the cause is not this stage. Manual: OPS-05 only.
+**Tests:** 2026-11-12 on `feature/stage-3.9`: Vitest 696 tests passed (715 results in the report, 667 tagged). Playwright 74 passed and 22 skipped by design, none failed (numbers after the review fixes of step 3.9h). The requirement report is OK without the deployment results. With them it reports 11 requirements as failed, because 9 deployment tests fail in this devcontainer (see risks). Migration check OK for all 12 migrations, including tests with data for 0008 (rename), 0009 (RSVP settings), 0010 (accounts per invitation) and 0011 (person types). Deployment test: 10 of 19 passed. The 9 failures show empty output from `docker run` and `docker compose exec` in this devcontainer. An image built from the commit before stage 3.9 behaves the same, so the cause is not this stage. Manual: OPS-05 only.
 
 **Spec changes and deviations:** The decisions are in 7.1.2, 7.4.2 and 8.3 of sw-architecture.md and in the UX decisions of the mocks. Changes made while building:
 - The warning about mixed answers next to "Pro Programmpunkt zusagen" is gone. The setting has one short sentence.
@@ -586,6 +588,7 @@ After each completed stage, Claude appends a report with this structure to secti
 - Roles are locked only for inactive accounts that have an invitation. An account an admin created keeps its roles editable.
 - Revoking the code of a guest who never registered removes the guest, so the status "Widerrufen" survives only on old data.
 - A child who left the menu open is not counted in the menu totals. There is no type baby.
+- The stage review (step 3.9h) found that a guest whose card was replaced before the update could not be deleted or uninvited, and that the single bar "Übersicht" showed the first program item only. Both are fixed. The review's decisions are in 7.1.2 and 7.4.2: a blocked account gets no mail and no new link, an inactive account an admin created gets a new setup link, a promoted guest who deletes the account stays on the guest list.
 - The migrations now run with foreign keys off and are checked afterwards, because SQLite rebuilds the users table to make the username optional.
 - Texts use short, full sentences without semicolons. This holds for German texts and English notes alike. Older parts of the spec outside stage 3.9 still contain semicolons.
 
@@ -597,8 +600,8 @@ After each completed stage, Claude appends a report with this structure to secti
 | 2 | Accounts, roles and access | done |
 | 3 | RSVP and waiting page | done |
 | 3.5 | Installable app | done |
-| 3.9 | Findings from the Release 1 pilot | done |
-| 4 | Content and website | next |
+| 3.9 | Findings from the Release 1 pilot | next (3.9g) |
+| 4 | Content and website | open |
 | 5 | Game world and map importer | open |
 | 6 | Living world | open |
 | 7 | Contributions and event screen | open |

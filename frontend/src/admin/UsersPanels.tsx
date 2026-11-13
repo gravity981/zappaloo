@@ -1,6 +1,6 @@
 // The panels of Konten & Rollen (sw-architecture.md 8.3): one account (roles, staff
 // capabilities, groups, reset link), a new account with its setup link, and one guest group.
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { Link } from "react-router";
 import { useTranslation } from "react-i18next";
 import {
@@ -74,6 +74,9 @@ export function AccountPanel({
   const [confirming, setConfirming] = useState<"block" | "delete">();
   const locked = rolesLocked(user);
   const hasPassword = user.status === "active";
+  /** An account an admin created that was never set up: its setup link can be issued again (ACC-20). */
+  const needsSetup = user.status === "inactive" && user.username !== null;
+  const busy = useRef(false);
   const isStaff = user.roles.includes("staff");
   const isVip = user.roles.includes("vip");
   const inGroup = (group: Group) => user.groups.some((g) => g.id === group.id);
@@ -105,7 +108,11 @@ export function AccountPanel({
   }
 
   async function run(method: "POST" | "DELETE", path: string, done?: () => void) {
+    // A second click while the first request runs would answer with an error.
+    if (busy.current) return;
+    busy.current = true;
     const result = await call(method, path);
+    busy.current = false;
     setConfirming(undefined);
     onChanged(result.ok ? undefined : errorText(result.errorCode));
     if (result.ok) done?.();
@@ -262,19 +269,21 @@ export function AccountPanel({
         </section>
       )}
 
-      {hasPassword && (
+      {(hasPassword || needsSetup) && (
         <section className="stack" aria-labelledby="account-password">
           <b id="account-password">{t("admin.users.password")}</b>
-          <span className="hint">{t("admin.users.resetHint")}</span>
+          <span className="hint">
+            {t(hasPassword ? "admin.users.resetHint" : "admin.users.setupHint")}
+          </span>
           {link ? (
             <HandOverLink
               url={link.url}
               expiresAt={link.expiresAt}
-              label={t("admin.users.resetLink")}
+              label={t(hasPassword ? "admin.users.resetLink" : "admin.users.setupLink")}
             />
           ) : (
             <button type="button" className="btn soft sm" onClick={() => void createResetLink()}>
-              {t("admin.users.createResetLink")}
+              {t(hasPassword ? "admin.users.createResetLink" : "admin.users.createSetupLink")}
             </button>
           )}
         </section>
@@ -618,7 +627,9 @@ export function GroupPanel({
                 <option value="">{t("admin.groups.choose")}</option>
                 {others.map((user) => (
                   <option key={user.id} value={String(user.id)}>
-                    {user.displayName} ({user.username})
+                    {user.username === null
+                      ? user.displayName
+                      : `${user.displayName} (${user.username})`}
                   </option>
                 ))}
               </select>

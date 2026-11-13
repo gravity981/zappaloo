@@ -58,7 +58,15 @@ test("[RSVP-02][SEC-09] no admin page scrolls sideways on a phone", async ({
 }, testInfo) => {
   test.skip(!testInfo.project.name.startsWith("mobile"), "phones only");
   await signInAsAdmin(page, context);
-  for (const path of ADMIN_PAGES) {
+  // The answer of one guest in admin mode needs a guest: an invitation creates one.
+  const session = (await (await page.request.get("/api/session")).json()) as { csrfToken: string };
+  const created = await page.request.post("/api/admin/invitations", {
+    headers: { "x-csrf-token": session.csrfToken },
+    data: { guests: [{ name: "E2E Schmal" }] },
+  });
+  const { invitations } = (await created.json()) as { invitations: { userId: number }[] };
+  const guestPage = `/admin/rsvp/guests/${String(invitations[0]?.userId)}`;
+  for (const path of [...ADMIN_PAGES, guestPage]) {
     await page.goto(path);
     await expect(page.getByRole("link", { name: "Datenschutz" }).first()).toBeVisible();
     expect(await overflow(page), path).toBeLessThanOrEqual(0);

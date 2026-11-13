@@ -165,7 +165,9 @@ export function MenuFields({
                 aria-pressed={value.menuId === menu.id}
                 aria-label={prefixed(menu.name)}
                 onClick={() => {
-                  onChange({ ...value, menuId: menu.id });
+                  // A child's menu is optional (RSVP-14): a second click leaves it open again.
+                  const clear = value.personType === "child" && value.menuId === menu.id;
+                  onChange({ ...value, menuId: clear ? null : menu.id });
                 }}
               >
                 {menu.name}

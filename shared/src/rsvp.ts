@@ -242,7 +242,7 @@ export const rsvpGuestSchema = z.object({
   menuId: idSchema.nullable(),
   songWish: z.string().nullable(),
   allergies: z.string().nullable(),
-  /** True if the guest has a verified email address (a reminder can reach them). */
+  /** True if a reminder can reach the guest: an active account with a verified email address. */
   verifiedEmail: z.boolean(),
 });
 export type RsvpGuest = z.infer<typeof rsvpGuestSchema>;
@@ -278,6 +278,15 @@ export const rsvpOverviewSchema = z.object({
       }),
     }),
   ),
+  /**
+   * Per person, for the single bar while guests answer once (RSVP-11 off, RSVP-15): yes for whoever
+   * attends at least one program item, no for whoever declined every program item they are invited to.
+   */
+  personTotals: z.object({
+    yes: z.number().int(),
+    no: z.number().int(),
+    yesByType: z.object({ adult: z.number().int(), child: z.number().int() }),
+  }),
   /** Menu choices of the persons attending the meal program item; menuId null = no choice made. */
   menuTotals: z.array(z.object({ menuId: idSchema.nullable(), count: z.number().int() })),
   guests: z.array(rsvpGuestSchema),
@@ -302,7 +311,7 @@ export const rsvpPendingSchema = z.object({
 /** `GET /api/admin/rsvp/guests/:id`: the wizard in admin mode (deadline ignored). */
 export const rsvpAdminStateSchema = rsvpStateSchema;
 
-/** `PUT /api/admin/invitations/:id/program items` and `PUT /api/admin/users/:id/program items`. */
+/** `PUT /api/admin/users/:id/program-items`: the program items a guest is invited to. */
 export const invitedProgramItemsRequestSchema = z.strictObject({
   programItemIds: z.array(idSchema).max(50),
 });

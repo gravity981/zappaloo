@@ -930,6 +930,7 @@ export class RsvpService {
         displayName: users.displayName,
         emailStatus: users.emailStatus,
         email: users.email,
+        accountStatus: users.status,
         personType: memberships.personType,
       })
       .from(users)
@@ -977,7 +978,9 @@ export class RsvpService {
         .sort((a, b) => a - b);
       const attendingItemIds = programItemIdsOf(mine, true);
       const declinedItemIds = programItemIdsOf(mine, false);
-      const verified = row.emailStatus === "verified" && row.email !== null;
+      // A reminder reaches an active account only: a blocked one gets no mail (ACC-18).
+      const verified =
+        row.accountStatus === "active" && row.emailStatus === "verified" && row.email !== null;
       return {
         userId: row.id,
         name: row.displayName,
@@ -1046,6 +1049,27 @@ export class RsvpService {
         ).length,
       },
     }));
+    // Per person (RSVP-15): yes for whoever attends at least one program item, no for whoever
+    // declined all they are invited to. Guests are invited to different program items, so no
+    // single program item has these numbers.
+    const attends = people.filter((p) => p.attendingItemIds.length > 0);
+    const declines = [
+      ...guests.filter((g) => g.status === "declined"),
+      ...approved.filter((c) => {
+        const invitedIds = guests.find((g) => g.userId === c.hostUserId)?.invitedProgramItemIds;
+        return (
+          rsvpStatus(true, invitedIds ?? [], c.attendingItemIds, c.declinedItemIds) === "declined"
+        );
+      }),
+    ];
+    const personTotals = {
+      yes: attends.length,
+      no: declines.length,
+      yesByType: {
+        adult: attends.filter((p) => p.personType === "adult").length,
+        child: attends.filter((p) => p.personType === "child").length,
+      },
+    };
     const meal = config.programItems.find((programItem) => programItem.hasMeal);
     const counts = new Map<number | null, number>();
     if (meal) {
@@ -1060,6 +1084,7 @@ export class RsvpService {
     return {
       ...config,
       totals,
+      personTotals,
       menuTotals: [...counts].map(([menuId, count]) => ({ menuId, count })),
       guests: guests.map(withoutEmail),
       companions: everyone,

@@ -54,7 +54,7 @@ The decisions behind the mocks, by question number in the prototype's "Questions
 | 28 | Minigame from the website | Starts full-screen; closing returns to the page. |
 | 29 | Treasure found | Shows the hint of one item not found yet. |
 | 30 | Admin on phones | Everything responsive; tables are tuned for desktop. |
-| 31 | Invited parts | Set per batch when creating invitations. The invitation list shows them as read-only letters (T A D P). Changed afterwards in the account panel only (changed 2026-11-12). |
+| 31 | Invited program items | Set per batch when creating invitations. The invitation list shows them as read-only letters (T A D P). Changed afterwards in the account panel only (changed 2026-11-12). |
 | 32 | Seating plan | Drag and drop only, no auto-fill. |
 | 33 | Content editor | One "Veröffentlichen" button, live at once; no drafts. |
 | 34 | Settings | One page with sections; the "Wie kennst du das Paar?" list has its own section. |
@@ -91,7 +91,7 @@ Written into sw-architecture.md 7.4.1, 10.4 and 24 as well.
 |---|---|---|
 | 49 | Countdown | Optional: a switch "Countdown auf der Warteseite zeigen" in the card "Plattform öffnen", separate from the opening date (which `{openingDate}` shows), default off. The countdown disappears at zero; the text stays (ACS-13). |
 | 50 | Admin changes an RSVP | The allergies card in Rückmeldungen becomes a guest table (name, status, parts, menu, song wish, allergies as a column only admins see, status filter). "Bearbeiten" opens the RSVP wizard in admin mode, also after the deadline (RSVP-04). |
-| 51 | Menu | Tied to the meal part, which the admin marks among the event parts (name, time, place); asked only for persons attending it. One menu list for everyone, children's menu included. |
+| 51 | Menu | Tied to the meal program item, which the admin marks among the program items (name, time, place); asked only for persons attending it. One menu list for everyone, children's menu included. |
 | 52 | Approved companions | Their VIP changes attendance, menu and allergies in the wizard until the deadline, without a new approval; the name only the admin. Pending requests: edit or withdraw (Q10). |
 | 53 | Invited parts without an invitation (superseded 2026-11-12, see stage 3.9) | "Eingeladen zu" chips in the account panel for vip accounts without an invitation; a new account is invited to all parts, and "Konto anlegen" has no chips (decided 2026-11-11: the parts are changed in the account panel afterwards). With an invitation, its parts apply (changed under Einladungen). Revoking vip needs a second click ("vip entziehen"), because the guest's RSVP with allergies and companions is deleted with it. |
 | 54 | Waiting-page texts | Edited in Einstellungen only; the content editor has no "Warteseite" page. |
@@ -116,7 +116,7 @@ Written into sw-architecture.md 7.1.2, 7.4.2 and 8.3 as well. The screens are dr
 | Adding companions | "Begleitperson hinzufügen" instead of "beantragen". With "Begleitpersonen bestätigen" off (the default) an added person has no status tag and counts right away. The person type is chosen with chips, no default. With approval off the guest removes an added person until the deadline. The admin removes one from the guest table in Rückmeldungen (second click). |
 | Person type | Chips "Erwachsen" and "Kind" per batch when creating invitations, in the account panel and in the companion form (right under the name, no title). The invitation list shows one letter (E, K) and cannot change it. For a child the menu in step 2 is optional. Rückmeldungen shows the totals by type and a column "Typ". |
 | Konten & Rollen | Columns Benutzername (empty while inactive) · Name (current display name) · Status (aktiv / inaktiv / gesperrt) · Rollen · Fähigkeiten. Filter chips with counts and a search. No invitation information in the table. |
-| Account panel | Inactive: state, "Zur Einladung", person type, roles locked, groups, "Eingeladen zu", no password section, "Konto löschen". Active: as before plus person type, "Konto sperren" and "Konto löschen". Blocked: "Entsperren", no reset link. "Eingeladen zu" appears for every account with vip. |
+| Account panel | Inactive with an invitation: state, "Zur Einladung", person type, roles locked, groups, "Eingeladen zu", no password section, "Konto löschen". Inactive and created by an admin: free roles and "Neuen Einrichtungslink erstellen" instead (decided 2026-11-12). Active: as before plus person type, "Konto sperren" and "Konto löschen". Blocked: "Entsperren", no reset link. "Eingeladen zu" appears for every account with vip. |
 | Konto anlegen | Ticking vip shows the program item chips, none selected. At least one is required (replaces 53). |
 | Einladungen | "Aufräumen (n)" deletes revoked and replaced invitations after a second click. Revoking the last open invitation of a never-activated guest asks "Widerrufen und Gast entfernen". |
 | Redeeming while signed in | "Diese Einladung für «Gastname» zu deinem Konto «Benutzername» hinzufügen?" with "Nicht du? Abmelden". |

@@ -243,7 +243,117 @@ describe("deleting an account (ACC-19)", () => {
   });
 });
 
+describe("what a blocked account no longer gets (ACC-18)", () => {
+  it("[ACC-18] a blocked account gets no reset mail, no link from an admin and no reminder, and a leftover session counts for nothing", async () => {
+    const { ctx, root, call } = await setup();
+    const anna = await makeUser(ctx, "anna", ["vip"]);
+    ctx.auth.accounts.updateProfile(anna.id, { email: "anna@example.org" });
+    ctx.auth.accounts.verifyEmail(ctx.auth.accounts.createVerification(anna.id).link.token);
+    const forgot = () =>
+      ctx.app.inject({
+        method: "POST",
+        url: "/api/password/forgot",
+        payload: { identifier: "anna" },
+      });
+    const resetLink = () => call(root, "POST", `/api/admin/users/${String(anna.id)}/reset-link`);
+    expect(ctx.auth.rsvp.reminderRecipients().map((r) => r.userId)).toEqual([anna.id]);
+    expect(ctx.auth.accounts.getSessionUser(anna.id)?.username).toBe("anna");
+
+    await call(root, "POST", `/api/admin/users/${String(anna.id)}/block`);
+    // The answer of "Passwort vergessen" is the same, but no mail leaves.
+    expect((await forgot()).statusCode).toBe(204);
+    expect(ctx.mailer.sent).toHaveLength(0);
+    const refused = await resetLink();
+    expect(refused.status).toBe(409);
+    expect(ERROR(refused.body)).toBe("not_active");
+    expect(ctx.auth.rsvp.reminderRecipients()).toEqual([]);
+    expect(ctx.auth.rsvp.overview().reminderCount).toBe(0);
+    // Blocking deletes the sessions. A session that is left over anyway has no user.
+    expect(ctx.auth.accounts.getSessionUser(anna.id)).toBeUndefined();
+
+    await call(root, "POST", `/api/admin/users/${String(anna.id)}/unblock`);
+    expect((await forgot()).statusCode).toBe(204);
+    expect(ctx.mailer.sent).toHaveLength(1);
+    expect((await resetLink()).status).toBe(201);
+    expect(ctx.auth.rsvp.reminderRecipients().map((r) => r.userId)).toEqual([anna.id]);
+  });
+});
+
+describe("guests whose card was replaced before stage 3.9 (ACC-19, INV-20)", () => {
+  it("[ACC-19][INV-20] the guest can be deleted and uninvited although an older replaced code points to their code", async () => {
+    const { ctx, root, call, count } = await setup();
+    const created = (
+      await ctx.app.inject({
+        method: "POST",
+        url: "/api/admin/invitations",
+        headers: as(root),
+        payload: { guests: [{ name: "Eva" }, { name: "Udo" }] },
+      })
+    ).json<{ invitations: IssuedInvitation[] }>().invitations;
+    const [eva, udo] = created;
+    // What the migration leaves of a code that was replaced before the update: no account, and
+    // `replaced_by` names the code that is in use.
+    const legacy = ctx.database.sqlite.prepare(
+      "INSERT INTO invitations (event_id, guest_name, code_hash, status, created_at, replaced_by, user_id) VALUES (?, ?, ?, 'replaced', 1, ?, NULL)",
+    );
+    for (const invitation of created) {
+      legacy.run(
+        ctx.event.eventId,
+        invitation.guestName,
+        `old-${String(invitation.id)}`,
+        invitation.id,
+      );
+    }
+    expect(count("invitations")).toBe(4);
+
+    const deleted = await call(root, "DELETE", `/api/admin/users/${String(eva?.userId)}`);
+    expect(deleted.status, JSON.stringify(deleted.body)).toBe(204);
+    const revoked = await call(root, "POST", `/api/admin/invitations/${String(udo?.id)}/revoke`);
+    expect(revoked.status, JSON.stringify(revoked.body)).toBe(200);
+    expect(revoked.body).toMatchObject({ guestRemoved: true });
+    // The old codes stay for "Aufräumen" and point nowhere.
+    expect(ctx.auth.invitations.list().map((i) => i.status)).toEqual(["replaced", "replaced"]);
+    expect((await call(root, "POST", "/api/admin/invitations/cleanup")).body).toEqual({
+      deleted: 2,
+    });
+    expect(ctx.database.sqlite.pragma("foreign_key_check")).toEqual([]);
+  });
+});
+
 describe("accounts an admin creates (ACC-20)", () => {
+  it("[ACC-20] an inactive account an admin created gets a new setup link, an invited guest without a username gets none", async () => {
+    const { ctx, root, call, items } = await setup();
+    await call(root, "POST", "/api/admin/users", {
+      username: "oma",
+      roles: ["vip"],
+      programItemIds: items,
+    });
+    const oma = ctx.auth.accounts.findUser("oma");
+    const issued = await call(root, "POST", `/api/admin/users/${String(oma?.id)}/reset-link`);
+    expect(issued.status, JSON.stringify(issued.body)).toBe(201);
+    const token = (issued.body as { resetUrl: string }).resetUrl.split("/").pop() ?? "";
+    expect(ctx.auth.accounts.previewLink(token)).toEqual({ purpose: "setup", username: "oma" });
+    await ctx.auth.accounts.useLink(token, PASSWORD);
+    expect(ctx.auth.accounts.listUsers().find((u) => u.id === oma?.id)?.status).toBe("active");
+
+    const invited = (
+      await ctx.app.inject({
+        method: "POST",
+        url: "/api/admin/invitations",
+        headers: as(root),
+        payload: { guests: [{ name: "Lukas" }] },
+      })
+    ).json<{ invitations: IssuedInvitation[] }>().invitations[0];
+    const refused = await call(
+      root,
+      "POST",
+      `/api/admin/users/${String(invited?.userId)}/reset-link`,
+    );
+    expect(refused.status).toBe(409);
+    expect(ERROR(refused.body)).toBe("not_active");
+    expect((await call(root, "POST", "/api/admin/users/9999/reset-link")).status).toBe(404);
+  });
+
   it("[ACC-20] a new guest needs program items in the same form; the account is inactive until its setup link is used", async () => {
     const { ctx, root, call, items } = await setup();
     const create = (payload: object) => call(root, "POST", "/api/admin/users", payload);

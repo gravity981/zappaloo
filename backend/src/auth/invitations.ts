@@ -2,7 +2,7 @@
 // 6-character string; only its SHA-256 is stored, so the plain code exists only in the
 // response that creates or regenerates it (INV-02, INV-14).
 import { randomBytes } from "node:crypto";
-import { and, desc, eq, ne, or } from "drizzle-orm";
+import { and, desc, eq, ne, notInArray, or } from "drizzle-orm";
 import type { Invitation, InvitationStatus, PersonType, User } from "@zappaloo/shared";
 import type { Database } from "../database/database.ts";
 import {
@@ -540,7 +540,11 @@ export class InvitationService {
       // The signed-in account becomes the guest ...
       tx.insert(membershipRoles).values({ eventId, userId, role: "vip" }).run();
       tx.update(memberships)
-        .set({ vipAssignment: "invitation_code", vipInvitationId: row.id })
+        .set({
+          vipAssignment: "invitation_code",
+          vipInvitationId: row.id,
+          personType: this.#personType(tx, row),
+        })
         .where(and(eq(memberships.eventId, eventId), eq(memberships.userId, userId)))
         .run();
       // ... and takes over what hangs on the invited person's account.
@@ -565,9 +569,23 @@ export class InvitationService {
         .set({ hostUserId: userId })
         .where(and(eq(companions.eventId, eventId), eq(companions.hostUserId, invited)))
         .run();
+      // A group both accounts are in stays as it is: that membership of the invited account goes
+      // with the account.
+      const mine = tx
+        .select({ groupId: guestGroupMembers.groupId })
+        .from(guestGroupMembers)
+        .where(and(eq(guestGroupMembers.eventId, eventId), eq(guestGroupMembers.userId, userId)))
+        .all()
+        .map((member) => member.groupId);
       tx.update(guestGroupMembers)
         .set({ userId })
-        .where(and(eq(guestGroupMembers.eventId, eventId), eq(guestGroupMembers.userId, invited)))
+        .where(
+          and(
+            eq(guestGroupMembers.eventId, eventId),
+            eq(guestGroupMembers.userId, invited),
+            ...(mine.length > 0 ? [notInArray(guestGroupMembers.groupId, mine)] : []),
+          ),
+        )
         .run();
       // The invitations of the invited account (replaced codes) move too, then it is deleted.
       tx.update(invitations).set({ userId }).where(eq(invitations.userId, invited)).run();

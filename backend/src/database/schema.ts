@@ -124,7 +124,7 @@ export const memberships = sqliteTable(
     createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull(),
     /** How `vip` was granted (INV-11); null without the role. Cleared when vip is revoked. */
     vipAssignment: text("vip_assignment", { enum: ["invitation_code", "admin_promotion"] }),
-    /** Adult, child or baby (RSVP-13); the admin sets it, the guest never sees it. */
+    /** Adult or child (RSVP-13); the admin sets it, the guest never sees it. */
     personType: text("person_type", { enum: ["adult", "child"] })
       .notNull()
       .default("adult"),
@@ -443,7 +443,7 @@ export const companions = sqliteTable(
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
     name: text("name").notNull(),
-    /** Adult, child or baby (RSVP-13); the guest chooses it when adding, the admin changes it. */
+    /** Adult or child (RSVP-13); the guest chooses it when adding, the admin changes it. */
     personType: text("person_type", { enum: ["adult", "child"] })
       .notNull()
       .default("adult"),

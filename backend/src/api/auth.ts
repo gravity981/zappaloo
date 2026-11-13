@@ -243,7 +243,7 @@ const authPlugin: FastifyPluginAsyncZod<AuthOptions> = async (app, options) => {
     const unsigned = cookie ? request.unsignCookie(cookie) : undefined;
     if (unsigned?.valid && unsigned.value) {
       const session = sessions.resolve(unsigned.value);
-      const user = session && accounts.getUser(session.userId);
+      const user = session && accounts.getSessionUser(session.userId);
       if (session && user) {
         request.auth = { user, token: unsigned.value, csrfToken: session.csrfToken };
         if (session.renewed) {
@@ -566,7 +566,8 @@ const authPlugin: FastifyPluginAsyncZod<AuthOptions> = async (app, options) => {
     },
   );
 
-  // An admin creates a one-time password-reset link for a user and hands it over (ACC-10).
+  // An admin creates a one-time link for a user and hands it over: a reset link for an active
+  // account (ACC-10), a new setup link for an inactive account an admin created (ACC-20).
   app.post(
     "/api/admin/users/:id/reset-link",
     {
@@ -579,15 +580,21 @@ const authPlugin: FastifyPluginAsyncZod<AuthOptions> = async (app, options) => {
       },
     },
     async (request, reply) => {
-      const user = accounts.getUser(request.params.id);
-      if (!user) {
-        return sendError(reply, 404, { code: "user_not_found", message: "There is no such user." });
+      let link;
+      try {
+        link = accounts.createAdminLink(
+          request.params.id,
+          `user:${String(signedIn(request).user.id)}`,
+        );
+      } catch (error) {
+        if (error instanceof AccountError && error.code === "user_not_found") {
+          return sendError(reply, 404, { code: error.code, message: "There is no such user." });
+        }
+        if (error instanceof AccountError && error.code === "not_active") {
+          return sendError(reply, 409, { code: error.code, message: error.message });
+        }
+        throw error;
       }
-      const link = accounts.createLink(
-        user.id,
-        "reset",
-        `user:${String(signedIn(request).user.id)}`,
-      );
       return reply.status(201).send({
         resetUrl: setPasswordUrl(options.publicUrl, link.token),
         expiresAt: link.expiresAt.toISOString(),

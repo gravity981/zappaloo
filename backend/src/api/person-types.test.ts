@@ -1,4 +1,4 @@
-// Person types: adult, child, baby (RSVP-13, RSVP-14, RSVP-15; sw-architecture.md 7.4.2).
+// Person types: adult and child (RSVP-13, RSVP-14, RSVP-15; sw-architecture.md 7.4.2).
 import { afterEach, describe, expect, it } from "vitest";
 import type {
   IssuedInvitation,
@@ -283,6 +283,41 @@ describe("the menu of a child is optional (RSVP-14)", () => {
 });
 
 describe("totals and the guest table by type (RSVP-15)", () => {
+  it("[RSVP-15] the totals per person count everyone once, also guests who are invited to different program items", async () => {
+    const { root, call, guest, all, menus, items } = await setup();
+    const erika = await guest("erika");
+    const ben = await guest("ben");
+    const carl = await guest("carl");
+    const dora = await guest("dora");
+    await guest("emil");
+    await call(root, "PUT", `/api/admin/users/${String(ben.id)}/person-type`, {
+      personType: "child",
+    });
+    // Dora is invited to the dinner only.
+    const dinnerId = items[1]?.id ?? 0;
+    await call(root, "PUT", `/api/admin/users/${String(dora.id)}/program-items`, {
+      programItemIds: [dinnerId],
+    });
+    await call(erika, "PUT", "/api/rsvp", { attendance: all("Trauung") });
+    await call(ben, "PUT", "/api/rsvp", { attendance: all("Trauung") });
+    await call(carl, "PUT", "/api/rsvp", { attendance: all() });
+    await call(dora, "PUT", "/api/rsvp", {
+      attendance: [{ programItemId: dinnerId, attending: true }],
+      menuId: menus[0]?.id,
+    });
+    await call(carl, "POST", "/api/rsvp/companions", {
+      name: "Cleo",
+      personType: "child",
+      attendance: all(),
+    });
+    const overview = (await call<RsvpOverview>(root, "GET", "/api/admin/rsvp")).body;
+    // Yes: erika, ben and dora, who attends a program item the others do not. No: carl and Cleo,
+    // who declined everything. Emil has not answered and counts in neither.
+    expect(overview.personTotals).toEqual({ yes: 3, no: 2, yesByType: { adult: 2, child: 1 } });
+    // No single program item has these numbers.
+    expect(overview.totals.map((t) => t.yes)).not.toContain(3);
+  });
+
   it("[RSVP-15] totals per program item split by type, a column Typ in the guest table and in the CSV", async () => {
     const { root, call, guest, all, menus, items } = await setup();
     const erika = await guest("erika");

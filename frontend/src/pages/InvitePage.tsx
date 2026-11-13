@@ -210,7 +210,15 @@ function Redeem({ code }: { code: string }) {
             </button>
             <p className="sm">
               {t("invite.notYou")}{" "}
-              <button type="button" className="link" onClick={() => void session.logout()}>
+              <button
+                type="button"
+                className="link"
+                onClick={() => {
+                  // The message of a failed attempt belongs to the account that is leaving.
+                  setError(undefined);
+                  void session.logout();
+                }}
+              >
                 {t("invite.logout")}
               </button>
             </p>
