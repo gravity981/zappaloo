@@ -317,7 +317,9 @@ Re-verified: ACS-10, SEC-09, CNT-06.
 - Decided while building 4d (proposed, to confirm): "now" is the latest entry that has started and has not ended (an entry without an end lasts until the next one starts); "next" is the first entry after now. The event day is the calendar day of the first program item in the event's time zone. The start page shortcuts lead to "Programm" first, then to the pages under "Mehr". The mock admin card shows the end time in the list (the mock had no end time).
 Requirements: WEB-07, WEB-09, WEB-10 (the event day).
 
-**4e – Theme package.** Split into smaller steps, each committed on its own (decided 2026-11-14). Requirements: THM-01 – THM-06 (sw-architecture.md 19.7); re-verified PWA-01, PWA-02, PWA-03.
+**4e – Theme package.** Split into smaller steps, each committed on its own (decided 2026-11-14; sw-architecture.md 19.7).
+Requirements: THM-01, THM-02, THM-03, THM-04, THM-05, THM-06.
+Re-verified: PWA-01, PWA-02, PWA-03.
 - **4e-1 – Mock.** Card "Design" in `admin-settings`: active theme, import, reset with a second click, findings of a refused package. Done in the mock (no code).
 - **4e-2 – Validator.** The package reader (gzip and tar, limits, paths), `manifest.json` and `theme.json` checks, PNG sizes, WOFF2 signature, contrast. Returns all findings. One test per validator rule with a broken package. No storage, no routes.
 - **4e-3 – Import and return.** `POST /api/admin/theme` and `DELETE /api/admin/theme`, the table of the active theme (migration), the folder per import, audit entries `theme.import` and `theme.reset` on the card "Zuletzt". A refused package leaves the active theme unchanged. Tests for the import, the return and the unchanged theme after a refusal.

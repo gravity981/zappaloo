@@ -12,3 +12,4 @@ export * from "./version.ts";
 export * from "./time.ts";
 export * from "./waiting.ts";
 export * from "./platform.ts";
+export * from "./theme.ts";
