@@ -203,6 +203,7 @@ describe("data model", () => {
       "content_page_places",
       "content_pages",
       "content_places",
+      "content_start",
       "content_texts",
       "event_features",
       "event_settings",

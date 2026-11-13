@@ -32,8 +32,9 @@ test("[LANG-01] the website shows its texts in German", async ({ page, context }
   await signInAsAdmin(page, context);
   await page.goto("/");
   await expect(page.locator("html")).toHaveAttribute("lang", "de");
-  await expect(page.getByRole("heading", { level: 1 })).toHaveText(de.home.title);
-  await expect(page.getByText(de.home.placeholder)).toBeVisible();
+  // The start page shows the German navigation; its welcome text is the content of the event.
+  await expect(page.getByRole("link", { name: de.nav.more })).toBeVisible();
+  await expect(page.getByRole("link", { name: de.nav.game })).toBeVisible();
 });
 
 test("Phaser mounts with an empty scene", async ({ page, context }) => {

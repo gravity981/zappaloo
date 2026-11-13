@@ -43,6 +43,7 @@ function fail(reply: FastifyReply, error: unknown): FastifyReply {
       place_in_use: 409,
       image_not_found: 404,
       image_in_use: 409,
+      alt_required: 400,
       image_type: 415,
       image_too_large: 413,
     } as const;
@@ -77,7 +78,7 @@ const contentPlugin: FastifyPluginAsyncZod<ContentOptions> = (app, { content }) 
     },
     async (request, reply) => {
       try {
-        content.setStart(request.body.markdown, actor(request));
+        content.setStart(request.body, actor(request));
         return await reply.send(content.get());
       } catch (error) {
         return fail(reply, error);

@@ -623,3 +623,17 @@ export const contentPagePlaces = sqliteTable(
   },
   (table) => [primaryKey({ columns: [table.pageId, table.placeId] })],
 );
+
+/**
+ * The settings of the start page (sw-architecture.md 5.6, WEB-10, WEB-11): the hero image (one of
+ * the start page's images, with its alt text) and the countdown switch (default on).
+ */
+export const contentStart = sqliteTable("content_start", {
+  eventId: text("event_id")
+    .primaryKey()
+    .references(() => events.id),
+  heroImageId: integer("hero_image_id").references(() => contentImages.id),
+  heroAlt: text("hero_alt"),
+  countdown: integer("countdown", { mode: "boolean" }).notNull().default(true),
+  updatedAt: integer("updated_at", { mode: "timestamp_ms" }).notNull(),
+});

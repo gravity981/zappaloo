@@ -50,10 +50,15 @@ describe("the content base", () => {
     const ctx = context;
     const admin = await signIn(ctx, "boss", ["admin"]);
     const body = (await get(ctx, admin)).json<ContentResponse>();
-    expect(body).toEqual({ startMarkdown: "", pages: [], places: [] });
+    expect(body).toEqual({
+      startMarkdown: "",
+      pages: [],
+      places: [],
+      start: { heroImageId: null, heroAlt: null, countdown: true },
+    });
   });
 
-  it("[CNT-05] the admin creates, changes, orders and deletes pages; the change is live at once", async () => {
+  it("[CNT-05][WEB-03] the admin creates, changes, orders and deletes pages; the change is live at once", async () => {
     context = await createTestApp();
     const ctx = context;
     const admin = await signIn(ctx, "boss", ["admin"]);

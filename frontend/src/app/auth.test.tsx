@@ -37,6 +37,8 @@ describe("signing in", () => {
       password: "correct-horse-battery",
     });
 
+    // Abmelden is on the profile page.
+    user.click(await screen.findByRole("link", { name: "Profil" }));
     user.click(screen.getByRole("button", { name: "Abmelden" }));
     expect(await screen.findByRole("heading", { name: "Anmelden" })).toBeInTheDocument();
     // Logging out sends the session's CSRF token (SEC-01).
@@ -72,9 +74,7 @@ describe("signing in", () => {
   it("[ACC-01] a signed-in user is sent away from the login page", async () => {
     fakeBackend({ "GET /api/session": () => signedIn });
     renderAt("/login");
-    expect(
-      await screen.findByRole("heading", { name: "Willkommen bei Zappaloo" }),
-    ).toBeInTheDocument();
+    expect(await screen.findByText("Willkommen!")).toBeInTheDocument();
   });
 });
 
@@ -520,9 +520,7 @@ describe("invitations", () => {
     await waitFor(() => {
       expect(calls.find((c) => c.path.endsWith("/redeem"))?.csrf).toBe("csrf-1");
     });
-    expect(
-      await screen.findByRole("heading", { name: "Willkommen bei Zappaloo" }),
-    ).toBeInTheDocument();
+    expect(await screen.findByText("Willkommen!")).toBeInTheDocument();
   });
 });
 

@@ -111,12 +111,24 @@ export const contentPageSchema = z.object({
 });
 export type ContentPage = z.infer<typeof contentPageSchema>;
 
+/** The settings of the start page (WEB-10, WEB-11): the hero image, its alt text, the countdown switch. */
+export const heroAltSchema = z.string().trim().min(1).max(200);
+export const startSettingsSchema = z.object({
+  /** One of the start page's images, or none. */
+  heroImageId: z.number().int().positive().nullable(),
+  heroAlt: z.string().nullable(),
+  /** "Countdown auf der Startseite zeigen" (default on). */
+  countdown: z.boolean(),
+});
+export type StartSettings = z.infer<typeof startSettingsSchema>;
+
 /** `GET /api/content` (signed in): the start page text, all pages in their order, the places. */
 export const contentResponseSchema = z.object({
   /** The welcome block of the start page; empty until the admin writes it. */
   startMarkdown: z.string(),
   pages: z.array(contentPageSchema),
   places: z.array(contentPlaceSchema),
+  start: startSettingsSchema,
 });
 export type ContentResponse = z.infer<typeof contentResponseSchema>;
 
@@ -131,9 +143,32 @@ export const pageRequestSchema = z.strictObject({
 });
 export type PageRequest = z.infer<typeof pageRequestSchema>;
 
-/** `PUT /api/content/start`: the new welcome text ("" leaves the start page without a text). */
-export const startRequestSchema = z.strictObject({ markdown: contentMarkdownSchema });
+/**
+ * `PUT /api/content/start`: the welcome text, and optionally the settings. A missing setting stays
+ * as it is; a hero image needs its alt text (checked by the server, which knows the current state).
+ */
+export const startRequestSchema = z.strictObject({
+  markdown: contentMarkdownSchema,
+  heroImageId: z.number().int().positive().nullable().optional(),
+  heroAlt: heroAltSchema.nullable().optional(),
+  countdown: z.boolean().optional(),
+});
 export type StartRequest = z.infer<typeof startRequestSchema>;
+
+/** The countdown card (WEB-11): the calendar days to the day of the first program item. */
+export const countdownSchema = z.object({
+  days: z.number().int().positive(),
+  /** The day of the first program item, `2027-06-12`, in the event's time zone. */
+  date: z.string(),
+  placeName: z.string().nullable(),
+});
+export type Countdown = z.infer<typeof countdownSchema>;
+
+/** `GET /api/website` (signed in): what the website computes for the start page. */
+export const websiteResponseSchema = z.object({
+  countdown: countdownSchema.nullable(),
+});
+export type WebsiteResponse = z.infer<typeof websiteResponseSchema>;
 
 /** `PUT /api/content/order`: every page id once, in the new order. */
 export const orderRequestSchema = z.strictObject({

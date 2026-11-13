@@ -346,7 +346,8 @@ describe("the RSVP wizard", () => {
       "GET /api/rsvp": () => ({ status: 200, body: state() }),
     });
     renderAt("/");
-    expect(await screen.findByRole("link", { name: "Rückmeldung" })).toHaveAttribute(
+    // The RSVP is a card on the start page (UX mock home).
+    expect(await screen.findByRole("link", { name: "Ansehen oder ändern" })).toHaveAttribute(
       "href",
       "/rsvp",
     );
@@ -548,7 +549,12 @@ describe("Einstellungen › Rückmeldung", () => {
       "GET /api/admin/rsvp/config": () => ({ status: 200, body: config }),
       "GET /api/content": () => ({
         status: 200,
-        body: { startMarkdown: "", pages: [], places: [PLACE_SAAL] },
+        body: {
+          startMarkdown: "",
+          pages: [],
+          places: [PLACE_SAAL],
+          start: { heroImageId: null, heroAlt: null, countdown: true },
+        },
       }),
       "POST /api/admin/rsvp/program-items": () => ({
         status: 201,

@@ -10,7 +10,9 @@
     "logout": "Abmelden",
     "admin": "Verwaltung",
     "rsvp": "Rückmeldung",
-    "waiting": "Warteseite"
+    "waiting": "Warteseite",
+    "more": "Mehr",
+    "site": "Website"
   },
   "invite": {
     "title": "Einladung einlösen",
@@ -580,7 +582,15 @@
       "removeMap": "Entfernen",
       "mapImageHint": "JPEG, PNG oder WebP, höchstens 10 MB. Ohne Kartenbild heisst der Knopf «Kartenbild hochladen».",
       "newPageTitle": "Neue Seite",
-      "copyMarkdown": "Markdown kopieren"
+      "copyMarkdown": "Markdown kopieren",
+      "heroTitle": "Titelbild (optional)",
+      "heroPick": "Bild wählen",
+      "noHero": "Kein Titelbild",
+      "removeHero": "Entfernen",
+      "heroAlt": "Beschreibung (Alt-Text)",
+      "heroHint": "Ein Bild der Startseite. Es erscheint in voller Breite und wird nicht zugeschnitten.",
+      "countdownSwitch": "Countdown auf der Startseite zeigen",
+      "countdownHint": "Zählt die Tage bis zum ersten Programmpunkt und verschwindet am Festtag."
     }
   },
   "home": {
@@ -802,7 +812,8 @@
     "image_too_large": "Das Bild ist grösser als 10 MB.",
     "fst_err_ctp_body_too_large": "Das Bild ist grösser als 10 MB.",
     "fst_err_ctp_invalid_media_type": "Die Datei ist kein JPEG, PNG oder WebP.",
-    "image_in_use": "Das Bild steht noch im Text. Entferne es dort zuerst."
+    "image_in_use": "Das Bild wird noch im Text oder als Titelbild gebraucht.",
+    "alt_required": "Das Titelbild braucht einen Alt-Text."
   },
   "notSetUp": {
     "title": "Noch nicht eingerichtet",
@@ -896,5 +907,25 @@
     "hidePassword": "Verbergen",
     "codeChar": "Zeichen {{n}} von {{total}}",
     "codeHint": "{{total}} Zeichen. Einfügen füllt alle Felder auf einmal."
+  },
+  "website": {
+    "mapAlt": "Karte von {{name}}",
+    "openMaps": "In Google Maps öffnen",
+    "pageNotFound": "Diese Seite gibt es nicht (mehr).",
+    "breadcrumb": "Du bist hier",
+    "countdownTitle": "Noch",
+    "countdownDays_one": "{{count}} Tag",
+    "countdownDays_other": "{{count}} Tage",
+    "rsvpTitle": "Deine Rückmeldung",
+    "rsvpStatus": {
+      "attending": "Dabei",
+      "declined": "Nicht dabei",
+      "none": "Noch keine Antwort"
+    },
+    "rsvpOpen": "Ansehen oder ändern",
+    "shortcuts": "Abkürzungen",
+    "myProfile": "Mein Profil",
+    "adminOnly": "nur für Admins",
+    "privacy": "Datenschutz"
   }
 }

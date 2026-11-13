@@ -12,7 +12,8 @@ test("[ROLE-07][ACC-08][ACC-20][ROLE-01][ROLE-06][GRP-01][CFG-05] an admin manag
   const name = `E2E Gast ${suffix}`;
 
   // From the website into the admin area.
-  await page.goto("/");
+  // The admin area is reached from "Mehr" (UX mock more).
+  await page.goto("/mehr");
   await page.getByRole("link", { name: de.nav.admin }).click();
   await expect(page.getByRole("heading", { name: de.admin.home.title })).toBeVisible();
   const nav = page.getByRole("navigation", { name: de.admin.title });

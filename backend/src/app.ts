@@ -12,6 +12,8 @@ import { routeTable } from "./api/access.ts";
 import { adminRoutes } from "./api/admin.ts";
 import { authRoutes } from "./api/auth.ts";
 import { contentRoutes } from "./api/content.ts";
+import { websiteRoutes } from "./api/website.ts";
+import { WebsiteService } from "./website/service.ts";
 import { ContentService } from "./content/service.ts";
 import type { AuthOptions } from "./api/auth.ts";
 import { invitationRoutes } from "./api/invitations.ts";
@@ -95,6 +97,9 @@ export async function buildApp(options: AppOptions): Promise<FastifyInstance> {
   await app.register(footerRoutes, options.auth);
   await app.register(contentRoutes, {
     content: new ContentService(options.database, options.event, options.eventsDir),
+  });
+  await app.register(websiteRoutes, {
+    website: new WebsiteService(options.database, options.event),
   });
   await app.register(eventApiRoutes, { event: options.event, footer: options.auth.footer });
   await app.register(pwaRoutes, {

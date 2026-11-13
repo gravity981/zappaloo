@@ -109,7 +109,9 @@
 }
 :is(.admin, .guest) .version-footer {
   padding: 0;
-  /* "Datenschutz · Version x.y.z" sits in the middle, above the centred notice (LIC-01) */
+  /* "Datenschutz · Version x.y.z" sits in the middle, above the centred notice (LIC-01). The space
+     above it keeps a card that ends the page from touching it. */
+  margin-top: 32px;
   text-align: center;
 }
 
@@ -1006,7 +1008,7 @@
 }
 .guest-site-head b {
   font: 600 16px/1.15 var(--a-display);
-  margin-right: auto;
+  margin-right: 16px;
 }
 .guest-site-head nav {
   display: flex;
@@ -1123,4 +1125,182 @@
   margin: 0;
   max-height: 60vh;
   overflow: auto;
+}
+
+/* The website frame (UX mock `site`): one navigation; the bottom tab bar on a phone, the header
+   on a wide screen. */
+.site-nav {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+  /* The tabs stay left, next to the name; Spielwelt and the profile go to the right end. */
+  margin-right: auto;
+}
+.site-nav a,
+.site-head-r a {
+  color: inherit;
+  text-decoration: none;
+}
+.site-head-r {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+  margin-left: auto;
+}
+.site-nav a.active {
+  font-weight: 600;
+}
+@media (max-width: 719px) {
+  .site-nav {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    justify-content: space-around;
+    gap: 0;
+    background: var(--a-card, #ffffff);
+    border-top: 1px solid var(--a-line);
+    padding: 6px 0 calc(6px + env(safe-area-inset-bottom));
+    z-index: 10;
+  }
+  .site-nav a {
+    flex: 1;
+    text-align: center;
+    padding: 8px 0;
+    color: var(--a-muted);
+    font-size: 14px;
+  }
+  .site-nav a.active {
+    color: var(--a-ink, #1f1f1d);
+  }
+  .guest-site-main {
+    padding-bottom: 88px;
+  }
+}
+@media (min-width: 720px) {
+  .guest-site-main {
+    padding-bottom: 24px;
+  }
+}
+
+/* The start page (WEB-10, WEB-11): the hero and the welcome text, then the cards; two columns on a
+   wide screen, one column on a phone. */
+.start {
+  display: grid;
+  gap: 24px;
+}
+@media (min-width: 900px) {
+  .start {
+    grid-template-columns: 1fr 1fr;
+    align-items: start;
+  }
+}
+.start-main,
+.start-side {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-width: 0;
+}
+.hero {
+  display: block;
+  width: 100%;
+  height: auto;
+  border-radius: 14px;
+}
+.countdown-days {
+  display: block;
+  font-size: 30px;
+  line-height: 1.1;
+  font-weight: 600;
+}
+.shortcuts {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+.shortcuts .btn {
+  justify-content: center;
+}
+
+/* A page of the website and «Mehr» (UX mock `info`, `more`). */
+.crumb {
+  color: var(--a-muted);
+  font-size: 14px;
+  margin-bottom: 12px;
+}
+.page-grid {
+  display: grid;
+  gap: 24px;
+}
+@media (min-width: 900px) {
+  .page-grid {
+    grid-template-columns: 2fr 1fr;
+    align-items: start;
+  }
+}
+.page-text {
+  min-width: 0;
+}
+.place-card {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.more {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* The frame's icons, the active entry without a pill, and the avatar (UX mock site). */
+.site-icon {
+  width: 20px;
+  height: 20px;
+  flex: none;
+}
+.site-nav a {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.site-nav a.active,
+.guest-site-head nav a.site-nav-active {
+  background: none;
+}
+.site-head-r .btn {
+  min-height: 36px;
+  gap: 8px;
+}
+.site-avatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: var(--a-fill);
+  border: 1.5px solid var(--a-line);
+  color: var(--a-muted);
+  font-size: 13px;
+  font-weight: 600;
+  text-decoration: none;
+}
+@media (max-width: 719px) {
+  .site-nav a {
+    flex-direction: column;
+    gap: 2px;
+    font-size: 10.5px;
+  }
+  .site-nav a.active span {
+    font-weight: 600;
+  }
+}
+.start {
+  margin-bottom: 24px;
+}
+
+/* The cards of "Mehr" hold their list rows with the mock's padding (UX mock more: 4px and 16px). */
+.more .card {
+  padding: 4px 16px;
 }

@@ -13,7 +13,7 @@ import {
   pageRequestSchema,
   startRequestSchema,
 } from "@zappaloo/shared";
-import type { ContentImage, ContentPage, ContentPlace } from "@zappaloo/shared";
+import type { ContentImage, ContentPage, ContentPlace, StartSettings } from "@zappaloo/shared";
 import { apiRequest } from "../app/api.ts";
 import Markdown from "../app/Markdown.tsx";
 import { useSession } from "../app/session.ts";
@@ -173,11 +173,79 @@ function ImagesPanel({
   );
 }
 
+/** The hero image of the start page (WEB-10): one of its images, with the alt text. */
+function HeroCard({
+  value,
+  onChange,
+}: {
+  value: StartSettings;
+  onChange: (next: StartSettings) => void;
+}) {
+  const { t } = useTranslation();
+  const images = useAdminData(imagesPath("start"), imagesResponseSchema);
+  return (
+    <div className="card">
+      <span className="eyebrow">{t("admin.content.heroTitle")}</span>
+      {value.heroImageId !== null && (
+        <img
+          className="map-preview"
+          src={`${IMAGES_PATH}/${String(value.heroImageId)}`}
+          alt={value.heroAlt ?? ""}
+        />
+      )}
+      <div className="row">
+        <label className="field grow">
+          <span>{t("admin.content.heroPick")}</span>
+          <select
+            className="input"
+            value={value.heroImageId === null ? "" : String(value.heroImageId)}
+            onChange={(event) => {
+              const id = event.target.value === "" ? null : Number(event.target.value);
+              onChange({ ...value, heroImageId: id });
+            }}
+          >
+            <option value="">{t("admin.content.noHero")}</option>
+            {images.data?.images.map((image) => (
+              <option key={image.id} value={image.id}>
+                {t("admin.content.imageOption", { id: image.id })}
+              </option>
+            ))}
+          </select>
+        </label>
+        {value.heroImageId !== null && (
+          <button
+            type="button"
+            className="btn ghost sm"
+            onClick={() => {
+              onChange({ heroImageId: null, heroAlt: null, countdown: value.countdown });
+            }}
+          >
+            {t("admin.content.removeHero")}
+          </button>
+        )}
+      </div>
+      <label className="field">
+        <span>{t("admin.content.heroAlt")}</span>
+        <input
+          className="input"
+          value={value.heroAlt ?? ""}
+          maxLength={200}
+          onChange={(event) => {
+            onChange({ ...value, heroAlt: event.target.value });
+          }}
+        />
+      </label>
+      <span className="hint">{t("admin.content.heroHint")}</span>
+    </div>
+  );
+}
+
 interface FormProps {
-  /** The Startseite: its text only. */
+  /** The Startseite: its text, the hero image and the countdown switch. */
   isStart: boolean;
   page?: ContentPage;
   startMarkdown: string;
+  start: StartSettings;
   places: ContentPlace[];
   /** The images card, between the text and the places. */
   images: ReactNode;
@@ -192,6 +260,7 @@ function PageForm({
   isStart,
   page,
   startMarkdown,
+  start,
   places,
   images,
   onSaved,
@@ -205,6 +274,7 @@ function PageForm({
   const [slug, setSlug] = useState(page?.slug ?? "");
   const [slugEdited, setSlugEdited] = useState(page !== undefined);
   const [markdown, setMarkdown] = useState(isStart ? startMarkdown : (page?.markdown ?? ""));
+  const [hero, setHero] = useState<StartSettings>(start);
   const [inMore, setInMore] = useState(page?.inMore ?? true);
   const [placeIds, setPlaceIds] = useState<number[]>(page?.placeIds ?? []);
   const [error, setError] = useState<string>();
@@ -214,9 +284,14 @@ function PageForm({
   async function submit(event: SubmitEvent<HTMLFormElement>) {
     event.preventDefault();
     if (isStart) {
-      const parsed = startRequestSchema.safeParse({ markdown });
+      const parsed = startRequestSchema.safeParse({
+        markdown,
+        heroImageId: hero.heroImageId,
+        heroAlt: hero.heroAlt,
+        countdown: hero.countdown,
+      });
       if (!parsed.success) return;
-      const result = await call("PUT", START_PATH, { markdown });
+      const result = await call("PUT", START_PATH, parsed.data);
       setError(result.ok ? undefined : errorText(result.errorCode));
       setSaved(result.ok);
       if (result.ok) onSaved();
@@ -293,6 +368,15 @@ function PageForm({
           <small className="hint">{t("admin.content.slugHint", { slug: slug.trim() })}</small>
         </div>
       )}
+      {isStart && (
+        <HeroCard
+          value={hero}
+          onChange={(next) => {
+            setHero(next);
+            setSaved(false);
+          }}
+        />
+      )}
       <TextField
         label={isStart ? t("admin.content.startText") : t("admin.content.text")}
         value={markdown}
@@ -302,6 +386,24 @@ function PageForm({
         }}
       />
       {images}
+      {isStart && (
+        <div className="card">
+          <div className="setrow">
+            <div className="grow">
+              <b className="sm">{t("admin.content.countdownSwitch")}</b>
+              <span className="hint">{t("admin.content.countdownHint")}</span>
+            </div>
+            <Switch
+              checked={hero.countdown}
+              label={t("admin.content.countdownSwitch")}
+              onChange={(value) => {
+                setHero({ ...hero, countdown: value });
+                setSaved(false);
+              }}
+            />
+          </div>
+        </div>
+      )}
       {!isStart && (
         <div className="card">
           <span className="eyebrow">{t("admin.content.pagePlaces")}</span>
@@ -401,6 +503,7 @@ export default function ContentPageEditor() {
         isStart={isStart}
         page={page}
         startMarkdown={data.startMarkdown}
+        start={data.start}
         places={data.places}
         images={
           owner ? (

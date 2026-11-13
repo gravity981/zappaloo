@@ -34,6 +34,7 @@ const place = {
 /** The content as `GET /api/content` answers it: the start text, the pages in order, the places. */
 const content = {
   startMarkdown: "Willkommen!",
+  start: { heroImageId: null, heroAlt: null, countdown: true },
   pages: [
     {
       id: 1,
@@ -64,12 +65,17 @@ describe("the content editor", () => {
     user.click(screen.getByRole("button", { name: "Veröffentlichen" }));
     expect(await screen.findByRole("status")).toHaveTextContent("Veröffentlicht.");
     const put = calls.find((call) => call.method === "PUT" && call.path === "/api/content/start");
-    expect(put?.body).toEqual({ markdown: "# Hallo\n\nSchön, dass du da bist." });
+    expect(put?.body).toEqual({
+      markdown: "# Hallo\n\nSchön, dass du da bist.",
+      heroImageId: null,
+      heroAlt: null,
+      countdown: true,
+    });
     expect(put?.csrf).toBe("csrf-1");
     expect(screen.getByRole("heading", { name: "Hallo" })).toBeInTheDocument();
   });
 
-  it("[CNT-05] an admin creates a page; its address follows the title until it is typed over", async () => {
+  it("[CNT-05][WEB-03] an admin creates a page; its address follows the title until it is typed over", async () => {
     const calls = fakeBackend({
       "GET /api/session": () => asAdmin,
       "GET /api/content": () => ({ status: 200, body: content }),
@@ -138,9 +144,7 @@ describe("the content editor", () => {
       }),
     });
     renderAt("/admin/content");
-    expect(
-      await screen.findByRole("heading", { name: "Willkommen bei Zappaloo" }),
-    ).toBeInTheDocument();
+    expect(await screen.findByText("Willkommen!")).toBeInTheDocument();
   });
 });
 
@@ -194,7 +198,7 @@ describe("places and images of the content editor", () => {
     renderAt("/admin/content/pages/start");
     expect(await screen.findByText("im Text")).toBeInTheDocument();
     user.click(screen.getByRole("button", { name: "Entfernen" }));
-    expect(await screen.findByRole("alert")).toHaveTextContent("Das Bild steht noch im Text");
+    expect(await screen.findByRole("alert")).toHaveTextContent("Das Bild wird noch im Text");
   });
 
   it("[CNT-07] an admin adds a place; a link that is not https to Google Maps is refused", async () => {

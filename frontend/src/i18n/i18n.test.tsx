@@ -49,8 +49,7 @@ describe("i18n", () => {
 
   it("[LANG-01] pages show their texts from the German message file", async () => {
     renderAt("/");
-    expect(await screen.findByRole("heading", { level: 1 })).toHaveTextContent(de.home.title);
-    expect(screen.getByText(de.home.placeholder)).toBeInTheDocument();
+    expect(await screen.findByRole("link", { name: de.nav.more })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: de.nav.game })).toBeInTheDocument();
   });
 

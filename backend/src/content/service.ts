@@ -16,6 +16,8 @@ import type {
   OrderRequest,
   PageRequest,
   PlaceRequest,
+  StartRequest,
+  StartSettings,
 } from "@zappaloo/shared";
 import type { Database } from "../database/database.ts";
 import {
@@ -23,6 +25,7 @@ import {
   contentPagePlaces,
   contentPages,
   contentPlaces,
+  contentStart,
   contentTexts,
   programItems,
 } from "../database/schema.ts";
@@ -39,7 +42,8 @@ export type ContentErrorCode =
   | "image_not_found"
   | "image_in_use"
   | "image_type"
-  | "image_too_large";
+  | "image_too_large"
+  | "alt_required";
 
 export class ContentError extends Error {
   readonly code: ContentErrorCode;
@@ -140,7 +144,12 @@ export class ContentService {
       .orderBy(contentPlaces.name, contentPlaces.id)
       .all()
       .map(toPlace);
-    return { startMarkdown: texts.get(START_ITEM)?.markdown ?? "", pages, places };
+    return {
+      startMarkdown: texts.get(START_ITEM)?.markdown ?? "",
+      pages,
+      places,
+      start: this.#startSettings(db),
+    };
   }
 
   /** Adds a page at the end of the list (CNT-05). */
@@ -250,10 +259,36 @@ export class ContentService {
     });
   }
 
-  /** Writes the welcome text of the start page. An empty text clears it. */
-  setStart(markdown: string, actor: Actor): void {
+  /**
+   * Writes the welcome text of the start page (an empty text clears it) and, when given, its
+   * settings: the hero image with its alt text, and the countdown switch (WEB-10, WEB-11).
+   */
+  setStart(input: StartRequest, actor: Actor): void {
     this.#database.db.transaction((tx) => {
-      this.#writeText(tx, START_ITEM, "", markdown);
+      const current = this.#startSettings(tx);
+      const heroImageId = input.heroImageId === undefined ? current.heroImageId : input.heroImageId;
+      const heroAlt = input.heroAlt === undefined ? current.heroAlt : input.heroAlt;
+      if (heroImageId !== null) {
+        this.#requireImage(tx, heroImageId, "start");
+        if (heroAlt === null || heroAlt.trim() === "") {
+          throw new ContentError("alt_required", "the hero image needs its alt text");
+        }
+      }
+      const countdown = input.countdown ?? current.countdown;
+      this.#writeText(tx, START_ITEM, "", input.markdown);
+      tx.insert(contentStart)
+        .values({
+          eventId: this.#event.eventId,
+          heroImageId,
+          heroAlt,
+          countdown,
+          updatedAt: this.#now(),
+        })
+        .onConflictDoUpdate({
+          target: contentStart.eventId,
+          set: { heroImageId, heroAlt, countdown, updatedAt: this.#now() },
+        })
+        .run();
       this.#event.audit(actor, "content.start.set", {}, tx);
     });
   }
@@ -404,6 +439,9 @@ export class ContentService {
   async deleteImage(id: number, actor: Actor): Promise<void> {
     const file = this.#database.db.transaction((tx) => {
       const row = this.#image(tx, id);
+      if (row.item === "start" && this.#startSettings(tx).heroImageId === id) {
+        throw new ContentError("image_in_use", "the image is the hero image of the start page");
+      }
       if (row.item === "start" || row.item.startsWith("page:")) {
         const text = tx
           .select({ markdown: contentTexts.markdown })
@@ -438,6 +476,20 @@ export class ContentService {
     return {
       mime: row.mime as ImageType,
       path: join(this.#directory(), row.fileName),
+    };
+  }
+
+  /** The settings of the start page; the defaults until they are saved (the switch is on). */
+  #startSettings(tx: Pick<Database["db"], "select">): StartSettings {
+    const row = tx
+      .select()
+      .from(contentStart)
+      .where(eq(contentStart.eventId, this.#event.eventId))
+      .get();
+    return {
+      heroImageId: row?.heroImageId ?? null,
+      heroAlt: row?.heroAlt ?? null,
+      countdown: row?.countdown ?? true,
     };
   }
 
@@ -498,6 +550,13 @@ export class ContentService {
   /** Every listed place must exist in this event. */
   #requirePlaces(tx: Pick<Database["db"], "select">, ids: readonly number[]): void {
     for (const id of new Set(ids)) this.#place(tx, id);
+  }
+
+  /** An image must belong to `owner` (its item); an image of another owner is not found. */
+  #requireImage(tx: Pick<Database["db"], "select">, id: number, owner: string): void {
+    if (this.#image(tx, id).item !== owner) {
+      throw new ContentError("image_not_found", "the image does not belong to this text");
+    }
   }
 
   /** The owner of an image must exist: the start page, a page, or a place. */

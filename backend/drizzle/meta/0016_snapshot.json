@@ -1,8 +1,8 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "b2d311ee-fcb3-4d04-aa8d-a7efbffb78dc",
-  "prevId": "b751be90-f083-4383-9751-2b21e4ac249e",
+  "id": "96d5e1aa-88fa-4a69-8cdb-3af6957da9d0",
+  "prevId": "b2d311ee-fcb3-4d04-aa8d-a7efbffb78dc",
   "tables": {
     "access_releases": {
       "name": "access_releases",
@@ -617,6 +617,71 @@
           "tableFrom": "content_places",
           "tableTo": "content_images",
           "columnsFrom": ["map_image_id"],
+          "columnsTo": ["id"],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "content_start": {
+      "name": "content_start",
+      "columns": {
+        "event_id": {
+          "name": "event_id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "hero_image_id": {
+          "name": "hero_image_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "hero_alt": {
+          "name": "hero_alt",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "countdown": {
+          "name": "countdown",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": true
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "content_start_event_id_events_id_fk": {
+          "name": "content_start_event_id_events_id_fk",
+          "tableFrom": "content_start",
+          "tableTo": "events",
+          "columnsFrom": ["event_id"],
+          "columnsTo": ["id"],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "content_start_hero_image_id_content_images_id_fk": {
+          "name": "content_start_hero_image_id_content_images_id_fk",
+          "tableFrom": "content_start",
+          "tableTo": "content_images",
+          "columnsFrom": ["hero_image_id"],
           "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"

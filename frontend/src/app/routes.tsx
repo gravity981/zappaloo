@@ -11,11 +11,13 @@ import AdminRsvpGuestPage from "../admin/AdminRsvpGuestPage.tsx";
 import AdminRsvpPage from "../admin/AdminRsvpPage.tsx";
 import AdminSettingsPage from "../admin/AdminSettingsPage.tsx";
 import AdminUsersPage from "../admin/AdminUsersPage.tsx";
+import ContentPage from "../pages/ContentPage.tsx";
 import ForgotPasswordPage from "../pages/ForgotPasswordPage.tsx";
 import GamePage from "../pages/GamePage.tsx";
 import HomePage from "../pages/HomePage.tsx";
 import InstallPage from "../pages/InstallPage.tsx";
 import InvitePage from "../pages/InvitePage.tsx";
+import MorePage from "../pages/MorePage.tsx";
 import LicensePage from "../pages/LicensePage.tsx";
 import LoginPage from "../pages/LoginPage.tsx";
 import NotFoundPage from "../pages/NotFoundPage.tsx";
@@ -60,7 +62,12 @@ export const routes: RouteObject[] = [
                   {
                     // Pages of the open platform; guests wait at the front door until it opens.
                     element: <RequireOpen />,
-                    children: [{ path: "game", element: <GamePage /> }],
+                    children: [
+                      { path: "game", element: <GamePage /> },
+                      // The website pages: a content page and "Mehr" (WEB-02, WEB-05).
+                      { path: "p/:slug", element: <ContentPage /> },
+                      { path: "mehr", element: <MorePage /> },
+                    ],
                   },
                   { path: "profile", element: <ProfilePage /> },
                   { path: "*", element: <NotFoundPage /> },
