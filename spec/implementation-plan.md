@@ -345,16 +345,18 @@ Refined 2026-11-14 with the project owner, before the stage started. Branch `fea
 
 **Decisions from the plan review (2026-11-14):**
 - **Importer first, then the engine.** The validator, the import and the admin card come before the rendering. The engine is built against the generated test world.
-- **Maps and program items** are linked in the admin view "Spielwelt" (tab "Karten & Import"): each map gets one or more program items. The Tiled map property `programItem` is dropped (MAP-03, 14.2, PRES-02 reworded). Program items have no key a Tiled file could name, and one map can serve several items (e.g. Trauung and Apéro).
+- **Maps are not linked to program items** (changed 2026-11-14 in step 5a, replacing the link in "Spielwelt" first agreed): the game world and the schedule are different things. The Tiled map property `programItem` is dropped (MAP-03, 14.2). Each guest's figure walks on one map, picked at random and kept for that guest (PRES-02, 3.6, stage 6). WEB-08 ("Hingehen" from the programme) is withdrawn.
+- **Dialogues** belong to the game world. Admins edit them in "Spielwelt", tab "Dialoge", not in Inhalte. A dialogue cannot be deleted while an object shows it; its id can be changed (decided 2026-11-14, mock Q63, Q64).
+- **Only admins** use "Spielwelt" (import, rollback, object actions, dialogues; decided 2026-11-14).
 - **No locked maps or zones in stage 5.** Objects with `type = protected` are accepted by the validator and do nothing yet. ACS-07 for maps means: sign-in and an open platform are checked when the world is served. The admin page for manual releases (ACS-05) moves to the first feature that stores access conditions, the treasure hunt (HUNT-05, stage 8).
 - **Avatar assets** are layered sprite sheets per part (body, hair, clothing, accessory), drawn in greyscale and tinted from the palettes named in `avatar/avatar.json`. Each sheet has 4 directions × 4 walk frames of the frame size `avatar.json` names. A stored avatar whose part or colour is missing from a new package falls back to the first option of that part.
 - **Partially implemented after stage 5** (test-strategy.md, section 5): GAME-13 without the step "Say hello" (profile photo, greeting, "How I know the couple"), which follows in stage 6; GAME-14 without "Hochladen", which follows in stage 7; GAME-06 without the minigame action, which follows in stage 8. Until then "Spielwelt" offers no minigame, and a preset `action = minigame` is reported as a warning.
-- **Actions of a clickable object:** `page` opens a full overlay, either a built-in page (`programme`, `rsvp`, `profile`; later stages add theirs) or a content page as `p/<slug>`. `content` shows the text of the content page named by `contentId` (its slug) in a small reading panel, e.g. for a sign. `dialog` shows a dialogue: a new kind of content item in Inhalte with an NPC name and lines the guest taps through, referenced by `contentId`.
+- **Actions of a clickable object:** `page` opens a full overlay, either a built-in page (`programme`, `rsvp`, `profile`; later stages add theirs) or a content page as `p/<slug>`. `content` shows the text of the content page named by `contentId` (its slug) in a small reading panel, e.g. for a sign. `dialog` shows a dialogue: a new kind of content item with an NPC name and lines the guest taps through, edited in "Spielwelt" and referenced by `contentId`.
 - **Without an imported world,** a signed-in guest of an open platform keeps landing on the website, the start page has no "Spielwelt betreten", and the door scene still comes from the data volume (10.4).
 - **Template world:** shipped inside the image. The world importer offers "Vorlagenwelt importieren" (MAP-14). Step 5k may move to after stage 6 if the art is not ready; MAP-12 – MAP-14 are "Should".
-- **Where a player enters:** the last map is remembered on the device. Otherwise, and when that map no longer exists, the player enters the start map at its spawn point `start`. A portal leads to its `targetSpawn`; "Hingehen" leads to the spawn point `start` of the map.
+- **Where a player enters:** the last map is remembered on the device. Otherwise, and when that map no longer exists, the player enters the start map at its spawn point `start`. A portal leads to its `targetSpawn`.
 
-**Draft layout of the world package, format version 1** (agreed 2026-11-14, detailed in step 5a):
+**Draft layout of the world package, format version 1** (agreed 2026-11-14; the complete layout, rules and limits are in sw-architecture.md 14.4 since step 5a):
 
 ```text
 world.tar.gz
@@ -374,12 +376,13 @@ world.tar.gz
 
 **5a – Spec and mocks** (no code).
 - Section 14.4 gets the layout of format version 1: files, fields of `manifest.json` and `avatar.json`, the Tiled rules, the validator's rules and limits.
-- Mocks: `admin-world` tab "Karten & Import" becomes the importer of one whole package (active world with name, import time, maps, start map and their program items; import with findings and warnings; rollback; "Vorlagenwelt importieren"). The game bar without "Hochladen". Dialogues in `admin-content`. The first entry with the avatar step only.
+- Mocks: `admin-world` tab "Karten & Import" becomes "Welt & Import", the importer of one whole package (active world with name, import time, maps and start map; import with findings and warnings; rollback; "Vorlagenwelt importieren"). A tab "Dialoge" in `admin-world`. The game bar without "Hochladen". The first entry with the avatar step only. "Hingehen" removed (WEB-08 withdrawn).
 
 **5b – Validator and test world.**
 - The package reader (gzip and tar, limits, paths; shared with the theme package), `manifest.json`, the Tiled checks per map (format, orientation, embedded tilesets, referenced images, layers, spawn points), portal targets inside the package, the door scene, the avatar assets. Returns all findings. One test per validator rule with a broken package.
 - A script builds the test world (two or three maps with generated placeholder tiles, avatar parts and objects of every type) for the tests and for development.
-Requirements: MAP-06, MAP-16.
+- Checking a package outside the platform (decided 2026-11-14; 19.7, 14.4): JSON Schemas generated from the Zod schemas, theme first, then world (manifest, avatar, maps), committed in `schemas/` with a test that fails when they differ; attached to every release. The CLI command `zappaloo validate <file>` for both kinds of package, with `--json` and exit code 0 or 1, tested with the test world and the example theme.
+Requirements: MAP-06, MAP-16, MAP-17, THM-07.
 
 **5c – Import, rollback and serving.**
 - Import and rollback routes, the table of the active and the previous world (migration), a folder per import, audit entries on the card "Zuletzt". A refused package leaves the active world unchanged.
@@ -390,9 +393,8 @@ Requirements: MAP-01, MAP-04, MAP-08, MAP-09, MAP-10.
 Follow-up from stage 2: map loading checked on the server, with `[ACS-07]` tests.
 Re-verified: ACS-12.
 
-**5d – Spielwelt › Karten & Import.** Mock screen: `admin-world` (variant "import").
-- The admin card: the active world, import with findings and warnings, rollback to the previous world.
-- Each map is linked to one or more program items (stored per map name, survives a new package while the map keeps its name).
+**5d – Spielwelt › Welt & Import.** Mock screen: `admin-world` (variant "import").
+- The admin card: the active world with its maps, import with findings and warnings, rollback to the previous world, admins only.
 Requirements: MAP-05.
 
 **5e – Rendering and movement.**
@@ -407,8 +409,8 @@ Requirements: GAME-01, GAME-02, GAME-03, GAME-07, GAME-09, GAME-10, MAP-02.
 - Spielwelt › Objekte & Portale: assign each clickable object's action per map (page, content item, dialogue, none); portals read-only.
 Requirements: GAME-04, GAME-05, GAME-06 (without minigames), GAME-08, GAME-11, GAME-15, GAME-16, MAP-03, MAP-15.
 
-**5g – Dialogues and content items.** Mock screen: `admin-content` (dialogues).
-- Dialogues edited in Inhalte (NPC name, lines in Markdown), audited like pages.
+**5g – Dialogues and content items.** Mock screen: `admin-world` (variant "Dialoge").
+- Dialogues edited by admins in Spielwelt › Dialoge (id, NPC name, lines in Markdown, "Verwendet von"), audited with ids only. Deleting is refused while an object shows the dialogue; changing the id keeps the assignments.
 - The actions `content` (reading panel with a page's text) and `dialog` (tapping through the lines).
 Requirements: CNT-02, CNT-03 (completing them; albums follow in step 7d).
 
@@ -418,12 +420,11 @@ Requirements: CNT-02, CNT-03 (completing them; albums follow in step 7d).
 - The same editor is reached from the profile. The game shows the player's own avatar.
 Requirements: AVA-01, AVA-02, AVA-03.
 
-**5i – Entering the game.** Mock screens: `game`, `onboard-avatar`, `home`, `programme`.
+**5i – Entering the game.** Mock screens: `game`, `onboard-avatar`, `home`.
 - With an active world, a signed-in user of an open platform lands in the game; direct links open their target. "Website" in the bar returns to the website; "Spielwelt betreten" on the start page.
 - The guided first entry: avatar (also for companions), the RSVP in an overlay if not answered, then free play.
 - The bar at the top with Programm, Rückmeldung (badge while the RSVP is open) and Website. The hint "Tippe auf Dinge, die funkeln" until the first object is used. The own avatar opens the profile.
-- "Hingehen" on a programme entry whose program item has a map.
-Requirements: GAME-12, GAME-13 (without "Say hello"), GAME-14 (without "Hochladen"), GAME-17, GAME-18, WEB-08.
+Requirements: GAME-12, GAME-13 (without "Say hello"), GAME-14 (without "Hochladen"), GAME-17, GAME-18.
 
 **5j – Loading time.**
 - The Phaser bundle and the start map load first; other maps load in the background.
@@ -442,7 +443,7 @@ Requirements: MAP-12, MAP-13, MAP-14.
 
 **Steps:**
 
-**6a – Wandering figures.** Figures of attending guests in the wander areas of the maps of their program items; own avatar instead of own figure; simulated per device.
+**6a – Wandering figures.** Figures of attending guests in the wander areas of one map per guest (picked at random, kept per guest); own avatar instead of own figure; simulated per device.
 Requirements: PRES-01, PRES-02, PRES-04, PRES-08, AVA-04.
 
 **6b – Profiles and speech bubble.** Profile photo, greeting, "How I know the couple" with relation list; speech bubble opening for the nearest figure; admin can remove profile data.

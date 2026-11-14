@@ -140,3 +140,18 @@ Written into sw-architecture.md 6.2, 19.1.1 and 19.7 as well. The mock screens a
 | Start page (decided 2026-11-13, step 4b) | Fixed layout (sw-architecture.md 5.6). Before the event day: hero image, welcome text, then the countdown card, the RSVP card and the shortcuts ("Programm" and the first three pages visible in "Mehr"). On the event day: "now / next", the feature cards, the shortcuts. No hero image, welcome text, countdown or RSVP card that day (WEB-10). "Spielwelt betreten" comes with stage 5. |
 | Hero image | Picked in the editor of the start page ("Bild wählen" from its images or a new upload, "Entfernen", alt text). Shown in full width, uncropped. Without one the welcome text moves up. |
 | Countdown | "Noch 214 Tage", "Noch 1 Tag": calendar days to the day of the first program item, with its date and place. Gone on the event day and without program items. The switch "Countdown auf der Startseite zeigen" (default on) is in the editor of the start page, not in Einstellungen. Its number uses the theme's `display` font, or the heading font without one. It is calm like the website, not pixel style (WEB-11, THM-06; replaces the countdown among the pixel accents of decision 39). |
+
+## UX decisions for stage 5 (2026-11-14, plan review and step 5a)
+
+Written into sw-architecture.md 14.2 and 14.4 as well.
+
+| Topic | Decision |
+|---|---|
+| World importer | Spielwelt › "Welt & Import" (renamed from "Karten & Import"): the active world (name, format, import time, start map, the previous world), "Welt importieren" for a whole package, the findings of a refused package, warnings listed with the active world, "Zurückrollen" with a second click, "Vorlagenwelt importieren" (MAP-05, MAP-06, MAP-08, MAP-09, MAP-14). No import of single maps. |
+| Maps and program items | Not linked (Q65): the game world and the schedule are different things. Each guest's figure walks on one map, picked at random. "Hingehen" is removed from the programme and from "now / next" (WEB-08 withdrawn). "Welt & Import" lists the maps with their objects and portals. |
+| Objects | Spielwelt › "Objekte & Portale": a preset that points to something missing is marked "fehlt". Portals with a missing target cannot be imported. The minigame action is offered from stage 8. |
+| Dialogues | A tab "Dialoge" in Spielwelt, not in Inhalte, because dialogues belong to the game world (Q63). A dialogue has an id (its `contentId`), the NPC's name and lines in Markdown, a preview of the dialogue box and "Verwendet von" (CNT-02, CNT-03). A dialogue in use cannot be deleted. Its id can be changed (Q64). |
+| Who uses Spielwelt | Only admins: import, rollback, object actions and dialogues. |
+| Game bar in stage 5 | Programm, Rückmeldung, Website. "Hochladen" comes with stage 7 (GAME-14). |
+| First entry in stage 5 | The avatar step, then the RSVP overlay while the RSVP is open. "Sag hallo" comes with stage 6 (GAME-13). |
+| Without a world | Guests land on the website, and the start page has no "Spielwelt betreten". |
