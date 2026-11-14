@@ -121,6 +121,10 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git tag --annotate "$TAG" --message "Release candidate $TAG" "$GITHUB_SHA"
           git push origin "refs/tags/$TAG"
+      # The JSON Schemas and the format documents are generated from the code, which needs the
+      # packages (zod) installed; the example theme alone needs no install.
+      - name: Install dependencies
+        run: npm ci --no-audit --no-fund
       - name: GitHub pre-release with the deployment bundle
         env:
           GH_TOKEN: ${{ github.token }}
