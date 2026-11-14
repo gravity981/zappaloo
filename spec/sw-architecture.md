@@ -1734,6 +1734,17 @@ Next to the importer, the admin view **"Spielwelt"** shows one tab per map. It l
 
 A new world is used the next time a player enters a map. Cached graphics are refreshed, so improved art becomes visible without a redeployment.
 
+**Decisions of step 5b** (2026-11-14, for the project owner to confirm; the layout above did not settle them):
+
+- **`$schema`** is allowed in `manifest.json`, `avatar/avatar.json` and in the theme's `manifest.json` and `theme.json`. It only names the JSON Schema for editors (19.7); it is not a field and does not change the rules. Without it the strict field rule would refuse the very key the editor check needs.
+- **Untyped objects** are points only. An untyped object that is a rectangle, polygon or tile is refused; an untyped point is the approach point of a clickable object.
+- **Parts of the avatar:** `body`, `outfit` and `hair` have a palette, because their colour is stored; `accessory` has none. A template names options and colours of the active package (for `hair` and `accessory` `null` when the part is optional). A sprite sheet that no option names is an error, so the folder holds only what the package uses.
+- **Door sheet:** `door.png` is exactly `frames × frameWidth` wide and `frameHeight` high.
+- **Map references:** a portal to a map that is in the package but could not be read is not reported as a missing map; its spawn points are unknown and are not checked.
+- **Findings** name the file, the map object where there is one (its name, or its layer), the reason and a code. Errors refuse the package; warnings are an unused property (including a map property such as `programItem`), a map without collisions and a tileset image that no map uses. The warnings that depend on the installation (MAP-08, the presets) come with the import (step 5c).
+- **`zappaloo validate <file>`** reads the kind from `manifest.json` and checks a theme or a world package; the text lines are `error:` or `warning:` with file, object, reason and code; the last line says whether the package is accepted. Exit code 0 when accepted (warnings allowed), 1 when refused, and 1 with a message when the file cannot be read.
+- **JSON Schemas** are generated from the platform's Zod schemas by `npm run schemas` into `schemas/`, and a test fails on any difference. A release attaches them as single files: the candidate from its build, the promotion unchanged from the candidate's commit.
+
 ## 14.5 Template Map Set
 
 Drawing pixel art is the main effort per event. To keep it low, the platform ships a set of template maps with matching tilesets: church, garden (aperitif), banquet hall and party area.

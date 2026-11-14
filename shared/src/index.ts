@@ -13,3 +13,4 @@ export * from "./time.ts";
 export * from "./waiting.ts";
 export * from "./platform.ts";
 export * from "./theme.ts";
+export * from "./world.ts";

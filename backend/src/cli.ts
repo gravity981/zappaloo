@@ -3,7 +3,7 @@
 // source (`npm run cli -- <command>`). Commands are added with their features.
 import { EXAMPLE_PLACE_NAMES, RsvpService, seedExampleRsvp } from "./rsvp/service.ts";
 import { ContentService } from "./content/service.ts";
-import { createReadStream, createWriteStream, mkdtempSync, rmSync } from "node:fs";
+import { createReadStream, createWriteStream, mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { pipeline } from "node:stream/promises";
@@ -29,6 +29,8 @@ import { AccountError, AccountService } from "./auth/accounts.ts";
 import type { IssuedLink } from "./auth/accounts.ts";
 import { usernameSchema } from "@zappaloo/shared";
 import { resolveVersion } from "./version.ts";
+import { checkPackage } from "./packages/check.ts";
+import type { PackageFinding } from "./packages/check.ts";
 
 export interface CliIo {
   env: NodeJS.ProcessEnv;
@@ -77,6 +79,42 @@ const commands: Record<string, Command> = {
       } finally {
         database.close();
       }
+    },
+  },
+  validate: {
+    summary:
+      "Check a theme or world package with the platform's validator (no installation needed)",
+    usage: "validate [--json] <file>",
+    run: (args, io) => {
+      const { positionals, values } = parseArgs({
+        args,
+        allowPositionals: true,
+        options: { json: { type: "boolean", default: false } },
+      });
+      const file = positionals[0];
+      if (!file) return usageError(io, "validate [--json] <file>");
+      const path = resolve(file);
+      let bytes: Buffer;
+      try {
+        bytes = readFileSync(path);
+      } catch {
+        io.err(`Cannot read ${path}.`);
+        return 1;
+      }
+      const report = checkPackage(bytes);
+      if (values.json) {
+        io.out(
+          JSON.stringify(
+            { ok: report.ok, kind: report.kind ?? null, findings: report.findings },
+            null,
+            2,
+          ),
+        );
+      } else {
+        for (const finding of report.findings) io.out(formatFinding(finding));
+        io.out(validationSummary(report.ok, report.kind, report.findings));
+      }
+      return report.ok ? 0 : 1;
     },
   },
   backup: {
@@ -406,6 +444,26 @@ function printLink(io: CliIo, publicUrl: string, link: IssuedLink): void {
 function usageError(io: CliIo, usage: string): number {
   io.err(`Usage: zappaloo ${usage}`);
   return 1;
+}
+
+/** One finding as a line: severity, file, the object if any, the reason and the code. */
+export function formatFinding(finding: PackageFinding): string {
+  const object = finding.object === undefined ? "" : ` (${finding.object})`;
+  return `${finding.severity}: ${finding.file}${object}: ${finding.detail} [${finding.code}]`;
+}
+
+/** The last line of `validate`: whether the package is accepted, and with how many warnings. */
+export function validationSummary(
+  ok: boolean,
+  kind: string | undefined,
+  findings: PackageFinding[],
+): string {
+  const label = kind === undefined ? "package" : `${kind} package`;
+  const errors = findings.filter((finding) => finding.severity === "error").length;
+  const warnings = findings.length - errors;
+  if (!ok) return `Refused: the ${label} has ${String(errors)} error(s).`;
+  if (warnings === 0) return `Accepted: the ${label} is valid.`;
+  return `Accepted: the ${label} is valid, with ${String(warnings)} warning(s).`;
 }
 
 function usage(): string {

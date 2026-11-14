@@ -9,3 +9,6 @@ dist/
 
 # UX mocks are a hand-written HTML prototype, not project code
 spec/mocks/
+
+# Generated JSON Schemas of the package formats (scripts/schemas, checked by a test)
+schemas/

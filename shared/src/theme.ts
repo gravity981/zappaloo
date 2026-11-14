@@ -30,7 +30,9 @@ export const THEME_COLOR_KEYS = [
 ] as const;
 export type ThemeColorKey = (typeof THEME_COLOR_KEYS)[number];
 
+/** `$schema` in the JSON files only names the JSON Schema for editors (19.7); it is not a field. */
 export const themeManifestSchema = z.strictObject({
+  $schema: z.string().optional(),
   kind: z.literal(THEME_KIND),
   formatVersion: z.literal(1),
   name: z.string().trim().min(1).max(60),
@@ -72,6 +74,7 @@ const waitingColorsSchema = z.strictObject(
 export type WaitingColors = z.infer<typeof waitingColorsSchema>;
 
 export const themeJsonSchema = z.strictObject({
+  $schema: z.string().optional(),
   colors: z.strictObject(
     Object.fromEntries(THEME_COLOR_KEYS.map((key) => [key, colorSchema])) as Record<
       ThemeColorKey,

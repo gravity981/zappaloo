@@ -10,8 +10,8 @@ import {
 } from "@zappaloo/shared";
 import type { ThemeJson, ThemeManifest } from "@zappaloo/shared";
 import { contrastRatio } from "./contrast.ts";
-import { pngSize } from "./png.ts";
-import { readThemeArchive, TarError } from "./tar.ts";
+import { pngSize } from "../packages/png.ts";
+import { readPackageArchive, TarError } from "../packages/archive.ts";
 
 export type ThemeFindingCode =
   | "archive_too_large"
@@ -21,6 +21,7 @@ export type ThemeFindingCode =
   | "entry_type"
   | "entry_path"
   | "entry_duplicate"
+  | "too_many_files"
   | "file_not_in_layout"
   | "file_missing"
   | "json_invalid"
@@ -103,7 +104,7 @@ export function checkThemePackage(archive: Buffer): ThemeCheck {
   }
   let entries;
   try {
-    entries = readThemeArchive(archive, THEME_LIMITS.unpackedBytes);
+    entries = readPackageArchive(archive, { unpackedBytes: THEME_LIMITS.unpackedBytes });
   } catch (error) {
     if (error instanceof TarError) {
       return {
