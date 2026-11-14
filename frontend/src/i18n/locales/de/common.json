@@ -4,7 +4,7 @@
   },
   "nav": {
     "home": "Start",
-    "game": "Spielwelt",
+    "game": "Erlebniswelt",
     "login": "Anmelden",
     "profile": "Profil",
     "logout": "Abmelden",
@@ -91,7 +91,8 @@
       "settings": "Einstellungen",
       "rsvp": "Rückmeldungen",
       "rsvpBadge": "{{count}} offene Anfragen",
-      "content": "Inhalte"
+      "content": "Inhalte",
+      "world": "Erlebniswelt"
     },
     "home": {
       "title": "Übersicht",
@@ -268,7 +269,7 @@
     "notSetUp": "Noch nicht eingerichtet",
     "setup": {
       "title": "Veranstaltung einrichten",
-      "intro": "Zuerst bekommt die Veranstaltung einen Namen. Danach geht die Verwaltung auf. Inhalte und Spielwelt kommen später in ihren eigenen Bereichen.",
+      "intro": "Zuerst bekommt die Veranstaltung einen Namen. Danach geht die Verwaltung auf. Inhalte und Erlebniswelt kommen später in ihren eigenen Bereichen.",
       "submit": "Einrichtung abschliessen"
     },
     "identity": {
@@ -374,7 +375,9 @@
       "content_image_upload": "Ein Bild wurde hochgeladen",
       "content_image_delete": "Ein Bild wurde gelöscht",
       "theme_import": "Ein Design wurde importiert",
-      "theme_reset": "Das Standard-Design gilt wieder"
+      "theme_reset": "Das Standard-Design gilt wieder",
+      "world_import": "Eine Welt wurde importiert",
+      "world_rollback": "Die vorherige Welt gilt wieder"
     },
     "rsvp": {
       "title": "Rückmeldungen",
@@ -634,6 +637,32 @@
         "font_missing": "Schriftdatei fehlt",
         "contrast": "Kontrast zu gering"
       }
+    },
+    "world": {
+      "title": "Welt",
+      "activeTag": "Aktiv: {{name}}",
+      "noneTag": "Keine Welt",
+      "noneInfo": "Es ist noch keine digitale Erlebniswelt importiert. Bis dahin landen Gäste nach der Anmeldung auf der Website, und die Warteseite zeigt die eingebaute Tür.",
+      "info": "Format {{version}} · importiert am {{date}} um {{time}} · Startkarte: {{start}}",
+      "previous": "Vorherige Welt: «{{name}}» vom {{date}} um {{time}}",
+      "importButton": "Welt importieren",
+      "importing": "Wird importiert …",
+      "imported": "Die Welt wurde importiert.",
+      "rollbackButton": "Zurückrollen",
+      "rollbackConfirm": "Zurück zu «{{name}}» vom {{date}} um {{time}}? Die aktuelle Welt wird dann zur vorherigen.",
+      "rollbackYes": "Ja, zurückrollen",
+      "cancel": "Abbrechen",
+      "rolledBack": "Die vorherige Welt gilt wieder.",
+      "refusedTitle": "Das Paket wurde abgelehnt",
+      "refusedInfo": "Die aktive Welt bleibt unverändert. Alle Befunde:",
+      "warningsTitle": "Warnungen ({{count}})",
+      "warningsInfo": "Die Welt gilt trotzdem. Eine Vorgabe wirkt erst, wenn die Seite existiert, oder wird in «Objekte & Portale» geändert.",
+      "mapsTitle": "Karten ({{count}})",
+      "startHint": "★ Startkarte",
+      "mapColumn": "Karte",
+      "objectsColumn": "Objekte",
+      "portalsColumn": "Portale",
+      "startMarker": "★"
     }
   },
   "home": {
@@ -642,8 +671,8 @@
     "rsvp": "Zur Rückmeldung"
   },
   "game": {
-    "loading": "Die Spielwelt wird geladen …",
-    "loadFailed": "Die Spielwelt konnte nicht geladen werden."
+    "loading": "Die digitale Erlebniswelt wird geladen …",
+    "loadFailed": "Die digitale Erlebniswelt konnte nicht geladen werden."
   },
   "notFound": {
     "title": "Seite nicht gefunden",
@@ -907,7 +936,7 @@
       "title": "Begleitpersonen",
       "stepTitle": "Begleitpersonen & Musik",
       "formTitle": "Begleitperson hinzufügen",
-      "formHint": "Für Personen ohne eigenes Konto, z. B. Kinder. Du verwaltest ihre Angaben. Ihre Figur wählst du, sobald die Spielwelt offen ist.",
+      "formHint": "Für Personen ohne eigenes Konto, z. B. Kinder. Du verwaltest ihre Angaben. Ihre Figur wählst du, sobald die digitale Erlebniswelt offen ist.",
       "name": "Name",
       "note": "Notiz für die Gastgeber (optional)",
       "attendance": "Teilnahme",

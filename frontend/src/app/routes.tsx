@@ -10,6 +10,7 @@ import ContentPlaceEditor from "../admin/ContentPlaceEditor.tsx";
 import AdminRsvpGuestPage from "../admin/AdminRsvpGuestPage.tsx";
 import AdminRsvpPage from "../admin/AdminRsvpPage.tsx";
 import AdminSettingsPage from "../admin/AdminSettingsPage.tsx";
+import AdminWorldPage from "../admin/AdminWorldPage.tsx";
 import AdminUsersPage from "../admin/AdminUsersPage.tsx";
 import ContentPage from "../pages/ContentPage.tsx";
 import ForgotPasswordPage from "../pages/ForgotPasswordPage.tsx";
@@ -104,6 +105,7 @@ export const routes: RouteObject[] = [
                   { path: "places/:id", element: <ContentPlaceEditor /> },
                 ],
               },
+              { path: "world", element: <AdminWorldPage /> },
               { path: "settings", element: <AdminSettingsPage /> },
               { path: "*", element: <NotFoundPage /> },
             ],

@@ -1138,7 +1138,7 @@
   display: flex;
   gap: 16px;
   align-items: center;
-  /* The tabs stay left, next to the name; Spielwelt and the profile go to the right end. */
+  /* The tabs stay left, next to the name; the game world and the profile go to the right end. */
   margin-right: auto;
 }
 .site-nav a,

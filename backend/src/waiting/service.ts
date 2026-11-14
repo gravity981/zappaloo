@@ -22,6 +22,7 @@ import type { Database } from "../database/database.ts";
 import { users, waitingConfig } from "../database/schema.ts";
 import type { Actor, EventService } from "../event/service.ts";
 import type { RsvpService } from "../rsvp/service.ts";
+import type { WorldService } from "../world/service.ts";
 
 const COLUMNS = {
   none: "textNone",
@@ -37,12 +38,20 @@ export class WaitingService {
   readonly #event: EventService;
   readonly #rsvp: RsvpService;
   readonly #eventsDir: string;
+  readonly #world: WorldService;
 
-  constructor(database: Database, event: EventService, rsvp: RsvpService, eventsDir: string) {
+  constructor(
+    database: Database,
+    event: EventService,
+    rsvp: RsvpService,
+    eventsDir: string,
+    world: WorldService,
+  ) {
     this.#database = database;
     this.#event = event;
     this.#rsvp = rsvp;
     this.#eventsDir = eventsDir;
+    this.#world = world;
   }
 
   config(): WaitingConfig {
@@ -129,9 +138,18 @@ export class WaitingService {
     return join(this.#eventsDir, this.#event.eventId, name);
   }
 
+  /**
+   * A door file: the active world's door folder when the world has a door scene (14.4), otherwise the
+   * event's own files in the data volume (10.4).
+   */
+  #doorFile(name: string): string {
+    const folder = this.#world.doorDirectory();
+    return folder === undefined ? this.#file(name) : join(folder, name);
+  }
+
   /** The path of a door file if it exists. */
   doorFile(kind: "sheet" | "glimpse"): string | undefined {
-    const path = this.#file(kind === "sheet" ? DOOR_FILES.sheet : DOOR_FILES.glimpse);
+    const path = this.#doorFile(kind === "sheet" ? DOOR_FILES.sheet : DOOR_FILES.glimpse);
     return existsSync(path) ? path : undefined;
   }
 
@@ -141,7 +159,7 @@ export class WaitingService {
    */
   door(): DoorResponse {
     const sheetPath = this.doorFile("sheet");
-    const configPath = this.#file(DOOR_FILES.config);
+    const configPath = this.#doorFile(DOOR_FILES.config);
     if (!sheetPath || !existsSync(configPath)) return { kind: "default" };
     try {
       const parsed = doorSheetSchema.safeParse(JSON.parse(readFileSync(configPath, "utf8")));

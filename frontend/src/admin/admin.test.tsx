@@ -57,6 +57,7 @@ describe("admin area", () => {
       "Rückmeldungen",
       "Konten & Rollen",
       "Inhalte",
+      "Erlebniswelt",
       "Einstellungen",
     ]);
     expect(await screen.findByText("Plattform geschlossen")).toBeInTheDocument();

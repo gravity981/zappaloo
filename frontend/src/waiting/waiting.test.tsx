@@ -57,7 +57,7 @@ describe("the waiting page", () => {
     expect(screen.getByRole("link", { name: "Profil" })).toHaveAttribute("href", "/profile");
     expect(screen.getByRole("button", { name: "Abmelden" })).toBeInTheDocument();
     // No website navigation: the page is a scene of its own.
-    expect(screen.queryByRole("link", { name: "Spielwelt" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "Erlebniswelt" })).not.toBeInTheDocument();
     expect(screen.queryByRole("link", { name: "Start" })).not.toBeInTheDocument();
   });
 
@@ -114,7 +114,7 @@ describe("the waiting page", () => {
         .getAllByRole("link")
         .map((link) => link.textContent),
     ).toEqual(["Warteseite", "Rückmeldung", "Profil"]);
-    expect(within(nav).queryByRole("link", { name: "Spielwelt" })).not.toBeInTheDocument();
+    expect(within(nav).queryByRole("link", { name: "Erlebniswelt" })).not.toBeInTheDocument();
   });
 
   it("[ACS-10] a guest who opens the game world is sent back to the waiting page", async () => {
@@ -136,14 +136,14 @@ describe("the waiting page", () => {
     });
     renderAt("/");
     expect(await screen.findByText("Willkommen!")).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Spielwelt" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Erlebniswelt" })).toBeInTheDocument();
   });
 
   it("[ACS-10] once the platform is open, guests see the website", async () => {
     fakeBackend({ "GET /api/session": () => asGuest });
     renderAt("/");
     expect(await screen.findByText("Willkommen!")).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Spielwelt" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Erlebniswelt" })).toBeInTheDocument();
   });
 });
 

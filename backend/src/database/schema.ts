@@ -659,3 +659,32 @@ export const themeActive = sqliteTable("theme_active", {
   /** The waiting card's colours as JSON, or null when the package names none (19.7). */
   waiting: text("waiting"),
 });
+
+/**
+ * The world packages of an event (sw-architecture.md 14.4, MAP-09): the active world and the previous
+ * one, which a rollback makes active again. One row per role, so there is at most one of each.
+ */
+export const worldPackages = sqliteTable(
+  "world_packages",
+  {
+    importId: text("import_id").primaryKey(),
+    eventId: text("event_id")
+      .notNull()
+      .references(() => events.id),
+    role: text("role", { enum: ["active", "previous"] }).notNull(),
+    name: text("name").notNull(),
+    formatVersion: integer("format_version").notNull(),
+    startMap: text("start_map").notNull(),
+    tileSize: integer("tile_size").notNull(),
+    importedAt: integer("imported_at", { mode: "timestamp_ms" }).notNull(),
+    /** The ids of the maps as JSON. */
+    maps: text("maps").notNull(),
+    /** The avatar definition (`avatar/avatar.json`) as JSON. */
+    avatar: text("avatar").notNull(),
+    /** Whether the package has a door scene of its own. */
+    hasDoor: integer("has_door", { mode: "boolean" }).notNull(),
+    /** The warnings of the import as JSON. */
+    warnings: text("warnings").notNull(),
+  },
+  (table) => [uniqueIndex("world_packages_role").on(table.eventId, table.role)],
+);

@@ -10,6 +10,7 @@ import { AccessService } from "./access.ts";
 import { ActivityService } from "../event/activity.ts";
 import { RsvpService } from "../rsvp/service.ts";
 import { WaitingService } from "../waiting/service.ts";
+import { WorldService } from "../world/service.ts";
 import { FooterService } from "../event/footer.ts";
 import { PlatformService } from "../event/platform.ts";
 import { DEFAULT_SOURCE_URL } from "../config.ts";
@@ -50,6 +51,7 @@ export function createAuth(
   const accounts = new AccountService(database, event);
   const groups = new GroupService(database, event);
   const rsvp = new RsvpService(database, event);
+  const world = new WorldService(database, event, eventsDir);
   return {
     accounts,
     sessions: new SessionService(database),
@@ -58,7 +60,8 @@ export function createAuth(
     invitations: new InvitationService(database, event, accounts),
     rsvp,
     platform: new PlatformService(database, event, mailer, config.PUBLIC_URL),
-    waiting: new WaitingService(database, event, rsvp, eventsDir),
+    waiting: new WaitingService(database, event, rsvp, eventsDir, world),
+    world,
     footer: new FooterService(database, event, config.SOURCE_URL ?? DEFAULT_SOURCE_URL),
     activity: new ActivityService(database, event),
     limiter: new RateLimiter(),

@@ -14,6 +14,7 @@ import { authRoutes } from "./api/auth.ts";
 import { contentRoutes } from "./api/content.ts";
 import { themeRoutes } from "./api/theme.ts";
 import { ThemeService } from "./theme/service.ts";
+import { worldRoutes } from "./api/world.ts";
 import { websiteRoutes } from "./api/website.ts";
 import { WebsiteService } from "./website/service.ts";
 import { ContentService } from "./content/service.ts";
@@ -105,6 +106,7 @@ export async function buildApp(options: AppOptions): Promise<FastifyInstance> {
   });
   const theme = new ThemeService(options.database, options.event, options.eventsDir);
   await app.register(themeRoutes, { theme });
+  await app.register(worldRoutes, { world: options.auth.world });
   await app.register(eventApiRoutes, { event: options.event, footer: options.auth.footer, theme });
   await app.register(pwaRoutes, {
     event: options.event,

@@ -68,7 +68,7 @@ Damit die Gastgeber das Fest planen können (Essen, Plätze, Einladungen), damit
 
 ## Wer sieht was
 
-Deine Rückmeldung sehen die Administratoren. Andere Gäste sehen nur, was du selbst in der Spielwelt zeigst. Die Seite ist für Suchmaschinen gesperrt.
+Deine Rückmeldung sehen die Administratoren. Andere Gäste sehen nur, was du selbst in der digitalen Erlebniswelt zeigst. Die Seite ist für Suchmaschinen gesperrt.
 
 ## Löschen
 

@@ -19,6 +19,8 @@ const NAMELESS = [
   "content.image.delete",
   "theme.import",
   "theme.reset",
+  "world.import",
+  "world.rollback",
 ];
 
 type Translate = (key: string, options?: Record<string, unknown>) => string;

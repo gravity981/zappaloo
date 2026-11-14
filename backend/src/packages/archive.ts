@@ -1,6 +1,6 @@
-// Reads a gzip-compressed tar archive for the theme package (sw-architecture.md 19.7). Only regular
-// files and folders are accepted; links, devices and extended headers are refused, and so are
-// absolute paths and `..`. The reader needs no library: the ustar header is 512 bytes.
+// Reads a gzip-compressed tar archive of a theme or world package (sw-architecture.md 19.7, 14.4).
+// Only regular files and folders are accepted; links, devices and extended headers are refused, and
+// so are absolute paths and `..`. The reader needs no library: the ustar header is 512 bytes.
 import { gunzipSync } from "node:zlib";
 
 export interface TarEntry {
@@ -12,7 +12,13 @@ export interface TarEntry {
 /** A problem with the archive itself: the package cannot be read at all. */
 export class TarError extends Error {
   readonly code:
-    "not_gzip" | "unpacked_too_large" | "not_tar" | "entry_type" | "entry_path" | "entry_duplicate";
+    | "not_gzip"
+    | "unpacked_too_large"
+    | "not_tar"
+    | "entry_type"
+    | "entry_path"
+    | "entry_duplicate"
+    | "too_many_files";
   readonly file: string;
 
   constructor(code: TarError["code"], file: string, message: string) {
@@ -45,11 +51,23 @@ export function isSafePath(path: string): boolean {
   return path.split("/").every((part) => part !== "" && part !== "." && part !== "..");
 }
 
+export interface ArchiveLimits {
+  /** The size of the unpacked archive, in bytes. */
+  unpackedBytes: number;
+  /** The most entries (files and folders) the archive may hold; no limit when not given. */
+  maxEntries?: number;
+}
+
+/** A size in bytes as megabytes, for the findings. */
+export function megabytes(bytes: number): string {
+  return String(bytes / (1024 * 1024));
+}
+
 /** Unpacks the archive. Throws a `TarError` for anything that is not a regular, safe archive. */
-export function readThemeArchive(gzipped: Buffer, unpackedLimit: number): TarEntry[] {
+export function readPackageArchive(gzipped: Buffer, limits: ArchiveLimits): TarEntry[] {
   let tar: Buffer;
   try {
-    tar = gunzipSync(gzipped, { maxOutputLength: unpackedLimit });
+    tar = gunzipSync(gzipped, { maxOutputLength: limits.unpackedBytes });
   } catch (error) {
     if (
       error instanceof RangeError ||
@@ -58,7 +76,7 @@ export function readThemeArchive(gzipped: Buffer, unpackedLimit: number): TarEnt
       throw new TarError(
         "unpacked_too_large",
         "(archive)",
-        "the unpacked package is larger than 20 MB",
+        `the unpacked package is larger than ${megabytes(limits.unpackedBytes)} MB`,
       );
     }
     throw new TarError("not_gzip", "(archive)", "the package is not a gzip-compressed archive");
@@ -91,6 +109,13 @@ export function readThemeArchive(gzipped: Buffer, unpackedLimit: number): TarEnt
     }
     const body = tar.subarray(offset + BLOCK, offset + BLOCK + size);
     offset += BLOCK + Math.ceil(size / BLOCK) * BLOCK;
+    if (limits.maxEntries !== undefined && entries.length >= limits.maxEntries) {
+      throw new TarError(
+        "too_many_files",
+        name,
+        `the archive holds more than ${String(limits.maxEntries)} files and folders`,
+      );
+    }
     if (type === "5") {
       const folder = name.replace(/\/$/, "");
       if (!isSafePath(folder))

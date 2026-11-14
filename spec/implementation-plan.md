@@ -269,7 +269,7 @@ Replanned 2026-11-13 after a review of the plan against stages 3 to 3.9 and a cl
 - **Navigation shows only what exists.** The tabs Hochladen and Erinnerungen and the cards for seating, quiz and the game world come with their stages.
 - **Privacy notice, waiting-page texts and footer line** stay in Einstellungen, outside the content base.
 - **Theme package** (19.7, THM-01 – THM-05): app icons, `theme.json` and fonts come as one `tar.gz` that an admin imports. The format is versioned, a validator checks it, and only whole packages are applied. The admin can return to the default theme. There is no download. The app icons leave the data volume folder (PWA-02 reworded).
-- **World package** (14.4, stage 5): the map importer becomes a world importer. One package holds maps, tilesets, objects, the door scene and the avatar editor assets, all or nothing. Dialogues and NPC texts are edited in the browser. The view "Spielwelt" keeps assigning the actions.
+- **World package** (14.4, stage 5): the map importer becomes a world importer. One package holds maps, tilesets, objects, the door scene and the avatar editor assets, all or nothing. Dialogues and NPC texts are edited in the browser. The view "Erlebniswelt" keeps assigning the actions.
 - **CNT-02 and CNT-03 are partially implemented** after stage 4 (test-strategy.md, section 5). Dialogues, NPC texts and the reference from a game object follow in step 5d, albums in step 7d.
 - **SEC-05** was delivered with the privacy notice (steps 3d and 3i) and leaves the "not yet implemented" list. Stage 4 reuses the renderer.
 - **CFG-01 and CFG-04 get tests** (step 4f).
@@ -336,31 +336,106 @@ Requirements: CFG-01, CFG-04.
 
 ### Stage 5 – Game World and World Importer
 
+Refined 2026-11-14 with the project owner, before the stage started. Branch `feature/stage-5`.
+
 **Before the stage starts:**
-- The layout of the world package is defined and confirmed (sw-architecture.md 14.4): maps, tilesets, objects, door scene, avatar editor assets, format version.
-- The project owner provides a first world package (or the template world), with maps drawn in Tiled.
+- The layout of the world package is defined and confirmed (sw-architecture.md 14.4). A draft was agreed on 2026-11-14 (below); step 5a writes it into the spec.
+- A first world package of the project owner, with maps drawn in Tiled, is needed for the Opening, not for building the steps. Steps 5b to 5j use a test world that a script generates.
+- The template art for step 5k is drawn by the project owner (14.5).
+
+**Decisions from the plan review (2026-11-14):**
+- **Importer first, then the engine.** The validator, the import and the admin card come before the rendering. The engine is built against the generated test world.
+- **Maps are not linked to program items** (changed 2026-11-14 in step 5a, replacing the link in "Erlebniswelt" first agreed): the game world and the schedule are different things. The Tiled map property `programItem` is dropped (MAP-03, 14.2). Each guest's figure walks on one map, picked at random and kept for that guest (PRES-02, 3.6, stage 6). WEB-08 ("Hingehen" from the programme) is withdrawn.
+- **Dialogues** belong to the game world. Admins edit them in "Erlebniswelt", tab "Dialoge", not in Inhalte. A dialogue cannot be deleted while an object shows it; its id can be changed (decided 2026-11-14, mock Q63, Q64).
+- **Only admins** use "Erlebniswelt" (import, rollback, object actions, dialogues; decided 2026-11-14).
+- **No locked maps or zones in stage 5.** Objects with `type = protected` are accepted by the validator and do nothing yet. ACS-07 for maps means: sign-in and an open platform are checked when the world is served. The admin page for manual releases (ACS-05) moves to the first feature that stores access conditions, the treasure hunt (HUNT-05, stage 8).
+- **Avatar assets** are layered sprite sheets per part (body, hair, clothing, accessory), drawn in greyscale and tinted from the palettes named in `avatar/avatar.json`. Each sheet has 4 directions × 4 walk frames of the frame size `avatar.json` names. A stored avatar whose part or colour is missing from a new package falls back to the first option of that part.
+- **Partially implemented after stage 5** (test-strategy.md, section 5): GAME-13 without the step "Say hello" (profile photo, greeting, "How I know the couple"), which follows in stage 6; GAME-14 without "Hochladen", which follows in stage 7; GAME-06 without the minigame action, which follows in stage 8. Until then "Erlebniswelt" offers no minigame, and a preset `action = minigame` is reported as a warning.
+- **Actions of a clickable object:** `page` opens a full overlay, either a built-in page (`programme`, `rsvp`, `profile`; later stages add theirs) or a content page as `p/<slug>`. `content` shows the text of the content page named by `contentId` (its slug) in a small reading panel, e.g. for a sign. `dialog` shows a dialogue: a new kind of content item with an NPC name and lines the guest taps through, edited in "Erlebniswelt" and referenced by `contentId`.
+- **Without an imported world,** a signed-in guest of an open platform keeps landing on the website, the start page has no "Erlebniswelt betreten", and the door scene still comes from the data volume (10.4).
+- **Template world:** shipped inside the image. The world importer offers "Vorlagenwelt importieren" (MAP-14). Step 5k may move to after stage 6 if the art is not ready; MAP-12 – MAP-14 are "Should".
+- **Where a player enters:** the last map is remembered on the device. Otherwise, and when that map no longer exists, the player enters the start map at its spawn point `start`. A portal leads to its `targetSpawn`.
+
+**Draft layout of the world package, format version 1** (agreed 2026-11-14; the complete layout, rules and limits are in sw-architecture.md 14.4 since step 5a):
+
+```text
+world.tar.gz
+  manifest.json   { "kind": "zappaloo-world", "formatVersion": 1, "name", "startMap", "tileSize": 16 }
+  maps/<id>.json  Tiled JSON: orthogonal, tilesets embedded, at least the spawn point "start"
+  tilesets/*.png
+  avatar/avatar.json, avatar/*.png
+  door/door.json, door/door.png, door/door-glimpse.png   optional, the format of 10.4
+```
+
+- Tile layers are drawn in order; layers whose name starts with `above` are drawn over the avatars.
+- Collisions come from the tile layer `collision` (every tile blocks) and from optional rectangles with `type = collision`.
+- Object types: `spawn`, `portal`, `clickable`, `decoration`, `seat`, `wander`, `protected`.
+- Limits around 40 MB packed and 100 MB unpacked; fixed in step 5a.
 
 **Steps:**
 
-**5a – Phaser foundation.** Top-down rendering, tile and object layers, portals between maps.
-Requirements: GAME-01, GAME-03, MAP-02.
+**5a – Spec and mocks** (no code).
+- Section 14.4 gets the layout of format version 1: files, fields of `manifest.json` and `avatar.json`, the Tiled rules, the validator's rules and limits.
+- Mocks: `admin-world` tab "Karten & Import" becomes "Welt & Import", the importer of one whole package (active world with name, import time, maps and start map; import with findings and warnings; rollback; "Vorlagenwelt importieren"). A tab "Dialoge" in `admin-world`. The game bar without "Hochladen". The first entry with the avatar step only. "Hingehen" removed (WEB-08 withdrawn).
 
-**5b – World importer** (replanned 2026-11-13). Import of a whole world package at runtime (maps as Tiled JSON, tilesets, objects, door scene, avatar editor assets), validation of the whole package, warnings for presets that point to missing pages, content items or minigames, the previous package kept for a rollback, refreshed graphics on the next map entry. The waiting page takes its door scene from the world package.
-Requirements: MAP-01, MAP-04, MAP-05, MAP-06, MAP-08, MAP-09, MAP-10, MAP-16.
-Follow-up from stage 2: map loading and protected game areas checked on the server, with `[ACS-07]` tests. The admin page for manual releases (ACS-05, sw-architecture.md 8.3).
+**5b – Validator and test world.** Done 2026-11-14 (decisions of the step in sw-architecture.md 14.4).
+**5c – Import, rollback and serving.** Done 2026-11-14 (decisions of the step in sw-architecture.md 14.4).
+**5d – Erlebniswelt › Welt & Import.** Done 2026-11-14: the page with the import tab only (the other tabs come with 5f and 5g), no «Vorlagenwelt importieren» (5k), per-map counts in the admin status. Open: the mock shows map names, the world carries only map ids (see the step report).
+- The package reader (gzip and tar, limits, paths; shared with the theme package), `manifest.json`, the Tiled checks per map (format, orientation, embedded tilesets, referenced images, layers, spawn points), portal targets inside the package, the door scene, the avatar assets. Returns all findings. One test per validator rule with a broken package.
+- A script builds the test world (two or three maps with generated placeholder tiles, avatar parts and objects of every type) for the tests and for development.
+- Checking a package outside the platform (decided 2026-11-14; 19.7, 14.4): JSON Schemas generated from the Zod schemas, theme first, then world (manifest, avatar, maps), committed in `schemas/` with a test that fails when they differ; attached to every release. The CLI command `zappaloo validate <file>` for both kinds of package, with `--json` and exit code 0 or 1, tested with the test world and the example theme.
+Requirements: MAP-06, MAP-16, MAP-17, THM-07.
+
+**5c – Import, rollback and serving.**
+- Import and rollback routes, the table of the active and the previous world (migration), a folder per import, audit entries on the card "Zuletzt". A refused package leaves the active world unchanged.
+- Warnings for presets that point to a missing page or content item, and for minigame presets.
+- The world (manifest, maps, tilesets, avatar assets) is served with a version in the URL, so a new world is loaded on the next map entry. Sign-in and an open platform are checked.
+- The waiting page takes its door scene from the active world; without one, from the data volume.
+Requirements: MAP-01, MAP-04, MAP-08, MAP-09, MAP-10.
+Follow-up from stage 2: map loading checked on the server, with `[ACS-07]` tests.
 Re-verified: ACS-12.
 
-**5c – Movement and controls.** Smooth movement with map collisions, arrow keys on desktop, tap-to-move with pathfinding on touch devices, suitable for all screen sizes.
-Requirements: GAME-02, GAME-07, GAME-09, GAME-10.
+**5d – Erlebniswelt › Welt & Import.** Mock screen: `admin-world` (variant "import").
+- The admin card: the active world with its maps, import with findings and warnings, rollback to the previous world, admins only.
+Requirements: MAP-05.
 
-**5d – Objects and overlays.** Object types `portal`, `clickable`, `decoration` and their properties; clickable objects that sparkle, walking to an object's approach point and running its action (page overlay, content item, dialogue, minigame), Enter or Space on desktop; portals as wobbling arrows; easter eggs; website pages as overlays above the paused game; "Go there" from the schedule; admin view "Spielwelt" to assign the actions per map.
-Requirements: GAME-04, GAME-05, GAME-06, GAME-08, GAME-11, GAME-15, GAME-16, MAP-03, MAP-15, WEB-08.
-Follow-up from stage 4: dialogues and NPC texts as content items edited in Inhalte, and a game object that shows a content item by `contentId`, with `[CNT-02]` and `[CNT-03]` tests.
+**5e – Rendering and movement.**
+- The game route loads the active world: tile layers, layers above the avatars, collisions, the camera following the player, a placeholder avatar.
+- Arrow keys (two keys move diagonally), tap-to-move with a path around the collisions (pathfinding as unit tests), suitable for phone and desktop.
+- Portals lead to another map at a spawn point.
+Requirements: GAME-01, GAME-02, GAME-03, GAME-07, GAME-09, GAME-10, MAP-02.
 
-**5e – Avatars and entering the game.** Avatar editor with the assets of the world package; landing in the game after sign-in; guided first entry with the hint about sparkling objects; button bar at the top with RSVP badge; own avatar opens the profile; first map playable within 5 seconds over 4G.
-Requirements: AVA-01, AVA-02, AVA-03, GAME-12, GAME-13, GAME-14, GAME-17, GAME-18, PERF-04.
+**5f – Objects and overlays.** Mock screens: `game`, `game-overlay`, `admin-world` (variant "objects").
+- Object types `portal`, `clickable`, `decoration` and the properties of 14.2. Clickable objects sparkle at random, portals wobble. A click or tap walks to the approach point and runs the action; Enter or Space activates the object in front of the avatar. Easter eggs.
+- Pages as overlays above the paused game; closing returns to the same position; links inside stay in the overlay.
+- Erlebniswelt › Objekte & Portale: assign each clickable object's action per map (page, content item, dialogue, none); portals read-only.
+Requirements: GAME-04, GAME-05, GAME-06 (without minigames), GAME-08, GAME-11, GAME-15, GAME-16, MAP-03, MAP-15.
 
-**5f – Template world.** Church, garden, banquet hall and party area with decoration on separate layers, shipped as a world package that the admin imports in the world importer.
+**5g – Dialogues and content items.** Mock screen: `admin-world` (variant "Dialoge").
+- Dialogues edited by admins in Erlebniswelt › Dialoge (id, NPC name, lines in Markdown, "Verwendet von"), audited with ids only. Deleting is refused while an object shows the dialogue; changing the id keeps the assignments.
+- The actions `content` (reading panel with a page's text) and `dialog` (tapping through the lines).
+Requirements: CNT-02, CNT-03 (completing them; albums follow in step 7d).
+
+**5h – Avatar editor.** Mock screen: `onboard-avatar`.
+- The editor composes the avatar from the package's parts and palettes: templates, skin, hairstyle, hair colour, clothing and its colour, accessory, "Zufällig". Tabs for the guest and each approved companion.
+- The configuration is stored with the membership (companions with their record); the fallback for missing parts.
+- The same editor is reached from the profile. The game shows the player's own avatar.
+Requirements: AVA-01, AVA-02, AVA-03.
+
+**5i – Entering the game.** Mock screens: `game`, `onboard-avatar`, `home`.
+- With an active world, a signed-in user of an open platform lands in the game; direct links open their target. "Website" in the bar returns to the website; "Erlebniswelt betreten" on the start page.
+- The guided first entry: avatar (also for companions), the RSVP in an overlay if not answered, then free play.
+- The bar at the top with Programm, Rückmeldung (badge while the RSVP is open) and Website. The hint "Tippe auf Dinge, die funkeln" until the first object is used. The own avatar opens the profile.
+Requirements: GAME-12, GAME-13 (without "Say hello"), GAME-14 (without "Hochladen"), GAME-17, GAME-18.
+
+**5j – Loading time.**
+- The Phaser bundle and the start map load first; other maps load in the background.
+- An end-to-end test in Chromium with a throttled 4G profile measures the time from sign-in to the first playable map (test hook). The validator gets a size budget for the start map.
+Requirements: PERF-04.
+
+**5k – Template world and stage report.**
+- Church, garden, banquet hall and party area, decoration on separate layers, the typical objects placed, built as a world package and shipped inside the image; "Vorlagenwelt importieren" in the importer.
+- Status report for stage 5.
 Requirements: MAP-12, MAP-13, MAP-14.
 
 ### Stage 6 – Living World (completes the Opening)
@@ -370,7 +445,7 @@ Requirements: MAP-12, MAP-13, MAP-14.
 
 **Steps:**
 
-**6a – Wandering figures.** Figures of attending guests in the wander areas of the maps of their program items; own avatar instead of own figure; simulated per device.
+**6a – Wandering figures.** Figures of attending guests in the wander areas of one map per guest (picked at random, kept per guest); own avatar instead of own figure; simulated per device.
 Requirements: PRES-01, PRES-02, PRES-04, PRES-08, AVA-04.
 
 **6b – Profiles and speech bubble.** Profile photo, greeting, "How I know the couple" with relation list; speech bubble opening for the nearest figure; admin can remove profile data.
