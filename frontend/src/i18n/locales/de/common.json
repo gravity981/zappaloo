@@ -4,7 +4,7 @@
   },
   "nav": {
     "home": "Start",
-    "game": "Spielwelt",
+    "game": "Erlebniswelt",
     "login": "Anmelden",
     "profile": "Profil",
     "logout": "Abmelden",
@@ -92,7 +92,7 @@
       "rsvp": "Rückmeldungen",
       "rsvpBadge": "{{count}} offene Anfragen",
       "content": "Inhalte",
-      "world": "Spielwelt"
+      "world": "Erlebniswelt"
     },
     "home": {
       "title": "Übersicht",
@@ -269,7 +269,7 @@
     "notSetUp": "Noch nicht eingerichtet",
     "setup": {
       "title": "Veranstaltung einrichten",
-      "intro": "Zuerst bekommt die Veranstaltung einen Namen. Danach geht die Verwaltung auf. Inhalte und Spielwelt kommen später in ihren eigenen Bereichen.",
+      "intro": "Zuerst bekommt die Veranstaltung einen Namen. Danach geht die Verwaltung auf. Inhalte und Erlebniswelt kommen später in ihren eigenen Bereichen.",
       "submit": "Einrichtung abschliessen"
     },
     "identity": {
@@ -642,7 +642,7 @@
       "title": "Welt",
       "activeTag": "Aktiv: {{name}}",
       "noneTag": "Keine Welt",
-      "noneInfo": "Es ist noch keine Spielwelt importiert. Bis dahin landen Gäste nach der Anmeldung auf der Website, und die Warteseite zeigt die eingebaute Tür.",
+      "noneInfo": "Es ist noch keine digitale Erlebniswelt importiert. Bis dahin landen Gäste nach der Anmeldung auf der Website, und die Warteseite zeigt die eingebaute Tür.",
       "info": "Format {{version}} · importiert am {{date}} um {{time}} · Startkarte: {{start}}",
       "previous": "Vorherige Welt: «{{name}}» vom {{date}} um {{time}}",
       "importButton": "Welt importieren",
@@ -671,8 +671,8 @@
     "rsvp": "Zur Rückmeldung"
   },
   "game": {
-    "loading": "Die Spielwelt wird geladen …",
-    "loadFailed": "Die Spielwelt konnte nicht geladen werden."
+    "loading": "Die digitale Erlebniswelt wird geladen …",
+    "loadFailed": "Die digitale Erlebniswelt konnte nicht geladen werden."
   },
   "notFound": {
     "title": "Seite nicht gefunden",
@@ -936,7 +936,7 @@
       "title": "Begleitpersonen",
       "stepTitle": "Begleitpersonen & Musik",
       "formTitle": "Begleitperson hinzufügen",
-      "formHint": "Für Personen ohne eigenes Konto, z. B. Kinder. Du verwaltest ihre Angaben. Ihre Figur wählst du, sobald die Spielwelt offen ist.",
+      "formHint": "Für Personen ohne eigenes Konto, z. B. Kinder. Du verwaltest ihre Angaben. Ihre Figur wählst du, sobald die digitale Erlebniswelt offen ist.",
       "name": "Name",
       "note": "Notiz für die Gastgeber (optional)",
       "attendance": "Teilnahme",

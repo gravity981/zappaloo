@@ -23,7 +23,7 @@ function PendingBadge() {
   );
 }
 
-/** Later steps add their pages here (Rückmeldungen, Sitzplan, Spielwelt, Moderation). */
+/** Later steps add their pages here (Rückmeldungen, Sitzplan, game world, Moderation). */
 const PAGES = [
   { to: "/admin", label: "admin.nav.home", end: true },
   { to: "/admin/invitations", label: "admin.nav.invitations", end: false },

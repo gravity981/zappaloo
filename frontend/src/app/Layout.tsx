@@ -1,6 +1,6 @@
 // The website frame (sw-architecture.md 5.6, WEB-04; UX mock `site`): the event's name and date in
 // the header, and one navigation with Start, Programm and Mehr. On a phone that navigation is the
-// bottom tab bar; on a wide screen it sits in the header, with "Spielwelt" and the profile at the
+// bottom tab bar; on a wide screen it sits in the header, with the game world link and the profile at the
 // right end. While the platform is closed a guest sees only the waiting page and the way back to it
 // (ACS-10).
 import "./ui.css";

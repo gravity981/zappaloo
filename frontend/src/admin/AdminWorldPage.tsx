@@ -1,4 +1,4 @@
-// Spielwelt › Welt & Import (MAP-05, MAP-06, MAP-08, MAP-09; sw-architecture.md 14.4; UX mock
+// Game world › Welt & Import (MAP-05, MAP-06, MAP-08, MAP-09; sw-architecture.md 14.4; UX mock
 // `admin-world`, variant "import"): the active world, the import of a world package as a whole, the
 // findings of a refused package, the warnings of an accepted one, the maps, and the return to the
 // previous world after a second click. Only admins use this page; the server refuses everyone else.

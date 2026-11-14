@@ -1,4 +1,4 @@
-// The page Spielwelt › Welt & Import (MAP-05, MAP-06, MAP-08, MAP-09; UX mock admin-world, variant "import").
+// The page game world › Welt & Import (MAP-05, MAP-06, MAP-08, MAP-09; UX mock admin-world, variant "import").
 import { fireEvent, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import { initI18n } from "../i18n/i18n.ts";
@@ -45,7 +45,7 @@ function fileInput(): HTMLInputElement {
   return input;
 }
 
-describe("Spielwelt › Welt & Import", () => {
+describe("game world › Welt & Import", () => {
   it("[MAP-05] shows the active world with its format, start map and maps with their counts", async () => {
     fakeBackend({
       "GET /api/session": asAdmin,
@@ -71,7 +71,7 @@ describe("Spielwelt › Welt & Import", () => {
     });
     renderAt("/admin/world");
     expect(await screen.findByText("Keine Welt")).toBeVisible();
-    expect(screen.getByText(/Es ist noch keine Spielwelt importiert/)).toBeVisible();
+    expect(screen.getByText(/Es ist noch keine digitale Erlebniswelt importiert/)).toBeVisible();
     expect(screen.getByText("Welt importieren")).toBeVisible();
   });
 
