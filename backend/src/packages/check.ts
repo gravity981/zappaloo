@@ -1,7 +1,8 @@
 // Checks any package file with the platform's validator: the kind comes from `manifest.json`, so the
 // same command checks a theme and a world package (`zappaloo validate`, sw-architecture.md 23.8). It
 // reads no database and no data folder.
-import { THEME_KIND, WORLD_KIND, WORLD_LIMITS } from "@zappaloo/shared";
+import { PACKAGE_DEFINITIONS, THEME_KIND, WORLD_KIND, WORLD_LIMITS } from "@zappaloo/shared";
+import type { PackageDefinition } from "@zappaloo/shared";
 import { checkThemePackage } from "../theme/validate.ts";
 import { checkWorldPackage } from "../world/validate.ts";
 import type { WorldFindingSeverity } from "../world/findings.ts";
@@ -9,11 +10,35 @@ import { readPackageArchive, TarError } from "./archive.ts";
 
 export type PackageKind = "theme" | "world";
 
+/** The rule of the definition that a finding code belongs to, for each package format version read. */
+export function ruleIdsOf(definition: PackageDefinition<string>): Map<string, string> {
+  const ids = new Map<string, string>();
+  for (const rule of definition.rules) {
+    for (const code of rule.codes) ids.set(code, rule.id);
+  }
+  return ids;
+}
+
+const RULE_IDS: Record<PackageKind, Map<string, string>> = {
+  theme: ruleIdsOf(PACKAGE_DEFINITIONS.theme[1]),
+  world: ruleIdsOf(PACKAGE_DEFINITIONS.world[1]),
+};
+
+/** Adds the rule id of each finding (its code in the definition of the package's kind). */
+function withRules(kind: PackageKind, findings: PackageFinding[]): PackageFinding[] {
+  return findings.map((finding) => {
+    const rule = RULE_IDS[kind].get(finding.code);
+    return rule === undefined ? finding : { ...finding, rule };
+  });
+}
+
 /** One finding of any package, theme or world: the file, the object where there is one, the reason. */
 export interface PackageFinding {
   file: string;
   object?: string;
   code: string;
+  /** The rule of the package definition the code belongs to (e.g. `archive.size`). */
+  rule?: string;
   severity: WorldFindingSeverity;
   detail: string;
 }
@@ -95,8 +120,8 @@ export function checkPackage(archive: Buffer): PackageReport {
     const findings: PackageFinding[] = check.ok
       ? []
       : check.findings.map((finding) => ({ ...finding, severity: "error" as const }));
-    return { ok: check.ok, kind, findings };
+    return { ok: check.ok, kind, findings: withRules(kind, findings) };
   }
   const check = checkWorldPackage(archive);
-  return { ok: check.ok, kind, findings: check.findings };
+  return { ok: check.ok, kind, findings: withRules(kind, check.findings) };
 }

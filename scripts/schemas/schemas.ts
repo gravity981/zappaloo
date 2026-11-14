@@ -5,6 +5,8 @@
 import { z } from "zod";
 import { themeJsonSchema, themeManifestSchema } from "../../shared/src/theme.ts";
 import { tiledMapSchema, worldAvatarSchema, worldManifestSchema } from "../../shared/src/world.ts";
+import { PACKAGE_DEFINITIONS } from "../../shared/src/packages/index.ts";
+import { renderPackageDocument } from "../../shared/src/packages/markdown.ts";
 
 /** The committed schema files, by name in `schemas/`, with the schema each one describes. */
 export const SCHEMA_FILES: Record<string, z.ZodType> = {
@@ -26,4 +28,19 @@ export function generatedSchemas(): Record<string, string> {
   return Object.fromEntries(
     Object.entries(SCHEMA_FILES).map(([name, schema]) => [name, schemaText(schema)]),
   );
+}
+
+/**
+ * The Markdown document of every format version, named `<package>-v<version>.md`, rendered from the
+ * declarative definitions (shared/src/packages).
+ */
+export function generatedDocuments(): Record<string, string> {
+  const documents: Record<string, string> = {};
+  for (const definition of Object.values(PACKAGE_DEFINITIONS.theme)) {
+    documents[`theme-v${String(definition.formatVersion)}.md`] = renderPackageDocument(definition);
+  }
+  for (const definition of Object.values(PACKAGE_DEFINITIONS.world)) {
+    documents[`world-v${String(definition.formatVersion)}.md`] = renderPackageDocument(definition);
+  }
+  return documents;
 }

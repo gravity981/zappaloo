@@ -1,12 +1,7 @@
 // The validator of the world package (sw-architecture.md 14.4, MAP-06, MAP-17). It checks the whole
 // package before anything changes and returns every finding with its file and reason. A package with
 // an error is refused; warnings are listed with it. Nothing is imported from here.
-import {
-  WORLD_FORMAT_VERSIONS,
-  WORLD_LIMITS,
-  WORLD_PNG_NAME_PATTERN,
-  worldManifestSchema,
-} from "@zappaloo/shared";
+import { WORLD_FORMAT_VERSIONS, WORLD_LIMITS, worldManifestSchema } from "@zappaloo/shared";
 import type { DoorSheet, WorldAvatar, WorldManifest } from "@zappaloo/shared";
 import { pngSize } from "../packages/png.ts";
 import type { PngSize } from "../packages/png.ts";
@@ -15,11 +10,14 @@ import { checkAvatar } from "./avatar.ts";
 import { checkDoor } from "./door.ts";
 import { errorFinding, warningFinding, zodDetail } from "./findings.ts";
 import type { WorldFinding } from "./findings.ts";
+import { worldV1 } from "@zappaloo/shared";
 import { checkMap, checkMapReferences } from "./maps.ts";
 import type { MapInfo } from "./maps.ts";
 
-/** The folders of the layout (14.4). */
-const FOLDERS = ["maps", "tilesets", "avatar", "door"];
+/** The folders of the layout (14.4), from the package definition. */
+const FOLDERS = worldV1.layout
+  .filter((entry) => entry.kind === "folder")
+  .map((entry) => entry.path);
 
 /** A package the platform would accept: its parts, checked. */
 export interface WorldPackage {
@@ -37,21 +35,9 @@ export type WorldCheck =
   | { ok: true; package: WorldPackage; findings: WorldFinding[] }
   | { ok: false; findings: WorldFinding[] };
 
-/** Whether a path is part of the layout of format version 1 (14.4). */
+/** Whether a path is part of the layout of format version 1 (14.4): an entry of the definition matches it. */
 export function inWorldLayout(path: string): boolean {
-  if (
-    path === "manifest.json" ||
-    path === "avatar/avatar.json" ||
-    path === "door/door.json" ||
-    path === "door/door.png" ||
-    path === "door/door-glimpse.png"
-  ) {
-    return true;
-  }
-  if (/^maps\/[^/]+\.json$/.test(path)) return true;
-  if (/^tilesets\/[^/]+$/.test(path)) return WORLD_PNG_NAME_PATTERN.test(path.slice(9));
-  if (/^avatar\/[^/]+$/.test(path)) return WORLD_PNG_NAME_PATTERN.test(path.slice(7));
-  return false;
+  return worldV1.layout.some((entry) => entry.match.test(path));
 }
 
 /** Reads one JSON file of the package, recording a finding when it is missing or not JSON. */

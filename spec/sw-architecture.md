@@ -1601,7 +1601,7 @@ The importer brings a package into the running platform:
 
 The package is a `tar.gz` with a format version, like the theme package (19.7). Until a world package is imported, the built-in door scene applies, and the door files of stage 3 in the data volume are still read (10.4).
 
-**Layout, format version 1** (draft agreed 2026-11-14, completed in step 5a). The files sit at the root of the archive, without a wrapping folder.
+**Layout, format version 1** (draft agreed 2026-11-14, completed in step 5a). The files sit at the root of the archive, without a wrapping folder. The layout, the limits and the rules of this format are declared in `shared/src/packages/world-v1.ts`; the validator checks packages against that declaration, and the Markdown document is generated from it into `dist/formats/` by `npm run schemas`, is build output and is attached to every release (decided 2026-11-14).
 
 ```text
 world.tar.gz
@@ -2200,7 +2200,7 @@ theme.tar.gz
 { "kind": "zappaloo-theme", "formatVersion": 1, "name": "Sommerfest" }
 ```
 
-The format version covers the layout of the package and the fields of `theme.json` together. The platform lists the format versions it reads, today only `1`. A package with another version is refused. A change of the layout or of a field raises the version, and the platform keeps reading the older versions it lists.
+The format version covers the layout of the package and the fields of `theme.json` together. The layout, the limits and the rules of this format are declared in `shared/src/packages/theme-v1.ts`; the Markdown document is generated from that declaration into `dist/formats/` by `npm run schemas`, is build output and is attached to every release (decided 2026-11-14). The platform lists the format versions it reads, today only `1`. A package with another version is refused. A change of the layout or of a field raises the version, and the platform keeps reading the older versions it lists.
 
 **`theme.json`**, format version 1:
 

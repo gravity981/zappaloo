@@ -152,3 +152,20 @@ describe("zappaloo validate (MAP-17, THM-07)", () => {
     expect(result.err).toBe("Usage: zappaloo validate [--json] <file>");
   });
 });
+
+describe("the rules of the definitions (MAP-17, THM-07)", () => {
+  it("[MAP-17] each finding names the rule of its definition that its code belongs to", () => {
+    const files = testWorldFiles();
+    files["maps/garten.json"] = Buffer.from('{"orientation":"isometric"}');
+    const report = checkPackage(buildArchive(files));
+    const finding = report.findings.find((item) => item.code === "map_format");
+    expect(finding?.rule).toBe("map.format");
+  });
+
+  it("[THM-07] a theme finding names its rule, too", () => {
+    const report = checkPackage(
+      buildThemeArchive(validThemeFiles({ "icons/icon-192.png": Buffer.from("x") })),
+    );
+    expect(report.findings.find((item) => item.code === "icon_not_png")?.rule).toBe("icon.format");
+  });
+});

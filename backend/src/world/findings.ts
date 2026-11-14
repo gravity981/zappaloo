@@ -4,49 +4,8 @@ import type { z } from "zod";
 
 export type WorldFindingSeverity = "error" | "warning";
 
-export type WorldFindingCode =
-  // The archive itself (the same as for the theme package)
-  | "archive_too_large"
-  | "unpacked_too_large"
-  | "not_gzip"
-  | "not_tar"
-  | "entry_type"
-  | "entry_path"
-  | "entry_duplicate"
-  | "too_many_files"
-  // The layout and the files
-  | "file_not_in_layout"
-  | "file_missing"
-  | "file_too_large"
-  | "file_unreferenced"
-  | "json_invalid"
-  | "json_too_large"
-  | "json_field"
-  | "format_version"
-  | "image_not_png"
-  | "image_size"
-  // The maps
-  | "map_id"
-  | "map_format"
-  | "map_layer"
-  | "map_tileset"
-  | "map_tiles"
-  | "map_object"
-  | "map_property"
-  | "map_reference"
-  // The avatar and the door scene
-  | "avatar_palette"
-  | "avatar_part"
-  | "avatar_option"
-  | "avatar_sheet"
-  | "avatar_template"
-  | "door_sheet"
-  // Warnings
-  | "property_unknown"
-  | "map_collision"
-  | "tileset_unused"
-  | "preset_missing"
-  | "preset_minigame";
+import type { WorldFindingCode } from "@zappaloo/shared";
+export type { WorldFindingCode };
 
 export interface WorldFinding {
   /** The file of the package the finding is about. */

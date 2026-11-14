@@ -10,31 +10,12 @@ import {
 } from "@zappaloo/shared";
 import type { ThemeJson, ThemeManifest } from "@zappaloo/shared";
 import { contrastRatio } from "./contrast.ts";
+import { themeV1 } from "@zappaloo/shared";
 import { pngSize } from "../packages/png.ts";
 import { readPackageArchive, TarError } from "../packages/archive.ts";
 
-export type ThemeFindingCode =
-  | "archive_too_large"
-  | "unpacked_too_large"
-  | "not_gzip"
-  | "not_tar"
-  | "entry_type"
-  | "entry_path"
-  | "entry_duplicate"
-  | "too_many_files"
-  | "file_not_in_layout"
-  | "file_missing"
-  | "json_invalid"
-  | "json_field"
-  | "format_version"
-  | "icon_not_png"
-  | "icon_size"
-  | "font_not_woff2"
-  | "font_too_large"
-  | "font_count"
-  | "font_unreferenced"
-  | "font_missing"
-  | "contrast";
+import type { ThemeFindingCode } from "@zappaloo/shared";
+export type { ThemeFindingCode };
 
 export interface ThemeFinding {
   /** The file of the package the finding is about, or `(archive)`. */
@@ -54,21 +35,25 @@ export interface ThemePackage {
 export type ThemeCheck =
   { ok: true; package: ThemePackage } | { ok: false; findings: ThemeFinding[] };
 
-/** The three icons every package has, and the optional maskable one (19.7). */
-const REQUIRED_ICONS: [string, number][] = [
-  ["icons/icon-192.png", 192],
-  ["icons/icon-512.png", 512],
-  ["icons/apple-touch-icon.png", 180],
-];
-const OPTIONAL_ICONS: [string, number][] = [["icons/icon-maskable-512.png", 512]];
+/** The icons of the layout (19.7), from the package definition: the required ones, then the optional ones. */
+const ICONS = themeV1.layout.filter((entry) => entry.kind === "png" && entry.size !== undefined);
+const REQUIRED_ICONS: [string, number][] = ICONS.filter((entry) => entry.required).map((entry) => [
+  entry.path,
+  entry.size?.width ?? 0,
+]);
+const OPTIONAL_ICONS: [string, number][] = ICONS.filter((entry) => !entry.required).map((entry) => [
+  entry.path,
+  entry.size?.width ?? 0,
+]);
 
-const FONT_PATH = /^fonts\/[A-Za-z0-9][A-Za-z0-9._-]{0,80}\.woff2$/;
+/** The folders of the layout (19.7), from the package definition. */
+const FOLDERS = themeV1.layout
+  .filter((entry) => entry.kind === "folder")
+  .map((entry) => entry.path);
 
-/** The files of the layout: the two JSON files, the icons, and the fonts by their names. */
+/** The files of the layout (19.7): an entry of the definition matches the path. */
 function inLayout(path: string): boolean {
-  if (path === "manifest.json" || path === "theme.json") return true;
-  if ([...REQUIRED_ICONS, ...OPTIONAL_ICONS].some(([name]) => name === path)) return true;
-  return FONT_PATH.test(path);
+  return themeV1.layout.some((entry) => entry.match.test(path));
 }
 
 /** The fields of a zod issue as a path with its message, for the findings. */
@@ -117,7 +102,7 @@ export function checkThemePackage(archive: Buffer): ThemeCheck {
   const files = new Map<string, Buffer>();
   for (const entry of entries) {
     if (entry.kind === "directory") {
-      if (entry.path !== "icons" && entry.path !== "fonts") {
+      if (!FOLDERS.includes(entry.path)) {
         findings.push({
           file: entry.path,
           code: "file_not_in_layout",
