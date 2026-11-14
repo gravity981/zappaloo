@@ -331,7 +331,16 @@ function maps(): Record<string, unknown> {
     ],
   );
 
-  return { kirche, garten, saal };
+  // The name of each map is the map property `name`, which the admin area shows (14.4).
+  const named = (map: Record<string, unknown>, name: string) => ({
+    ...map,
+    properties: [property("name", name)],
+  });
+  return {
+    kirche: named(kirche, "Kirche"),
+    garten: named(garten, "Garten"),
+    saal: named(saal, "Saal"),
+  };
 }
 
 /** The sprite sheet of an avatar part: 4 × 4 frames of 16 × 24 pixels, drawn in greyscale. */

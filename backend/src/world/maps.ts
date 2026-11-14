@@ -248,10 +248,22 @@ export function checkMap(id: string, bytes: Buffer, context: MapContext): MapRes
       );
     }
   }
-  for (const key of (map.properties ?? []).map((property) => property.name)) {
-    findings.push(
-      warningFinding(file, "property_unknown", `map property ${key} is not used by the platform`),
-    );
+  // The map property `name` is the name the admin area shows (optional, 1–60 characters); other map
+  // properties are not used by the platform and are reported (a typo or an old property such as programItem).
+  const mapProperties = propertyTable(map.properties);
+  for (const key of mapProperties.keys()) {
+    if (key !== "name") {
+      findings.push(
+        warningFinding(file, "property_unknown", `map property ${key} is not used by the platform`),
+      );
+    }
+  }
+  const name = mapProperties.get("name");
+  if (
+    name !== undefined &&
+    (typeof name !== "string" || name.length < 1 || name.length > WORLD_LIMITS.nameLength)
+  ) {
+    findings.push(errorFinding(file, "map_property", "the map name is not 1–60 characters"));
   }
   if (!collision) {
     findings.push(

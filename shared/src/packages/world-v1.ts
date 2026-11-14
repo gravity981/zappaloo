@@ -348,7 +348,7 @@ export const worldV1: PackageDefinition<WorldFindingCode> = {
       scope: "validator",
       severity: "error",
       requirements: ["MAP-06", "MAP-03"],
-      text: "The properties of each object type are present and valid: a portal names a map and a spawn point, a clickable object's action comes with its property (`page`, `contentId` or `minigameId`), a seat has a table.",
+      text: "The properties of each object type are present and valid: a portal names a map and a spawn point, a clickable object's action comes with its property (`page`, `contentId` or `minigameId`), a seat has a table. The map property `name`, if given, is the name the admin area shows: 1–60 characters; other map properties are reported as unknown.",
       codes: ["map_property"],
     },
     {
@@ -460,6 +460,10 @@ export const worldV1: PackageDefinition<WorldFindingCode> = {
     {
       date: "2026-11-14",
       text: "First version of the format, agreed with the project owner; nothing is released yet.",
+    },
+    {
+      date: "2026-11-14",
+      text: "The optional map property `name` (1–60 characters) is the name the admin area shows. Added within version 1, before any release.",
     },
   ],
 };

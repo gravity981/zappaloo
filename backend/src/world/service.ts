@@ -11,11 +11,12 @@ import { contentPages, worldPackages } from "../database/schema.ts";
 import type { Database } from "../database/database.ts";
 import type { Actor, EventService } from "../event/service.ts";
 import type { PublicWorld, WorldActive, WorldStatus } from "@zappaloo/shared";
-import type { WorldAvatar } from "@zappaloo/shared";
+import type { WorldAvatar, WorldMapSummary } from "@zappaloo/shared";
 import { checkWorldPackage } from "./validate.ts";
 import type { WorldPackage } from "./validate.ts";
 import type { WorldFinding } from "./findings.ts";
 import { presetWarnings } from "./presets.ts";
+import { mapSummaries } from "./summary.ts";
 import type { InstallationNames } from "./presets.ts";
 
 /** A refused package: nothing was imported, and these are its findings (MAP-06). */
@@ -45,7 +46,7 @@ export interface StoredWorld {
   startMap: string;
   tileSize: number;
   importedAt: Date;
-  maps: string[];
+  maps: WorldMapSummary[];
   avatar: WorldAvatar;
   hasDoor: boolean;
   warnings: WorldFinding[];
@@ -65,7 +66,7 @@ function toStored(row: Row): StoredWorld {
     startMap: row.startMap,
     tileSize: row.tileSize,
     importedAt: row.importedAt,
-    maps: JSON.parse(row.maps) as string[],
+    maps: JSON.parse(row.maps) as WorldMapSummary[],
     avatar: JSON.parse(row.avatar) as WorldAvatar,
     hasDoor: row.hasDoor,
     warnings: JSON.parse(row.warnings) as WorldFinding[],
@@ -145,7 +146,7 @@ export class WorldService {
       name: active.name,
       startMap: active.startMap,
       tileSize: active.tileSize,
-      maps: active.maps,
+      maps: active.maps.map((map) => map.id),
       avatar: active.avatar,
     };
   }
@@ -209,6 +210,7 @@ export class WorldService {
       ...presetWarnings(WorldService.#mapBytes(worldPackage.files), this.#installation()),
     ];
 
+    const summaries = mapSummaries(worldPackage.files);
     const importId = randomUUID();
     const staging = join(this.directory, `staging-${importId}`);
     const target = join(this.directory, importId);
@@ -241,7 +243,7 @@ export class WorldService {
             startMap: worldPackage.manifest.startMap,
             tileSize: worldPackage.manifest.tileSize,
             importedAt,
-            maps: JSON.stringify(worldPackage.mapIds),
+            maps: JSON.stringify(summaries),
             avatar: JSON.stringify(worldPackage.avatar),
             hasDoor: worldPackage.door !== undefined,
             warnings: JSON.stringify(warnings),
@@ -269,7 +271,7 @@ export class WorldService {
       startMap: worldPackage.manifest.startMap,
       tileSize: worldPackage.manifest.tileSize,
       importedAt,
-      maps: worldPackage.mapIds,
+      maps: summaries,
       avatar: worldPackage.avatar,
       hasDoor: worldPackage.door !== undefined,
       warnings,

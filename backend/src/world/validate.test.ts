@@ -27,6 +27,11 @@ function edit(files: Files, path: string, change: (value: Json) => void): Files 
   return files;
 }
 
+/** Sets the name of a map: the map property `name`. */
+function setMapName(map: Json, name: unknown): void {
+  map.properties = [{ name: "name", type: "string", value: name }];
+}
+
 /** The files without those whose paths start with the folder. */
 function withoutFolder(files: Files, folder: string): Files {
   return Object.fromEntries(Object.entries(files).filter(([path]) => !path.startsWith(folder)));
@@ -242,6 +247,31 @@ describe("the maps (MAP-06, MAP-08)", () => {
     files["maps/Kirche.json"] = files["maps/kirche.json"] ?? Buffer.alloc(0);
     delete files["maps/kirche.json"];
     expectRefused(files, "map_id");
+  });
+
+  it("[MAP-06] accepts a map name of 1–60 characters, and a map without a name", () => {
+    const named = edit(world(), "maps/garten.json", (m) => {
+      setMapName(m, "x".repeat(60));
+    });
+    expect(checkWorldPackage(archive(named)).ok).toBe(true);
+    const unnamed = edit(world(), "maps/garten.json", (m) => {
+      m.properties = [];
+    });
+    expect(checkWorldPackage(archive(unnamed)).ok).toBe(true);
+  });
+
+  it("[MAP-06] refuses a map name of more than 60 characters", () => {
+    const files = edit(world(), "maps/garten.json", (m) => {
+      setMapName(m, "x".repeat(61));
+    });
+    expectRefused(files, "map_property");
+  });
+
+  it("[MAP-06] refuses a map name that is not text", () => {
+    const files = edit(world(), "maps/garten.json", (m) => {
+      setMapName(m, 42);
+    });
+    expectRefused(files, "map_property");
   });
 
   it("[MAP-06] refuses a map that is not valid JSON", () => {

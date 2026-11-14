@@ -240,6 +240,16 @@ export const worldFindingSchema = z.object({
 });
 export type WorldFindingDto = z.infer<typeof worldFindingSchema>;
 
+/** One map of the active world: its id, and how many clickable objects and portals it has (14.4). */
+export const worldMapSummarySchema = z.object({
+  id: z.string(),
+  /** The name the admin area shows (the map property `name`); without it, the id is shown. */
+  name: z.string().optional(),
+  clickable: z.number().int().nonnegative(),
+  portals: z.number().int().nonnegative(),
+});
+export type WorldMapSummary = z.infer<typeof worldMapSummarySchema>;
+
 /** The active world as the admin area shows it (MAP-05). */
 export const worldActiveSchema = z.object({
   importId: z.string(),
@@ -249,7 +259,7 @@ export const worldActiveSchema = z.object({
   importedAt: z.string(),
   startMap: z.string(),
   tileSize: z.number().int(),
-  maps: z.array(z.string()),
+  maps: z.array(worldMapSummarySchema),
   hasDoor: z.boolean(),
   /** The warnings of the import (MAP-08): presets that point to nothing, minigame presets. */
   warnings: z.array(worldFindingSchema),

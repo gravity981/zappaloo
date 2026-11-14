@@ -36,6 +36,8 @@ export interface Call {
   path: string;
   body: unknown;
   csrf: string | null;
+  /** The content type the request was sent with (a file upload has its own). */
+  contentType: string | null;
 }
 
 /** A fake backend: `handlers` map "METHOD /path" to a status and body. */
@@ -51,6 +53,7 @@ export function fakeBackend(handlers: Record<string, () => { status: number; bod
         path,
         body: typeof init?.body === "string" ? JSON.parse(init.body) : undefined,
         csrf: headers.get("x-csrf-token"),
+        contentType: headers.get("content-type"),
       });
       if (path === "/api/version")
         return Promise.resolve(Response.json({ version: "0.0.0", commit: "x" }));

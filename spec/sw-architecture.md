@@ -1633,7 +1633,7 @@ world.tar.gz
 | `startMap` | The id of a map in `maps/`. |
 | `tileSize` | 8–64 (pixels, square tiles). Every map and every tileset uses it. 16 is recommended. |
 
-**Maps.** A map's id is its file name without `.json`: 1–40 characters of `a–z 0–9 -`. The id is what portals and the admin view "Spielwelt" use, so renaming a map file loses its assignments. A map is a Tiled JSON export with these rules:
+**Maps.** The optional map property `name` (1–60 characters) is the name the admin area shows; without it, the id is shown (decided 2026-11-14, added within format version 1, which is not released yet). A map's id is its file name without `.json`: 1–40 characters of `a–z 0–9 -`. The id is what portals and the admin view "Spielwelt" use, so renaming a map file loses its assignments. A map is a Tiled JSON export with these rules:
 
 - `orientation` is `orthogonal`, the map is not `infinite`, `tilewidth` and `tileheight` equal `tileSize`. At most 200 × 200 tiles.
 - **Tilesets are embedded** in the map (in Tiled: "Embed tileset", or "Embed tilesets" in the export options). A reference to an external tileset (`source`) is refused, because the game cannot load it. Each tileset is based on one image (no "collection of images"), the image is a PNG in `tilesets/`, named relative to the map (`../tilesets/<name>.png`), and its tiles have the size `tileSize`. Margin and spacing are allowed.

@@ -30,6 +30,7 @@ const PAGES = [
   { to: "/admin/rsvp", label: "admin.nav.rsvp", end: false },
   { to: "/admin/users", label: "admin.nav.users", end: false },
   { to: "/admin/content", label: "admin.nav.content", end: false },
+  { to: "/admin/world", label: "admin.nav.world", end: false },
   { to: "/admin/settings", label: "admin.nav.settings", end: false },
 ] as const;
 

@@ -59,7 +59,7 @@ describe("the world of the event (MAP-04, MAP-05, MAP-06, MAP-08, MAP-09, MAP-10
     const status = bodyOf<WorldStatus>(imported);
     expect(status.active?.name).toBe("Testwelt");
     expect(status.active?.startMap).toBe("kirche");
-    expect(status.active?.maps.sort()).toEqual(["garten", "kirche", "saal"]);
+    expect(status.active?.maps.map((map) => map.id).sort()).toEqual(["garten", "kirche", "saal"]);
     expect(status.active?.hasDoor).toBe(true);
     expect(status.previous).toBeNull();
 
@@ -70,6 +70,18 @@ describe("the world of the event (MAP-04, MAP-05, MAP-06, MAP-08, MAP-09, MAP-10
     expect(body.version).toBe(status.active?.importId);
     expect(body.avatar.parts.body.options[0]?.id).toBe("base");
     expect(body.maps).toHaveLength(3);
+  });
+
+  it("[MAP-05] the admin status lists each map with its clickable objects and portals", async () => {
+    context = await createTestApp();
+    const ctx = context;
+    const admin = await signIn(ctx, "boss", ["admin"]);
+    const status = bodyOf<WorldStatus>(await upload(ctx, admin, buildTestWorld()));
+    expect(status.active?.maps).toEqual([
+      { id: "garten", name: "Garten", clickable: 2, portals: 2 },
+      { id: "kirche", name: "Kirche", clickable: 4, portals: 1 },
+      { id: "saal", name: "Saal", clickable: 1, portals: 1 },
+    ]);
   });
 
   it("[MAP-05] without an imported world the players' world is null", async () => {
