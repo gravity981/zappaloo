@@ -371,7 +371,7 @@ A treasure hunt connects the real venue with the game world:
 | MP-05 | ~~The movement of other players is interpolated between server updates so that it appears smooth.~~ (withdrawn: no multiplayer, see 3.3) | – |
 | MP-06 | ~~There are no collisions between players; avatars can pass through each other.~~ (withdrawn: no multiplayer, see 3.3) | – |
 | PRES-01 | Every VIP (including accompanying persons) who has accepted the RSVP for at least one program item and has an avatar appears in the game world as a figure with a name tag; others don't appear; the signed-in user sees their own avatar instead of their own figure. | Must |
-| PRES-02 | Figures walk around randomly inside the wander areas (`type = wander`) of the maps whose `programItem` the guest attends, respecting the map's collision areas. | Must |
+| PRES-02 | Figures walk around randomly inside the wander areas (`type = wander`) of the maps linked to a program item the guest attends (14.4, reworded 2026-11-14), respecting the map's collision areas. | Must |
 | PRES-03 | ~~When a guest is online, their static figure is replaced by their live avatar.~~ (withdrawn: no multiplayer, see 3.3) | – |
 | PRES-04 | Figures and name tags are shown only to signed-in users (decided 2026-11-10: a guest cannot hide their own figure). | Must |
 | PRES-05 | The admin assigns guests to tables; seats are map objects (`type = seat`, property `table`) and the server places each guest on a free seat of their table. | Must |
@@ -697,10 +697,10 @@ Everything a guest reads on the website is edited in the admin area "Inhalte" an
 - **Start page.** The welcome block of the start page is a text of the same kind. It is edited in Inhalte, in the first row of the page list, without address, visibility and places. Its editor also holds the hero image (one of its images, with an alt text) and the switch "Countdown auf der Startseite zeigen" (default on). The layout and the cards around the text are fixed (5.6, UX decision 20, changed 2026-11-13).
 - **Images** (CNT-06). An image is uploaded in the editor and placed in a text with the usual Markdown image syntax. Accepted are JPEG, PNG and WebP up to 10 MB. The type is checked by the file's content, not by its name. The image is stored as uploaded. Stage 4 does not resize or convert images (the upload pipeline of stage 7 does that for contributions). Images from other sites stay removed from every text (10.4, SEC-05). An image is served at `/api/content/images/<id>` to signed-in users only. An image belongs to one owner: the start page, one page, or one place as its map image (decided 2026-11-13, mock Q62). An image can be deleted. «Entfernen» is refused while the owner’s text still uses it or while it is the hero image of the start page. Deleting a page deletes its images; removing a map image unsets it on the place. Map images are not page images.
 - **Places** (CNT-07). A place has a name, an optional address, an optional Google Maps link and an optional map image. The map is an uploaded picture. Nothing is embedded from Google, so reading a page sends no data to Google. The button "In Google Maps öffnen" opens the link in a new tab. Only `https` links to Google Maps are accepted. A program item refers to a place instead of carrying a free text. The existing place texts of the program items become places by a migration. A page can list places. They are shown as cards next to its text. *Proposed 2026-11-13 (step 4b): the accepted Google Maps links are `https` links to `google.com` or `www.google.com` with a path under `/maps`, `maps.google.com`, `maps.app.goo.gl` and `goo.gl` with a path under `/maps`. A place that a program item or a page uses cannot be deleted; the message names the uses. The migration makes one place per distinct program-item place text in each event (same name, no address, no link, no map) and removes the free-text column.*
-- **Dialogues and NPC texts** (stage 5). They are content items edited in the browser like pages (CNT-05). A game object refers to one by `contentId` (CNT-03). They are not part of the world package (14.4).
+- **Dialogues and NPC texts** (stage 5). A dialogue is a content item edited in Inhalte like a page (CNT-05): an id, an NPC name and lines in Markdown that the guest taps through in the game (decided 2026-11-14). A game object refers to a dialogue or to a page by `contentId` (CNT-03, 14.2). They are not part of the world package (14.4).
 - **Program items** are the schedule (5.5). They stay in Einstellungen and are not edited in Inhalte.
 - **Outside the content base.** The waiting-page texts, the privacy notice and the footer line stay in Einstellungen with their own storage (UX decision 54). Albums (stage 7), treasure hunt items and quiz content (stage 8) are edited with their features.
-- **Access.** Pages carry no access conditions in stage 4. Every signed-in user reads every page once the platform is open. The switch "In «Mehr» sichtbar" only decides whether a page is listed. A hidden page is still reached by its address, for example from a game object. The admin page for manual releases therefore waits for the first feature that stores access conditions (step 5b).
+- **Access.** Pages carry no access conditions in stage 4. Every signed-in user reads every page once the platform is open. The switch "In «Mehr» sichtbar" only decides whether a page is listed. A hidden page is still reached by its address, for example from a game object. The admin page for manual releases therefore waits for the first feature that stores access conditions, the treasure hunt (HUNT-05, stage 8; decided 2026-11-14).
 - **Audit.** Changes of pages, places and images are audited with ids only and appear on the card "Zuletzt" (DATA-05).
 
 ---
@@ -874,7 +874,7 @@ Every signed-in guest responds to the invitation. The RSVP gives guests a reason
 
 ### 7.4.2 RSVP Changes from the Release 1 Pilot (decided 2026-11-12, stage 3.9)
 
-- **Program item** (German "Programmpunkt") replaces "event part" ("Teil") everywhere: interface, code, API routes, database tables and this spec. The Tiled map property is `programItem` (14.2).
+- **Program item** (German "Programmpunkt") replaces "event part" ("Teil") everywhere: interface, code, API routes, database tables and this spec. Maps are linked to program items in the admin view "Spielwelt" (14.4; the Tiled map property `programItem` was dropped on 2026-11-14).
   - *Names (decided 2026-11-12, step 3.9b):* fields and variables `programItem`, `programItems`, `programItemId`, `programItemIds`, `invitedProgramItemIds`. Columns `program_item_id`. Error code `program_item_not_found`. Audit actions `rsvp.program_item.create|update|delete`, `user.program_items`, `invitation.program_items` with the detail keys `programItemId` / `programItemIds`. Language keys `programItems…`. The migration `0008_program_items` renames the tables (`event_parts` → `program_items`, `invitation_parts` → `invitation_program_items`, `membership_parts` → `membership_program_items`) and the `part_id` columns, and rewrites the action names and detail keys of existing audit entries, so "Zuletzt" still reads them. The mock screen `rsvp-parts` keeps its id until step 3.9c redraws it.
 - **One answer or one per program item** (RSVP-11). Einstellungen › Rückmeldung has a switch "Pro Programmpunkt zusagen" (`rsvp_config.per_item`, off by default). While it is off, step 1 of the wizard asks each person once ("Ja" / "Nein") and lists the program items they are invited to. The answer is stored as the same yes or no for every invited program item, so totals per program item, menus (meal item), figures (PRES-01, PRES-02) and the CSV work unchanged. A program item added to an invitation later takes the person's existing answer, so nobody is asked again. The other rules of 7.4.1 (deleted or removed program items) still apply. While the switch is on, the wizard works as in 7.4.1. Switching to one answer keeps every stored answer: a person with at least one yes is shown as "Ja", and the next save sets the same answer for all their program items. Audited as `rsvp.per_item`. Companions follow the same mode as their guest. *Implementation (step 3.9c):* with the switch off the server accepts an answer only if every invited program item has the same yes or no (`400 invalid_attendance` otherwise); `GET /api/rsvp` and `GET /api/admin/rsvp/config` carry `perItem`. A program item added to an invitation (or removed and added again) takes the existing answer of the guest and of each companion who has answered (`fillAnswers` in `rsvp/cleanup.ts`). The wizard shows a person with any yes as "Ja" for all program items.
 - **Companion approval as a setting** (RSVP-12). Einstellungen › Rückmeldung has a switch "Begleitpersonen bestätigen" (`rsvp_config.companion_approval`, off by default). Off: an added person is `approved` at once and counts right away. There is no pending badge and no tile "Begleitpersonen". On: as in 7.4.1 (pending, approve, reject, edit or withdraw while pending). Switching it off approves all pending requests after a confirmation that names their number. Rejected ones stay rejected. Audited as `rsvp.companion_approval`. The texts say "Begleitperson hinzufügen" instead of "beantragen". Removing (decided 2026-11-12): with approval off, the guest removes an added person until the deadline (`DELETE /api/rsvp/companions/:id`, audited as `companion.withdraw`). In both modes the admin removes an accompanying person in Rückmeldungen at any time, with a second click (audited as `companion.remove`). With approval on, the guest can still withdraw only a pending request (RSVP-10). *Implementation (step 3.9c):* `GET /api/rsvp` and the overview carry `companionApproval`, `GET /api/admin/rsvp/pending` carries `{ pendingCount, companionApproval }` (badge and tile show only while it is true), `GET /api/admin/rsvp/config` carries `pendingCount` for the confirmation of switching off. An added person without approval gets the status `approved` and `decided_at` at once and the audit entry `companion.request` (the card "Zuletzt" words it "hinzugefügt"). Migration `0009_rsvp_settings` adds `rsvp_config.per_item` and `companion_approval` (both false) and approves the pending requests.
@@ -1296,7 +1296,7 @@ Permissions are checked on every request, so a revoked role takes effect immedia
 
 **Conditions** (ACS-05, ACS-06). A condition is JSON, validated with Zod (`accessConditionSchema` in `shared/`): a leaf `{type: "role", role}`, `{type: "group", group}` (by name), `{type: "time", from?, until?}` (at least one), `{type: "release", key}` or `{type: "feature", feature}`, or `{all: [...]}` (AND) and `{any: [...]}` (explicit OR), nested at most 4 levels deep. An empty `all` is true (signed in is enough), an empty `any` is false. The treasure-hunt leaf comes with the hunt (HUNT-05). `AccessService.check(user, condition)` evaluates it against the current state and the `requireAccess(condition)` route guard answers `403 forbidden`; whatever a condition protects (map areas, content, functions) stores it as data. There is no implicit bypass: an admin or staff member passes a condition only if it says so (ROLE-08); the closed-platform rule of step 3c is a separate gate.
 
-**Manual releases** (ACS-05). The table `access_releases` holds the keys an admin has released; a `release` leaf is true while its key is there. `GET /api/admin/releases`, `PUT` and `DELETE /api/admin/releases/:key` (admin role; key 1–60 characters of `a–z 0–9 _ -`; audit log `release.set`, `release.withdraw`). The admin page comes with the first feature that stores access conditions (8.3).
+**Manual releases** (ACS-05). The table `access_releases` holds the keys an admin has released; a `release` leaf is true while its key is there. `GET /api/admin/releases`, `PUT` and `DELETE /api/admin/releases/:key` (admin role; key 1–60 characters of `a–z 0–9 _ -`; audit log `release.set`, `release.withdraw`). The admin page comes with the first feature that stores access conditions (8.3), the treasure hunt (HUNT-05, stage 8; decided 2026-11-14).
 
 ## 11.2 Requirements (Sections 10 and 11)
 
@@ -1560,7 +1560,16 @@ In Tiled, each object gets a `type`, a unique name and its properties. Examples:
 - Seat: `type = seat`, `table = 3` (see 3.6)
 - Wander area: `type = wander`, where guest figures walk around
 
-Each map also has the map property `programItem`, e.g. `dinner`. It decides whose figures appear on the map (see 3.6).
+Which program items a map belongs to is not set in Tiled. The admin links each map to one or more program items in the admin view "Spielwelt" (14.4). The link decides whose figures appear on the map (3.6) and where "Hingehen" leads (WEB-08). Decided 2026-11-14: program items have no key a Tiled file could name, and one map can serve several program items (e.g. ceremony and aperitif); the former map property `programItem` is dropped.
+
+The action of a clickable object (decided 2026-11-14):
+
+- `page`: opens a page as a full overlay above the paused game (GAME-11). `page` names a built-in page (`programme`, `rsvp`, `profile`; later stages add theirs) or a content page as `p/<slug>`.
+- `content`: shows the text of the content page whose slug is `contentId` in a small reading panel, e.g. for a sign or a plaque (CNT-03).
+- `dialog`: shows the dialogue whose id is `contentId`: an NPC name and lines the guest taps through. Dialogues are content items edited in Inhalte (6.2).
+- `minigame`: starts the minigame `minigameId` (stage 8).
+
+Objects with `type = protected` are accepted and have no behaviour yet; locked maps and zones come with the first access conditions on the game world (decided 2026-11-14).
 
 The engine interprets these generic object types and executes the associated behaviour.
 
@@ -1591,7 +1600,33 @@ The importer brings a package into the running platform:
 - It reports clickable objects whose preset action points to a missing page, content item or minigame as warnings. The import is still allowed, because these are created in the admin area.
 - It keeps the previous world package and allows a rollback to it.
 
-The package is a `tar.gz` with a format version, like the theme package (19.7). Its exact layout is defined when stage 5 is planned. Until a world package is imported, the built-in door scene applies, and the door files of stage 3 in the data volume are still read (10.4).
+The package is a `tar.gz` with a format version, like the theme package (19.7). Until a world package is imported, the built-in door scene applies, and the door files of stage 3 in the data volume are still read (10.4).
+
+**Layout, format version 1** (draft agreed 2026-11-14; step 5a completes the fields, rules and limits):
+
+```text
+world.tar.gz
+  manifest.json   { "kind": "zappaloo-world", "formatVersion": 1, "name", "startMap", "tileSize": 16 }
+  maps/<id>.json  Tiled JSON: orthogonal, tilesets embedded, at least the spawn point "start"
+  tilesets/*.png
+  avatar/avatar.json, avatar/*.png
+  door/door.json, door/door.png, door/door-glimpse.png   optional, the format of 10.4
+```
+
+- Tile layers are drawn in order. Layers whose name starts with `above` are drawn over the avatars.
+- Collisions come from the tile layer `collision` (every tile blocks) and from optional rectangles with `type = collision`.
+- Object types: `spawn`, `portal`, `clickable`, `decoration`, `seat`, `wander`, `protected` (14.2).
+- **Avatar assets** (7.3): layered sprite sheets per part (body, hair, clothing, accessory), drawn in greyscale and tinted from the palettes named in `avatar.json`. Each sheet has 4 directions × 4 walk frames of the frame size `avatar.json` names. A stored avatar whose part or colour is missing from a new package falls back to the first option of that part.
+- Limits around 40 MB packed and 100 MB unpacked.
+
+**Decisions of the stage 5 plan review (2026-11-14):**
+
+- **Without an active world,** a signed-in guest of an open platform lands on the website (GAME-12 applies once a world is imported), and the start page offers no "Spielwelt betreten".
+- **Where a player enters:** the last map is remembered on the device. Otherwise, and when that map no longer exists, the player enters the start map at its spawn point `start`. A portal leads to its `targetSpawn`; "Hingehen" (WEB-08) leads to the spawn point `start` of the map linked to the program item.
+- **Template world** (14.5, MAP-14): shipped inside the image; the importer offers "Vorlagenwelt importieren".
+- **Map loading** (ACS-07): the world is served only to signed-in users of an open platform (staff and admins also while it is closed). There are no locked maps or zones yet.
+
+The importer's tab also links each map to one or more program items (14.2). The link is stored per map name and survives a new world package as long as the map keeps its name.
 
 Next to the importer, the admin view **"Spielwelt"** shows one tab per map. It lists the map's clickable objects with their Tiled name, label and preset, and lets the admin assign each one's action: a page as overlay, a content item, a dialogue, a minigame, or none. The assignment is stored per map and object name, is live at once and survives a new world package as long as the map and the object keep their names. Portals are listed read-only with their target map and spawn point (decided 2026-11-10, confirmed 2026-11-13).
 
@@ -1612,7 +1647,7 @@ Drawing pixel art is the main effort per event. To keep it low, the platform shi
 |---|---|---|
 | MAP-01 | Maps are drawn in Tiled, exported as JSON and imported at runtime as part of the world package through the admin world importer; Tiled is not part of the running system (reworded 2026-11-13). | Must |
 | MAP-02 | The engine supports tile layers (background, ground, decoration, objects, foreground, collision) and object layers defining spawn points, collisions, portals, clickable objects (buildings, NPCs, signs, items), protected zones, seats and wander areas. | Must |
-| MAP-03 | The engine interprets the object properties `type`, `label`, `approach`, `action`, `contentId`, `targetMap`, `targetSpawn`, `minigameId` and `page`, and the map property `programItem`, and executes the corresponding behaviour (14.2). | Must |
+| MAP-03 | The engine interprets the object properties `type`, `label`, `approach`, `action`, `contentId`, `targetMap`, `targetSpawn`, `minigameId` and `page` and executes the corresponding behaviour (14.2); the program items of a map are linked in the admin view "Spielwelt" (reworded 2026-11-14). | Must |
 | MAP-04 | A new or changed world (maps, tilesets, door scene, avatar editor assets) can be imported without a redeployment or code change (reworded 2026-11-13). | Must |
 | MAP-05 | The world importer shows the active world (name, import time, maps, start map) and lets the admin import a new world package; the start map is named in the package (reworded 2026-11-13). | Must |
 | MAP-06 | A world package is validated as a whole (format version, layout, and per map the format, required layers, referenced tilesets, spawn points and portal targets); an invalid package is rejected with its findings and the active world stays unchanged (reworded 2026-11-13). | Must |
