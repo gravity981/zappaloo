@@ -379,6 +379,7 @@ world.tar.gz
 - Mocks: `admin-world` tab "Karten & Import" becomes "Welt & Import", the importer of one whole package (active world with name, import time, maps and start map; import with findings and warnings; rollback; "Vorlagenwelt importieren"). A tab "Dialoge" in `admin-world`. The game bar without "Hochladen". The first entry with the avatar step only. "Hingehen" removed (WEB-08 withdrawn).
 
 **5b – Validator and test world.** Done 2026-11-14 (decisions of the step in sw-architecture.md 14.4).
+**5c – Import, rollback and serving.** Done 2026-11-14 (decisions of the step in sw-architecture.md 14.4).
 - The package reader (gzip and tar, limits, paths; shared with the theme package), `manifest.json`, the Tiled checks per map (format, orientation, embedded tilesets, referenced images, layers, spawn points), portal targets inside the package, the door scene, the avatar assets. Returns all findings. One test per validator rule with a broken package.
 - A script builds the test world (two or three maps with generated placeholder tiles, avatar parts and objects of every type) for the tests and for development.
 - Checking a package outside the platform (decided 2026-11-14; 19.7, 14.4): JSON Schemas generated from the Zod schemas, theme first, then world (manifest, avatar, maps), committed in `schemas/` with a test that fails when they differ; attached to every release. The CLI command `zappaloo validate <file>` for both kinds of package, with `--json` and exit code 0 or 1, tested with the test world and the example theme.

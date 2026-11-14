@@ -223,6 +223,7 @@ describe("data model", () => {
       "rsvp_config",
       "theme_active",
       "waiting_config",
+      "world_packages",
     ]);
     for (const { name } of tables) {
       const columns = database.sqlite.prepare(`PRAGMA table_info(${name})`).all() as {

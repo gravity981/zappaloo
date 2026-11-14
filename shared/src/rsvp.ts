@@ -376,6 +376,8 @@ export const ACTIVITY_ACTIONS = [
   "content.image.delete",
   "theme.import",
   "theme.reset",
+  "world.import",
+  "world.rollback",
 ] as const;
 export type ActivityAction = (typeof ACTIVITY_ACTIONS)[number];
 

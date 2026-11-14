@@ -1745,6 +1745,17 @@ A new world is used the next time a player enters a map. Cached graphics are ref
 - **`zappaloo validate <file>`** reads the kind from `manifest.json` and checks a theme or a world package; the text lines are `error:` or `warning:` with file, object, reason and code; the last line says whether the package is accepted. Exit code 0 when accepted (warnings allowed), 1 when refused, and 1 with a message when the file cannot be read.
 - **JSON Schemas** are generated from the platform's Zod schemas by `npm run schemas` into `schemas/`, and a test fails on any difference. A release attaches them as single files: the candidate from its build, the promotion unchanged from the candidate's commit.
 
+**Decisions of step 5c** (2026-11-14, for the project owner to confirm; the layout above did not settle them):
+
+- **Storage:** the table `world_packages` holds the active and the previous world, one row per role per event (unique), with the name, format version, start map, tile size, map ids, avatar definition, door flag and the import's warnings. The files of an import sit in `$DATA_DIR/events/event1/world/<import id>/`, as the package's own layout.
+- **Import:** the package is validated as a whole (MAP-06); a refusal answers `422 world_refused` with every finding, and nothing changes. A valid package is staged, moved into place, and the row change and the audit entry `world.import` are one transaction. The world before the previous one is removed afterwards.
+- **Upload media type:** `application/vnd.zappaloo.world`, the package's bytes as the body, at most 40 MB. The theme's `application/gzip` parser has a 10 MB limit, so the two packages do not share one.
+- **Rollback** (`POST /api/admin/world/rollback`, admins only): swaps the active and the previous world and writes `world.rollback`. Without a previous world it answers `409 no_previous_world`. The rolled-back world keeps its import id, so its files stay reachable.
+- **Warnings at import** (MAP-08), which never refuse: a preset action `page` with `p/<slug>`, `content` or `dialog` whose page or dialogue does not exist (`preset_missing`); every preset `minigame` (`preset_minigame`, minigames come with stage 8). Dialogues are content items of stage 5g, so until then every `dialog` preset is reported. The warnings are stored with the import and listed in the admin status.
+- **Serving:** `GET /api/world` returns the active world (`version` = import id, name, start map, tile size, maps, avatar definition) or `null`. The files are served per folder, `/api/world/<import id>/maps/<file>`, `…/tilesets/<file>` and `…/avatar/<file>`, of the active or the previous world only; the door folder and the manifest are not served. Each answer carries a cache of one year, since a new import has a new id. Sign-in and the closed-platform gate apply as for every `/api` route (ACS-07).
+- **Door scene:** the waiting page takes the door of the active world (`door/`) when the world has one (ACS-12, 10.4); otherwise the event's files in the data volume are read, as before.
+- **Audit:** `world.import` and `world.rollback` appear on the card "Zuletzt".
+
 ## 14.5 Template Map Set
 
 Drawing pixel art is the main effort per event. To keep it low, the platform ships a set of template maps with matching tilesets: church, garden (aperitif), banquet hall and party area.

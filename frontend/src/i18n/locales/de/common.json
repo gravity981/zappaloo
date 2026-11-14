@@ -374,7 +374,9 @@
       "content_image_upload": "Ein Bild wurde hochgeladen",
       "content_image_delete": "Ein Bild wurde gelöscht",
       "theme_import": "Ein Design wurde importiert",
-      "theme_reset": "Das Standard-Design gilt wieder"
+      "theme_reset": "Das Standard-Design gilt wieder",
+      "world_import": "Eine Welt wurde importiert",
+      "world_rollback": "Die vorherige Welt gilt wieder"
     },
     "rsvp": {
       "title": "Rückmeldungen",

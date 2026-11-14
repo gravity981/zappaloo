@@ -227,3 +227,55 @@ export const tiledMapSchema = z.looseObject({
   properties: z.array(tiledPropertySchema).optional(),
 });
 export type TiledMap = z.infer<typeof tiledMapSchema>;
+
+// --- The API of the world (sw-architecture.md 14.4): the admin importer and the served world. ---
+
+/** One finding of an import: a refusal lists every finding, the warnings come with an accepted world. */
+export const worldFindingSchema = z.object({
+  file: z.string(),
+  object: z.string().optional(),
+  code: z.string(),
+  severity: z.enum(["error", "warning"]),
+  detail: z.string(),
+});
+export type WorldFindingDto = z.infer<typeof worldFindingSchema>;
+
+/** The active world as the admin area shows it (MAP-05). */
+export const worldActiveSchema = z.object({
+  importId: z.string(),
+  name: z.string(),
+  formatVersion: z.number().int().positive(),
+  /** ISO date-time of the import. */
+  importedAt: z.string(),
+  startMap: z.string(),
+  tileSize: z.number().int(),
+  maps: z.array(z.string()),
+  hasDoor: z.boolean(),
+  /** The warnings of the import (MAP-08): presets that point to nothing, minigame presets. */
+  warnings: z.array(worldFindingSchema),
+});
+export type WorldActive = z.infer<typeof worldActiveSchema>;
+
+/** `GET /api/admin/world` (MAP-05, MAP-09). */
+export const worldStatusSchema = z.object({
+  active: worldActiveSchema.nullable(),
+  previous: z.object({ name: z.string(), importedAt: z.string() }).nullable(),
+});
+export type WorldStatus = z.infer<typeof worldStatusSchema>;
+
+/** `GET /api/world`: what a player's browser needs to load the world (MAP-10). `version` is the import id. */
+export const publicWorldSchema = z.object({
+  version: z.string(),
+  name: z.string(),
+  startMap: z.string(),
+  tileSize: z.number().int(),
+  maps: z.array(z.string()),
+  avatar: worldAvatarSchema,
+});
+export type PublicWorld = z.infer<typeof publicWorldSchema>;
+
+/** A refused import: the error and every finding of the package (MAP-06). */
+export const worldRefusalSchema = z.object({
+  error: z.object({ code: z.string(), message: z.string() }),
+  findings: z.array(worldFindingSchema),
+});

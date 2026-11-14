@@ -25,6 +25,7 @@ import type { FastifyPluginAsyncZod } from "fastify-type-provider-zod";
 import { AccountError, LINK_VALIDITY_MS } from "../auth/accounts.ts";
 import { ANONYMOUS_ACTOR } from "../event/service.ts";
 import type { AccountService } from "../auth/accounts.ts";
+import type { WorldService } from "../world/service.ts";
 import {
   EMAIL_VERIFY_FAILURES_PER_ADDRESS,
   FORGOT_PER_ADDRESS,
@@ -75,6 +76,8 @@ export interface AuthOptions {
   platform: PlatformService;
   /** The waiting page of a closed platform (ACS-10 – ACS-13). */
   waiting: WaitingService;
+  /** The world of the event: its packages, rollback and the served world (MAP-04 – MAP-10). */
+  world: WorldService;
   /** The footer: copyright line, repository address, license text (LIC-01 – LIC-03). */
   footer: FooterService;
   /** The latest changes for the admin overview (DATA-05). */

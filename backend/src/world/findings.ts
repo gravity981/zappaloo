@@ -44,7 +44,9 @@ export type WorldFindingCode =
   // Warnings
   | "property_unknown"
   | "map_collision"
-  | "tileset_unused";
+  | "tileset_unused"
+  | "preset_missing"
+  | "preset_minigame";
 
 export interface WorldFinding {
   /** The file of the package the finding is about. */
