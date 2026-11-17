@@ -7,8 +7,14 @@ import { walkable, cellOf, playerCollisionEllipse } from "./collision.ts";
 import { walkFrameIndex } from "./figures.ts";
 import { figureDepth, figureOcclusionSegment, occlusionSegmentRelation } from "./draw-order.ts";
 import { interiorPoint, mapBounds, type Point, polygonCentre, tileToPixel } from "./geometry.ts";
-import { findPath } from "./pathfinding.ts";
-import { navigationGrid, walkRoute } from "./navigation.ts";
+import { cellKey, findPath, reachableCells, type Cell, type Grid } from "./pathfinding.ts";
+import {
+  navigationGrid,
+  nearestReachablePoint,
+  routeToPoint,
+  startCells,
+  walkRoute,
+} from "./navigation.ts";
 import {
   directionOf,
   keyDirection,
@@ -62,6 +68,13 @@ const DEFAULT_GUIDES: GameGuides = {
   grid: false,
   occlusion: false,
 };
+
+/** The navigation grid of a map and the cells reachable from each start cell worked out so far (GAME-23). */
+interface MapNavigation {
+  map: ParsedMap;
+  grid: Grid;
+  reachable: Map<string, ReadonlySet<string>>;
+}
 
 /** The data the scene starts with. Without it, the scene enters the world where the guest was last. */
 export interface WorldSceneData {
@@ -119,6 +132,8 @@ export class WorldScene extends Phaser.Scene {
   #activationBlocked = false;
   /** Whether the walk to the current waypoint still gets nearer; a walk that is stuck is stopped (GAME-10). */
   readonly #walkWatch = new WalkWatch();
+  /** The navigation grid of the map and the cells reachable from a start cell, kept while the player taps (GAME-23). */
+  #navigation: MapNavigation | undefined;
   readonly #onKeyDown = (event: KeyboardEvent): void => {
     // The scroll and button keys are the game's only while it runs and no field or button of the page has the focus.
     if (
@@ -843,13 +858,56 @@ export class WorldScene extends Phaser.Scene {
       this.#walkToObject(map, area);
       return;
     }
-    if (portal === undefined && !walkable(map.obstacles, playerCollisionEllipse(point, size.width)))
+    const { grid } = this.#navigationOf(map);
+    const start = startCells(map, grid, this.#position);
+    if (portal !== undefined) {
+      const goal = interiorPoint(portal.polygon);
+      const cells = findPath(grid, start, cellOf(goal, size));
+      if (cells === undefined) return;
+      const route = walkRoute(map, this.#position, cells, goal);
+      if (route !== undefined) this.#path = route;
       return;
-    const goal = portal === undefined ? point : interiorPoint(portal.polygon);
-    const cells = findPath(navigationGrid(map), cellOf(this.#position, size), cellOf(goal, size));
-    if (cells === undefined) return;
-    const route = walkRoute(map, this.#position, cells, portal === undefined ? undefined : goal);
+    }
+    const reachable = this.#reachableFrom(map, start);
+    const goal = cellOf(point, size);
+    const free = walkable(map.obstacles, playerCollisionEllipse(point, size.width));
+    // A free point in a reachable cell: the walk of old. (The set of reachable cells spares a search that cannot
+    // succeed, which would take the longest.)
+    const cells = free && reachable.has(cellKey(goal)) ? findPath(grid, start, goal) : undefined;
+    if (cells !== undefined) {
+      // The walk ends where the player tapped, not at the centre of that cell.
+      this.#path = routeToPoint(map, this.#position, cells, point);
+      return;
+    }
+    // A blocked point, or one that cannot be reached: the nearest reachable point nearby, or nothing (GAME-23). The
+    // path leads to the reachable cell the point was found from; the point itself may lie in a cell whose centre is
+    // blocked, which no path leads to.
+    const target = nearestReachablePoint(map, reachable, point);
+    if (target === undefined) return;
+    const toCell = findPath(grid, start, target.cell);
+    if (toCell === undefined) return;
+    const route = walkRoute(map, this.#position, toCell, target.point);
     if (route !== undefined) this.#path = route;
+  }
+
+  /** The navigation grid of a map, built once while the player taps on it. */
+  #navigationOf(map: ParsedMap): MapNavigation {
+    if (this.#navigation?.map !== map) {
+      this.#navigation = { map, grid: navigationGrid(map), reachable: new Map() };
+    }
+    return this.#navigation;
+  }
+
+  /** The cells that a path leads to from a start cell, worked out once per start cell (GAME-23). */
+  #reachableFrom(map: ParsedMap, start: readonly Cell[]): ReadonlySet<string> {
+    const navigation = this.#navigationOf(map);
+    const key = start.map(cellKey).join(";");
+    let reachable = navigation.reachable.get(key);
+    if (reachable === undefined) {
+      reachable = reachableCells(navigation.grid, start);
+      navigation.reachable.set(key, reachable);
+    }
+    return reachable;
   }
 
   /** Walks to the approach point of an object; stands already there, the action runs at once. */
@@ -860,9 +918,10 @@ export class WorldScene extends Phaser.Scene {
       return;
     }
     const size = map.size;
+    const grid = this.#navigationOf(map).grid;
     const cells = findPath(
-      navigationGrid(map),
-      cellOf(this.#position, size),
+      grid,
+      startCells(map, grid, this.#position),
       cellOf(area.approach, size),
     );
     if (cells === undefined) return;

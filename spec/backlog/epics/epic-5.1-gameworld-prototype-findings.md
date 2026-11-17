@@ -89,7 +89,7 @@ Re-verified: GAME-02, GAME-10, GAME-16.
 
 - A pure function in `navigation.ts` finds the reachable cells from the avatar's cell (flood fill over the navigation grid, cached per walk) and returns the nearest reachable point within 3 tile widths of the tapped point, or nothing.
 - `#tapTo` uses it for a blocked tap and for a tap that has no path. A tap on a clickable object or a portal is unchanged: its target is the approach point or the trigger area.
-- Tests: a tap inside a building leads to the ground in front of it; a tap behind a wall leads to the reachable side, not to the far side; a tap beyond the radius does nothing; a tap on a free, reachable point is unchanged.
+- Tests: a tap inside a building leads to the ground in front of it; a tap behind a wall leads to the reachable side, not to the far side; a tap beyond the radius does nothing; a tap on a free, reachable point leads to that very point (changed 2026-11-17: the avatar stops where the player tapped, not at the centre of that cell, so that the marker of 5.1e sits where the avatar stops).
 
 Requirements: GAME-23.
 Re-verified: GAME-10.
