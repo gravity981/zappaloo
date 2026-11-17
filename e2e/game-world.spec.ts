@@ -394,10 +394,11 @@ test("[GAME-11][GAME-13] on the first entry with an open RSVP, typing into the R
   expect([after.x, after.y]).toEqual([before.x, before.y]);
   await guestContext.close();
   await page.goto("/admin/settings");
-  await page
-    .getByRole("region", { name: de.admin.waiting.openingTitle })
-    .getByRole("button", { name: de.admin.waiting.closeAgain })
-    .click();
+  const closing = page.getByRole("region", { name: de.admin.waiting.openingTitle });
+  await closing.getByRole("button", { name: de.admin.waiting.closeAgain }).click();
+  // The test must not end before the platform is closed: this installation is shared with the tests that follow,
+  // which expect it closed, and a request that the end of the test cuts off leaves it open.
+  await expect(closing.getByText(de.admin.waiting.closed)).toBeVisible();
 });
 
 test("[AVA-01][AVA-02] the avatar editor offers an admin the tier3 figures only, by kind; choosing a kind stores a figure and enables the next step", async ({

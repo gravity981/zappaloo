@@ -2,7 +2,7 @@
 
 | Status | Release | Depends on | Branch |
 |---|---|---|---|
-| ready | Opening | 5 | `feature/epic-5.1-gameworld-prototype-findings` |
+| done | Opening | 5 | `feature/epic-5.1-gameworld-prototype-findings` |
 
 [Roadmap](../roadmap.md) · [How we work on epics](../README.md)
 
@@ -130,3 +130,46 @@ Requirements: GAME-30.
 - Final verification and epic report (README.md, "Finishing an epic").
 
 Requirements: none new.
+
+## Report
+
+### Epic report (2026-11-17)
+
+**Summary:** Walking by tap is natural now: the avatar walks straight lines, a tap on a building or a wall leads to the nearest ground it can reach, and a pulsing marker shows where it goes. Clickable objects glow, the object or portal being approached pulses, and objects and portals outside the view are shown by labelled indicators at the edge. The view no longer stutters on an iPhone (60 fps while walking, Safari, 2026-11-17), the figure has a shadow, the game bar is reduced to the title and "Website", and a portal shows a grey loading veil and a screen flash. The game preview was extended for reviewing all of this on a phone.
+
+**Stories:**
+- 5.1a – Smooth view on iOS: **done.** The canvas is drawn at device pixels and the camera and the sprite are snapped to one pixel grid; frame diagnostics overlay (checkbox in the preview, `?debug=frames` on the dev server).
+- 5.1b – Spec and mock: **done.** The owner confirmed the mock (question 69), with a glow on the portal's arrow and a ring in the glow's colour.
+- 5.1c – Straight paths: **done.** Eight neighbours, √2 diagonals, no corner cutting, smoothed routes.
+- 5.1d – Nearest reachable target: **changed.** The searches start from where the avatar stands (its own cell and the cells around it with a clear line), because after walking to the edge of a building the avatar often stood in a cell it could not leave; a tap on free ground now ends exactly at the tapped point; a point moves past a cell centre by at most one tile width.
+- 5.1e – Target marker and object glow: **changed.** Added at the owner's request: the figure's shadow (GAME-28) and a steady glow of all clickable objects in the colour of their sparkles (GAME-29).
+- 5.1f – Edge indicators: **changed.** The indicators are HTML buttons over the canvas, not drawn in the scene (touch area in CSS pixels, accessible name); labels beside the icon (the object's label, or for a portal the name of the map it leads to); the preview shows an indicator for every clickable object.
+- 5.1g – Check with the prototype world and epic report: **done** (scripted check, see Tests; the real-phone tap test follows with the next release candidate).
+- 5.1h – Feedback when a map is entered: **added** at the owner's request (GAME-30): grey loading veil with the app's word for loading, white flash on every map entry.
+- Not planned, done on request while the epic ran: the game bar shows only the title and "Website" (GAME-14 changed); the occlusion rule of figures behind props and in front of buildings (GAME-19 changed, see below); the preview greys out and pauses the scene while a changed package loads; the devcontainer has Tailscale and the preview can be opened on a phone (`PREVIEW_ALLOWED_HOST`).
+
+**Requirements:** 9 of 9 planned for this epic (GAME-22 – GAME-30), all with passing tests (requirement report). Overall: 183 of 256 active requirements implemented, 173 of them with passing tests here. The other 10 are deployment-test requirements whose results the local report reads from an old CI-only results file (`reports/vitest-deploy.json`); `npm run test:deploy` runs on CI only.
+
+**Tests:**
+- Unit and integration (Vitest): 119 files, 1254 tests, all passing.
+- End-to-end (Playwright, all projects, run as CI does with 2 retries): 89 passed, 2 flaky (passed on retry), 69 skipped (the tests that change shared settings run on desktop Chromium only), 0 failed. New or changed: marker, shadow and glow (GAME-24, 28, 29), indicators with labels (GAME-26), portal with veil and entry count (GAME-30), the game bar (GAME-14).
+- Not run: the deployment test (CI only).
+- Manual: iPhone 16 Pro, Safari, game preview over Tailscale: smooth, 60 fps while walking (recorded in the manual test protocol, GAME-27). Scripted check of the prototype world in the game preview on a desktop viewport and a phone-sized viewport: a tap into a building leads to the nearest reachable ground, objects glow, the indicators carry their labels, no errors.
+
+**Spec changes and deviations:**
+- New requirements GAME-22 – GAME-30; GAME-14 changed (the bar has only the title and "Website"; Programm, Rückmeldung and Hochladen are objects of the world); GAME-19 changed (a guide that would hide the figure counts double, and only objects whose picture overlaps the figure take part); GAME-26 with labels; 3.5 and the decisions of epic 5.1 in 14.4; the mocks (marker, glow, indicators with labels, the bar, the loading veil and flash) and the mocks README.
+- Deviations from the plan: the indicators are HTML, not canvas; searches start from the avatar's position (5.1d); stories 5.1h and the unplanned items above were added.
+- The occlusion of figures cannot be correct with a single depth per object when a prop in front of a building has a lower depth than the building's lowest edge (a V-shaped front). The engine now draws the figure over the prop in that case; the map author can fix it by moving the prop or splitting the building (map data, not in this repository).
+
+**Remaining requirements by epic:** 1 → 1, 4 → 2, 6 → 12, 7 → 30, 8 → 22, 9 → 2, 10 → 4 (73 in all).
+
+**Waiting on the project owner:**
+- The remaining device checks of GAME-27 (installed app on iOS, Android Chrome, a desktop browser) and a tap test of the game on a real phone with the next release candidate; each goes into the manual test protocol (the "Not yet tested" list in test-strategy.md names them).
+- A decision on the flaky end-to-end tests (see below).
+- The prototype map's own fixes for props in front of buildings (map data).
+- A rebuild of the devcontainer to check the Tailscale installation, which was not built here.
+
+**Risks and notes:**
+- **Flaky end-to-end tests (known, not fixed):** `rsvp.spec.ts` and `skeleton.spec.ts` (CFG-02) fail on some runs, on a different project each time, and pass on retry and alone. Cause: one older test in `game-world.spec.ts` (epic 5) opens the platform on the shared test server for several seconds, and a parallel test that expects it closed can run in that window. A missing wait at the end of that test was fixed; the race itself is not, and it was not checked against the code before this epic. Proper fix: give that test a server of its own, as the setup test has.
+- Each glowing object costs one filter pass per frame; the frame rate on a phone with many objects has been checked only with the test world and the prototype (60 fps on the iPhone in 5.1a, before the glow was added). Check it with the diagnostics overlay.
+- The figure's depth rules cover the player now; the wandering figures of epic 6 will use the same rules.
