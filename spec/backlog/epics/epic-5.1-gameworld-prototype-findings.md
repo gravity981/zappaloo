@@ -24,7 +24,7 @@ Added 2026-11-17, after the project owner tried the game with the prototype worl
 1. **Pathfinding:** the problems seen are the zigzag paths and taps that do nothing. Narrow passages and detours were not reported, so the grid keeps one cell per tile.
 2. **Invalid target:** the target moves to the nearest point that the avatar fits on *and can reach* from where it stands. A tap on a house therefore leads to the ground in front of it, never to the far side of a wall. If there is no such point within a radius, nothing happens and no marker appears (GAME-23).
 3. **Target marker:** a circle lying flat on the isometric ground pulses at the target of every walk started by a click or tap: a free tap, the approach point of a clickable object, or the point in a portal's trigger area. It disappears on arrival, when the walk is stopped or blocked, or when the arrow keys take over (GAME-24).
-4. **Object glow:** when a clickable object is tapped and the avatar has to walk to it first, the object also pulses with a glow along its edges until its action runs or the walk ends (GAME-25).
+4. **Object glow:** when a clickable object is tapped and the avatar has to walk to it first, the object also pulses (a portal's floating arrow too, added 2026-11-17) with a glow along its edges until its action runs or the walk ends (GAME-25).
 5. **Edge indicators:** clickable objects with an assigned action and portals with a target that lie outside the view get an indicator at the edge of the game view, pointing towards them. Objects and portals look different. Easter eggs (GAME-08) and objects without an action get none. Tapping an indicator does the same as tapping the object (GAME-26).
 6. **iOS stutter** (added 2026-11-17): on an iPhone 16 Pro (Low Power Mode off), the whole view stutters while the avatar walks and the camera follows it, the ground as well as the objects; on desktop it is smooth. The avatar itself is smooth. A lack of performance and a fault of the device are ruled out. It is fixed in this epic, code analysis first, then reproduction and tests on the device (GAME-27, story 5.1a).
 
@@ -32,8 +32,8 @@ Added 2026-11-17, after the project owner tried the game with the prototype worl
 - **Requirements and priorities:** GAME-22 (straight paths) and GAME-23 (nearest reachable point) are *Must*; GAME-24 (marker), GAME-25 (glow) and GAME-26 (edge indicators) are *Should*.
 - **Path:** eight neighbours on the tile grid (a diagonal step costs √2 and is taken only when both cells beside it are free), then the path is smoothed: a waypoint is dropped whenever a clear line for the avatar's footprint (`clearLine`) leads from the previous kept point to the next one. The avatar walks straight lines between the remaining points.
 - **Nearest reachable point:** the radius is 3 tile widths around the tapped point. "Reachable" means a cell connected to the avatar's cell in the navigation grid. Among the reachable cells within the radius, the point closest to the tapped point is taken: the cell centre, moved towards the tapped point as far as the avatar still fits.
-- **Marker look:** an ellipse with the tile's 2 : 1 ratio, 0.4 tile widths wide, white with a dark outline so that it shows on any ground. It is drawn above the ground layers and below objects and figures, and pulses once per second (scale 0.8 → 1.2, fading out, then again).
-- **Glow look:** a soft light-coloured glow along the object's edges that swells and fades once per second, drawn with Phaser's glow filter. The random sparkles of GAME-15 keep running.
+- **Marker look:** an ellipse with the tile's 2 : 1 ratio, 0.4 tile widths wide, a thick ring in the glow's light colour with a dark outline so that it shows on any ground. It is drawn above the ground layers and below objects and figures, and pulses once per second (scale 0.8 → 1.2, fading out, then again).
+- **Glow look:** a soft light-coloured glow along the edges of the object or of the portal's arrow that swells and fades once per second, drawn with Phaser's glow filter. The random sparkles of GAME-15 keep running.
 - **Edge indicators:**
   - An object counts as outside when its bounds are entirely outside the camera view. The indicator sits on the line from the avatar to the object, 12 px inside the edge of the game view and below the game bar (GAME-14).
   - Portals get a small arrow like their floating arrow. Clickable objects get a small sparkle. Each indicator turns to point at its object.
@@ -98,7 +98,7 @@ Re-verified: GAME-10.
 
 Mock screen: `game` (from 5.1b).
 - The pulsing marker on the ground at the target of every click or tap walk, with the depth and look of the confirmed proposal. It is removed on arrival, on stop, on a blocked walk (the stuck check of 5l.4) and on the arrow keys.
-- The pulse glow on a clickable object while the avatar walks to it. It ends when the action runs or the walk ends.
+- The pulse glow on a clickable object, or on a portal's floating arrow, while the avatar walks to it. It ends when the action runs or the walk ends.
 - The decisions about when the marker and glow show or hide are made by a small pure state helper, which unit tests check. An end-to-end test (`e2e/game-world.spec.ts`, desktop Chromium) taps the ground and reads the marker's state through the test hook: shown while walking, gone on arrival.
 
 Requirements: GAME-24, GAME-25.
