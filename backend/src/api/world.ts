@@ -193,6 +193,7 @@ const worldPlugin: FastifyPluginAsyncZod<WorldOptions> = (app, { world }) => {
       return reply
         .type(CONTENT_TYPES[extension] ?? "application/octet-stream")
         .header("cache-control", "public, max-age=31536000, immutable")
+        .header("X-Content-Type-Options", "nosniff")
         .send(bytes);
     },
   );

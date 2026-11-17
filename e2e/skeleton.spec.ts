@@ -41,7 +41,7 @@ test("[LANG-01] the website shows its texts in German", async ({ page, context }
   ).toBeVisible();
 });
 
-test("[GAME-12] the game route mounts Phaser with the world, or leads to the start page while no world is set up", async ({
+test("the game route mounts Phaser with the world, or leads to the start page while no world is set up", async ({
   page,
   context,
 }) => {

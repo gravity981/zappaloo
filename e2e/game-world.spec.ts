@@ -38,6 +38,25 @@ async function gameState(page: Page): Promise<State> {
   return state;
 }
 
+/**
+ * Taps an object once the camera has settled: the view is read twice, a moment apart, and must be the same. The
+ * canvas is sized after it is drawn, so a tap made earlier would aim at a view that is still moving.
+ */
+async function tapSettledObject(page: Page, object: { x: number; y: number }): Promise<void> {
+  await expect
+    .poll(
+      async () => {
+        const first = JSON.stringify((await gameState(page)).view);
+        await page.waitForTimeout(250);
+        return first === JSON.stringify((await gameState(page)).view);
+      },
+      { timeout: 20_000 },
+    )
+    .toBe(true);
+  const target = await pagePoint(page, object);
+  await page.mouse.click(target.x, target.y);
+}
+
 /** The page position of a point of the map, from the camera view and the canvas box. */
 async function pagePoint(
   page: Page,
@@ -138,13 +157,8 @@ test("[GAME-06][GAME-08][GAME-11][GAME-15][GAME-16] a tap on an object walks to 
 
   // The tap walks to the object's approach point; there its page opens over the game (GAME-16, GAME-11).
   const overlay = page.getByRole("dialog", { name: "Programm" });
-  // The target is worked out from the camera at the moment of the tap; on a busy machine the view may still be
-  // settling after the canvas was sized, so the tap is made again with a fresh target until the page opens.
-  await expect(async () => {
-    const target = await pagePoint(page, { x: altar.x, y: altar.y });
-    await page.mouse.click(target.x, target.y);
-    await expect(overlay).toBeVisible({ timeout: 10_000 });
-  }).toPass({ timeout: 40_000 });
+  await tapSettledObject(page, altar);
+  await expect(overlay).toBeVisible({ timeout: 10_000 });
 
   // The game is paused: the avatar stays where it stopped.
   const stopped = await gameState(page);
@@ -180,11 +194,8 @@ test("[GAME-11] Enter on the close button of an object's page closes it, and the
   const altar = objects.find((item) => item.name === "altar");
   if (altar === undefined) throw new Error("the start map has no object altar");
   const overlay = page.getByRole("dialog", { name: "Programm" });
-  await expect(async () => {
-    const target = await pagePoint(page, { x: altar.x, y: altar.y });
-    await page.mouse.click(target.x, target.y);
-    await expect(overlay).toBeVisible({ timeout: 10_000 });
-  }).toPass({ timeout: 40_000 });
+  await tapSettledObject(page, altar);
+  await expect(overlay).toBeVisible({ timeout: 10_000 });
 
   // Enter on the focused close button closes the page; the game must not take the same press as a new activation.
   const close = page.getByRole("button", { name: de.game.overlay.close });

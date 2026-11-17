@@ -29,7 +29,7 @@ import {
   shineGradient,
   visibleEdge,
 } from "./interaction.ts";
-import { playerSpritePosition } from "./player-anchor.ts";
+import { onAvatar, playerSpritePosition } from "./player-anchor.ts";
 import { isTypingTarget } from "./keys.ts";
 import { startsPaused } from "./pause.ts";
 import { tilesetImageKey, type ClickableArea, type ParsedMap, type TileDraw } from "./map-model.ts";
@@ -105,6 +105,8 @@ export class WorldScene extends Phaser.Scene {
   #sparkles = 0;
   #activeSparkles = 0;
   #shines = 0;
+  /** The shine textures that are not finished yet; a shine a map change interrupts is removed at shutdown. */
+  readonly #shineKeys = new Set<string>();
   /** The visible edge of each tile object's picture in map pixels, by object name (GAME-15). */
   #edges = new Map<string, Point[]>();
   #sparkleTimer: Phaser.Time.TimerEvent | undefined;
@@ -133,7 +135,7 @@ export class WorldScene extends Phaser.Scene {
     const world = this.cameras.main.getWorldPoint(pointer.x, pointer.y);
     // A tap on the player's own avatar goes to the host and does not walk (GAME-18).
     const own = this.#host?.onPlayerTap;
-    if (own !== undefined && this.#player?.getBounds().contains(world.x, world.y) === true) {
+    if (own !== undefined && this.#ownAvatarHit(world)) {
       own();
       return;
     }
@@ -190,10 +192,11 @@ export class WorldScene extends Phaser.Scene {
     this.cameras.main.setBackgroundColor(this.#artworkOnly ? "rgba(0,0,0,0)" : "#2d6a4f");
     this.cameras.main.setZoom(this.#artworkOnly ? (this.#zoom ?? 1) : CAMERA_ZOOM);
     this.#drawMap(map);
-    this.#guideGraphics = this.add.graphics().setDepth(1_000_000);
-    this.#occlusionGraphics = this.add.graphics().setDepth(1_000_001);
-    this.#occlusionActorGraphics = this.add.graphics().setDepth(1_000_002);
-    this.#collisionActorGraphics = this.add.graphics().setDepth(1_000_003);
+    // The guides lie above every layer, the foreground ones included (MAP-18).
+    this.#guideGraphics = this.add.graphics().setDepth(2_000_000);
+    this.#occlusionGraphics = this.add.graphics().setDepth(2_000_001);
+    this.#occlusionActorGraphics = this.add.graphics().setDepth(2_000_002);
+    this.#collisionActorGraphics = this.add.graphics().setDepth(2_000_003);
     this.#drawGuides();
     this.#drawOcclusionGuides();
     this.#armed = portalAt(map, this.#position) === undefined;
@@ -247,6 +250,7 @@ export class WorldScene extends Phaser.Scene {
       if (startsPaused(this.registry)) this.setPaused(true);
     });
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
+      this.#removeShines();
       window.removeEventListener("keydown", this.#onKeyDown);
       window.removeEventListener("keyup", this.#onKeyUp);
       this.input.off(Phaser.Input.Events.POINTER_DOWN, this.#onTap);
@@ -467,14 +471,15 @@ export class WorldScene extends Phaser.Scene {
         }
       };
       indexLayers(map.source.layers);
+      // The actor is drawn above the first layer with tile objects; without those, above the first object layer.
+      // Without any object layer, every tile layer is ground (an empty minimum would make them all ground anyway).
+      const visibleObjectLayers = tilemap.objects.filter((layer) => layer.visible);
+      const tileObjectLayers = visibleObjectLayers.filter((layer) =>
+        layer.objects.some((object) => object.visible && object.gid !== undefined),
+      );
+      const actorCandidates = tileObjectLayers.length > 0 ? tileObjectLayers : visibleObjectLayers;
       const actorLayerOrder = Math.min(
-        ...tilemap.objects
-          .filter(
-            (layer) =>
-              layer.visible &&
-              layer.objects.some((object) => object.visible && object.gid !== undefined),
-          )
-          .map((layer) => layerOrder.get(layer.id) ?? Number.POSITIVE_INFINITY),
+        ...actorCandidates.map((layer) => layerOrder.get(layer.id) ?? Number.POSITIVE_INFINITY),
       );
       for (const layer of tilemap.layers) {
         if (!layer.visible || layer.name.split("/").at(-1) === "collision") continue;
@@ -573,7 +578,8 @@ export class WorldScene extends Phaser.Scene {
       if (!(sprite instanceof Phaser.GameObjects.Sprite)) return false;
       this.#objectSprites.set(object.id, sprite);
       const feetY = sprite.y + (1 - sprite.originY) * sprite.displayHeight;
-      sprite.setDepth(feetY + index / 1000);
+      // The tie-break stays below the actor's half-step slot, however many objects the map has.
+      sprite.setDepth(feetY + (index / (objects.length + 1)) * 0.25);
     }
 
     return true;
@@ -1028,6 +1034,7 @@ export class WorldScene extends Phaser.Scene {
     const key = `shine:${String(this.#shines)}`;
     const canvas = this.textures.createCanvas(key, width, height);
     if (canvas === null) return;
+    this.#shineKeys.add(key);
     const context = canvas.getContext();
     const copy = this.add
       .sprite(source.x, source.y, key)
@@ -1057,9 +1064,24 @@ export class WorldScene extends Phaser.Scene {
       },
       onComplete: () => {
         copy.destroy();
+        this.#shineKeys.delete(key);
         this.textures.remove(key);
       },
     });
+  }
+
+  /** Removes the shine textures a map change left behind, when the scene shuts down (GAME-15). */
+  #removeShines(): void {
+    for (const key of this.#shineKeys) {
+      if (this.textures.exists(key)) this.textures.remove(key);
+    }
+    this.#shineKeys.clear();
+  }
+
+  /** Whether a tap is on the player's own avatar, not on the world around it (GAME-18). */
+  #ownAvatarHit(point: Point): boolean {
+    const player = this.#player;
+    return player !== undefined && onAvatar(point, player);
   }
 
   /** Stops the game while a page is open above it, and lets the keys reach the page (GAME-11). */

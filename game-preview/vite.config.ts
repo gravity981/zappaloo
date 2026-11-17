@@ -11,6 +11,7 @@ export default defineConfig(({ command }) => {
   }
   return {
     plugins: [react(), worldPreviewServer()],
-    server: { host: "0.0.0.0", port: 5175, strictPort: true },
+    // Only this machine: the preview reads files from it and starts packages from paths on it.
+    server: { host: "127.0.0.1", port: 5175, strictPort: true },
   };
 });

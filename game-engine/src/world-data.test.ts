@@ -4,7 +4,7 @@ import { prepareWorld } from "./world-data.ts";
 const directions = ["south", "west", "east", "north"] as const;
 
 describe("preparing world input (MAP-10, AVA-02)", () => {
-  it("[MAP-10][AVA-02] prepares maps and resolves all figure textures through the host", () => {
+  it("[MAP-10] prepares maps and resolves all figure textures through the host", () => {
     const summary = {
       version: "import-1",
       name: "Test world",

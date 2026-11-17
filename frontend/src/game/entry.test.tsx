@@ -33,8 +33,16 @@ vi.mock("./GameCanvas.tsx", () => ({
   ),
 }));
 vi.mock("../avatar/AvatarEditor.tsx", () => ({
-  default: ({ continueLabel, onContinue }: { continueLabel: string; onContinue: () => void }) => (
-    <button type="button" onClick={onContinue}>
+  default: ({
+    continueLabel,
+    continueWaiting,
+    onContinue,
+  }: {
+    continueLabel: string;
+    continueWaiting?: boolean;
+    onContinue: () => void;
+  }) => (
+    <button type="button" disabled={continueWaiting === true} onClick={onContinue}>
       {continueLabel}
     </button>
   ),

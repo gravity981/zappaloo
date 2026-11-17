@@ -88,7 +88,8 @@ const SHAPES: Record<string, Shape[]> = {
 /** The properties each type uses (14.2, 14.4); others are reported as unknown (warnings). */
 const PROPERTIES: Record<string, string[]> = {
   spawn: [],
-  portal: ["targetMap", "targetSpawn", "label", "approach"],
+  // The label and the approach of a portal are not used (14.2): a portal with them is a warning, not a refusal.
+  portal: ["targetMap", "targetSpawn"],
   clickable: ["label", "approach", "action", "page", "contentId", "minigameId", "hidden"],
   decoration: [],
   seat: ["table"],

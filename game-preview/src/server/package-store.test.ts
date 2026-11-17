@@ -1,8 +1,31 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { buildTestWorld } from "../../../backend/src/world/build.ts";
 import { PreviewPackageStore } from "./package-store.ts";
 
+afterEach(() => {
+  vi.useRealTimers();
+});
+
 describe("validated preview package storage (MAP-06, MAP-16)", () => {
+  it("[MAP-06] a shown package is kept after the idle time; an unpinned one expires", () => {
+    vi.useFakeTimers({ now: new Date("2026-11-17T10:00:00Z") });
+    const store = new PreviewPackageStore();
+    const shown = store.upload(buildTestWorld());
+    const idle = store.upload(buildTestWorld());
+    if (!shown.ok || !idle.ok) throw new Error("the generated public world must pass validation");
+    store.pin(shown.preview.token);
+    // More than the 30 minutes of idle time later, the next upload clears the expired packages.
+    vi.setSystemTime(new Date("2026-11-17T10:31:00Z"));
+    store.upload(buildTestWorld());
+    expect(store.file(shown.preview.token, "manifest.json")).toBeDefined();
+    expect(store.file(idle.preview.token, "manifest.json")).toBeUndefined();
+    // Once the preview has replaced it, the package expires like any other.
+    store.unpin(shown.preview.token);
+    vi.setSystemTime(new Date("2026-11-17T11:05:00Z"));
+    store.upload(buildTestWorld());
+    expect(store.file(shown.preview.token, "manifest.json")).toBeUndefined();
+  });
+
   it("[MAP-06][MAP-16] stores only validated package files and scopes reads to that package", () => {
     const store = new PreviewPackageStore();
     const upload = store.upload(buildTestWorld());

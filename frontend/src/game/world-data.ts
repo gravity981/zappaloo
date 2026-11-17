@@ -17,17 +17,18 @@ export async function loadWorld(): Promise<LoadedWorld | undefined> {
   const summary = publicWorldSchema.nullable().parse(await fetchJson("/api/world"));
   if (summary === null) return undefined;
   const base = worldBase(summary.version);
-  const maps = new Map<string, unknown>();
-  for (const id of summary.maps) {
-    maps.set(id, await fetchJson(`${base}/maps/${id}.json`));
-  }
-
-  const figureMetadata = new Map<string, unknown>();
-  for (const figure of summary.figures) {
-    if (!figureMetadata.has(figure.metadata)) {
-      figureMetadata.set(figure.metadata, await fetchJson(`${base}/avatar/${figure.metadata}`));
-    }
-  }
+  // The maps and the figures' metadata are independent of each other: they are read in parallel.
+  const maps = new Map<string, unknown>(
+    await Promise.all(
+      summary.maps.map(async (id) => [id, await fetchJson(`${base}/maps/${id}.json`)] as const),
+    ),
+  );
+  const metadataPaths = [...new Set(summary.figures.map((figure) => figure.metadata))];
+  const figureMetadata = new Map<string, unknown>(
+    await Promise.all(
+      metadataPaths.map(async (path) => [path, await fetchJson(`${base}/avatar/${path}`)] as const),
+    ),
+  );
 
   return prepareWorld({
     summary,

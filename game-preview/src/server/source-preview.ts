@@ -173,6 +173,8 @@ export class LocalPackagePreview {
 
         const previousToken = this.#snapshot?.token;
         this.#snapshot = uploaded.preview;
+        // The status advertises the snapshot, so the store keeps it until a newer one replaces it.
+        this.#packages.pin(uploaded.preview.token);
         this.#revision++;
         this.#error = undefined;
         if (previousToken !== undefined) this.#packages.delete(previousToken);

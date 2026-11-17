@@ -37,17 +37,23 @@ export default function GameBar({
           {t("nav.programme")}
         </button>
         {rsvp && (
-          <button
-            type="button"
-            onClick={() => {
-              onOpen("rsvp", t("nav.rsvp"));
-            }}
-          >
-            {t("nav.rsvp")}
+          <>
+            <button
+              type="button"
+              onClick={() => {
+                onOpen("rsvp", t("nav.rsvp"));
+              }}
+            >
+              {t("nav.rsvp")}
+              {/* The dot is for the eye; the status for the screen reader stands outside the button's name. */}
+              {rsvpOpen && <span className="game-badge" aria-hidden="true" />}
+            </button>
             {rsvpOpen && (
-              <span className="game-badge" role="status" aria-label={t("game.bar.rsvpOpen")} />
+              <span role="status" aria-label={t("game.bar.rsvpOpen")} className="visually-hidden">
+                {t("game.bar.rsvpOpen")}
+              </span>
             )}
-          </button>
+          </>
         )}
       </nav>
       <div className="site-head-r">

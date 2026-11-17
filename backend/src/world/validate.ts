@@ -105,12 +105,24 @@ export function checkWorldPackage(archive: Buffer): WorldCheck {
   for (const [path, data] of files) {
     if (path.endsWith(".json")) {
       if (data.length > WORLD_LIMITS.jsonBytes) {
-        findings.push(errorFinding(path, "json_too_large", "larger than 5 MB"));
+        findings.push(
+          errorFinding(
+            path,
+            "json_too_large",
+            `larger than ${megabytes(WORLD_LIMITS.jsonBytes)} MB`,
+          ),
+        );
       }
       continue;
     }
     if (data.length > WORLD_LIMITS.imageBytes) {
-      findings.push(errorFinding(path, "file_too_large", "larger than 8 MB"));
+      findings.push(
+        errorFinding(
+          path,
+          "file_too_large",
+          `larger than ${megabytes(WORLD_LIMITS.imageBytes)} MB`,
+        ),
+      );
     }
     const size = pngSize(data);
     if (size === undefined) {

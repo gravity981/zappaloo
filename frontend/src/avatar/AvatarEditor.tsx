@@ -2,7 +2,7 @@
 // then a figure of that kind. Choosing a kind picks a random figure of it at once; "Zufällig" draws again within
 // the kind. A tab per person: the user and every approved companion. Every choice is stored at once, so "Weiter"
 // can wait until every person has a figure.
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { avatarResponseSchema } from "@zappaloo/shared";
 import type { AvatarResponse } from "@zappaloo/shared";
@@ -16,9 +16,12 @@ import { FigureImage, FigurePreview } from "./FigurePreview.tsx";
 
 export default function AvatarEditor({
   continueLabel,
+  continueWaiting = false,
   onContinue,
 }: {
   continueLabel: string;
+  /** Holds "Weiter" back while something it leads to is not known yet (the RSVP state, GAME-13). */
+  continueWaiting?: boolean;
   onContinue: () => void;
 }) {
   const { t } = useTranslation();
@@ -26,6 +29,10 @@ export default function AvatarEditor({
   const [data, setData] = useState<AvatarResponse>();
   const [art, setArt] = useState<Map<string, FigureArt>>();
   const [failed, setFailed] = useState(false);
+  /** A choice that the server refused or could not store; the editor stays, with the message beside the grid. */
+  const [saveError, setSaveError] = useState(false);
+  /** A choice in flight: no second choice starts until it has been answered. */
+  const saving = useRef(false);
   const [who, setWho] = useState("me");
   /** The kind a person has picked in this session, before or after the figure; else the kind of the figure. */
   const [kinds, setKinds] = useState<Record<string, Kind>>({});
@@ -67,13 +74,20 @@ export default function AvatarEditor({
     currentKind === undefined ? [] : person.figures.filter((f) => f.type === currentKind);
 
   async function choose(figure: string) {
-    const result = await apiRequest("PUT", `/api/avatar/${person?.id ?? "me"}`, {
-      csrfToken,
-      body: { figure },
-    });
-    const parsed = avatarResponseSchema.safeParse(result.body);
-    if (result.ok && parsed.success) setData(parsed.data);
-    else setFailed(true);
+    if (saving.current) return;
+    saving.current = true;
+    setSaveError(false);
+    try {
+      const result = await apiRequest("PUT", `/api/avatar/${person?.id ?? "me"}`, {
+        csrfToken,
+        body: { figure },
+      });
+      const parsed = avatarResponseSchema.safeParse(result.body);
+      if (result.ok && parsed.success) setData(parsed.data);
+      else setSaveError(true);
+    } finally {
+      saving.current = false;
+    }
   }
   function pickKind(kind: Kind) {
     if (!person || kind === currentKind) return;
@@ -148,6 +162,7 @@ export default function AvatarEditor({
           {current !== null && (
             <div className="field">
               <span>{t("avatar.figure")}</span>
+              {saveError && <p role="alert">{t("avatar.saveFailed")}</p>}
               <div className="figure-grid" role="group" aria-label={t("avatar.figure")}>
                 {pool.map((figure) => (
                   <button
@@ -161,7 +176,7 @@ export default function AvatarEditor({
                     }}
                   >
                     <FigureImage url={art.get(figure.id)?.stand} />
-                    <small>{figure.label ?? "–"}</small>
+                    {figure.label !== undefined && <small>{figure.label}</small>}
                   </button>
                 ))}
               </div>
@@ -173,7 +188,12 @@ export default function AvatarEditor({
         </div>
       </div>
       {!everyoneChosen && <p className="hint">{t("avatar.everyone")}</p>}
-      <button type="button" className="btn" disabled={!everyoneChosen} onClick={onContinue}>
+      <button
+        type="button"
+        className="btn"
+        disabled={!everyoneChosen || continueWaiting}
+        onClick={onContinue}
+      >
         {continueLabel}
       </button>
     </div>

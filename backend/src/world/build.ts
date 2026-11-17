@@ -371,7 +371,6 @@ function maps(): Record<string, unknown> {
             tileObject(3, "zum-garten", "portal", { x: 0, y: 192, width: 64, height: 32 }, PORTAL, [
               property("targetMap", "garten"),
               property("targetSpawn", "start"),
-              property("label", "Garten"),
             ]),
             tileObject(4, "altar", "clickable", { x: 96, y: 96, width: 64, height: 32 }, 25, [
               property("label", "Programm"),

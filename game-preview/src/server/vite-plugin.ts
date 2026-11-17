@@ -92,6 +92,15 @@ async function handleRequest(
     return;
   }
   if (pathname === `${API_PREFIX}/local-package/start` && method === "POST") {
+    // A page of another site cannot start a package from this machine: the request must be JSON from this preview.
+    const contentType = request.headers["content-type"] ?? "";
+    if (!/^application\/json(;|$)/i.test(contentType)) {
+      throw new RequestError(415, "Preview request must be application/json");
+    }
+    const origin = request.headers.origin;
+    if (origin !== undefined && origin !== `http://${request.headers.host ?? ""}`) {
+      throw new RequestError(403, "Preview request must come from the preview itself");
+    }
     const body = await readJson(request);
     if (
       typeof body !== "object" ||

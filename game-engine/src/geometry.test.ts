@@ -67,7 +67,7 @@ describe("the isometric geometry (MAP-02, GAME-02)", () => {
     expect(distanceToOutline({ x: 5, y: 5 }, square)).toBe(5);
   });
 
-  it("[GAME-03] a trigger area's centre lies inside it", () => {
+  it("[GAME-16] a trigger area's centre lies inside it", () => {
     expect(polygonCentre(square)).toEqual({ x: 5, y: 5 });
   });
 

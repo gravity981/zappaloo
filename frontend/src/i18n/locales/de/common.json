@@ -727,6 +727,7 @@
     "title": "Wie siehst du aus?",
     "loading": "Die Figuren werden geladen …",
     "loadFailed": "Die Figuren konnten nicht geladen werden.",
+    "saveFailed": "Die Figur konnte nicht gespeichert werden. Wähle bitte eine andere.",
     "noFigures": "In der Erlebniswelt gibt es noch keine Figuren zur Auswahl.",
     "persons": "Personen",
     "done": "gewählt",

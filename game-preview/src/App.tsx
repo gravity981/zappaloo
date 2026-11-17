@@ -37,6 +37,9 @@ interface PendingPreview {
   game?: GameInstance;
 }
 
+/** A load that a newer load replaced; it is dropped without a message. */
+class SupersededLoad extends Error {}
+
 function describeError(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
 }
@@ -78,6 +81,8 @@ export default function App() {
   const [sourceRequestError, setSourceRequestError] = useState<string>();
   const [selectionWarning, setSelectionWarning] = useState<string>();
   const loadedSourceRevision = useRef(0);
+  /** The number of the newest load started; only that load may show its package (overlapping loads, MAP-18). */
+  const loadNumber = useRef(0);
   const loadSnapshotRef = useRef<(snapshot: unknown) => void>(() => undefined);
 
   useEffect(() => {
@@ -105,6 +110,9 @@ export default function App() {
 
   async function loadPreview(load: () => Promise<LoadedPreview>): Promise<void> {
     const pageIsMounted = (): boolean => isMounted.current;
+    loadNumber.current += 1;
+    const number = loadNumber.current;
+    const isLatest = (): boolean => loadNumber.current === number;
     setLoading(true);
     setLoadError(undefined);
     let preview: LoadedPreview | undefined;
@@ -113,7 +121,7 @@ export default function App() {
     try {
       const loadedPreview = await load();
       preview = loadedPreview;
-      if (!pageIsMounted()) {
+      if (!pageIsMounted() || !isLatest()) {
         loadedPreview.releaseAssets();
         await releasePreviewPackage(loadedPreview.token);
         return;
@@ -185,6 +193,7 @@ export default function App() {
       window.clearTimeout(timeout);
       timeout = undefined;
       if (!pageIsMounted()) throw new Error("The preview page was closed while loading");
+      if (!isLatest()) throw new SupersededLoad();
 
       const previousPreview = active.current;
       const previousGame = activeGame.current;
@@ -222,6 +231,8 @@ export default function App() {
       }
     } catch (error) {
       if (timeout !== undefined) window.clearTimeout(timeout);
+      // A load that a newer one replaced shows nothing: the newer load decides what the page shows.
+      const superseded = error instanceof SupersededLoad;
       if (candidate !== undefined) {
         candidate.game?.destroy(true);
         candidate.stage.remove();
@@ -237,9 +248,9 @@ export default function App() {
       }
       const message = describeError(error);
       const findings = error instanceof PreviewLoadError ? error.findings : [];
-      if (isMounted.current) setLoadError({ message, findings });
+      if (isMounted.current && !superseded) setLoadError({ message, findings });
     } finally {
-      if (isMounted.current) setLoading(false);
+      if (isMounted.current && isLatest()) setLoading(false);
     }
   }
 

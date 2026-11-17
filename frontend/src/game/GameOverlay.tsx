@@ -206,7 +206,9 @@ export default function GameOverlay({
 
   return (
     <div className="game-overlay" data-testid="game-overlay" ref={frame}>
-      <span className="game-paused">{t("game.overlay.paused")}</span>
+      <span className="game-paused" aria-hidden="true">
+        {t("game.overlay.paused")}
+      </span>
       <div
         className="game-sheet guest"
         role="dialog"

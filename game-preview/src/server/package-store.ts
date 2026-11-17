@@ -23,6 +23,18 @@ export type PackageUpload =
 /** Keeps only validated package files in memory; no filesystem paths are accepted. */
 export class PreviewPackageStore {
   #packages = new Map<string, StoredPackage>();
+  /** The packages a preview shows: they are kept whatever their age (the status advertises them). */
+  #pinned = new Set<string>();
+
+  /** Keeps a package while it is shown, however long it has been idle. */
+  pin(token: string): void {
+    this.#pinned.add(token);
+  }
+
+  /** Lets a package expire again, once it is no longer shown. */
+  unpin(token: string): void {
+    this.#pinned.delete(token);
+  }
 
   upload(archive: Buffer): PackageUpload {
     this.#expire();
@@ -61,17 +73,21 @@ export class PreviewPackageStore {
   }
 
   delete(token: string): boolean {
+    this.#pinned.delete(token);
     return this.#packages.delete(token);
   }
 
   clear(): void {
     this.#packages.clear();
+    this.#pinned.clear();
   }
 
   #expire(): void {
     const expiresBefore = Date.now() - PACKAGE_TTL_MS;
     for (const [token, stored] of this.#packages) {
-      if (stored.lastUsedAt < expiresBefore) this.#packages.delete(token);
+      if (!this.#pinned.has(token) && stored.lastUsedAt < expiresBefore) {
+        this.#packages.delete(token);
+      }
     }
   }
 }

@@ -32,7 +32,8 @@ function useRsvpOpen(enabled: boolean, reload: unknown): boolean | undefined {
     void apiRequest("GET", "/api/rsvp").then((result) => {
       if (cancelled) return;
       const parsed = rsvpStateSchema.safeParse(result.body);
-      setOpen(result.ok && parsed.success ? isOpen(parsed.data) : undefined);
+      // A failed request is an answer of "no RSVP to do" here: the guest is not held back by it.
+      setOpen(result.ok && parsed.success ? isOpen(parsed.data) : false);
     });
     return () => {
       cancelled = true;
@@ -88,6 +89,8 @@ export default function GamePage() {
         <h1 className="h1">{t("avatar.title")}</h1>
         <AvatarEditor
           continueLabel={t("game.first.continue")}
+          // "Weiter" waits for the RSVP state, so that the RSVP overlay can open right after it (GAME-13).
+          continueWaiting={rsvpEnabled && rsvpOpen === undefined}
           onContinue={() => {
             finishEntry();
             // Right after the avatar step, the RSVP opens in an overlay if it is not answered yet (GAME-13).

@@ -41,7 +41,9 @@ export default function AdminWorldObjects() {
   const { t } = useTranslation();
   const errorText = useErrorText();
   const call = useAdminCall();
-  const { data, failed, reload } = useAdminData(OBJECTS_PATH, worldObjectsSchema);
+  const { data, failed, replace } = useAdminData(OBJECTS_PATH, worldObjectsSchema);
+  /** The object whose action is being saved: its select waits, so a second change does not race the first. */
+  const [saving, setSaving] = useState<string>();
   // The titles of the content pages name them in the select (the mock shows «Seite: Anreise & Parkieren»).
   const content = useAdminData("/api/content", contentResponseSchema).data;
   const [selected, setSelected] = useState<string>();
@@ -96,12 +98,20 @@ export default function AdminWorldObjects() {
     // Picking what the preset says returns to the preset: the assignment is removed.
     const preset = selectValue(clickable.preset);
     const body = { action: selectValue(candidate) === preset ? null : candidate };
-    const result = await call("PUT", `${OBJECTS_PATH}/${map?.id ?? ""}/${clickable.name}`, body);
-    if (result.ok) {
-      setSaved(true);
-      reload();
-    } else {
-      setError(errorText(result.errorCode));
+    setSaving(clickable.name);
+    try {
+      const path = `${OBJECTS_PATH}/${encodeURIComponent(map?.id ?? "")}/${encodeURIComponent(clickable.name)}`;
+      const result = await call("PUT", path, body);
+      const parsed = worldObjectsSchema.safeParse(result.body);
+      if (result.ok && parsed.success) {
+        // The answer is the list as it is now: no second request is needed.
+        setSaved(true);
+        replace(parsed.data);
+      } else {
+        setError(errorText(result.errorCode));
+      }
+    } finally {
+      setSaving(undefined);
     }
   }
 
@@ -149,6 +159,7 @@ export default function AdminWorldObjects() {
                     clickable={clickable}
                     targets={data}
                     actionName={actionName}
+                    busy={saving === clickable.name}
                     onChange={(value) => void assign(clickable, value)}
                   />
                 ))}
@@ -201,11 +212,13 @@ function ClickableRow({
   clickable,
   targets,
   actionName,
+  busy,
   onChange,
 }: {
   clickable: WorldClickable;
   targets: WorldObjects;
   actionName: (action: WorldObjectAction | undefined) => string;
+  busy: boolean;
   onChange: (value: string) => void;
 }) {
   const { t } = useTranslation();
@@ -247,6 +260,7 @@ function ClickableRow({
             name: clickable.label ?? clickable.name,
           })}
           value={value}
+          disabled={busy}
           onChange={(event) => {
             onChange(event.target.value);
           }}
