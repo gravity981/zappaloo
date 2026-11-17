@@ -9,7 +9,14 @@ import {
   type TiledTile,
   type TiledTileset,
 } from "@zappaloo/shared";
-import { rectangleToPolygon, type Point, type TileSize, tileToPixel } from "./geometry.ts";
+import {
+  rectangleToPolygon,
+  type Point,
+  type TileSize,
+  tiledTileObjectToWorld,
+  tiledToWorld,
+  tileToPixel,
+} from "./geometry.ts";
 import type { Obstacles } from "./collision.ts";
 import type { Occluder } from "./draw-order.ts";
 
@@ -24,6 +31,10 @@ export interface TileImage {
   crop: { x: number; y: number; width: number; height: number };
   /** The tileset's tile offset in pixels. */
   offset: Point;
+  /** Whether this is a standalone image from an image-collection tileset. */
+  collection: boolean;
+  /** The Tiled alignment used when this image is a tile object. */
+  objectAlignment: TiledTileset["objectalignment"];
   /** Collision polygons of the tile, in the image's pixels. */
   collision: Point[][];
   /** The occlusion line of the tile, in the image's pixels. */
@@ -56,6 +67,8 @@ export interface ParsedMap {
   columns: number;
   rows: number;
   size: TileSize;
+  /** The validated Tiled map, also used by Phaser's native sheet tile-layer renderer. */
+  source: ReturnType<typeof tiledMapSchema.parse>;
   /** The ground tiles, in layer order. */
   ground: TileDraw[];
   /** The tile objects, drawn in depth order with the figures. */
@@ -97,7 +110,7 @@ function tileValues(data: number[] | string, encoding: "csv" | "base64" | undefi
 const GID_MASK = 0x1fffffff;
 
 /** The file name of a tileset image: `../tilesets/<name>.png` → `tileset:<name>`. */
-function imageKey(path: string): string {
+export function tilesetImageKey(path: string): string {
   const name = path.replace(/^.*\//, "").replace(/\.png$/, "");
   return `tileset:${name}`;
 }
@@ -127,11 +140,13 @@ function tileSources(tilesets: TiledTileset[]): TileSource[] {
           const width = tile.imagewidth ?? set.tilewidth;
           const height = tile.imageheight ?? set.tileheight;
           return {
-            key: imageKey(tile.image),
+            key: tilesetImageKey(tile.image),
             width,
             height,
             crop: { x: 0, y: 0, width, height },
             offset,
+            collection: true,
+            objectAlignment: set.objectalignment ?? "bottom",
             collision: collisionOf(tile),
             occlusion: occlusionOf(tile),
             trigger: triggerOf(tile),
@@ -140,10 +155,18 @@ function tileSources(tilesets: TiledTileset[]): TileSource[] {
       });
       continue;
     }
-    const columns = set.columns ?? 0;
-    const count = set.tilecount ?? columns * Math.floor((set.imageheight ?? 0) / set.tileheight);
     const margin = set.margin ?? 0;
     const spacing = set.spacing ?? 0;
+    const derivedColumns =
+      set.imagewidth === undefined
+        ? 0
+        : Math.floor((set.imagewidth - margin * 2 + spacing) / (set.tilewidth + spacing));
+    const columns = set.columns !== undefined && set.columns > 0 ? set.columns : derivedColumns;
+    const rows =
+      set.imageheight === undefined
+        ? 0
+        : Math.floor((set.imageheight - margin * 2 + spacing) / (set.tileheight + spacing));
+    const count = set.tilecount ?? columns * rows;
     sources.push({
       firstgid: set.firstgid,
       lastgid: set.firstgid + count - 1,
@@ -153,7 +176,7 @@ function tileSources(tilesets: TiledTileset[]): TileSource[] {
         const column = id % columns;
         const row = Math.floor(id / columns);
         return {
-          key: imageKey(set.image),
+          key: tilesetImageKey(set.image),
           width: set.tilewidth,
           height: set.tileheight,
           crop: {
@@ -163,6 +186,8 @@ function tileSources(tilesets: TiledTileset[]): TileSource[] {
             height: set.tileheight,
           },
           offset,
+          collection: false,
+          objectAlignment: set.objectalignment ?? "bottom",
           collision: [],
         };
       },
@@ -250,7 +275,7 @@ export function parseMap(id: string, json: unknown): ParsedMap {
       ground.push({
         image,
         x: top.x + image.offset.x,
-        y: top.y + image.offset.y,
+        y: top.y + size.height - image.height + image.offset.y,
         width: image.width,
         height: image.height,
         depth: -1_000_000 + order * 1000 + row * 0.001 + column * 0.000001,
@@ -264,11 +289,7 @@ export function parseMap(id: string, json: unknown): ParsedMap {
   const borders: Point[][] = [];
   const spawns = new Map<string, Point>();
   const portals: PortalArea[] = [];
-  // Tiled stores the positions of an isometric map's objects scaled by half the tile width on both axes: a
-  // position (x, y) is the tile (x / (w/2), y / (w/2)). The game draws and checks in screen pixels; the projection
-  // of a tile is (tile x − tile y) · w/2, (tile x + tile y) · h/2, as in Phaser's isometric tilemaps.
-  const half = size.width / 2;
-  const toScreen = (x: number, y: number): Point => tileToPixel({ x: x / half, y: y / half }, size);
+  const toScreen = (x: number, y: number): Point => tiledToWorld({ x, y }, size);
   for (const layer of layers) {
     if (layer.type !== "objectgroup") continue;
     for (const object of layer.objects) {
@@ -276,18 +297,20 @@ export function parseMap(id: string, json: unknown): ParsedMap {
       if (object.gid !== undefined) {
         const image = imageOf(object.gid);
         if (image === undefined) continue;
-        // A tile object sits with its bottom-left corner at its anchor; it may be scaled.
-        const anchor = toScreen(object.x, object.y);
+        const anchor = tiledTileObjectToWorld({ x: object.x, y: object.y }, size);
         const width = object.width ?? image.width;
         const height = object.height ?? image.height;
         const scaleX = image.width === 0 ? 1 : width / image.width;
         const scaleY = image.height === 0 ? 1 : height / image.height;
-        // Tile objects take no tile offset (Phaser's isometric object placement, as in the world package's reference).
-        const x = anchor.x;
-        const y = anchor.y - height;
+        const offsetX = image.offset.x * scaleX;
+        const offsetY = image.offset.y * scaleY;
+        const x = Math.round(
+          anchor.x - (image.objectAlignment === "bottom" ? width / 2 : 0) + offsetX,
+        );
+        const y = Math.round(anchor.y - height + offsetY);
         const toPixel = (p: Point): Point => ({ x: x + p.x * scaleX, y: y + p.y * scaleY });
         if (layer.visible !== false) {
-          objects.push({ image, x, y, width, height, depth: anchor.y });
+          objects.push({ image, x, y, width, height, depth: anchor.y + offsetY });
         }
         // A portal is a tile object: its tile's trigger polygon is the trigger area (14.2).
         if (type === "portal" && image.trigger !== undefined) {
@@ -300,7 +323,10 @@ export function parseMap(id: string, json: unknown): ParsedMap {
         }
         for (const shape of image.collision) solids.push(shape.map(toPixel));
         if (image.occlusion !== undefined) {
-          occluders.push({ depth: anchor.y, line: image.occlusion.map(toPixel) });
+          occluders.push({
+            depth: anchor.y + offsetY,
+            line: image.occlusion.map(toPixel),
+          });
         }
         continue;
       }
@@ -321,6 +347,7 @@ export function parseMap(id: string, json: unknown): ParsedMap {
     columns: map.width,
     rows: map.height,
     size,
+    source: map,
     ground,
     objects,
     occluders,

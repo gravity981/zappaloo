@@ -494,19 +494,6 @@ function checkTilesets(
   const ranges: TileRange[] = [];
   for (const tileset of map.tilesets) {
     const name = tileset.name;
-    if (
-      tileset.tileoffset !== undefined &&
-      (tileset.tileoffset.x !== 0 || tileset.tileoffset.y !== 0)
-    ) {
-      findings.push(
-        errorFinding(
-          file,
-          "map_tileset",
-          `tileset ${name} has a non-zero tileoffset (${String(tileset.tileoffset.x)}, ${String(tileset.tileoffset.y)}); only zero is supported`,
-          name,
-        ),
-      );
-    }
     const nextFirstGid = map.tilesets.reduce(
       (next, candidate) =>
         candidate.firstgid > tileset.firstgid ? Math.min(next, candidate.firstgid) : next,
@@ -522,12 +509,12 @@ function checkTilesets(
         }),
     );
     const effectiveAlignment = tileset.objectalignment ?? "bottom";
-    if (hasTileObjects && effectiveAlignment !== "bottomleft") {
+    if (hasTileObjects && effectiveAlignment !== "bottom" && effectiveAlignment !== "bottomleft") {
       findings.push(
         errorFinding(
           file,
           "map_tileset",
-          `tileset ${name} uses objectalignment=${JSON.stringify(effectiveAlignment)}; only bottomleft is currently supported`,
+          `tileset ${name} uses objectalignment=${JSON.stringify(effectiveAlignment)}; only bottom and bottomleft are supported`,
           name,
         ),
       );

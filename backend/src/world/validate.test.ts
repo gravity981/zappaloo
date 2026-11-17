@@ -415,20 +415,25 @@ describe("the maps: format and layers (MAP-02, MAP-06)", () => {
     expectRefused(files, "map_object");
   });
 
-  it.each([
-    ["tile offset", (set: Json) => (set.tileoffset = { x: 1, y: 0 })],
-    ["object alignment", (set: Json) => (set.objectalignment = "center")],
-  ])("[MAP-06][GAME-20] refuses unsupported tileset %s", (_setting, change) => {
-    const files = edit(world(), "maps/kirche.json", (m) => change(tilesetNamed(m, "gebaeude")));
-    expectRefused(files, "map_tileset");
-  });
-
-  it("[MAP-06][GAME-20] refuses the isometric default tile alignment until it is rendered", () => {
+  it("[MAP-06][GAME-20] refuses unsupported tile-object alignment", () => {
     const files = edit(world(), "maps/kirche.json", (m) => {
-      delete tilesetNamed(m, "gebaeude").objectalignment;
+      tilesetNamed(m, "gebaeude").objectalignment = "center";
     });
     expectRefused(files, "map_tileset");
   });
+
+  it.each(["bottom", "bottomleft", undefined])(
+    "[MAP-06][GAME-20] accepts supported objectalignment %s and a non-zero tile offset",
+    (alignment) => {
+      const files = edit(world(), "maps/kirche.json", (m) => {
+        const tileset = tilesetNamed(m, "gebaeude");
+        if (alignment === undefined) delete tileset.objectalignment;
+        else tileset.objectalignment = alignment;
+        tileset.tileoffset = { x: 7.5, y: -3 };
+      });
+      expectAccepted(files);
+    },
+  );
 
   it("[MAP-06][GAME-20] refuses animated tiles", () => {
     const files = edit(world(), "maps/kirche.json", (m) => {

@@ -522,9 +522,10 @@ Requirements: MAP-18; re-verified: MAP-01, MAP-06, MAP-10, MAP-16.
 Exit: saving a local Tiled source refreshes the preview safely, without an application import or a second map parser.
 
 **5e.5 – Correct placement and coordinate transforms.**
-- Establish one documented Tiled-to-world transform and inverse, with explicit map origin and bounds. Apply it consistently to tile layers, tile-object anchors, spawns, shapes, camera limits and pointer/pathfinding coordinates.
+- Establish documented Tiled-to-world transforms and inverses for general map positions and tile-object anchors, with explicit map origin and bounds. Apply them consistently to tile layers, tile objects, spawns, shapes, camera limits and pointer/pathfinding coordinates.
 - the current prototype world package should be loadable if there are no big problems with it
-- Fix tile-layer image anchoring (including oversized collection images), sheet margin/spacing and sparse collection IDs. Honour supported tile-object alignment, default isometric alignment, tile offsets and scaled/fractional dimensions. Use the same placed-image transform for collision, trigger and occlusion guides.
+- Use Phaser 4.2.1's native isometric tile-layer renderer for sheet tiles where parity confirms it; retain the shared engine transform for image collections, non-zero offsets, tile objects and gameplay guides, where the native renderer does not cover the supported subset.
+- Fix tile-layer image anchoring (including oversized collection images), sheet margin/spacing and sparse collection IDs. Honour supported tile-object alignment, default isometric alignment, tile offsets and scaled/fractional dimensions; apply tile-object offsets in scaled image space. Use the same placed-image transform for collision, trigger and occlusion guides.
 - Add Tiled-backed fixtures for non-square maps, sheets and collections, mixed image sizes, offsets, supported alignments, scaling and shared tile/object landmarks. Add independent geometry assertions for guides, spawn positions and pointer inversion; do not calculate expected positions with the implementation under test.
 - Re-run keyboard, tap-to-move, collision and portal tests after coordinate changes. Fix the shared engine, never compensate inside the preview.
 Requirements: GAME-20; re-verified: GAME-01, GAME-02, GAME-03, GAME-09, GAME-10, MAP-02.

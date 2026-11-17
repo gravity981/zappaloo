@@ -13,6 +13,13 @@ export interface TileSize {
   height: number;
 }
 
+export interface Rectangle {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
 /** A position on the tile grid (fractions allowed) to the pixel space of the map. */
 export function tileToPixel(tile: Point, size: TileSize): Point {
   return {
@@ -26,6 +33,40 @@ export function pixelToTile(pixel: Point, size: TileSize): Point {
   const a = pixel.x / (size.width / 2);
   const b = pixel.y / (size.height / 2);
   return { x: (a + b) / 2, y: (b - a) / 2 };
+}
+
+/** Tiled's isometric object coordinates, to the map pixel space used by Phaser. */
+export function tiledToWorld(point: Point, size: TileSize): Point {
+  const halfWidth = size.width / 2;
+  return tileToPixel({ x: point.x / halfWidth, y: point.y / halfWidth }, size);
+}
+
+/** The inverse of `tiledToWorld`. */
+export function worldToTiled(point: Point, size: TileSize): Point {
+  const tile = pixelToTile(point, size);
+  const halfWidth = size.width / 2;
+  return { x: tile.x * halfWidth, y: tile.y * halfWidth };
+}
+
+/** Tiled's tile-object anchor to world pixels, including its half-tile horizontal anchor offset. */
+export function tiledTileObjectToWorld(point: Point, size: TileSize): Point {
+  const projected = tiledToWorld(point, size);
+  return { x: projected.x + size.width / 2, y: projected.y };
+}
+
+/** The inverse of `tiledTileObjectToWorld`. */
+export function worldToTiledTileObject(point: Point, size: TileSize): Point {
+  return worldToTiled({ x: point.x - size.width / 2, y: point.y }, size);
+}
+
+/** The projected bounds of the Tiled raster, relative to the projected tile corner (0, 0). */
+export function mapBounds(columns: number, rows: number, size: TileSize): Rectangle {
+  return {
+    x: -((rows - 1) * size.width) / 2,
+    y: 0,
+    width: ((columns + rows) * size.width) / 2,
+    height: ((columns + rows) * size.height) / 2,
+  };
 }
 
 /** Whether a point lies inside a closed polygon (even-odd rule). */

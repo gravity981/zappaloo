@@ -1,13 +1,15 @@
 import { describe, expect, it } from "vitest";
 import { parseMap } from "./map-model.ts";
-import { tileToPixel } from "./geometry.ts";
-
-/** Where Tiled's object position (x, y) of the 64 × 32 test map lies on screen: tile space scaled by the tile size. */
-const at = (x: number, y: number) =>
-  tileToPixel({ x: x / 32, y: y / 32 }, { width: 64, height: 32 });
 
 /** A 3 × 3 isometric map of 64 × 32 tiles, written the way Tiled exports it. */
-function tiledMap(extra: { layers?: unknown[]; objects?: unknown[]; properties?: unknown[] } = {}) {
+function tiledMap(
+  extra: {
+    layers?: unknown[];
+    objects?: unknown[];
+    properties?: unknown[];
+    tilesets?: Record<string, unknown>[];
+  } = {},
+) {
   return {
     type: "map",
     orientation: "isometric",
@@ -16,7 +18,7 @@ function tiledMap(extra: { layers?: unknown[]; objects?: unknown[]; properties?:
     tilewidth: 64,
     tileheight: 32,
     properties: extra.properties ?? [{ name: "name", type: "string", value: "Kirche" }],
-    tilesets: [
+    tilesets: extra.tilesets ?? [
       {
         firstgid: 1,
         name: "boden",
@@ -66,6 +68,17 @@ function tiledMap(extra: { layers?: unknown[]; objects?: unknown[]; properties?:
                   polyline: [
                     { x: 0, y: 72 },
                     { x: 128, y: 72 },
+                  ],
+                },
+                {
+                  id: 4,
+                  name: "trigger",
+                  x: 3,
+                  y: 4,
+                  polygon: [
+                    { x: 0, y: 0 },
+                    { x: 8, y: 0 },
+                    { x: 8, y: 8 },
                   ],
                 },
               ],
@@ -197,16 +210,15 @@ describe("the map as the game draws it (MAP-02, GAME-19)", () => {
 
   it("[MAP-02] the spawn points, the portals and the border are read from the objects", () => {
     const map = parseMap("kirche", tiledMap());
-    expect(map.spawns.get("start")).toEqual(at(96, 64));
+    expect(map.spawns.get("start")).toEqual({ x: 32, y: 80 });
     expect(map.portals).toHaveLength(1);
     expect(map.portals[0]).toMatchObject({
       name: "zum-garten",
       targetMap: "garten",
       targetSpawn: "start",
     });
-    // The trigger area is the tile's trigger polygon, placed with the portal: its bottom-left is (0, 128).
-    const portal = at(0, 128);
-    const topLeft = { x: portal.x, y: portal.y - 32 };
+    // The default isometric alignment is bottom-center, so the 64-pixel portal image extends 32 pixels left.
+    const topLeft = { x: -128, y: 32 };
     expect(map.portals[0]?.polygon).toEqual([
       topLeft,
       { x: topLeft.x + 20, y: topLeft.y },
@@ -215,13 +227,12 @@ describe("the map as the game draws it (MAP-02, GAME-19)", () => {
     expect(map.obstacles.borders).toHaveLength(1);
   });
 
-  it("[GAME-19] a tile object is drawn with its bottom-left corner at its position, with its occlusion line and collision", () => {
+  it("[GAME-19] a default-aligned tile object shares its image transform with its occlusion line and collision", () => {
     const map = parseMap("kirche", tiledMap());
     // The portal is a tile object too; the decoration is the one at (160, 160).
     expect(map.objects).toHaveLength(2);
-    // The decoration's anchor is its bottom-left corner; the image stands above it.
-    const anchor = at(160, 160);
-    const topLeft = { x: anchor.x, y: anchor.y - 96 };
+    const anchor = { x: 0, y: 160 };
+    const topLeft = { x: -32, y: 64 };
     const object = map.objects.find((item) => item.x === topLeft.x);
     expect(object).toMatchObject({
       x: topLeft.x,
@@ -238,6 +249,90 @@ describe("the map as the game draws it (MAP-02, GAME-19)", () => {
     ]);
     expect(map.obstacles.solids).toHaveLength(1);
     expect(map.obstacles.solids[0]?.[0]).toEqual({ x: topLeft.x + 8, y: topLeft.y + 80 });
+  });
+
+  it("[GAME-20] an oversized collection tile uses its cell's bottom edge", () => {
+    const layers = [
+      {
+        type: "tilelayer",
+        name: "boden",
+        visible: true,
+        width: 3,
+        height: 3,
+        data: [30, 0, 0, 0, 0, 0, 0, 0, 0],
+        encoding: "csv",
+      },
+    ];
+    const map = parseMap("kirche", tiledMap({ layers }));
+    expect(map.ground[0]).toMatchObject({
+      x: 0,
+      y: -64,
+      width: 128,
+      height: 96,
+    });
+  });
+
+  it("[GAME-20] bottom-left tile objects apply offsets and fractional scaling to their guides", () => {
+    const base = tiledMap();
+    const tilesets = base.tilesets.map((set, index) =>
+      index === 1 ? { ...set, objectalignment: "bottomleft", tileoffset: { x: 7, y: -3 } } : set,
+    );
+    const objects = [
+      {
+        id: 20,
+        name: "scaled",
+        type: "portal",
+        gid: 30,
+        x: 160.5,
+        y: 160.25,
+        width: 96,
+        height: 72,
+        rotation: 0,
+        properties: [],
+      },
+    ];
+    const map = parseMap("kirche", tiledMap({ objects, tilesets }));
+    expect(map.objects[0]).toMatchObject({
+      x: 38,
+      y: 86,
+      width: 96,
+      height: 72,
+      depth: 158.125,
+    });
+    expect(map.occluders[0]).toEqual({
+      depth: 158.125,
+      line: [
+        { x: 38, y: 140 },
+        { x: 134, y: 140 },
+      ],
+    });
+    expect(map.portals[0]?.polygon).toEqual([
+      { x: 40.25, y: 89 },
+      { x: 46.25, y: 89 },
+      { x: 46.25, y: 95 },
+    ]);
+    expect(map.obstacles.solids[0]?.[0]).toEqual({ x: 44, y: 146 });
+  });
+
+  it("[GAME-20] sheet crops derive columns from dimensions and include margin and spacing", () => {
+    const base = tiledMap();
+    const tilesets = base.tilesets.map((set, index) =>
+      index === 0 ? { ...set, margin: 2, spacing: 3, imagewidth: 271, imageheight: 143 } : set,
+    );
+    const layers = [
+      {
+        type: "tilelayer",
+        name: "boden",
+        visible: true,
+        width: 3,
+        height: 3,
+        data: [1, 2, 0, 0, 0, 0, 0, 0, 0],
+        encoding: "csv",
+      },
+    ];
+    const map = parseMap("kirche", tiledMap({ layers, tilesets }));
+    expect(map.ground[0]?.image.crop).toEqual({ x: 2, y: 2, width: 64, height: 32 });
+    expect(map.ground[1]?.image.crop).toEqual({ x: 69, y: 2, width: 64, height: 32 });
   });
 
   it("[MAP-02] the tiles of a Base64 layer are read like the array of a CSV layer", () => {

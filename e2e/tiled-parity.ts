@@ -31,6 +31,23 @@ function fixtureTileset(): Buffer {
   });
 }
 
+function fixtureCollectionImage(
+  width: number,
+  height: number,
+  color: [number, number, number],
+  mark: [number, number, number],
+): Buffer {
+  return encodePngPixels(width, height, (x, y) => {
+    const localX = x - width / 2;
+    const localY = y - height;
+    const inside =
+      Math.abs(localX) / (width / 2) + Math.abs(localY) / height <= 1 &&
+      ((Math.floor(x / 8) + Math.floor(y / 8)) % 2 === 0 || y === height - 1);
+    const selected = x === Math.floor(width / 2) && y === height - 2 ? mark : color;
+    return [...selected, inside ? 255 : 0];
+  });
+}
+
 function fixtureMap() {
   const ground = [1, 2, 1, 2, 3, 4, 3, 4, 1, 3, 2, 4];
   const spawn = {
@@ -105,7 +122,7 @@ function fixtureMap() {
         id: 3,
         type: "objectgroup",
         name: "Gameplay",
-        visible: true,
+        visible: false,
         opacity: 1,
         draworder: "topdown",
         objects: [spawn, collision],
@@ -139,6 +156,174 @@ function fixtureMap() {
   };
 }
 
+function fixturePlacementMap() {
+  const width = 5;
+  const height = 3;
+  return {
+    type: "map",
+    orientation: "isometric",
+    renderorder: "right-down",
+    width,
+    height,
+    tilewidth: TILE_WIDTH,
+    tileheight: TILE_HEIGHT,
+    infinite: false,
+    layers: [
+      {
+        id: 1,
+        type: "tilelayer",
+        name: "Ground",
+        width,
+        height,
+        x: 0,
+        y: 0,
+        offsetx: 0,
+        offsety: 0,
+        opacity: 1,
+        visible: true,
+        data: [1, 2, 1, 2, 3, 3, 4, 3, 4, 1, 1, 3, 2, 4, 2],
+        encoding: "csv",
+      },
+      {
+        id: 2,
+        type: "tilelayer",
+        name: "Collection ground",
+        width,
+        height,
+        x: 0,
+        y: 0,
+        offsetx: 0,
+        offsety: 0,
+        opacity: 1,
+        visible: true,
+        data: [0, 5, 0, 0, 0, 0, 0, 8, 0, 0, 0, 0, 0, 9, 0],
+        encoding: "csv",
+      },
+      {
+        id: 3,
+        type: "objectgroup",
+        name: "Artifacts",
+        visible: true,
+        opacity: 1,
+        draworder: "topdown",
+        objects: [
+          {
+            id: 3,
+            name: "scaled-bottom-left",
+            type: "decoration",
+            x: 64,
+            y: 96,
+            width: 88,
+            height: 56,
+            rotation: 0,
+            visible: true,
+            gid: 5,
+          },
+          {
+            id: 4,
+            name: "scaled-bottom",
+            type: "decoration",
+            x: 96,
+            y: 96,
+            width: 128,
+            height: 80,
+            rotation: 0,
+            visible: true,
+            gid: 9,
+          },
+        ],
+      },
+      {
+        id: 4,
+        type: "objectgroup",
+        name: "Gameplay",
+        visible: false,
+        opacity: 1,
+        draworder: "topdown",
+        objects: [
+          {
+            id: 5,
+            name: "start",
+            type: "spawn",
+            x: 32,
+            y: 32,
+            point: true,
+            rotation: 0,
+            visible: true,
+          },
+        ],
+      },
+      {
+        id: 5,
+        type: "tilelayer",
+        name: "collision",
+        width,
+        height,
+        visible: true,
+        opacity: 1,
+        data: Array<number>(width * height).fill(0),
+        encoding: "csv",
+      },
+    ],
+    tilesets: [
+      {
+        firstgid: 1,
+        name: "parity",
+        tilewidth: TILE_WIDTH,
+        tileheight: TILE_HEIGHT,
+        tilecount: 4,
+        columns: 2,
+        objectalignment: "bottomleft",
+        image: "../tilesets/parity.png",
+        imagewidth: TILE_WIDTH * 2,
+        imageheight: TILE_HEIGHT * 2,
+      },
+      {
+        firstgid: 5,
+        name: "collection-bottomleft",
+        tilewidth: TILE_WIDTH,
+        tileheight: TILE_HEIGHT,
+        tilecount: 4,
+        columns: 0,
+        objectalignment: "bottomleft",
+        tileoffset: { x: 5, y: -4 },
+        tiles: [
+          {
+            id: 0,
+            image: "../tilesets/large.png",
+            imagewidth: 88,
+            imageheight: 56,
+          },
+          {
+            id: 3,
+            image: "../tilesets/small.png",
+            imagewidth: 40,
+            imageheight: 24,
+          },
+        ],
+      },
+      {
+        firstgid: 9,
+        name: "collection-bottom",
+        tilewidth: TILE_WIDTH,
+        tileheight: TILE_HEIGHT,
+        tilecount: 1,
+        columns: 0,
+        objectalignment: "bottom",
+        tileoffset: { x: -3, y: 2 },
+        tiles: [
+          {
+            id: 0,
+            image: "../tilesets/medium.png",
+            imagewidth: 64,
+            imageheight: 40,
+          },
+        ],
+      },
+    ],
+  };
+}
+
 export interface TiledParityFixture {
   archive: Buffer;
   reference: string;
@@ -156,7 +341,11 @@ function pngSize(path: string): { width: number; height: number } {
 }
 
 /** Builds independent public Tiled JSON/PNG fixtures and renders their references with the pinned CLI. */
-export function createTiledParityFixture(directory: string): TiledParityFixture {
+function createTiledFixture(
+  directory: string,
+  map: ReturnType<typeof fixtureMap> | ReturnType<typeof fixturePlacementMap>,
+  images: Record<string, Buffer>,
+): TiledParityFixture {
   const root = join(directory, "world");
   const mapsDir = join(root, "maps");
   const tilesetsDir = join(root, "tilesets");
@@ -167,8 +356,10 @@ export function createTiledParityFixture(directory: string): TiledParityFixture 
   const exportedMap = join(mapsDir, "kirche.json");
   const reference = join(directory, "tiled-reference.png");
   const reference2x = join(directory, "tiled-reference-2x.png");
-  writeFileSync(mapPath, JSON.stringify(fixtureMap()));
-  writeFileSync(join(tilesetsDir, "parity.png"), fixtureTileset());
+  writeFileSync(mapPath, JSON.stringify(map));
+  for (const [image, contents] of Object.entries(images)) {
+    writeFileSync(join(tilesetsDir, image), contents);
+  }
 
   execFileSync(
     TILED_CLI,
@@ -192,7 +383,9 @@ export function createTiledParityFixture(directory: string): TiledParityFixture 
     files[path] = content;
   }
   files["maps/kirche.json"] = readFileSync(exportedMap);
-  files["tilesets/parity.png"] = readFileSync(join(tilesetsDir, "parity.png"));
+  for (const image of Object.keys(images)) {
+    files[`tilesets/${image}`] = readFileSync(join(tilesetsDir, image));
+  }
   return {
     archive: buildArchive(files),
     reference,
@@ -200,6 +393,19 @@ export function createTiledParityFixture(directory: string): TiledParityFixture 
     referenceSize: pngSize(reference),
     reference2xSize: pngSize(reference2x),
   };
+}
+
+export function createTiledParityFixture(directory: string): TiledParityFixture {
+  return createTiledFixture(directory, fixtureMap(), { "parity.png": fixtureTileset() });
+}
+
+export function createTiledPlacementParityFixture(directory: string): TiledParityFixture {
+  return createTiledFixture(directory, fixturePlacementMap(), {
+    "parity.png": fixtureTileset(),
+    "large.png": fixtureCollectionImage(88, 56, [0x64, 0x9a, 0xc8], [0xfa, 0xd1, 0x6a]),
+    "small.png": fixtureCollectionImage(40, 24, [0xb2, 0x69, 0x8d], [0xff, 0xe0, 0x75]),
+    "medium.png": fixtureCollectionImage(64, 40, [0x67, 0xa2, 0x70], [0xf4, 0xaa, 0x5c]),
+  });
 }
 
 export interface ParityMeasurement {

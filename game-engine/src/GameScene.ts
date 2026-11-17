@@ -6,11 +6,11 @@ import Phaser from "phaser";
 import { walkable, cellOf, cellCentre } from "./collision.ts";
 import { walkFrameIndex } from "./figures.ts";
 import { figureDepth } from "./draw-order.ts";
-import { type Point, polygonCentre, tileToPixel, type TileSize } from "./geometry.ts";
+import { mapBounds, type Point, polygonCentre, tileToPixel, type TileSize } from "./geometry.ts";
 import { findPath, type Grid } from "./pathfinding.ts";
 import { directionOf, keyDirection, stepPosition, type Direction } from "./movement.ts";
 import { portalAt, spawnPosition } from "./entry.ts";
-import type { ParsedMap, TileDraw } from "./map-model.ts";
+import { tilesetImageKey, type ParsedMap, type TileDraw } from "./map-model.ts";
 import type { FigureData, LoadedWorld } from "./world-data.ts";
 import {
   ENGINE_CONFIG_REGISTRY_KEY,
@@ -136,18 +136,10 @@ export class WorldScene extends Phaser.Scene {
       this.#player = sprite;
       this.cameras.main.startFollow(sprite, true);
     }
-    const size = map.size;
-    this.cameras.main.setBounds(
-      -map.rows * (size.width / 2),
-      0,
-      (map.columns + map.rows) * (size.width / 2),
-      (map.columns + map.rows) * (size.height / 2),
-    );
+    const bounds = mapBounds(map.columns, map.rows, map.size);
+    this.cameras.main.setBounds(bounds.x, bounds.y, bounds.width, bounds.height);
     if (this.#artworkOnly) {
-      this.cameras.main.centerOn(
-        ((map.columns - map.rows) * size.width) / 4,
-        ((map.columns + map.rows) * size.height) / 4,
-      );
+      this.cameras.main.centerOn(bounds.x + bounds.width / 2, bounds.y + bounds.height / 2);
     }
     this.#bindInput();
     if (!this.#artworkOnly) this.#host?.rememberMap?.(map.id);
@@ -258,8 +250,55 @@ export class WorldScene extends Phaser.Scene {
 
   /** Draws the ground, then the objects in depth order. The player is drawn among them. */
   #drawMap(map: ParsedMap): void {
-    for (const draw of map.ground) this.#drawTile(draw);
+    if (!this.#drawSheetLayers(map)) {
+      for (const draw of map.ground) this.#drawTile(draw);
+    }
     for (const draw of map.objects) this.#drawTile(draw);
+  }
+
+  /** Use Phaser's native isometric renderer where the map uses only unoffset sheet tiles. */
+  #drawSheetLayers(map: ParsedMap): boolean {
+    if (
+      map.ground.length === 0 ||
+      map.ground.some(
+        ({ image }) => image.collection || image.offset.x !== 0 || image.offset.y !== 0,
+      )
+    ) {
+      return false;
+    }
+
+    const cacheKey = `world-map:${map.id}`;
+    this.cache.tilemap.remove(cacheKey);
+    this.cache.tilemap.add(cacheKey, {
+      format: Phaser.Tilemaps.Formats.TILED_JSON,
+      data: map.source,
+    });
+
+    try {
+      const tilemap = this.make.tilemap({ key: cacheKey });
+      const imageKeys = new Set(map.ground.map((draw) => draw.image.key));
+      const tilesets: Phaser.Tilemaps.Tileset[] = [];
+      for (const set of map.source.tilesets) {
+        if (set.image === undefined) continue;
+        const key = tilesetImageKey(set.image);
+        if (!imageKeys.has(key)) continue;
+        const tileset = tilemap.addTilesetImage(set.name, key);
+        if (tileset === null) throw new Error(`Could not load tileset ${set.name}`);
+        tilesets.push(tileset);
+      }
+
+      let order = 0;
+      for (const layer of tilemap.layers) {
+        if (!layer.visible || layer.name.split("/").at(-1) === "collision") continue;
+        const displayLayer = tilemap.createLayer(layer.name, tilesets, 0, 0);
+        order += 1;
+        displayLayer.setDepth(-1_000_000 + order * 1000);
+      }
+    } finally {
+      this.cache.tilemap.remove(cacheKey);
+    }
+
+    return true;
   }
 
   #drawGuides(): void {

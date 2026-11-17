@@ -1,10 +1,15 @@
 import { describe, expect, it } from "vitest";
 import {
   distanceToOutline,
+  mapBounds,
   pixelToTile,
   pointInPolygon,
   polygonCentre,
+  tiledToWorld,
   tileToPixel,
+  tiledTileObjectToWorld,
+  worldToTiled,
+  worldToTiledTileObject,
 } from "./geometry.ts";
 
 const size = { width: 64, height: 32 };
@@ -27,6 +32,32 @@ describe("the isometric geometry (MAP-02, GAME-02)", () => {
     const back = pixelToTile(tileToPixel(tile, size), size);
     expect(back.x).toBeCloseTo(tile.x);
     expect(back.y).toBeCloseTo(tile.y);
+  });
+
+  it("[GAME-20] Tiled object positions and world pixels convert both ways", () => {
+    expect(tiledToWorld({ x: 64, y: 32 }, size)).toEqual({ x: 32, y: 48 });
+    expect(worldToTiled({ x: 32, y: 48 }, size)).toEqual({ x: 64, y: 32 });
+    const tiled = { x: 73.5, y: 41.25 };
+    const world = tiledToWorld(tiled, { width: 80, height: 40 });
+    expect(worldToTiled(world, { width: 80, height: 40 })).toEqual(tiled);
+  });
+
+  it("[GAME-20] Tiled tile-object anchors match the rasterizer and invert", () => {
+    expect(tiledTileObjectToWorld({ x: 64, y: 32 }, size)).toEqual({ x: 64, y: 48 });
+    expect(worldToTiledTileObject({ x: 64, y: 48 }, size)).toEqual({ x: 64, y: 32 });
+    expect(tiledTileObjectToWorld({ x: 64, y: 96 }, size)).toEqual({ x: 0, y: 80 });
+    const tiled = { x: 73.5, y: 101.25 };
+    const world = tiledTileObjectToWorld(tiled, { width: 80, height: 40 });
+    expect(worldToTiledTileObject(world, { width: 80, height: 40 })).toEqual(tiled);
+  });
+
+  it("[GAME-20] map bounds include the projected overhang of the outer isometric cells", () => {
+    expect(mapBounds(4, 3, size)).toEqual({
+      x: -64,
+      y: 0,
+      width: 224,
+      height: 112,
+    });
   });
 
   it("[GAME-02] a point is inside a polygon, and its distance to the outline is measured", () => {

@@ -2,6 +2,10 @@ import { defineConfig, devices } from "@playwright/test";
 
 const isCI = Boolean(process.env.CI);
 const PORT = 4173;
+const PREVIEW_PORT = Number(process.env.ZAPPALOO_GAME_PREVIEW_PORT ?? 5175);
+if (!Number.isInteger(PREVIEW_PORT) || PREVIEW_PORT < 1 || PREVIEW_PORT > 65535) {
+  throw new Error("ZAPPALOO_GAME_PREVIEW_PORT must be a valid TCP port.");
+}
 /** A second installation that nobody has set up, for the setup test (CFG-02). */
 const FRESH_PORT = 4174;
 const sharedEnv = {
@@ -51,8 +55,8 @@ export default defineConfig({
       env: { ...sharedEnv, PORT: String(FRESH_PORT), DATA_DIR: ".e2e-data-fresh" },
     },
     {
-      command: "npm run dev:game-preview",
-      url: "http://localhost:5175/__game-preview/api/health",
+      command: `./node_modules/.bin/vite game-preview --config game-preview/vite.config.ts --port ${PREVIEW_PORT}`,
+      url: `http://localhost:${PREVIEW_PORT}/__game-preview/api/health`,
       reuseExistingServer: false,
       timeout: 30_000,
       env: { APP_ENV: "dev" },
