@@ -71,6 +71,16 @@ function tiledMap(
                     { x: 8, y: 8 },
                   ],
                 },
+                {
+                  id: 5,
+                  name: "occlusion",
+                  x: 4,
+                  y: 2,
+                  polyline: [
+                    { x: 20, y: 12 },
+                    { x: 108, y: 12 },
+                  ],
+                },
               ],
             },
           },
@@ -233,6 +243,15 @@ describe("the map as the game draws it (MAP-02, GAME-19)", () => {
     });
     expect(map.obstacles.solids).toHaveLength(1);
     expect(map.obstacles.solids[0]?.[0]).toEqual({ x: topLeft.x + 8, y: topLeft.y + 80 });
+    expect(map.occluders).toEqual([
+      {
+        depth: anchor.y,
+        line: [
+          { x: topLeft.x + 24, y: topLeft.y + 14 },
+          { x: topLeft.x + 112, y: topLeft.y + 14 },
+        ],
+      },
+    ]);
   });
 
   it("[GAME-20] an oversized collection tile uses its cell's bottom edge", () => {

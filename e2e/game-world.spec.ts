@@ -268,9 +268,9 @@ test("[GAME-19][GAME-20][MAP-02] Props sort around the actor and Foreground cove
   await page.evaluate(() => {
     const game = window.__zappaloo?.game;
     if (game === undefined) throw new Error("the Phaser test hook is not available");
-    game.selectSpawn("kirche", "between-props");
+    game.selectSpawn("kirche", "behind-overlap");
   });
-  await expect.poll(async () => (await readState(page))?.y).toBe(112);
+  await expect.poll(async () => (await readState(page))?.y).toBe(96);
   const stack = await page.evaluate(() => {
     const game = window.__zappaloo?.game;
     if (game === undefined) throw new Error("the Phaser test hook is not available");
@@ -279,9 +279,25 @@ test("[GAME-19][GAME-20][MAP-02] Props sort around the actor and Foreground cove
   const sprites = stack.filter(({ type }) => type === "Sprite");
   const spriteDepths = sprites.map(({ depth }) => depth);
   expect(sprites).toHaveLength(4);
-  expect(spriteDepths).toContain(112);
+  expect(spriteDepths).toContain(96.5);
   expect(spriteDepths.some((depth) => depth > 95 && depth < 97)).toBe(true);
   expect(spriteDepths.some((depth) => depth > 127 && depth < 129)).toBe(true);
+
+  await page.evaluate(() => {
+    const game = window.__zappaloo?.game;
+    if (game === undefined) throw new Error("the Phaser test hook is not available");
+    game.selectSpawn("kirche", "in-front-overlap");
+  });
+  await expect.poll(async () => (await readState(page))?.y).toBe(120);
+  const inFrontDepths = await page.evaluate(() => {
+    const game = window.__zappaloo?.game;
+    if (game === undefined) throw new Error("the Phaser test hook is not available");
+    return game
+      .renderStack()
+      .filter(({ type }) => type === "Sprite")
+      .map(({ depth }) => depth);
+  });
+  expect(inFrontDepths).toContain(128.5);
 
   const tileLayerDepths = stack
     .filter(({ type }) => type === "TilemapLayer")

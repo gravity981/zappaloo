@@ -264,6 +264,26 @@ function fixturePlacementMap(withLayeringSpawn = false): TiledMap {
                   rotation: 0,
                   visible: true,
                 },
+                {
+                  id: 8,
+                  name: "behind-overlap",
+                  type: "spawn",
+                  x: 112,
+                  y: 80,
+                  point: true,
+                  rotation: 0,
+                  visible: true,
+                },
+                {
+                  id: 9,
+                  name: "in-front-overlap",
+                  type: "spawn",
+                  x: 136,
+                  y: 104,
+                  point: true,
+                  rotation: 0,
+                  visible: true,
+                },
               ]
             : []),
         ],
@@ -350,6 +370,16 @@ function fixturePlacementMap(withLayeringSpawn = false): TiledMap {
               type: "objectgroup",
               name: "",
               objects: [
+                {
+                  id: 3,
+                  name: "occlusion",
+                  x: 0,
+                  y: 0,
+                  polyline: [
+                    { x: 0, y: 24 },
+                    { x: 64, y: 24 },
+                  ],
+                },
                 {
                   id: 1,
                   name: "collision",

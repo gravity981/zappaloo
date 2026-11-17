@@ -26,16 +26,18 @@ generated package-format documentation is derived from
 - Preserve Tiled layer order. Put visible ground tile layers before one
   top-down `Props` object layer containing static tile objects; put
   foreground/canopy tile layers after it. Phaser renders these layers and
-  objects natively. Actors sort with the props by the y-coordinate of their
-  feet; foreground tile layers cover actors without image-local masks.
+  objects natively. Props sort by their bottom edge and actors by their feet.
+  A tile-image `occlusion` polyline lets an actor pass behind or in front of
+  that intact prop at the authored edge; foreground tile layers cover both.
 - Tile objects use their image's natural size and bottom alignment. Tileset
   offsets must be zero. The validator rejects scaled tile objects, other
   alignments, and non-zero offsets instead of relying on renderer-specific
   transform fallbacks.
-- Image-collection tile guides named `collision` and `trigger` remain gameplay
-  data. `collision` polygons or rectangles block movement; a portal's
-  `trigger` polygon or rectangle defines its activation area. Image-local
-  `occlusion` guides are unsupported.
+- Image-collection tile guides named `collision`, `trigger` and `occlusion`
+  remain in the world package. `collision` polygons or rectangles block
+  movement; a portal's `trigger` polygon or rectangle defines its activation
+  area; an `occlusion` polyline defines the prop's front edge for actor depth.
+  No artwork splitting or pixel masks are used.
 - The player sprite uses its bottom-centre as the logical foot anchor. The
   circular movement footprint is centered one radius above that anchor, so
   it does not extend below the feet. The same point is used for actor depth

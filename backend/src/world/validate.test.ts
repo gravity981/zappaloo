@@ -933,7 +933,7 @@ describe("the objects (MAP-02, MAP-06)", () => {
   });
 });
 
-describe("tile guides: collision and trigger (MAP-02)", () => {
+describe("tile guides: collision, trigger and occlusion (MAP-02, GAME-19)", () => {
   it("[MAP-02][MAP-06] refuses a guide of a tile that is not a collision or trigger shape", () => {
     const files = edit(world(), "maps/kirche.json", (m) => {
       const collection = tilesetNamed(m, "gebaeude");
@@ -957,7 +957,7 @@ describe("tile guides: collision and trigger (MAP-02)", () => {
     expectRefused(files, "map_guide");
   });
 
-  it("[MAP-02][MAP-06] refuses image-local occlusion guides", () => {
+  it("[MAP-02][GAME-19] accepts image-local occlusion polylines", () => {
     const files = edit(world(), "maps/kirche.json", (m) => {
       const collection = tilesetNamed(m, "gebaeude");
       const tile = tileAt(collection, 0);
@@ -974,6 +974,47 @@ describe("tile guides: collision and trigger (MAP-02)", () => {
               { x: 0, y: 0 },
               { x: 5, y: 5 },
             ],
+          },
+        ],
+      };
+    });
+    expectAccepted(files);
+  });
+
+  it("[MAP-02][MAP-06][GAME-19] refuses multiple occlusion lines on one tile", () => {
+    const files = edit(world(), "maps/kirche.json", (m) => {
+      const collection = tilesetNamed(m, "gebaeude");
+      tileAt(collection, 0).objectgroup = {
+        type: "objectgroup",
+        name: "",
+        objects: [3, 4].map((id) => ({
+          id,
+          name: "occlusion",
+          x: 0,
+          y: 0,
+          polyline: [
+            { x: 0, y: 0 },
+            { x: 5, y: 5 },
+          ],
+        })),
+      };
+    });
+    expectRefused(files, "map_guide");
+  });
+
+  it("[MAP-02][MAP-06][GAME-19] refuses occlusion guides with fewer than two points", () => {
+    const files = edit(world(), "maps/kirche.json", (m) => {
+      const collection = tilesetNamed(m, "gebaeude");
+      tileAt(collection, 0).objectgroup = {
+        type: "objectgroup",
+        name: "",
+        objects: [
+          {
+            id: 3,
+            name: "occlusion",
+            x: 0,
+            y: 0,
+            polyline: [{ x: 0, y: 0 }],
           },
         ],
       };

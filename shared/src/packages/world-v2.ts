@@ -364,7 +364,7 @@ export const worldV2: PackageDefinition<WorldFindingCode> = {
       scope: "validator",
       severity: "error",
       requirements: ["MAP-02"],
-      text: "The guides in the object group of an image-collection tile are a polygon or rectangle named `collision` or `trigger` (the trigger area of a portal, at most one per tile). Image-local occlusion guides are not supported; use a foreground tile layer for canopy and other artwork that covers figures.",
+      text: "The guides in the object group of an image-collection tile are polygons or rectangles named `collision` or `trigger` (the trigger area of a portal, at most one per tile), or one polyline named `occlusion` with at least two points. The occlusion polyline places a figure behind or in front of the intact tile object at its authored edge; use a foreground tile layer for canopy and other artwork that always covers figures.",
       codes: ["map_guide"],
     },
     {

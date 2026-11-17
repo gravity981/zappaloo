@@ -5,6 +5,7 @@
 import Phaser from "phaser";
 import { walkable, cellOf, cellCentre } from "./collision.ts";
 import { walkFrameIndex } from "./figures.ts";
+import { figureDepth } from "./draw-order.ts";
 import { mapBounds, type Point, polygonCentre, tileToPixel, type TileSize } from "./geometry.ts";
 import { findPath, type Grid } from "./pathfinding.ts";
 import { directionOf, keyDirection, stepPosition, type Direction } from "./movement.ts";
@@ -133,7 +134,7 @@ export class WorldScene extends Phaser.Scene {
         this.#figure.standing.south,
       );
       sprite.setOrigin(0.5, 1);
-      sprite.setDepth(this.#position.y);
+      sprite.setDepth(figureDepth(this.#position, map.occluders));
       this.#player = sprite;
       this.cameras.main.startFollow(sprite, true);
     }
@@ -246,7 +247,7 @@ export class WorldScene extends Phaser.Scene {
     if (texture !== undefined && player.texture.key !== texture) player.setTexture(texture);
     // Whole pixels: a fractional position is snapped differently from frame to frame, which made things shimmer.
     player.setPosition(Math.round(this.#position.x), Math.round(this.#position.y));
-    player.setDepth(this.#position.y);
+    player.setDepth(figureDepth(this.#position, map.occluders));
 
     const portal = portalAt(map, this.#position);
     if (!this.#armed) {

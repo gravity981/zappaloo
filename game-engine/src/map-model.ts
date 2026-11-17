@@ -17,6 +17,7 @@ import {
   tileToPixel,
 } from "./geometry.ts";
 import type { Obstacles } from "./collision.ts";
+import type { Occluder } from "./draw-order.ts";
 
 /** A picture of a tile: the texture it comes from, the part of it to draw, and its guides in its own pixels. */
 export interface TileImage {
@@ -33,6 +34,8 @@ export interface TileImage {
   collision: Point[][];
   /** The trigger area of a portal tile (its polygon named `trigger`), in the image's pixels. */
   trigger?: Point[];
+  /** The occlusion polyline of the tile, in the image's pixels. */
+  occlusion?: Point[];
 }
 
 /** One drawn tile: its image and where it goes, the top-left corner in the map's pixel space. */
@@ -65,6 +68,8 @@ export interface ParsedMap {
   ground: TileDraw[];
   /** The tile objects, drawn in depth order with the figures. */
   objects: TileDraw[];
+  /** The occlusion lines of visible tile objects, translated to world pixel coordinates. */
+  occluders: Occluder[];
   obstacles: Obstacles;
   spawns: Map<string, Point>;
   portals: PortalArea[];
@@ -136,6 +141,7 @@ function tileSources(tilesets: TiledTileset[]): TileSource[] {
             collection: true,
             collision: collisionOf(tile),
             trigger: triggerOf(tile),
+            occlusion: occlusionOf(tile),
           };
         },
       });
@@ -204,6 +210,16 @@ function triggerOf(tile: TiledTile): Point[] | undefined {
   return rectangleToPolygon(guide.x, guide.y, guide.width, guide.height);
 }
 
+/** The occlusion polyline of a collection tile, in its image's pixel coordinates. */
+function occlusionOf(tile: TiledTile): Point[] | undefined {
+  const guide = tile.objectgroup?.objects.find((item) => item.name === "occlusion");
+  if (guide?.polyline === undefined) return undefined;
+  return guide.polyline.map((point) => ({
+    x: guide.x + point.x,
+    y: guide.y + point.y,
+  }));
+}
+
 function propertyOf(object: TiledObject, name: string): unknown {
   return object.properties?.find((property) => property.name === name)?.value;
 }
@@ -260,6 +276,7 @@ export function parseMap(id: string, json: unknown): ParsedMap {
   }
 
   const objects: TileDraw[] = [];
+  const occluders: Occluder[] = [];
   const solids: Point[][] = [];
   const borders: Point[][] = [];
   const spawns = new Map<string, Point>();
@@ -285,6 +302,12 @@ export function parseMap(id: string, json: unknown): ParsedMap {
             height: image.height,
             depth: anchor.y,
           });
+          if (image.occlusion !== undefined) {
+            occluders.push({
+              depth: anchor.y,
+              line: image.occlusion.map(toPixel),
+            });
+          }
         }
         // A portal is a tile object: its tile's trigger polygon is the trigger area (14.2).
         if (type === "portal" && image.trigger !== undefined) {
@@ -318,6 +341,7 @@ export function parseMap(id: string, json: unknown): ParsedMap {
     source: map,
     ground,
     objects,
+    occluders,
     obstacles: { size, columns: map.width, rows: map.height, blockedCells, solids, borders },
     spawns,
     portals,

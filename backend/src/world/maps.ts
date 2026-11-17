@@ -392,7 +392,7 @@ export function checkMap(id: string, bytes: Buffer, context: MapContext): MapRes
 
   const ranges = checkTilesets(map, file, context, findings);
   const tilesetImages = new Set<string>(ranges.flatMap((range) => range.images));
-  // The guides of collection tiles: a collision guide makes a placed tile block, a trigger guide makes it a portal.
+  // Collection-tile guides add collision, portal trigger areas and actor-relative occlusion edges.
   const tileGuides = new Map<number, TileGuides>();
   for (const tileset of map.tilesets) {
     for (const tile of tileset.tiles ?? []) {
@@ -712,11 +712,7 @@ function checkCollection(
   };
 }
 
-/**
- * The guides of one collection tile: a collision shape blocks, and a trigger shape gives a portal's
- * activation area. Returns whether the tile blocks.
- */
-/** What the guides of a collection tile make of it. */
+/** Whether a collection tile blocks movement or has a portal activation area. */
 interface TileGuides {
   /** A `collision` guide: a placed tile blocks. */
   blocks: boolean;
@@ -732,6 +728,7 @@ function checkTileGuides(
 ): TileGuides {
   let blocks = false;
   let trigger = false;
+  let occlusion = false;
   const label = `${tileset.name} tile ${String(tile.id)}`;
   for (const guide of tile.objectgroup?.objects ?? []) {
     const shape = shapeOf(guide);
@@ -754,12 +751,24 @@ function checkTileGuides(
         );
       }
       trigger = true;
+    } else if (
+      guide.name === "occlusion" &&
+      tileset.image === undefined &&
+      shape === "polyline" &&
+      (guide.polyline?.length ?? 0) >= 2
+    ) {
+      if (occlusion) {
+        findings.push(
+          errorFinding(file, "map_guide", "a tile has more than one occlusion line", label),
+        );
+      }
+      occlusion = true;
     } else {
       findings.push(
         errorFinding(
           file,
           "map_guide",
-          "a guide of a tile is a polygon or rectangle named collision or trigger",
+          "a tile guide is a polygon or rectangle named collision or trigger, or a polyline named occlusion",
           label,
         ),
       );

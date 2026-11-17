@@ -56,12 +56,12 @@ The application and this preview use the same engine; see
 
 Author visible tile layers in draw order: ground layers first, one top-down
 `Props` object layer for static tile objects, then foreground/canopy layers.
-Phaser renders the tile layers and tile objects natively; actors share the
-`Props` depth band and sort by their feet. Use bottom-aligned, unscaled tile
-objects and zero tileset offsets. Image-local `occlusion` guides are not part
-of the package format: use a foreground tile layer for artwork that covers
-actors. Tile-image `collision` guides and portal `trigger` guides remain
-gameplay data and do not change rendering.
+Phaser renders tile layers and tile objects natively; props sort by their
+bottom edges and actors by their feet. An image-collection tile's
+`occlusion` polyline lets an actor pass behind or in front of that intact prop.
+Use bottom-aligned, unscaled tile objects and zero tileset offsets. Tile-image
+`collision` and `trigger` guides remain gameplay data; `occlusion` guides drive
+actor depth, without splitting artwork or adding pixel masks.
 
 The engine's player position is the bottom-centre of the sprite frame. Its
 circular collision footprint is centered one radius above that foot anchor,
