@@ -29,7 +29,7 @@ RUN mkdir -p /var/lib/zappaloo && chown vscode:vscode /var/lib/zappaloo
 
 # sqlite3 CLI to inspect the dev database; xz-utils to unpack Node.js
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends sqlite3 xz-utils squashfs-tools xvfb xauth \
+    && apt-get install -y --no-install-recommends sqlite3 xz-utils squashfs-tools xvfb xauth libegl1 libfontconfig1 \
     && rm -rf /var/lib/apt/lists/*
 
 # Pinned headless Tiled CLI for development and public visual-reference fixtures.

@@ -1,0 +1,94 @@
+import { expect, test } from "@playwright/test";
+import { readdir, readFile } from "node:fs/promises";
+import { resolve } from "node:path";
+import { buildTestWorld } from "../backend/src/world/build.ts";
+
+const PREVIEW_URL = "http://localhost:5175";
+
+test("[MAP-18][MAP-06][MAP-16] the standalone preview loads validated packages without the application API", async ({
+  page,
+}, testInfo) => {
+  test.skip(
+    testInfo.project.name !== "desktop-chromium",
+    "one preview and package per browser run",
+  );
+  const applicationRequests: string[] = [];
+  page.on("request", (request) => {
+    if (new URL(request.url()).port === "3000") applicationRequests.push(request.url());
+  });
+
+  await page.goto(PREVIEW_URL);
+  await expect(page.getByText("No world package loaded")).toBeVisible();
+  await expect(page.locator("canvas")).toHaveCount(0);
+
+  const validPackage = {
+    name: "test-world.tar.gz",
+    mimeType: "application/gzip",
+    buffer: buildTestWorld(),
+  };
+  await page.getByLabel("World package").setInputFiles(validPackage);
+  await page.getByRole("button", { name: "Load package" }).click();
+  await expect(page.getByRole("status")).toContainText("Testwelt");
+  await expect(page.locator("canvas")).toHaveCount(1);
+  await expect(page.getByLabel("Map").locator("option")).toHaveCount(3);
+  await expect(page.getByRole("combobox", { name: "Spawn" })).toHaveValue("start");
+  await expect(page.getByLabel("Figure").locator("option")).toHaveCount(2);
+
+  await page.getByLabel("Map").selectOption({ label: "Saal" });
+  await page.getByRole("combobox", { name: "Spawn" }).selectOption("start");
+  await page.getByLabel("Figure").selectOption("male-guest");
+  await page.getByText("Guides and view").click();
+  await page.getByLabel("Collision").check();
+  await page.getByLabel("Border").check();
+  await page.getByRole("checkbox", { name: "Spawn" }).check();
+  await page.getByLabel("Portal").check();
+  await page.getByLabel("Occlusion").check();
+  await page.getByLabel("Artwork only").check();
+  await page.getByLabel("Zoom").selectOption("1");
+  await page.getByRole("button", { name: "Reset camera" }).click();
+
+  await page.getByLabel("World package").setInputFiles({
+    name: "invalid.tar.gz",
+    mimeType: "application/gzip",
+    buffer: Buffer.from("not a package"),
+  });
+  await page.getByRole("button", { name: "Load package" }).click();
+  await expect(page.getByRole("alert")).toContainText("(archive)");
+  await expect(page.locator("canvas")).toHaveCount(1);
+  await expect(page.getByRole("status")).toContainText("Testwelt");
+
+  const packageRelease = page.waitForResponse(
+    (response) =>
+      response.request().method() === "DELETE" &&
+      response.url().includes("/__game-preview/api/packages/"),
+  );
+  await page.getByRole("button", { name: "Reload" }).click();
+  await expect(page.getByRole("status")).toContainText("Testwelt");
+  await expect(page.locator("canvas")).toHaveCount(1);
+  expect((await packageRelease).status()).toBe(204);
+  expect(applicationRequests).toEqual([]);
+});
+
+test("[MAP-18] the production frontend and server do not expose the standalone preview", async ({
+  request,
+}, testInfo) => {
+  test.skip(
+    testInfo.project.name !== "desktop-chromium",
+    "one production boundary check is sufficient",
+  );
+  const assetDirectory = resolve("frontend/dist/assets");
+  const assets = await readdir(assetDirectory);
+  const bundles = await Promise.all(
+    assets
+      .filter((asset) => asset.endsWith(".js"))
+      .map((asset) => readFile(resolve(assetDirectory, asset), "utf8")),
+  );
+  const productionBundle = bundles.join("\n");
+  expect(productionBundle).not.toContain("/__game-preview/api");
+  expect(productionBundle).not.toContain("Guides and view");
+  expect(productionBundle).not.toContain("Select a validated");
+  expect(await readdir("frontend/dist")).not.toContain("game-preview");
+
+  const previewEndpoint = await request.get("/__game-preview/api/health");
+  expect(previewEndpoint.status()).toBe(404);
+});

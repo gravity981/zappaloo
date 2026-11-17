@@ -1,12 +1,20 @@
-export { createGame, WORLD_SCENE_KEY } from "./engine.ts";
+export {
+  createGame,
+  setGameGuides,
+  setGameSelection,
+  setGameView,
+  WORLD_SCENE_KEY,
+} from "./engine.ts";
 export { entryPoint } from "./entry.ts";
 export type { GameInstance, GameMountOptions } from "./engine.ts";
 export type {
   GameEngineOptions,
+  GameGuides,
   GameHost,
   GameSelection,
   GameState,
   GameStateReader,
+  GameView,
 } from "./host.ts";
 export { prepareWorld } from "./world-data.ts";
 export type { FigureData, LoadedWorld, WorldSource } from "./world-data.ts";

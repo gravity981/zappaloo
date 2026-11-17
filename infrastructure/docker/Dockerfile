@@ -13,6 +13,7 @@ WORKDIR /app
 COPY package.json package-lock.json .npmrc ./
 COPY shared/package.json shared/
 COPY game-engine/package.json game-engine/
+COPY game-preview/package.json game-preview/
 COPY backend/package.json backend/
 COPY frontend/package.json frontend/
 RUN npm ci --no-audit --no-fund
@@ -31,6 +32,7 @@ WORKDIR /app
 COPY package.json package-lock.json .npmrc ./
 COPY shared/package.json shared/
 COPY game-engine/package.json game-engine/
+COPY game-preview/package.json game-preview/
 COPY backend/package.json backend/
 COPY frontend/package.json frontend/
 RUN npm ci --omit=dev --workspace backend --no-audit --no-fund

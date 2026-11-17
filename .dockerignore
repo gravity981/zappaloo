@@ -9,6 +9,8 @@
 !.devcontainer/Dockerfile
 /world/
 /world-scratch/
+/game-preview/*
+!/game-preview/package.json
 .e2e-data
 reports
 coverage

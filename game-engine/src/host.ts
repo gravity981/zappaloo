@@ -9,6 +9,20 @@ export interface GameSelection {
   figureId?: string;
 }
 
+export interface GameGuides {
+  collisions: boolean;
+  borders: boolean;
+  spawns: boolean;
+  portals: boolean;
+  occlusion: boolean;
+  grid: boolean;
+}
+
+export interface GameView {
+  artworkOnly: boolean;
+  zoom: number;
+}
+
 export interface GameState {
   mapId: string;
   /** The player's position in the map's pixel space. */
@@ -25,6 +39,7 @@ export interface GameHost {
   selection: GameSelection;
   rememberMap?: (mapId: string) => void;
   onStateChange?: (reader: GameStateReader | null) => void;
+  onReady?: () => void;
 }
 
 export interface GameEngineOptions {
@@ -32,4 +47,6 @@ export interface GameEngineOptions {
   host: GameHost;
   transparent?: boolean;
   preserveDrawingBuffer?: boolean;
+  guides?: GameGuides;
+  view?: GameView;
 }

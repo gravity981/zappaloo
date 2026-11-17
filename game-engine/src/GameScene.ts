@@ -6,7 +6,7 @@ import Phaser from "phaser";
 import { walkable, cellOf, cellCentre } from "./collision.ts";
 import { walkFrameIndex } from "./figures.ts";
 import { figureDepth } from "./draw-order.ts";
-import { type Point, polygonCentre, type TileSize } from "./geometry.ts";
+import { type Point, polygonCentre, tileToPixel, type TileSize } from "./geometry.ts";
 import { findPath, type Grid } from "./pathfinding.ts";
 import { directionOf, keyDirection, stepPosition, type Direction } from "./movement.ts";
 import { portalAt, spawnPosition } from "./entry.ts";
@@ -15,8 +15,11 @@ import type { FigureData, LoadedWorld } from "./world-data.ts";
 import {
   ENGINE_CONFIG_REGISTRY_KEY,
   WORLD_SCENE_KEY,
+  type GameGuides,
   type GameEngineOptions,
   type GameHost,
+  type GameSelection,
+  type GameView,
 } from "./host.ts";
 
 /** The zoom of the camera; fixed for every map (decided 2026-11-15). */
@@ -30,6 +33,14 @@ const RADIUS_TILES = 0.2;
 
 /** The distance in pixels at which a waypoint counts as reached. */
 const REACHED = 1;
+const DEFAULT_GUIDES: GameGuides = {
+  collisions: false,
+  borders: false,
+  spawns: false,
+  portals: false,
+  occlusion: false,
+  grid: false,
+};
 
 /** The data the scene starts with. Without it, the scene enters the world where the guest was last. */
 export interface WorldSceneData {
@@ -47,12 +58,15 @@ export class WorldScene extends Phaser.Scene {
   #world: LoadedWorld | undefined;
   #host: GameHost | undefined;
   #map: ParsedMap | undefined;
+  #guides: GameGuides = DEFAULT_GUIDES;
+  #guideGraphics: Phaser.GameObjects.Graphics | undefined;
   #position: Point = { x: 0, y: 0 };
   #player: Phaser.GameObjects.Sprite | undefined;
   #figure: FigureData | undefined;
   #direction: Direction = "south";
   #artworkOnly = false;
   #zoom: number | undefined;
+  #view: GameView | undefined;
   #walkClock = 0;
   /** Waypoints of a tap-to-move walk, in pixels. */
   #path: Point[] = [];
@@ -72,15 +86,17 @@ export class WorldScene extends Phaser.Scene {
 
   init(data: WorldSceneData): void {
     const options = this.game.registry.get(ENGINE_CONFIG_REGISTRY_KEY) as GameEngineOptions;
-    const { world, host } = options;
+    const { world, host, view, guides } = options;
     this.#world = world;
     this.#host = host;
     const map =
       world.maps.get(data.mapId ?? host.selection.mapId) ?? world.maps.get(world.startMap);
     if (map === undefined) throw new Error("the world has no start map");
     this.#map = map;
-    this.#artworkOnly = data.artworkOnly === true;
-    this.#zoom = data.zoom;
+    this.#artworkOnly = data.artworkOnly ?? this.#view?.artworkOnly ?? view?.artworkOnly ?? false;
+    this.#zoom = data.zoom ?? this.#view?.zoom ?? view?.zoom;
+    this.#view = { artworkOnly: this.#artworkOnly, zoom: this.#zoom ?? CAMERA_ZOOM };
+    this.#guides = { ...DEFAULT_GUIDES, ...guides };
     this.#figure =
       world.figures.find((figure) => figure.id === host.selection.figureId) ?? world.figures[0];
     const spawn = data.spawn ?? (map.id === host.selection.mapId ? host.selection.spawn : "start");
@@ -106,6 +122,8 @@ export class WorldScene extends Phaser.Scene {
     this.cameras.main.setBackgroundColor(this.#artworkOnly ? "rgba(0,0,0,0)" : "#2d6a4f");
     this.cameras.main.setZoom(this.#artworkOnly ? (this.#zoom ?? 1) : CAMERA_ZOOM);
     this.#drawMap(map);
+    this.#guideGraphics = this.add.graphics().setDepth(1_000_000);
+    this.#drawGuides();
     this.#armed = portalAt(map, this.#position) === undefined;
     if (!this.#artworkOnly && this.#figure !== undefined) {
       const sprite = this.add.sprite(
@@ -150,9 +168,35 @@ export class WorldScene extends Phaser.Scene {
         },
       };
     });
+    this.#host?.onReady?.();
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
       this.input.off(Phaser.Input.Events.POINTER_DOWN, this.#onTap);
       this.#host?.onStateChange?.(null);
+      this.#guideGraphics = undefined;
+    });
+  }
+
+  setGuides(guides: GameGuides): void {
+    this.#guides = { ...guides };
+    this.#drawGuides();
+  }
+
+  setSelection(selection: GameSelection): void {
+    const host = this.#host;
+    if (host === undefined) return;
+    host.selection = selection;
+    this.scene.restart({ mapId: selection.mapId, spawn: selection.spawn });
+  }
+
+  setView(view: GameView): void {
+    const host = this.#host;
+    if (host === undefined) return;
+    this.#view = view;
+    this.scene.restart({
+      mapId: host.selection.mapId,
+      spawn: host.selection.spawn,
+      artworkOnly: view.artworkOnly,
+      zoom: view.zoom,
     });
   }
 
@@ -216,6 +260,73 @@ export class WorldScene extends Phaser.Scene {
   #drawMap(map: ParsedMap): void {
     for (const draw of map.ground) this.#drawTile(draw);
     for (const draw of map.objects) this.#drawTile(draw);
+  }
+
+  #drawGuides(): void {
+    const graphics = this.#guideGraphics;
+    const map = this.#map;
+    if (graphics === undefined || map === undefined) return;
+    graphics.clear();
+
+    const stroke = (points: readonly Point[], color: number): void => {
+      const first = points[0];
+      if (first === undefined || points.length < 2) return;
+      graphics.lineStyle(2, color, 0.9);
+      graphics.beginPath();
+      graphics.moveTo(first.x, first.y);
+      for (const point of points.slice(1)) graphics.lineTo(point.x, point.y);
+      graphics.closePath();
+      graphics.strokePath();
+    };
+    const fill = (points: readonly Point[]): void => {
+      graphics.fillPoints(
+        points.map(({ x, y }) => new Phaser.Math.Vector2(x, y)),
+        true,
+      );
+    };
+
+    if (this.#guides.grid || this.#guides.collisions) {
+      for (let row = 0; row < map.rows; row++) {
+        for (let column = 0; column < map.columns; column++) {
+          const top = tileToPixel({ x: column, y: row }, map.size);
+          const halfWidth = map.size.width / 2;
+          const halfHeight = map.size.height / 2;
+          const polygon = [
+            top,
+            { x: top.x + halfWidth, y: top.y + halfHeight },
+            { x: top.x, y: top.y + map.size.height },
+            { x: top.x - halfWidth, y: top.y + halfHeight },
+          ];
+          const blocked = map.obstacles.blockedCells.has(`${String(column)},${String(row)}`);
+          if (blocked && this.#guides.collisions) {
+            graphics.fillStyle(0xff3b30, 0.3);
+            fill(polygon);
+          }
+          if (this.#guides.grid) stroke(polygon, blocked ? 0xff3b30 : 0xffffff);
+        }
+      }
+    }
+
+    if (this.#guides.collisions) {
+      for (const polygon of map.obstacles.solids) stroke(polygon, 0xff3b30);
+    }
+    if (this.#guides.borders) {
+      for (const polygon of map.obstacles.borders) stroke(polygon, 0x36a3ff);
+    }
+    if (this.#guides.spawns) {
+      graphics.fillStyle(0x36a3ff, 0.9);
+      for (const point of map.spawns.values()) graphics.fillCircle(point.x, point.y, 5);
+    }
+    if (this.#guides.portals) {
+      for (const portal of map.portals) {
+        graphics.fillStyle(0xb35cff, 0.25);
+        fill(portal.polygon);
+        stroke(portal.polygon, 0xb35cff);
+      }
+    }
+    if (this.#guides.occlusion) {
+      for (const occluder of map.occluders) stroke(occluder.line, 0xffd23f);
+    }
   }
 
   /**

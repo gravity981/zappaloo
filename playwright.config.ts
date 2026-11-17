@@ -50,6 +50,13 @@ export default defineConfig({
       timeout: 120_000,
       env: { ...sharedEnv, PORT: String(FRESH_PORT), DATA_DIR: ".e2e-data-fresh" },
     },
+    {
+      command: "npm run dev:game-preview",
+      url: "http://localhost:5175/__game-preview/api/health",
+      reuseExistingServer: false,
+      timeout: 30_000,
+      env: { APP_ENV: "dev" },
+    },
   ],
   projects: [
     { name: "desktop-chromium", use: { ...devices["Desktop Chrome"] } },
