@@ -1758,7 +1758,7 @@ Game side, not in the package: the standing pose is shown when the figure stands
 - A PNG in `tilesets/` that no map uses.
 - A map without collisions.
 
-The answer lists every finding with its file, the map object where there is one, and the reason. A size budget for the start map (PERF-04) is added in step 5j.
+The answer lists every finding with its file, the map object where there is one, and the reason. A size budget for the start map (PERF-04) is added in step 9c (moved from 5j on 2026-11-17).
 
 **Checking a package outside the platform** works as for the theme package (19.7): JSON Schemas for `manifest.json`, `avatar/avatar.json` and the maps, and `zappaloo validate <file>` for the whole package, without the warnings that depend on an installation's data (decided 2026-11-14).
 
@@ -3050,11 +3050,11 @@ Requirements: CNT, WEB (except WEB-05, WEB-06, WEB-08), LANG-02, CFG-01, CFG-04,
 - World importer: the whole world as one package (maps, tilesets, objects, door scene, avatar editor assets).
 - Smooth movement with map collisions, arrow keys and tap-to-move.
 - Interactive objects, portals, website overlays, avatars and avatar editor.
-- Landing in the game, guided first entry, button bar at the top, clickable objects that sparkle, loading time.
+- Landing in the game, guided first entry, button bar at the top, clickable objects that sparkle.
 - Admin view "Erlebniswelt": actions of the clickable objects per map.
 - Template map set.
 
-Requirements: GAME, MAP, AVA (except AVA-04), PERF-04. WEB-08 was withdrawn on 2026-11-14.
+Requirements: GAME, MAP, AVA (except AVA-04). PERF-04 moved to stage 9 (step 9c). WEB-08 was withdrawn on 2026-11-14.
 
 ## Stage 6 – Living World
 
@@ -3086,9 +3086,10 @@ Requirements: MG, HUNT, SCR-05, WEB-05.
 ## Stage 9 – Event Readiness
 
 - Load test on the production host.
+- Loading time of the game on a throttled 4G profile (step 9c, moved from stage 5).
 - All manual checks of the release checklist (test-strategy.md, section 7).
 
-Requirements: PERF-01.
+Requirements: PERF-01, PERF-04.
 
 ## Stage 10 – After the Event
 

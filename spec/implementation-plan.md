@@ -340,7 +340,7 @@ Refined 2026-11-14 with the project owner, before the stage started. Branch `fea
 
 **Before the stage starts:**
 - The layout of the world package is defined and confirmed (sw-architecture.md 14.4). A draft was agreed on 2026-11-14 (below); step 5a writes it into the spec.
-- A first world package of the project owner, with maps drawn in Tiled, is needed for the Opening, not for building the steps. Steps 5b to 5j use a test world that a script generates.
+- A first world package of the project owner, with maps drawn in Tiled, is needed for the Opening, not for building the steps. Steps 5b to 5k use a test world that a script generates.
 
 **Decisions from the plan review (2026-11-14):**
 - **Importer first, then the engine.** The validator, the import and the admin card come before the rendering. The engine is built against the generated test world.
@@ -461,7 +461,7 @@ The project owner confirms that the world renders correctly and that the world-i
 - The standalone preview validates uploaded or locally watched packages. Invalid replacements preserve the last working preview.
 
 Requirements: GAME-01, GAME-02, GAME-03, GAME-07, GAME-09, GAME-10, GAME-19, GAME-20, MAP-02, MAP-06, MAP-16, MAP-17, MAP-18.
-Exit: the shared engine and world-package integration are accepted; step 5f may begin. Step 5j still owns the sign-in-to-playable loading budget.
+Exit: the shared engine and world-package integration are accepted; step 5f may begin. Step 9c (moved from 5j on 2026-11-17) owns the sign-in-to-playable loading budget.
 
 **5f – Objects and overlays. Done (2026-11-17).** Decisions: sw-architecture.md 14.4 "Decisions of step 5f". Mock screens: `game`, `game-overlay`, `admin-world` (variant "objects").
 - Object types `portal`, `clickable`, `decoration` and the properties of 14.2. Clickable objects sparkle along their edges at random (small sparkles, up to five at a time) and a shine passes over them now and then; a portal's arrow floats up and down above a shadow, like a boat on waves, and glows. A click or tap on a clickable object walks to the approach point and runs the action; a tap on a portal walks into its trigger area; Enter or Space activates the object in front of the avatar. Easter eggs.
@@ -486,10 +486,7 @@ Requirements: AVA-01, AVA-02, AVA-03.
 - Size (added 2026-11-17): the game fills a phone's viewport and is a centred window of at most 1280 × 800 pixels on a wide screen.
 Requirements: GAME-12, GAME-13 (without "Say hello"), GAME-14 (without "Hochladen"), GAME-17, GAME-18, GAME-21.
 
-**5j – Loading time.**
-- The Phaser bundle and the start map load first; other maps load in the background.
-- An end-to-end test in Chromium with a throttled 4G profile measures the time from sign-in to the first playable map (test hook). The validator gets a size budget for the start map.
-Requirements: PERF-04.
+**5j – Moved to step 9c (decided 2026-11-17).** The loading-time test and the size budget wait until a release shows whether the game works at all on devices. PERF-04 stays on the "not yet implemented" list until then.
 
 **5k – Erlebniswelt access and stage report.**
 - Do not create or ship a template world.
@@ -574,6 +571,11 @@ Follow-up from stage 2: the treasure-hunt leaf of the access conditions, with `[
 
 **9a – Load test.** Load test on the production host with at least 50 concurrent users and a burst of uploads; findings fixed or accepted.
 Requirements: PERF-01.
+
+**9c – Loading time** (moved from 5j on 2026-11-17; runs before 9b, once a release has shown that the game works on devices).
+- The Phaser bundle and the start map load first; other maps load in the background.
+- An end-to-end test in Chromium with a throttled 4G profile measures the time from sign-in to the first playable map (test hook). The validator gets a size budget for the start map.
+Requirements: PERF-04.
 
 **9b – Release checklist.** All manual checks from test-strategy.md, section 7, before the event: devices, emails, QR codes, event screen on the venue projector, legal review of the privacy notice.
 Requirements: none (release).
