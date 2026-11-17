@@ -498,14 +498,8 @@ describe("the actions of clickable objects (MAP-15, GAME-06)", () => {
     ).toBe(403);
   });
 
-  it("[MAP-15] a new import keeps the assignments of objects that still exist and drops, with a warning, those of objects that are gone", async () => {
-    context = await createTestApp();
-    const ctx = context;
-    const admin = await signIn(ctx, "boss", ["admin"]);
-    await upload(ctx, admin, buildTestWorld());
-    await put(ctx, admin, "kirche", "altar", { kind: "page", page: "profile" });
-    await put(ctx, admin, "kirche", "osterei", { kind: "none" });
-
+  /** The example world as a package without its easter egg `osterei` (the object of a later import is gone). */
+  const worldWithoutOsterei = (): Buffer => {
     const files = testWorldFiles();
     interface Layer {
       objects?: { name: string }[];
@@ -522,13 +516,82 @@ describe("the actions of clickable objects (MAP-15, GAME-06)", () => {
     };
     drop(map.layers);
     files["maps/kirche.json"] = Buffer.from(JSON.stringify(map));
-    const imported = await upload(ctx, admin, buildArchive(files));
+    return buildArchive(files);
+  };
+
+  it("[MAP-15] a new import keeps the assignments of objects that still exist, and lists those of objects that are gone as unmatched", async () => {
+    context = await createTestApp();
+    const ctx = context;
+    const admin = await signIn(ctx, "boss", ["admin"]);
+    await upload(ctx, admin, buildTestWorld());
+    await put(ctx, admin, "kirche", "altar", { kind: "page", page: "profile" });
+    await put(ctx, admin, "kirche", "osterei", { kind: "none" });
+
+    const imported = await upload(ctx, admin, worldWithoutOsterei());
     expect(imported.statusCode).toBe(200);
     const warnings = bodyOf<WorldStatus>(imported).active?.warnings ?? [];
     expect(
-      warnings.filter((item) => item.code === "action_dropped").map((item) => item.object),
+      warnings.filter((item) => item.code === "action_unmatched").map((item) => item.object),
     ).toEqual(["osterei"]);
     expect((await world(ctx, admin)).actions.map((item) => item.object)).toEqual(["altar"]);
+  });
+
+  it("[MAP-09][MAP-15] the assignment of an object that a new import lacks applies again after a rollback", async () => {
+    context = await createTestApp();
+    const ctx = context;
+    const admin = await signIn(ctx, "boss", ["admin"]);
+    await upload(ctx, admin, buildTestWorld());
+    await put(ctx, admin, "kirche", "osterei", { kind: "page", page: "profile" });
+    await upload(ctx, admin, worldWithoutOsterei());
+    expect((await world(ctx, admin)).actions.map((item) => item.object)).toEqual([]);
+
+    const rolled = await ctx.app.inject({
+      method: "POST",
+      url: "/api/admin/world/rollback",
+      headers: admin,
+    });
+    expect(rolled.statusCode).toBe(200);
+    expect((await world(ctx, admin)).actions.map((item) => item.object)).toEqual(["osterei"]);
+  });
+
+  it("[MAP-15] the assignment of a missing object applies again when a later package has the object", async () => {
+    context = await createTestApp();
+    const ctx = context;
+    const admin = await signIn(ctx, "boss", ["admin"]);
+    await upload(ctx, admin, buildTestWorld());
+    await put(ctx, admin, "kirche", "osterei", { kind: "page", page: "profile" });
+    await upload(ctx, admin, worldWithoutOsterei());
+    const back = await upload(ctx, admin, buildTestWorld());
+    expect(
+      (bodyOf<WorldStatus>(back).active?.warnings ?? []).filter(
+        (item) => item.code === "action_unmatched",
+      ),
+    ).toEqual([]);
+    expect((await world(ctx, admin)).actions.map((item) => item.object)).toEqual(["osterei"]);
+  });
+
+  it("[MAP-09] an import started while a rollback runs leaves the folders of both worlds intact", async () => {
+    context = await createTestApp();
+    const ctx = context;
+    const admin = await signIn(ctx, "boss", ["admin"]);
+    await upload(ctx, admin, buildTestWorld());
+    await upload(ctx, admin, worldWithoutOsterei());
+    // Both start without waiting for each other. Whichever runs first, the import must not remove the folder that
+    // the rollback or the import leaves active or previous: two folders remain, and the active one is served.
+    const rollback = ctx.app.inject({
+      method: "POST",
+      url: "/api/admin/world/rollback",
+      headers: admin,
+    });
+    const imported = upload(ctx, admin, buildTestWorld());
+    const [rolled, done] = await Promise.all([rollback, imported]);
+    expect(rolled.statusCode).toBe(200);
+    expect(done.statusCode).toBe(200);
+    const active = bodyOf<WorldStatus>(done).active?.importId ?? "";
+    expect(worldFolders(ctx)).toHaveLength(2);
+    expect(worldFolders(ctx)).toContain(active);
+    const status = await ctx.app.inject({ url: "/api/world", headers: admin });
+    expect(status.statusCode).toBe(200);
   });
 });
 

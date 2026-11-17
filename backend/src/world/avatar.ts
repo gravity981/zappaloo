@@ -61,6 +61,18 @@ export class AvatarService {
     return (this.#world.active()?.figures ?? []).filter((figure) => tiers.has(figure.tier));
   }
 
+  /**
+   * The tiers of a user's own figure. A user whose roles give no figure of the world (a staff member in a world
+   * without tier2 figures) chooses from tier1, so every user has a figure to choose (decision 2 of 5l).
+   */
+  #ownTiers(user: AvatarUser): ReadonlySet<WorldFigureTier> {
+    const tiers = tiersOf(user.roles);
+    const figures = this.#world.active()?.figures ?? [];
+    return figures.some((figure) => tiers.has(figure.tier))
+      ? tiers
+      : new Set<WorldFigureTier>(["tier1"]);
+  }
+
   #companions(userId: number) {
     return this.#database.db
       .select()
@@ -91,14 +103,9 @@ export class AvatarService {
     return allowed.find((figure) => figure.id === chosen)?.id ?? allowed[0]?.id ?? null;
   }
 
-  /** The figure that applies to the user in the game (AVA-04); null without a world. */
-  figureOf(user: AvatarUser): string | null {
-    return this.#effective(this.#ownFigure(user.id), this.#allowed(tiersOf(user.roles)));
-  }
-
   /** The user and the approved companions with their figures (`GET /api/avatar`). */
   persons(user: AvatarUser): AvatarResponse {
-    const own = this.#allowed(tiersOf(user.roles));
+    const own = this.#allowed(this.#ownTiers(user));
     const guest = this.#allowed(new Set<WorldFigureTier>(["tier1"]));
     const ownChoice = this.#ownFigure(user.id);
     return {
@@ -134,7 +141,7 @@ export class AvatarService {
     if (person !== "me" && companion === undefined) {
       throw new AvatarError("person_not_found", "there is no such person");
     }
-    const tiers = person === "me" ? tiersOf(user.roles) : new Set<WorldFigureTier>(["tier1"]);
+    const tiers = person === "me" ? this.#ownTiers(user) : new Set<WorldFigureTier>(["tier1"]);
     if (!this.#allowed(tiers).some((figure) => figure.id === figureId)) {
       throw new AvatarError("figure_not_allowed", "this person may not choose that figure");
     }

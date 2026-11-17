@@ -116,6 +116,10 @@ export class WorldService {
   readonly #event: EventService;
   readonly #eventsDir: string;
   readonly #now: () => Date;
+  /** The end of the imports and rollbacks so far: each one waits for the one before it (see #exclusive). */
+  #queue: Promise<unknown> = Promise.resolve();
+  /** The objects of each imported world, read once: the files of an import never change. */
+  readonly #objectCache = new Map<string, MapObjects[]>();
 
   constructor(
     database: Database,
@@ -231,6 +235,8 @@ export class WorldService {
 
   /** The maps of a stored world with their objects, read from its files. */
   #objectsOf(world: StoredWorld): MapObjects[] {
+    const cached = this.#objectCache.get(world.importId);
+    if (cached !== undefined) return cached;
     const maps = new Map<string, Buffer>();
     for (const map of world.maps) {
       try {
@@ -242,7 +248,16 @@ export class WorldService {
         // A map file that is gone has no objects; the world is not served either.
       }
     }
-    return packageObjects(maps);
+    const objects = packageObjects(maps);
+    this.#objectCache.set(world.importId, objects);
+    return objects;
+  }
+
+  /** Runs one import or rollback after the ones started before it; a failure does not stop the queue. */
+  #exclusive<T>(work: () => Promise<T>): Promise<T> {
+    const run = this.#queue.then(work);
+    this.#queue = run.catch(() => undefined);
+    return run;
   }
 
   /** The assignments of the admin for objects that exist in the world; the others wait for their object. */
@@ -421,29 +436,34 @@ export class WorldService {
    * Imports a package as a whole (MAP-04, MAP-06, MAP-16). Throws `WorldRefused` with every finding when
    * the package is not valid; then nothing has changed.
    */
-  async importPackage(archive: Buffer, actor: Actor): Promise<StoredWorld> {
+  /** Imports a world package as the active world; imports and rollbacks run one at a time (MAP-09). */
+  importPackage(archive: Buffer, actor: Actor): Promise<StoredWorld> {
+    return this.#exclusive(() => this.#importPackage(archive, actor));
+  }
+
+  async #importPackage(archive: Buffer, actor: Actor): Promise<StoredWorld> {
     const check = checkWorldPackage(archive);
     if (!check.ok) throw new WorldRefused(check.findings);
     const { package: worldPackage } = check;
     const mapBytes = WorldService.#mapBytes(worldPackage.files);
-    // An assignment follows its object by the map's id and the object's name; one whose object is gone is
-    // dropped, and the import says so (MAP-15).
+    // An assignment follows its object by the map's id and the object's name. One whose object the package lacks
+    // stays: it is listed as unmatched, and it applies again after a rollback or when the object returns (MAP-15).
     const existing = new Set(
       packageObjects(mapBytes).flatMap((map) =>
         map.clickables.map((clickable) => `${map.id}/${clickable.name}`),
       ),
     );
-    const dropped = this.#storedOverrides().filter(
+    const unmatched = this.#storedOverrides().filter(
       (item) => !existing.has(`${item.map}/${item.object}`),
     );
     const warnings = [
       ...check.findings,
       ...presetWarnings(mapBytes, this.#installation()),
-      ...dropped.map((item) =>
+      ...unmatched.map((item) =>
         warningFinding(
           `maps/${item.map}.json`,
-          "action_dropped",
-          "the object no longer exists; the action assigned to it was removed",
+          "action_unmatched",
+          "the object no longer exists; its assigned action is kept and applies again if the object returns",
           item.object,
         ),
       ),
@@ -453,7 +473,6 @@ export class WorldService {
     const importId = randomUUID();
     const staging = join(this.directory, `staging-${importId}`);
     const target = join(this.directory, importId);
-    const previous = this.#role("previous");
     const importedAt = this.#now();
     try {
       await mkdir(staging, { recursive: true });
@@ -462,8 +481,21 @@ export class WorldService {
         await writeFile(join(staging, path), data);
       }
       await rename(staging, target);
-      this.#database.db.transaction((tx) => {
+    } catch (error) {
+      await rm(staging, { recursive: true, force: true });
+      await rm(target, { recursive: true, force: true });
+      throw error;
+    }
+    let removed: string | undefined;
+    try {
+      removed = this.#database.db.transaction((tx) => {
         const scope = eq(worldPackages.eventId, this.#event.eventId);
+        // The folder to remove is the one of the row this transaction deletes, read inside it.
+        const dropping = tx
+          .select({ importId: worldPackages.importId })
+          .from(worldPackages)
+          .where(and(scope, eq(worldPackages.role, "previous")))
+          .get();
         // The world before the previous one goes; the active world becomes the previous one.
         tx.delete(worldPackages)
           .where(and(scope, eq(worldPackages.role, "previous")))
@@ -472,17 +504,6 @@ export class WorldService {
           .set({ role: "previous" })
           .where(and(scope, eq(worldPackages.role, "active")))
           .run();
-        for (const item of dropped) {
-          tx.delete(worldObjectActions)
-            .where(
-              and(
-                eq(worldObjectActions.eventId, this.#event.eventId),
-                eq(worldObjectActions.mapId, item.map),
-                eq(worldObjectActions.objectName, item.object),
-              ),
-            )
-            .run();
-        }
         tx.insert(worldPackages)
           .values({
             importId,
@@ -506,6 +527,7 @@ export class WorldService {
           .onConflictDoNothing()
           .run();
         this.#event.audit(actor, "world.import", {}, tx);
+        return dropping?.importId;
       });
     } catch (error) {
       // Nothing was committed: the new files go, and the active world stays as it was.
@@ -515,8 +537,9 @@ export class WorldService {
     }
     // The world before the previous one is no longer read. A failure to remove its folder leaves the
     // folder behind; it does not undo or report the import, which has been committed.
-    if (previous !== undefined) {
-      await rm(join(this.directory, previous.importId), { recursive: true, force: true }).catch(
+    if (removed !== undefined) {
+      this.#objectCache.delete(removed);
+      await rm(join(this.directory, removed), { recursive: true, force: true }).catch(
         () => undefined,
       );
     }
@@ -536,22 +559,25 @@ export class WorldService {
   }
 
   /** Makes the previous world the active one again; the active one becomes the previous (MAP-09). */
-  rollback(actor: Actor): void {
-    this.#database.db.transaction((tx) => {
-      const scope = eq(worldPackages.eventId, this.#event.eventId);
-      const rows = tx.select().from(worldPackages).where(scope).all();
-      const active = rows.find((row) => row.role === "active");
-      const previous = rows.find((row) => row.role === "previous");
-      if (active === undefined || previous === undefined) throw new NoPreviousWorld();
-      // Both rows are replaced: the roles are unique per event, so they are swapped by rewriting them.
-      tx.delete(worldPackages).where(scope).run();
-      tx.insert(worldPackages)
-        .values({ ...previous, role: "active" })
-        .run();
-      tx.insert(worldPackages)
-        .values({ ...active, role: "previous" })
-        .run();
-      this.#event.audit(actor, "world.rollback", {}, tx);
+  rollback(actor: Actor): Promise<void> {
+    return this.#exclusive(() => {
+      this.#database.db.transaction((tx) => {
+        const scope = eq(worldPackages.eventId, this.#event.eventId);
+        const rows = tx.select().from(worldPackages).where(scope).all();
+        const active = rows.find((row) => row.role === "active");
+        const previous = rows.find((row) => row.role === "previous");
+        if (active === undefined || previous === undefined) throw new NoPreviousWorld();
+        // Both rows are replaced: the roles are unique per event, so they are swapped by rewriting them.
+        tx.delete(worldPackages).where(scope).run();
+        tx.insert(worldPackages)
+          .values({ ...previous, role: "active" })
+          .run();
+        tx.insert(worldPackages)
+          .values({ ...active, role: "previous" })
+          .run();
+        this.#event.audit(actor, "world.rollback", {}, tx);
+      });
+      return Promise.resolve();
     });
   }
 }

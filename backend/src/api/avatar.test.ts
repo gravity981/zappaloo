@@ -5,7 +5,8 @@ import type { AvatarResponse, Role } from "@zappaloo/shared";
 import { companions } from "../database/schema.ts";
 import { createTestApp, signIn } from "../test-support.ts";
 import type { TestContext } from "../test-support.ts";
-import { buildTestWorld } from "../world/build.ts";
+import { buildArchive } from "../packages/build.ts";
+import { buildTestWorld, testWorldFiles } from "../world/build.ts";
 
 let context: TestContext | undefined;
 afterEach(async () => {
@@ -78,6 +79,38 @@ describe("the avatar editor's figures (AVA-01, AVA-02)", () => {
     const chosen = await put(ctx, vip, "me", "kid");
     expect(chosen.statusCode).toBe(200);
     expect((await get(ctx, vip)).persons[0]).toMatchObject({ figure: "kid", chosen: true });
+  });
+
+  it("[AVA-01][AVA-02] a staff-only user in a world without tier2 figures gets the tier1 figures and may choose one", async () => {
+    // The test world's tier2 figure becomes tier1: the world has no figure for staff (decision 2 of 5l).
+    const files = testWorldFiles();
+    const figures = JSON.parse(files["avatar/figures.json"]?.toString("utf8") ?? "{}") as {
+      figures: { id: string; tier: string }[];
+    };
+    for (const figure of figures.figures) if (figure.id === "crew") figure.tier = "tier1";
+    files["avatar/figures.json"] = Buffer.from(JSON.stringify(figures));
+    const ctx = await createTestApp();
+    context = ctx;
+    ctx.event.setSetting("platformOpen", true, "cli");
+    const admin = await signIn(ctx, "boss", ["admin"]);
+    const imported = await ctx.app.inject({
+      method: "POST",
+      url: "/api/admin/world",
+      headers: { ...admin, "content-type": "application/vnd.zappaloo.world" },
+      payload: buildArchive(files),
+    });
+    expect(imported.statusCode).toBe(200);
+    const crew = await userWith(ctx, "crew", ["staff"]);
+    expect(idsOf(await get(ctx, crew))).toEqual(["wedding-guest", "male-guest", "kid", "crew"]);
+    expect((await put(ctx, crew, "me", "kid")).statusCode).toBe(200);
+    expect((await get(ctx, crew)).persons[0]).toMatchObject({ figure: "kid", chosen: true });
+  });
+
+  it("[AVA-01] a vip-only user cannot choose a tier2 figure, even though the world has one", async () => {
+    const { ctx } = await setup();
+    const vip = await userWith(ctx, "gast", ["vip"]);
+    expect((await put(ctx, vip, "me", "crew")).statusCode).toBe(403);
+    expect(idsOf(await get(ctx, vip))).not.toContain("crew");
   });
 
   it("[AVA-01] the server refuses a figure the person may not choose, one the world does not have, and a stranger's companion", async () => {

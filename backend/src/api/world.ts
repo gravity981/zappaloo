@@ -111,7 +111,7 @@ const worldPlugin: FastifyPluginAsyncZod<WorldOptions> = (app, { world }) => {
     },
     async (request, reply) => {
       try {
-        world.rollback(actor(request));
+        await world.rollback(actor(request));
       } catch (error) {
         if (error instanceof NoPreviousWorld) {
           return reply.status(409).send({
