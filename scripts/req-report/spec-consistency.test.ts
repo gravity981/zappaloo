@@ -36,9 +36,11 @@ describe("the project spec", () => {
     expect(notImplemented.errors).toEqual([]);
   });
 
-  it("plans epics 1 to 10, with 3.5 and 3.9 inserted", () => {
+  it("plans epics 1 to 10, with 3.5, 3.9 and 5.1 inserted", () => {
     expect(epics.errors).toEqual([]);
-    expect(epics.value.map((e) => e.number)).toEqual([1, 2, 3, 3.5, 3.9, 4, 5, 6, 7, 8, 9, 10]);
+    expect(epics.value.map((e) => e.number)).toEqual([
+      1, 2, 3, 3.5, 3.9, 4, 5, 5.1, 6, 7, 8, 9, 10,
+    ]);
   });
 
   it("lists only active requirements as not implemented, and plans every active requirement in an epic", () => {

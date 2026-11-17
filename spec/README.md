@@ -52,7 +52,7 @@ Status values: **specified** (requirements written, not implemented) · **in pro
 
 | Prefix | Topic | Section in sw-architecture.md | Reqs (active) | Stage | Status |
 |---|---|---|---|---|---|
-| GAME | Game world: entry, guided start, controls, movement, objects and rendering fidelity | 3 | 21 | 5 | in progress |
+| GAME | Game world: entry, guided start, controls, movement, objects and rendering fidelity | 3 | 27 | 5, 5.1 | in progress |
 | PRES | Guest presence (wandering figures, speech bubble with profile) and seating | 3.6 | 13 (2 withdrawn) | 6 | specified |
 | HUNT | Treasure hunt | 3.7 | 7 | 8 | specified |
 | MG | Minigames, results, highscores | 4 | 13 | 8 | specified |
@@ -80,7 +80,7 @@ Status values: **specified** (requirements written, not implemented) · **in pro
 | PWA | Installable app (manifest, icons, home screen) | 19.5 | 5 | 3.5 | implemented |
 | LIC | Copyright and license notice in the footer | 19.6 | 3 | 3.5 | implemented |
 | THM | Theme package (app icons, colours, fonts) | 19.7 | 6 | 4 | implemented |
-| | **Total** | | **247** (284 IDs, 37 withdrawn) | | |
+| | **Total** | | **253** (290 IDs, 37 withdrawn) | | |
 
 Sections with no requirement table describe architecture and technology choices: 15 (stack), 16 (frontend), 17 (backend), 26 (project structure), 27 (decision summary), 28 (stages) and 29 (principles). Section 30 lists what is out of scope for the first version.
 
