@@ -2,8 +2,7 @@
 // shown in a sheet over the game. Links inside stay in the overlay: it has a router of its own, so the address of
 // the browser does not change and closing it returns the player to the same spot. A router cannot sit inside the
 // app's router, so the page is rendered into a React root of its own, with the session and the event it needs. The
-// objects whose action is a
-// reading panel or a dialogue come with stage 5g; until then they show a short note.
+// action `dialog` (step 6d) comes later; until then it shows a short note.
 import { useEffect, useRef } from "react";
 import { createRoot } from "react-dom/client";
 import { useTranslation } from "react-i18next";

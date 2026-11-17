@@ -378,11 +378,9 @@ export type WorldStatus = z.infer<typeof worldStatusSchema>;
 
 /** What activating a clickable object does: the preset of the Tiled file, or the admin's assignment. */
 export const worldActionSchema = z.discriminatedUnion("kind", [
-  /** A website page as an overlay: `programme`, `rsvp`, `profile` or `p/<slug>`. */
+  /** A website page as an overlay: `programme`, `rsvp`, `profile` or `p/<slug>`, any content page. */
   z.strictObject({ kind: z.literal("page"), page: z.string().min(1).max(100) }),
-  /** A content page, shown in a reading panel (stage 5g). */
-  z.strictObject({ kind: z.literal("content"), contentId: z.string().min(1).max(100) }),
-  /** A dialogue the guest taps through (stage 5g). */
+  /** A dialogue the guest taps through (step 6d). */
   z.strictObject({ kind: z.literal("dialog"), dialogId: z.string().min(1).max(100) }),
   /** A minigame (stage 8): only a preset of the Tiled file can name one. */
   z.strictObject({ kind: z.literal("minigame"), minigameId: z.string().min(1).max(100) }),
@@ -395,13 +393,13 @@ export type WorldObjectAction = z.infer<typeof worldActionSchema>;
 export const worldAssignableActionSchema = z.discriminatedUnion("kind", [
   worldActionSchema.options[0],
   worldActionSchema.options[1],
-  worldActionSchema.options[2],
-  worldActionSchema.options[4],
+  worldActionSchema.options[3],
 ]);
 
 /**
  * The preset action of a clickable object, from its Tiled custom properties (14.2): `action` with `page`,
- * `contentId` (also for a dialogue) or `minigameId`. Undefined without a valid preset.
+ * `contentId` (a dialogue, or a content page, which is the page `p/<contentId>`) or `minigameId`. Undefined
+ * without a valid preset.
  */
 export function presetActionOf(
   properties: readonly { name: string; value: unknown }[] | undefined,
@@ -417,7 +415,8 @@ export function presetActionOf(
     case "page":
       return page === undefined ? undefined : { kind: "page", page };
     case "content":
-      return contentId === undefined ? undefined : { kind: "content", contentId };
+      // A content page is shown like any website page, in the overlay (decided 2026-11-17).
+      return contentId === undefined ? undefined : { kind: "page", page: `p/${contentId}` };
     case "dialog":
       return contentId === undefined ? undefined : { kind: "dialog", dialogId: contentId };
     case "minigame":
@@ -464,6 +463,8 @@ export const worldPortalSchema = z.object({
 
 /** `GET /api/admin/world/objects`: the objects of every map of the active world and what can be assigned. */
 export const worldObjectsSchema = z.object({
+  /** The id of the start map, which the admin's list marks with a star. */
+  startMap: z.string(),
   maps: z.array(
     z.object({
       id: z.string(),
@@ -472,11 +473,9 @@ export const worldObjectsSchema = z.object({
       portals: z.array(worldPortalSchema),
     }),
   ),
-  /** The pages that can be shown as an overlay: `programme`, `rsvp`, `profile` and `p/<slug>`. */
+  /** The pages that can be shown as an overlay: `programme`, `rsvp`, `profile` and `p/<slug>` of every content page. */
   pages: z.array(z.string()),
-  /** The slugs of the content pages. */
-  contentPages: z.array(z.string()),
-  /** The ids of the dialogues (they come with stage 5g). */
+  /** The ids of the dialogues (they come with step 6d). */
   dialogues: z.array(z.string()),
 });
 export type WorldObjects = z.infer<typeof worldObjectsSchema>;

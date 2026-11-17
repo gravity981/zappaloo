@@ -34,12 +34,11 @@ export default function AdminWorldPage() {
       <div className="row">
         <h1 className="grow">{t("admin.nav.world")}</h1>
       </div>
-      <div className="row" role="group" aria-label={t("admin.world.tabs")}>
+      <div className="subtabs" role="group" aria-label={t("admin.world.tabs")}>
         {tabs.map(([key, label]) => (
           <button
             key={key}
             type="button"
-            className={`btn sm ${tab === key ? "soft" : "ghost"}`}
             aria-pressed={tab === key}
             onClick={() => {
               setTab(key);
@@ -154,38 +153,44 @@ function WorldCard() {
         </section>
       )}
       {data.active && (
-        <section className="card" aria-labelledby="maps-title">
-          <b id="maps-title">{t("admin.world.mapsTitle", { count: data.active.maps.length })}</b>
-          <span className="hint">{t("admin.world.startHint")}</span>
-          <table>
-            <thead>
-              <tr>
-                <th>{t("admin.world.mapColumn")}</th>
-                <th>{t("admin.world.objectsColumn")}</th>
-                <th>{t("admin.world.portalsColumn")}</th>
-              </tr>
-            </thead>
-            <tbody>
-              {data.active.maps.map((map) => (
-                <tr key={map.id}>
-                  <td>
-                    {map.id === data.active?.startMap && (
-                      <span className="tag ok">{t("admin.world.startMarker")}</span>
-                    )}{" "}
-                    <b>{map.name ?? map.id}</b>
-                    {map.name !== undefined && (
-                      <>
-                        <br />
-                        <span className="hint">{map.id}</span>
-                      </>
-                    )}
-                  </td>
-                  <td>{map.clickable}</td>
-                  <td>{map.portals}</td>
+        <section className="card tight" aria-labelledby="maps-title">
+          <div className="row tight-head">
+            <b id="maps-title" className="grow">
+              {t("admin.world.mapsTitle", { count: data.active.maps.length })}
+            </b>
+            <span className="hint">{t("admin.world.startHint")}</span>
+          </div>
+          <div className="scroll">
+            <table className="table">
+              <thead>
+                <tr>
+                  <th>{t("admin.world.mapColumn")}</th>
+                  <th>{t("admin.world.objectsColumn")}</th>
+                  <th>{t("admin.world.portalsColumn")}</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {data.active.maps.map((map) => (
+                  <tr key={map.id}>
+                    <td>
+                      {map.id === data.active?.startMap && (
+                        <span className="tag ok">{t("admin.world.startMarker")}</span>
+                      )}{" "}
+                      <b>{map.name ?? map.id}</b>
+                      {map.name !== undefined && (
+                        <>
+                          <br />
+                          <span className="hint">{map.id}</span>
+                        </>
+                      )}
+                    </td>
+                    <td>{map.clickable}</td>
+                    <td>{map.portals}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </section>
       )}
     </>

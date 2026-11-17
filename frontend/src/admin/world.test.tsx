@@ -189,6 +189,24 @@ describe("game world › Welt & Import", () => {
   });
 });
 
+/** The website's content, whose page titles name the pages in the select. */
+const site = {
+  startMarkdown: "",
+  pages: [
+    {
+      id: 1,
+      slug: "anreise",
+      title: "Anreise & Parkieren",
+      markdown: "",
+      inMore: true,
+      position: 0,
+      placeIds: [],
+    },
+  ],
+  places: [],
+  start: { heroImageId: null, heroAlt: null, countdown: true },
+};
+
 describe("game world › Objekte & Portale (MAP-15)", () => {
   const objects = {
     maps: [
@@ -213,10 +231,10 @@ describe("game world › Objekte & Portale (MAP-15)", () => {
         ],
         portals: [{ name: "zum-garten", targetMap: "garten", targetSpawn: "start" }],
       },
-      { id: "garten", clickables: [], portals: [] },
+      { id: "garten", name: "Garten", clickables: [], portals: [] },
     ],
+    startMap: "kirche",
     pages: ["programme", "rsvp", "profile", "p/anreise"],
-    contentPages: ["anreise"],
     dialogues: [],
   };
 
@@ -225,18 +243,25 @@ describe("game world › Objekte & Portale (MAP-15)", () => {
       "GET /api/session": asAdmin,
       "GET /api/admin/world": () => ({ status: 200, body: { active: sommerfest, previous: null } }),
       "GET /api/admin/world/objects": () => ({ status: 200, body: objects }),
+      "GET /api/content": () => ({ status: 200, body: site }),
     });
     renderAt("/admin/world");
     user.click(await screen.findByRole("button", { name: "Objekte & Portale" }));
     expect(await screen.findByText("Anklickbare Objekte (3)")).toBeVisible();
+    // The select shows the action that applies; the preset has its own column.
     const altar = screen.getByRole("combobox", { name: "Aktion von Programm" });
-    expect(within(altar).getByRole("option", { name: "Vorgabe: Seite programme" })).toBeVisible();
+    expect(altar).toHaveValue("page:programme");
+    expect(within(altar).getByRole("option", { name: "Seite: Programm" })).toBeVisible();
+    expect(within(altar).getByRole("option", { name: "Seite: Anreise & Parkieren" })).toBeVisible();
+    expect(within(altar).getByRole("option", { name: "– keine –" })).toBeVisible();
+    expect(screen.getByRole("columnheader", { name: "Vorgabe aus Tiled" })).toBeVisible();
     // A preset that points to nothing is marked; an easter egg is named as such.
     const row = screen.getByRole("combobox", { name: "Aktion von pastor" }).closest("tr");
     expect(row && within(row).getByText("fehlt")).toBeVisible();
     expect(screen.getByText("Easter Egg")).toBeVisible();
     expect(screen.getByText("Portale (1)")).toBeVisible();
     expect(screen.getByText("zum-garten")).toBeVisible();
+    expect(screen.getByText("→ Garten · Spawn «start»")).toBeVisible();
     // Portals are read-only: nothing to change in their list.
     expect(
       within(screen.getByRole("region", { name: "Portale (1)" })).queryByRole("combobox"),
@@ -248,6 +273,7 @@ describe("game world › Objekte & Portale (MAP-15)", () => {
       "GET /api/session": asAdmin,
       "GET /api/admin/world": () => ({ status: 200, body: { active: sommerfest, previous: null } }),
       "GET /api/admin/world/objects": () => ({ status: 200, body: objects }),
+      "GET /api/content": () => ({ status: 200, body: site }),
       "PUT /api/admin/world/objects/kirche/altar": () => ({ status: 200, body: objects }),
     });
     renderAt("/admin/world");
@@ -256,7 +282,8 @@ describe("game world › Objekte & Portale (MAP-15)", () => {
     fireEvent.change(altar, { target: { value: "page:p/anreise" } });
     expect(await screen.findByText("Gespeichert.")).toBeVisible();
     fireEvent.change(altar, { target: { value: "none" } });
-    fireEvent.change(altar, { target: { value: "" } });
+    // Picking what the preset says (the programme) returns to the preset.
+    fireEvent.change(altar, { target: { value: "page:programme" } });
     await waitFor(() => {
       expect(calls.filter((call) => call.method === "PUT").map((call) => call.body)).toEqual([
         { action: { kind: "page", page: "p/anreise" } },
@@ -273,7 +300,7 @@ describe("game world › Objekte & Portale (MAP-15)", () => {
       "GET /api/admin/world": () => ({ status: 200, body: { active: null, previous: null } }),
       "GET /api/admin/world/objects": () => ({
         status: 200,
-        body: { maps: [], pages: ["programme"], contentPages: [], dialogues: [] },
+        body: { startMap: "", maps: [], pages: ["programme"], dialogues: [] },
       }),
     });
     renderAt("/admin/world");

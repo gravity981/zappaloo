@@ -107,7 +107,7 @@ The stage each requirement belongs to is listed in `sw-architecture.md`, section
 
 - ACS-05: the treasure-hunt condition (step 8d); the admin page for manual releases, with the first step that stores access conditions (5b; pages carry none in stage 4, decided 2026-11-13).
 - ACS-07: server checks for map loading and protected game areas (5b), contribution upload (7b), moderation (7c), minigame start and result submission (8b).
-- GAME-06 and MAP-15 (from step 5f on, decided 2026-11-17): the action `minigame` (stage 8; a preset `minigame` is reported at import and does nothing, and the admin cannot assign it). The actions `content` and `dialog` are assignable and run from step 5g; until then the game shows a short note.
+- GAME-06 and MAP-15 (from step 5f on, decided 2026-11-17): the action `minigame` (stage 8; a preset `minigame` is reported at import and does nothing, and the admin cannot assign it). A content page is linked as a page and runs from step 5f; the action `dialog` comes with step 6d (dialogues moved there on 2026-11-17), and until then the game shows a short note.
 - CNT-02 (from stage 4 on, decided 2026-11-13): dialogues and NPC texts (5d), photo albums (7d). Unlock conditions are covered by ACS-05.
 - CNT-03 (from stage 4 on): the reference from a game-world object by `contentId` (5d).
 - ROLE-06: the capabilities in use: `editWebsiteContent` (4a), `moderateContributions` (7c). Until then only test routes use them.

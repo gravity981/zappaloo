@@ -223,11 +223,10 @@ export class WorldService {
   }
 
   /** The pages, content pages and dialogues an action can point to. */
-  #targets(): { pages: string[]; contentPages: string[]; dialogues: string[] } {
+  #targets(): { pages: string[]; dialogues: string[] } {
     const slugs = [...this.#installation().pageSlugs].sort();
     return {
       pages: [...WORLD_BUILTIN_PAGES, ...slugs.map((slug) => `p/${slug}`)],
-      contentPages: slugs,
       dialogues: [...this.#installation().dialogueIds].sort(),
     };
   }
@@ -236,18 +235,18 @@ export class WorldService {
   objects(): WorldObjects {
     const active = this.active();
     const targets = this.#targets();
-    if (active === undefined) return { maps: [], ...targets };
+    if (active === undefined) return { startMap: "", maps: [], ...targets };
     const overrides = new Map(
       this.#storedOverrides().map((item) => [`${item.map}/${item.object}`, item.action]),
     );
     const missing = (action: WorldObjectAction | undefined): boolean => {
       if (action === undefined) return false;
       if (action.kind === "page") return !targets.pages.includes(action.page);
-      if (action.kind === "content") return !targets.contentPages.includes(action.contentId);
       if (action.kind === "dialog") return !targets.dialogues.includes(action.dialogId);
       return action.kind === "minigame";
     };
     return {
+      startMap: active.startMap,
       maps: this.#objectsOf(active).map((map) => ({
         id: map.id,
         ...(map.name === undefined ? {} : { name: map.name }),
@@ -294,11 +293,9 @@ export class WorldService {
       const known =
         action.kind === "page"
           ? targets.pages.includes(action.page)
-          : action.kind === "content"
-            ? targets.contentPages.includes(action.contentId)
-            : action.kind === "dialog"
-              ? targets.dialogues.includes(action.dialogId)
-              : true;
+          : action.kind === "dialog"
+            ? targets.dialogues.includes(action.dialogId)
+            : true;
       if (!known)
         throw new WorldObjectError("target_not_found", "the target of the action does not exist");
     }
@@ -354,7 +351,7 @@ export class WorldService {
       .from(contentPages)
       .where(eq(contentPages.eventId, this.#event.eventId))
       .all();
-    // Dialogues are content items of stage 5g; until they exist, no dialogue is there.
+    // Dialogues are content items of step 6d; until they exist, no dialogue is there.
     return { pageSlugs: new Set(pages.map((page) => page.slug)), dialogueIds: new Set() };
   }
 

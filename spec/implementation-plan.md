@@ -270,7 +270,7 @@ Replanned 2026-11-13 after a review of the plan against stages 3 to 3.9 and a cl
 - **Privacy notice, waiting-page texts and footer line** stay in Einstellungen, outside the content base.
 - **Theme package** (19.7, THM-01 – THM-05): app icons, `theme.json` and fonts come as one `tar.gz` that an admin imports. The format is versioned, a validator checks it, and only whole packages are applied. The admin can return to the default theme. There is no download. The app icons leave the data volume folder (PWA-02 reworded).
 - **World package** (14.4, stage 5): the map importer becomes a world importer. One package holds maps, tilesets, objects, the door scene and the avatar editor assets, all or nothing. Dialogues and NPC texts are edited in the browser. The view "Erlebniswelt" keeps assigning the actions.
-- **CNT-02 and CNT-03 are partially implemented** after stage 4 (test-strategy.md, section 5). Dialogues, NPC texts and the reference from a game object follow in step 5d, albums in step 7d.
+- **CNT-02 and CNT-03 are partially implemented** after stage 4 (test-strategy.md, section 5). Dialogues and NPC texts follow in step 6d (moved from 5g on 2026-11-17), the reference from a game object to a content page in step 5f (as a page in the overlay), albums in step 7d.
 - **SEC-05** was delivered with the privacy notice (steps 3d and 3i) and leaves the "not yet implemented" list. Stage 4 reuses the renderer.
 - **CFG-01 and CFG-04 get tests** (step 4f).
 - **Start page with a fixed layout** (decided 2026-11-13, during step 4b; sw-architecture.md 5.6, WEB-10, WEB-11, THM-06). The `home` mock showed a countdown card that the plan had left out. Before the event day the start page shows the hero image, the welcome text, the countdown card, the RSVP card and the shortcuts. On the event day it shows "now / next", the feature cards and the shortcuts. The hosts edit the hero image (uncropped, with an alt text), the welcome text and the countdown switch (default on) in the editor of the start page in Inhalte. The countdown counts the days to the first program item and uses the theme's new `display` font, or the heading font without one, not a pixel font. Considered and rejected: elements such as a countdown placed inside the Markdown text, and pages built from blocks.
@@ -413,7 +413,7 @@ world.tar.gz
 
 **5b – Validator and test world.** Done 2026-11-14 (decisions of the step in sw-architecture.md 14.4).
 **5c – Import, rollback and serving.** Done 2026-11-14 (decisions of the step in sw-architecture.md 14.4).
-**5d – Erlebniswelt › Welt & Import.** Done 2026-11-14: the page with the import tab only (the other tabs come with 5f and 5g), no template-world import action, per-map counts in the admin status. Open: the mock shows map names, the world carries only map ids (see the step report).
+**5d – Erlebniswelt › Welt & Import.** Done 2026-11-14: the page with the import tab only (Objekte & Portale came with 5f; the tab Dialoge comes with 6d), no template-world import action, per-map counts in the admin status. Open: the mock shows map names, the world carries only map ids (see the step report).
 **5d.1 – World format 2.** Done 2026-11-15 (inserted 2026-11-15; details below 5d). The decisions are in sw-architecture.md 14.4 ("Decisions of step 5d.1"); the frame and tile-size limits await the project owner's confirmation.
 - The package reader (gzip and tar, limits, paths; shared with the theme package), `manifest.json`, the Tiled checks per map (format, orientation, embedded tilesets, referenced images, layers, spawn points), portal targets inside the package, the door scene, the avatar assets. Returns all findings. One test per validator rule with a broken package.
 - A script builds the test world (two or three maps with generated placeholder tiles, avatar parts and objects of every type) for the tests and for development.
@@ -469,10 +469,7 @@ Exit: the shared engine and world-package integration are accepted; step 5f may 
 - Erlebniswelt › Objekte & Portale: assign each clickable object's action per map (page, content item, dialogue, none); portals read-only.
 Requirements: GAME-04, GAME-05, GAME-06 (without minigames), GAME-08, GAME-11, GAME-15, GAME-16, MAP-03, MAP-15.
 
-**5g – Dialogues and content items.** Mock screen: `admin-world` (variant "Dialoge").
-- Dialogues edited by admins in Erlebniswelt › Dialoge (id, NPC name, lines in Markdown, "Verwendet von"), audited with ids only. Deleting is refused while an object shows the dialogue; changing the id keeps the assignments.
-- The actions `content` (reading panel with a page's text) and `dialog` (tapping through the lines).
-Requirements: CNT-02, CNT-03 (completing them; albums follow in step 7d).
+**5g – Dropped (decided 2026-11-17).** Dialogues moved to step 6d, and a content page is linked to a clickable object as a page (`p/<slug>`) that opens in the page overlay of 5f, so there is no separate content action and no reading panel. CNT-03 is covered by 5f for content pages; its dialogue part completes in 6d.
 
 **5h – Avatar editor.** Mock screen: `onboard-avatar`.
 - The editor chooses one of the world's figures (format version 2): a grid with labels and a walking preview. Tabs for the guest and each approved companion.
@@ -512,6 +509,11 @@ Requirements: PRES-09, PRES-10, PRES-13, PRES-14, PRES-15.
 
 **6c – Seating plan and table finder.** Tables and seats, default seats for accompanying persons, admin override, table finder with tablemates, visibility date.
 Requirements: PRES-05, PRES-06, PRES-07, PRES-12.
+
+**6d – Dialogues.** Mock screen: `admin-world` (variant "Dialoge"). Moved here from 5g on 2026-11-17.
+- Dialogues edited by admins in Erlebniswelt › Dialoge (id, NPC name, lines in Markdown, "Verwendet von"), audited with ids only. Deleting is refused while an object shows the dialogue; changing the id keeps the assignments.
+- The action `dialog`: the NPC name and the lines, which the guest taps through. The dialogues the admin can pick for a clickable object (Objekte & Portale) and the `preset_missing` warning for a dialogue that does not exist start working with them.
+Requirements: CNT-02 (the dialogue and NPC text part; albums follow in step 7d), CNT-03 (completing it).
 
 ### Stage 7 – Contributions and Event Screen
 

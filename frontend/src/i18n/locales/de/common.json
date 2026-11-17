@@ -671,29 +671,24 @@
         "noWorld": "Es ist noch keine Welt importiert. Objekte und Portale erscheinen nach dem Import.",
         "maps": "Karten",
         "title": "Anklickbare Objekte ({{count}})",
-        "info": "Die Vorgabe aus der Tiled-Datei gilt, bis hier etwas anderes gewählt wird. Änderungen gelten sofort, ohne neuen Import.",
+        "info": "aus der Tiled-Datei · Änderungen sind sofort live",
         "none": "Diese Karte hat keine anklickbaren Objekte.",
         "object": "Objekt",
         "action": "Aktion",
         "actionOf": "Aktion von {{name}}",
-        "preset": "Vorgabe: {{action}}",
-        "noPreset": "Vorgabe: keine",
+        "presetColumn": "Vorgabe aus Tiled",
+        "inTiled": "in Tiled",
+        "portalTarget": "→ {{map}} · Spawn «{{spawn}}»",
         "hidden": "Easter Egg",
         "missing": "fehlt",
         "saved": "Gespeichert.",
         "portalsTitle": "Portale ({{count}})",
-        "portalsInfo": "Portale werden in Tiled eingestellt und sind hier nur zu lesen.",
+        "portalsInfo": "Portale verbinden Karten. Ziel und Spawnpunkt kommen aus der Tiled-Datei. Im Spiel erscheinen sie als schwebende Pfeile.",
         "kinds": {
-          "page": "Seite {{target}}",
-          "content": "Inhaltsseite {{target}}",
-          "dialog": "Dialog {{target}}",
-          "minigame": "Minispiel {{target}} (ab Stufe 8)",
-          "none": "Keine Aktion"
-        },
-        "groups": {
-          "page": "Seite als Overlay",
-          "content": "Inhaltsseite lesen",
-          "dialog": "Dialog"
+          "page": "Seite: {{target}}",
+          "dialog": "Dialog: {{target}}",
+          "minigame": "Minispiel: {{target}}",
+          "none": "– keine –"
         }
       }
     }

@@ -128,7 +128,7 @@ describe("the world of the event (MAP-04, MAP-05, MAP-06, MAP-08, MAP-09, MAP-10
     // "schild" and "sprecher" show the content page "anreise", which the installation does not have.
     expect(codes).toContain("preset_missing:schild");
     expect(codes).toContain("preset_missing:sprecher");
-    // "pastor" opens the dialogue "npc-pastor"; dialogues come with stage 5g.
+    // "pastor" opens the dialogue "npc-pastor"; dialogues come with step 6d.
     expect(codes).toContain("preset_missing:pastor");
     // "altar" opens the built-in programme: no warning.
     expect(codes).not.toContain("preset_missing:altar");
@@ -352,7 +352,7 @@ describe("the actions of clickable objects (MAP-15, GAME-06)", () => {
     const altar = church?.clickables.find((item) => item.name === "altar");
     expect(altar?.preset).toEqual({ kind: "page", page: "programme" });
     expect(altar?.missing).toBe(false);
-    // The dialogue of "pastor" does not exist before stage 5g; the preset is marked as missing.
+    // The dialogue of "pastor" does not exist before step 6d; the preset is marked as missing.
     const pastor = church?.clickables.find((item) => item.name === "pastor");
     expect(pastor).toMatchObject({
       preset: { kind: "dialog", dialogId: "npc-pastor" },
@@ -393,6 +393,35 @@ describe("the actions of clickable objects (MAP-15, GAME-06)", () => {
     expect(entry?.details).toEqual({ map: "kirche", object: "altar" });
   });
 
+  it("[MAP-15][CNT-03] any content page can be linked to a clickable object: a content preset is the page p/<slug>, and the admin picks it from the pages", async () => {
+    context = await createTestApp();
+    const ctx = context;
+    const admin = await signIn(ctx, "boss", ["admin"]);
+    await upload(ctx, admin, buildTestWorld());
+    const sign = async () =>
+      (await objects(ctx, admin)).maps
+        .find((map) => map.id === "kirche")
+        ?.clickables.find((item) => item.name === "schild");
+    // "schild" has the preset action content with contentId anreise: the page p/anreise, which does not exist yet.
+    expect(await sign()).toMatchObject({
+      preset: { kind: "page", page: "p/anreise" },
+      missing: true,
+    });
+    const page = await ctx.app.inject({
+      method: "POST",
+      url: "/api/content/pages",
+      headers: admin,
+      payload: { slug: "anreise", title: "Anreise", markdown: "Hallo", inMore: true },
+    });
+    expect(page.statusCode).toBe(200);
+    expect(await sign()).toMatchObject({ missing: false });
+    expect((await objects(ctx, admin)).pages).toContain("p/anreise");
+    // The admin links another content page to another object, as with every page.
+    expect(
+      (await put(ctx, admin, "kirche", "altar", { kind: "page", page: "p/anreise" })).statusCode,
+    ).toBe(200);
+  });
+
   it("[MAP-15] an assignment names an existing object and an existing target; a minigame cannot be assigned; only admins assign", async () => {
     context = await createTestApp();
     const ctx = context;
@@ -405,10 +434,11 @@ describe("the actions of clickable objects (MAP-15, GAME-06)", () => {
     expect(
       (await put(ctx, admin, "kirche", "altar", { kind: "page", page: "p/fehlt" })).statusCode,
     ).toBe(422);
+    // A content page is a page: there is no separate action for it.
     expect(
-      (await put(ctx, admin, "kirche", "altar", { kind: "content", contentId: "fehlt" }))
+      (await put(ctx, admin, "kirche", "altar", { kind: "content", contentId: "anreise" }))
         .statusCode,
-    ).toBe(422);
+    ).toBe(400);
     expect(
       (await put(ctx, admin, "kirche", "altar", { kind: "minigame", minigameId: "quiz" }))
         .statusCode,

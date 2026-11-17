@@ -259,6 +259,27 @@
   padding: 10px 12px;
   resize: vertical;
 }
+/* The tabs of a page with several parts, like Erlebniswelt (UX mock `m-subtabs`) */
+:is(.admin, .guest) .subtabs {
+  display: flex;
+  gap: 0;
+  border-bottom: 1.5px solid var(--a-line);
+}
+:is(.admin, .guest) .subtabs button {
+  background: none;
+  border: 0;
+  padding: 10px 14px;
+  font: inherit;
+  font-weight: 600;
+  color: var(--a-muted);
+  border-bottom: 2.5px solid transparent;
+  margin-bottom: -1.5px;
+  cursor: pointer;
+}
+:is(.admin, .guest) .subtabs button[aria-pressed="true"] {
+  color: var(--a-ink);
+  border-bottom-color: var(--a-ink);
+}
 :is(.admin, .guest) .chips {
   display: flex;
   flex-wrap: wrap;
