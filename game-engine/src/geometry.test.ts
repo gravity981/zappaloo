@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   distanceToOutline,
+  interiorPoint,
   mapBounds,
   pixelToTile,
   pointInPolygon,
@@ -68,5 +69,20 @@ describe("the isometric geometry (MAP-02, GAME-02)", () => {
 
   it("[GAME-03] a trigger area's centre lies inside it", () => {
     expect(polygonCentre(square)).toEqual({ x: 5, y: 5 });
+  });
+
+  it("[GAME-10] the tap target of an L-shaped portal lies inside the portal, although its box centre does not", () => {
+    const L = [
+      { x: 0, y: 0 },
+      { x: 100, y: 0 },
+      { x: 100, y: 40 },
+      { x: 40, y: 40 },
+      { x: 40, y: 100 },
+      { x: 0, y: 100 },
+    ];
+    expect(pointInPolygon(polygonCentre(L), L)).toBe(false);
+    expect(pointInPolygon(interiorPoint(L), L)).toBe(true);
+    // A convex trigger keeps its centre.
+    expect(interiorPoint(square)).toEqual({ x: 5, y: 5 });
   });
 });

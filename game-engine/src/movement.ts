@@ -62,3 +62,32 @@ export function directionOf(move: Point): Direction {
   }
   return best;
 }
+
+/** A walk to one waypoint is stuck when its distance has not shrunk by a pixel within this time (GAME-10). */
+export const STUCK_AFTER_MS = 500;
+
+/**
+ * Watches a walk to its waypoint. A walk that slides along a wall keeps moving but gets no nearer, so it is stuck
+ * when the distance has not shrunk by at least 1 px for STUCK_AFTER_MS.
+ */
+export class WalkWatch {
+  #best = Number.POSITIVE_INFINITY;
+  #idle = 0;
+
+  /** One frame of the walk: the distance to the waypoint and the frame time. True when the walk is stuck. */
+  update(distance: number, deltaMs: number): boolean {
+    if (distance <= this.#best - 1) {
+      this.#best = distance;
+      this.#idle = 0;
+      return false;
+    }
+    this.#idle += deltaMs;
+    return this.#idle >= STUCK_AFTER_MS;
+  }
+
+  /** Starts again: a new waypoint, or no walk at all. */
+  reset(): void {
+    this.#best = Number.POSITIVE_INFINITY;
+    this.#idle = 0;
+  }
+}

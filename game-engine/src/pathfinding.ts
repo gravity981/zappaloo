@@ -12,6 +12,8 @@ export interface Grid {
   rows: number;
   /** Whether a cell can be walked on (the goal is exempt). */
   walkable: (cell: Cell) => boolean;
+  /** Whether a step between two neighbouring cells is possible; a step that is not passable is never taken. */
+  passable?: (from: Cell, to: Cell) => boolean;
 }
 
 function key(cell: Cell): string {
@@ -115,6 +117,7 @@ export function findPath(grid: Grid, start: Cell, goal: Cell): Cell[] | undefine
       if (closed.has(nextKey)) continue;
       const isGoal = nextKey === key(goal);
       if (!isGoal && !grid.walkable(next)) continue;
+      if (grid.passable !== undefined && !grid.passable(current, next)) continue;
       const nextCost = base + 1;
       if (nextCost < (cost.get(nextKey) ?? Number.POSITIVE_INFINITY)) {
         cost.set(nextKey, nextCost);

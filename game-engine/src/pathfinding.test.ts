@@ -8,6 +8,20 @@ const open = (columns: number, rows: number, wall: Cell[] = []) => ({
 });
 
 describe("the path of a tap (GAME-10)", () => {
+  it("[GAME-10] a step that is not passable is never taken, the goal included", () => {
+    const grid = {
+      ...open(5, 5),
+      passable: (_from: Cell, to: Cell) => !(to.column === 3 && to.row === 0),
+    };
+    expect(findPath(grid, { column: 0, row: 0 }, { column: 3, row: 0 })).toBeUndefined();
+    expect(findPath(grid, { column: 0, row: 0 }, { column: 3, row: 1 })).toBeDefined();
+  });
+
+  it("[GAME-10] when no step out of the start is passable, there is no path", () => {
+    const boxed = { ...open(5, 5), passable: () => false };
+    expect(findPath(boxed, { column: 0, row: 0 }, { column: 3, row: 0 })).toBeUndefined();
+  });
+
   it("[GAME-10] the path is the shortest one on open ground, both ends included", () => {
     const path = findPath(open(5, 5), { column: 0, row: 0 }, { column: 3, row: 0 });
     expect(path).toEqual([

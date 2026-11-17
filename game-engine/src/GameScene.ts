@@ -3,16 +3,18 @@
 // with the camera at the map's zoom. What the map means (collisions, paths, portals, draw order) is in the plain
 // modules next to it; this scene only wires them to Phaser.
 import Phaser from "phaser";
-import { walkable, cellOf, cellCentre, playerCollisionEllipse } from "./collision.ts";
+import { walkable, cellOf, playerCollisionEllipse } from "./collision.ts";
 import { walkFrameIndex } from "./figures.ts";
 import { figureDepth, figureOcclusionSegment, occlusionSegmentRelation } from "./draw-order.ts";
-import { mapBounds, type Point, polygonCentre, tileToPixel, type TileSize } from "./geometry.ts";
-import { findPath, type Grid } from "./pathfinding.ts";
+import { interiorPoint, mapBounds, type Point, polygonCentre, tileToPixel } from "./geometry.ts";
+import { findPath } from "./pathfinding.ts";
+import { navigationGrid, walkRoute } from "./navigation.ts";
 import {
   directionOf,
   keyDirection,
   SPEED_TILES_PER_SECOND,
   stepPosition,
+  WalkWatch,
   type Direction,
 } from "./movement.ts";
 import { portalAt, spawnPosition } from "./entry.ts";
@@ -69,10 +71,6 @@ export interface WorldSceneData {
   nativeObjects?: boolean;
 }
 
-function centreOf(cell: { column: number; row: number }, size: TileSize): Point {
-  return cellCentre(cell.column, cell.row, size);
-}
-
 /** The drawn picture of a tile object: a sprite when Phaser's native renderer drew it, an image otherwise. */
 type ObjectPicture = Phaser.GameObjects.Sprite | Phaser.GameObjects.Image;
 
@@ -116,6 +114,8 @@ export class WorldScene extends Phaser.Scene {
   #wasd: Record<"W" | "A" | "S" | "D", Phaser.Input.Keyboard.Key> | undefined;
   /** After a resume, the activation keys that were still held do not activate until they are released (GAME-11). */
   #activationBlocked = false;
+  /** Whether the walk to the current waypoint still gets nearer; a walk that is stuck is stopped (GAME-10). */
+  readonly #walkWatch = new WalkWatch();
   readonly #onKeyDown = (event: KeyboardEvent): void => {
     // The scroll and button keys are the game's only while it runs and no field or button of the page has the focus.
     if (
@@ -335,6 +335,7 @@ export class WorldScene extends Phaser.Scene {
         this.#activate(area);
       }
     }
+    let toWaypoint: number | undefined;
     while (!keysHeld && this.#path.length > 0) {
       const next = this.#path[0];
       if (next === undefined) break;
@@ -343,17 +344,23 @@ export class WorldScene extends Phaser.Scene {
       const distance = Math.hypot(dx, dy);
       if (distance > REACHED) {
         move = { x: dx / distance, y: dy / distance };
+        toWaypoint = distance;
         break;
       }
       this.#path.shift();
+      this.#walkWatch.reset();
     }
-    const walking = !keysHeld && move.x !== 0;
+    const walking = !keysHeld && (move.x !== 0 || move.y !== 0);
 
     const before = this.#position;
     const after = stepPosition(before, { x: move.x * step, y: move.y * step }, isWalkable);
     const moved = after.x !== before.x || after.y !== before.y;
-    // A walk stops where its way is blocked, so it does not hang on a wall.
-    if (walking && !moved) this.#path = [];
+    // A walk stops where its way is blocked: it does not move at all, or it slides along a wall and gets no nearer.
+    if (walking && !moved) this.#stopWalk();
+    else if (walking && toWaypoint !== undefined && this.#walkWatch.update(toWaypoint, delta)) {
+      this.#stopWalk();
+    }
+    if (!walking) this.#walkWatch.reset();
     this.#position = after;
     if (moved) this.#direction = directionOf(move);
     this.#walkClock = moved ? this.#walkClock + delta : 0;
@@ -798,17 +805,11 @@ export class WorldScene extends Phaser.Scene {
     }
     if (portal === undefined && !walkable(map.obstacles, playerCollisionEllipse(point, size.width)))
       return;
-    const goal = portal === undefined ? point : polygonCentre(portal.polygon);
-    const grid: Grid = {
-      columns: map.columns,
-      rows: map.rows,
-      walkable: (cell) =>
-        walkable(map.obstacles, playerCollisionEllipse(centreOf(cell, size), size.width)),
-    };
-    const cells = findPath(grid, cellOf(this.#position, size), cellOf(goal, size));
+    const goal = portal === undefined ? point : interiorPoint(portal.polygon);
+    const cells = findPath(navigationGrid(map), cellOf(this.#position, size), cellOf(goal, size));
     if (cells === undefined) return;
-    this.#path = cells.slice(1).map((cell) => centreOf(cell, size));
-    if (portal !== undefined) this.#path.push(goal);
+    const route = walkRoute(map, this.#position, cells, portal === undefined ? undefined : goal);
+    if (route !== undefined) this.#path = route;
   }
 
   /** Walks to the approach point of an object; stands already there, the action runs at once. */
@@ -819,17 +820,23 @@ export class WorldScene extends Phaser.Scene {
       return;
     }
     const size = map.size;
-    const grid: Grid = {
-      columns: map.columns,
-      rows: map.rows,
-      walkable: (cell) =>
-        walkable(map.obstacles, playerCollisionEllipse(centreOf(cell, size), size.width)),
-    };
-    const cells = findPath(grid, cellOf(this.#position, size), cellOf(area.approach, size));
+    const cells = findPath(
+      navigationGrid(map),
+      cellOf(this.#position, size),
+      cellOf(area.approach, size),
+    );
     if (cells === undefined) return;
-    this.#path = cells.slice(1).map((cell) => centreOf(cell, size));
-    this.#path.push(area.approach);
+    const route = walkRoute(map, this.#position, cells, area.approach);
+    if (route === undefined) return;
+    this.#path = route;
     this.#pending = area;
+  }
+
+  /** Ends a walk where it is: its path and the object it was walking to (GAME-10). */
+  #stopWalk(): void {
+    this.#path = [];
+    this.#pending = undefined;
+    this.#walkWatch.reset();
   }
 
   /** Runs the action of an object through the host (GAME-06); an object without an action does nothing. */

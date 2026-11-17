@@ -116,6 +116,39 @@ export function polygonCentre(polygon: readonly Point[]): Point {
   };
 }
 
+/**
+ * A point inside a polygon, where a tap on a portal walks to (GAME-10). The centre of the bounding box is used when
+ * it lies inside; a concave area (an L shape) takes the centroid of a corner's triangle that lies inside, or else the
+ * midpoint of an edge moved a pixel towards the centre.
+ */
+export function interiorPoint(polygon: readonly Point[]): Point {
+  const centre = polygonCentre(polygon);
+  if (pointInPolygon(centre, polygon)) return centre;
+  const n = polygon.length;
+  for (let i = 0; i < n; i++) {
+    const a = polygon[(i + n - 1) % n];
+    const b = polygon[i];
+    const c = polygon[(i + 1) % n];
+    if (a === undefined || b === undefined || c === undefined) continue;
+    const corner = { x: (a.x + b.x + c.x) / 3, y: (a.y + b.y + c.y) / 3 };
+    if (pointInPolygon(corner, polygon)) return corner;
+  }
+  for (let i = 0; i < n; i++) {
+    const a = polygon[i];
+    const b = polygon[(i + 1) % n];
+    if (a === undefined || b === undefined) continue;
+    const middle = { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
+    const length = Math.hypot(centre.x - middle.x, centre.y - middle.y);
+    if (length === 0) continue;
+    const inward = {
+      x: middle.x + ((centre.x - middle.x) / length) * 1,
+      y: middle.y + ((centre.y - middle.y) / length) * 1,
+    };
+    if (pointInPolygon(inward, polygon)) return inward;
+  }
+  return centre;
+}
+
 /** The polygon of a rectangle with its top-left corner at (x, y), as Tiled stores rectangles. */
 export function rectangleToPolygon(x: number, y: number, width: number, height: number): Point[] {
   return [

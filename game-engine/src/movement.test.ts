@@ -1,5 +1,25 @@
 import { describe, expect, it } from "vitest";
-import { directionOf, keyDirection, stepPosition } from "./movement.ts";
+import { directionOf, keyDirection, stepPosition, WalkWatch } from "./movement.ts";
+
+describe("walks that get stuck (GAME-16)", () => {
+  it("[GAME-16] a walk that gets no nearer is stuck after 500 ms; a walk that gets nearer is not", () => {
+    const watch = new WalkWatch();
+    // Nearer each frame: never stuck.
+    for (let distance = 100; distance >= 90; distance--) {
+      expect(watch.update(distance, 16)).toBe(false);
+    }
+    // Sliding along a wall at the same distance: stuck on the 32nd frame, 512 ms after the last progress.
+    const results = Array.from({ length: 40 }, () => watch.update(90, 16));
+    expect(results.indexOf(true)).toBe(31);
+  });
+
+  it("[GAME-16] a new waypoint starts the count again", () => {
+    const watch = new WalkWatch();
+    Array.from({ length: 40 }, () => watch.update(90, 16));
+    watch.reset();
+    expect(watch.update(90, 16)).toBe(false);
+  });
+});
 
 describe("movement (GAME-02, GAME-09)", () => {
   it("[GAME-09] one arrow key moves in its screen direction, two keys move diagonally at the same speed", () => {
