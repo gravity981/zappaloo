@@ -35,14 +35,6 @@ jobs:
           node-version-file: .node-version
           cache: npm
       - run: npm ci
-      - name: Install pinned Tiled CLI
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y --no-install-recommends libegl1 libfontconfig1 squashfs-tools xvfb xauth
-          TILED_INSTALL_DIR="$RUNNER_TEMP/tiled/1.12.2" sh scripts/tiled/install.sh
-          echo "$RUNNER_TEMP/tiled/1.12.2/bin" >> "$GITHUB_PATH"
-      - name: Verify pinned Tiled CLI
-        run: tiled --version
       - name: Lint
         run: npm run lint
       - name: Format check
@@ -81,12 +73,6 @@ jobs:
           node-version-file: .node-version
           cache: npm
       - run: npm ci
-      - name: Install pinned Tiled CLI
-        run: |
-          apt-get update
-          apt-get install -y --no-install-recommends squashfs-tools xvfb xauth
-          TILED_INSTALL_DIR="$RUNNER_TEMP/tiled/1.12.2" sh scripts/tiled/install.sh
-          echo "$RUNNER_TEMP/tiled/1.12.2/bin" >> "$GITHUB_PATH"
       - name: End-to-end tests
         run: npm run test:e2e
       - name: Upload test results

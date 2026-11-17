@@ -513,7 +513,7 @@ Exit: the standalone preview can load a package and reproduce the same engine be
 - Reuse existing Zappaloo archive/validation helpers where applicable. Do not modify the asset repository or fetch its dependencies/specs. Any missing source configuration is reported explicitly, not guessed; the package picker still works without the private checkout.
 - **Decision (2026-11-16):** the local source root is supplied through `ZAPPALOO_TILED_SOURCE_DIR`. If it is unset or points to an unusable source, the preview reports that explicitly and keeps package loading available; it never guesses a checkout path.
 - Debounce edits, serialize exports and publish a new validated snapshot atomically. Show export/validation errors while retaining the last working snapshot. Refresh changed textures as well as maps, preserve valid selections where possible, and report when a selection no longer exists.
-- Test export/watch/recovery with generated public sources. Compare source-preview output with opening its exported package; both must enter the same preparation and renderer path.
+- **Decision (2026-11-17):** Zappaloo CI does not test Tiled world export. The asset-producing repository validates its generated package with `zappaloo validate`; Zappaloo tests validator behavior and source-preview/watch orchestration using an injected exporter.
 Requirements: MAP-18; re-verified: MAP-01, MAP-06, MAP-10, MAP-16.
 Exit: saving a local Tiled source refreshes the preview safely, without an application import or a second map parser.
 

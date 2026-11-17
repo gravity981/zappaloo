@@ -32,7 +32,7 @@ RUN apt-get update \
     && apt-get install -y --no-install-recommends sqlite3 xz-utils squashfs-tools xvfb xauth libegl1 libfontconfig1 \
     && rm -rf /var/lib/apt/lists/*
 
-# Pinned headless Tiled CLI for development and public visual-reference fixtures.
+# Pinned Tiled CLI/editor; uses Xvfb when no desktop display is available.
 COPY scripts/tiled/install.sh /tmp/install-tiled.sh
 RUN case "$(dpkg --print-architecture)" in \
         amd64) TILED_INSTALL_DIR=/opt/tiled/1.12.2 sh /tmp/install-tiled.sh \

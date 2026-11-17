@@ -6,7 +6,7 @@ const root = new URL("../../", import.meta.url);
 const read = (path: string) => readFileSync(fileURLToPath(new URL(path, root)), "utf8");
 
 describe("pinned Tiled tooling and private-world boundaries", () => {
-  it("[GAME-20][MAP-18] installs the exact Tiled release and verifies its checksum", () => {
+  it("[MAP-18] pins the development Tiled editor and verifies its checksum", () => {
     const installer = read("scripts/tiled/install.sh");
     expect(installer).toContain("version=1.12.2");
     expect(installer).toContain(
@@ -18,6 +18,13 @@ describe("pinned Tiled tooling and private-world boundaries", () => {
     expect(installer).toContain("x86_64-only");
   });
 
+  it("[MAP-18] launches Tiled on the desktop display when available", () => {
+    const installer = read("scripts/tiled/install.sh");
+    expect(installer).toContain('if [ -n "${DISPLAY:-}" ]; then');
+    expect(installer).toContain('exec \\"$install_dir/root/AppRun\\"');
+    expect(installer).toContain("exec xvfb-run -a");
+  });
+
   it("[MAP-18] excludes private source and generated-world directories from Git and Docker", () => {
     for (const file of [".gitignore", ".dockerignore"]) {
       const rules = read(file);
@@ -26,10 +33,12 @@ describe("pinned Tiled tooling and private-world boundaries", () => {
     }
   });
 
-  it("[MAP-18] installs Tiled only in development and the public-fixture test job", () => {
+  it("[MAP-18] installs Tiled only in the development container", () => {
     expect(read(".devcontainer/Dockerfile")).toContain("scripts/tiled/install.sh");
     expect(read(".devcontainer/Dockerfile")).toContain("arm64");
-    expect(read(".github/workflows/ci.yml")).toContain("scripts/tiled/install.sh");
+    const ci = read(".github/workflows/ci.yml");
+    expect(ci).not.toContain("scripts/tiled/install.sh");
+    expect(ci).not.toMatch(/\b(?:libegl1|libfontconfig1|libgl1|squashfs-tools|xvfb|xauth)\b/);
     expect(read("infrastructure/docker/Dockerfile")).not.toMatch(/tiled/i);
   });
 });

@@ -21,11 +21,15 @@ if [ ! -x "$binary" ]; then
   chmod +x "$temp_dir/tiled.AppImage"
   (cd "$temp_dir" && "$temp_dir/tiled.AppImage" --appimage-extract)
   mv "$temp_dir/squashfs-root" "$install_dir/root"
-  mkdir -p "$install_dir/bin"
-  printf '%s\n' \
-    '#!/bin/sh' \
-    "exec xvfb-run -a \"$install_dir/root/AppRun\" \"\$@\"" > "$binary"
-  chmod +x "$binary"
 fi
+
+mkdir -p "$install_dir/bin"
+printf '%s\n' \
+  '#!/bin/sh' \
+  'if [ -n "${DISPLAY:-}" ]; then' \
+  "  exec \"$install_dir/root/AppRun\" \"\$@\"" \
+  'fi' \
+  "exec xvfb-run -a \"$install_dir/root/AppRun\" \"\$@\"" > "$binary"
+chmod +x "$binary"
 
 "$binary" --version | grep -F "$version"

@@ -40,7 +40,8 @@ Development data (SQLite database, uploads, maps) lives in the Docker volume `za
 | `npm run test:e2e` | End-to-end tests (Playwright, desktop and mobile, Chromium and WebKit) |
 | `npm run lint` / `npm run format` | ESLint / Prettier |
 | `npm run typecheck` | TypeScript in all workspaces |
-| `npm run cli -- <command>` | The `zappaloo` CLI from source: `version`, `migrate`, `backup`, `restore` |
+| `npm run cli -- <command>` | The `zappaloo` CLI from source: `version`, `migrate`, `backup`, `restore`, `validate` |
+| `docker run --rm -v "$PWD:/work" ghcr.io/gravity981/zappaloo:<version> zappaloo validate /work/<package>.tar.gz` | Validate a theme or world package; add `--json` for machine-readable findings |
 | `npm run db:generate -w backend` | New database migration after changing `backend/src/database/schema.ts` |
 | `npm run req-report` | Requirement report: which requirement is verified by which test |
 | `npm run check` | Everything CI does, including the Docker image and the deployment test (a few minutes) |
