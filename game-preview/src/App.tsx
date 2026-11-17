@@ -123,7 +123,9 @@ export default function App() {
       preview = loadedPreview;
       if (!pageIsMounted() || !isLatest()) {
         loadedPreview.releaseAssets();
-        await releasePreviewPackage(loadedPreview.token);
+        // A superseded local package stays: the newer load of the same snapshot may still read its files.
+        const shared = loadedPreview.source === "local-package" && pageIsMounted();
+        if (!shared) await releasePreviewPackage(loadedPreview.token);
         return;
       }
       const parent = viewport.current;
@@ -240,8 +242,10 @@ export default function App() {
       }
       if (preview !== undefined) {
         preview.releaseAssets();
+        // A local package's token is the preview server's own snapshot, which a newer load may still read.
+        const shared = preview.source === "local-package" && superseded;
         try {
-          await releasePreviewPackage(preview.token);
+          if (!shared) await releasePreviewPackage(preview.token);
         } catch (releaseError) {
           console.error("Could not release a failed preview package", releaseError);
         }
