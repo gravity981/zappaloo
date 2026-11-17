@@ -50,9 +50,11 @@ export default function GameCanvas({
   // The engine keeps the first callbacks it gets; these refs let it call the latest ones.
   const activate = useRef(onActivate);
   const tap = useRef(onPlayerTap);
+  const translate = useRef(t);
   useEffect(() => {
     activate.current = onActivate;
     tap.current = onPlayerTap;
+    translate.current = t;
   });
 
   useEffect(() => {
@@ -99,6 +101,8 @@ export default function GameCanvas({
           tap.current();
         },
       },
+      // The words the engine shows come from the app, in the guest's language.
+      texts: { loading: translate.current("game.mapLoading") },
       transparent: import.meta.env.VITE_TEST_HOOKS === "true",
       preserveDrawingBuffer: import.meta.env.VITE_TEST_HOOKS === "true",
       // The frame diagnostics (GAME-27) exist on the dev server only; a production build drops them.

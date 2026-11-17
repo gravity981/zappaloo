@@ -40,6 +40,7 @@ import { isTypingTarget } from "./keys.ts";
 import { startsPaused } from "./pause.ts";
 import { SHADOW_DEPTH_BELOW, figureShadow } from "./figure-shadow.ts";
 import { EdgeIndicatorLayer } from "./edge-indicators.ts";
+import { hideLoadingOverlay, showLoadingOverlay } from "./loading-overlay.ts";
 import {
   indicatorBox,
   indicatorPlace,
@@ -84,6 +85,12 @@ interface IndicatorSource {
   tap: Point;
 }
 
+/** How long the screen flash of entering a map lasts, in milliseconds (GAME-30). */
+const FLASH_MS = 450;
+
+/** The game registry's count of the maps entered in this game (test hook). */
+const ENTRIES_REGISTRY_KEY = "zappaloo.game-map-entries";
+
 /** The warm glow of a portal's floating arrow (GAME-15). */
 const PORTAL_GLOW_COLOR = 0xffd36b;
 
@@ -117,6 +124,8 @@ interface MapNavigation {
 
 /** The data the scene starts with. Without it, the scene enters the world where the guest was last. */
 export interface WorldSceneData {
+  /** Whether the new scene is entered with a screen flash (GAME-30); true unless it says so, as a change of zoom does. */
+  flash?: boolean;
   mapId?: string;
   spawn?: string;
   artworkOnly?: boolean;
@@ -186,6 +195,8 @@ export class WorldScene extends Phaser.Scene {
   readonly #portalGlows = new Set<number>();
   /** When the walk that makes an object glow started, in scene time (GAME-25). */
   #glowSince = 0;
+  /** Whether this scene is entered with a screen flash (GAME-30). */
+  #flash = true;
   /** The shadow under the player's figure (GAME-28). */
   #shadow: Phaser.GameObjects.Ellipse | undefined;
   /** The edge indicators over the canvas and the objects they may point to (GAME-26). */
@@ -253,6 +264,7 @@ export class WorldScene extends Phaser.Scene {
     this.#indicatorLayer?.destroy();
     this.#indicatorLayer = undefined;
     this.#indicatorSources = [];
+    this.#flash = data.flash ?? true;
     this.#sparkles = 0;
     this.#activeSparkles = 0;
     this.#edges = new Map();
@@ -329,6 +341,7 @@ export class WorldScene extends Phaser.Scene {
         sparkles: this.#sparkles,
         walk: { marker: this.#feedback.marker ?? null, glow: this.#feedback.glow ?? null },
         glows: this.#glows.size,
+        entries: (this.game.registry.get(ENTRIES_REGISTRY_KEY) as number | undefined) ?? 0,
         view: {
           // In CSS pixels, whatever the pixel ratio of the canvas is.
           x: camera.midPoint.x,
@@ -340,6 +353,7 @@ export class WorldScene extends Phaser.Scene {
       };
     });
     this.#host?.onReady?.();
+    this.#enterMap();
     // Phaser sets the scene to running after create() returns, so a pause the page asked for earlier is applied then.
     this.events.once(Phaser.Scenes.Events.CREATE, () => {
       if (startsPaused(this.registry)) this.setPaused(true);
@@ -531,6 +545,20 @@ export class WorldScene extends Phaser.Scene {
     });
   }
 
+  /**
+   * The map is ready: the veil of the portal comes down, and the map is entered with a screen flash (GAME-30). A
+   * change of zoom in the preview restarts the scene too, but is no entry of a map.
+   */
+  #enterMap(): void {
+    hideLoadingOverlay(this.game);
+    if (this.#artworkOnly) return;
+    const entries = (this.game.registry.get(ENTRIES_REGISTRY_KEY) as number | undefined) ?? 0;
+    if (this.#flash) {
+      this.game.registry.set(ENTRIES_REGISTRY_KEY, entries + 1);
+      this.cameras.main.flash(FLASH_MS, 255, 255, 255);
+    }
+  }
+
   /** The glow along the edges of the clickable objects that sparkle, steady until a walk leads to one (GAME-29). */
   #glowClickables(map: ParsedMap): void {
     for (const area of map.clickables) {
@@ -611,6 +639,7 @@ export class WorldScene extends Phaser.Scene {
       spawn: host.selection.spawn,
       artworkOnly: view.artworkOnly,
       zoom: view.zoom,
+      flash: false,
     });
   }
 
@@ -1519,6 +1548,10 @@ export class WorldScene extends Phaser.Scene {
 
   #transition(mapId: string, spawn: string | undefined): void {
     this.#transitioning = true;
+    // The veil is put up now, and painted before the scene restarts at the next frame; the new scene takes it down
+    // when it is ready (GAME-30).
+    const options = this.game.registry.get(ENGINE_CONFIG_REGISTRY_KEY) as GameEngineOptions;
+    showLoadingOverlay(this.game, options.texts?.loading);
     this.scene.restart({ mapId, spawn: spawn ?? "start" });
   }
 }

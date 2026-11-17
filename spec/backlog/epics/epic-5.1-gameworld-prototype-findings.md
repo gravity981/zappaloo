@@ -118,6 +118,12 @@ Mock screen: `game` (from 5.1b).
 Requirements: GAME-26.
 Re-verified: GAME-06, GAME-11, GAME-14, GAME-16.
 
+### Story 5.1h – Feedback when a map is entered
+
+Added 2026-11-17 at the project owner's request, while the epic ran. Taking a portal shows a grey "loading" veil over the game until the new map is ready (the text comes from the app), and every map is entered with a white screen flash (GAME-30). Done with the unit tests of the overlay and the e2e test of the portal (the veil is seen and gone, the entry is counted).
+
+Requirements: GAME-30.
+
 ### Story 5.1g – Check with the prototype world and epic report
 
 - Manual check in the game preview with the prototype world, on desktop and with a phone-sized viewport: straight paths, taps into buildings and behind walls, the marker, the glow, the indicators, and no stutter. A tap test on a real phone follows with the next release candidate and goes into the manual test protocol.

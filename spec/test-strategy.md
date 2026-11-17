@@ -84,7 +84,7 @@ All active requirements are listed here until their stage is delivered. Shrink t
 
 | Prefix | IDs | Count |
 |---|---|---|
-| GAME | GAME-22 – GAME-29 | 8 |
+| GAME | GAME-22 – GAME-30 | 9 |
 | PRES | PRES-01, PRES-02, PRES-04 – PRES-06, PRES-08 – PRES-10, PRES-12 – PRES-15 | 12 |
 | HUNT | HUNT-01 – HUNT-07 | 7 |
 | MG | MG-01 – MG-13 | 13 |

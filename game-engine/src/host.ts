@@ -41,6 +41,8 @@ export interface GameState {
   walk: { marker: Point | null; glow: number | null };
   /** How many objects and portal arrows have a glow (test hook, GAME-29). */
   glows: number;
+  /** How many times a map has been entered in this game: the first entry and every portal (test hook, GAME-30). */
+  entries: number;
   /** The camera: the map point at its centre, its zoom, and its size in game pixels (the canvas). */
   view: { x: number; y: number; zoom: number; width: number; height: number };
 }
@@ -66,6 +68,12 @@ export interface GameHost {
   onPlayerTap?: () => void;
 }
 
+/** The words the engine shows, which the host supplies in its own language; the engine has none of its own. */
+export interface GameTexts {
+  /** Shown over the game while the map behind a portal is built (GAME-30). Without it, the overlay has no text. */
+  loading?: string;
+}
+
 export interface GameEngineOptions {
   world: LoadedWorld;
   host: GameHost;
@@ -73,6 +81,8 @@ export interface GameEngineOptions {
   preserveDrawingBuffer?: boolean;
   guides?: GameGuides;
   view?: GameView;
+  /** The words the game shows. */
+  texts?: GameTexts;
   /** The game preview cannot assign actions: it gives every clickable object but an easter egg an edge indicator (GAME-26). */
   indicateAllObjects?: boolean;
   /** Shows the development diagnostics overlay (GAME-27); never set in a production build. */

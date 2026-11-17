@@ -160,18 +160,34 @@ test("[GAME-24][GAME-28][GAME-29] a tap on the ground shows the marker while the
   expect(Math.hypot(after.x - before.x, after.y - before.y)).toBeGreaterThan(20);
 });
 
-test("[GAME-10][GAME-03] a tap walks the player into the portal, which leads to the next map; the device remembers the map", async ({
+test("[GAME-10][GAME-03][GAME-30] a tap walks the player into the portal, which leads to the next map, behind a loading veil and with a screen flash; the device remembers the map", async ({
   page,
   context,
 }, testInfo) => {
   test.skip(testInfo.project.name !== "desktop-chromium", "shared settings: one profile only");
   await signInAsAdmin(page, context);
   await enterGame(page);
-  await gameState(page);
+  const first = await gameState(page);
+  expect(first.entries).toBe(1);
+  // Notes whether the grey loading veil is put up while the next map is built (GAME-30).
+  await page.evaluate(() => {
+    const seen = window as unknown as { sawLoadingVeil?: boolean };
+    seen.sawLoadingVeil = false;
+    new MutationObserver(() => {
+      if (document.querySelector('[data-testid="map-loading"]') !== null)
+        seen.sawLoadingVeil = true;
+    }).observe(document.body, { childList: true, subtree: true });
+  });
   // The portal "zum-garten" of the start map lies at the left corner of the map, around (32, 176) in map pixels.
   const target = await pagePoint(page, { x: 32, y: 176 });
   await page.mouse.click(target.x, target.y);
   await expect.poll(async () => (await readState(page))?.mapId, { timeout: 15_000 }).toBe("garten");
+  // The veil was up, and it is gone once the map is ready; the map was entered with a flash, which counts an entry.
+  expect(
+    await page.evaluate(() => (window as unknown as { sawLoadingVeil?: boolean }).sawLoadingVeil),
+  ).toBe(true);
+  await expect(page.getByTestId("map-loading")).toHaveCount(0);
+  await expect.poll(async () => (await readState(page))?.entries).toBe(2);
 
   await page.reload();
   expect((await gameState(page)).mapId).toBe("garten");

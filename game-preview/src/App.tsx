@@ -203,6 +203,7 @@ export default function App() {
         diagnostics: diagnostics.current,
         // The preview cannot assign actions, so it shows an indicator for every clickable object (GAME-26).
         indicateAllObjects: true,
+        texts: { loading: "Loading…" },
         guides: guides.current,
         view: view.current,
       });
