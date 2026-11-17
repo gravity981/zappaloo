@@ -52,9 +52,39 @@ export function navigationGrid(map: NavigableMap): Grid {
 }
 
 /**
+ * Straightens a route (GAME-22): a waypoint is dropped whenever a clear line for the avatar's footprint leads from
+ * the last kept point (the start at first) to a later one, so the avatar walks straight lines and turns only where an
+ * obstacle makes it necessary. The next waypoint is always kept when no later one can be reached in a line, as it
+ * was before, so a route never gets longer or leaves the cells it was found on.
+ */
+export function smoothRoute(map: NavigableMap, start: Point, route: readonly Point[]): Point[] {
+  const { size, obstacles } = map;
+  const kept: Point[] = [];
+  let anchor = start;
+  let index = 0;
+  while (index < route.length) {
+    let target = index;
+    for (let candidate = route.length - 1; candidate > index; candidate--) {
+      const point = route[candidate];
+      if (point !== undefined && clearLine(obstacles, anchor, point, size.width, SAMPLE_STEP)) {
+        target = candidate;
+        break;
+      }
+    }
+    const point = route[target];
+    if (point === undefined) break;
+    kept.push(point);
+    anchor = point;
+    index = target + 1;
+  }
+  return kept;
+}
+
+/**
  * The waypoints of a walk from `start` along a path of cells (its first cell is the start cell). A first stretch
  * that a clear line cannot take goes through the centre of the start cell first. With `end`, the walk goes on to
- * `end`, and is refused (undefined) when the last stretch to it is blocked.
+ * `end`, and is refused (undefined) when the last stretch to it is blocked. The waypoints are then smoothed
+ * (`smoothRoute`).
  */
 export function walkRoute(
   map: NavigableMap,
@@ -78,5 +108,5 @@ export function walkRoute(
     if (!clearLine(obstacles, from, end, size.width, SAMPLE_STEP)) return undefined;
     points.push(end);
   }
-  return points;
+  return smoothRoute(map, start, points);
 }

@@ -32,6 +32,44 @@ describe("the path of a tap (GAME-10)", () => {
     ]);
   });
 
+  it("[GAME-22] the path takes diagonal steps, a straight line of cells to a diagonal goal", () => {
+    const path = findPath(open(5, 5), { column: 0, row: 0 }, { column: 3, row: 3 });
+    expect(path).toEqual([
+      { column: 0, row: 0 },
+      { column: 1, row: 1 },
+      { column: 2, row: 2 },
+      { column: 3, row: 3 },
+    ]);
+  });
+
+  it("[GAME-22] a diagonal step costs √2: it is preferred to two straight steps", () => {
+    const path = findPath(open(5, 5), { column: 0, row: 0 }, { column: 2, row: 1 });
+    expect(path).toHaveLength(3);
+    expect(path?.[path.length - 1]).toEqual({ column: 2, row: 1 });
+  });
+
+  it("[GAME-22] a diagonal step past a blocked corner is not taken", () => {
+    // (1, 0) is blocked: the step from (0, 0) to (1, 1) would cut its corner.
+    const path = findPath(
+      open(3, 3, [{ column: 1, row: 0 }]),
+      { column: 0, row: 0 },
+      { column: 1, row: 1 },
+    );
+    expect(path).toEqual([
+      { column: 0, row: 0 },
+      { column: 0, row: 1 },
+      { column: 1, row: 1 },
+    ]);
+  });
+
+  it("[GAME-22] a diagonal step in a small map is taken when both cells beside it are free", () => {
+    const path = findPath(open(2, 2), { column: 0, row: 0 }, { column: 1, row: 1 });
+    expect(path).toEqual([
+      { column: 0, row: 0 },
+      { column: 1, row: 1 },
+    ]);
+  });
+
   it("[GAME-10] the path goes around a wall, never through it", () => {
     const wall = [
       { column: 2, row: 0 },

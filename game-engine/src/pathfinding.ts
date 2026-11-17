@@ -1,6 +1,8 @@
 // Tap-to-move (GAME-10): a path over the cells of the map, around everything that blocks (sw-architecture.md
-// 3.5). A* with four neighbours on the tile grid, which are the diagonals of the screen. The goal cell is
-// always allowed, so a portal or a point next to an obstacle can be reached.
+// 3.5). A* with eight neighbours on the tile grid: the four of them along a row or a column are the diagonals of
+// the screen, the four diagonal ones are the screen's horizontals and verticals (GAME-22). A diagonal step costs
+// √2 and is taken only when both cells beside it are free, so a path never cuts the corner of an obstacle. The
+// goal cell is always allowed, so a portal or a point next to an obstacle can be reached.
 
 export interface Cell {
   column: number;
@@ -15,6 +17,18 @@ export interface Grid {
   /** Whether a step between two neighbouring cells is possible; a step that is not passable is never taken. */
   passable?: (from: Cell, to: Cell) => boolean;
 }
+
+/** The steps to the eight neighbours of a cell, as column and row differences. */
+const STEPS: readonly (readonly [number, number])[] = [
+  [1, 0],
+  [-1, 0],
+  [0, 1],
+  [0, -1],
+  [1, 1],
+  [1, -1],
+  [-1, 1],
+  [-1, -1],
+];
 
 function key(cell: Cell): string {
   return `${String(cell.column)},${String(cell.row)}`;
@@ -76,14 +90,21 @@ class Heap {
   }
 }
 
+/** The cost of a diagonal step between two cells, where a straight step costs 1. */
+const DIAGONAL = Math.SQRT2;
+
 /** The cells from `start` to `goal`, both included, or undefined when the goal cannot be reached. */
 export function findPath(grid: Grid, start: Cell, goal: Cell): Cell[] | undefined {
   const inside = (cell: Cell) =>
     cell.column >= 0 && cell.row >= 0 && cell.column < grid.columns && cell.row < grid.rows;
   if (!inside(goal)) return undefined;
   if (key(start) === key(goal)) return [start];
-  const heuristic = (cell: Cell) =>
-    Math.abs(cell.column - goal.column) + Math.abs(cell.row - goal.row);
+  // The octile distance: the cost of the best path on open ground, so it never overestimates.
+  const heuristic = (cell: Cell) => {
+    const columns = Math.abs(cell.column - goal.column);
+    const rows = Math.abs(cell.row - goal.row);
+    return Math.max(columns, rows) + (DIAGONAL - 1) * Math.min(columns, rows);
+  };
   const cost = new Map<string, number>([[key(start), 0]]);
   const came = new Map<string, Cell>();
   const open = new Heap();
@@ -105,20 +126,24 @@ export function findPath(grid: Grid, start: Cell, goal: Cell): Cell[] | undefine
     }
     closed.add(currentKey);
     const base = cost.get(currentKey) ?? 0;
-    const neighbours: Cell[] = [
-      { column: current.column + 1, row: current.row },
-      { column: current.column - 1, row: current.row },
-      { column: current.column, row: current.row + 1 },
-      { column: current.column, row: current.row - 1 },
-    ];
-    for (const next of neighbours) {
+    for (const [stepColumn, stepRow] of STEPS) {
+      const next = { column: current.column + stepColumn, row: current.row + stepRow };
       if (!inside(next)) continue;
+      const diagonal = stepColumn !== 0 && stepRow !== 0;
+      if (diagonal) {
+        // No cutting a corner: both cells beside the step must be free.
+        const beside = [
+          { column: current.column + stepColumn, row: current.row },
+          { column: current.column, row: current.row + stepRow },
+        ];
+        if (beside.some((cell) => !inside(cell) || !grid.walkable(cell))) continue;
+      }
       const nextKey = key(next);
       if (closed.has(nextKey)) continue;
       const isGoal = nextKey === key(goal);
       if (!isGoal && !grid.walkable(next)) continue;
       if (grid.passable !== undefined && !grid.passable(current, next)) continue;
-      const nextCost = base + 1;
+      const nextCost = base + (diagonal ? DIAGONAL : 1);
       if (nextCost < (cost.get(nextKey) ?? Number.POSITIVE_INFINITY)) {
         cost.set(nextKey, nextCost);
         came.set(nextKey, current);
