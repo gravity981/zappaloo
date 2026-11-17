@@ -7,6 +7,7 @@ import {
   publicWorldSchema,
   WORLD_LIMITS,
   worldActionRequestSchema,
+  worldGuestAccessRequestSchema,
   worldObjectsSchema,
   worldRefusalSchema,
   worldStatusSchema,
@@ -15,6 +16,7 @@ import type { FastifyPluginAsyncZod } from "fastify-type-provider-zod";
 import { NoPreviousWorld, WorldObjectError, WorldRefused } from "../world/service.ts";
 import type { WorldService } from "../world/service.ts";
 import { requireRole, signedIn } from "./auth.ts";
+import { worldGuestAccess } from "./world-access.ts";
 
 const noQuery = z.strictObject({});
 const noBody = z.null().optional();
@@ -77,6 +79,23 @@ const worldPlugin: FastifyPluginAsyncZod<WorldOptions> = (app, { world }) => {
         }
         throw error;
       }
+    },
+  );
+
+  // The switch for guests (MAP-19): off hides the world from guests, and the active package stays.
+  app.put(
+    "/api/admin/world/guest-access",
+    {
+      ...admin,
+      schema: {
+        querystring: noQuery,
+        body: worldGuestAccessRequestSchema,
+        response: { 200: worldStatusSchema },
+      },
+    },
+    (request) => {
+      world.setGuestAccess(request.body.enabled, actor(request));
+      return world.status();
     },
   );
 
@@ -153,7 +172,10 @@ const worldPlugin: FastifyPluginAsyncZod<WorldOptions> = (app, { world }) => {
   // What a player's browser loads: the active world, or null while none is imported (MAP-05).
   app.get(
     "/api/world",
-    { schema: { querystring: noQuery, response: { 200: publicWorldSchema.nullable() } } },
+    {
+      preHandler: worldGuestAccess(world),
+      schema: { querystring: noQuery, response: { 200: publicWorldSchema.nullable() } },
+    },
     () => world.publicWorld(),
   );
 
@@ -162,7 +184,7 @@ const worldPlugin: FastifyPluginAsyncZod<WorldOptions> = (app, { world }) => {
   const fileParams = z.object({ importId: z.string(), "*": z.string() });
   app.get<{ Params: { importId: string; "*": string } }>(
     "/api/world/:importId/*",
-    { schema: { params: fileParams, querystring: noQuery } },
+    { preHandler: worldGuestAccess(world), schema: { params: fileParams, querystring: noQuery } },
     (request, reply) => {
       const path = request.params["*"];
       const bytes = world.file(request.params.importId, path);

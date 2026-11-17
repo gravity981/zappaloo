@@ -488,3 +488,91 @@ describe("the actions of clickable objects (MAP-15, GAME-06)", () => {
     expect((await world(ctx, admin)).actions.map((item) => item.object)).toEqual(["altar"]);
   });
 });
+
+describe("guest access to the world (MAP-19)", () => {
+  const setAccess = (ctx: TestContext, headers: Headers, enabled: boolean) =>
+    ctx.app.inject({
+      method: "PUT",
+      url: "/api/admin/world/guest-access",
+      headers,
+      payload: { enabled },
+    });
+
+  it("[MAP-19] the first successful import switches guest access on, and a refused package does not", async () => {
+    context = await createTestApp();
+    const ctx = context;
+    ctx.event.setSetting("platformOpen", true, "cli");
+    const admin = await signIn(ctx, "boss", ["admin"]);
+    const before = await ctx.app.inject({ url: "/api/admin/world", headers: admin });
+    expect(bodyOf<WorldStatus>(before).guestAccess).toBe(false);
+    await upload(ctx, admin, Buffer.from("not a package"));
+    expect(
+      bodyOf<WorldStatus>(await ctx.app.inject({ url: "/api/admin/world", headers: admin }))
+        .guestAccess,
+    ).toBe(false);
+    const imported = await upload(ctx, admin, buildTestWorld());
+    expect(bodyOf<WorldStatus>(imported).guestAccess).toBe(true);
+    const guest = await signIn(ctx, "gast", ["vip"]);
+    expect((await ctx.app.inject({ url: "/api/world", headers: guest })).statusCode).toBe(200);
+  });
+
+  it("[MAP-19] switched off, guests get 403 for the world, its files and the avatar routes; the world stays, and staff and admins still reach it", async () => {
+    context = await createTestApp();
+    const ctx = context;
+    ctx.event.setSetting("platformOpen", true, "cli");
+    const admin = await signIn(ctx, "boss", ["admin"]);
+    const imported = await upload(ctx, admin, buildTestWorld());
+    const importId = bodyOf<WorldStatus>(imported).active?.importId ?? "";
+    const guest = await signIn(ctx, "gast", ["vip"]);
+    const staff = await signIn(ctx, "redakteur", ["staff"]);
+
+    const off = await setAccess(ctx, admin, false);
+    expect(off.statusCode).toBe(200);
+    expect(bodyOf<WorldStatus>(off).guestAccess).toBe(false);
+    expect(bodyOf<WorldStatus>(off).active?.importId).toBe(importId);
+
+    for (const url of ["/api/world", `/api/world/${importId}/maps/kirche.json`, "/api/avatar"]) {
+      const refused = await ctx.app.inject({ url, headers: guest });
+      expect(refused.statusCode, url).toBe(403);
+      expect(refused.json(), url).toMatchObject({ error: { code: "world_access_disabled" } });
+      expect((await ctx.app.inject({ url, headers: admin })).statusCode, url).toBe(200);
+      expect((await ctx.app.inject({ url, headers: staff })).statusCode, url).toBe(200);
+    }
+    const choose = await ctx.app.inject({
+      method: "PUT",
+      url: "/api/avatar/me",
+      headers: guest,
+      payload: { figure: "kid" },
+    });
+    expect(choose.statusCode).toBe(403);
+    expect(choose.json()).toMatchObject({ error: { code: "world_access_disabled" } });
+  });
+
+  it("[MAP-19] turning access back on needs no new import, and a new import keeps the switch where the admin left it", async () => {
+    context = await createTestApp();
+    const ctx = context;
+    ctx.event.setSetting("platformOpen", true, "cli");
+    const admin = await signIn(ctx, "boss", ["admin"]);
+    await upload(ctx, admin, buildTestWorld());
+    const guest = await signIn(ctx, "gast", ["vip"]);
+    await setAccess(ctx, admin, false);
+    // A new import does not switch it on again.
+    await upload(ctx, admin, namedWorld("Zweite"));
+    expect((await ctx.app.inject({ url: "/api/world", headers: guest })).statusCode).toBe(403);
+    // Turning it on needs no import.
+    expect(bodyOf<WorldStatus>(await setAccess(ctx, admin, true)).guestAccess).toBe(true);
+    const world = await ctx.app.inject({ url: "/api/world", headers: guest });
+    expect(bodyOf<PublicWorld>(world).name).toBe("Zweite");
+  });
+
+  it("[MAP-19] only admins switch guest access, and the switch is audited", async () => {
+    context = await createTestApp();
+    const ctx = context;
+    const staff = await signIn(ctx, "redakteur", ["staff"]);
+    expect((await setAccess(ctx, staff, false)).statusCode).toBe(403);
+    const admin = await signIn(ctx, "boss", ["admin"]);
+    await upload(ctx, admin, buildTestWorld());
+    await setAccess(ctx, admin, false);
+    expect(ctx.event.auditEntries().map((entry) => entry.action)).toContain("world.guest_access");
+  });
+});

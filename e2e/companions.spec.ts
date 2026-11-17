@@ -1,5 +1,4 @@
-import { expect, test } from "@playwright/test";
-import { clientAddress, PASSWORD, signInAsAdmin } from "./support.ts";
+import { clientAddress, expect, PASSWORD, signInAsAdmin, stayOnWebsite, test } from "./support.ts";
 import de from "../frontend/src/i18n/locales/de/common.json" with { type: "json" };
 
 // The settings of the installation are shared by all tests, which run side by side: this test
@@ -42,6 +41,7 @@ test("[RSVP-08][RSVP-10][RSVP-12][RSVP-13][RSVP-15][SEC-11] a guest adds an acco
     ...(baseURL ? { baseURL } : {}),
     extraHTTPHeaders: { "x-forwarded-for": clientAddress() },
   });
+  await stayOnWebsite(guestContext);
   const guest = await guestContext.newPage();
   await guest.goto(`/invite/${code}`);
   await guest.getByLabel(de.invite.username).fill(username);

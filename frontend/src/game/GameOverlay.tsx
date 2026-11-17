@@ -97,7 +97,7 @@ export default function GameOverlay({
     <div className="game-overlay" data-testid="game-overlay">
       <span className="game-paused">{t("game.overlay.paused")}</span>
       <div
-        className="game-sheet"
+        className="game-sheet guest"
         role="dialog"
         aria-modal="true"
         aria-label={overlay.label ?? t("game.overlay.title")}

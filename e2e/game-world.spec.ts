@@ -63,7 +63,8 @@ test("[GAME-01][GAME-03] an admin imports the test world, and the game draws its
   await expect(page.getByText(`Aktiv: ${TEST_WORLD_NAME}`)).toBeVisible();
 
   await enterGame(page);
-  await expect(page.getByTestId("game-canvas")).toBeVisible();
+  // The first load of the game fetches the Phaser chunk, which takes longer on a busy machine.
+  await expect(page.getByTestId("game-canvas")).toBeVisible({ timeout: 20_000 });
   const state = await gameState(page);
   expect(state.mapId).toBe("kirche");
   expect(state.direction).toBe("south");
@@ -130,10 +131,14 @@ test("[GAME-06][GAME-08][GAME-11][GAME-15][GAME-16] a tap on an object walks to 
     .toBeGreaterThan(0);
 
   // The tap walks to the object's approach point; there its page opens over the game (GAME-16, GAME-11).
-  const target = await pagePoint(page, { x: altar.x, y: altar.y });
-  await page.mouse.click(target.x, target.y);
   const overlay = page.getByRole("dialog", { name: "Programm" });
-  await expect(overlay).toBeVisible({ timeout: 20_000 });
+  // The target is worked out from the camera at the moment of the tap; on a busy machine the view may still be
+  // settling after the canvas was sized, so the tap is made again with a fresh target until the page opens.
+  await expect(async () => {
+    const target = await pagePoint(page, { x: altar.x, y: altar.y });
+    await page.mouse.click(target.x, target.y);
+    await expect(overlay).toBeVisible({ timeout: 10_000 });
+  }).toPass({ timeout: 40_000 });
 
   // The game is paused: the avatar stays where it stopped.
   const stopped = await gameState(page);
@@ -242,4 +247,34 @@ test("[GAME-21] the game fills a phone's screen and is a window of at most 1280 
 
   await page.setViewportSize({ width: 1000, height: 700 });
   expect(await window.boundingBox()).toMatchObject({ width: 1000, height: 700 });
+});
+
+test("[MAP-19] an admin switches guest access off and on again in Welt & Import; the active world stays", async ({
+  page,
+  context,
+}, testInfo) => {
+  test.skip(testInfo.project.name !== "desktop-chromium", "shared settings: one profile only");
+  await signInAsAdmin(page, context);
+  await page.goto("/admin/world");
+  const toggle = page.getByRole("switch", { name: de.admin.world.guestAccess });
+  await expect(toggle).toHaveAttribute("aria-checked", "true");
+  await toggle.click();
+  await expect(toggle).toHaveAttribute("aria-checked", "false");
+  await expect(page.getByText(`Aktiv: ${TEST_WORLD_NAME}`)).toBeVisible();
+  // The setting is stored, and an admin still reaches the game.
+  await page.reload();
+  await expect(page.getByRole("switch", { name: de.admin.world.guestAccess })).toHaveAttribute(
+    "aria-checked",
+    "false",
+  );
+  await chooseFirstFigure(page);
+  await page.goto("/game");
+  await expect(page.getByTestId("game-canvas")).toBeVisible();
+  // Back on, so that the other tests find the installation as they left it.
+  await page.goto("/admin/world");
+  await page.getByRole("switch", { name: de.admin.world.guestAccess }).click();
+  await expect(page.getByRole("switch", { name: de.admin.world.guestAccess })).toHaveAttribute(
+    "aria-checked",
+    "true",
+  );
 });

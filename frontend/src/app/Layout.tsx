@@ -8,7 +8,7 @@ import { useTranslation } from "react-i18next";
 import { useEffect } from "react";
 import { NavLink, Outlet, useLocation } from "react-router";
 import { websiteResponseSchema } from "@zappaloo/shared";
-import { markWebsiteVisit } from "./gameEntry.ts";
+import { markWebsiteVisit, useWorldActive } from "./gameEntry.ts";
 import { useSiteName } from "../guest/site.ts";
 import { useEventFormat } from "../rsvp/format.ts";
 import { useFeature } from "./event.ts";
@@ -38,6 +38,7 @@ export default function Layout() {
   const format = useEventFormat();
   const { pathname } = useLocation();
   const name = useSiteName();
+  const world = useWorldActive(!restricted && session.user !== null) === true;
   const website = useApiData(
     restricted || !session.user ? undefined : "/api/website",
     websiteResponseSchema,
@@ -84,10 +85,12 @@ export default function Layout() {
         </nav>
         {!restricted && (
           <div className="site-head-r">
-            <NavLink className="btn sm" to="/game">
-              <SiteIcon path={SITE_ICON_PATHS.play} />
-              {t("nav.game")}
-            </NavLink>
+            {world && (
+              <NavLink className="btn sm" to="/game">
+                <SiteIcon path={SITE_ICON_PATHS.play} />
+                {t("nav.game")}
+              </NavLink>
+            )}
             {session.user && (
               <NavLink className="site-avatar" to="/profile" aria-label={t("nav.profile")}>
                 {initials(session.user.displayName)}

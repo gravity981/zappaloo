@@ -387,10 +387,15 @@ export type WorldActive = z.infer<typeof worldActiveSchema>;
 
 /** `GET /api/admin/world` (MAP-05, MAP-09). */
 export const worldStatusSchema = z.object({
+  /** Whether guests may enter the world (MAP-19). */
+  guestAccess: z.boolean(),
   active: worldActiveSchema.nullable(),
   previous: z.object({ name: z.string(), importedAt: z.string() }).nullable(),
 });
 export type WorldStatus = z.infer<typeof worldStatusSchema>;
+
+/** `PUT /api/admin/world/guest-access` (MAP-19). */
+export const worldGuestAccessRequestSchema = z.strictObject({ enabled: z.boolean() });
 
 // --- The actions of clickable objects (sw-architecture.md 14.2, GAME-06, MAP-15). ---
 

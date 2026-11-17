@@ -11,6 +11,7 @@ import { useSession } from "../app/session.ts";
 import { useEventFormat } from "../rsvp/format.ts";
 import AdminWorldObjects from "./AdminWorldObjects.tsx";
 import { useAdminData, useErrorText } from "./data.ts";
+import { Switch } from "./ui.tsx";
 
 const WORLD_PATH = "/api/admin/world";
 const WORLD_MEDIA_TYPE = "application/vnd.zappaloo.world";
@@ -87,6 +88,20 @@ function WorldCard() {
     setError(errorText(result.errorCode));
   }
 
+  /** Guest access to the world (MAP-19): the switch is live at once; the active world stays either way. */
+  async function setGuestAccess(enabled: boolean) {
+    setBusy(true);
+    setError(undefined);
+    setSaved(undefined);
+    const result = await apiRequest("PUT", `${WORLD_PATH}/guest-access`, {
+      csrfToken,
+      body: { enabled },
+    });
+    setBusy(false);
+    if (result.ok) reload();
+    else setError(errorText(result.errorCode));
+  }
+
   async function rollback() {
     setBusy(true);
     setError(undefined);
@@ -120,6 +135,7 @@ function WorldCard() {
         armed={armed}
         onArm={setArmed}
         onRollback={() => void rollback()}
+        onGuestAccess={(enabled) => void setGuestAccess(enabled)}
         onImport={(file) => void importFile(file)}
       />
       {error && (
@@ -204,6 +220,7 @@ function WorldSummary({
   armed,
   onArm,
   onRollback,
+  onGuestAccess,
   onImport,
 }: {
   status: WorldStatus;
@@ -211,6 +228,7 @@ function WorldSummary({
   armed: boolean;
   onArm: (armed: boolean) => void;
   onRollback: () => void;
+  onGuestAccess: (enabled: boolean) => void;
   onImport: (file: File) => void;
 }) {
   const { t } = useTranslation();
@@ -252,6 +270,22 @@ function WorldSummary({
             time: format.time(previous.importedAt),
           })}
         </span>
+      )}
+      {active && (
+        <div className="setrow">
+          <div className="grow">
+            <b className="sm">{t("admin.world.guestAccess")}</b>
+            <span className="hint">
+              {t(status.guestAccess ? "admin.world.guestAccessOn" : "admin.world.guestAccessOff")}
+            </span>
+          </div>
+          <Switch
+            checked={status.guestAccess}
+            label={t("admin.world.guestAccess")}
+            disabled={busy}
+            onChange={onGuestAccess}
+          />
+        </div>
       )}
       <div className="row">
         <label className="btn soft sm">

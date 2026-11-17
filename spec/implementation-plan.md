@@ -36,8 +36,8 @@ Each release goes into production. From Release 1 on, real guest data is stored,
 | 3.5 | Installable app (home screen icon, no browser chrome) | 1 | done |
 | 3.9 | Findings from the Release 1 pilot | 1 (updates) | done |
 | 4 | Content and website | Opening | done |
-| 5 | Game world and world importer | Opening | next |
-| 6 | Living world | Opening | open |
+| 5 | Game world and world importer | Opening | done |
+| 6 | Living world | Opening | next |
 | 7 | Contributions and event screen | Event-ready | open |
 | 8 | Minigames, treasure hunt and highscores | Event-ready | open |
 | 9 | Event readiness | Event-ready | open |
@@ -488,7 +488,7 @@ Requirements: GAME-12, GAME-13 (without "Say hello"), GAME-14 (without "Hochlade
 
 **5j – Moved to step 9c (decided 2026-11-17).** The loading-time test and the size budget wait until a release shows whether the game works at all on devices. PERF-04 stays on the "not yet implemented" list until then.
 
-**5k – Erlebniswelt access and stage report.**
+**5k – Erlebniswelt access and stage report. Done (2026-11-17).** Decisions: sw-architecture.md 14.4 "Decisions of step 5k".
 - Do not create or ship a template world.
 - Add an admin switch in Erlebniswelt › Welt & Import to disable or re-enable guest access. Guest access starts enabled on the first successful world import. When disabled, guest entry points and direct guest navigation are unavailable and guest world-serving routes are blocked; the active package and admin management remain available.
 - Status report for stage 5.
@@ -897,4 +897,69 @@ Guests see the website: a start page with the hero image, the welcome text and t
 **Risks and notes:**
 - Before the site response arrives, the first page load shows the default look, then the theme. A new theme shows on the next page load (19.7).
 - The example package has placeholder icons and no fonts. The font path is covered by tests, but no real font has been checked in a browser.
+- The requirement report's stage table reads whole stage numbers only, so 3.5 and 3.9 count under stage 3.
+
+### Stage 5 – Game World and World Importer (2026-11-17, written after the stage)
+
+An admin imports a whole world package (isometric maps from Tiled, complete figures) in Erlebniswelt › Welt & Import, rolls back to the previous one, assigns the actions of the clickable objects, and switches guest access on and off. Guests who sign in to an open platform land in the game: they choose their avatar (and their companions'), answer the RSVP in an overlay if it is still open, and walk around with the keys or by tapping. Objects sparkle, portals lead on, and website pages open as overlays above the paused game. A bar at the top gives Programm, Rückmeldung and Website, and a tap on the own figure opens the profile. On a phone the game fills the screen; on a wide screen it is a window of at most 1280 × 800 pixels.
+
+**Steps:**
+- **5a – Spec and mocks:** done (2026-11-14).
+- **5b – Validator and test world:** done. 5c – Import, rollback and serving: done. 5d – Erlebniswelt › Welt & Import: done.
+- **5d.1 – World format 2:** done (inserted 2026-11-15). Isometric maps and complete figures replace format version 1.
+- **5e – Shared game engine and world-package integration:** done. The project owner confirmed the rendering; the sub-steps 5e.1 – 5e.8 were retired.
+- **5f – Objects and overlays:** done. Clickable objects and portals with their effects, actions, page overlays, and the admin's list of objects.
+- **5g – Dropped:** dialogues moved to step 6d; a content page is linked to an object as a page.
+- **5h – Avatar editor:** done. Kind first, then a figure; tiers by role; companions' tabs.
+- **5i – Entering the game:** done. Landing, guided first entry, bar, hint, the own avatar opens the profile, and the size rule (GAME-21, added during the step).
+- **5j – Loading time:** moved to step 9c (2026-11-17), so that a release shows first whether the game works on devices. PERF-04 moved to stage 9.
+- **5k – Erlebniswelt access and stage report:** done. The switch for guest access (MAP-19), no template world shipped, this report.
+- **Changed during the stage:** world format 2 replaced format 1 (2026-11-15); the template world (MAP-12 – MAP-14) was withdrawn (2026-11-17); WEB-08 was withdrawn (2026-11-14); step 5g was dropped and 5j moved (2026-11-17); GAME-21 was added (2026-11-17).
+
+**Requirements:** 39 of 39 planned for this stage, all with passing tests (requirement report; PERF-04 moved to stage 9). GAME-13 (without "Say hello"), GAME-14 (without "Hochladen") and GAME-06 (without the minigame action) are partially implemented, as listed in test-strategy.md, section 5. Overall: 172 of 247 active requirements implemented, 162 with passing tests. The others are the ones whose deployment-test results the local report reads from an old file (see below); none is from stage 5.
+
+**Tests:**
+- Unit, component and integration (Vitest): 1140 tests in 109 files, all passing (`npm test`, run once more before the report).
+- End-to-end (Playwright): 87 passed, 57 skipped (the project-specific skips), none failed (`npm run test:e2e`, complete run on the final code). Two tests were made more robust during the closing runs (the tap on the altar retries with a fresh target; the first load of the game waits longer for the Phaser chunk), and the specs of the website and the admin area keep their browser on the website (a world on the shared installation makes `/` lead into the game).
+- Deployment test (`npm run test:deploy`): runs on CI only, because it does not work in the devcontainer under WSL (decided 2026-11-17). The local requirement report reads old results of it, and its 11 errors come from them (ACC-05, ACC-11, ACC-14, CFG-02, CFG-07, OPS-02, OPS-05, OPS-13, OPS-15, OPS-16, SEC-01); CI has the current ones.
+- Manual checks on a phone: none recorded for stage 5. The game has not been checked on real devices yet.
+
+**Spec changes and deviations:**
+- Written into the spec during the stage: 14 (world format, importer, objects), GAME-01 – GAME-21, MAP-01 – MAP-19 (MAP-07, MAP-11 – MAP-14 withdrawn), AVA-01 – AVA-04, the decisions of steps 5b – 5k in sw-architecture.md 14.4, the mocks (`admin-world`, `onboard-avatar`, `game`, `game-overlay`), and the testing policy (test-strategy.md, section 8, and CLAUDE.md).
+- Decided in step 5k: "guests" are the users who are neither staff nor admin; the setting lives in `event_settings` under its own name (no migration); the world routes and the avatar routes answer a guest with `403 world_access_disabled` while access is off.
+- Decided in step 5i: with a world, `/` leads into the game once per browser session; a figure that a new world no longer has leads to the avatar step again.
+
+**Overall status:**
+
+| Stage | Content | Status |
+|---|---|---|
+| 1 | Walking skeleton and deployment | done |
+| 2 | Accounts, roles and access | done |
+| 3 | RSVP and waiting page | done |
+| 3.5 | Installable app | done |
+| 3.9 | Findings from the Release 1 pilot | done |
+| 4 | Content and website | done (CNT-02, CNT-03 finish with the dialogues in step 6d) |
+| 5 | Game world and world importer | done |
+| 6 | Living world | next |
+| 7 | Contributions and event screen | open |
+| 8 | Minigames, treasure hunt and highscores | open |
+| 9 | Event readiness | open |
+| 10 | After the event | open |
+
+**Remaining requirements by stage** (from the requirement report, whole stage numbers): stage 1 → 1; 2 → 0; 3 → 0; 4 → 2 (CNT-02, CNT-03); 5 → 0; 6 → 14; 7 → 30; 8 → 22; 9 → 2 (PERF-01, PERF-04); 10 → 4. In total 75 of 247 active requirements not yet implemented.
+
+**Waiting on the project owner:**
+- A first world package with maps drawn in Tiled and figures from PixelLab, for the Opening; the steps used a generated test world.
+- A release candidate to check the game on real phones and a computer; that check also tells whether the loading time (step 9c) needs work.
+- Confirm the preconditions and steps of stage 6 before it starts.
+- **Open points (from stage 5):**
+  - The frame and tile-size limits of format 2 (frame sides 8 to 256 pixels, 1 to 16 walk frames, tiles 8 to 128 pixels) were proposed in step 5d.1 and are not confirmed.
+  - "Erlebniswelt betreten" is also on the event-day start page, above the shortcuts (section 5.6 names only the layout before the event day). Confirm.
+  - Staff reach the world while guest access is off, like admins. Confirm.
+  - A guest whose figure no longer exists after a new world is led through the avatar step again (confirmed 2026-11-17 for the step; mentioned here for the world update runbook).
+
+**Risks and notes:**
+- The loading time of the first map over 4G (PERF-04) is not measured until step 9c.
+- The end-to-end tests of the world share one installation; a world makes `/` lead into the game for every browser that has not visited the website, so new specs of the website must use the `test` of `e2e/support.ts`.
+- The standalone game preview needs its own port in the end-to-end run; when a preview is running on port 5175, set `ZAPPALOO_GAME_PREVIEW_PORT`.
 - The requirement report's stage table reads whole stage numbers only, so 3.5 and 3.9 count under stage 3.

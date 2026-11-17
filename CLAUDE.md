@@ -59,7 +59,7 @@ Zappaloo is a reusable event platform (first use: a wedding) that combines a bro
 | `npm run db:generate -w backend` | New Drizzle migration after a change of `backend/src/database/schema.ts` |
 | `npm run migration-check` | Schema has no change without a migration; migrations apply to an empty database and to the latest release's schema; released migrations unchanged |
 | `npm run build:image` | Local image build (`ghcr.io/gravity981/zappaloo:local`, version `<last release>+local.<commit>`) plus smoke test |
-| `npm run test:deploy` | Deployment test: the bundle in `infrastructure/deploy/` with the image (default `:local`, or `ZAPPALOO_TEST_IMAGE`) in Docker; results in `reports/vitest-deploy.json` |
+| `npm run test:deploy` | Deployment test: the bundle in `infrastructure/deploy/` with the image (default `:local`, or `ZAPPALOO_TEST_IMAGE`) in Docker; results in `reports/vitest-deploy.json`. Runs on CI only: it does not work in the devcontainer under WSL, so never run it here; the local `npm run req-report` then reads old results and shows their errors |
 | `npm run lint` | ESLint (type-checked rules), no warnings allowed |
 | `npm run format` / `npm run format:check` | Prettier (Markdown is excluded) |
 | `npm run typecheck` | `tsc` for the root (scripts, e2e, configs) and every workspace |
@@ -69,3 +69,24 @@ Zappaloo is a reusable event platform (first use: a wedding) that combines a bro
 | `npm run check` | All of the above in CI order |
 
 - Run the tests before the requirement report; it reads their JSON results.
+
+## Testing efficiency
+
+Minimize test execution time while keeping sufficient confidence. The full policy is `spec/test-strategy.md`, section 8; these rules bind you:
+
+- **Never run the entire suite after every change** (`npm test`, `npm run test:e2e`, `npm run check`). Prefer targeted tests for the modified functionality. Never rerun tests that passed unless relevant source, test code, dependencies or configuration changed, and do not run tests only to reconfirm a known result. Batch related changes before running tests. Do not run identical tests concurrently in several agents.
+- **Before running tests:** inspect `git diff`, name the modified files and affected components, pick the smallest meaningful subset, and use the filtering the tools offer: `npx vitest run <path>` (from the repository root), `npx playwright test e2e/<file> --project=<project> -g "<title or ID>"` (the requirement IDs are in the titles).
+- **Order:** targeted unit tests, then relevant integration tests, then lint and type checking as appropriate, then broader regression only when the scope or risk justifies it.
+- **When a test fails:** analyze the failure first, decide whether the current changes caused it, fix the cause, and rerun only the failed test and the tests the fix affects, not the unrelated passing ones.
+- **Run the full suite only** when the user asks, when shared infrastructure or cross-cutting functionality changed, when dependencies or configuration with broad impact changed, when targeted tests cannot give enough confidence, or for a release or CI validation. The requirement report needs a complete Vitest and Playwright run, so `npm run req-report` falls under this rule: run it at the end of a stage, not after every step.
+- **Multiple agents:** avoid duplicate runs, reuse another agent's results only for the exact same code state, name one agent for the final verification, and never assume a result stays valid after relevant source changes.
+- **Completion report** (also the summary after each step): the tests executed, passed and failed, the tests skipped and why, and the remaining verification risks. Never claim that unexecuted tests passed.
+
+## Long-running command execution
+
+- Prefer foreground execution for commands whose live output is useful for monitoring progress.
+- Use Shell mode (`!`) when the user wants to observe continuous command output directly.
+- Do not use Monitor as a substitute for a continuously visible terminal session.
+- Use background execution only when the agent needs to continue other work while the command runs.
+- For long-running tests, builds and migrations, preserve meaningful progress output.
+- Avoid unnecessarily capturing or forwarding verbose output into the LLM context.

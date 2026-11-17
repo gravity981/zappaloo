@@ -1805,6 +1805,14 @@ A new world is used the next time a player enters a map. Cached graphics are ref
 - **Door scene:** the waiting page takes the door of the active world (`door/`) when the world has one (ACS-12, 10.4); otherwise the event's files in the data volume are read, as before.
 - **Audit:** `world.import` and `world.rollback` appear on the card "Zuletzt".
 
+**Decisions of step 5k** (2026-11-17, with the project owner; guest access to the world):
+
+- **Who is blocked:** "guests" are users who are neither staff nor admin, the rule of the closed platform (ACS-10). Staff and admins always reach the world, so they can look at it while access is off.
+- **Storage:** the setting `worldGuestAccess` among the event's settings (a row of `event_settings` of its own, outside `SETTING_NAMES`, so that `/api/event` and the CLI do not carry it; no migration). The first successful import writes it as on; a refused package does not. After that the admin decides, and a new import or a rollback leaves it as it is. An installation that holds a world from before the switch, without the row, counts as on.
+- **API:** `GET /api/admin/world` gains `guestAccess`; `PUT /api/admin/world/guest-access` with `{ "enabled": boolean }` (admins, CSRF) answers the same status and writes the audit entry `world.guest_access` (`enabled` only). Turning it back on needs no import.
+- **Blocked routes:** while it is off and a world is active, `GET /api/world`, `GET /api/world/<import id>/…`, `GET /api/avatar` and `PUT /api/avatar/:person` answer a guest with `403 world_access_disabled`. Without an active world nothing is hidden, and `GET /api/world` answers `null` as before.
+- **Frontend:** an answer other than 200 from `GET /api/world` means "no world" for the page: the start page shows no "Erlebniswelt betreten" and does not lead into the game, the header has no "Erlebniswelt" button, the profile has no card "Figur", and `/game` and `/avatar` lead to the start page. The admin's switch sits on the card "Welt" (UX mock `admin-world`) and exists only with an active world.
+
 **Decisions of step 5i** (2026-11-17, with the project owner; entering the game):
 
 - **Landing** (GAME-12): with an active world, `/` leads into the game, once per browser session. The session flag `zappaloo.game.website` is set by "Website" in the game bar and by every website page other than the start page, so a direct link followed by "Start" shows the start page. Direct links (`/p/…`, `/rsvp`, `/profile`, `/programme`) are never redirected. Staff and admins land in the game like guests while the platform is open or when they have access. The start page shows "Erlebniswelt betreten" below the welcome text, and on the event day above the shortcuts, while a world is active.

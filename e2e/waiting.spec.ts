@@ -1,5 +1,4 @@
-import { expect, test } from "@playwright/test";
-import { clientAddress, PASSWORD, signInAsAdmin } from "./support.ts";
+import { clientAddress, expect, PASSWORD, signInAsAdmin, stayOnWebsite, test } from "./support.ts";
 import de from "../frontend/src/i18n/locales/de/common.json" with { type: "json" };
 
 // The waiting-page settings are the event's, shared by all browser profiles: one profile runs
@@ -35,6 +34,7 @@ test("[ACS-10][ACS-11][ACS-12][ACS-13] a guest of the closed platform sees the d
     ...(baseURL ? { baseURL } : {}),
     extraHTTPHeaders: { "x-forwarded-for": clientAddress() },
   });
+  await stayOnWebsite(guestContext);
   const guest = await guestContext.newPage();
   await guest.goto(`/invite/${code}`);
   await guest.getByLabel(de.invite.username).fill(`wg${suffix}`);

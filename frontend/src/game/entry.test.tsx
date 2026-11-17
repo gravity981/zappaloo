@@ -1,6 +1,6 @@
 // Entering the game (GAME-12 – GAME-14, GAME-17, GAME-18; UX mocks game, onboard-avatar, home). The Phaser canvas and the
 // avatar editor are replaced by stand-ins: they are tested elsewhere (end-to-end, avatar.test.tsx).
-import { screen, waitFor } from "@testing-library/react";
+import { cleanup, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { initI18n } from "../i18n/i18n.ts";
 import { fakeBackend, renderAt, signedIn, user } from "../test/backend.tsx";
@@ -131,6 +131,26 @@ describe("entering the game", () => {
     expect(screen.queryByTestId("game-canvas")).toBeNull();
   });
 
+  it("[MAP-19] with guest access off, the world answers 403: the start page shows no entry, and /game and /avatar lead to the start page", async () => {
+    fakeBackend({
+      "GET /api/session": () => signedIn,
+      "GET /api/world": () => ({
+        status: 403,
+        body: { error: { code: "world_access_disabled", message: "off" } },
+      }),
+    });
+    renderAt("/");
+    expect(await screen.findByText("Willkommen!")).toBeVisible();
+    expect(screen.queryByRole("link", { name: "Erlebniswelt betreten" })).toBeNull();
+    expect(screen.queryByRole("link", { name: "Erlebniswelt" })).toBeNull();
+    cleanup();
+    for (const path of ["/game", "/avatar"]) {
+      renderAt(path);
+      expect(await screen.findByText("Willkommen!"), path).toBeVisible();
+      cleanup();
+    }
+  });
+
   it("[GAME-12] without an active world, the start page shows no entry", async () => {
     setup({ world: false });
     renderAt("/");
@@ -175,6 +195,21 @@ describe("entering the game", () => {
     renderAt("/game");
     await screen.findByRole("button", { name: "Rückmeldung" });
     expect(screen.queryByRole("status", { name: "offen" })).toBeNull();
+  });
+
+  it("[GAME-07] the hint names the way of playing that suits the device: tapping on a phone, clicking and Enter with a mouse", async () => {
+    const matches = (pointerFine: boolean) => () => ({ matches: pointerFine });
+    for (const [fine, text] of [
+      [false, "Tippe auf Dinge, die funkeln"],
+      [true, "Klicke auf Dinge, die funkeln – oder geh hin und drück Enter"],
+    ] as const) {
+      vi.stubGlobal("matchMedia", matches(fine));
+      localStorage.clear();
+      setup();
+      renderAt("/game");
+      expect(await screen.findByTestId("game-hint")).toHaveTextContent(text);
+      cleanup();
+    }
   });
 
   it("[GAME-17] the hint shows until the first object is used, and does not come back", async () => {

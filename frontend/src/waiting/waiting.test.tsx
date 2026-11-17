@@ -14,6 +14,7 @@ beforeEach(() => {
   vi.stubGlobal("matchMedia", () => ({ matches: false }));
 });
 afterEach(() => {
+  sessionStorage.clear();
   vi.unstubAllGlobals();
   vi.restoreAllMocks();
   vi.useRealTimers();
@@ -39,6 +40,20 @@ function page(changes: Record<string, unknown> = {}) {
   };
 }
 const door = () => ({ status: 200, body: { kind: "default" } });
+
+const world = {
+  status: 200,
+  body: {
+    version: "w1",
+    name: "Testwelt",
+    startMap: "kirche",
+    tileWidth: 64,
+    tileHeight: 32,
+    maps: ["kirche"],
+    figures: [],
+    actions: [],
+  },
+};
 
 describe("the waiting page", () => {
   it("[ACS-10][ACS-11][ACS-12] a guest of a closed platform lands on the door scene with the event name, Profil, Abmelden and the text", async () => {
@@ -130,9 +145,12 @@ describe("the waiting page", () => {
   });
 
   it("[ACS-10] staff and admins see the website while the platform is closed", async () => {
+    // The game is the landing place for a user with a world; this one has come from it to the website.
+    sessionStorage.setItem("zappaloo.game.website", "1");
     fakeBackend({
       "GET /api/session": () => ({ status: 200, body: { user: staff, csrfToken: "c" } }),
       "GET /api/event": closed,
+      "GET /api/world": () => world,
     });
     renderAt("/");
     expect(await screen.findByText("Willkommen!")).toBeInTheDocument();
@@ -140,10 +158,11 @@ describe("the waiting page", () => {
   });
 
   it("[ACS-10] once the platform is open, guests see the website", async () => {
-    fakeBackend({ "GET /api/session": () => asGuest });
+    sessionStorage.setItem("zappaloo.game.website", "1");
+    fakeBackend({ "GET /api/session": () => asGuest, "GET /api/world": () => world });
     renderAt("/");
     expect(await screen.findByText("Willkommen!")).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Erlebniswelt" })).toBeInTheDocument();
+    expect(await screen.findByRole("link", { name: "Erlebniswelt" })).toBeInTheDocument();
   });
 });
 

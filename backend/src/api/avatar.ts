@@ -7,20 +7,24 @@ import { avatarRequestSchema, avatarResponseSchema } from "@zappaloo/shared";
 import type { FastifyPluginAsyncZod } from "fastify-type-provider-zod";
 import { AvatarError } from "../world/avatar.ts";
 import type { AvatarService } from "../world/avatar.ts";
+import type { WorldService } from "../world/service.ts";
 import { requireUser, signedIn } from "./auth.ts";
+import { worldGuestAccess } from "./world-access.ts";
 
 const noQuery = z.strictObject({});
 const errorBody = z.object({ error: z.object({ code: z.string(), message: z.string() }) });
 
 interface AvatarOptions {
   avatar: AvatarService;
+  world: WorldService;
 }
 
-const avatarPlugin: FastifyPluginAsyncZod<AvatarOptions> = (app, { avatar }) => {
+const avatarPlugin: FastifyPluginAsyncZod<AvatarOptions> = (app, { avatar, world }) => {
+  const access = worldGuestAccess(world);
   app.get(
     "/api/avatar",
     {
-      preHandler: requireUser,
+      preHandler: [requireUser, access],
       schema: { querystring: noQuery, response: { 200: avatarResponseSchema } },
     },
     (request) => avatar.persons(signedIn(request).user),
@@ -29,7 +33,7 @@ const avatarPlugin: FastifyPluginAsyncZod<AvatarOptions> = (app, { avatar }) => 
   app.put(
     "/api/avatar/:person",
     {
-      preHandler: requireUser,
+      preHandler: [requireUser, access],
       schema: {
         querystring: noQuery,
         params: z.strictObject({ person: z.string().max(20) }),

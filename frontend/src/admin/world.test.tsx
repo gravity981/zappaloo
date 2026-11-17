@@ -51,7 +51,10 @@ describe("game world › Welt & Import", () => {
   it("[MAP-05] shows the active world with its format, start map and maps with their counts", async () => {
     fakeBackend({
       "GET /api/session": asAdmin,
-      "GET /api/admin/world": () => ({ status: 200, body: { active: sommerfest, previous: null } }),
+      "GET /api/admin/world": () => ({
+        status: 200,
+        body: { guestAccess: true, active: sommerfest, previous: null },
+      }),
     });
     renderAt("/admin/world");
     expect(await screen.findByText("Aktiv: Sommerfest")).toBeVisible();
@@ -73,7 +76,10 @@ describe("game world › Welt & Import", () => {
   it("[MAP-05] without a world the page says so and guests land on the website", async () => {
     fakeBackend({
       "GET /api/session": asAdmin,
-      "GET /api/admin/world": () => ({ status: 200, body: { active: null, previous: null } }),
+      "GET /api/admin/world": () => ({
+        status: 200,
+        body: { guestAccess: false, active: null, previous: null },
+      }),
     });
     renderAt("/admin/world");
     expect(await screen.findByText("Keine Welt")).toBeVisible();
@@ -84,7 +90,10 @@ describe("game world › Welt & Import", () => {
   it("[MAP-08] the warnings of an accepted world stay listed with it", async () => {
     fakeBackend({
       "GET /api/session": asAdmin,
-      "GET /api/admin/world": () => ({ status: 200, body: { active: sommerfest, previous: null } }),
+      "GET /api/admin/world": () => ({
+        status: 200,
+        body: { guestAccess: true, active: sommerfest, previous: null },
+      }),
     });
     renderAt("/admin/world");
     expect(await screen.findByText("Warnungen (1)")).toBeVisible();
@@ -98,7 +107,10 @@ describe("game world › Welt & Import", () => {
   it("[MAP-06] a refused package lists every finding; the active world stays as it was", async () => {
     const calls = fakeBackend({
       "GET /api/session": asAdmin,
-      "GET /api/admin/world": () => ({ status: 200, body: { active: sommerfest, previous: null } }),
+      "GET /api/admin/world": () => ({
+        status: 200,
+        body: { guestAccess: true, active: sommerfest, previous: null },
+      }),
       "POST /api/admin/world": () => ({
         status: 422,
         body: {
@@ -143,10 +155,13 @@ describe("game world › Welt & Import", () => {
     let active: typeof sommerfest | null = null;
     const calls = fakeBackend({
       "GET /api/session": asAdmin,
-      "GET /api/admin/world": () => ({ status: 200, body: { active, previous: null } }),
+      "GET /api/admin/world": () => ({
+        status: 200,
+        body: { guestAccess: true, active, previous: null },
+      }),
       "POST /api/admin/world": () => {
         active = sommerfest;
-        return { status: 200, body: { active, previous: null } };
+        return { status: 200, body: { guestAccess: true, active, previous: null } };
       },
     });
     renderAt("/admin/world");
@@ -164,11 +179,14 @@ describe("game world › Welt & Import", () => {
     let before: typeof previous | null = previous;
     const calls = fakeBackend({
       "GET /api/session": asAdmin,
-      "GET /api/admin/world": () => ({ status: 200, body: { active, previous: before } }),
+      "GET /api/admin/world": () => ({
+        status: 200,
+        body: { guestAccess: true, active, previous: before },
+      }),
       "POST /api/admin/world/rollback": () => {
         active = { ...sommerfest, name: "Erste Welt", importId: "imp-1" };
         before = { name: "Sommerfest", importedAt: sommerfest.importedAt };
-        return { status: 200, body: { active, previous: before } };
+        return { status: 200, body: { guestAccess: true, active, previous: before } };
       },
     });
     renderAt("/admin/world");
@@ -186,6 +204,53 @@ describe("game world › Welt & Import", () => {
     await waitFor(() => {
       expect(calls.filter((call) => call.method === "POST")).toHaveLength(1);
     });
+  });
+});
+
+describe("game world › guest access (MAP-19)", () => {
+  it("[MAP-19] the switch shows whether guests may enter, and flipping it is sent at once", async () => {
+    let guestAccess = true;
+    const calls = fakeBackend({
+      "GET /api/session": asAdmin,
+      "GET /api/admin/world": () => ({
+        status: 200,
+        body: { guestAccess, active: sommerfest, previous: null },
+      }),
+      "PUT /api/admin/world/guest-access": () => {
+        guestAccess = false;
+        return { status: 200, body: { guestAccess, active: sommerfest, previous: null } };
+      },
+    });
+    renderAt("/admin/world");
+    const toggle = await screen.findByRole("switch", { name: "Gästezugang zur Erlebniswelt" });
+    expect(toggle).toHaveAttribute("aria-checked", "true");
+    expect(screen.getByText("Gäste können die Erlebniswelt betreten.")).toBeVisible();
+    user.click(toggle);
+    expect(
+      await screen.findByText(
+        "Gäste können die Erlebniswelt nicht öffnen; die aktive Welt bleibt erhalten.",
+      ),
+    ).toBeVisible();
+    const put = calls.find((call) => call.method === "PUT");
+    expect(put?.body).toEqual({ enabled: false });
+    expect(put?.csrf).toBe("csrf-9");
+    expect(screen.getByRole("switch", { name: "Gästezugang zur Erlebniswelt" })).toHaveAttribute(
+      "aria-checked",
+      "false",
+    );
+  });
+
+  it("[MAP-19] without a world there is no switch", async () => {
+    fakeBackend({
+      "GET /api/session": asAdmin,
+      "GET /api/admin/world": () => ({
+        status: 200,
+        body: { guestAccess: false, active: null, previous: null },
+      }),
+    });
+    renderAt("/admin/world");
+    await screen.findByText("Keine Welt");
+    expect(screen.queryByRole("switch")).toBeNull();
   });
 });
 
@@ -241,7 +306,10 @@ describe("game world › Objekte & Portale (MAP-15)", () => {
   it("[MAP-15] lists each map's clickable objects with their preset, marks what is missing, and shows portals read-only", async () => {
     fakeBackend({
       "GET /api/session": asAdmin,
-      "GET /api/admin/world": () => ({ status: 200, body: { active: sommerfest, previous: null } }),
+      "GET /api/admin/world": () => ({
+        status: 200,
+        body: { guestAccess: true, active: sommerfest, previous: null },
+      }),
       "GET /api/admin/world/objects": () => ({ status: 200, body: objects }),
       "GET /api/content": () => ({ status: 200, body: site }),
     });
@@ -271,7 +339,10 @@ describe("game world › Objekte & Portale (MAP-15)", () => {
   it("[MAP-15] picking an action saves it at once; the preset can be restored", async () => {
     const calls = fakeBackend({
       "GET /api/session": asAdmin,
-      "GET /api/admin/world": () => ({ status: 200, body: { active: sommerfest, previous: null } }),
+      "GET /api/admin/world": () => ({
+        status: 200,
+        body: { guestAccess: true, active: sommerfest, previous: null },
+      }),
       "GET /api/admin/world/objects": () => ({ status: 200, body: objects }),
       "GET /api/content": () => ({ status: 200, body: site }),
       "PUT /api/admin/world/objects/kirche/altar": () => ({ status: 200, body: objects }),
@@ -297,7 +368,10 @@ describe("game world › Objekte & Portale (MAP-15)", () => {
   it("[MAP-15] without a world, the tab says so", async () => {
     fakeBackend({
       "GET /api/session": asAdmin,
-      "GET /api/admin/world": () => ({ status: 200, body: { active: null, previous: null } }),
+      "GET /api/admin/world": () => ({
+        status: 200,
+        body: { guestAccess: false, active: null, previous: null },
+      }),
       "GET /api/admin/world/objects": () => ({
         status: 200,
         body: { startMap: "", maps: [], pages: ["programme"], dialogues: [] },

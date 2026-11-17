@@ -7,7 +7,12 @@ import { readFileSync } from "node:fs";
 import { mkdir, rename, rm, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { and, eq } from "drizzle-orm";
-import { contentPages, worldObjectActions, worldPackages } from "../database/schema.ts";
+import {
+  contentPages,
+  eventSettings,
+  worldObjectActions,
+  worldPackages,
+} from "../database/schema.ts";
 import type { Database } from "../database/database.ts";
 import type { Actor, EventService } from "../event/service.ts";
 import { WORLD_BUILTIN_PAGES, worldActionSchema } from "@zappaloo/shared";
@@ -28,6 +33,9 @@ import { presetWarnings } from "./presets.ts";
 import { mapSummaries } from "./summary.ts";
 import type { InstallationNames } from "./presets.ts";
 import { warningFinding } from "./findings.ts";
+
+/** The name of the guest-access switch among the event's settings (MAP-19). */
+const GUEST_ACCESS_SETTING = "worldGuestAccess";
 
 /** A refused package: nothing was imported, and these are its findings (MAP-06). */
 export class WorldRefused extends Error {
@@ -138,11 +146,47 @@ export class WorldService {
     return this.#role("active");
   }
 
+  /**
+   * Whether guests may enter the world (MAP-19). It is kept in the event's settings under its own name and is switched
+   * on by the first successful import; without that setting, an installation that has a world from before the switch
+   * counts as enabled.
+   */
+  guestAccess(): boolean {
+    const row = this.#database.db
+      .select()
+      .from(eventSettings)
+      .where(
+        and(
+          eq(eventSettings.eventId, this.#event.eventId),
+          eq(eventSettings.name, GUEST_ACCESS_SETTING),
+        ),
+      )
+      .get();
+    return row === undefined ? this.active() !== undefined : row.value;
+  }
+
+  /** Switches guest access; returns false when it already had that value. Audited. */
+  setGuestAccess(enabled: boolean, actor: Actor): boolean {
+    return this.#database.db.transaction((tx) => {
+      if (this.guestAccess() === enabled) return false;
+      tx.insert(eventSettings)
+        .values({ eventId: this.#event.eventId, name: GUEST_ACCESS_SETTING, value: enabled })
+        .onConflictDoUpdate({
+          target: [eventSettings.eventId, eventSettings.name],
+          set: { value: enabled },
+        })
+        .run();
+      this.#event.audit(actor, "world.guest_access", { enabled }, tx);
+      return true;
+    });
+  }
+
   /** The admin's view of the worlds (MAP-05, MAP-09). */
   status(): WorldStatus {
     const active = this.active();
     const previous = this.#role("previous");
     return {
+      guestAccess: this.guestAccess(),
       active:
         active === undefined
           ? null
@@ -448,6 +492,11 @@ export class WorldService {
             hasDoor: worldPackage.door !== undefined,
             warnings: JSON.stringify(warnings),
           })
+          .run();
+        // The first import switches guest access on; after that the admin decides, and a new import keeps it (MAP-19).
+        tx.insert(eventSettings)
+          .values({ eventId: this.#event.eventId, name: GUEST_ACCESS_SETTING, value: true })
+          .onConflictDoNothing()
           .run();
         this.#event.audit(actor, "world.import", {}, tx);
       });

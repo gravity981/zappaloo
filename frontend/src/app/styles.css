@@ -1,3 +1,9 @@
+/* iOS Safari enlarges text when a page turns to landscape; the pages keep the sizes they set. */
+html {
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
 :root {
   font-family: system-ui, sans-serif;
   color: #1b1b1b;
@@ -83,12 +89,12 @@ body {
   font: 12px/1 monospace;
   letter-spacing: 0.05em;
 }
-.game-sheet {
+/* The sheet carries the guest scope (ui.css), so its buttons look like the website's; the scope's full-height rule is off. */
+.game-sheet.guest {
   width: 100%;
   max-height: 90%;
+  min-height: 0;
   overflow: auto;
-  background: var(--w-bg, #fff);
-  color: inherit;
   border-radius: 18px 18px 0 0;
 }
 .game-sheet-head {
@@ -99,8 +105,8 @@ body {
   align-items: center;
   gap: 10px;
   padding: 12px 14px;
-  background: var(--w-card, #fff);
-  border-bottom: 1px solid rgba(0, 0, 0, 0.12);
+  background: var(--a-card);
+  border-bottom: 1px solid var(--a-line);
 }
 .game-sheet-head b {
   flex: 1;
@@ -112,7 +118,7 @@ body {
   .game-overlay {
     justify-content: center;
   }
-  .game-sheet {
+  .game-sheet.guest {
     width: 620px;
     max-height: 84%;
     border-radius: 18px;

@@ -4,13 +4,14 @@
 // first object is used, and a tap on the own avatar opens the profile. Pages open as an overlay above the paused game.
 import { lazy, Suspense, useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { Navigate } from "react-router";
 import { rsvpStateSchema, rsvpStatus } from "@zappaloo/shared";
 import type { RsvpState } from "@zappaloo/shared";
 import AvatarEditor from "../avatar/AvatarEditor.tsx";
 import { apiRequest } from "../app/api.ts";
 import { useFeature } from "../app/event.ts";
 import { useSession } from "../app/session.ts";
-import { hintSeen, markHintSeen, useFirstEntry } from "../app/gameEntry.ts";
+import { hintSeen, markHintSeen, useFirstEntry, useWorldActive } from "../app/gameEntry.ts";
 import GameBar from "../game/GameBar.tsx";
 import GameHint from "../game/GameHint.tsx";
 import GameOverlay from "../game/GameOverlay.tsx";
@@ -56,6 +57,7 @@ export default function GamePage() {
   const { t } = useTranslation();
   const session = useSession();
   const rsvpEnabled = useFeature("rsvp") && (session.user?.roles.includes("vip") ?? false);
+  const world = useWorldActive(true);
   const [firstEntry, finishEntry] = useFirstEntry();
   const [overlay, setOverlay] = useState<Overlay>();
   const [hint, setHint] = useState(() => !hintSeen());
@@ -68,7 +70,9 @@ export default function GamePage() {
     setOverlay(undefined);
   }, []);
 
-  if (firstEntry === undefined) return <p>{t("game.loading")}</p>;
+  // Without a world, or with guest access off, a guest has no game: the website is the way (MAP-19).
+  if (world === false) return <Navigate to="/" replace />;
+  if (world === undefined || firstEntry === undefined) return <p>{t("game.loading")}</p>;
   if (firstEntry) {
     return (
       <section className="game-first guest">

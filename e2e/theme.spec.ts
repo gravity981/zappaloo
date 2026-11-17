@@ -2,7 +2,7 @@
 // it in Einstellungen, the website carries its colours, and the admin returns to the default theme.
 import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { expect, test } from "@playwright/test";
+import { expect, test } from "./support.ts";
 import { signInAsAdmin } from "./support.ts";
 import {
   buildExample,

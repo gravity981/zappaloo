@@ -111,6 +111,7 @@ export async function buildApp(options: AppOptions): Promise<FastifyInstance> {
   await app.register(worldRoutes, { world: options.auth.world });
   await app.register(avatarRoutes, {
     avatar: new AvatarService(options.database, options.event, options.auth.world),
+    world: options.auth.world,
   });
   await app.register(eventApiRoutes, { event: options.event, footer: options.auth.footer, theme });
   await app.register(pwaRoutes, {

@@ -84,22 +84,20 @@ All active requirements are listed here until their stage is delivered. Shrink t
 
 | Prefix | IDs | Count |
 |---|---|---|
-| GAME | GAME-07 | 1 |
 | PRES | PRES-01, PRES-02, PRES-04 – PRES-10, PRES-12 – PRES-15 | 13 |
 | HUNT | HUNT-01 – HUNT-07 | 7 |
 | MG | MG-01 – MG-13 | 13 |
 | WEB | WEB-05, WEB-06 | 2 |
 | SCR | SCR-01, SCR-02, SCR-04, SCR-05, SCR-07 | 5 |
 | CNT | CNT-02, CNT-03 | 2 |
-| AVA | AVA-01 – AVA-04 | 4 |
+| AVA | AVA-04 | 1 |
 | ACS | ACS-04 | 1 |
 | PHO | PHO-01 – PHO-03, PHO-05 – PHO-19 | 18 |
 | MOD | MOD-01 – MOD-05 | 5 |
-| MAP | MAP-19 | 1 |
 | OPS | OPS-13 | 1 |
 | SEC | SEC-04, SEC-06 – SEC-08 | 4 |
 | PERF | PERF-01, PERF-03, PERF-04 | 3 |
-| **Total** | | **80** |
+| **Total** | | **75** |
 
 The stage each requirement belongs to is listed in `sw-architecture.md`, section 28.
 
@@ -158,3 +156,62 @@ Organisational items that are not software requirements:
 - Treasure hunt codes printed, each scanned once on production, and the test finds reset.
 - Event screen tested on the venue projector, with the screen link created and revoked after the event.
 - Before shutdown: shutdown date set, notice sent, export taken and handed to the hosts.
+
+## 8. Testing efficiency policy (decided 2026-11-17)
+
+The objective is to minimize test execution time while maintaining software quality and sufficient confidence. The policy applies to everyone who runs tests in this repository: the developer, Claude and any subagent. CI is the exception: it always runs everything (`npm run check`, section 2).
+
+### 8.1 General rules
+
+1. Never run the entire test suite after every code change.
+2. Always prefer targeted tests covering the modified functionality.
+3. Never rerun tests that have already passed unless relevant source code, test code, dependencies or configuration have changed.
+4. Batch related code changes before running tests.
+5. Avoid running identical tests concurrently across multiple agents.
+6. Do not run tests simply to reconfirm previously established results.
+
+### 8.2 Before running tests
+
+1. Inspect the current changes with `git diff`.
+2. Identify the modified files and the affected components.
+3. Identify the tests relevant to those changes.
+4. Determine the smallest meaningful test subset.
+5. Prefer existing test commands that support filtering or test selection.
+
+### 8.3 Execution strategy
+
+In this priority:
+
+1. Targeted unit tests for the modified functionality.
+2. Relevant integration tests, if component interactions are affected.
+3. Static analysis, linting and type checking, as appropriate.
+4. Broader regression tests only when justified by the scope or the risk of the change.
+
+### 8.4 When a test fails
+
+1. Analyze the failure before executing anything again.
+2. Identify whether the current changes caused it.
+3. Fix the underlying issue.
+4. Rerun only the failed test and the tests affected by the fix.
+5. Do not rerun previously passing unrelated tests.
+
+### 8.5 The full test suite
+
+Run the complete suite only when:
+
+- the user explicitly requests it;
+- the changes affect shared infrastructure or cross-cutting functionality;
+- the changes involve dependencies or configurations with broad impact;
+- targeted testing cannot provide sufficient confidence;
+- it is required for a release or for CI validation (including the requirement report, which reads the results of a complete Vitest and Playwright run).
+
+### 8.6 Multi-agent coordination
+
+- Avoid duplicate test execution across agents.
+- Reuse the results of another agent when they apply to the exact same code state.
+- Designate one agent as responsible for final verification.
+- Do not assume that test results remain valid after relevant source changes.
+
+### 8.7 Completion report
+
+At the end of a task, report the tests executed, the tests passed and failed, the tests skipped and why, and the remaining verification risks. Never claim that tests passed that were not executed.
