@@ -36,8 +36,8 @@ Each release goes into production. From Release 1 on, real guest data is stored,
 | 3.5 | Installable app (home screen icon, no browser chrome) | 1 | done |
 | 3.9 | Findings from the Release 1 pilot | 1 (updates) | done |
 | 4 | Content and website | Opening | done |
-| 5 | Game world and world importer | Opening | done except 5l (review findings), next |
-| 6 | Living world | Opening | open (after 5l) |
+| 5 | Game world and world importer | Opening | done (review findings fixed in 5l) |
+| 6 | Living world | Opening | next |
 | 7 | Contributions and event screen | Event-ready | open |
 | 8 | Minigames, treasure hunt and highscores | Event-ready | open |
 | 9 | Event readiness | Event-ready | open |
@@ -1132,7 +1132,7 @@ An admin imports a whole world package (isometric maps from Tiled, complete figu
 - **5k – Erlebniswelt access and stage report:** done. The switch for guest access (MAP-19), no template world shipped, this report.
 - **Changed during the stage:** world format 2 replaced format 1 (2026-11-15); the template world (MAP-12 – MAP-14) was withdrawn (2026-11-17); WEB-08 was withdrawn (2026-11-14); step 5g was dropped and 5j moved (2026-11-17); GAME-21 was added (2026-11-17).
 
-**Requirements:** 39 of 39 planned for this stage (THM-07 from step 5b included), all with passing tests (requirement report; PERF-04 moved to stage 9). GAME-13 (without "Say hello"), GAME-14 (without "Hochladen") and GAME-06 (without the minigame action) are partially implemented, as listed in test-strategy.md, section 5. Overall: 172 of 247 active requirements implemented, 162 with passing tests. The others are the ones whose deployment-test results the local report reads from an old file (see below); none is from stage 5.
+**Requirements:** 39 of 39 planned for this stage (THM-07 from step 5b included), all with passing tests (requirement report; PERF-04 moved to stage 9). GAME-13 (without "Say hello"), GAME-14 (without "Hochladen") and GAME-06 (without the minigame action) are partially implemented, as listed in test-strategy.md, section 5. Overall (requirement report after step 5l, 2026-11-17): 174 of 247 active requirements implemented, 164 with passing tests. The local report shows 11 errors, all in the deployment test (ACC-05, ACC-11, ACC-14, CFG-02, CFG-07, OPS-02, OPS-05, OPS-13, OPS-15, OPS-16, SEC-01): it reads an old result file, because the deployment test runs on CI only. They are to be confirmed on CI; none is from stage 5.
 
 **Tests:**
 - Unit, component and integration (Vitest): 1140 tests in 109 files, all passing (`npm test`, run once more before the report).
