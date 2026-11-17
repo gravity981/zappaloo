@@ -12,6 +12,13 @@ export default defineConfig(({ command }) => {
   return {
     plugins: [react(), worldPreviewServer()],
     // Only this machine: the preview reads files from it and starts packages from paths on it.
-    server: { host: "127.0.0.1", port: 5175, strictPort: true },
+    // PREVIEW_ALLOWED_HOST names one more host name that may reach the preview, for a tailnet proxy
+    // (`tailscale serve --bg 5175`) when testing on a phone. Unset by default.
+    server: {
+      host: "127.0.0.1",
+      port: 5175,
+      strictPort: true,
+      allowedHosts: process.env.PREVIEW_ALLOWED_HOST ? [process.env.PREVIEW_ALLOWED_HOST] : [],
+    },
   };
 });

@@ -32,6 +32,16 @@ RUN apt-get update \
     && apt-get install -y --no-install-recommends sqlite3 xz-utils \
     && rm -rf /var/lib/apt/lists/*
 
+# Tailscale, to open the dev servers (game preview, app) on a phone over the tailnet. It runs in userspace
+# networking mode (see postStartCommand in devcontainer.json), which needs no TUN device and no extra privileges.
+RUN curl -fsSL https://pkgs.tailscale.com/stable/debian/bookworm.noarmor.gpg \
+        -o /usr/share/keyrings/tailscale-archive-keyring.gpg \
+    && curl -fsSL https://pkgs.tailscale.com/stable/debian/bookworm.tailscale-keyring.list \
+        -o /etc/apt/sources.list.d/tailscale.list \
+    && apt-get update \
+    && apt-get install -y --no-install-recommends tailscale \
+    && rm -rf /var/lib/apt/lists/*
+
 # Node.js (current LTS), installed here rather than as a devcontainer feature,
 # because the Playwright browsers below need node while the image is built.
 # Keep in sync with .node-version (CI) and infrastructure/docker/Dockerfile (image);

@@ -18,6 +18,26 @@ package's containing directory and reloads after in-place edits or atomic file
 replacement. A failed read or validation keeps the last valid world running
 and displays the error.
 
+## Opening the preview on a phone
+
+The preview listens on `127.0.0.1` only. To try it on a phone, publish it to
+your own tailnet with Tailscale, which the devcontainer has installed and starts
+in userspace mode (the login is kept in the `zappaloo-tailscale` volume):
+
+```sh
+sudo tailscale up --hostname=zappaloo-dev   # once; open the printed login URL
+sudo tailscale serve --bg 5175              # HTTPS for your tailnet only
+tailscale serve status                      # shows the https://….ts.net URL
+PREVIEW_ALLOWED_HOST=<that host name> APP_ENV=dev npm run dev:game-preview
+```
+
+HTTPS certificates and MagicDNS must be enabled once in the Tailscale admin
+console, and the phone needs the Tailscale app on the same account. Never use
+`tailscale funnel`: it publishes to the public internet, and the preview reads
+files and starts packages from paths on this machine. Tick **Frame rate and
+canvas** under **Guides and view** (or add `?debug=frames`) to see the frame
+rate on the phone.
+
 ## Controls
 
 - Choose a world package and select **Load package**. **Reload** revalidates

@@ -22,7 +22,9 @@
   "mounts": [
     "source=claude-config,target=/home/vscode/.claude,type=volume",
     // SQLite database, uploads and imported maps survive container rebuilds
-    "source=zappaloo-data-dev,target=/var/lib/zappaloo,type=volume"
+    "source=zappaloo-data-dev,target=/var/lib/zappaloo,type=volume",
+    // Tailscale's login survives container rebuilds
+    "source=zappaloo-tailscale,target=/var/lib/tailscale,type=volume"
   ],
   "containerEnv": {
     "CLAUDE_CONFIG_DIR": "/home/vscode/.claude",
@@ -39,7 +41,7 @@
   },
   // Installs the dependencies once the project has a package-lock.json (stage 1)
   "postCreateCommand": "if [ -f package-lock.json ]; then npm ci; fi",
-  "postStartCommand": "setsid nohup mailpit > /tmp/mailpit.log 2>&1 &",
+  "postStartCommand": "setsid nohup mailpit > /tmp/mailpit.log 2>&1 & sudo setsid nohup tailscaled --tun=userspace-networking --state=/var/lib/tailscale/tailscaled.state > /tmp/tailscaled.log 2>&1 &",
   "customizations": {
     "vscode": {
       "extensions": [
