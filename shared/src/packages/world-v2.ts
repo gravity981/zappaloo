@@ -436,7 +436,7 @@ export const worldV2: PackageDefinition<WorldFindingCode> = {
       scope: "validator",
       severity: "error",
       requirements: ["MAP-16", "AVA-02"],
-      text: "Every frame the metadata lists is a PNG in the figure's folder of exactly the canvas size, with a side of 8 to 256 pixels. The walk has the same number of frames, 1 to 16, in each direction.",
+      text: "Every frame the metadata lists is a PNG in the figure's folder of exactly the canvas size, with a side of 8 to 256 pixels. Each name of the frame's path (folders and file) has letters, digits, `.`, `_` and `-` only and starts with a letter or digit, as the game serves it. The walk has the same number of frames, 1 to 16, in each direction.",
       codes: ["figure_frame"],
     },
     {

@@ -396,6 +396,21 @@ export function checkMap(id: string, bytes: Buffer, context: MapContext): MapRes
   const tileGuides = new Map<number, TileGuides>();
   for (const tileset of map.tilesets) {
     for (const tile of tileset.tiles ?? []) {
+      // A sheet's tiles carry only properties, class, probability and animation (14.2): those are ignored.
+      // Guides are read from image-collection tiles only, so a guide on a sheet tile is refused.
+      if (tileset.image !== undefined) {
+        if ((tile.objectgroup?.objects ?? []).length > 0) {
+          findings.push(
+            errorFinding(
+              file,
+              "map_guide",
+              "guides on a tile of a sheet tileset are not supported; put the tile in an image-collection tileset",
+              `${tileset.name} tile ${String(tile.id)}`,
+            ),
+          );
+        }
+        continue;
+      }
       if (tile.animation !== undefined && tile.animation.length > 0) {
         findings.push(
           errorFinding(
@@ -537,7 +552,8 @@ function checkTilesets(
       );
       continue;
     }
-    if (tileset.tiles !== undefined) {
+    // A tileset without an image but with tiles is an image collection; with an image it is a sheet.
+    if (tileset.image === undefined && tileset.tiles !== undefined) {
       const range = checkCollection(tileset, file, context, findings);
       if (range !== undefined) ranges.push(range);
       continue;
@@ -622,7 +638,7 @@ function tileObjectSize(map: TiledMap, gid: number, context: MapContext): PngSiz
     }
   }
   if (selected === undefined) return undefined;
-  if (selected.tiles === undefined) {
+  if (selected.image !== undefined || selected.tiles === undefined) {
     return { width: selected.tilewidth, height: selected.tileheight };
   }
   const tile = selected.tiles.find((candidate) => selected.firstgid + candidate.id === gid);
@@ -685,6 +701,17 @@ function checkCollection(
     }
     images.push(imageName);
     ids.add(tileset.firstgid + tile.id);
+    // The declared size is required: the engine would otherwise fall back to the tileset's tile size.
+    if (tile.imagewidth === undefined || tile.imageheight === undefined) {
+      findings.push(
+        errorFinding(
+          file,
+          "map_tileset",
+          `tile ${String(tile.id)} of the collection has no imagewidth and imageheight`,
+          name,
+        ),
+      );
+    }
     const size = context.images.get(imagePath);
     if (size === undefined) continue; // not a PNG: reported for the file itself
     if (
@@ -753,7 +780,6 @@ function checkTileGuides(
       trigger = true;
     } else if (
       guide.name === "occlusion" &&
-      tileset.image === undefined &&
       shape === "polyline" &&
       (guide.polyline?.length ?? 0) >= 2
     ) {

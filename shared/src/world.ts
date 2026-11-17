@@ -42,6 +42,12 @@ export const WORLD_ID_PATTERN = /^[a-z0-9-]{1,40}$/;
 /** The names of files in the package: a PNG name without folders, e.g. `frame_000.png`. */
 export const WORLD_PNG_NAME_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._-]{0,80}\.png$/;
 
+/**
+ * One folder or file name inside a package, as the world file route serves it: letters, digits, `.`, `_` and `-`,
+ * starting with a letter or a digit. A name outside this pattern is not served, so the validator refuses it.
+ */
+export const WORLD_FILE_SEGMENT = /^[A-Za-z0-9][A-Za-z0-9._-]*$/;
+
 /** The pages a clickable object can open as a built-in overlay (14.2). */
 export const WORLD_BUILTIN_PAGES = ["programme", "rsvp", "profile"] as const;
 

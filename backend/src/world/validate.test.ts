@@ -651,6 +651,39 @@ describe("the maps: tilesets (MAP-02, MAP-06)", () => {
   it("[MAP-06] accepts an image collection with gaps in its tile ids", () => {
     expectAccepted(world());
   });
+
+  it("[MAP-06][MAP-16] accepts a sheet tileset whose tiles carry properties from Tiled", () => {
+    const files = edit(world(), "maps/saal.json", (m) => {
+      tilesetAt(m, 0).tiles = [
+        { id: 1, properties: [{ name: "kind", type: "string", value: "wand" }] },
+      ];
+    });
+    expectAccepted(files);
+  });
+
+  it("[MAP-06][MAP-16] refuses a guide on a tile of a sheet tileset", () => {
+    const files = edit(world(), "maps/saal.json", (m) => {
+      tilesetAt(m, 0).tiles = [
+        {
+          id: 1,
+          objectgroup: {
+            type: "objectgroup",
+            name: "",
+            draworder: "index",
+            objects: [{ id: 1, name: "collision", x: 0, y: 0, width: 16, height: 16 }],
+          },
+        },
+      ];
+    });
+    expectRefused(files, "map_guide");
+  });
+
+  it("[MAP-06][MAP-16] refuses an image-collection tile without its declared image size", () => {
+    const files = edit(world(), "maps/kirche.json", (m) => {
+      delete tileAt(tilesetNamed(m, "gebaeude"), 0).imagewidth;
+    });
+    expectRefused(files, "map_tileset");
+  });
 });
 
 describe("the objects (MAP-02, MAP-06)", () => {
@@ -1268,6 +1301,22 @@ describe("the figures (AVA-01, AVA-02, MAP-16)", () => {
       ((state.frames as Json).rotations as Json).south =
         "../wedding-guest/Idle/rotations/south.png";
     });
+    expectRefused(files, "figure_frame");
+  });
+
+  it("[MAP-06][MAP-16] refuses a frame whose name has a space", () => {
+    const files = editMetadata(world(), "wedding-guest", (state) => {
+      ((state.frames as Json).rotations as Json).south = "Idle/rotations/frame 0.png";
+    });
+    files["avatar/wedding-guest/Idle/rotations/frame 0.png"] = encodePng(16, 16, [0, 0, 0]);
+    expectRefused(files, "figure_frame");
+  });
+
+  it("[MAP-06][MAP-16] refuses a frame that is not a PNG", () => {
+    const files = editMetadata(world(), "wedding-guest", (state) => {
+      ((state.frames as Json).rotations as Json).south = "Idle/rotations/metadata.json";
+    });
+    files["avatar/wedding-guest/Idle/rotations/metadata.json"] = json({});
     expectRefused(files, "figure_frame");
   });
 

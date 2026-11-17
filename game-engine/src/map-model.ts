@@ -145,7 +145,8 @@ interface TileSource {
 function tileSources(tilesets: TiledTileset[]): TileSource[] {
   const sources: TileSource[] = [];
   for (const set of tilesets) {
-    if (set.tiles !== undefined) {
+    // A tileset with an image is a sheet, even when Tiled wrote per-tile data (properties) into it.
+    if (set.image === undefined && set.tiles !== undefined) {
       const byGid = new Map<number, TiledTile>();
       for (const tile of set.tiles) byGid.set(set.firstgid + tile.id, tile);
       const gids = [...byGid.keys()];

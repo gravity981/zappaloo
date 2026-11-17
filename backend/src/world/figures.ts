@@ -6,6 +6,7 @@ import { posix } from "node:path";
 import {
   pixelLabMetadataSchema,
   WORLD_DIRECTIONS,
+  WORLD_FILE_SEGMENT,
   WORLD_LIMITS,
   worldFiguresSchema,
 } from "@zappaloo/shared";
@@ -151,6 +152,21 @@ function checkFigure(
           metadataPath,
           "figure_frame",
           `the frame ${frame} is outside the figure's folder`,
+          label,
+        ),
+      );
+      return;
+    }
+    // A frame is a PNG whose folders and name the world file route serves (MAP-10); anything else is refused.
+    if (
+      !frame.endsWith(".png") ||
+      !frame.split("/").every((part) => WORLD_FILE_SEGMENT.test(part))
+    ) {
+      findings.push(
+        errorFinding(
+          path,
+          "figure_frame",
+          `the frame ${frame} of ${label} must be a PNG; its name may only have letters, digits, ., _ and -`,
           label,
         ),
       );

@@ -15,7 +15,7 @@ import {
 } from "../database/schema.ts";
 import type { Database } from "../database/database.ts";
 import type { Actor, EventService } from "../event/service.ts";
-import { WORLD_BUILTIN_PAGES, worldActionSchema } from "@zappaloo/shared";
+import { WORLD_BUILTIN_PAGES, WORLD_FILE_SEGMENT, worldActionSchema } from "@zappaloo/shared";
 import type {
   PublicWorld,
   WorldObjectAction,
@@ -88,8 +88,10 @@ export interface StoredWorld {
  * The files a player's browser may load from a world: maps, tileset images, and the figures' metadata and
  * frames (in their folders under avatar/). The manifest and the door scene are not served.
  */
-const SERVED_FILE =
-  /^(?:maps\/[a-z0-9-]{1,40}\.json|tilesets\/[A-Za-z0-9._-]+\.png|avatar\/figures\.json|avatar\/(?:[A-Za-z0-9][A-Za-z0-9._-]*\/)+[A-Za-z0-9][A-Za-z0-9._-]*\.(?:png|json))$/;
+const SEGMENT = WORLD_FILE_SEGMENT.source.slice(1, -1);
+const SERVED_FILE = new RegExp(
+  `^(?:maps\\/[a-z0-9-]{1,40}\\.json|tilesets\\/${SEGMENT}\\.png|avatar\\/figures\\.json|avatar\\/(?:${SEGMENT}\\/)+${SEGMENT}\\.(?:png|json))$`,
+);
 
 type Row = typeof worldPackages.$inferSelect;
 

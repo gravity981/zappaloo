@@ -351,6 +351,31 @@ describe("the map as the game draws it (MAP-02, GAME-19)", () => {
     expect(map.ground[1]?.image.crop).toEqual({ x: 69, y: 2, width: 64, height: 32 });
   });
 
+  it("[GAME-20] a sheet with per-tile properties from Tiled still takes its tiles from the sheet", () => {
+    const base = tiledMap();
+    const tilesets = base.tilesets.map((set, index) =>
+      index === 0
+        ? {
+            ...set,
+            tiles: [{ id: 1, properties: [{ name: "kind", type: "string", value: "wand" }] }],
+          }
+        : set,
+    );
+    const layers = [
+      {
+        type: "tilelayer",
+        name: "boden",
+        visible: true,
+        width: 3,
+        height: 3,
+        data: [2, 0, 0, 0, 0, 0, 0, 0, 0],
+        encoding: "csv",
+      },
+    ];
+    const map = parseMap("kirche", tiledMap({ layers, tilesets }));
+    expect(map.ground[0]?.image.crop).toEqual({ x: 64, y: 0, width: 64, height: 32 });
+  });
+
   it("[MAP-02] the tiles of a Base64 layer are read like the array of a CSV layer", () => {
     const values = [1, 2, 3, 4, 0, 0, 0, 0, 0];
     const bytes = new Uint8Array(values.length * 4);
