@@ -1,5 +1,5 @@
 // Builds the test world (sw-architecture.md 14.4, step 5d.1): three isometric maps with generated placeholder
-// art, group layers, a sheet tileset and an image-collection tileset with collision and occlusion guides,
+// art, group layers, a sheet tileset and an image-collection tileset with collision and trigger guides,
 // every object type, a polygon portal with its marker, and two figures in the PixelLab layout with generated
 // frames. It passes every rule of the validator with no finding. The tests use it as their valid package,
 // and the script `scripts/build-test-world.ts` writes it for development. The art is generated, not drawn:
@@ -64,7 +64,7 @@ function portals() {
   return {
     firstgid: PORTAL,
     name: "portale",
-    objectalignment: "bottomleft",
+    objectalignment: "bottom",
     columns: 0,
     tilecount: 1,
     tilewidth: TILE_WIDTH,
@@ -224,7 +224,7 @@ function sheet(firstgid: number, name: string, columns: number, rows: number) {
   return {
     firstgid,
     name,
-    objectalignment: "bottomleft",
+    objectalignment: "bottom",
     image: `../tilesets/${name}.png`,
     imagewidth: columns * TILE_WIDTH,
     imageheight: rows * TILE_HEIGHT,
@@ -239,13 +239,13 @@ function sheet(firstgid: number, name: string, columns: number, rows: number) {
 
 /**
  * The image-collection tileset `gebaeude`: one PNG per tile, with gaps in the tile ids. Tile 0 is a house
- * with a collision polygon and an occlusion line, tile 3 a sign with a collision rectangle only.
+ * with a collision polygon, tile 3 a sign with a collision rectangle only.
  */
 function collection(firstgid: number) {
   return {
     firstgid,
     name: "gebaeude",
-    objectalignment: "bottomleft",
+    objectalignment: "bottom",
     columns: 0,
     tilecount: 2,
     tilewidth: TILE_WIDTH,
@@ -260,7 +260,7 @@ function collection(firstgid: number) {
         objectgroup: {
           type: "objectgroup",
           name: "",
-          draworder: "index",
+          draworder: "topdown",
           objects: [
             {
               id: 1,
@@ -274,17 +274,6 @@ function collection(firstgid: number) {
                 { x: 120, y: 56 },
                 { x: 64, y: 40 },
                 { x: 8, y: 56 },
-              ],
-            },
-            {
-              id: 2,
-              name: "occlusion",
-              x: 0,
-              y: 0,
-              polyline: [
-                { x: 8, y: 72 },
-                { x: 64, y: 88 },
-                { x: 120, y: 72 },
               ],
             },
           ],
@@ -384,7 +373,7 @@ function maps(): Record<string, unknown> {
               property("targetSpawn", "start"),
               property("label", "Garten"),
             ]),
-            tileObject(4, "altar", "clickable", { x: 96, y: 96, width: 32, height: 32 }, 25, [
+            tileObject(4, "altar", "clickable", { x: 96, y: 96, width: 64, height: 32 }, 25, [
               property("label", "Programm"),
               property("action", "page"),
               property("page", "programme"),

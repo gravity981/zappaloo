@@ -5,7 +5,6 @@
 import Phaser from "phaser";
 import { walkable, cellOf, cellCentre } from "./collision.ts";
 import { walkFrameIndex } from "./figures.ts";
-import { figureDepth } from "./draw-order.ts";
 import { mapBounds, type Point, polygonCentre, tileToPixel, type TileSize } from "./geometry.ts";
 import { findPath, type Grid } from "./pathfinding.ts";
 import { directionOf, keyDirection, stepPosition, type Direction } from "./movement.ts";
@@ -38,7 +37,6 @@ const DEFAULT_GUIDES: GameGuides = {
   borders: false,
   spawns: false,
   portals: false,
-  occlusion: false,
   grid: false,
 };
 
@@ -135,7 +133,7 @@ export class WorldScene extends Phaser.Scene {
         this.#figure.standing.south,
       );
       sprite.setOrigin(0.5, 1);
-      sprite.setDepth(figureDepth(this.#position, map.occluders));
+      sprite.setDepth(this.#position.y);
       this.#player = sprite;
       this.cameras.main.startFollow(sprite, true);
     }
@@ -241,7 +239,7 @@ export class WorldScene extends Phaser.Scene {
     if (texture !== undefined && player.texture.key !== texture) player.setTexture(texture);
     // Whole pixels: a fractional position is snapped differently from frame to frame, which made things shimmer.
     player.setPosition(Math.round(this.#position.x), Math.round(this.#position.y));
-    player.setDepth(figureDepth(this.#position, map.occluders));
+    player.setDepth(this.#position.y);
 
     const portal = portalAt(map, this.#position);
     if (!this.#armed) {
@@ -270,10 +268,7 @@ export class WorldScene extends Phaser.Scene {
     ground: boolean;
     objects: boolean;
   } {
-    if (
-      map.ground.length === 0 ||
-      map.ground.some(({ image }) => image.offset.x !== 0 || image.offset.y !== 0)
-    ) {
+    if (map.ground.length === 0) {
       return { ground: false, objects: false };
     }
 
@@ -349,7 +344,7 @@ export class WorldScene extends Phaser.Scene {
     }
   }
 
-  /** Use Phaser's object conversion for bottom-aligned image-collection objects without offsets or guides. */
+  /** Use Phaser's object conversion for bottom-aligned image-collection objects with zero offsets. */
   #drawNativeTileObjects(map: ParsedMap, tilemap: Phaser.Tilemaps.Tilemap): boolean {
     if (map.objects.length === 0) return true;
     if (map.source.layers.some((layer) => layer.type === "group")) {
@@ -362,7 +357,6 @@ export class WorldScene extends Phaser.Scene {
         key: string;
         alignment: string | undefined;
         offset: { x: number; y: number };
-        hasGuides: boolean;
       }
     >();
     for (const set of map.source.tilesets) {
@@ -373,7 +367,6 @@ export class WorldScene extends Phaser.Scene {
           key: tilesetImageKey(tile.image),
           alignment: set.objectalignment,
           offset: { x: set.tileoffset?.x ?? 0, y: set.tileoffset?.y ?? 0 },
-          hasGuides: tile.objectgroup !== undefined,
         });
       }
     }
@@ -400,10 +393,7 @@ export class WorldScene extends Phaser.Scene {
         (draw) =>
           !draw.image.collection ||
           draw.width !== draw.image.width ||
-          draw.height !== draw.image.height ||
-          draw.image.collision.length > 0 ||
-          draw.image.occlusion !== undefined ||
-          draw.image.trigger !== undefined,
+          draw.height !== draw.image.height,
       )
     ) {
       return false;
@@ -418,8 +408,7 @@ export class WorldScene extends Phaser.Scene {
           tile === undefined ||
           (tile.alignment ?? "bottom") !== "bottom" ||
           tile.offset.x !== 0 ||
-          tile.offset.y !== 0 ||
-          tile.hasGuides,
+          tile.offset.y !== 0,
       )
     ) {
       return false;
@@ -503,9 +492,6 @@ export class WorldScene extends Phaser.Scene {
         fill(portal.polygon);
         stroke(portal.polygon, 0xb35cff);
       }
-    }
-    if (this.#guides.occlusion) {
-      for (const occluder of map.occluders) stroke(occluder.line, 0xffd23f);
     }
   }
 

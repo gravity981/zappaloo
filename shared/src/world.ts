@@ -221,7 +221,7 @@ export const tiledObjectLayerSchema = z.looseObject({
 });
 export type TiledObjectLayer = z.infer<typeof tiledObjectLayerSchema>;
 
-/** A tile of an image-collection tileset: its image and, optionally, collision and occlusion guides. */
+/** A tile of an image-collection tileset: its image and, optionally, collision and trigger guides. */
 export const tiledTileSchema = z.looseObject({
   id: z.number().int().nonnegative(),
   image: z.string().optional(),

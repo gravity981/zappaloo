@@ -99,7 +99,7 @@ function fixtureMap() {
       {
         id: 2,
         type: "objectgroup",
-        name: "Artifacts",
+        name: "Props",
         visible: true,
         opacity: 1,
         draworder: "topdown",
@@ -147,7 +147,7 @@ function fixtureMap() {
         tileheight: TILE_HEIGHT,
         tilecount: 4,
         columns: 2,
-        objectalignment: "bottomleft",
+        objectalignment: "bottom",
         image: "../tilesets/parity.png",
         imagewidth: TILE_WIDTH * 2,
         imageheight: TILE_HEIGHT * 2,
@@ -202,14 +202,14 @@ function fixturePlacementMap() {
       {
         id: 3,
         type: "objectgroup",
-        name: "Artifacts",
+        name: "Props",
         visible: true,
         opacity: 1,
         draworder: "topdown",
         objects: [
           {
             id: 3,
-            name: "scaled-bottom-left",
+            name: "large",
             type: "decoration",
             x: 64,
             y: 96,
@@ -221,12 +221,12 @@ function fixturePlacementMap() {
           },
           {
             id: 4,
-            name: "scaled-bottom",
+            name: "medium",
             type: "decoration",
             x: 96,
             y: 96,
-            width: 128,
-            height: 80,
+            width: 64,
+            height: 40,
             rotation: 0,
             visible: true,
             gid: 9,
@@ -273,20 +273,20 @@ function fixturePlacementMap() {
         tileheight: TILE_HEIGHT,
         tilecount: 4,
         columns: 2,
-        objectalignment: "bottomleft",
+        objectalignment: "bottom",
         image: "../tilesets/parity.png",
         imagewidth: TILE_WIDTH * 2,
         imageheight: TILE_HEIGHT * 2,
       },
       {
         firstgid: 5,
-        name: "collection-bottomleft",
+        name: "collection-bottom",
         tilewidth: TILE_WIDTH,
         tileheight: TILE_HEIGHT,
         tilecount: 4,
         columns: 0,
-        objectalignment: "bottomleft",
-        tileoffset: { x: 5, y: -4 },
+        objectalignment: "bottom",
+        tileoffset: { x: 0, y: 0 },
         tiles: [
           {
             id: 0,
@@ -317,6 +317,23 @@ function fixturePlacementMap() {
             image: "../tilesets/medium.png",
             imagewidth: 64,
             imageheight: 40,
+            objectgroup: {
+              type: "objectgroup",
+              name: "",
+              objects: [
+                {
+                  id: 1,
+                  name: "collision",
+                  x: 8,
+                  y: 24,
+                  polygon: [
+                    { x: 0, y: 0 },
+                    { x: 48, y: 0 },
+                    { x: 24, y: 12 },
+                  ],
+                },
+              ],
+            },
           },
         ],
       },
@@ -402,7 +419,7 @@ export function createTiledParityFixture(directory: string): TiledParityFixture 
 export function createTiledNativeCollectionFixture(directory: string): TiledParityFixture {
   const map = fixtureNativePlacementMap();
   const artifacts = map.layers.find(
-    (layer) => layer.type === "objectgroup" && layer.name === "Artifacts",
+    (layer) => layer.type === "objectgroup" && layer.name === "Props",
   );
   if (artifacts?.type === "objectgroup") artifacts.objects = [];
   return createTiledFixture(directory, map, fixturePlacementImages());
@@ -411,7 +428,7 @@ export function createTiledNativeCollectionFixture(directory: string): TiledPari
 export function createTiledNativeObjectFixture(directory: string): TiledParityFixture {
   const map = fixtureNativePlacementMap();
   const artifacts = map.layers.find(
-    (layer) => layer.type === "objectgroup" && layer.name === "Artifacts",
+    (layer) => layer.type === "objectgroup" && layer.name === "Props",
   );
   if (artifacts?.type === "objectgroup") {
     artifacts.objects = [
@@ -435,7 +452,7 @@ export function createTiledNativeObjectFixture(directory: string): TiledParityFi
 export function createTiledNativeLayeringFixture(directory: string): TiledParityFixture {
   const map = fixtureNativePlacementMap();
   const artifacts = map.layers.find(
-    (layer) => layer.type === "objectgroup" && layer.name === "Artifacts",
+    (layer) => layer.type === "objectgroup" && layer.name === "Props",
   );
   if (artifacts?.type === "objectgroup") {
     artifacts.objects = [
@@ -500,10 +517,6 @@ function fixturePlacementImages(): Record<string, Buffer> {
     "small.png": fixtureCollectionImage(40, 24, [0xb2, 0x69, 0x8d], [0xff, 0xe0, 0x75]),
     "medium.png": fixtureCollectionImage(64, 40, [0x67, 0xa2, 0x70], [0xf4, 0xaa, 0x5c]),
   };
-}
-
-export function createTiledPlacementParityFixture(directory: string): TiledParityFixture {
-  return createTiledFixture(directory, fixturePlacementMap(), fixturePlacementImages());
 }
 
 export interface ParityMeasurement {

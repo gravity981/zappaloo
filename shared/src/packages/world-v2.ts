@@ -332,7 +332,7 @@ export const worldV2: PackageDefinition<WorldFindingCode> = {
       scope: "validator",
       severity: "error",
       requirements: ["MAP-06", "MAP-02", "GAME-20"],
-      text: "A map has tile layers, object layers and visible group layers (read recursively, in the order of the file); image layers, hidden groups, non-default offsets, opacity, tint, parallax, blend modes, repetition, draw order and compressed tile data are refused. Leaf layers may be hidden, but their gameplay objects still apply. A map has a tile layer besides `collision`, and every tile layer holds the tiles of the map.",
+      text: "A map has tile layers, object layers and visible group layers (read recursively, in the order of the file); image layers, hidden groups, non-default offsets, opacity, tint, parallax, blend modes, repetition, non-topdown object draw order and compressed tile data are refused. Leaf layers may be hidden, but their gameplay objects still apply. Author ground tile layers before the depth-sorted `Props` object layer and foreground tile layers after it. A map has a tile layer besides `collision`, and every tile layer holds the tiles of the map.",
       codes: ["map_layer"],
     },
     {
@@ -340,7 +340,7 @@ export const worldV2: PackageDefinition<WorldFindingCode> = {
       scope: "validator",
       severity: "error",
       requirements: ["MAP-06", "MAP-02", "GAME-20"],
-      text: "Tilesets are embedded. A sheet tileset has the tile width and height of the world and uses one image from `tilesets/`, a whole number of tiles; an image-collection tileset uses one PNG per tile, each from `tilesets/`, of any size, with the size stated in the tileset (the objects of a map, such as buildings or signs, are image collections). The tile ids do not overlap. Tile animation and non-default alignment or offset are refused.",
+      text: "Tilesets are embedded. A sheet tileset has the tile width and height of the world and uses one image from `tilesets/`, a whole number of tiles; an image-collection tileset uses one PNG per tile, each from `tilesets/`, of any size, with the size stated in the tileset (the objects of a map, such as buildings or signs, are image collections). The tile ids do not overlap. Tile animation and non-zero tile offsets are refused. A tileset used by tile objects must use bottom alignment.",
       codes: ["map_tileset"],
     },
     {
@@ -356,7 +356,7 @@ export const worldV2: PackageDefinition<WorldFindingCode> = {
       scope: "validator",
       severity: "error",
       requirements: ["MAP-06", "MAP-02", "GAME-20"],
-      text: "Objects have one of the types of 14.2 and a shape that type allows. Spawn points, portals and clickable objects have a unique name. An untyped object is a point (an approach point). Ellipses, text and individually hidden objects are refused. Tile objects may be scaled but not rotated or flipped.",
+      text: "Objects have one of the types of 14.2 and a shape that type allows. Spawn points, portals and clickable objects have a unique name. An untyped object is a point (an approach point). Ellipses, text and individually hidden objects are refused. Tile objects use their image's natural size and bottom alignment; scaling, rotation and flipping are refused.",
       codes: ["map_object"],
     },
     {
@@ -364,7 +364,7 @@ export const worldV2: PackageDefinition<WorldFindingCode> = {
       scope: "validator",
       severity: "error",
       requirements: ["MAP-02"],
-      text: "The guides in the object group of an image-collection tile are a polygon or rectangle named `collision`, a polygon named `trigger` (the trigger area of a portal, at most one per tile) or a polyline named `occlusion` (at least two points, at most one per tile). Other guides are reported as unknown.",
+      text: "The guides in the object group of an image-collection tile are a polygon or rectangle named `collision` or `trigger` (the trigger area of a portal, at most one per tile). Image-local occlusion guides are not supported; use a foreground tile layer for canopy and other artwork that covers figures.",
       codes: ["map_guide"],
     },
     {

@@ -8,6 +8,7 @@ Zappaloo is a reusable event platform (first use: a wedding) that combines a bro
 |---|---|
 | `spec/README.md` | Purpose, document index, status of each spec topic |
 | `spec/sw-architecture.md` | Requirements, architecture, technology choices |
+| `game-engine/README.md` | Tiled → WorldPackage → shared Phaser engine integration contract |
 | `spec/test-strategy.md` | Test levels, requirement traceability, "not yet implemented" list |
 | `spec/implementation-plan.md` | Stages and steps, preconditions per stage, releases, status reports |
 | `spec/mocks/` | Clickable UX mocks (`zappaloo-mocks.html`) and the UX decisions behind them |
@@ -45,12 +46,13 @@ Zappaloo is a reusable event platform (first use: a wedding) that combines a bro
 ## Environment
 
 - Development happens in the devcontainer (`.devcontainer/`): Node.js, Playwright browsers (Chromium, WebKit), Mailpit (caught emails, web UI on port 8025), sqlite3. Dev data lives in the `zappaloo-data-dev` volume at `/var/lib/zappaloo`.
-- Monorepo with npm workspaces `shared`, `backend`, `frontend`; tooling scripts in `scripts/` run directly by Node.js (type stripping, imports with `.ts` extension).
+- Monorepo with npm workspaces `shared`, `backend`, `frontend`, `game-engine`, and `game-preview`; tooling scripts in `scripts/` run directly by Node.js (type stripping, imports with `.ts` extension).
 - Commands (from the repository root):
 
 | Command | Does |
 |---|---|
 | `npm run dev:backend` / `npm run dev:frontend` | Backend on port 3000 (restarts on change; migrates `DATA_DIR` on start) / Vite on port 5173, proxying `/api` to the backend |
+| `APP_ENV=dev npm run dev:game-preview` | Standalone game preview on port 5175; optionally set `ZAPPALOO_TILED_SOURCE_DIR` to a local Tiled project root |
 | `npm run mocks` | UX mocks on `http://localhost:5174/zappaloo-mocks.html` (VS Code task "mocks"; works in the Simple Browser) |
 | `npm run build` | Production build of the frontend (`frontend/dist`) |
 | `npm run cli -- <command>` | The `zappaloo` CLI from source (`version`, `migrate`, …) |

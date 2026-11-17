@@ -1,7 +1,6 @@
 // The rules of one Tiled map of the world package (sw-architecture.md 14.4, MAP-02, MAP-03, MAP-06, MAP-08):
-// the format (isometric, finite), the layers (group layers read recursively), the embedded tilesets with
-// their images (sheets and image collections), the tile ids, the objects by type, shape and properties
-// (collision and border polygons, portals as tile objects with a trigger polygon, occlusion guides of tiles), and the references
+// the format (isometric, finite), the ordered layers, the embedded tilesets with their images, the tile ids,
+// the objects by type, shape and properties (including collision and portal trigger guides), and references
 // inside the map and to the other maps of the package.
 import {
   tiledMapSchema,
@@ -429,7 +428,7 @@ export function checkMap(id: string, bytes: Buffer, context: MapContext): MapRes
   }
 
   // Objects: the spawn points, the portals, the approach points, the collision shapes, the tiles placed.
-  const objects = checkObjects(map, file, ranges, tileGuides, findings);
+  const objects = checkObjects(map, file, ranges, tileGuides, context, findings);
   if (objects.collision || objects.placedBlocking) collision = true;
   if (!objects.spawns.has("start")) {
     findings.push(errorFinding(file, "map_reference", "the map has no spawn point named start"));
@@ -509,12 +508,25 @@ function checkTilesets(
         }),
     );
     const effectiveAlignment = tileset.objectalignment ?? "bottom";
-    if (hasTileObjects && effectiveAlignment !== "bottom" && effectiveAlignment !== "bottomleft") {
+    if (
+      tileset.tileoffset !== undefined &&
+      (tileset.tileoffset.x !== 0 || tileset.tileoffset.y !== 0)
+    ) {
       findings.push(
         errorFinding(
           file,
           "map_tileset",
-          `tileset ${name} uses objectalignment=${JSON.stringify(effectiveAlignment)}; only bottom and bottomleft are supported`,
+          `tileset ${name} has a non-zero tile offset; tileoffset must be (0, 0)`,
+          name,
+        ),
+      );
+    }
+    if (hasTileObjects && effectiveAlignment !== "bottom") {
+      findings.push(
+        errorFinding(
+          file,
+          "map_tileset",
+          `tileset ${name} uses objectalignment=${JSON.stringify(effectiveAlignment)}; tile objects must use bottom alignment`,
           name,
         ),
       );
@@ -596,6 +608,26 @@ function checkTilesets(
 function imageNameOf(image: string): string | undefined {
   const match = /^\.\.\/tilesets\/([A-Za-z0-9][A-Za-z0-9._-]{0,80})\.png$/.exec(image);
   return match?.[1];
+}
+
+/** The unscaled size of a tile object, from its tileset cell or collection image. */
+function tileObjectSize(map: TiledMap, gid: number, context: MapContext): PngSize | undefined {
+  let selected: TiledTileset | undefined;
+  for (const tileset of map.tilesets) {
+    if (
+      tileset.firstgid <= gid &&
+      (selected === undefined || tileset.firstgid > selected.firstgid)
+    ) {
+      selected = tileset;
+    }
+  }
+  if (selected === undefined) return undefined;
+  if (selected.tiles === undefined) {
+    return { width: selected.tilewidth, height: selected.tileheight };
+  }
+  const tile = selected.tiles.find((candidate) => selected.firstgid + candidate.id === gid);
+  const imageName = tile?.image === undefined ? undefined : imageNameOf(tile.image);
+  return imageName === undefined ? undefined : context.images.get(`tilesets/${imageName}.png`);
 }
 
 /** A sheet's tile size is the world's; without a tile size of the package, nothing is compared. */
@@ -681,8 +713,8 @@ function checkCollection(
 }
 
 /**
- * The guides of one collection tile: a collision polygon or rectangle named `collision` blocks, and a
- * polyline named `occlusion` (at most one) gives the depth line. Returns whether the tile blocks.
+ * The guides of one collection tile: a collision shape blocks, and a trigger shape gives a portal's
+ * activation area. Returns whether the tile blocks.
  */
 /** What the guides of a collection tile make of it. */
 interface TileGuides {
@@ -700,7 +732,6 @@ function checkTileGuides(
 ): TileGuides {
   let blocks = false;
   let trigger = false;
-  let occlusion = 0;
   const label = `${tileset.name} tile ${String(tile.id)}`;
   for (const guide of tile.objectgroup?.objects ?? []) {
     const shape = shapeOf(guide);
@@ -723,27 +754,16 @@ function checkTileGuides(
         );
       }
       trigger = true;
-    } else if (
-      guide.name === "occlusion" &&
-      shape === "polyline" &&
-      (guide.polyline?.length ?? 0) >= 2
-    ) {
-      occlusion += 1;
     } else {
       findings.push(
         errorFinding(
           file,
           "map_guide",
-          "a guide of a tile is a polygon or rectangle named collision or trigger, or a polyline named occlusion",
+          "a guide of a tile is a polygon or rectangle named collision or trigger",
           label,
         ),
       );
     }
-  }
-  if (occlusion > 1) {
-    findings.push(
-      errorFinding(file, "map_guide", "a tile has more than one occlusion line", label),
-    );
   }
   return { blocks, trigger };
 }
@@ -844,6 +864,7 @@ function checkObjects(
   file: string,
   ranges: TileRange[],
   tileGuides: Map<number, TileGuides>,
+  context: MapContext,
   findings: WorldFinding[],
 ): ObjectsResult {
   const result: ObjectsResult = {
@@ -857,7 +878,7 @@ function checkObjects(
   const objects = allObjects(map.layers);
   const typedNames = new Set<string>();
   for (const object of objects) {
-    checkObject(object, file, ranges, findings, result, typedNames, tileGuides);
+    checkObject(object, file, ranges, map, context, findings, result, typedNames, tileGuides);
   }
   return result;
 }
@@ -866,6 +887,8 @@ function checkObject(
   object: TiledObject,
   file: string,
   ranges: TileRange[],
+  map: TiledMap,
+  context: MapContext,
   findings: WorldFinding[],
   result: ObjectsResult,
   typedNames: Set<string>,
@@ -904,6 +927,21 @@ function checkObject(
         errorFinding(file, "map_tiles", `the tile id ${String(gid)} is in no tileset`, label),
       );
       return;
+    }
+    const naturalSize = tileObjectSize(map, gid, context);
+    if (
+      naturalSize !== undefined &&
+      ((object.width !== undefined && object.width !== naturalSize.width) ||
+        (object.height !== undefined && object.height !== naturalSize.height))
+    ) {
+      findings.push(
+        errorFinding(
+          file,
+          "map_object",
+          `${label} is scaled; tile objects must be ${String(naturalSize.width)} × ${String(naturalSize.height)} pixels`,
+          label,
+        ),
+      );
     }
     if (tileGuides.get(gid)?.blocks === true) result.placedBlocking = true;
   }

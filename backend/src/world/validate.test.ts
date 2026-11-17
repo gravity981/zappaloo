@@ -422,18 +422,39 @@ describe("the maps: format and layers (MAP-02, MAP-06)", () => {
     expectRefused(files, "map_tileset");
   });
 
-  it.each(["bottom", "bottomleft", undefined])(
-    "[MAP-06][GAME-20] accepts supported objectalignment %s and a non-zero tile offset",
+  it.each(["bottom", undefined])(
+    "[MAP-06][GAME-20] accepts bottom objectalignment %s and a zero tile offset",
     (alignment) => {
       const files = edit(world(), "maps/kirche.json", (m) => {
         const tileset = tilesetNamed(m, "gebaeude");
         if (alignment === undefined) delete tileset.objectalignment;
         else tileset.objectalignment = alignment;
-        tileset.tileoffset = { x: 7.5, y: -3 };
+        tileset.tileoffset = { x: 0, y: 0 };
       });
       expectAccepted(files);
     },
   );
+
+  it("[MAP-06][GAME-20] refuses bottom-left alignment for tile objects", () => {
+    const files = edit(world(), "maps/kirche.json", (m) => {
+      tilesetNamed(m, "gebaeude").objectalignment = "bottomleft";
+    });
+    expectRefused(files, "map_tileset");
+  });
+
+  it("[MAP-06][GAME-20] refuses non-zero tileset offsets", () => {
+    const files = edit(world(), "maps/kirche.json", (m) => {
+      tilesetNamed(m, "gebaeude").tileoffset = { x: 7.5, y: -3 };
+    });
+    expectRefused(files, "map_tileset");
+  });
+
+  it("[MAP-06][GAME-20] refuses scaled tile objects", () => {
+    const files = edit(world(), "maps/kirche.json", (m) => {
+      objectNamed(m, "altar").width = 32;
+    });
+    expectRefused(files, "map_object");
+  });
 
   it("[MAP-06][GAME-20] refuses animated tiles", () => {
     const files = edit(world(), "maps/kirche.json", (m) => {
@@ -912,8 +933,8 @@ describe("the objects (MAP-02, MAP-06)", () => {
   });
 });
 
-describe("tile guides: collision and occlusion (MAP-02)", () => {
-  it("[MAP-06] refuses a guide of a tile that is not a collision shape or an occlusion line", () => {
+describe("tile guides: collision and trigger (MAP-02)", () => {
+  it("[MAP-02][MAP-06] refuses a guide of a tile that is not a collision or trigger shape", () => {
     const files = edit(world(), "maps/kirche.json", (m) => {
       const collection = tilesetNamed(m, "gebaeude");
       tileAt(collection, 0).objectgroup = {
@@ -936,26 +957,31 @@ describe("tile guides: collision and occlusion (MAP-02)", () => {
     expectRefused(files, "map_guide");
   });
 
-  it("[MAP-06] refuses a tile with more than one occlusion line", () => {
+  it("[MAP-02][MAP-06] refuses image-local occlusion guides", () => {
     const files = edit(world(), "maps/kirche.json", (m) => {
       const collection = tilesetNamed(m, "gebaeude");
       const tile = tileAt(collection, 0);
-      const group = tile.objectgroup as Json;
-      (group.objects as Json[]).push({
-        id: 3,
-        name: "occlusion",
-        x: 0,
-        y: 0,
-        polyline: [
-          { x: 0, y: 0 },
-          { x: 5, y: 5 },
+      tile.objectgroup = {
+        type: "objectgroup",
+        name: "",
+        objects: [
+          {
+            id: 3,
+            name: "occlusion",
+            x: 0,
+            y: 0,
+            polyline: [
+              { x: 0, y: 0 },
+              { x: 5, y: 5 },
+            ],
+          },
         ],
-      });
+      };
     });
     expectRefused(files, "map_guide");
   });
 
-  it("[MAP-06] a placed tile with a collision guide makes the map collide, without any other collision", () => {
+  it("[MAP-02][MAP-06] a placed tile with a collision guide makes the map collide, without any other collision", () => {
     const files = edit(world(), "maps/kirche.json", (m) => {
       m.layers = (m.layers as Json[]).filter((item) => item.name !== "collision");
       const groups = (m.layers as Json[]).filter((item) => item.type === "group");

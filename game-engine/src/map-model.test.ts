@@ -61,16 +61,6 @@ function tiledMap(
                   ],
                 },
                 {
-                  id: 2,
-                  name: "occlusion",
-                  x: 0,
-                  y: 0,
-                  polyline: [
-                    { x: 0, y: 72 },
-                    { x: 128, y: 72 },
-                  ],
-                },
-                {
                   id: 4,
                   name: "trigger",
                   x: 3,
@@ -227,7 +217,7 @@ describe("the map as the game draws it (MAP-02, GAME-19)", () => {
     expect(map.obstacles.borders).toHaveLength(1);
   });
 
-  it("[GAME-19] a default-aligned tile object shares its image transform with its occlusion line and collision", () => {
+  it("[GAME-20] a bottom-aligned tile object shares its image transform with collision and trigger guides", () => {
     const map = parseMap("kirche", tiledMap());
     // The portal is a tile object too; the decoration is the one at (160, 160).
     expect(map.objects).toHaveLength(2);
@@ -241,12 +231,6 @@ describe("the map as the game draws it (MAP-02, GAME-19)", () => {
       height: 96,
       depth: anchor.y,
     });
-    expect(map.occluders).toHaveLength(1);
-    expect(map.occluders[0]?.depth).toBe(anchor.y);
-    expect(map.occluders[0]?.line).toEqual([
-      { x: topLeft.x, y: topLeft.y + 72 },
-      { x: topLeft.x + 128, y: topLeft.y + 72 },
-    ]);
     expect(map.obstacles.solids).toHaveLength(1);
     expect(map.obstacles.solids[0]?.[0]).toEqual({ x: topLeft.x + 8, y: topLeft.y + 80 });
   });
@@ -270,48 +254,6 @@ describe("the map as the game draws it (MAP-02, GAME-19)", () => {
       width: 128,
       height: 96,
     });
-  });
-
-  it("[GAME-20] bottom-left tile objects apply offsets and fractional scaling to their guides", () => {
-    const base = tiledMap();
-    const tilesets = base.tilesets.map((set, index) =>
-      index === 1 ? { ...set, objectalignment: "bottomleft", tileoffset: { x: 7, y: -3 } } : set,
-    );
-    const objects = [
-      {
-        id: 20,
-        name: "scaled",
-        type: "portal",
-        gid: 30,
-        x: 160.5,
-        y: 160.25,
-        width: 96,
-        height: 72,
-        rotation: 0,
-        properties: [],
-      },
-    ];
-    const map = parseMap("kirche", tiledMap({ objects, tilesets }));
-    expect(map.objects[0]).toMatchObject({
-      x: 38,
-      y: 86,
-      width: 96,
-      height: 72,
-      depth: 158.125,
-    });
-    expect(map.occluders[0]).toEqual({
-      depth: 158.125,
-      line: [
-        { x: 38, y: 140 },
-        { x: 134, y: 140 },
-      ],
-    });
-    expect(map.portals[0]?.polygon).toEqual([
-      { x: 40.25, y: 89 },
-      { x: 46.25, y: 89 },
-      { x: 46.25, y: 95 },
-    ]);
-    expect(map.obstacles.solids[0]?.[0]).toEqual({ x: 44, y: 146 });
   });
 
   it("[GAME-20] sheet crops derive columns from dimensions and include margin and spacing", () => {

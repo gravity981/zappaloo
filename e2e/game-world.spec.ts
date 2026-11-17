@@ -12,7 +12,6 @@ import {
   createTiledNativeLayeringFixture,
   createTiledNativeObjectFixture,
   createTiledParityFixture,
-  createTiledPlacementParityFixture,
 } from "./tiled-parity.ts";
 import { signInAsAdmin } from "./support.ts";
 import de from "../frontend/src/i18n/locales/de/common.json" with { type: "json" };
@@ -191,7 +190,7 @@ test("[GAME-20] the native renderer matches Tiled collection ground layers witho
   await verifyTiledParity(page, createTiledNativeCollectionFixture(testInfo.outputDir), testInfo);
 });
 
-test("[GAME-20] Phaser's native object conversion matches a bottom-aligned collection tile object", async ({
+test("[GAME-20][MAP-02] Phaser's native object conversion matches a bottom-aligned tile object with collision guides", async ({
   page,
   context,
 }, testInfo) => {
@@ -204,7 +203,7 @@ test("[GAME-20] Phaser's native object conversion matches a bottom-aligned colle
   await verifyTiledParity(page, createTiledNativeObjectFixture(testInfo.outputDir), testInfo, true);
 });
 
-test("[GAME-20] native Tiled layers and depth-sorted objects preserve occlusion", async ({
+test("[GAME-19][GAME-20][MAP-02] native Props and Foreground layers preserve depth-sorted actor occlusion", async ({
   page,
   context,
 }, testInfo) => {
@@ -215,17 +214,4 @@ test("[GAME-20] native Tiled layers and depth-sorted objects preserve occlusion"
   );
   await signInAsAdmin(page, context);
   await verifyTiledParity(page, createTiledNativeLayeringFixture(testInfo.outputDir), testInfo);
-});
-
-test("[GAME-20] collection placement and tile-object transforms match Tiled", async ({
-  page,
-  context,
-}, testInfo) => {
-  test.skip(testInfo.project.name !== "desktop-chromium", "fixed viewport and DPR 1 baseline");
-  test.skip(
-    process.platform !== "linux" || process.arch !== "x64",
-    "pinned Tiled is Linux x86_64 only",
-  );
-  await signInAsAdmin(page, context);
-  await verifyTiledParity(page, createTiledPlacementParityFixture(testInfo.outputDir), testInfo);
 });

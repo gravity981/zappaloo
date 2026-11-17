@@ -1,7 +1,7 @@
 // Collisions of a map (sw-architecture.md 14.4, GAME-02): the cells of the `collision` tile layer, collision
 // rectangles and polygons (and the collision guides of placed tiles) block their inside; a border blocks its
-// outline in both directions while its inside stays walkable. A guest's figure is a circle of a given radius,
-// so it cannot touch a blocked shape either.
+// outline in both directions while its inside stays walkable. The input point is the figure's feet; its circular
+// footprint is centred one radius above that point, so it never extends below the feet.
 import {
   distanceToOutline,
   pixelToTile,
@@ -24,19 +24,23 @@ export interface Obstacles {
   borders: readonly (readonly Point[])[];
 }
 
-/** The sample points of a figure's circle: its centre and points on its edge. */
+/** The sample points of a figure's foot-anchored circle: its centre and points on its edge. */
 const CIRCLE_SAMPLES = 8;
 
 function cellKey(column: number, row: number): string {
   return `${String(column)},${String(row)}`;
 }
 
-/** Whether a figure of `radius` standing at `point` (in pixel space) would touch a blocked shape. */
-export function blocked(obstacles: Obstacles, point: Point, radius: number): boolean {
-  const samples: Point[] = [point];
+/** Whether a figure with its feet at `point` (in pixel space) would touch a blocked shape. */
+export function blocked(obstacles: Obstacles, feet: Point, radius: number): boolean {
+  const centre = { x: feet.x, y: feet.y - radius };
+  const samples: Point[] = [centre];
   for (let i = 0; i < CIRCLE_SAMPLES; i++) {
     const angle = (i / CIRCLE_SAMPLES) * Math.PI * 2;
-    samples.push({ x: point.x + Math.cos(angle) * radius, y: point.y + Math.sin(angle) * radius });
+    samples.push({
+      x: centre.x + Math.cos(angle) * radius,
+      y: centre.y + Math.sin(angle) * radius,
+    });
   }
   for (const sample of samples) {
     const { column, row } = cellOf(sample, obstacles.size);
@@ -44,17 +48,17 @@ export function blocked(obstacles: Obstacles, point: Point, radius: number): boo
     if (obstacles.blockedCells.has(cellKey(column, row))) return true;
   }
   for (const solid of obstacles.solids) {
-    if (pointInPolygon(point, solid) || distanceToOutline(point, solid) < radius) return true;
+    if (pointInPolygon(centre, solid) || distanceToOutline(centre, solid) < radius) return true;
   }
   for (const border of obstacles.borders) {
-    if (distanceToOutline(point, border) < radius) return true;
+    if (distanceToOutline(centre, border) < radius) return true;
   }
   return false;
 }
 
-/** Whether a figure of `radius` may stand at `point`. */
-export function walkable(obstacles: Obstacles, point: Point, radius: number): boolean {
-  return !blocked(obstacles, point, radius);
+/** Whether a figure with its feet at `feet` may stand there. */
+export function walkable(obstacles: Obstacles, feet: Point, radius: number): boolean {
+  return !blocked(obstacles, feet, radius);
 }
 
 /** The cell of a point in pixel space, as tile column and row. */

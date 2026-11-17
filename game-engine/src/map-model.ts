@@ -1,7 +1,6 @@
 // The map as the game draws and checks it (sw-architecture.md 14.1, 14.2, 14.4, MAP-02, GAME-02, GAME-03, GAME-19):
-// the ground from the visible tile layers in order (group layers read recursively, hidden layers not drawn), the
-// tile objects with their alignment, offset and scale, the collisions, the spawn points and the portals, and the
-// occlusion lines of the objects. Pure: it takes the parsed Tiled map and returns plain data.
+// the visible ground layers in order, bottom-aligned unscaled tile objects, collisions, spawn points and portals.
+// Pure: it takes the parsed Tiled map and returns plain data.
 import {
   tiledMapSchema,
   type TiledLayer,
@@ -18,7 +17,6 @@ import {
   tileToPixel,
 } from "./geometry.ts";
 import type { Obstacles } from "./collision.ts";
-import type { Occluder } from "./draw-order.ts";
 
 /** A picture of a tile: the texture it comes from, the part of it to draw, and its guides in its own pixels. */
 export interface TileImage {
@@ -29,16 +27,10 @@ export interface TileImage {
   height: number;
   /** The part of the image that is the tile (a sheet's cell); the whole image otherwise. */
   crop: { x: number; y: number; width: number; height: number };
-  /** The tileset's tile offset in pixels. */
-  offset: Point;
   /** Whether this is a standalone image from an image-collection tileset. */
   collection: boolean;
-  /** The Tiled alignment used when this image is a tile object. */
-  objectAlignment: TiledTileset["objectalignment"];
   /** Collision polygons of the tile, in the image's pixels. */
   collision: Point[][];
-  /** The occlusion line of the tile, in the image's pixels. */
-  occlusion?: Point[];
   /** The trigger area of a portal tile (its polygon named `trigger`), in the image's pixels. */
   trigger?: Point[];
 }
@@ -73,8 +65,6 @@ export interface ParsedMap {
   ground: TileDraw[];
   /** The tile objects, drawn in depth order with the figures. */
   objects: TileDraw[];
-  /** The objects with an occlusion line (GAME-19). */
-  occluders: Occluder[];
   obstacles: Obstacles;
   spawns: Map<string, Point>;
   portals: PortalArea[];
@@ -126,7 +116,6 @@ interface TileSource {
 function tileSources(tilesets: TiledTileset[]): TileSource[] {
   const sources: TileSource[] = [];
   for (const set of tilesets) {
-    const offset = { x: set.tileoffset?.x ?? 0, y: set.tileoffset?.y ?? 0 };
     if (set.tiles !== undefined) {
       const byGid = new Map<number, TiledTile>();
       for (const tile of set.tiles) byGid.set(set.firstgid + tile.id, tile);
@@ -144,11 +133,8 @@ function tileSources(tilesets: TiledTileset[]): TileSource[] {
             width,
             height,
             crop: { x: 0, y: 0, width, height },
-            offset,
             collection: true,
-            objectAlignment: set.objectalignment ?? "bottom",
             collision: collisionOf(tile),
-            occlusion: occlusionOf(tile),
             trigger: triggerOf(tile),
           };
         },
@@ -185,9 +171,7 @@ function tileSources(tilesets: TiledTileset[]): TileSource[] {
             width: set.tilewidth,
             height: set.tileheight,
           },
-          offset,
           collection: false,
-          objectAlignment: set.objectalignment ?? "bottom",
           collision: [],
         };
       },
@@ -218,14 +202,6 @@ function triggerOf(tile: TiledTile): Point[] | undefined {
     return guide.polygon.map((p) => ({ x: guide.x + p.x, y: guide.y + p.y }));
   if (guide.width === undefined || guide.height === undefined) return undefined;
   return rectangleToPolygon(guide.x, guide.y, guide.width, guide.height);
-}
-
-/** The occlusion line of a collection tile, its polyline named `occlusion`. */
-function occlusionOf(tile: TiledTile): Point[] | undefined {
-  const guide = tile.objectgroup?.objects.find(
-    (item) => item.name === "occlusion" && item.polyline !== undefined,
-  );
-  return guide?.polyline?.map((p) => ({ x: guide.x + p.x, y: guide.y + p.y }));
 }
 
 function propertyOf(object: TiledObject, name: string): unknown {
@@ -274,8 +250,8 @@ export function parseMap(id: string, json: unknown): ParsedMap {
       const top = tileToPixel({ x: column, y: row }, size);
       ground.push({
         image,
-        x: top.x + image.offset.x,
-        y: top.y + size.height - image.height + image.offset.y,
+        x: top.x,
+        y: top.y + size.height - image.height,
         width: image.width,
         height: image.height,
         depth: -1_000_000 + order * 1000 + row * 0.001 + column * 0.000001,
@@ -284,7 +260,6 @@ export function parseMap(id: string, json: unknown): ParsedMap {
   }
 
   const objects: TileDraw[] = [];
-  const occluders: Occluder[] = [];
   const solids: Point[][] = [];
   const borders: Point[][] = [];
   const spawns = new Map<string, Point>();
@@ -298,19 +273,18 @@ export function parseMap(id: string, json: unknown): ParsedMap {
         const image = imageOf(object.gid);
         if (image === undefined) continue;
         const anchor = tiledTileObjectToWorld({ x: object.x, y: object.y }, size);
-        const width = object.width ?? image.width;
-        const height = object.height ?? image.height;
-        const scaleX = image.width === 0 ? 1 : width / image.width;
-        const scaleY = image.height === 0 ? 1 : height / image.height;
-        const offsetX = image.offset.x * scaleX;
-        const offsetY = image.offset.y * scaleY;
-        const x = Math.round(
-          anchor.x - (image.objectAlignment === "bottom" ? width / 2 : 0) + offsetX,
-        );
-        const y = Math.round(anchor.y - height + offsetY);
-        const toPixel = (p: Point): Point => ({ x: x + p.x * scaleX, y: y + p.y * scaleY });
+        const x = anchor.x - image.width / 2;
+        const y = anchor.y - image.height;
+        const toPixel = (p: Point): Point => ({ x: x + p.x, y: y + p.y });
         if (layer.visible !== false) {
-          objects.push({ image, x, y, width, height, depth: anchor.y + offsetY });
+          objects.push({
+            image,
+            x,
+            y,
+            width: image.width,
+            height: image.height,
+            depth: anchor.y,
+          });
         }
         // A portal is a tile object: its tile's trigger polygon is the trigger area (14.2).
         if (type === "portal" && image.trigger !== undefined) {
@@ -322,12 +296,6 @@ export function parseMap(id: string, json: unknown): ParsedMap {
           });
         }
         for (const shape of image.collision) solids.push(shape.map(toPixel));
-        if (image.occlusion !== undefined) {
-          occluders.push({
-            depth: anchor.y + offsetY,
-            line: image.occlusion.map(toPixel),
-          });
-        }
         continue;
       }
       const polygon = polygonOf(object, toScreen);
@@ -350,7 +318,6 @@ export function parseMap(id: string, json: unknown): ParsedMap {
     source: map,
     ground,
     objects,
-    occluders,
     obstacles: { size, columns: map.width, rows: map.height, blockedCells, solids, borders },
     spawns,
     portals,

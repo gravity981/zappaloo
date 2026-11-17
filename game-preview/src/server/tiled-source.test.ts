@@ -49,7 +49,7 @@ async function createSource(): Promise<string> {
   );
   await writeFile(
     join(tiledRoot, "tilesets", "portal.tsx"),
-    `<tileset version="1.10" tiledversion="1.12.2" name="portal" tilewidth="64" tileheight="32" tilecount="1" columns="0" objectalignment="bottomleft"><tile id="0"><image source="../../portal.png" width="64" height="32"/><objectgroup draworder="index"><object id="1" name="trigger" x="0" y="0"><polygon points="32,0 64,16 32,32 0,16"/></object></objectgroup></tile></tileset>`,
+    `<tileset version="1.10" tiledversion="1.12.2" name="portal" tilewidth="64" tileheight="32" tilecount="1" columns="0" objectalignment="bottom"><tile id="0"><image source="../../portal.png" width="64" height="32"/><objectgroup draworder="topdown"><object id="1" name="trigger" x="0" y="0"><polygon points="32,0 64,16 32,32 0,16"/></object></objectgroup></tile></tileset>`,
   );
   await writeFile(
     join(root, "ground.png"),

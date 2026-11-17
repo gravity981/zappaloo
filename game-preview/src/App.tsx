@@ -25,7 +25,6 @@ const INITIAL_GUIDES: GameGuides = {
   borders: false,
   spawns: false,
   portals: false,
-  occlusion: false,
   grid: false,
 };
 
@@ -590,7 +589,6 @@ export default function App() {
                 ["borders", "Border"],
                 ["spawns", "Spawn"],
                 ["portals", "Portal"],
-                ["occlusion", "Occlusion"],
                 ["grid", "Grid"],
               ] as const
             ).map(([key, label]) => (

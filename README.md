@@ -25,6 +25,7 @@ To start over with the example event (empty database, example places, program an
 | Port | What |
 |---|---|
 | 5173 | Frontend (Vite dev server) |
+| 5175 | Standalone Phaser game preview |
 | 3000 | Backend API, e.g. http://localhost:3000/api/health |
 | 8025 | Mailpit: every email sent in development lands here |
 
@@ -34,6 +35,7 @@ Development data (SQLite database, uploads, maps) lives in the Docker volume `za
 
 | Command | Does |
 |---|---|
+| `APP_ENV=dev npm run dev:game-preview` | Run the standalone game preview on port 5175; set `ZAPPALOO_TILED_SOURCE_DIR` to preview a local Tiled source |
 | `npm test` | Unit, component and integration tests (Vitest) |
 | `npm run test:e2e` | End-to-end tests (Playwright, desktop and mobile, Chromium and WebKit) |
 | `npm run lint` / `npm run format` | ESLint / Prettier |
@@ -48,7 +50,9 @@ The full list is in [CLAUDE.md](CLAUDE.md#environment).
 ## Repository layout
 
 ```text
-frontend/        React app, Phaser game (src/game), i18n messages (src/i18n/locales)
+frontend/        React app and i18n messages (src/i18n/locales)
+game-engine/     Shared Phaser 4.2.1 world renderer and movement engine
+game-preview/    Developer-only package and local Tiled source preview (port 5175)
 backend/         Fastify API, CLI, database schema and migrations (drizzle/)
 shared/          Code used by both: API schemas (Zod), version scheme, event setup schema
 e2e/             Playwright tests

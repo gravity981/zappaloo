@@ -43,6 +43,20 @@ describe("collisions (GAME-02, MAP-02)", () => {
     expect(blocked(map, { x: 72, y: 80 }, 4)).toBe(false);
   });
 
+  it("[GAME-02] the circular footprint is anchored at the figure's feet", () => {
+    const belowFeet = [
+      { x: 56, y: 65 },
+      { x: 72, y: 65 },
+      { x: 72, y: 80 },
+      { x: 56, y: 80 },
+    ];
+    const clearMap = { blockedCells: new Set<string>() };
+    expect(walkable(obstacles({ ...clearMap, solids: [belowFeet] }), { x: 64, y: 64 }, 12)).toBe(
+      true,
+    );
+    expect(walkable(obstacles(clearMap), { x: 64, y: 64 }, 12)).toBe(true);
+  });
+
   it("[GAME-02] a border blocks its outline in both directions, while its inside stays walkable", () => {
     // Around the centre of cell (3, 0).
     const border = [
