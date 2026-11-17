@@ -399,13 +399,111 @@ export function createTiledParityFixture(directory: string): TiledParityFixture 
   return createTiledFixture(directory, fixtureMap(), { "parity.png": fixtureTileset() });
 }
 
-export function createTiledPlacementParityFixture(directory: string): TiledParityFixture {
-  return createTiledFixture(directory, fixturePlacementMap(), {
+export function createTiledNativeCollectionFixture(directory: string): TiledParityFixture {
+  const map = fixtureNativePlacementMap();
+  const artifacts = map.layers.find(
+    (layer) => layer.type === "objectgroup" && layer.name === "Artifacts",
+  );
+  if (artifacts?.type === "objectgroup") artifacts.objects = [];
+  return createTiledFixture(directory, map, fixturePlacementImages());
+}
+
+export function createTiledNativeObjectFixture(directory: string): TiledParityFixture {
+  const map = fixtureNativePlacementMap();
+  const artifacts = map.layers.find(
+    (layer) => layer.type === "objectgroup" && layer.name === "Artifacts",
+  );
+  if (artifacts?.type === "objectgroup") {
+    artifacts.objects = [
+      {
+        id: 3,
+        name: "native-bottom",
+        type: "decoration",
+        x: 96,
+        y: 96,
+        width: 64,
+        height: 40,
+        rotation: 0,
+        visible: true,
+        gid: 9,
+      },
+    ];
+  }
+  return createTiledFixture(directory, map, fixturePlacementImages());
+}
+
+export function createTiledNativeLayeringFixture(directory: string): TiledParityFixture {
+  const map = fixtureNativePlacementMap();
+  const artifacts = map.layers.find(
+    (layer) => layer.type === "objectgroup" && layer.name === "Artifacts",
+  );
+  if (artifacts?.type === "objectgroup") {
+    artifacts.objects = [
+      {
+        id: 3,
+        name: "behind",
+        type: "decoration",
+        x: 96,
+        y: 96,
+        width: 64,
+        height: 40,
+        rotation: 0,
+        visible: true,
+        gid: 9,
+      },
+      {
+        id: 4,
+        name: "in-front",
+        type: "decoration",
+        x: 96,
+        y: 128,
+        width: 64,
+        height: 40,
+        rotation: 0,
+        visible: true,
+        gid: 9,
+      },
+    ];
+  }
+  const foreground = Array<number>(15).fill(0);
+  foreground[7] = 5;
+  map.layers.splice(3, 0, {
+    id: 6,
+    type: "tilelayer",
+    name: "Foreground",
+    width: 5,
+    height: 3,
+    x: 0,
+    y: 0,
+    offsetx: 0,
+    offsety: 0,
+    opacity: 1,
+    visible: true,
+    data: foreground,
+    encoding: "csv",
+  });
+  return createTiledFixture(directory, map, fixturePlacementImages());
+}
+
+function fixtureNativePlacementMap(): ReturnType<typeof fixturePlacementMap> {
+  const map = fixturePlacementMap();
+  for (const set of map.tilesets) {
+    if ("tileoffset" in set) set.tileoffset = { x: 0, y: 0 };
+  }
+  return map;
+}
+
+function fixturePlacementImages(): Record<string, Buffer> {
+  return {
     "parity.png": fixtureTileset(),
     "large.png": fixtureCollectionImage(88, 56, [0x64, 0x9a, 0xc8], [0xfa, 0xd1, 0x6a]),
     "small.png": fixtureCollectionImage(40, 24, [0xb2, 0x69, 0x8d], [0xff, 0xe0, 0x75]),
     "medium.png": fixtureCollectionImage(64, 40, [0x67, 0xa2, 0x70], [0xf4, 0xaa, 0x5c]),
-  });
+  };
+}
+
+export function createTiledPlacementParityFixture(directory: string): TiledParityFixture {
+  return createTiledFixture(directory, fixturePlacementMap(), fixturePlacementImages());
 }
 
 export interface ParityMeasurement {

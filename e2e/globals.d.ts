@@ -18,6 +18,7 @@ declare global {
           width: number,
           height: number,
           zoom?: number,
+          nativeObjects?: boolean,
         ) => Promise<void>;
       };
     };

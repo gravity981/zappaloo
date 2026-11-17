@@ -48,6 +48,7 @@ export interface WorldSceneData {
   spawn?: string;
   artworkOnly?: boolean;
   zoom?: number;
+  nativeObjects?: boolean;
 }
 
 function centreOf(cell: { column: number; row: number }, size: TileSize): Point {
@@ -65,6 +66,7 @@ export class WorldScene extends Phaser.Scene {
   #figure: FigureData | undefined;
   #direction: Direction = "south";
   #artworkOnly = false;
+  #nativeObjects = false;
   #zoom: number | undefined;
   #view: GameView | undefined;
   #walkClock = 0;
@@ -94,6 +96,7 @@ export class WorldScene extends Phaser.Scene {
     if (map === undefined) throw new Error("the world has no start map");
     this.#map = map;
     this.#artworkOnly = data.artworkOnly ?? this.#view?.artworkOnly ?? view?.artworkOnly ?? false;
+    this.#nativeObjects = data.nativeObjects ?? true;
     this.#zoom = data.zoom ?? this.#view?.zoom ?? view?.zoom;
     this.#view = { artworkOnly: this.#artworkOnly, zoom: this.#zoom ?? CAMERA_ZOOM };
     this.#guides = { ...DEFAULT_GUIDES, ...guides };
@@ -250,21 +253,28 @@ export class WorldScene extends Phaser.Scene {
 
   /** Draws the ground, then the objects in depth order. The player is drawn among them. */
   #drawMap(map: ParsedMap): void {
-    if (!this.#drawSheetLayers(map)) {
+    const native = this.#drawNativeLayers(map, this.#nativeObjects);
+    if (!native.ground) {
       for (const draw of map.ground) this.#drawTile(draw);
     }
-    for (const draw of map.objects) this.#drawTile(draw);
+    if (!native.objects) {
+      for (const draw of map.objects) this.#drawTile(draw);
+    }
   }
 
-  /** Use Phaser's native isometric renderer where the map uses only unoffset sheet tiles. */
-  #drawSheetLayers(map: ParsedMap): boolean {
+  /** Use Phaser's native isometric renderer for sheet and image-collection tile layers. */
+  #drawNativeLayers(
+    map: ParsedMap,
+    drawObjects: boolean,
+  ): {
+    ground: boolean;
+    objects: boolean;
+  } {
     if (
       map.ground.length === 0 ||
-      map.ground.some(
-        ({ image }) => image.collection || image.offset.x !== 0 || image.offset.y !== 0,
-      )
+      map.ground.some(({ image }) => image.offset.x !== 0 || image.offset.y !== 0)
     ) {
-      return false;
+      return { ground: false, objects: false };
     }
 
     const cacheKey = `world-map:${map.id}`;
@@ -276,26 +286,157 @@ export class WorldScene extends Phaser.Scene {
 
     try {
       const tilemap = this.make.tilemap({ key: cacheKey });
-      const imageKeys = new Set(map.ground.map((draw) => draw.image.key));
+      const imageKeys = new Set(
+        [...map.ground, ...(drawObjects ? map.objects : [])].map((draw) => draw.image.key),
+      );
       const tilesets: Phaser.Tilemaps.Tileset[] = [];
       for (const set of map.source.tilesets) {
-        if (set.image === undefined) continue;
-        const key = tilesetImageKey(set.image);
-        if (!imageKeys.has(key)) continue;
-        const tileset = tilemap.addTilesetImage(set.name, key);
-        if (tileset === null) throw new Error(`Could not load tileset ${set.name}`);
-        tilesets.push(tileset);
+        if (set.image !== undefined) {
+          const key = tilesetImageKey(set.image);
+          if (!imageKeys.has(key)) continue;
+          const tileset = tilemap.addTilesetImage(set.name, key);
+          if (tileset === null) throw new Error(`Could not load tileset ${set.name}`);
+          continue;
+        }
+
+        for (const tile of set.tiles ?? []) {
+          if (tile.image === undefined) continue;
+          const firstgid = set.firstgid + tile.id;
+          const tileset = tilemap.tilesets.find((candidate) => candidate.firstgid === firstgid);
+          if (tileset === undefined)
+            throw new Error(`Could not find image-collection tile ${String(firstgid)}`);
+          const key = tilesetImageKey(tile.image);
+          if (!imageKeys.has(key)) continue;
+          if (!this.textures.exists(key)) throw new Error(`Could not load tileset image ${key}`);
+          tileset.setImage(this.textures.get(key));
+        }
       }
 
-      let order = 0;
+      tilesets.push(...tilemap.tilesets.filter((tileset) => tileset.image !== null));
+      const layerOrder = new Map<number, number>();
+      let nextOrder = 0;
+      const indexLayers = (layers: typeof map.source.layers): void => {
+        for (const layer of layers) {
+          if (layer.type === "group") indexLayers(layer.layers);
+          else {
+            if (layer.id !== undefined) layerOrder.set(layer.id, nextOrder);
+            nextOrder += 1;
+          }
+        }
+      };
+      indexLayers(map.source.layers);
+      const actorLayerOrder = Math.min(
+        ...tilemap.objects
+          .filter(
+            (layer) =>
+              layer.visible &&
+              layer.objects.some((object) => object.visible && object.gid !== undefined),
+          )
+          .map((layer) => layerOrder.get(layer.id) ?? Number.POSITIVE_INFINITY),
+      );
       for (const layer of tilemap.layers) {
         if (!layer.visible || layer.name.split("/").at(-1) === "collision") continue;
         const displayLayer = tilemap.createLayer(layer.name, tilesets, 0, 0);
-        order += 1;
-        displayLayer.setDepth(-1_000_000 + order * 1000);
+        const order = layerOrder.get(layer.id) ?? 0;
+        const depth =
+          order > actorLayerOrder ? 1_000_000 + order * 1000 : -1_000_000 + order * 1000;
+        displayLayer.setDepth(depth);
       }
+      const objects = drawObjects && this.#drawNativeTileObjects(map, tilemap);
+      return { ground: true, objects };
     } finally {
       this.cache.tilemap.remove(cacheKey);
+    }
+  }
+
+  /** Use Phaser's object conversion for bottom-aligned image-collection objects without offsets or guides. */
+  #drawNativeTileObjects(map: ParsedMap, tilemap: Phaser.Tilemaps.Tilemap): boolean {
+    if (map.objects.length === 0) return true;
+    if (map.source.layers.some((layer) => layer.type === "group")) {
+      return false;
+    }
+
+    const tiles = new Map<
+      number,
+      {
+        key: string;
+        alignment: string | undefined;
+        offset: { x: number; y: number };
+        hasGuides: boolean;
+      }
+    >();
+    for (const set of map.source.tilesets) {
+      if (set.image !== undefined) continue;
+      for (const tile of set.tiles ?? []) {
+        if (tile.image === undefined) continue;
+        tiles.set(set.firstgid + tile.id, {
+          key: tilesetImageKey(tile.image),
+          alignment: set.objectalignment,
+          offset: { x: set.tileoffset?.x ?? 0, y: set.tileoffset?.y ?? 0 },
+          hasGuides: tile.objectgroup !== undefined,
+        });
+      }
+    }
+
+    const objects = tilemap.objects
+      .filter((layer) => layer.visible)
+      .flatMap((layer) =>
+        layer.objects.filter((object) => object.visible && object.gid !== undefined),
+      );
+    const layers = tilemap.objects.filter(
+      (layer) =>
+        layer.visible && layer.objects.some((object) => object.visible && object.gid !== undefined),
+    );
+    if (objects.length !== map.objects.length || layers.length !== 1) return false;
+    const layer = layers[0];
+    if (layer === undefined) return false;
+    const sourceLayer = map.source.layers.find(
+      (candidate) => candidate.type === "objectgroup" && candidate.id === layer.id,
+    );
+    if (sourceLayer === undefined || (sourceLayer.draworder ?? "topdown") !== "topdown")
+      return false;
+    if (
+      map.objects.some(
+        (draw) =>
+          !draw.image.collection ||
+          draw.width !== draw.image.width ||
+          draw.height !== draw.image.height ||
+          draw.image.collision.length > 0 ||
+          draw.image.occlusion !== undefined ||
+          draw.image.trigger !== undefined,
+      )
+    ) {
+      return false;
+    }
+
+    const objectTiles = objects.map((object) =>
+      object.gid === undefined ? undefined : tiles.get(object.gid),
+    );
+    if (
+      objectTiles.some(
+        (tile) =>
+          tile === undefined ||
+          (tile.alignment ?? "bottom") !== "bottom" ||
+          tile.offset.x !== 0 ||
+          tile.offset.y !== 0 ||
+          tile.hasGuides,
+      )
+    ) {
+      return false;
+    }
+
+    for (const [index, object] of objects.entries()) {
+      const tile = objectTiles[index];
+      if (object.gid === undefined || tile === undefined) return false;
+      const sprite = tilemap.createFromObjects(layer.name, {
+        id: object.id,
+        key: tile.key,
+        frame: this.textures.get(tile.key).firstFrame,
+        ignoreTileset: true,
+      })[0];
+      if (!(sprite instanceof Phaser.GameObjects.Sprite)) return false;
+      const feetY = sprite.y + (1 - sprite.originY) * sprite.displayHeight;
+      sprite.setDepth(feetY + index / 1000);
     }
 
     return true;

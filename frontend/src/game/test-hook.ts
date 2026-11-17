@@ -5,7 +5,13 @@ import { WORLD_SCENE_KEY, type GameInstance, type GameState } from "@zappaloo/ga
 export interface GameTestHook {
   activeScenes: () => string[];
   state: () => GameState | undefined;
-  renderArtwork: (mapId: string, width: number, height: number, zoom?: number) => Promise<void>;
+  renderArtwork: (
+    mapId: string,
+    width: number,
+    height: number,
+    zoom?: number,
+    nativeObjects?: boolean,
+  ) => Promise<void>;
 }
 
 declare global {
@@ -25,7 +31,7 @@ function publish(): void {
       ? {
           activeScenes: () => instance.scene.getScenes(true).map((scene) => scene.scene.key),
           state: () => read?.(),
-          renderArtwork: async (mapId, width, height, zoom = 1) => {
+          renderArtwork: async (mapId, width, height, zoom = 1, nativeObjects = true) => {
             const parent = instance.canvas.parentElement;
             if (parent !== null) {
               parent.style.width = `${String(width)}px`;
@@ -37,6 +43,7 @@ function publish(): void {
               spawn: "start",
               artworkOnly: true,
               zoom,
+              nativeObjects,
             });
             await new Promise<void>((resolve, reject) => {
               const timeout = window.setTimeout(() => {

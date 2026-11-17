@@ -8,6 +8,9 @@ import { expect, test, type Page, type TestInfo } from "@playwright/test";
 import { buildTestWorld, TEST_WORLD_NAME } from "../backend/src/world/build.ts";
 import {
   comparePhaserCanvas,
+  createTiledNativeCollectionFixture,
+  createTiledNativeLayeringFixture,
+  createTiledNativeObjectFixture,
   createTiledParityFixture,
   createTiledPlacementParityFixture,
 } from "./tiled-parity.ts";
@@ -49,6 +52,7 @@ async function verifyTiledParity(
   page: Page,
   fixture: ReturnType<typeof createTiledParityFixture>,
   testInfo: TestInfo,
+  nativeObjects = true,
 ): Promise<void> {
   mkdirSync(testInfo.outputDir, { recursive: true });
   const archive = join(testInfo.outputDir, "tiled-world.tar.gz");
@@ -70,12 +74,17 @@ async function verifyTiledParity(
     reference: string,
   ) => {
     await page.evaluate(
-      async ({ width, height, renderZoom }) => {
+      async ({ width, height, renderZoom, useNativeObjects }) => {
         const game = window.__zappaloo?.game;
         if (game === undefined) throw new Error("the Phaser test hook is not available");
-        await game.renderArtwork("kirche", width, height, renderZoom);
+        await game.renderArtwork("kirche", width, height, renderZoom, useNativeObjects);
       },
-      { width: size.width, height: size.height, renderZoom: zoom },
+      {
+        width: size.width,
+        height: size.height,
+        renderZoom: zoom,
+        useNativeObjects: nativeObjects,
+      },
     );
     const measurement = await comparePhaserCanvas(page, reference);
     expect(measurement.dimensionsMatch).toBe(true);
@@ -167,6 +176,45 @@ test("[GAME-20] the native isometric renderer matches Tiled sheet artwork", asyn
   await signInAsAdmin(page, context);
 
   await verifyTiledParity(page, createTiledParityFixture(testInfo.outputDir), testInfo);
+});
+
+test("[GAME-20] the native renderer matches Tiled collection ground layers without offsets", async ({
+  page,
+  context,
+}, testInfo) => {
+  test.skip(testInfo.project.name !== "desktop-chromium", "fixed viewport and DPR 1 baseline");
+  test.skip(
+    process.platform !== "linux" || process.arch !== "x64",
+    "pinned Tiled is Linux x86_64 only",
+  );
+  await signInAsAdmin(page, context);
+  await verifyTiledParity(page, createTiledNativeCollectionFixture(testInfo.outputDir), testInfo);
+});
+
+test("[GAME-20] Phaser's native object conversion matches a bottom-aligned collection tile object", async ({
+  page,
+  context,
+}, testInfo) => {
+  test.skip(testInfo.project.name !== "desktop-chromium", "fixed viewport and DPR 1 baseline");
+  test.skip(
+    process.platform !== "linux" || process.arch !== "x64",
+    "pinned Tiled is Linux x86_64 only",
+  );
+  await signInAsAdmin(page, context);
+  await verifyTiledParity(page, createTiledNativeObjectFixture(testInfo.outputDir), testInfo, true);
+});
+
+test("[GAME-20] native Tiled layers and depth-sorted objects preserve occlusion", async ({
+  page,
+  context,
+}, testInfo) => {
+  test.skip(testInfo.project.name !== "desktop-chromium", "fixed viewport and DPR 1 baseline");
+  test.skip(
+    process.platform !== "linux" || process.arch !== "x64",
+    "pinned Tiled is Linux x86_64 only",
+  );
+  await signInAsAdmin(page, context);
+  await verifyTiledParity(page, createTiledNativeLayeringFixture(testInfo.outputDir), testInfo);
 });
 
 test("[GAME-20] collection placement and tile-object transforms match Tiled", async ({
