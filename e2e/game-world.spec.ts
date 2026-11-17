@@ -272,6 +272,14 @@ test("[GAME-26][GAME-06][GAME-16] an object outside the view has an indicator at
   // A tap on the indicator of the altar does what a tap on the altar does: the avatar walks there, and the page opens.
   const altar = page.locator('[data-indicator="object:altar"]');
   await expect(altar).toBeVisible();
+  // The labels: the name of the object, or for a portal the name of the map it leads to, black on white (GAME-26).
+  await expect(altar).toContainText("Programm");
+  await expect(page.locator('[data-indicator="portal:zum-garten"]')).toContainText("Garten");
+  const labelColors = await altar.locator("span").evaluate((span) => {
+    const style = getComputedStyle(span);
+    return { color: style.color, background: style.backgroundColor };
+  });
+  expect(labelColors).toEqual({ color: "rgb(0, 0, 0)", background: "rgb(255, 255, 255)" });
   await altar.click();
   const overlay = page.getByRole("dialog", { name: "Programm" });
   await expect(overlay).toBeVisible({ timeout: 40_000 });

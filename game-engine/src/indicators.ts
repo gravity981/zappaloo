@@ -7,6 +7,13 @@ import type { Point } from "./geometry.ts";
 export const INDICATOR_INSET = 12;
 /** The side of an indicator's touch area, in CSS pixels (at least 44 × 44, for a finger). */
 export const INDICATOR_TOUCH_SIZE = 44;
+/** The space between an indicator's circle and its label, in CSS pixels. */
+export const LABEL_GAP = 6;
+/** The widest a label gets, in CSS pixels; a longer text is cut off with an ellipsis. */
+export const LABEL_MAX_WIDTH = 160;
+/** The width of one character of a label, estimated (the label's font is 12 px, semibold), and its padding. */
+const LABEL_CHAR_WIDTH = 6.8;
+const LABEL_PADDING = 16;
 /** At most this many indicators are shown at a time. */
 export const MAX_INDICATORS = 6;
 
@@ -98,6 +105,44 @@ export function indicatorPlace(
   return { point: { x: avatar.x + dx * t, y: avatar.y + dy * t }, angle };
 }
 
+/** The side of its indicator a label is on: the side with more room in the view, so that the label stays inside it. */
+export type LabelSide = "left" | "right";
+
+export function labelSide(point: Point, viewWidth: number): LabelSide {
+  return point.x > viewWidth / 2 ? "left" : "right";
+}
+
+/**
+ * The width of a label for a text: estimated from its length (the layout is computed without a browser), and at most
+ * what the view leaves beside the indicator, and {@link LABEL_MAX_WIDTH}.
+ */
+export function labelWidth(text: string, point: Point, viewWidth: number, side: LabelSide): number {
+  const room =
+    (side === "left" ? point.x : viewWidth - point.x) -
+    INDICATOR_TOUCH_SIZE / 2 -
+    LABEL_GAP -
+    INDICATOR_INSET;
+  const wanted = Math.ceil(text.length * LABEL_CHAR_WIDTH) + LABEL_PADDING;
+  return Math.max(0, Math.min(wanted, LABEL_MAX_WIDTH, room));
+}
+
+/** The space an indicator takes in the view: its touch area and its label beside it (0 wide without a label). */
+export function indicatorBox(point: Point, side: LabelSide, labelWidth: number): Rect {
+  const half = INDICATOR_TOUCH_SIZE / 2;
+  const extra = labelWidth > 0 ? LABEL_GAP + labelWidth : 0;
+  return {
+    x: side === "left" ? point.x - half - extra : point.x - half,
+    y: point.y - half,
+    width: INDICATOR_TOUCH_SIZE + extra,
+    height: INDICATOR_TOUCH_SIZE,
+  };
+}
+
+/** Whether two boxes overlap. */
+export function boxesOverlap(a: Rect, b: Rect): boolean {
+  return a.x < b.x + b.width && a.x + b.width > b.x && a.y < b.y + b.height && a.y + a.height > b.y;
+}
+
 /** Whether the touch areas of two indicators overlap. */
 export function overlaps(a: Point, b: Point, size = INDICATOR_TOUCH_SIZE): boolean {
   return Math.abs(a.x - b.x) < size && Math.abs(a.y - b.y) < size;
@@ -105,16 +150,18 @@ export function overlaps(a: Point, b: Point, size = INDICATOR_TOUCH_SIZE): boole
 
 /**
  * The indicators to show: the nearest first (by `distance`, the distance of the object from the avatar), at most
- * `max`, and of two that would overlap only the nearer one. The input order does not matter.
+ * `max`, and of two whose space (touch area and label) would overlap only the nearer one. The input order does not matter.
  */
-export function selectIndicators<T extends { point: Point; distance: number }>(
+export function selectIndicators<T extends { point: Point; distance: number; box?: Rect }>(
   candidates: readonly T[],
   max = MAX_INDICATORS,
 ): T[] {
+  // The space of an indicator is its touch area with its label beside it, where it has a `box`.
+  const spaceOf = (item: T): Rect => item.box ?? indicatorBox(item.point, "right", 0);
   const shown: T[] = [];
   for (const candidate of [...candidates].sort((a, b) => a.distance - b.distance)) {
     if (shown.length >= max) break;
-    if (shown.some((other) => overlaps(other.point, candidate.point))) continue;
+    if (shown.some((other) => boxesOverlap(spaceOf(other), spaceOf(candidate)))) continue;
     shown.push(candidate);
   }
   return shown;

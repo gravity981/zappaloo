@@ -41,8 +41,11 @@ import { startsPaused } from "./pause.ts";
 import { SHADOW_DEPTH_BELOW, figureShadow } from "./figure-shadow.ts";
 import { EdgeIndicatorLayer } from "./edge-indicators.ts";
 import {
+  indicatorBox,
   indicatorPlace,
   isOutside,
+  labelSide,
+  labelWidth,
   selectIndicators,
   wantsIndicator,
   type Rect,
@@ -428,7 +431,8 @@ export class WorldScene extends Phaser.Scene {
       sources.push({
         id: `portal:${portal.name}`,
         kind: "portal",
-        label: portal.name,
+        // A portal is labelled with where it leads (there may be several on a map): the name of its target map.
+        label: world.maps.get(portal.targetMap ?? "")?.name ?? portal.targetMap ?? portal.name,
         bounds: box,
         centre: { x: box.x + box.width / 2, y: box.y + box.height / 2 },
         tap: interiorPoint(portal.polygon),
@@ -460,10 +464,15 @@ export class WorldScene extends Phaser.Scene {
       .filter((source) => isOutside(source.bounds, camera.worldView))
       .map((source) => {
         const place = indicatorPlace(avatar, toView(source.centre), view);
+        const side = labelSide(place.point, view.width);
+        const width = labelWidth(source.label, place.point, view.width, side);
         return {
           source,
           point: place.point,
           angle: place.angle,
+          side,
+          width,
+          box: indicatorBox(place.point, side, width),
           distance: Math.hypot(
             source.centre.x - this.#position.x,
             source.centre.y - this.#position.y,
@@ -471,10 +480,12 @@ export class WorldScene extends Phaser.Scene {
         };
       });
     layer.update(
-      selectIndicators(candidates).map(({ source, point, angle }) => ({
+      selectIndicators(candidates).map(({ source, point, angle, side, width }) => ({
         id: source.id,
         kind: source.kind,
         label: source.label,
+        side,
+        labelWidth: width,
         x: point.x,
         y: point.y,
         angle,

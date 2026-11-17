@@ -1,6 +1,12 @@
 import { describe, expect, it } from "vitest";
 import {
   INDICATOR_INSET,
+  LABEL_GAP,
+  LABEL_MAX_WIDTH,
+  boxesOverlap,
+  indicatorBox,
+  labelSide,
+  labelWidth,
   INDICATOR_TOUCH_SIZE,
   MAX_INDICATORS,
   indicatorInsets,
@@ -142,5 +148,78 @@ describe("which indicators are shown (GAME-26)", () => {
   it("[GAME-26] an indicator hidden behind a nearer one leaves room for the next one", () => {
     const shown = selectIndicators([at(0, 0, 1, "a"), at(10, 10, 2, "hidden"), at(200, 0, 3, "b")]);
     expect(shown.map((item) => item.id)).toEqual(["a", "b"]);
+  });
+});
+
+describe("the labels of the indicators (GAME-26)", () => {
+  const phone = { width: 390, height: 664 };
+
+  it("[GAME-26] the label is on the side of the indicator that has more room in the view", () => {
+    expect(labelSide({ x: 40, y: 300 }, phone.width)).toBe("right");
+    expect(labelSide({ x: 350, y: 300 }, phone.width)).toBe("left");
+    expect(labelSide({ x: 195, y: 34 }, phone.width)).toBe("right");
+    expect(labelSide({ x: 196, y: 34 }, phone.width)).toBe("left");
+  });
+
+  it("[GAME-26] a label is as wide as its text needs, at most 160 px and at most what the view leaves beside it", () => {
+    const point = { x: 40, y: 300 };
+    const short = labelWidth("Programm", point, phone.width, "right");
+    expect(short).toBeGreaterThan(40);
+    expect(short).toBeLessThan(100);
+    expect(
+      labelWidth("Programm für den ganzen Tag, mit allen Beiträgen", point, phone.width, "right"),
+    ).toBe(LABEL_MAX_WIDTH);
+    // Near the middle of the narrow view, the room beside the circle is what is left after the gap and the inset.
+    const middle = { x: 150, y: 300 };
+    const room = phone.width - middle.x - 22 - LABEL_GAP - 12;
+    expect(labelWidth("x".repeat(60), middle, phone.width, "right")).toBe(
+      Math.min(LABEL_MAX_WIDTH, room),
+    );
+    // No room, no label.
+    expect(labelWidth("Portal", { x: 360, y: 300 }, phone.width, "right")).toBe(0);
+  });
+
+  it("[GAME-26] the space of an indicator is its touch area with the label beside it, on the label's side", () => {
+    const point = { x: 100, y: 200 };
+    expect(indicatorBox(point, "right", 60)).toEqual({
+      x: 78,
+      y: 178,
+      width: 44 + LABEL_GAP + 60,
+      height: 44,
+    });
+    expect(indicatorBox(point, "left", 60)).toEqual({
+      x: 78 - LABEL_GAP - 60,
+      y: 178,
+      width: 44 + LABEL_GAP + 60,
+      height: 44,
+    });
+    // Without a label it is the touch area alone.
+    expect(indicatorBox(point, "right", 0)).toEqual({ x: 78, y: 178, width: 44, height: 44 });
+  });
+
+  it("[GAME-26] two indicators whose labels would overlap show only the nearer one, though their circles are apart", () => {
+    const first = {
+      point: { x: 40, y: 100 },
+      distance: 100,
+      id: "near",
+      box: indicatorBox({ x: 40, y: 100 }, "right", 100),
+    };
+    // 60 px further along the edge: the circles do not touch, but the first label reaches into this one.
+    const second = {
+      point: { x: 100, y: 110 },
+      distance: 300,
+      id: "far",
+      box: indicatorBox({ x: 100, y: 110 }, "right", 60),
+    };
+    expect(selectIndicators([second, first]).map((item) => item.id)).toEqual(["near"]);
+    // Further apart, both stay.
+    const third = {
+      ...second,
+      point: { x: 100, y: 200 },
+      box: indicatorBox({ x: 100, y: 200 }, "right", 60),
+    };
+    expect(selectIndicators([third, first]).map((item) => item.id)).toEqual(["near", "far"]);
+    expect(boxesOverlap(first.box, second.box)).toBe(true);
+    expect(boxesOverlap(first.box, third.box)).toBe(false);
   });
 });

@@ -1081,7 +1081,7 @@ add({
 add({
   id: "game", group: "game", title: "Game world", path: "/game", reqs: ["GAME-02", "GAME-05", "GAME-06", "GAME-09", "GAME-10", "GAME-12", "GAME-14", "GAME-15", "GAME-16", "GAME-17", "GAME-18", "GAME-22", "GAME-23", "GAME-24", "GAME-25", "GAME-26", "PRES-01", "PRES-02", "PRES-10"],
   variants: [["rsvp", "RSVP open (badge)"], ["done", "RSVP answered"], ["edges", "Objects out of view (indicators)"]],
-  shows: ["Live demo: tap/click to walk (arrow keys on desktop). Walk near a guest and their speech bubble opens. Click it to pin.", "Bar at the top: the event's name and Website (leaves the game). Programm, Rückmeldung and Hochladen are objects of the world: the church, the mailbox (with its «!» while the RSVP is open) and the photo booth (changed 2026-11-17). No buttons at the bottom, no event-day banner.", "Clickable objects sparkle now and then at random. Tap one: the avatar walks there, stops in front of it, and its action runs. Each map's objects come from its Tiled file. The admin assigns their actions (see Admin › Erlebniswelt).", "Example assignments: Kirche → Programm · Linde → Wo sitze ich? · Post → Rückmeldung · Fotobox → Hochladen · Torte → Minispiel Tortenturm · own figure → Profil.", "Portal: the floating arrow “Dinner” leads to another scene (here it fades and restarts).", "Desktop: walk up to an object and press Enter (or Space).", "Hint “Tippe auf Dinge, die funkeln” at the first entry.", "Wander area outlined for the review only, not in the real game.", "Target marker (GAME-24): every walk started by a tap shows a thick pulsing ring in the glow's light colour with a dark outline, flat on the ground, until the avatar arrives, is blocked, or the arrow keys take over. A tap on a blocked spot (a house, the edge) moves the marker to the nearest reachable spot within 3 tiles (GAME-23); farther away, nothing happens. The ring is drawn above the ground and below objects and figures.", "Glow (GAME-29): every clickable object glows softly along its edges all the time, in the colour of its sparkles, like the portal's arrow in its warm colour. Object glow (GAME-25): while the avatar walks to a clickable object or a portal, it pulses with a soft light glow along its edges until its action runs or the avatar arrives.", "State «Objects out of view» (GAME-26): the Fotobox, the Torte and the Dinner portal lie outside the view. Each shows an indicator on the edge of the view, 12 px inside it and below the bar, on the line from the avatar to the object: a sparkle for an object, an arrow for a portal, with a small pointer towards it. Touch area at least 44 × 44 px; at most 6 indicators, the nearest first; of two overlapping ones only the nearer is shown; hidden while an overlay is open. Easter eggs and objects without an action get none. Tapping an indicator does the same as tapping the object (here the avatar walks towards the edge, the real game scrolls with it). The mock's world is one screen, so the out-of-view objects are simply left out of the picture in this state."],
+  shows: ["Live demo: tap/click to walk (arrow keys on desktop). Walk near a guest and their speech bubble opens. Click it to pin.", "Bar at the top: the event's name and Website (leaves the game). Programm, Rückmeldung and Hochladen are objects of the world: the church, the mailbox (with its «!» while the RSVP is open) and the photo booth (changed 2026-11-17). No buttons at the bottom, no event-day banner.", "Clickable objects sparkle now and then at random. Tap one: the avatar walks there, stops in front of it, and its action runs. Each map's objects come from its Tiled file. The admin assigns their actions (see Admin › Erlebniswelt).", "Example assignments: Kirche → Programm · Linde → Wo sitze ich? · Post → Rückmeldung · Fotobox → Hochladen · Torte → Minispiel Tortenturm · own figure → Profil.", "Portal: the floating arrow “Dinner” leads to another scene (here it fades and restarts).", "Desktop: walk up to an object and press Enter (or Space).", "Hint “Tippe auf Dinge, die funkeln” at the first entry.", "Wander area outlined for the review only, not in the real game.", "Target marker (GAME-24): every walk started by a tap shows a thick pulsing ring in the glow's light colour with a dark outline, flat on the ground, until the avatar arrives, is blocked, or the arrow keys take over. A tap on a blocked spot (a house, the edge) moves the marker to the nearest reachable spot within 3 tiles (GAME-23); farther away, nothing happens. The ring is drawn above the ground and below objects and figures.", "Glow (GAME-29): every clickable object glows softly along its edges all the time, in the colour of its sparkles, like the portal's arrow in its warm colour. Object glow (GAME-25): while the avatar walks to a clickable object or a portal, it pulses with a soft light glow along its edges until its action runs or the avatar arrives.", "State «Objects out of view» (GAME-26): the Fotobox, the Torte and the Dinner portal lie outside the view. Each shows an indicator on the edge of the view, 12 px inside it and below the bar, on the line from the avatar to the object: a sparkle for an object, an arrow for a portal, with a small pointer towards it. Beside the icon sits a label, black text on a white pill, on the side with more room (so it stays inside the view): the name of the connected page for an object, the name of the map it leads to for a portal (several portals on a map are told apart that way); a long name is cut off with an ellipsis. Touch area at least 44 × 44 px, label included (a tap on the label counts); at most 6 indicators, the nearest first; of two whose icon or label would overlap only the nearer is shown; hidden while an overlay is open. Easter eggs and objects without an action get none. Tapping an indicator does the same as tapping the object (here the avatar walks towards the edge, the real game scrolls with it). The mock's world is one screen, so the out-of-view objects are simply left out of the picture in this state."],
   qs: [
     { q: "Does “Website” leave the game (full website), or open the website as an overlay too?", p: "Mock: leaves the game. The website header has “Erlebniswelt” to come back. Programm, Rückmeldung and Hochladen open as overlays." },
     { q: "Where do profile and table finder live in the game, since the bar has only four buttons?", p: "Mock: two small round buttons bottom-left (Profil, Wo sitze ich?)." },
@@ -1791,6 +1791,8 @@ function mountGame(root, isDesktop) {
   if (edges) {
     OBJ[3].off = [-220, H * 0.5 + 140]; OBJ[4].off = [W * 0.5 + 40, H + 260]; OBJ[5].off = [W + 320, pathY - 160];
     OBJ[3].kind = "object"; OBJ[4].kind = "object"; OBJ[5].kind = "portal";
+    // the label beside the icon: the name of the connected page, and for a portal the name of the map it leads to
+    OBJ[3].indLabel = "Hochladen"; OBJ[4].indLabel = "Tortenturm"; OBJ[5].indLabel = "Landgasthof Linde";
   }
   const visible = (o) => !o.off;
   const t0 = performance.now();
@@ -1799,7 +1801,7 @@ function mountGame(root, isDesktop) {
   const bubble = host.querySelector(".m-bubble");
   const prompt = host.querySelector(".m-gprompt");
   const hint = host.querySelector("[data-hint]");
-  let pinned = null, shown = null, hintT = 5, pending = null;
+  let pinned = null, shown = null, hintT = edges ? 0 : 5, pending = null;
   if (hint) hint.textContent = isDesktop ? "Klicke auf Dinge, die funkeln – oder geh hin und drück Enter" : "Tippe auf Dinge, die funkeln";
   const inRect = (x, y, [rx, ry, rw, rh]) => x > rx && x < rx + rw && y > ry && y < ry + rh;
   const nearObj = () => OBJ.filter(visible).find((o) => Math.hypot(o.front[0] - me.x, o.front[1] - me.y) < 34);
@@ -1872,6 +1874,23 @@ function mountGame(root, isDesktop) {
       ctx.save(); ctx.rotate(angle); ctx.fillStyle = "#ffd23f"; ctx.strokeStyle = "#5a4200"; ctx.lineWidth = 1.5;
       ctx.beginPath(); ctx.moveTo(10, 0); ctx.lineTo(-1, -9); ctx.lineTo(-1, -4); ctx.lineTo(-9, -4); ctx.lineTo(-9, 4); ctx.lineTo(-1, 4); ctx.lineTo(-1, 9); ctx.closePath(); ctx.fill(); ctx.stroke(); ctx.restore();
     } else star(0, 0, 8, 1);
+    ctx.restore();
+    drawIndicatorLabel(ind);
+  }
+  // the label of an indicator: black text on a white pill, on the side of the icon with more room (GAME-26)
+  function drawIndicatorLabel({ x, y, o }) {
+    if (!o.indLabel) return;
+    ctx.save();
+    ctx.font = "600 12px system-ui, sans-serif";
+    const side = x > W / 2 ? -1 : 1;
+    const max = Math.min(160, (side < 0 ? x : W - x) - 22 - 6 - 12);
+    let text = o.indLabel, w = ctx.measureText(text).width + 16;
+    while (w > max && text.length > 1) { text = text.slice(0, -2) + "…"; w = ctx.measureText(text).width + 16; }
+    const bx = side < 0 ? x - 28 - w : x + 28;
+    ctx.beginPath();
+    if (ctx.roundRect) ctx.roundRect(bx, y - 10, w, 20, 6); else ctx.rect(bx, y - 10, w, 20);
+    ctx.fillStyle = "#fff"; ctx.fill(); ctx.strokeStyle = "rgba(0,0,0,0.3)"; ctx.lineWidth = 1; ctx.stroke();
+    ctx.fillStyle = "#000"; ctx.textAlign = "left"; ctx.textBaseline = "middle"; ctx.fillText(text, bx + 8, y + 0.5);
     ctx.restore();
   }
 

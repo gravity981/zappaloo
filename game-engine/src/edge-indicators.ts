@@ -1,14 +1,18 @@
 // The edge indicators as buttons over the game canvas (GAME-26). The layout and the rules are in indicators.ts; this
 // only puts the buttons in place. They are HTML rather than part of the canvas, because their touch area is a size in
 // CSS pixels (at least 44 × 44) whatever the pixel ratio of the canvas, and a button can be named for screen readers.
-import { INDICATOR_TOUCH_SIZE } from "./indicators.ts";
+import { INDICATOR_TOUCH_SIZE, LABEL_GAP, type LabelSide } from "./indicators.ts";
 import { GLOW_COLOR } from "./walk-feedback.ts";
 
 export interface IndicatorView {
   /** A key that stays the same for the same object. */
   id: string;
   kind: "object" | "portal";
+  /** The text beside the indicator: the name of the object, or the host's word for a portal. */
   label: string;
+  /** The side of the circle the label is on, and the most width it may take (0: no room for a label). */
+  side: LabelSide;
+  labelWidth: number;
   /** The centre of the indicator in the game view, in CSS pixels. */
   x: number;
   y: number;
@@ -66,6 +70,17 @@ function picture(view: IndicatorView): SVGElement {
   return root;
 }
 
+/** The label beside an indicator: black text on white, as wide as the layout reserved for it. */
+function label(view: IndicatorView): HTMLSpanElement {
+  const text = document.createElement("span");
+  text.textContent = view.label;
+  text.style.cssText =
+    `box-sizing:border-box;max-width:${String(view.labelWidth)}px;overflow:hidden;text-overflow:ellipsis;` +
+    "white-space:nowrap;padding:2px 8px;border-radius:6px;background:#fff;color:#000;" +
+    "font:600 12px/1.3 system-ui,sans-serif;box-shadow:0 0 0 1px rgba(0,0,0,.3),1px 1px 0 1px rgba(0,0,0,.2)";
+  return text;
+}
+
 /** The buttons of the edge indicators over a game canvas. */
 export class EdgeIndicatorLayer {
   readonly #parent: HTMLElement;
@@ -101,14 +116,24 @@ export class EdgeIndicatorLayer {
         this.#parent.append(entry.button);
       }
       entry.button.hidden = this.#hidden;
-      // The picture turns with the direction; the position changes every frame, the picture only when it must.
-      const key = String(Math.round(view.angle * 50));
+      // The picture turns with the direction; the position changes every frame, the picture and the label only when
+      // they must.
+      const key = [Math.round(view.angle * 50), view.side, view.labelWidth, view.label].join("|");
       if (key !== entry.key) {
         entry.key = key;
-        entry.button.replaceChildren(picture(view));
+        entry.button.setAttribute("aria-label", view.label);
+        entry.button.style.flexDirection = view.side === "left" ? "row-reverse" : "row";
+        entry.button.replaceChildren(
+          ...(view.labelWidth > 0 ? [picture(view), label(view)] : [picture(view)]),
+        );
       }
       const half = INDICATOR_TOUCH_SIZE / 2;
-      entry.button.style.transform = `translate(${String(Math.round(view.x - half))}px, ${String(Math.round(view.y - half))}px)`;
+      // With the label on the left, the button ends at the circle's right edge; otherwise it starts at its left edge.
+      const x =
+        view.side === "left" && view.labelWidth > 0
+          ? `calc(${String(Math.round(view.x))}px - 100% + ${String(half)}px)`
+          : `${String(Math.round(view.x - half))}px`;
+      entry.button.style.transform = `translate(${x}, ${String(Math.round(view.y - half))}px)`;
     }
   }
 
@@ -125,8 +150,8 @@ export class EdgeIndicatorLayer {
     button.setAttribute("data-kind", view.kind);
     button.setAttribute("aria-label", view.label);
     button.style.cssText =
-      `position:absolute;left:0;top:0;z-index:4;width:${String(INDICATOR_TOUCH_SIZE)}px;` +
-      `height:${String(INDICATOR_TOUCH_SIZE)}px;margin:0;padding:0;border:0;background:transparent;` +
+      `position:absolute;left:0;top:0;z-index:4;display:flex;align-items:center;gap:${String(LABEL_GAP)}px;` +
+      `min-width:${String(INDICATOR_TOUCH_SIZE)}px;height:${String(INDICATOR_TOUCH_SIZE)}px;margin:0;padding:0;border:0;background:transparent;` +
       "cursor:pointer;touch-action:manipulation;-webkit-tap-highlight-color:transparent";
     button.addEventListener("click", () => {
       this.#onTap(view.id);
