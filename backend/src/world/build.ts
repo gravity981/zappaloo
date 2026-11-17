@@ -515,7 +515,7 @@ function maps(): Record<string, unknown> {
 
 /** The frames of a figure: the standing pose of four directions and a walk of three frames each. */
 const WALK_FRAMES = 3;
-const FIGURE_SIDE = 16;
+export const FIGURE_SIDE = 16;
 
 /** A figure's frame: a head and a body in its colour, transparent around them. */
 function figureFrame(colour: [number, number, number]): Buffer {

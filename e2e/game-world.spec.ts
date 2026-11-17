@@ -5,7 +5,8 @@
 import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { expect, test, type Page } from "@playwright/test";
-import { buildTestWorld, TEST_WORLD_NAME } from "../backend/src/world/build.ts";
+import { buildTestWorld, FIGURE_SIDE, TEST_WORLD_NAME } from "../backend/src/world/build.ts";
+import { SPEED_TILES_PER_SECOND } from "../game-engine/src/movement.ts";
 import { signInAsAdmin } from "./support.ts";
 import de from "../frontend/src/i18n/locales/de/common.json" with { type: "json" };
 
@@ -72,12 +73,18 @@ test("[GAME-09] the arrow keys move the player in the screen's directions", asyn
   await signInAsAdmin(page, context);
   await page.goto("/game");
   const before = await gameState(page);
+  const pressedAt = Date.now();
   await page.keyboard.down("ArrowRight");
-  await page.waitForTimeout(600);
+  await page.waitForTimeout(1000);
   await page.keyboard.up("ArrowRight");
+  const heldSeconds = (Date.now() - pressedAt) / 1000;
   const after = await gameState(page);
   expect(after.direction).toBe("east");
-  expect(Math.hypot(after.x - before.x, after.y - before.y)).toBeGreaterThan(20);
+  // The engine walks SPEED_TILES_PER_SECOND tile widths per second; the avatar is FIGURE_SIDE wide. The walk
+  // is at least this far when the key is held; the upper bound is not asserted, because frame timing under
+  // parallel load can make the walk longer than the measured hold (seen at 37 px for a 27 px expectation).
+  const expected = SPEED_TILES_PER_SECOND * FIGURE_SIDE * heldSeconds;
+  expect(Math.hypot(after.x - before.x, after.y - before.y)).toBeGreaterThan(expected * 0.7);
 });
 
 test("[GAME-10][GAME-03] a tap walks the player into the portal, which leads to the next map; the device remembers the map", async ({

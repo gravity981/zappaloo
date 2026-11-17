@@ -8,7 +8,13 @@ import { walkFrameIndex } from "./figures.ts";
 import { figureDepth, figureOcclusionSegment, occlusionSegmentRelation } from "./draw-order.ts";
 import { mapBounds, type Point, polygonCentre, tileToPixel, type TileSize } from "./geometry.ts";
 import { findPath, type Grid } from "./pathfinding.ts";
-import { directionOf, keyDirection, stepPosition, type Direction } from "./movement.ts";
+import {
+  directionOf,
+  keyDirection,
+  SPEED_TILES_PER_SECOND,
+  stepPosition,
+  type Direction,
+} from "./movement.ts";
 import { portalAt, spawnPosition } from "./entry.ts";
 import { playerSpritePosition } from "./player-anchor.ts";
 import { tilesetImageKey, type ParsedMap, type TileDraw } from "./map-model.ts";
@@ -25,9 +31,6 @@ import {
 
 /** The zoom of the camera; fixed for every map (decided 2026-11-15). */
 export const CAMERA_ZOOM = 2;
-
-/** The walking speed, in tile widths per second. */
-const SPEED_TILES_PER_SECOND = 1.4;
 
 /** The distance in pixels at which a waypoint counts as reached. */
 const REACHED = 1;

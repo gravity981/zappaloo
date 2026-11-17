@@ -5,6 +5,9 @@ import type { Point } from "./geometry.ts";
 /** The directions of the figures, as the metadata names them (PixelLab). */
 export type Direction = "south" | "west" | "east" | "north";
 
+/** The walking speed, in tile widths per second; the e2e test reads it, so it is exported. */
+export const SPEED_TILES_PER_SECOND = 1.4;
+
 /**
  * The step of one frame: `delta` is the wanted move in screen pixels. A move that would touch an obstacle is
  * tried along each axis, so the figure slides along a wall instead of stopping dead.

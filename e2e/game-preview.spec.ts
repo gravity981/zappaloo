@@ -9,6 +9,8 @@ const PREVIEW_URL = `http://localhost:${PREVIEW_PORT}`;
 test("[MAP-18][MAP-06][MAP-16] the standalone preview loads validated packages without the application API", async ({
   page,
 }, testInfo) => {
+  // Three engine boots (valid, invalid, reload) in one test; the default 30 s is too tight under parallel workers.
+  test.setTimeout(90_000);
   test.skip(
     testInfo.project.name !== "desktop-chromium",
     "one preview and package per browser run",
@@ -74,8 +76,26 @@ test("[MAP-18][MAP-06][MAP-16] the standalone preview loads validated packages w
   await writeFile(watchedPackage, buildTestWorld());
   await page.getByLabel("Local world package path").fill(watchedPackage);
   await page.getByRole("button", { name: "Preview and watch" }).click();
+  // The revision counts the loads of the preview server, which a server kept between runs (the VS Code
+  // extension's test server) has counted before; so the test compares with the revision after the first load.
+  const revision = () =>
+    page.evaluate(async (): Promise<number> => {
+      const response = await fetch("/__game-preview/api/local-package/status");
+      if (!response.ok) throw new Error("Could not read local package preview status");
+      const status: unknown = await response.json();
+      if (
+        typeof status !== "object" ||
+        status === null ||
+        !("revision" in status) ||
+        typeof status.revision !== "number"
+      ) {
+        throw new Error("Local package preview status has no revision");
+      }
+      return status.revision;
+    });
   await expect(page.getByRole("button", { name: "Stop watching" })).toBeVisible();
   await expect(page.locator("canvas")).toHaveCount(1);
+  const revisionAfterStart = await revision();
   await writeFile(watchedPackage, Buffer.from("not a package"));
   await expect(page.getByRole("alert")).toContainText(
     "The selected world package does not pass validation.",
@@ -86,21 +106,7 @@ test("[MAP-18][MAP-06][MAP-16] the standalone preview loads validated packages w
   const replacementPackage = `${watchedPackage}.new`;
   await writeFile(replacementPackage, buildTestWorld());
   await rename(replacementPackage, watchedPackage);
-  await expect
-    .poll(
-      async () =>
-        page.evaluate(async () => {
-          const response = await fetch("/__game-preview/api/local-package/status");
-          if (!response.ok) throw new Error("Could not read local package preview status");
-          const status: unknown = await response.json();
-          if (typeof status !== "object" || status === null || !("revision" in status)) {
-            throw new Error("Local package preview status has no revision");
-          }
-          return status.revision;
-        }),
-      { timeout: 10_000 },
-    )
-    .toBe(2);
+  await expect.poll(revision, { timeout: 10_000 }).toBe(revisionAfterStart + 1);
   await expect(page.getByRole("alert")).toHaveCount(0);
   await expect(page.locator("canvas")).toHaveCount(1);
   await page.getByRole("button", { name: "Stop watching" }).click();

@@ -22,6 +22,8 @@ const sharedEnv = {
 export default defineConfig({
   testDir: "./e2e",
   outputDir: "./test-results",
+  // Twice the default of 30 s: WebKit and parallel workers are slow on a busy machine.
+  timeout: 60_000,
   fullyParallel: true,
   forbidOnly: isCI,
   retries: isCI ? 2 : 0,

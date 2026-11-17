@@ -17,6 +17,14 @@ import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
+// Variables exported in a shell win over the bundle's .env in Docker Compose (first-release.md): the
+// devcontainer's APP_ENV=dev would start the app as dev (no Secure cookie, seed-example allowed). Every
+// child process of this test inherits process.env, so the variables are removed once, here.
+for (const name of Object.keys(process.env)) {
+  if (/^(APP_ENV|SMTP_|PUBLIC_URL$|SITE_ADDRESS$|MAIL_FROM$)/.test(name))
+    Reflect.deleteProperty(process.env, name);
+}
+
 const bundle = fileURLToPath(new URL(".", import.meta.url));
 const REPOSITORY = "ghcr.io/gravity981/zappaloo";
 // Staging is reached by the LAN IP address (sw-architecture.md 23.4); any IP works here.
