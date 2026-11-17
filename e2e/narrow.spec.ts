@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test";
+import { expect, test } from "./support.ts";
 import { signInAsAdmin } from "./support.ts";
 
 /**
@@ -93,8 +93,9 @@ test("[WEB-04][SEC-09] the start page, a content page and Mehr fit the width of 
   test.skip(!testInfo.project.name.startsWith("mobile"), "phones only");
   await signInAsAdmin(page, context);
   const session = (await (await page.request.get("/api/session")).json()) as { csrfToken: string };
-  // Each browser project creates its own page: the addresses are unique.
-  const slug = `langer-titel-${testInfo.project.name}`;
+  // Each browser project and run creates its own page: the addresses are unique, also on an installation
+  // that an earlier run left behind.
+  const slug = `langer-titel-${testInfo.project.name}-${Date.now().toString(36)}`;
   const created = await page.request.post("/api/content/pages", {
     headers: { "x-csrf-token": session.csrfToken },
     data: {

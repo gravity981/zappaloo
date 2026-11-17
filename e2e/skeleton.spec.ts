@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test";
+import { expect, test } from "./support.ts";
 import { signInAsAdmin } from "./support.ts";
 import de from "../frontend/src/i18n/locales/de/common.json" with { type: "json" };
 
@@ -34,17 +34,32 @@ test("[LANG-01] the website shows its texts in German", async ({ page, context }
   await expect(page.locator("html")).toHaveAttribute("lang", "de");
   // The start page shows the German navigation; its welcome text is the content of the event.
   await expect(page.getByRole("link", { name: de.nav.more })).toBeVisible();
-  await expect(page.getByRole("link", { name: de.nav.game })).toBeVisible();
+  await expect(
+    page
+      .getByRole("navigation", { name: de.nav.site })
+      .getByRole("link", { name: de.nav.programme }),
+  ).toBeVisible();
 });
 
-test("Phaser mounts with an empty scene", async ({ page, context }) => {
+test("the game route mounts Phaser with the world, or leads to the start page while no world is set up", async ({
+  page,
+  context,
+}) => {
   await signInAsAdmin(page, context);
-  await page.goto("/");
-  await page.getByRole("link", { name: de.nav.game }).click();
-  await expect(page.locator("[data-testid=game-canvas] canvas")).toBeVisible();
-  await expect
-    .poll(() => page.evaluate(() => window.__zappaloo?.game?.activeScenes() ?? []))
-    .toEqual(["empty"]);
+  await page.goto("/game");
+  // The world tests import a world on the same installation, so each outcome is possible here: with a world the
+  // admin, who has chosen no figure yet, is asked for one first; without a world the start page opens.
+  const canvas = page.locator("[data-testid=game-canvas] canvas");
+  await expect(
+    canvas
+      .or(page.getByRole("heading", { name: de.avatar.title }))
+      .or(page.getByRole("link", { name: de.nav.more })),
+  ).toBeVisible();
+  if ((await canvas.count()) > 0) {
+    await expect
+      .poll(() => page.evaluate(() => window.__zappaloo?.game?.activeScenes() ?? []))
+      .toEqual(["world"]);
+  }
 });
 
 test("the backend reports health and version", async ({ request }) => {

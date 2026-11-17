@@ -2,6 +2,7 @@
 // admin-world, variant "import"): how many clickable objects and portals the map has.
 import { tiledMapSchema } from "@zappaloo/shared";
 import type { WorldMapSummary } from "@zappaloo/shared";
+import { flattenLayers } from "./layers.ts";
 
 /** The summaries of the maps of a package, by map id. */
 export function mapSummaries(files: ReadonlyMap<string, Buffer>): WorldMapSummary[] {
@@ -17,7 +18,7 @@ export function mapSummaries(files: ReadonlyMap<string, Buffer>): WorldMapSummar
     let clickable = 0;
     let portals = 0;
     if (parsed.success) {
-      for (const layer of parsed.data.layers) {
+      for (const layer of flattenLayers(parsed.data.layers)) {
         if (layer.type !== "objectgroup") continue;
         for (const object of layer.objects) {
           const type = object.type ?? object.class;

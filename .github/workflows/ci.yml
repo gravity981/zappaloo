@@ -83,6 +83,8 @@ jobs:
           path: |
             reports/playwright.json
             playwright-report/
+            !world/**
+            !world-scratch/**
           retention-days: 14
 
   image:

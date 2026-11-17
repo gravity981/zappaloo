@@ -50,7 +50,7 @@ describe("i18n", () => {
   it("[LANG-01] pages show their texts from the German message file", async () => {
     renderAt("/");
     expect(await screen.findByRole("link", { name: de.nav.more })).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: de.nav.game })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: de.nav.programme })).toBeInTheDocument();
   });
 
   it("[LANG-01] the not-found page is translated too", async () => {

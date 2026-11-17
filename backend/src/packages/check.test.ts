@@ -1,5 +1,6 @@
 import { writeFileSync } from "node:fs";
 import { join } from "node:path";
+import { gunzipSync, gzipSync } from "node:zlib";
 import { afterEach, describe, expect, it } from "vitest";
 import { runCli } from "../cli.ts";
 import type { CliIo } from "../cli.ts";
@@ -75,6 +76,15 @@ describe("checking a package file (MAP-17, THM-07)", () => {
     const report = checkPackage(Buffer.from("not a package"));
     expect(report.ok).toBe(false);
     expect(report.findings.map((finding) => finding.code)).toEqual(["not_gzip"]);
+  });
+
+  it("[MAP-06] a tar whose size field is not an octal number is refused as a damaged archive, not with a crash", () => {
+    const tar = gunzipSync(buildArchive(testWorldFiles()));
+    // The size field of the first header (bytes 124 to 136) gets letters instead of octal digits.
+    tar.write("zzzzzzzzzzz", 124, "latin1");
+    const report = checkPackage(gzipSync(tar));
+    expect(report.ok).toBe(false);
+    expect(report.findings.map((finding) => finding.code)).toEqual(["not_tar"]);
   });
 });
 

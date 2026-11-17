@@ -1,19 +1,22 @@
 // The world of the event (sw-architecture.md 14.4, MAP-05, MAP-09, MAP-10): the admin imports a world
 // package as a whole, reads the worlds, and rolls back. Players load the active world and its maps,
 // tilesets and avatar sprites; sign-in and the closed-platform gate apply as for every /api route.
-import type { FastifyReply, FastifyRequest } from "fastify";
 import fp from "fastify-plugin";
 import { z } from "zod";
 import {
   publicWorldSchema,
   WORLD_LIMITS,
+  worldActionRequestSchema,
+  worldGuestAccessRequestSchema,
+  worldObjectsSchema,
   worldRefusalSchema,
   worldStatusSchema,
 } from "@zappaloo/shared";
 import type { FastifyPluginAsyncZod } from "fastify-type-provider-zod";
-import { NoPreviousWorld, WorldRefused } from "../world/service.ts";
+import { NoPreviousWorld, WorldObjectError, WorldRefused } from "../world/service.ts";
 import type { WorldService } from "../world/service.ts";
 import { requireRole, signedIn } from "./auth.ts";
+import { worldGuestAccess } from "./world-access.ts";
 
 const noQuery = z.strictObject({});
 const noBody = z.null().optional();
@@ -79,6 +82,23 @@ const worldPlugin: FastifyPluginAsyncZod<WorldOptions> = (app, { world }) => {
     },
   );
 
+  // The switch for guests (MAP-19): off hides the world from guests, and the active package stays.
+  app.put(
+    "/api/admin/world/guest-access",
+    {
+      ...admin,
+      schema: {
+        querystring: noQuery,
+        body: worldGuestAccessRequestSchema,
+        response: { 200: worldStatusSchema },
+      },
+    },
+    (request) => {
+      world.setGuestAccess(request.body.enabled, actor(request));
+      return world.status();
+    },
+  );
+
   app.post(
     "/api/admin/world/rollback",
     {
@@ -91,7 +111,7 @@ const worldPlugin: FastifyPluginAsyncZod<WorldOptions> = (app, { world }) => {
     },
     async (request, reply) => {
       try {
-        world.rollback(actor(request));
+        await world.rollback(actor(request));
       } catch (error) {
         if (error instanceof NoPreviousWorld) {
           return reply.status(409).send({
@@ -107,38 +127,76 @@ const worldPlugin: FastifyPluginAsyncZod<WorldOptions> = (app, { world }) => {
     },
   );
 
+  // The clickable objects and portals of every map with their actions, and the assignment of an action to a
+  // clickable object (MAP-15). An assignment is live at once; null returns the object to its preset.
+  app.get(
+    "/api/admin/world/objects",
+    { ...admin, schema: { querystring: noQuery, response: { 200: worldObjectsSchema } } },
+    () => world.objects(),
+  );
+
+  app.put(
+    "/api/admin/world/objects/:map/:object",
+    {
+      ...admin,
+      schema: {
+        querystring: noQuery,
+        params: z.strictObject({ map: z.string().max(60), object: z.string().max(60) }),
+        body: worldActionRequestSchema,
+        response: {
+          200: worldObjectsSchema,
+          404: worldRefusalSchema.pick({ error: true }),
+          422: worldRefusalSchema.pick({ error: true }),
+        },
+      },
+    },
+    async (request, reply) => {
+      try {
+        world.setAction(
+          request.params.map,
+          request.params.object,
+          request.body.action,
+          actor(request),
+        );
+      } catch (error) {
+        if (error instanceof WorldObjectError) {
+          const status = error.code === "target_not_found" ? 422 : 404;
+          return reply.status(status).send({ error: { code: error.code, message: error.message } });
+        }
+        throw error;
+      }
+      return await reply.send(world.objects());
+    },
+  );
+
   // What a player's browser loads: the active world, or null while none is imported (MAP-05).
   app.get(
     "/api/world",
-    { schema: { querystring: noQuery, response: { 200: publicWorldSchema.nullable() } } },
+    {
+      preHandler: worldGuestAccess(world),
+      schema: { querystring: noQuery, response: { 200: publicWorldSchema.nullable() } },
+    },
     () => world.publicWorld(),
   );
 
-  // The files of a world: maps, tileset images and avatar sprites, by the import id (the version).
-  // A world changes its import id with every import, so the files are cached for a year (MAP-10).
-  // Each folder has its own route, so the route table names every address the app serves.
-  const file = async (
-    request: FastifyRequest<{ Params: { importId: string; file: string } }>,
-    folder: string,
-    reply: FastifyReply,
-  ) => {
-    const path = `${folder}/${request.params.file}`;
-    const bytes = world.file(request.params.importId, path);
-    if (bytes === undefined) return reply.status(404).send();
-    const extension = request.params.file.split(".").pop() ?? "";
-    return reply
-      .type(CONTENT_TYPES[extension] ?? "application/octet-stream")
-      .header("cache-control", "public, max-age=31536000, immutable")
-      .send(bytes);
-  };
-  const fileParams = z.object({ importId: z.string(), file: z.string() });
-  for (const folder of ["maps", "tilesets", "avatar"]) {
-    app.get<{ Params: { importId: string; file: string } }>(
-      `/api/world/:importId/${folder}/:file`,
-      { schema: { params: fileParams, querystring: noQuery } },
-      (request, reply) => file(request, folder, reply),
-    );
-  }
+  // The files of a world: maps, tileset images, and the figures' metadata and frames, by the import id (the
+  // version). A world changes its import id with every import, so the files are cached for a year (MAP-10).
+  const fileParams = z.object({ importId: z.string(), "*": z.string() });
+  app.get<{ Params: { importId: string; "*": string } }>(
+    "/api/world/:importId/*",
+    { preHandler: worldGuestAccess(world), schema: { params: fileParams, querystring: noQuery } },
+    (request, reply) => {
+      const path = request.params["*"];
+      const bytes = world.file(request.params.importId, path);
+      if (bytes === undefined) return reply.status(404).send();
+      const extension = path.split(".").pop() ?? "";
+      return reply
+        .type(CONTENT_TYPES[extension] ?? "application/octet-stream")
+        .header("cache-control", "public, max-age=31536000, immutable")
+        .header("X-Content-Type-Options", "nosniff")
+        .send(bytes);
+    },
+  );
 
   return Promise.resolve();
 };

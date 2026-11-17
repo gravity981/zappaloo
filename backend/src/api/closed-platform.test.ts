@@ -63,6 +63,8 @@ function routeTable(tree: string): { url: string; method: string }[] {
     const depth = (match[1] ?? "").length / 4;
     const url = (stack[depth - 1] ?? "") + (match[2] ?? "");
     stack.splice(depth, stack.length, url);
+    // A wildcard route (the world files) is printed without its parameters; the test checks it with a path below.
+    if (url.includes("*")) continue;
     for (const method of (match[3] ?? "").split(", ").filter((m) => m !== "" && m !== "HEAD")) {
       if (url.startsWith("/api/")) routes.push({ url, method });
     }
@@ -175,6 +177,16 @@ describe("the closed platform (ACS-10)", () => {
         `${method} ${url}`,
       ).toEqual([403, "platform_closed"]);
     }
+    // The world files (AVA-02, MAP-10) are one wildcard route under /api/world/:importId.
+    const file = await ctx.app.inject({
+      method: "GET",
+      url: "/api/world/1/avatar/wedding-guest/Idle/rotations/south.png",
+      headers: as(anna),
+    });
+    expect([file.statusCode, file.json<{ error?: { code: string } }>().error?.code]).toEqual([
+      403,
+      "platform_closed",
+    ]);
   });
 
   it("[ACS-10] an open platform is open to guests, and closing it again takes effect at once", async () => {

@@ -58,6 +58,14 @@ export default tseslint.config(
     },
   },
   {
+    files: ["game-engine/src/**/*.{ts,tsx}"],
+    languageOptions: { globals: { ...globals.browser } },
+  },
+  {
+    files: ["game-preview/src/**/*.{ts,tsx}"],
+    languageOptions: { globals: { ...globals.browser } },
+  },
+  {
     files: ["frontend/src/**/*.{ts,tsx}"],
     languageOptions: { globals: { ...globals.browser } },
     plugins: { i18next },

@@ -2,6 +2,10 @@ import { defineConfig, devices } from "@playwright/test";
 
 const isCI = Boolean(process.env.CI);
 const PORT = 4173;
+const PREVIEW_PORT = Number(process.env.ZAPPALOO_GAME_PREVIEW_PORT ?? 5175);
+if (!Number.isInteger(PREVIEW_PORT) || PREVIEW_PORT < 1 || PREVIEW_PORT > 65535) {
+  throw new Error("ZAPPALOO_GAME_PREVIEW_PORT must be a valid TCP port.");
+}
 /** A second installation that nobody has set up, for the setup test (CFG-02). */
 const FRESH_PORT = 4174;
 const sharedEnv = {
@@ -18,6 +22,8 @@ const sharedEnv = {
 export default defineConfig({
   testDir: "./e2e",
   outputDir: "./test-results",
+  // Twice the default of 30 s: WebKit and parallel workers are slow on a busy machine.
+  timeout: 60_000,
   fullyParallel: true,
   forbidOnly: isCI,
   retries: isCI ? 2 : 0,
@@ -49,6 +55,13 @@ export default defineConfig({
       reuseExistingServer: false,
       timeout: 120_000,
       env: { ...sharedEnv, PORT: String(FRESH_PORT), DATA_DIR: ".e2e-data-fresh" },
+    },
+    {
+      command: `./node_modules/.bin/vite game-preview --config game-preview/vite.config.ts --port ${PREVIEW_PORT}`,
+      url: `http://localhost:${PREVIEW_PORT}/__game-preview/api/health`,
+      reuseExistingServer: false,
+      timeout: 30_000,
+      env: { APP_ENV: "dev" },
     },
   ],
   projects: [

@@ -38,7 +38,7 @@ The decisions behind the mocks, by question number in the prototype's "Questions
 | 14, 47 | Own figure | Always shown, no switch (PRES-04). |
 | 15 | Avatar step | Cannot be skipped; "Zufällig" makes it one tap. |
 | 16, 41 | Game bar | Bar at the top: Programm, Rückmeldung (badge), Hochladen, Website. "Website" leaves the game. No buttons at the bottom, no event-day "now / next" in the game (GAME-14, WEB-07). |
-| 17, 40, 42 | World objects | Clickable objects come from the event's Tiled maps; each map has its own. They sparkle briefly at random; tapping one walks the avatar there and runs its action. Portals between scenes are wobbling arrows. The admin assigns each object's action per map in "Erlebniswelt" (GAME-05, GAME-06, GAME-15, GAME-16, MAP-15). |
+| 17, 40, 42 | World objects | Clickable objects come from the event's Tiled maps; each map has its own. They sparkle along their edges at random, and a shine passes over them now and then; tapping one walks the avatar there and runs its action. Portals between scenes are floating arrows. The admin assigns each object's action per map in "Erlebniswelt" (GAME-05, GAME-06, GAME-15, GAME-16, MAP-15). |
 | 40 | Own avatar | Tapping it opens the profile (GAME-18). |
 | 43 | Discoverability | The sparkle plus a hint at the first entry, "Tippe auf Dinge, die funkeln" (GAME-17). |
 | 18 | Overlay links | Links inside an overlay stay in the overlay. |
@@ -141,17 +141,27 @@ Written into sw-architecture.md 6.2, 19.1.1 and 19.7 as well. The mock screens a
 | Hero image | Picked in the editor of the start page ("Bild wählen" from its images or a new upload, "Entfernen", alt text). Shown in full width, uncropped. Without one the welcome text moves up. |
 | Countdown | "Noch 214 Tage", "Noch 1 Tag": calendar days to the day of the first program item, with its date and place. Gone on the event day and without program items. The switch "Countdown auf der Startseite zeigen" (default on) is in the editor of the start page, not in Einstellungen. Its number uses the theme's `display` font, or the heading font without one. It is calm like the website, not pixel style (WEB-11, THM-06; replaces the countdown among the pixel accents of decision 39). |
 
-## UX decisions for stage 5 (2026-11-14, plan review and step 5a)
+## UX decisions for stage 5 (updated 2026-11-17)
 
 Written into sw-architecture.md 14.2 and 14.4 as well.
 
 | Topic | Decision |
 |---|---|
-| World importer | Erlebniswelt › "Welt & Import" (renamed from "Karten & Import"): the active world (name, format, import time, start map, the previous world), "Welt importieren" for a whole package, the findings of a refused package, warnings listed with the active world, "Zurückrollen" with a second click, "Vorlagenwelt importieren" (MAP-05, MAP-06, MAP-08, MAP-09, MAP-14). No import of single maps. |
-| Maps and program items | Not linked (Q65): the game world and the schedule are different things. Each guest's figure walks on one map, picked at random. "Hingehen" is removed from the programme and from "now / next" (WEB-08 withdrawn). "Welt & Import" lists the maps with their objects and portals. |
-| Objects | Erlebniswelt › "Objekte & Portale": a preset that points to something missing is marked "fehlt". Portals with a missing target cannot be imported. The minigame action is offered from stage 8. |
+| World importer | Erlebniswelt › "Welt & Import": the active world (name, format, import time, start map, the previous world), "Welt importieren" for a whole package, the findings of a refused package, warnings listed with the active world, "Zurückrollen" with a second click, and a guest-access switch (MAP-05, MAP-06, MAP-08, MAP-09, MAP-19). Guest access starts enabled on the first successful import. There is no template-world import and no import of single maps. |
+| Maps and program items | Not linked (Q65): the game world and the schedule are different things. Each guest's figure walks on one map, picked at random. "Hingehen" is removed from the programme and from "now / next" (WEB-08 withdrawn). "Welt & Import" lists the maps; their objects and portals are in the tab "Objekte & Portale" (reworded 2026-11-17). |
+| Objects | Erlebniswelt › "Objekte & Portale": a preset that points to something missing is marked "fehlt". A portal whose given target is missing cannot be imported; a portal without a target is a warning (reworded 2026-11-17). The minigame action is offered from stage 8. |
 | Dialogues | A tab "Dialoge" in Erlebniswelt, not in Inhalte, because dialogues belong to the game world (Q63). A dialogue has an id (its `contentId`), the NPC's name and lines in Markdown, a preview of the dialogue box and "Verwendet von" (CNT-02, CNT-03). A dialogue in use cannot be deleted. Its id can be changed (Q64). |
-| Who uses Erlebniswelt | Only admins: import, rollback, object actions and dialogues. |
+| Who uses Erlebniswelt | Only admins manage the world: import, rollback, guest access, object actions and dialogues. Disabling guest access hides guest entry points and blocks direct guest navigation while leaving the active package and admin management available. |
 | Game bar in stage 5 | Programm, Rückmeldung, Website. "Hochladen" comes with stage 7 (GAME-14). |
 | First entry in stage 5 | The avatar step, then the RSVP overlay while the RSVP is open. "Sag hallo" comes with stage 6 (GAME-13). |
-| Without a world | Guests land on the website, and the start page has no "Erlebniswelt betreten". |
+| Without a world or with guest access disabled | Guests land on the website, and no guest navigation to the Erlebniswelt is shown. |
+
+## UX decisions for step 5d.1 (2026-11-15, world format 2)
+
+| Topic | Decision |
+|---|---|
+| Avatar editor | Two choices (decided 2026-11-17). First the kind of figure: «Mann», «Frau», «Kind» or «Andere», as buttons only for the kinds that the active world has a figure for; the kind of a figure comes from the world package. Choosing a kind picks a random figure of that kind at once. Then the figures of that kind are shown as a grid with their labels (7.3, AVA-01), with a walking preview of the chosen one (it bobs between two frames in the mock; the game plays the walk frames), and "Zufällig", which draws again within the kind only. Which figures a person may choose depends on the tier of each figure and the roles of the user (tier1 vip, tier2 staff, tier3 admin, exact, companions tier1; decided 2026-11-17). Each person (the guest and every companion) has a tab and chooses on their own; "Weiter" waits until every person has a figure, and there is no skip. There are no skin, hair, clothing or template choices. A figure without a label shows no name. |
+| Persons | Each tab (the guest, each approved companion) chooses its own figure. |
+| Admin card "Welt" | The info line shows the format, the tile size as width × height ("Kachel 64 × 32 Pixel"), the number of figures, the import time and the start map (MAP-05). |
+| Refused package | The findings name the file of a figure with its frame, for example `avatar/<figure>/…/south.png: falsches Format (32 × 32 instead of 48 × 48)`. |
+| Import text | "Ein Weltpaket (.tar.gz, Format 2) mit isometrischen Karten, Tilesets, Figuren und optional der Tür der Warteseite." |

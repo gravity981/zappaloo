@@ -25,6 +25,7 @@ To start over with the example event (empty database, example places, program an
 | Port | What |
 |---|---|
 | 5173 | Frontend (Vite dev server) |
+| 5175 | Standalone Phaser game preview |
 | 3000 | Backend API, e.g. http://localhost:3000/api/health |
 | 8025 | Mailpit: every email sent in development lands here |
 
@@ -34,11 +35,13 @@ Development data (SQLite database, uploads, maps) lives in the Docker volume `za
 
 | Command | Does |
 |---|---|
+| `APP_ENV=dev npm run dev:game-preview` | Run the standalone game preview on port 5175; enter an absolute world-package path in the preview to watch local changes |
 | `npm test` | Unit, component and integration tests (Vitest) |
 | `npm run test:e2e` | End-to-end tests (Playwright, desktop and mobile, Chromium and WebKit) |
 | `npm run lint` / `npm run format` | ESLint / Prettier |
 | `npm run typecheck` | TypeScript in all workspaces |
-| `npm run cli -- <command>` | The `zappaloo` CLI from source: `version`, `migrate`, `backup`, `restore` |
+| `npm run cli -- <command>` | The `zappaloo` CLI from source: `version`, `migrate`, `backup`, `restore`, `validate` |
+| `docker run --rm -v "$PWD:/work" ghcr.io/gravity981/zappaloo:<version> zappaloo validate /work/<package>.tar.gz` | Validate a theme or world package; add `--json` for machine-readable findings |
 | `npm run db:generate -w backend` | New database migration after changing `backend/src/database/schema.ts` |
 | `npm run req-report` | Requirement report: which requirement is verified by which test |
 | `npm run check` | Everything CI does, including the Docker image and the deployment test (a few minutes) |
@@ -48,7 +51,9 @@ The full list is in [CLAUDE.md](CLAUDE.md#environment).
 ## Repository layout
 
 ```text
-frontend/        React app, Phaser game (src/game), i18n messages (src/i18n/locales)
+frontend/        React app and i18n messages (src/i18n/locales)
+game-engine/     Shared Phaser 4.2.1 world renderer and movement engine
+game-preview/    Developer-only world-package preview (port 5175)
 backend/         Fastify API, CLI, database schema and migrations (drizzle/)
 shared/          Code used by both: API schemas (Zod), version scheme, event setup schema
 e2e/             Playwright tests

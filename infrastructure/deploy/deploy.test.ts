@@ -17,6 +17,14 @@ import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
+// Variables exported in a shell win over the bundle's .env in Docker Compose (first-release.md): the
+// devcontainer's APP_ENV=dev would start the app as dev (no Secure cookie, seed-example allowed). Every
+// child process of this test inherits process.env, so the variables are removed once, here.
+for (const name of Object.keys(process.env)) {
+  if (/^(APP_ENV|SMTP_|PUBLIC_URL$|SITE_ADDRESS$|MAIL_FROM$)/.test(name))
+    Reflect.deleteProperty(process.env, name);
+}
+
 const bundle = fileURLToPath(new URL(".", import.meta.url));
 const REPOSITORY = "ghcr.io/gravity981/zappaloo";
 // Staging is reached by the LAN IP address (sw-architecture.md 23.4); any IP works here.
@@ -155,6 +163,39 @@ describe("staging deployment", () => {
     // Only Caddy (and Mailpit on staging) publish ports; the app does not.
     // "docker compose port" prints ":0" (or nothing) for a port that is not published.
     expect(["", ":0"]).toContain(staging.compose("port", "app", "3000").trim());
+  });
+
+  it("[MAP-18] the production image excludes the standalone preview and private world assets", () => {
+    const env = staging;
+    if (!env) throw new Error("staging not deployed");
+    const report = JSON.parse(
+      env.node(
+        `(async () => {
+          const fs = require("node:fs");
+          const assets = fs.readdirSync("/app/frontend/dist/assets");
+          const bundle = assets.filter((name) => name.endsWith(".js"))
+            .map((name) => fs.readFileSync("/app/frontend/dist/assets/" + name, "utf8")).join("\\n");
+          const route = await fetch("http://127.0.0.1:3000/__game-preview/api/health");
+          console.log(JSON.stringify({
+            previewSource: fs.existsSync("/app/game-preview"),
+            privateWorlds: fs.existsSync("/app/world") || fs.existsSync("/app/world-scratch"),
+            previewEndpoint: bundle.includes("/__game-preview/api") || route.status !== 404,
+            previewUi: bundle.includes("Guides and view") || bundle.includes("Select a validated")
+          }));
+        })().catch((error) => { console.error(error); process.exitCode = 1; });`,
+      ),
+    ) as {
+      previewSource: boolean;
+      privateWorlds: boolean;
+      previewEndpoint: boolean;
+      previewUi: boolean;
+    };
+    expect(report).toEqual({
+      previewSource: false,
+      privateWorlds: false,
+      previewEndpoint: false,
+      previewUi: false,
+    });
   });
 
   it("[OPS-03] publishes only Caddy's HTTP and HTTPS ports and, on staging, Mailpit's web UI", () => {

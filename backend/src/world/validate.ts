@@ -2,27 +2,23 @@
 // package before anything changes and returns every finding with its file and reason. A package with
 // an error is refused; warnings are listed with it. Nothing is imported from here.
 import { WORLD_FORMAT_VERSIONS, WORLD_LIMITS, worldManifestSchema } from "@zappaloo/shared";
-import type { DoorSheet, WorldAvatar, WorldManifest } from "@zappaloo/shared";
+import type { DoorSheet, WorldFigure, WorldManifest } from "@zappaloo/shared";
 import { pngSize } from "../packages/png.ts";
 import type { PngSize } from "../packages/png.ts";
 import { megabytes, readPackageArchive, TarError } from "../packages/archive.ts";
-import { checkAvatar } from "./avatar.ts";
+import { checkFigures } from "./figures.ts";
 import { checkDoor } from "./door.ts";
 import { errorFinding, warningFinding, zodDetail } from "./findings.ts";
 import type { WorldFinding } from "./findings.ts";
-import { worldV1 } from "@zappaloo/shared";
+import { worldV2 } from "@zappaloo/shared";
 import { checkMap, checkMapReferences } from "./maps.ts";
 import type { MapInfo } from "./maps.ts";
-
-/** The folders of the layout (14.4), from the package definition. */
-const FOLDERS = worldV1.layout
-  .filter((entry) => entry.kind === "folder")
-  .map((entry) => entry.path);
 
 /** A package the platform would accept: its parts, checked. */
 export interface WorldPackage {
   manifest: WorldManifest;
-  avatar: WorldAvatar;
+  /** The figures a guest can choose, in the order of `figures.json`. */
+  figures: WorldFigure[];
   /** The door scene of the package, when it has one. */
   door?: { sheet: DoorSheet; glimpse: boolean };
   /** The ids of the maps (the names of the files in `maps/`). */
@@ -35,9 +31,15 @@ export type WorldCheck =
   | { ok: true; package: WorldPackage; findings: WorldFinding[] }
   | { ok: false; findings: WorldFinding[] };
 
-/** Whether a path is part of the layout of format version 1 (14.4): an entry of the definition matches it. */
-export function inWorldLayout(path: string): boolean {
-  return worldV1.layout.some((entry) => entry.match.test(path));
+/**
+ * Whether a path is part of the layout of format version 2 (14.4): an entry of the definition of its kind
+ * matches it. Folders and files are matched by their own entries, because a folder pattern also matches
+ * the paths below it.
+ */
+export function inWorldLayout(path: string, kind: "file" | "folder" = "file"): boolean {
+  return worldV2.layout.some(
+    (entry) => (entry.kind === "folder") === (kind === "folder") && entry.match.test(path),
+  );
 }
 
 /** Reads one JSON file of the package, recording a finding when it is missing or not JSON. */
@@ -86,7 +88,7 @@ export function checkWorldPackage(archive: Buffer): WorldCheck {
   const files = new Map<string, Buffer>();
   for (const entry of entries) {
     if (entry.kind === "directory") {
-      if (!FOLDERS.includes(entry.path)) {
+      if (!inWorldLayout(entry.path, "folder")) {
         findings.push(errorFinding(entry.path, "file_not_in_layout", "not part of the layout"));
       }
       continue;
@@ -103,12 +105,24 @@ export function checkWorldPackage(archive: Buffer): WorldCheck {
   for (const [path, data] of files) {
     if (path.endsWith(".json")) {
       if (data.length > WORLD_LIMITS.jsonBytes) {
-        findings.push(errorFinding(path, "json_too_large", "larger than 5 MB"));
+        findings.push(
+          errorFinding(
+            path,
+            "json_too_large",
+            `larger than ${megabytes(WORLD_LIMITS.jsonBytes)} MB`,
+          ),
+        );
       }
       continue;
     }
     if (data.length > WORLD_LIMITS.imageBytes) {
-      findings.push(errorFinding(path, "file_too_large", "larger than 8 MB"));
+      findings.push(
+        errorFinding(
+          path,
+          "file_too_large",
+          `larger than ${megabytes(WORLD_LIMITS.imageBytes)} MB`,
+        ),
+      );
     }
     const size = pngSize(data);
     if (size === undefined) {
@@ -150,16 +164,9 @@ export function checkWorldPackage(archive: Buffer): WorldCheck {
     }
   }
 
-  // avatar/avatar.json and the sprite sheets it names.
-  let avatar: WorldAvatar | undefined;
-  const avatarBytes = files.get("avatar/avatar.json");
-  if (avatarBytes === undefined) {
-    findings.push(errorFinding("avatar/avatar.json", "file_missing", "the file is missing"));
-  } else {
-    const result = checkAvatar(avatarBytes, files, images);
-    findings.push(...result.findings);
-    avatar = result.avatar;
-  }
+  const figureCheck = checkFigures(files, images);
+  findings.push(...figureCheck.findings);
+  const figures = figureCheck.figures;
 
   // The maps, each on its own, then the references between them.
   const mapPaths = [...files.keys()].filter((path) => path.startsWith("maps/"));
@@ -171,7 +178,12 @@ export function checkWorldPackage(archive: Buffer): WorldCheck {
   for (const path of mapPaths) {
     const id = path.slice("maps/".length, -".json".length);
     const bytes = files.get(path) ?? Buffer.alloc(0);
-    const result = checkMap(id, bytes, { tileSize: manifest?.tileSize, files, images });
+    const result = checkMap(id, bytes, {
+      tileWidth: manifest?.tileWidth,
+      tileHeight: manifest?.tileHeight,
+      files,
+      images,
+    });
     findings.push(...result.findings);
     if (result.info !== undefined) infos.push(result.info);
   }
@@ -193,14 +205,14 @@ export function checkWorldPackage(archive: Buffer): WorldCheck {
   findings.push(...door.findings);
 
   const failed = findings.some((finding) => finding.severity === "error");
-  if (failed || manifest === undefined || avatar === undefined) {
+  if (failed || manifest === undefined || figures === undefined) {
     return { ok: false, findings };
   }
   return {
     ok: true,
     package: {
       manifest,
-      avatar,
+      figures,
       door: door.door,
       mapIds: infos.map((info) => info.id),
       files,

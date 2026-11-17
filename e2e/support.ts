@@ -1,5 +1,6 @@
 // Helpers shared by the end-to-end tests.
 import { execFileSync } from "node:child_process";
+import { test as base } from "@playwright/test";
 import type { BrowserContext, Page } from "@playwright/test";
 
 export const PASSWORD = "correct-horse-battery";
@@ -42,3 +43,42 @@ export async function signInAsAdmin(page: Page, context: BrowserContext): Promis
   if (!login.ok()) throw new Error(`signing in failed: ${await login.text()}`);
   return username;
 }
+
+/** Chooses the first figure the signed-in user may choose, so that the game opens without the first-entry avatar step. */
+export async function chooseFirstFigure(page: Page): Promise<void> {
+  const session = (await (await page.request.get("/api/session")).json()) as { csrfToken: string };
+  const avatar = (await (await page.request.get("/api/avatar")).json()) as {
+    persons: { figures: { id: string }[] }[];
+  };
+  const figure = avatar.persons[0]?.figures[0]?.id;
+  if (figure === undefined) throw new Error("the world has no figure for this user");
+  const put = await page.request.put("/api/avatar/me", {
+    headers: { "x-csrf-token": session.csrfToken },
+    data: { figure },
+  });
+  if (!put.ok()) throw new Error(`choosing a figure failed: ${await put.text()}`);
+}
+
+/**
+ * Keeps a browser context on the website: with an active world, `/` lands in the game once per browser session
+ * (GAME-12), and the world tests import a world on the shared installation. The flag is the one the app sets when
+ * the player goes to the website.
+ */
+export async function stayOnWebsite(context: BrowserContext): Promise<void> {
+  await context.addInitScript(() => {
+    try {
+      window.sessionStorage.setItem("zappaloo.game.website", "1");
+    } catch {
+      // A page without session storage is not redirected either way.
+    }
+  });
+}
+
+/** `test` for the specs of the website and the admin area: their contexts stay on the website (see `stayOnWebsite`). */
+export const test = base.extend({
+  context: async ({ context }, use) => {
+    await stayOnWebsite(context);
+    await use(context);
+  },
+});
+export { expect } from "@playwright/test";

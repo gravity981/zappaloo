@@ -21,6 +21,7 @@ const NAMELESS = [
   "theme.reset",
   "world.import",
   "world.rollback",
+  "world.action",
 ];
 
 type Translate = (key: string, options?: Record<string, unknown>) => string;

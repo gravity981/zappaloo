@@ -37,7 +37,8 @@ describe("no hard-coded UI strings", () => {
       r.messages.map((m) => `${r.filePath}:${m.line} ${m.message}`),
     );
     expect(problems).toEqual([]);
-  });
+    // The whole frontend is linted: slower than the default timeout when the suite runs in parallel.
+  }, 60_000);
 
   it("[LANG-01] the lint rule reports text and labels written directly into JSX", async () => {
     const code = [

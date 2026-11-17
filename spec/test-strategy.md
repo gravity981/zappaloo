@@ -13,17 +13,17 @@ This document defines how the requirements in [sw-architecture.md](sw-architectu
 
 | Level | Tool | Scope | Runs in |
 |---|---|---|---|
-| Unit | Vitest | Pure logic in `backend`, `shared`, `frontend` (e.g. access-condition evaluation, role combination rules, result plausibility checks, config schema validation) | CI, every push |
+| Unit | Vitest | Pure logic in `backend`, `shared`, `game-engine`, `game-preview`, `frontend` (e.g. access-condition evaluation, role combination rules, result plausibility checks, config schema validation) | CI, every push |
 | Component | Vitest + React Testing Library (jsdom) | React UI components and pages in isolation | CI, every push |
 | Integration | Vitest | Backend modules against a real SQLite database (temporary file per test run), and the HTTP API through the real server | CI, every push |
-| End-to-end | Playwright | Full stack in the browser: website flows, game world, contributions. Desktop and mobile viewports (Chromium, WebKit) | CI, every push |
+| End-to-end | Playwright | Full stack in the browser: website flows, game world, standalone game preview, contributions. Desktop and mobile viewports (Chromium, WebKit) | CI, every push |
 | Deployment smoke | Playwright / shell scripts | Docker Compose stack started in CI: reverse proxy, live update connections, persistence across container restart | CI, every push (local TLS); production checks per release |
 | Load | open (see section 6) | Concurrent players and uploads against the production host | Before each production event |
 | Manual | Written test protocol | Real-device checks (iOS/Android camera), backup restore drill, production firewall/TLS | Before each production event |
 
 ### Game world tests
 
-Phaser rendering isn't asserted pixel by pixel. Game logic (map object interpretation, portal resolution, collision setup, scene lifecycle) is kept in plain TypeScript modules and unit-tested. End-to-end tests drive the game through a small test hook that exposes the game state (current map, player position, open dialogue) to Playwright. The hook is enabled only in test builds.
+The renderer's Tiled-compatible geometry is verified with independent expected-value unit tests for map positions, tile-object anchors, tileset crops and map bounds. Package validation rejects unsupported authoring features. Zappaloo does not install or invoke the Tiled executable, export world sources, or run rasterizer comparisons; the asset-producing repository validates its generated packages with `zappaloo validate`. Collision, map interpretation, portals, pathfinding, depth logic and scene lifecycle are unit-tested. The foot anchor and collision-ellipse placement have explicit geometry tests. End-to-end tests drive the application and standalone preview through a test hook that exposes the game state to Playwright; the hook is enabled only in test builds.
 
 ## 3. Requirement traceability
 
@@ -58,7 +58,7 @@ CI runs the report after the test jobs and fails the build on a non-zero exit.
 
 | Topic | Main level(s) | Notes |
 |---|---|---|
-| GAME | Unit, E2E | Guided first sign-in, button bar with RSVP badge, landing in the game after sign-in, one click to the website, direct links bypassing the game. Object type interpretation, movement and collision logic, tap-to-move pathfinding as unit tests. Keyboard and tap control, portals and interaction via E2E with the test hook. |
+| GAME | Unit, E2E | Guided first sign-in, button bar with RSVP badge, landing in the game after sign-in, one click to the website, direct links bypassing the game. Object type interpretation, foot-anchored collision and movement logic, tap-to-move pathfinding as unit tests. Keyboard and tap control, portals and interaction via E2E with the test hook. Fixtures cover sheet and collection ground layers, natural-size bottom-aligned tile objects, collision/trigger guides, hidden gameplay layers, actors in front of and behind props, and foreground coverage. Unsupported non-zero offsets, other alignments and scaled tile objects are rejected by the validator. |
 | PRES | Unit, Integration, E2E | Only guests with an accepted RSVP appear; each figure on one map per guest, kept for that guest, and only inside wander areas (seeded random); own figure replaced by own avatar; speech bubble opening automatically for the nearest figure, closing on walking away, staying open when clicked; profile data shown without moderation and removable by the admin; relation list defined by the admin, chosen option shown as a badge; tablemates in the table finder; accompanying persons with VIP-chosen avatar; default seat at the VIP's table and admin override; hiding. Table finder visibility date with fake timers. |
 | HUNT | Integration, E2E | Collecting once, guessed or invalid tokens rejected, rate limit, time window with fake timers, ranking order, unlocking as an access condition. |
 | MG | Unit, Integration, E2E | Plausibility profiles as unit tests. Attempt IDs, API validation and storage as integration tests. Scene start/return as E2E. |
@@ -70,7 +70,7 @@ CI runs the report after the test jobs and fails the build on a non-zero exit.
 | ROLE, ACS, GRP | Unit, Integration, E2E | Full combination matrix of the three roles as table-driven tests. Server enforcement tested per endpoint and per map load. Every page and endpoint without sign-in is rejected, except the allowed list (ACS-09). Closed platform: guests reach only the waiting page and the RSVP, staff and admins everything; waiting-page text per RSVP status with placeholders filled, admin-edited texts, countdown only with the switch on and hidden at zero (fake timers), "door is open" email to verified addresses only via the test mail sink; opening switch and closing again (ACS-10–14). |
 | INV | Integration, E2E | Includes a concurrency test for atomic redemption (INV-08) and the printable export at creation time (INV-14). From stage 3.9: the inactive account created with each invitation, activation by registration, merge into a signed-in account without `vip`, revoking the last open invitation of a never-activated account, cleanup of revoked and replaced invitations, and the migration of v1.0.2 data. |
 | PHO, MOD | Integration, E2E, Manual | Uploads closed by default, opened and closed separately by the admin, upload links show a notice while closed (PHO-18). Composer with "Upload snapshot" (disabled without a photo) and "Upload keepsake" (photo, photo + text, text only); text length limits; keepsake page; printable keepsake book PDF including photos. Fixture images in JPEG, PNG and HEIC, plus oversized and invalid files. Worker queue processed in tests. Anonymous upload via upload link: revoked or expired token rejected, token grants nothing else. Swipe moderation via Playwright touch emulation and arrow keys, undo, rejected list. Real-device camera check is manual. |
-| MAP | Unit, Integration, E2E | World packages as test fixtures built by a script, including broken ones: every validator rule, the unchanged world after a refused import, rollback to the previous package, the door scene and the avatar editor assets from the package (MAP-16). Test maps exported from Tiled live in test fixtures, including invalid ones. Import validation, errors for missing portal targets and warnings for presets that point to a missing page, content item or minigame (MAP-08), portal properties from Tiled, wander areas, rollback, new version used on next map entry with refreshed graphics. |
+| MAP | Unit, Integration, E2E | World packages as test fixtures built by a script, including broken ones: every validator rule, the unchanged world after a refused import, rollback to the previous package, the door scene and the avatar editor assets from the package (MAP-16). Zappaloo CI tests the validator and preview behavior, not world export; the asset-producing repository validates its generated package with `zappaloo validate` (MAP-17). The local package preview watches the selected archive, reloads valid replacements and retains the last valid snapshot on read or validation errors. Import validation accepts image-local `occlusion` polylines and rejects malformed guides, non-zero tileset offsets, non-bottom tile-object alignment and scaling. Dynamic actor depth is verified against guide lines (GAME-19). Preview package workflows (MAP-18), missing portal targets and warnings for presets that point to a missing page, content item or minigame (MAP-08), portal properties from Tiled, wander areas, rollback, and refreshed graphics are also tested. |
 | DATA | Integration | Migrations run from an empty DB and from the previous schema version with data. The activity card (DATA-05): listed actions appear newest first, limited to 5, names resolved, excluded actions (login, role changes) never appear, deleted guests show no name, admin role required. |
 | CFG | Unit, Integration | CFG-01: two fresh installations of the same build shaped differently through the admin API alone (name, theme package, pages, program items), each serving its own; a check that the source holds no event-specific names outside the example event and the tests. CFG-04: two installations with their own data folders share nothing, every event-related record carries `event1`, no second event can be created. Setup validation (time zone, language, empty name) as unit tests. Setup from an empty database, later edits of name, time zone and language, `event seed-example` and its refusal on a set-up installation as integration tests; the setup form and the "not set up yet" page as E2E. Feature toggles and runtime settings changes checked in UI and API. |
 | THM | Unit, Integration, E2E | Theme packages built by a script in the tests. One broken package per validator rule (archive size, links and `..`, unknown files and fields, format version, icon sizes, font type and count, unreferenced and missing fonts, colour format, contrast). The active theme unchanged after a refused import. Import, themed pages without sign-in, fonts and icons served, manifest colours, return to the default, audit entries. The countdown in the `display` font, and in the heading font without one. The committed JSON Schemas equal the ones generated from the platform's schemas (theme and world), and the example theme and the test world pass them; `zappaloo validate` with a valid, a refused and a warned package, its exit codes and `--json` (THM-07, MAP-17). |
@@ -84,33 +84,36 @@ All active requirements are listed here until their stage is delivered. Shrink t
 
 | Prefix | IDs | Count |
 |---|---|---|
-| GAME | GAME-01 – GAME-18 | 18 |
-| PRES | PRES-01, PRES-02, PRES-04 – PRES-10, PRES-12 – PRES-15 | 13 |
+| PRES | PRES-01, PRES-02, PRES-04 – PRES-06, PRES-08 – PRES-10, PRES-12 – PRES-15 | 12 |
 | HUNT | HUNT-01 – HUNT-07 | 7 |
 | MG | MG-01 – MG-13 | 13 |
 | WEB | WEB-05, WEB-06 | 2 |
 | SCR | SCR-01, SCR-02, SCR-04, SCR-05, SCR-07 | 5 |
 | CNT | CNT-02, CNT-03 | 2 |
-| AVA | AVA-01 – AVA-04 | 4 |
 | ACS | ACS-04 | 1 |
 | PHO | PHO-01 – PHO-03, PHO-05 – PHO-19 | 18 |
 | MOD | MOD-01 – MOD-05 | 5 |
-| MAP | MAP-02, MAP-03, MAP-12 – MAP-15 | 6 |
 | OPS | OPS-13 | 1 |
 | SEC | SEC-04, SEC-06 – SEC-08 | 4 |
 | PERF | PERF-01, PERF-03, PERF-04 | 3 |
-| **Total** | | **102** |
+| **Total** | | **73** |
 
 The stage each requirement belongs to is listed in `sw-architecture.md`, section 28.
 
 **Partially implemented** (decided 2026-11-10). These requirements count as implemented from stage 2 on, because their mechanism exists and is tested, but parts of them belong to features of later stages. Each part is a "Follow-up from stage 2" line of the step that builds the feature in `implementation-plan.md`, and that step adds tests tagged with the ID:
 
-- ACS-05: the treasure-hunt condition (step 8d); the admin page for manual releases, with the first step that stores access conditions (5b; pages carry none in stage 4, decided 2026-11-13).
-- ACS-07: server checks for map loading and protected game areas (5b), contribution upload (7b), moderation (7c), minigame start and result submission (8b).
+- ACS-05: the treasure-hunt condition (step 8d); the admin page for manual releases, with the step that stores access conditions (step 8d, HUNT-05; pages carry none in stage 4, decided 2026-11-13).
+- ACS-07: server checks for protected game areas (step 8d; stage 5 checks only sign-in, the open platform and guest access, decided 2026-11-17), contribution upload (7b), moderation (7c), minigame start and result submission (8b).
+- PRES-07 (tagged in `frontend/src/avatar/avatar.test.tsx`): the accompanying persons' figures, chosen by the VIP in the avatar editor, are done in step 5h; their seats and the table finder come with their own steps.
+- AVA-04: the player's own figure in the game is done in step 5h; the wandering figures of the other guests come with stage 6.
+- GAME-06 and MAP-15 (from step 5f on, decided 2026-11-17): the action `minigame` (stage 8; a preset `minigame` is reported at import and does nothing, and the admin cannot assign it). A content page is linked as a page and runs from step 5f; the action `dialog` comes with step 6d (dialogues moved there on 2026-11-17), and until then the game shows a short note.
+- GAME-13 and GAME-14 (from step 5i on, decided 2026-11-17): the step "Say hello" (profile photo, greeting, "How I know the couple"; stage 6) and the button "Hochladen" (stage 7).
 - CNT-02 (from stage 4 on, decided 2026-11-13): dialogues and NPC texts (5d), photo albums (7d). Unlock conditions are covered by ACS-05.
 - CNT-03 (from stage 4 on): the reference from a game-world object by `contentId` (5d).
 - ROLE-06: the capabilities in use: `editWebsiteContent` (4a), `moderateContributions` (7c). Until then only test routes use them.
 - ROLE-07: every step that adds an administration function guards it with the admin role and adds a `[ROLE-07]` test that a user without it is refused. The admin pages of stage 2 are built in step 2h; each later admin page adds its own `[ROLE-07]` test.
+
+**Withdrawn** (decided 2026-11-17). MAP-12, MAP-13 and MAP-14 (the template map set, its decoration layers and its import) are withdrawn: no template world will be shipped. They are not tested.
 
 **Not yet tested** (decided 2026-11-11). These requirements are implemented and their automated tests pass, but the check in a real environment that completes them has not been done. They stay on this list until it has been done and recorded in the manual test protocol. The requirement report does not read this list; it is kept by hand.
 
@@ -156,3 +159,62 @@ Organisational items that are not software requirements:
 - Treasure hunt codes printed, each scanned once on production, and the test finds reset.
 - Event screen tested on the venue projector, with the screen link created and revoked after the event.
 - Before shutdown: shutdown date set, notice sent, export taken and handed to the hosts.
+
+## 8. Testing efficiency policy (decided 2026-11-17)
+
+The objective is to minimize test execution time while maintaining software quality and sufficient confidence. The policy applies to everyone who runs tests in this repository: the developer, Claude and any subagent. CI is the exception: it always runs everything (`npm run check`, section 2).
+
+### 8.1 General rules
+
+1. Never run the entire test suite after every code change.
+2. Always prefer targeted tests covering the modified functionality.
+3. Never rerun tests that have already passed unless relevant source code, test code, dependencies or configuration have changed.
+4. Batch related code changes before running tests.
+5. Avoid running identical tests concurrently across multiple agents.
+6. Do not run tests simply to reconfirm previously established results.
+
+### 8.2 Before running tests
+
+1. Inspect the current changes with `git diff`.
+2. Identify the modified files and the affected components.
+3. Identify the tests relevant to those changes.
+4. Determine the smallest meaningful test subset.
+5. Prefer existing test commands that support filtering or test selection.
+
+### 8.3 Execution strategy
+
+In this priority:
+
+1. Targeted unit tests for the modified functionality.
+2. Relevant integration tests, if component interactions are affected.
+3. Static analysis, linting and type checking, as appropriate.
+4. Broader regression tests only when justified by the scope or the risk of the change.
+
+### 8.4 When a test fails
+
+1. Analyze the failure before executing anything again.
+2. Identify whether the current changes caused it.
+3. Fix the underlying issue.
+4. Rerun only the failed test and the tests affected by the fix.
+5. Do not rerun previously passing unrelated tests.
+
+### 8.5 The full test suite
+
+Run the complete suite only when:
+
+- the user explicitly requests it;
+- the changes affect shared infrastructure or cross-cutting functionality;
+- the changes involve dependencies or configurations with broad impact;
+- targeted testing cannot provide sufficient confidence;
+- it is required for a release or for CI validation (including the requirement report, which reads the results of a complete Vitest and Playwright run).
+
+### 8.6 Multi-agent coordination
+
+- Avoid duplicate test execution across agents.
+- Reuse the results of another agent when they apply to the exact same code state.
+- Designate one agent as responsible for final verification.
+- Do not assume that test results remain valid after relevant source changes.
+
+### 8.7 Completion report
+
+At the end of a task, report the tests executed, the tests passed and failed, the tests skipped and why, and the remaining verification risks. Never claim that tests passed that were not executed.

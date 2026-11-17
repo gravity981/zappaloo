@@ -1,0 +1,62 @@
+# Standalone game preview
+
+Start the developer-only preview from the repository root:
+
+```sh
+APP_ENV=dev npm run dev:game-preview
+```
+
+Open [http://localhost:5175](http://localhost:5175). The preview validates a
+selected `.tar.gz` world package locally and uses the shared game engine. It
+does not use the application backend or database and never modifies the active
+event. A failed replacement leaves the current world running.
+
+To preview a local world package, enter its absolute path in **Local world
+package** and select **Preview and watch**. Use the path as seen by the preview
+server (for example, `/path/to/world.tar.gz`); no environment variable is needed. The preview watches the
+package's containing directory and reloads after in-place edits or atomic file
+replacement. A failed read or validation keeps the last valid world running
+and displays the error.
+
+## Controls
+
+- Choose a world package and select **Load package**. **Reload** revalidates
+  and reloads the current package.
+- Or enter an absolute path under **Local world package** and select
+  **Preview and watch**. **Stop watching** leaves the current preview running.
+- Use **Map**, **Spawn**, and **Figure** to choose the scene.
+- Expand **Guides and view** to toggle collision, border, spawn, portal,
+  and grid guides, or **Artwork only** to hide gameplay elements.
+- Set zoom to 1×, 2×, or 3×. **Reset camera** returns the scene to the selected
+  spawn with the selected view settings.
+- Validation findings and asset-loading errors are shown in the page; package
+  warnings remain available under **Package warnings**.
+
+The Vite server refuses to start unless `APP_ENV=dev` is set. Its package API
+exists only in that development server and exposes files from the selected,
+validated package only.
+
+## World-package and engine integration
+
+The integration contract is specified in [spec/sw-architecture.md](../spec/sw-architecture.md),
+section 14. World packages use the documented Tiled-compatible JSON format,
+validated by the backend before the shared Phaser 4.2.1 engine loads them.
+Zappaloo does not ship or invoke the Tiled executable; authoring and package
+export happen outside this repository. The application and this preview use
+the same engine; see
+[game-engine/README.md](../game-engine/README.md) for the code boundaries.
+
+Author visible tile layers in draw order: ground layers first, one top-down
+`Props` object layer for static tile objects, then foreground/canopy layers.
+Phaser renders tile layers and tile objects natively; props sort by their
+bottom edges and actors by their feet. An image-collection tile's
+`occlusion` polyline lets an actor pass behind or in front of that intact prop.
+Use bottom-aligned, unscaled tile objects and zero tileset offsets. Tile-image
+`collision` and `trigger` guides remain gameplay data; `occlusion` guides drive
+actor depth, without splitting artwork or adding pixel masks.
+
+The engine's player position is the visible feet (GAME-02): each frame is drawn
+3 px left and 10 px down from it. The collision footprint is an ellipse centred
+2 px left of the feet with radii 0.1 and 0.05 tile widths, so it does not extend
+below the feet. This same point drives depth sorting, portals, and movement
+checks.

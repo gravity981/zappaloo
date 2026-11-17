@@ -7,6 +7,7 @@ import { PASSWORD_MIN_LENGTH, userSchema } from "@zappaloo/shared";
 import { apiRequest } from "../app/api.ts";
 import { fieldText } from "../app/forms.ts";
 import { useInstall } from "../app/install.ts";
+import { useWorldActive } from "../app/gameEntry.ts";
 import { useSession } from "../app/session.ts";
 
 export default function ProfilePage() {
@@ -17,6 +18,7 @@ export default function ProfilePage() {
   const [verifyMessage, setVerifyMessage] = useState<{ ok: boolean; text: string }>();
   const [deleteMessage, setDeleteMessage] = useState<string>();
   const { available: canInstall } = useInstall();
+  const world = useWorldActive(session.user !== null) === true;
   /** The second step of changing the password and of deleting the account. */
   const [panel, setPanel] = useState<"password" | "delete">();
 
@@ -142,6 +144,16 @@ export default function ProfilePage() {
             </button>
           </form>
         </section>
+
+        {world && (
+          <section className="card" aria-labelledby="avatar-card">
+            <b id="avatar-card">{t("avatar.cardTitle")}</b>
+            <span className="hint">{t("avatar.cardText")}</span>
+            <Link className="btn soft sm" to="/avatar">
+              {t("avatar.cardButton")}
+            </Link>
+          </section>
+        )}
 
         {canInstall && (
           <section className="card" aria-labelledby="app-card">

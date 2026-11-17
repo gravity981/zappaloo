@@ -35,7 +35,10 @@ const BLOCK = 512;
 function octal(field: Buffer): number {
   const text = field.toString("latin1").replace(/\0.*$/s, "").trim();
   if (text === "") return 0;
-  if (!/^[0-7]+$/.test(text)) throw new Error("not an octal number");
+  if (!/^[0-7]+$/.test(text)) {
+    // A broken header is the archive's fault: answered as a damaged archive, not as a server error.
+    throw new TarError("not_tar", "(archive)", "a header field of the archive is not a number");
+  }
   return Number.parseInt(text, 8);
 }
 

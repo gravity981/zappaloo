@@ -75,6 +75,22 @@
           "endsPattern": "UX mocks: http"
         }
       }
+    },
+    {
+      "label": "game preview",
+      "detail": "Standalone validated world preview on port 5175",
+      "type": "npm",
+      "script": "dev:game-preview",
+      "isBackground": true,
+      "presentation": { "panel": "dedicated", "clear": true },
+      "problemMatcher": {
+        "owner": "zappaloo-game-preview",
+        "pattern": { "regexp": "^__never_matches__$" },
+        "background": {
+          "beginsPattern": "VITE v",
+          "endsPattern": "ready in"
+        }
+      }
     }
   ]
 }

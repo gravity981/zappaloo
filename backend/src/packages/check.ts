@@ -21,7 +21,7 @@ export function ruleIdsOf(definition: PackageDefinition<string>): Map<string, st
 
 const RULE_IDS: Record<PackageKind, Map<string, string>> = {
   theme: ruleIdsOf(PACKAGE_DEFINITIONS.theme[1]),
-  world: ruleIdsOf(PACKAGE_DEFINITIONS.world[1]),
+  world: ruleIdsOf(PACKAGE_DEFINITIONS.world[2]),
 };
 
 /** Adds the rule id of each finding (its code in the definition of the package's kind). */

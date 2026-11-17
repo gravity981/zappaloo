@@ -11,11 +11,12 @@
     "ghcr.io/devcontainers/features/github-cli:1": {}
   },
   // Dev servers, reachable from the browser on the host
-  "forwardPorts": [5173, 3000, 8025],
+  "forwardPorts": [5173, 3000, 8025, 5175],
   "portsAttributes": {
     "5173": { "label": "Frontend (Vite dev server)", "onAutoForward": "notify" },
     "3000": { "label": "Backend (Node.js API)", "onAutoForward": "silent" },
     "5174": { "label": "UX mocks (task \"mocks\")", "onAutoForward": "notify" },
+    "5175": { "label": "World preview (game-preview task)", "onAutoForward": "notify" },
     "8025": { "label": "Mailpit (caught emails)", "onAutoForward": "silent" }
   },
   "mounts": [

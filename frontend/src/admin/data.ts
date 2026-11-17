@@ -47,7 +47,7 @@ export function useAdminData<T>(path: string, schema: Parser<T>) {
       cancelled = true;
     };
   }, [path, schema, version]);
-  return { data, failed, reload };
+  return { data, failed, reload, replace: setData };
 }
 
 /** A state-changing call with the session's CSRF token. */

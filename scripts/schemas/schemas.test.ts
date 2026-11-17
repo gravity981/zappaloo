@@ -34,7 +34,7 @@ describe("the JSON Schemas and the documents of the package formats (THM-07, MAP
   });
 
   it("[MAP-17][THM-07] the Markdown documents are build output: one per format version, none committed", () => {
-    expect(Object.keys(generatedDocuments()).sort()).toEqual(["theme-v1.md", "world-v1.md"]);
+    expect(Object.keys(generatedDocuments()).sort()).toEqual(["theme-v1.md", "world-v2.md"]);
     expect(readdirSync(SCHEMA_DIR).filter((name) => name.endsWith(".md"))).toEqual([]);
   });
 
@@ -46,23 +46,23 @@ describe("the JSON Schemas and the documents of the package formats (THM-07, MAP
 
   it("[MAP-17] the test world passes the world schemas", () => {
     const files = testWorldFiles();
-    expect(committed("world-manifest.v1.schema.json").safeParse(json(files["manifest.json"])).success).toBe(true);
-    expect(committed("world-avatar.v1.schema.json").safeParse(json(files["avatar/avatar.json"])).success).toBe(true);
+    expect(committed("world-manifest.v2.schema.json").safeParse(json(files["manifest.json"])).success).toBe(true);
+    expect(committed("world-figures.v2.schema.json").safeParse(json(files["avatar/figures.json"])).success).toBe(true);
     const maps = Object.keys(files).filter((path) => path.startsWith("maps/"));
     expect(maps).toHaveLength(3);
     for (const path of maps) {
-      expect(committed("world-map.v1.schema.json").safeParse(json(files[path])).success, path).toBe(true);
+      expect(committed("world-map.v2.schema.json").safeParse(json(files[path])).success, path).toBe(true);
     }
   });
 
   it("[MAP-17] a schema refuses a manifest with an unknown field, as the validator does", () => {
     const manifest = { ...(json(testWorldFiles()["manifest.json"]) as object), extra: true };
-    expect(committed("world-manifest.v1.schema.json").safeParse(manifest).success).toBe(false);
+    expect(committed("world-manifest.v2.schema.json").safeParse(manifest).success).toBe(false);
   });
 
-  it("[MAP-17] a schema refuses a map that is not orthogonal", () => {
-    const map = { ...(json(testWorldFiles()["maps/kirche.json"]) as object), orientation: "isometric" };
-    expect(committed("world-map.v1.schema.json").safeParse(map).success).toBe(false);
+  it("[MAP-17] a schema refuses a map that is not isometric", () => {
+    const map = { ...(json(testWorldFiles()["maps/kirche.json"]) as object), orientation: "orthogonal" };
+    expect(committed("world-map.v2.schema.json").safeParse(map).success).toBe(false);
   });
 
   it("[MAP-16][THM-03] every layout entry names a schema file that exists", () => {

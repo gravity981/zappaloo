@@ -285,6 +285,10 @@ select.m-input { appearance: auto; }
 .m-sw.on { box-shadow: 0 0 0 2.5px var(--w-ink); }
 .m-templates { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 2px; }
 .m-templates canvas { background: var(--w-fill); border-radius: 10px; border: 1.5px solid var(--w-line); cursor: pointer; flex: none; image-rendering: pixelated; }
+.m-figure { display: flex; flex-direction: column; align-items: center; gap: 4px; background: none; border: 0; padding: 0; cursor: pointer; flex: none; font: inherit; color: inherit; }
+.m-figure canvas { background: var(--w-fill); border-radius: 10px; border: 1.5px solid var(--w-line); image-rendering: pixelated; }
+.m-figure.on canvas { border-color: currentColor; }
+.m-figure small { font-size: 12px; }
 .m-avatar-stage { background: repeating-conic-gradient(#e3e3dc 0 25%, #ecece6 0 50%) 0 0 / 24px 24px; border-radius: 14px; display: grid; place-items: center; padding: 18px; border: 1px solid var(--w-line); }
 .m-avatar-stage canvas { image-rendering: pixelated; }
 .m-person-tabs { display: flex; gap: 8px; }
@@ -579,7 +583,7 @@ function site(tab, body, opts = {}) {
       <div class="m-brand" data-go="home"><b>${EVENT.couple}</b><small>${EVENT.date}</small></div>
       <nav class="m-topnav">${tabsHtml("")}</nav>
       <div class="m-head-r">
-        <button class="m-btn sm" data-go="game">${ic("play")} Erlebniswelt</button>
+        ${opts.hideWorld ? "" : `<button class="m-btn sm" data-go="game">${ic("play")} Erlebniswelt</button>`}
         <button class="m-av" style="width:34px;height:34px" data-go="profile" aria-label="Profil">EH</button>
       </div>
     </header>
@@ -1042,21 +1046,22 @@ add({
         <div class="m-row2"><button class="m-btn ghost sm" data-go="login">Abmelden</button><button class="m-btn danger sm">Konto löschen</button></div>
         <span class="m-hint">Beim Löschen verschwindet dein Login (Benutzername, Passwort, E-Mail, Sitzungen). Deine Rückmeldung mit Begleitpersonen und Allergien bleibt für die Organisation bei den Gastgebern. Wenn du sie auch gelöscht haben willst, schreib ihnen. Nach dem Fest löschen wir alle persönlichen Daten.</span></div>
       </div>
-    </div>`),
+    </div>`, { hideWorld: v === "world-off" }),
 });
 
 /* ===== Game ===== */
 add({
   id: "onboard-avatar", group: "game", title: "First entry 1 · Avatar", path: "/game (first entry)", reqs: ["GAME-13", "AVA-01", "AVA-02", "AVA-03", "PRES-07"],
-  shows: ["Step 1 of the guided first entry. The same editor is reused from the profile.", "Stage 5 (decided 2026-11-14): step 2 «Sag hallo» comes with the profiles in stage 6. Until then «Weiter» leads to the RSVP overlay while the RSVP is open, otherwise into the game, and the progress counts the steps that are shown.", "The parts, colours and templates come from the active world package (avatar/avatar.json, 14.4).", "Tabs per person: the guest and each companion get an avatar.", "Templates, skin, hairstyle, hair colour, clothing and colour, accessory, plus “Zufällig”. All of it is live and clickable here."],
-  qs: [{ q: "Can a guest skip the avatar step?", p: "Mock: no skip, but “Zufällig” makes it one tap. A random default avoids figures without an avatar (PRES-01 needs one)." }],
-  render: () => flow("Willkommen in der Erlebniswelt", 1, 3, `
+  variants: [["start", "Nichts gewählt"], ["chosen", "Alle gewählt"]],
+  shows: ["Step 1 of the guided first entry. The same editor is reused from the profile.", "Stage 5 (decided 2026-11-14): step 2 «Sag hallo» comes with the profiles in stage 6. Until then «Weiter» leads to the RSVP overlay while the RSVP is open, otherwise into the game, and the progress counts the steps that are shown.", "Two choices, one after the other (decided 2026-11-17). First the kind of figure: «Mann», «Frau», «Kind» or «Andere». Only the kinds for which the active world has at least one figure get a button (here «Andere» is missing). The kind of each figure comes from the world package (avatar/figures.json). Choosing a kind picks a random figure of that kind at once.", "Then the figures of that kind are shown as a grid with their labels (a figure without a label shows no name), and the guest can pick another one. «Zufällig» draws again, but only from the figures of the chosen kind (it is off when the kind has one figure only). Choosing another kind picks a new random figure of that kind.", "A walking preview of the chosen figure. Tabs per person: the guest and each companion choose their own kind and figure; a tab with a figure is marked.", "The figures a person may choose depend on the tiers of the figures and the roles of the user (decided 2026-11-17): tier1 for vip, tier2 for staff, tier3 for admin, exact; a user with several roles gets the union; companions always tier1. A kind appears only if the person may choose a figure of it. «Weiter» is off until every person has a figure. There is no skip. Both states are on the State chips; all of it is live and clickable here."],
+  qs: [{ q: "Can a guest skip the avatar step?", p: "No (decided 2026-11-17): «Weiter» waits until every person has a figure. Choosing a kind already picks a figure, so it takes two taps." }, { n: 66, q: "How does the world package say what kind a figure is?", p: "Proposal: a field `type` per figure in avatar/figures.json with the values male, female, child or other. The editor shows a kind only if a figure has it." }, { n: 67, q: "Must a companion get a figure before the guest may continue?", p: "Mock: yes, every tab needs a figure; the tabs show who is still missing." }, { n: 68, q: "What if a person has a figure that they may no longer choose (their role was revoked)?", p: "Proposal: it falls back to the first figure they may choose, like a figure that the world no longer has (AVA-02)." }],
+  render: (v) => flow("Willkommen in der Erlebniswelt", 1, 3, `
     <h1 class="m-h1">Wie siehst du aus?</h1>
-    <div class="m-person-tabs" data-single data-avperson>${["Du", "Mia"].map((n, i) => `<button class="m-chip ${i === 0 ? "on" : ""}">${n}</button>`).join("")}</div>
-    <div class="m-grid-d2">
-      <div class="m-stack"><div class="m-avatar-stage"><canvas data-avatar="edit" data-p="14"></canvas></div><button class="m-btn soft sm" data-avrandom style="align-self:center">Zufällig</button></div>
+    <div class="m-person-tabs" data-single data-avperson>${[["me", "Du"], ["mia", "Mia"]].map(([k, n], i) => `<button type="button" class="m-chip ${i === 0 ? "on" : ""}" data-who="${k}">${n}<span class="m-av-done" data-done="${k}" hidden> ✓</span></button>`).join("")}</div>
+    <div class="m-grid-d2" data-avstate="${v || "start"}">
+      <div class="m-stack"><div class="m-avatar-stage"><canvas data-avatar="edit" data-p="14"></canvas><span class="m-hint" data-avempty>Wähle zuerst die Art der Figur.</span></div><button type="button" class="m-btn soft sm" data-avrandom style="align-self:center">Zufällig</button></div>
       <div class="m-stack" data-aveditor></div>
-    </div>`, `<button class="m-btn" data-go="onboard-profile">Weiter</button>`, "game"),
+    </div>`, `<button class="m-btn" data-avnext data-go="onboard-profile" disabled>Weiter</button>`, "game"),
 });
 add({
   id: "onboard-profile", group: "game", title: "First entry 2 · Say hello", path: "/game (first entry)", reqs: ["GAME-13", "PRES-09", "PRES-13", "PRES-15"],
@@ -1076,7 +1081,7 @@ add({
 add({
   id: "game", group: "game", title: "Game world", path: "/game", reqs: ["GAME-02", "GAME-05", "GAME-06", "GAME-09", "GAME-10", "GAME-12", "GAME-14", "GAME-15", "GAME-16", "GAME-17", "GAME-18", "PRES-01", "PRES-02", "PRES-10"],
   variants: [["rsvp", "RSVP open (badge)"], ["done", "RSVP answered"]],
-  shows: ["Live demo: tap/click to walk (arrow keys on desktop). Walk near a guest and their speech bubble opens. Click it to pin.", "Bar at the top: Programm, Rückmeldung (badge while open), Hochladen, Website (leaves the game). No buttons at the bottom, no event-day banner. Stage 5 builds the bar without «Hochladen», which comes with the upload in stage 7 (decided 2026-11-14).", "Clickable objects sparkle now and then at random. Tap one: the avatar walks there, stops in front of it, and its action runs. Each map's objects come from its Tiled file. The admin assigns their actions (see Admin › Erlebniswelt).", "Example assignments: Kirche → Programm · Linde → Wo sitze ich? · Post → Rückmeldung · Fotobox → Hochladen · Torte → Minispiel Tortenturm · own figure → Profil.", "Portal: the wobbling arrow “Dinner” leads to another scene (here it fades and restarts).", "Desktop: walk up to an object and press Enter (or Space).", "Hint “Tippe auf Dinge, die funkeln” at the first entry.", "Wander area outlined for the review only, not in the real game."],
+  shows: ["Live demo: tap/click to walk (arrow keys on desktop). Walk near a guest and their speech bubble opens. Click it to pin.", "Bar at the top: Programm, Rückmeldung (badge while open), Hochladen, Website (leaves the game). No buttons at the bottom, no event-day banner. Stage 5 builds the bar without «Hochladen», which comes with the upload in stage 7 (decided 2026-11-14).", "Clickable objects sparkle now and then at random. Tap one: the avatar walks there, stops in front of it, and its action runs. Each map's objects come from its Tiled file. The admin assigns their actions (see Admin › Erlebniswelt).", "Example assignments: Kirche → Programm · Linde → Wo sitze ich? · Post → Rückmeldung · Fotobox → Hochladen · Torte → Minispiel Tortenturm · own figure → Profil.", "Portal: the floating arrow “Dinner” leads to another scene (here it fades and restarts).", "Desktop: walk up to an object and press Enter (or Space).", "Hint “Tippe auf Dinge, die funkeln” at the first entry.", "Wander area outlined for the review only, not in the real game."],
   qs: [
     { q: "Does “Website” leave the game (full website), or open the website as an overlay too?", p: "Mock: leaves the game. The website header has “Erlebniswelt” to come back. Programm, Rückmeldung and Hochladen open as overlays." },
     { q: "Where do profile and table finder live in the game, since the bar has only four buttons?", p: "Mock: two small round buttons bottom-left (Profil, Wo sitze ich?)." },
@@ -1124,8 +1129,8 @@ function seatingBody(compact) {
 }
 add({
   id: "home", group: "web", title: "Start page", path: "/home", reqs: ["WEB-01", "WEB-02", "WEB-04", "WEB-07", "WEB-10", "WEB-11", "THM-06", "GAME-12"],
-  variants: [["before", "Before the event"], ["eventday", "Event day"]],
-  shows: ["Bottom tab bar on phones (Start · Programm · Hochladen · Erinnerungen · Mehr). A top nav on desktop.", "“Erlebniswelt” always in the header.", "Fixed layout (decided 2026-11-13). The hosts edit the hero image, the welcome text and the countdown switch in Inhalte, not the arrangement.", "Before the event day: the hero image (optional, full width, uncropped; without it the text moves up), the welcome text, “Erlebniswelt betreten” (stage 5), then the countdown card, the RSVP card and the shortcuts (“Programm” and the first three pages visible in “Mehr”).", "Countdown: calendar days to the day of the first program item, with its date and place. “Noch 1 Tag” the day before, gone on the event day and without program items. The number uses the theme's display font, or the heading font without one. Calm, not pixel style.", "Event day (from the start of the day of the first program item): now/next on top, then the cards of the features that exist (seat stage 6, upload stage 7, quiz stage 8), then the shortcuts. No hero image, welcome text, countdown or RSVP card."],
+  variants: [["before", "Before the event"], ["eventday", "Event day"], ["world-off", "Erlebniswelt disabled"]],
+  shows: ["Bottom tab bar on phones (Start · Programm · Hochladen · Erinnerungen · Mehr). A top nav on desktop.", "“Erlebniswelt” appears in guest navigation only while guest access is enabled.", "Fixed layout (decided 2026-11-13). The hosts edit the hero image, the welcome text and the countdown switch in Inhalte, not the arrangement.", "Before the event day: the hero image (optional, full width, uncropped; without it the text moves up), the welcome text, “Erlebniswelt betreten” only while guest access is enabled, then the countdown card, the RSVP card and the shortcuts (“Programm” and the first three pages visible in “Mehr”).", "With guest access disabled, guest navigation has no Erlebniswelt entry and direct guest navigation is blocked.", "Countdown: calendar days to the day of the first program item, with its date and place. “Noch 1 Tag” the day before, gone on the event day and without program items. The number uses the theme's display font, or the heading font without one. Calm, not pixel style.", "Event day (from the start of the day of the first program item): now/next on top, then the cards of the features that exist (seat stage 6, upload stage 7, quiz stage 8), then the shortcuts. No hero image, welcome text, countdown or RSVP card."],
   qs: [
     { q: "Are these the right five tabs? “Erinnerungen” groups the gallery and the keepsake page.", p: "Mock: as shown. Info pages (Anreise, FAQ, …) live under “Mehr”." },
     { q: "What content does the home page carry? Is it editable Markdown, structured blocks, or both?", p: "Decided 2026-11-13: a fixed layout. The hosts edit the hero image, the welcome text (Markdown) and the countdown switch. The cards are fixed (sw-architecture.md 5.6)." },
@@ -1141,7 +1146,7 @@ add({
     <div class="m-grid-d2">
       <div class="m-stack">${ph("Titelbild (optional) · im Editor gewählt, ungeschnitten", "16/9")}
         <div class="m-md"><h1>Wir heiraten!</h1><p>Wir freuen uns riesig, diesen Tag mit euch zu feiern. Hier findet ihr alles, was ihr wissen müsst – und hinter dem Knopf «Erlebniswelt» wartet eine kleine Überraschung.</p></div>
-        <button class="m-btn" data-go="game" style="align-self:flex-start">${ic("play")} Erlebniswelt betreten</button></div>
+        ${v === "world-off" ? "" : `<button class="m-btn" data-go="game" style="align-self:flex-start">${ic("play")} Erlebniswelt betreten</button>`}</div>
       <div class="m-stack">
         <div class="m-card strong"><span class="m-eyebrow">Noch</span><b style="font:600 30px/1.1 var(--f-display)">214 Tage</b><span class="m-muted sm">${EVENT.date} · Kirche Muri</span></div>
         <div class="m-card"><div class="m-row2"><b>Deine Rückmeldung</b><span class="m-tag ok">Dabei</span></div><span class="m-muted sm">Trauung, Apéro, Dinner · Mia beantragt</span><a class="sm" data-go="rsvp-done">Ansehen oder ändern</a></div>
@@ -1421,13 +1426,13 @@ add({
   },
 });
 add({
-  id: "admin-world", group: "admin", title: "Game world: import & objects", path: "/admin/world", reqs: ["MAP-05", "MAP-06", "MAP-08", "MAP-09", "MAP-14", "MAP-15", "MAP-16", "GAME-05", "GAME-06", "CNT-02", "CNT-03"],
-  variants: [["objects", "Objekte & Portale"], ["dialogs", "Dialoge"], ["dialog", "Dialog bearbeiten"], ["import", "Welt & Import"], ["refused", "Paket abgelehnt"], ["confirm", "Zurückrollen (zweiter Klick)"], ["empty", "Noch keine Welt"]],
-  shows: ["Tab «Welt & Import» (decided 2026-11-14, stage 5, replaces the import of single maps): the active world with its name, format, import time and start map. «Welt importieren» takes a whole world package (.tar.gz, 14.4); a new package replaces the whole world. A refused package lists every finding (in English, as the server gives them) and the active world stays as it was. Warnings do not refuse the package; they stay listed with the active world.", "Maps of the active world, one row each, with their id and the numbers of clickable objects and portals; the start map is marked ★. Maps are not linked to program items (decided 2026-11-14, Q65).", "«Zurückrollen» goes back to the previous world after a second click; it shows which world and when it was imported. Without a previous world the button is missing.", "Without a world (variant): the card says that guests land on the website until a world is imported. «Vorlagenwelt importieren» imports the template world shipped with the platform (MAP-14), also later as a replacement, after a second click.", "Tab «Objekte & Portale»: one tab per map. Clickable objects by their Tiled name and label; per object the admin picks the action: page as overlay, content page, dialogue, minigame (from stage 8) or none. A preset from the Tiled file is shown and used until changed. A preset that points to something missing is marked. Changes are live at once, without a new import.", "Portals of the map with their target map and spawn point, read-only (set in Tiled). A portal with a missing target cannot be imported (MAP-08), so none is shown here.", "Tab «Dialoge» (decided 2026-11-14, Q63): dialogues belong to the game world and are edited here, not in Inhalte. A dialogue has an id (its contentId in Tiled and in the object actions), the NPC's name and one or more lines in Markdown that the guest taps through. The preview shows the dialogue box as in the game. «Verwendet von» lists the objects whose action shows it. A dialogue in use cannot be deleted; the message names the objects. The id can be changed (Q64).", "Only admins see «Erlebniswelt» (decided 2026-11-14)."],
+  id: "admin-world", group: "admin", title: "Game world: import & objects", path: "/admin/world", reqs: ["MAP-05", "MAP-06", "MAP-08", "MAP-09", "MAP-15", "MAP-16", "MAP-19", "GAME-05", "GAME-06", "CNT-02", "CNT-03"],
+  variants: [["objects", "Objekte & Portale"], ["dialogs", "Dialoge"], ["dialog", "Dialog bearbeiten"], ["import", "Welt & Import"], ["refused", "Paket abgelehnt"], ["confirm", "Zurückrollen (zweiter Klick)"], ["access-off", "Gästezugang aus"], ["empty", "Noch keine Welt"]],
+  shows: ["Tab «Welt & Import»: the active world with its name, format, import time and start map. «Welt importieren» takes a whole world package (.tar.gz, 14.4); a new package replaces the whole world. A refused package lists every finding (in English, as the server gives them) and the active world stays as it was. Warnings do not refuse the package; they stay listed with the active world.", "Maps of the active world, one row each, with their id and the numbers of clickable objects and portals; the start map is marked ★. Maps are not linked to program items (decided 2026-11-14, Q65).", "«Zurückrollen» goes back to the previous world after a second click; it shows which world and when it was imported. Without a previous world the button is missing.", "The guest-access switch is on after the first successful world import. Turning it off hides guest entry points and blocks direct guest navigation and world-serving routes. The active package and admin management remain available. No template world is shipped.", "Tab «Objekte & Portale»: one tab per map. Clickable objects by their Tiled name and label; per object the admin picks the action: page as overlay (including every content page), dialogue, minigame (from stage 8) or none. A preset from the Tiled file is shown and used until changed. A preset that points to something missing is marked. Changes are live at once, without a new import.", "Portals of the map with their target map and spawn point, read-only (set in Tiled). A portal with a missing target cannot be imported (MAP-08), so none is shown here.", "Tab «Dialoge» (decided 2026-11-14, Q63): dialogues belong to the game world and are edited here, not in Inhalte. A dialogue has an id (its contentId in Tiled and in the object actions), the NPC's name and one or more lines in Markdown that the guest taps through. The preview shows the dialogue box as in the game. «Verwendet von» lists the objects whose action shows it. A dialogue in use cannot be deleted; the message names the objects. The id can be changed (Q64).", "Only admins see «Erlebniswelt» for management."],
   qs: [{ n: 63, q: "Where are dialogues edited, and can one be deleted while a game object shows it?", p: "Proposal: in Inhalte; no, like a place in use: the message names the objects (assignments in Erlebniswelt). A preset in a Tiled file that points to a missing dialogue is only a warning (MAP-08)." }, { n: 64, q: "Can the id of a dialogue be changed?", p: "Proposal: yes, with the hint that presets in Tiled files that name the old id then point to nothing; the assignments in Erlebniswelt follow the dialogue." }, { n: 65, q: "Do the program-item links sit with the maps in «Welt & Import» or in the tab of each map?", p: "Mock: in «Welt & Import», one row per map, so all links are seen at once." }],
   render: (v) => {
     const scenes = ["Kirche & Garten ★", "Landgasthof Linde", "Party-Saal"];
-    const acts = ["Seite: Programm", "Seite: Rückmeldung", "Seite: Profil", "Seite: Hochladen", "Seite: Wo sitze ich?", "Seite: Anreise & Parkieren", "Inhalt: Geschichte der Kirche", "Dialog: Pfarrer", "Minispiel: Tortenturm", "– keine –"];
+    const acts = ["Seite: Programm", "Seite: Rückmeldung", "Seite: Profil", "Seite: Hochladen", "Seite: Wo sitze ich?", "Seite: Anreise & Parkieren", "Seite: Geschichte der Kirche", "Dialog: Pfarrer", "Minispiel: Tortenturm", "– keine –"];
     const sel = (on, id) => `<select class="m-input" id="${id}" style="min-height:36px;width:auto;max-width:100%">${acts.map((a) => `<option ${a === on ? "selected" : ""}>${a}</option>`).join("")}</select>`;
     const tabs = (on) => `<div class="m-subtabs">${[["objects", "Objekte & Portale"], ["dialogs", "Dialoge"], ["import", "Welt & Import"]].map(([k, l]) => `<button ${on === k ? 'class="on"' : `data-go="admin-world" data-variant="${k}"`}>${l}</button>`).join("")}</div>`;
     const head = (on) => `<div class="m-sethead"><h1 class="m-h1 grow">Erlebniswelt</h1></div>${tabs(on)}`;
@@ -1447,16 +1452,18 @@ add({
       if (v === "empty") return admin("admin-world", `${head}
         <div class="m-card"><div class="m-row2"><b class="m-h2" style="flex:1">Welt</b><span class="m-tag line">Keine Welt</span></div>
           <span class="m-muted sm">Es ist noch keine Erlebniswelt importiert. Bis dahin landen Gäste nach der Anmeldung auf der Website, und die Warteseite zeigt die eingebaute Tür.</span>
-          <div class="m-row2"><button class="m-btn soft sm">Welt importieren</button><button class="m-btn ghost sm">Vorlagenwelt importieren</button></div>
-          <span class="m-hint">Ein Weltpaket (.tar.gz) mit Karten, Tilesets, Avatar-Teilen und optional der Tür der Warteseite. Es wird nur als Ganzes importiert.</span></div>`);
+          <div class="m-row2"><button class="m-btn soft sm">Welt importieren</button></div>
+          <span class="m-hint">Ein Weltpaket (.tar.gz, Format 2) mit isometrischen Karten, Tilesets, Figuren und optional der Tür der Warteseite. Es wird nur als Ganzes importiert.</span></div>`);
       const rows = [["kirche", "Kirche & Garten", true, 6, 2], ["linde", "Landgasthof Linde", false, 4, 1], ["party", "Party-Saal", false, 3, 1]];
       const buttons = v === "confirm"
         ? `<span class="m-hint">Zurück zu «Sommerfest» vom 10.11.2026, 21:40? Die aktuelle Welt wird dann zur vorherigen.</span><div class="m-row2"><button class="m-btn soft sm">Ja, zurückrollen</button><button class="m-btn ghost sm">Abbrechen</button></div>`
-        : `<div class="m-row2"><button class="m-btn soft sm">Welt importieren</button><button class="m-btn ghost sm" data-go="admin-world" data-variant="confirm">Zurückrollen</button><button class="m-btn ghost sm">Vorlagenwelt importieren</button></div>`;
-      const refused = v !== "refused" ? "" : `<div class="m-card flat"><b class="sm">Das Paket wurde abgelehnt</b><span class="m-hint">Die aktive Welt bleibt unverändert. Alle Befunde:</span><ul class="m-list sm"><li>maps/linde.json: Tileset nicht eingebettet (external tileset «innen.tsx»; embed it in Tiled)</li><li>maps/linde.json › zum-garten: Ziel fehlt (spawn «tor» not found in map «kirche»)</li><li>avatar/hair-long.png: falsche Grösse (60 × 96 instead of 64 × 96)</li></ul></div>`;
+        : `<div class="m-row2"><button class="m-btn soft sm">Welt importieren</button><button class="m-btn ghost sm" data-go="admin-world" data-variant="confirm">Zurückrollen</button></div>`;
+      const refused = v !== "refused" ? "" : `<div class="m-card flat"><b class="sm">Das Paket wurde abgelehnt</b><span class="m-hint">Die aktive Welt bleibt unverändert. Alle Befunde:</span><ul class="m-list sm"><li>maps/linde.json: Tileset nicht eingebettet (external tileset «innen.tsx»; embed it in Tiled)</li><li>maps/linde.json › zum-garten: Ziel fehlt (spawn «tor» not found in map «kirche»)</li><li>avatar/wedding-guest/Idle/rotations/south.png: falsches Format (32 × 32 instead of 48 × 48)</li></ul></div>`;
+      const accessOn = v !== "access-off";
       return admin("admin-world", `${head}
         <div class="m-card"><div class="m-row2"><b class="m-h2" style="flex:1">Welt</b><span class="m-tag ok">Aktiv: Sommerfest</span></div>
-          <span class="m-muted sm">Format 1 · importiert am 14.11.2026 um 18:04 · Startkarte: Kirche & Garten. Vorherige Welt: «Sommerfest» vom 10.11.2026, 21:40.</span>
+          <span class="m-muted sm">Format 2 · Kachel 64 × 32 Pixel · 4 Figuren · importiert am 14.11.2026 um 18:04 · Startkarte: Kirche & Garten. Vorherige Welt: «Sommerfest» vom 10.11.2026, 21:40.</span>
+          <div class="m-setrow"><div class="grow"><b class="sm">Gästezugang zur Erlebniswelt</b><span class="m-hint">${accessOn ? "Gäste können die Erlebniswelt betreten." : "Gäste können die Erlebniswelt nicht öffnen; die aktive Welt bleibt erhalten."}</span></div>${sw(accessOn)}</div>
           ${buttons}</div>
         ${refused}
         <div class="m-card" style="padding:4px 8px"><div class="m-row2" style="padding:10px 8px 0"><b style="flex:1">Karten (${rows.length})</b><span class="m-hint">★ Startkarte</span></div><div class="m-scroll"><table class="m-table"><thead><tr><th>Karte</th><th>Objekte</th><th>Portale</th></tr></thead><tbody>
@@ -1464,13 +1471,13 @@ add({
         </tbody></table></div></div>
         <div class="m-card flat sm"><b>1 Warnung</b>maps/kirche.json › infotafel: Vorgabe zeigt auf die Seite «p/geschichte», die es nicht gibt. Die Vorgabe wirkt erst, wenn die Seite existiert, oder wird in «Objekte & Portale» geändert.</div>`);
     }
-    const rows = [["kirche", "Kirche", "Seite: Programm", "Seite: Programm"], ["linde", "Landgasthof Linde", "Seite: Anreise & Parkieren", ""], ["post", "Briefkasten", "Seite: Rückmeldung", "Seite: Rückmeldung"], ["pfarrer", "Pfarrer (NPC)", "Dialog: Pfarrer", "Dialog: Pfarrer"], ["glocke", "Glocke (Easter Egg)", "Inhalt: Geschichte der Kirche", ""], ["infotafel", "Infotafel", "– keine –", "Seite: p/geschichte"]];
+    const rows = [["kirche", "Kirche", "Seite: Programm", "Seite: Programm"], ["linde", "Landgasthof Linde", "Seite: Anreise & Parkieren", ""], ["post", "Briefkasten", "Seite: Rückmeldung", "Seite: Rückmeldung"], ["pfarrer", "Pfarrer (NPC)", "Dialog: Pfarrer", "Dialog: Pfarrer"], ["glocke", "Glocke (Easter Egg)", "Seite: Geschichte der Kirche", ""], ["infotafel", "Infotafel", "– keine –", "Seite: p/geschichte"]];
     return admin("admin-world", `<div class="m-sethead"><h1 class="m-h1 grow">Erlebniswelt</h1></div>${tabs("objects")}
       ${chips(scenes, [0])}
       <div class="m-card" style="padding:4px 8px"><div class="m-row2" style="padding:10px 8px 0"><b class="grow" style="flex:1">Anklickbare Objekte (${rows.length})</b><span class="m-hint">aus der Tiled-Datei · Änderungen sind sofort live</span></div><div class="m-scroll"><table class="m-table"><thead><tr><th>Objekt</th><th>Aktion</th><th>Vorgabe aus Tiled</th></tr></thead><tbody>
       ${rows.map(([id, l, a, preset]) => `<tr><td><b>${l}</b><br><span class="m-hint">${id}</span></td><td>${sel(a, "aw-" + id)}</td><td class="m-muted sm">${preset === "Seite: p/geschichte" ? `${preset} <span class="m-tag warn">fehlt</span>` : preset || "–"}</td></tr>`).join("")}
       </tbody></table></div></div>
-      <div class="m-card"><b>Portale (2)</b><div class="m-list">${[["zum-dinner", "→ Landgasthof Linde · Spawn «eingang»"], ["zur-party", "→ Party-Saal · Spawn «treppe»"]].map(([n, t]) => `<div class="m-li"><div class="grow"><b>${n}</b><span class="m-hint">${t}</span></div><span class="m-tag">in Tiled</span></div>`).join("")}</div><span class="m-hint">Portale verbinden Karten. Ziel und Spawnpunkt kommen aus der Tiled-Datei. Im Spiel erscheinen sie als wackelnde Pfeile.</span></div>`);
+      <div class="m-card"><b>Portale (2)</b><div class="m-list">${[["zum-dinner", "→ Landgasthof Linde · Spawn «eingang»"], ["zur-party", "→ Party-Saal · Spawn «treppe»"]].map(([n, t]) => `<div class="m-li"><div class="grow"><b>${n}</b><span class="m-hint">${t}</span></div><span class="m-tag">in Tiled</span></div>`).join("")}</div><span class="m-hint">Portale verbinden Karten. Ziel und Spawnpunkt kommen aus der Tiled-Datei. Im Spiel erscheinen sie als schwebende Pfeile.</span></div>`);
   },
 });
 add({
@@ -1604,7 +1611,7 @@ const DECIDED = {
   14: "No switch: the figure is always shown.",
   15: "No skip.",
   16: "Website leaves the game.",
-  17: "No buttons at the bottom (the bar at the top stays). Information also opens when the player clicks an object in the world: the avatar walks to it, stops in front of it, and the overlay opens (church → programme, restaurant → table finder). Clickable objects sparkle now and then at random (no wobble, wobbling arrows mark portals).",
+  17: "No buttons at the bottom (the bar at the top stays). Information also opens when the player clicks an object in the world: the avatar walks to it, stops in front of it, and the overlay opens (church → programme, restaurant → table finder). Clickable objects sparkle now and then at random (no wobble, floating arrows mark portals).",
   18: "Yes, links stay in the overlay.",
   19: "Yes, these five tabs.",
   20: "Fixed layout (changed 2026-11-13). The hosts edit the hero image, the welcome text and the countdown switch in Inhalte. The cards are fixed: countdown, RSVP and shortcuts before the event day, now/next, feature cards and shortcuts on the event day (sw-architecture.md 5.6).",
@@ -1627,7 +1634,7 @@ const DECIDED = {
   37: "Not as a fixed column (takes too much space): an overlay in the bottom-right corner from time to time.",
   38: "The mock style is fine. For the website the theme means colours and fonts. The pixel style of the game UI is decided later.",
   39: "Calm website. Pixel accents only in game-related places.",
-  40: "Clickable objects come from the event's Tiled world files (several scenes, connected by portals shown as wobbling arrows). A defined interface describes clickable objects and portals. In an admin view each scene lists its clickable objects, and the admin assigns each one to an overlay or a minigame.",
+  40: "Clickable objects come from the event's Tiled world files (several scenes, connected by portals shown as floating arrows). A defined interface describes clickable objects and portals. In an admin view each scene lists its clickable objects, and the admin assigns each one to an overlay or a minigame.",
   41: "Keep the bar at the top (Programm, Rückmeldung, Hochladen, Website — one click back to the website). Only the bottom buttons go. No event-day “now / next” in the game world.",
   42: "Each map has its own clickable objects, assigned individually (see Q40).",
   43: "The sparkle plus a hint at the first entry.",
@@ -1650,6 +1657,9 @@ const DECIDED = {
   63: "In Erlebniswelt, tab «Dialoge», because dialogues belong to the game world; only admins. A dialogue in use cannot be deleted (decided 2026-11-14).",
   64: "Yes, as proposed (decided 2026-11-14).",
   65: "Neither: maps are not linked to program items. The game world and the schedule are different things. Each guest's figure walks on one map picked at random; WEB-08 «Hingehen» is withdrawn (decided 2026-11-14).",
+  66: "As proposed, plus a mandatory tier per figure (decided 2026-11-17): the field `type` is required (male, female, child or other: «other» is a kind of its own, not a default), and so is `tier` (tier1 vip, tier2 staff, tier3 admin, exact). A package without kinds or tiers is refused.",
+  67: "Yes.",
+  68: "As proposed (decided 2026-11-17): it falls back to the first figure the person may choose, like a figure that the world no longer has.",
 };
 const GLOBAL_QS = [
   { q: "Visual theme: when do we decide the look (colours, fonts, pixel style of the UI)?", p: "These mocks are deliberately neutral. theme.json fields are specified in stage 4." },
@@ -1841,7 +1851,7 @@ function mountGame(root, isDesktop) {
     ctx.fillRect(x - 1, y - r, 2, r * 2); ctx.fillRect(x - r, y - 1, r * 2, 2);
     ctx.fillStyle = `rgba(255,255,255,${a})`; ctx.fillRect(x - 1, y - 1, 2, 2);
   }
-  // shine: clickable objects sparkle for a moment at random intervals; portals wobble all the time
+  // shine: clickable objects sparkle for a moment at random intervals; portals float up and down all the time
   function shineOf(o, t) {
     if (paused || o.portal) return 0;
     if (t > o.next) { o.until = t + 900; o.next = t + 3500 + Math.random() * 5000; o.sp = [0, 1, 2].map(() => [Math.random(), Math.random()]); }
@@ -2077,44 +2087,60 @@ function mountDoor(root) {
   }
 }
 
-/* ---------- avatar editor ---------- */
+/* ---------- avatar editor: figures (7.3, decided 2026-11-15, kinds decided 2026-11-17) ---------- */
+// The figures of the active world package (avatar/figures.json). The mock draws each figure with the
+// procedural art of the earlier mock; the labels are examples. A figure without a label shows no name. The
+// kind (male, female, child, other) comes from the package; the editor offers only kinds that have a figure,
+// so «Andere» is missing in this example world.
+const FIGURE_KINDS = [["male", "Mann"], ["female", "Frau"], ["child", "Kind"], ["other", "Andere"]];
+const FIGURES = [
+  { id: "wedding-guest", label: "Gast", type: "female", cfg: { skin: 1, hair: 2, style: 1, clothes: 1, top: 2, acc: 3 } },
+  { id: "male-guest", type: "male", cfg: { skin: 2, hair: 0, style: 0, clothes: 0, top: 0, acc: 2 } },
+  { id: "guest-3", label: "Tante", type: "female", cfg: { skin: 0, hair: 4, style: 2, clothes: 1, top: 4, acc: 3 } },
+  { id: "guest-4", type: "male", cfg: { skin: 3, hair: 1, style: 3, clothes: 0, top: 3, acc: 1 } },
+  { id: "guest-5", label: "Kind", type: "child", cfg: { skin: 2, hair: 3, style: 1, clothes: 1, top: 1, acc: 0 } },
+];
 function mountAvatars(root) {
-  root.querySelectorAll("canvas[data-avatar]").forEach((cv) => { if (cv.dataset.avatar !== "edit") paintAvatar(cv, AV.me, +cv.dataset.p); });
+  root.querySelectorAll("canvas[data-avatar]").forEach((cv) => { if (cv.dataset.avatar !== "edit") paintAvatar(cv, FIGURES[0].cfg, +cv.dataset.p); });
   const ed = root.querySelector("[data-aveditor]");
   if (!ed) return;
   let who = "me";
+  // Per person: the kind and the figure (an index of FIGURES); both stay empty until the guest chooses a kind.
+  const state = { me: { type: null, fig: null }, mia: { type: null, fig: null } };
+  if (root.querySelector("[data-avstate]").dataset.avstate === "chosen") { state.me = { type: "female", fig: 0 }; state.mia = { type: "child", fig: 4 }; }
   const prev = root.querySelector('canvas[data-avatar="edit"]');
-  const rows = [
-    ["Vorlagen", "tpl"], ["Hautfarbe", "skin", SKIN], ["Frisur", "style", STYLES], ["Haarfarbe", "hair", HAIRC], ["Kleidung", "clothes", CLOTHES], ["Farbe", "top", TOPC], ["Accessoire", "acc", ACCS],
-  ];
-  const TPL = [
-    { skin: 0, hair: 1, style: 0, clothes: 2, top: 6, acc: 0 }, { skin: 2, hair: 0, style: 1, clothes: 1, top: 1, acc: 3 },
-    { skin: 3, hair: 0, style: 2, clothes: 0, top: 2, acc: 2 }, { skin: 1, hair: 5, style: 3, clothes: 0, top: 3, acc: 1 },
-  ];
+  const empty = root.querySelector("[data-avempty]"), random = root.querySelector("[data-avrandom]"), next = root.querySelector("[data-avnext]");
+  const kinds = FIGURE_KINDS.filter(([k]) => FIGURES.some((g) => g.type === k));
+  const pool = (type) => FIGURES.map((g, i) => [g, i]).filter(([g]) => g.type === type).map(([, i]) => i);
+  // Draws a figure of the kind at random, another one than the current figure when the kind has more.
+  const draw = (type, current) => { const p = pool(type).filter((i) => i !== current); return p.length ? p[rint(p.length)] : current; };
   function paint() {
-    const c = AV[who === "me" ? "me" : "mia"];
-    paintAvatar(prev, c, +prev.dataset.p);
-    ed.innerHTML = rows.map(([label, key, opts]) => {
-      if (key === "tpl") return `<div class="m-field"><span>${label}</span><div class="m-templates">${TPL.map((_, i) => `<canvas data-tpl="${i}" width="50" height="70"></canvas>`).join("")}</div></div>`;
-      const isColor = opts[0].startsWith("#");
-      return `<div class="m-field"><span>${label}</span>${isColor
-        ? `<div class="m-swatches">${opts.map((o, i) => `<button type="button" class="m-sw ${c[key] === i ? "on" : ""}" style="background:${o}" data-k="${key}" data-v="${i}" aria-label="${label} ${i + 1}"></button>`).join("")}</div>`
-        : `<div class="m-chips">${opts.map((o, i) => `<button type="button" class="m-chip ${c[key] === i ? "on" : ""}" data-k="${key}" data-v="${i}">${o}</button>`).join("")}</div>`}</div>`;
-    }).join("");
-    ed.querySelectorAll("canvas[data-tpl]").forEach((t) => paintAvatar(t, TPL[+t.dataset.tpl], 5));
+    const st = state[who];
+    const picked = st.fig !== null;
+    prev.style.visibility = picked ? "visible" : "hidden";
+    empty.hidden = picked;
+    clearInterval(prev._walk);
+    if (picked) {
+      paintAvatar(prev, FIGURES[st.fig].cfg, +prev.dataset.p);
+      // The walking preview: the figure bobs between two frames, as it walks in the game.
+      prev._walk = setInterval(() => { prev.style.transform = prev.style.transform ? "" : "translateY(-3px)"; }, 300);
+    }
+    random.disabled = !picked || pool(st.type).length < 2;
+    ed.innerHTML = `<div class="m-field"><span>Art der Figur</span><div class="m-chips" data-single>${kinds.map(([k, n]) => `<button type="button" class="m-chip ${st.type === k ? "on" : ""}" data-kind="${k}">${n}</button>`).join("")}</div></div>
+      ${picked ? `<div class="m-field"><span>Figur</span><div class="m-templates">${pool(st.type).map((i) => `<button type="button" class="m-figure ${st.fig === i ? "on" : ""}" data-fig="${i}" aria-label="${FIGURES[i].label || "ohne Name"}"><canvas data-fcv="${i}" width="50" height="70"></canvas><small>${FIGURES[i].label || "–"}</small></button>`).join("")}</div></div>` : ""}
+      <span class="m-hint">${picked ? "Figuren sind fertige Pixelfiguren aus der aktiven Welt. «Zufällig» wählt nur unter den Figuren dieser Art." : "Danach wird gleich eine Figur dieser Art für dich ausgewählt."}</span>`;
+    ed.querySelectorAll("canvas[data-fcv]").forEach((c) => paintAvatar(c, FIGURES[+c.dataset.fcv].cfg, 5));
+    for (const k of ["me", "mia"]) root.querySelector(`[data-done="${k}"]`).hidden = state[k].fig === null;
+    // «Weiter» waits until every person has a figure.
+    next.disabled = state.me.fig === null || state.mia.fig === null;
   }
   ed.addEventListener("click", (e) => {
-    const c = AV[who === "me" ? "me" : "mia"];
-    const b = e.target.closest("[data-k]");
-    if (b) { c[b.dataset.k] = +b.dataset.v; paint(); return; }
-    const t = e.target.closest("[data-tpl]");
-    if (t) { Object.assign(c, TPL[+t.dataset.tpl]); paint(); }
+    const kind = e.target.closest("[data-kind]");
+    if (kind) { const st = state[who]; if (st.type !== kind.dataset.kind) { st.type = kind.dataset.kind; st.fig = draw(st.type, null); } paint(); return; }
+    const b = e.target.closest("[data-fig]"); if (!b) return; state[who].fig = +b.dataset.fig; paint();
   });
-  root.querySelector("[data-avrandom]").addEventListener("click", () => {
-    const c = AV[who === "me" ? "me" : "mia"];
-    c.skin = rint(SKIN.length); c.hair = rint(HAIRC.length); c.style = rint(STYLES.length); c.clothes = rint(CLOTHES.length); c.top = rint(TOPC.length); c.acc = rint(ACCS.length); paint();
-  });
-  root.querySelector("[data-avperson]").addEventListener("click", (e) => { const b = e.target.closest("button"); if (!b) return; who = b.textContent === "Du" ? "me" : "mia"; setTimeout(paint, 0); });
+  random.addEventListener("click", () => { const st = state[who]; if (st.type === null) return; st.fig = draw(st.type, st.fig); paint(); });
+  root.querySelector("[data-avperson]").addEventListener("click", (e) => { const b = e.target.closest("[data-who]"); if (!b) return; who = b.dataset.who; setTimeout(paint, 0); });
   paint();
 }
 const rint = (n) => Math.floor(Math.random() * n);

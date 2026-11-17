@@ -148,6 +148,27 @@
       "when": 1794676055884,
       "tag": "0020_world_packages",
       "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "6",
+      "when": 1794779948103,
+      "tag": "0021_world_format_2",
+      "breakpoints": true
+    },
+    {
+      "idx": 22,
+      "version": "6",
+      "when": 1794913785263,
+      "tag": "0022_world_object_actions",
+      "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "6",
+      "when": 1794919470547,
+      "tag": "0023_avatar_figure",
+      "breakpoints": true
     }
   ]
 }

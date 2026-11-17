@@ -4,7 +4,7 @@
 // lead to "Programm" and to the pages under "Mehr". While the platform is closed a guest lands on the
 // waiting page (ACS-10).
 import { useTranslation } from "react-i18next";
-import { Link } from "react-router";
+import { Link, Navigate } from "react-router";
 import {
   contentResponseSchema,
   rsvpStateSchema,
@@ -17,7 +17,10 @@ import { useFeature } from "../app/event.ts";
 import { useApiData } from "../app/useApi.ts";
 import { useRestricted } from "../app/restricted.ts";
 import { useSession } from "../app/session.ts";
+import { hasVisitedWebsite, useWorldActive } from "../app/gameEntry.ts";
 import { useEventFormat } from "../rsvp/format.ts";
+import { SITE_ICON_PATHS } from "../app/siteIconPaths.ts";
+import { SiteIcon } from "../app/siteIcons.tsx";
 import WaitingPage from "../waiting/WaitingPage.tsx";
 
 /** The countdown card (WEB-11): the days, and the date and place of the first program item. */
@@ -103,9 +106,18 @@ export default function HomePage() {
   const content = useApiData(restricted ? undefined : "/api/content", contentResponseSchema);
   const website = useApiData(restricted ? undefined : "/api/website", websiteResponseSchema);
   const rsvp = useApiData(restricted || !rsvpOn ? undefined : "/api/rsvp", rsvpStateSchema);
+  const world = useWorldActive(!restricted && session.user !== null);
   // While the platform is closed, guests land on the waiting page (ACS-10).
   if (restricted) return <WaitingPage />;
-  if (!content) return null;
+  // With an active world, the user lands in the game, once per browser session (GAME-12).
+  if (world === true && !hasVisitedWebsite()) return <Navigate to="/game" replace />;
+  if (!content || world === undefined) return null;
+  const enter = world && (
+    <Link className="btn" to="/game">
+      <SiteIcon path={SITE_ICON_PATHS.play} />
+      {t("website.enterWorld")}
+    </Link>
+  );
 
   const shortcuts = (
     <nav className="shortcuts" aria-label={t("website.shortcuts")}>
@@ -133,7 +145,10 @@ export default function HomePage() {
             <NowNextCard label={t("website.next")} entry={website.next} current={false} />
           )}
         </div>
-        <div className="start-side">{shortcuts}</div>
+        <div className="start-side">
+          {enter}
+          {shortcuts}
+        </div>
       </section>
     );
   }
@@ -150,6 +165,7 @@ export default function HomePage() {
           />
         )}
         {content.startMarkdown.trim() !== "" && <Markdown text={content.startMarkdown} />}
+        {enter}
       </div>
       <div className="start-side">
         {website?.countdown && <CountdownCard countdown={website.countdown} />}

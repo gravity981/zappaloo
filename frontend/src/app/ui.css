@@ -259,6 +259,27 @@
   padding: 10px 12px;
   resize: vertical;
 }
+/* The tabs of a page with several parts, like Erlebniswelt (UX mock `m-subtabs`) */
+:is(.admin, .guest) .subtabs {
+  display: flex;
+  gap: 0;
+  border-bottom: 1.5px solid var(--a-line);
+}
+:is(.admin, .guest) .subtabs button {
+  background: none;
+  border: 0;
+  padding: 10px 14px;
+  font: inherit;
+  font-weight: 600;
+  color: var(--a-muted);
+  border-bottom: 2.5px solid transparent;
+  margin-bottom: -1.5px;
+  cursor: pointer;
+}
+:is(.admin, .guest) .subtabs button[aria-pressed="true"] {
+  color: var(--a-ink);
+  border-bottom-color: var(--a-ink);
+}
 :is(.admin, .guest) .chips {
   display: flex;
   flex-wrap: wrap;
@@ -392,6 +413,7 @@
   font-size: 12px;
   color: var(--a-muted);
 }
+/* The overview's two cards share the row, one half each, on a phone as on a wide screen. */
 :is(.admin, .guest) .kpis {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -463,6 +485,11 @@
   color: inherit;
   text-align: left;
   cursor: pointer;
+}
+/* Links and buttons show their own hover and focus, not the browser's tap overlay (iOS paints a dark grey box). */
+a,
+button {
+  -webkit-tap-highlight-color: transparent;
 }
 /* A row that opens its editor (UX mock admin-content, `.m-li.link`): the whole row is highlighted
    under the pointer with the mock's margins and padding; the › is the last thing in the row. */
@@ -635,7 +662,7 @@
     font-size: 28px;
   }
   :is(.admin, .guest) .kpis {
-    grid-template-columns: repeat(4, minmax(0, 1fr));
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
   :is(.admin, .guest) .panel {
     width: 440px;
@@ -1220,13 +1247,21 @@
   font-weight: 600;
   font-family: var(--a-number-font);
 }
+/* Two equal halves whatever the text: minmax(0, 1fr) keeps a long label from widening its column; the label wraps. */
 .shortcuts {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 8px;
 }
 .shortcuts .btn {
   justify-content: center;
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+  height: 100%;
+  white-space: normal;
+  text-align: center;
+  overflow-wrap: anywhere;
 }
 
 /* A page of the website and «Mehr» (UX mock `info`, `more`). */
@@ -1307,8 +1342,10 @@
 }
 
 /* The cards of "Mehr" hold their list rows with the mock's padding (UX mock more: 4px and 16px). */
+/* The highlight of a row reaches 8 px beyond the rows: with 8 px at the top and 16 px at the sides, the highlight
+   keeps the same 8 px distance from the card's top and from its sides. */
 .more .card {
-  padding: 4px 16px;
+  padding: 8px 16px;
 }
 
 /* The programme (UX mock programme): a timeline with the time, a rail and the entry. Entries that are
@@ -1387,4 +1424,89 @@
   color: var(--a-muted);
   font-size: 12px;
   line-height: 1.3;
+}
+
+/* The avatar editor (UX mock `m-avatar-stage`, `m-figure`) */
+/* Title, person chips, the editor and the button keep their distance on every layout */
+/* The page may carry the guest scope itself (the first entry) or sit inside it (the profile): both match. */
+:is(.admin, .guest).avatar-page,
+:is(.admin, .guest) .avatar-page,
+:is(.admin, .guest) .avatar-root {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+:is(.admin, .guest).avatar-page .h1,
+:is(.admin, .guest) .avatar-page .h1 {
+  margin: 0;
+}
+:is(.admin, .guest) .avatar-editor {
+  display: grid;
+  gap: 20px;
+  min-width: 0;
+}
+@media (min-width: 720px) {
+  :is(.admin, .guest) .avatar-editor {
+    grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr);
+    align-items: start;
+  }
+}
+/* «Zufällig» sits under the stage in the middle, as in the mock, and does not stretch with the column */
+:is(.admin, .guest) .avatar-editor .stack {
+  gap: 14px;
+  min-width: 0;
+}
+:is(.admin, .guest) .avatar-random {
+  align-self: center;
+}
+:is(.admin, .guest) .avatar-stage {
+  background: repeating-conic-gradient(#e3e3dc 0 25%, #ecece6 0 50%) 0 0 / 24px 24px;
+  border-radius: 14px;
+  display: grid;
+  place-items: center;
+  min-height: 200px;
+  padding: 18px;
+  border: 1px solid var(--a-line);
+}
+:is(.admin, .guest) .figure-img {
+  image-rendering: pixelated;
+  display: block;
+}
+:is(.admin, .guest) .figure-grid {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding-bottom: 2px;
+}
+:is(.admin, .guest) .figure {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  background: none;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+  flex: none;
+  font: inherit;
+  color: inherit;
+}
+:is(.admin, .guest) .figure .figure-img,
+:is(.admin, .guest) .figure .figure-missing {
+  background: var(--a-fill);
+  border-radius: 10px;
+  border: 1.5px solid var(--a-line);
+  padding: 4px;
+  min-width: 50px;
+}
+:is(.admin, .guest) .figure[aria-pressed="true"] .figure-img {
+  border-color: var(--a-ink);
+}
+:is(.admin, .guest) .figure small {
+  font-size: 12px;
+}
+@media (min-width: 720px) {
+  :is(.admin, .guest) .avatar-root > .btn {
+    align-self: flex-start;
+  }
 }

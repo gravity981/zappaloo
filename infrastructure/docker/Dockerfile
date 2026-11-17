@@ -12,12 +12,15 @@ FROM ${NODE_IMAGE} AS frontend
 WORKDIR /app
 COPY package.json package-lock.json .npmrc ./
 COPY shared/package.json shared/
+COPY game-engine/package.json game-engine/
+COPY game-preview/package.json game-preview/
 COPY backend/package.json backend/
 COPY frontend/package.json frontend/
 RUN npm ci --no-audit --no-fund
 COPY tsconfig.base.json ./
 COPY scripts/version scripts/version
 COPY shared shared
+COPY game-engine game-engine
 COPY frontend frontend
 ARG APP_VERSION
 RUN test -n "$APP_VERSION" || (echo "APP_VERSION build argument is required" >&2; exit 1)
@@ -28,6 +31,8 @@ FROM ${NODE_IMAGE} AS backend-deps
 WORKDIR /app
 COPY package.json package-lock.json .npmrc ./
 COPY shared/package.json shared/
+COPY game-engine/package.json game-engine/
+COPY game-preview/package.json game-preview/
 COPY backend/package.json backend/
 COPY frontend/package.json frontend/
 RUN npm ci --omit=dev --workspace backend --no-audit --no-fund

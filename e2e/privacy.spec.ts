@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test";
+import { expect, test } from "./support.ts";
 import de from "../frontend/src/i18n/locales/de/common.json" with { type: "json" };
 
 test("[SEC-09][SEC-11] the privacy notice is readable without signing in and linked from the login page", async ({

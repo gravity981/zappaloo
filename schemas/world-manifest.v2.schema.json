@@ -11,7 +11,7 @@
     },
     "formatVersion": {
       "type": "number",
-      "const": 1
+      "const": 2
     },
     "name": {
       "type": "string",
@@ -22,10 +22,15 @@
       "type": "string",
       "pattern": "^[a-z0-9-]{1,40}$"
     },
-    "tileSize": {
+    "tileWidth": {
       "type": "integer",
       "minimum": 8,
-      "maximum": 64
+      "maximum": 128
+    },
+    "tileHeight": {
+      "type": "integer",
+      "minimum": 8,
+      "maximum": 128
     }
   },
   "required": [
@@ -33,7 +38,8 @@
     "formatVersion",
     "name",
     "startMap",
-    "tileSize"
+    "tileWidth",
+    "tileHeight"
   ],
   "additionalProperties": false
 }

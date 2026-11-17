@@ -128,6 +128,8 @@ export const memberships = sqliteTable(
     personType: text("person_type", { enum: ["adult", "child"] })
       .notNull()
       .default("adult"),
+    /** The id of the figure the user chose in the avatar editor (AVA-02); null until chosen. */
+    avatarFigure: text("avatar_figure"),
     /** For `invitation_code`: the invitation that was redeemed. */
     vipInvitationId: integer("vip_invitation_id").references(
       (): AnySQLiteColumn => invitations.id,
@@ -458,6 +460,8 @@ export const companions = sqliteTable(
     menuId: integer("menu_id").references(() => menuOptions.id, { onDelete: "set null" }),
     /** Health data: only admins and the guest read it (SEC-11). */
     allergies: text("allergies"),
+    /** The id of the figure the guest chose for the companion (AVA-02); null until chosen. */
+    avatarFigure: text("avatar_figure"),
     createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull(),
     decidedAt: integer("decided_at", { mode: "timestamp_ms" }),
   },
@@ -675,11 +679,12 @@ export const worldPackages = sqliteTable(
     name: text("name").notNull(),
     formatVersion: integer("format_version").notNull(),
     startMap: text("start_map").notNull(),
-    tileSize: integer("tile_size").notNull(),
+    tileWidth: integer("tile_width").notNull(),
+    tileHeight: integer("tile_height").notNull(),
     importedAt: integer("imported_at", { mode: "timestamp_ms" }).notNull(),
-    /** The ids of the maps as JSON. */
+    /** The map summaries as JSON: each map's id, name, and the counts of its clickable objects and portals. */
     maps: text("maps").notNull(),
-    /** The avatar definition (`avatar/avatar.json`) as JSON. */
+    /** The figures a guest can choose (`avatar/figures.json`) as JSON. */
     avatar: text("avatar").notNull(),
     /** Whether the package has a door scene of its own. */
     hasDoor: integer("has_door", { mode: "boolean" }).notNull(),
@@ -687,4 +692,23 @@ export const worldPackages = sqliteTable(
     warnings: text("warnings").notNull(),
   },
   (table) => [uniqueIndex("world_packages_role").on(table.eventId, table.role)],
+);
+
+/**
+ * The actions the admin assigned to clickable objects (sw-architecture.md 14.2, MAP-15): one row per object of
+ * a map, keyed by the map's id and the object's Tiled name, so an assignment survives a new import of the world.
+ * The row replaces the preset of the Tiled file; without a row the preset applies.
+ */
+export const worldObjectActions = sqliteTable(
+  "world_object_actions",
+  {
+    eventId: text("event_id")
+      .notNull()
+      .references(() => events.id),
+    mapId: text("map_id").notNull(),
+    objectName: text("object_name").notNull(),
+    /** The action as JSON (`worldActionSchema`). */
+    action: text("action").notNull(),
+  },
+  (table) => [primaryKey({ columns: [table.eventId, table.mapId, table.objectName] })],
 );
