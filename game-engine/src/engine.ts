@@ -32,6 +32,12 @@ export function setGameSelection(game: GameInstance, selection: GameSelection): 
   if (scene instanceof WorldScene) scene.setSelection(selection);
 }
 
+export function getGameRenderStack(game: GameInstance): { type: string; depth: number }[] {
+  const scene = game.scene.getScene(WORLD_SCENE_KEY);
+  if (!(scene instanceof WorldScene)) throw new Error("the game world scene is not running");
+  return scene.renderStack();
+}
+
 export function setGameView(game: GameInstance, view: GameView): void {
   const scene = game.scene.getScene(WORLD_SCENE_KEY);
   if (scene instanceof WorldScene) scene.setView(view);

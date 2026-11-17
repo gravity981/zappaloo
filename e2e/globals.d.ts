@@ -13,6 +13,15 @@ declare global {
               view: { x: number; y: number; zoom: number; width: number; height: number };
             }
           | undefined;
+        renderStack: () => { type: string; depth: number }[];
+        selectSpawn: (mapId: string, spawn: string) => void;
+        setGuides: (guides: {
+          collisions: boolean;
+          borders: boolean;
+          spawns: boolean;
+          portals: boolean;
+          grid: boolean;
+        }) => void;
         renderArtwork: (
           mapId: string,
           width: number,

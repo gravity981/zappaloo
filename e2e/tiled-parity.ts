@@ -3,6 +3,7 @@ import { execFileSync } from "node:child_process";
 import { join } from "node:path";
 import { buildArchive, encodePngPixels } from "../backend/src/packages/build.ts";
 import { testWorldFiles } from "../backend/src/world/build.ts";
+import type { TiledMap } from "@zappaloo/shared";
 import type { Page } from "@playwright/test";
 
 const TILED_CLI = process.env.TILED_BIN ?? "tiled";
@@ -48,7 +49,7 @@ function fixtureCollectionImage(
   });
 }
 
-function fixtureMap() {
+function fixtureMap(): TiledMap {
   const ground = [1, 2, 1, 2, 3, 4, 3, 4, 1, 3, 2, 4];
   const spawn = {
     id: 1,
@@ -156,7 +157,7 @@ function fixtureMap() {
   };
 }
 
-function fixturePlacementMap() {
+function fixturePlacementMap(withLayeringSpawn = false): TiledMap {
   const width = 5;
   const height = 3;
   return {
@@ -251,6 +252,20 @@ function fixturePlacementMap() {
             rotation: 0,
             visible: true,
           },
+          ...(withLayeringSpawn
+            ? [
+                {
+                  id: 7,
+                  name: "between-props",
+                  type: "spawn",
+                  x: 128,
+                  y: 96,
+                  point: true,
+                  rotation: 0,
+                  visible: true,
+                },
+              ]
+            : []),
         ],
       },
       {
@@ -299,6 +314,20 @@ function fixturePlacementMap() {
             image: "../tilesets/small.png",
             imagewidth: 40,
             imageheight: 24,
+            objectgroup: {
+              type: "objectgroup",
+              name: "",
+              objects: [
+                {
+                  id: 1,
+                  name: "trigger",
+                  x: 8,
+                  y: 0,
+                  width: 24,
+                  height: 24,
+                },
+              ],
+            },
           },
         ],
       },
@@ -332,6 +361,14 @@ function fixturePlacementMap() {
                     { x: 24, y: 12 },
                   ],
                 },
+                {
+                  id: 2,
+                  name: "trigger",
+                  x: 8,
+                  y: 8,
+                  width: 48,
+                  height: 24,
+                },
               ],
             },
           },
@@ -360,7 +397,7 @@ function pngSize(path: string): { width: number; height: number } {
 /** Builds independent public Tiled JSON/PNG fixtures and renders their references with the pinned CLI. */
 function createTiledFixture(
   directory: string,
-  map: ReturnType<typeof fixtureMap> | ReturnType<typeof fixturePlacementMap>,
+  map: TiledMap,
   images: Record<string, Buffer>,
 ): TiledParityFixture {
   const root = join(directory, "world");
@@ -450,7 +487,7 @@ export function createTiledNativeObjectFixture(directory: string): TiledParityFi
 }
 
 export function createTiledNativeLayeringFixture(directory: string): TiledParityFixture {
-  const map = fixtureNativePlacementMap();
+  const map = fixtureNativePlacementMap(true);
   const artifacts = map.layers.find(
     (layer) => layer.type === "objectgroup" && layer.name === "Props",
   );
@@ -472,7 +509,7 @@ export function createTiledNativeLayeringFixture(directory: string): TiledParity
         id: 4,
         name: "in-front",
         type: "decoration",
-        x: 96,
+        x: 128,
         y: 128,
         width: 64,
         height: 40,
@@ -480,10 +517,26 @@ export function createTiledNativeLayeringFixture(directory: string): TiledParity
         visible: true,
         gid: 9,
       },
+      {
+        id: 6,
+        name: "portal-guide",
+        type: "portal",
+        x: 0,
+        y: 0,
+        width: 40,
+        height: 24,
+        rotation: 0,
+        visible: true,
+        gid: 8,
+        properties: [
+          { name: "targetMap", type: "string", value: "kirche" },
+          { name: "targetSpawn", type: "string", value: "start" },
+        ],
+      },
     ];
   }
   const foreground = Array<number>(15).fill(0);
-  foreground[7] = 5;
+  foreground[12] = 5;
   map.layers.splice(3, 0, {
     id: 6,
     type: "tilelayer",
@@ -499,11 +552,28 @@ export function createTiledNativeLayeringFixture(directory: string): TiledParity
     data: foreground,
     encoding: "csv",
   });
+  const hiddenArtwork = Array<number>(15).fill(0);
+  hiddenArtwork[12] = 9;
+  map.layers.splice(4, 0, {
+    id: 7,
+    type: "tilelayer",
+    name: "Hidden artwork",
+    width: 5,
+    height: 3,
+    x: 0,
+    y: 0,
+    offsetx: 0,
+    offsety: 0,
+    opacity: 1,
+    visible: false,
+    data: hiddenArtwork,
+    encoding: "csv",
+  });
   return createTiledFixture(directory, map, fixturePlacementImages());
 }
 
-function fixtureNativePlacementMap(): ReturnType<typeof fixturePlacementMap> {
-  const map = fixturePlacementMap();
+function fixtureNativePlacementMap(withLayeringSpawn = false): TiledMap {
+  const map = fixturePlacementMap(withLayeringSpawn);
   for (const set of map.tilesets) {
     if ("tileoffset" in set) set.tileoffset = { x: 0, y: 0 };
   }

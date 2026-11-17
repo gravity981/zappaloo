@@ -193,6 +193,13 @@ export class WorldScene extends Phaser.Scene {
     });
   }
 
+  renderStack(): { type: string; depth: number }[] {
+    return this.children.list.flatMap((object) => {
+      if (!("depth" in object) || typeof object.depth !== "number") return [];
+      return [{ type: object.type, depth: object.depth }];
+    });
+  }
+
   override update(_time: number, delta: number): void {
     const map = this.#map;
     const figure = this.#figure;
@@ -436,6 +443,7 @@ export class WorldScene extends Phaser.Scene {
     const map = this.#map;
     if (graphics === undefined || map === undefined) return;
     graphics.clear();
+    if (this.#artworkOnly) return;
 
     const stroke = (points: readonly Point[], color: number): void => {
       const first = points[0];

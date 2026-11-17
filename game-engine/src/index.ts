@@ -1,5 +1,6 @@
 export {
   createGame,
+  getGameRenderStack,
   setGameGuides,
   setGameSelection,
   setGameView,

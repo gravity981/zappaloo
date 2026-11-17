@@ -32,6 +32,13 @@ async function gameState(page: Page): Promise<State> {
   return state;
 }
 
+async function canvasDataUrl(page: Page): Promise<string> {
+  return page.locator("canvas").evaluate((element) => {
+    if (!(element instanceof HTMLCanvasElement)) throw new Error("the Phaser canvas is missing");
+    return element.toDataURL();
+  });
+}
+
 /** The page position of a point of the map, from the camera view and the canvas box. */
 async function pagePoint(
   page: Page,
@@ -52,6 +59,7 @@ async function verifyTiledParity(
   fixture: ReturnType<typeof createTiledParityFixture>,
   testInfo: TestInfo,
   nativeObjects = true,
+  verifyGuideIsolation = false,
 ): Promise<void> {
   mkdirSync(testInfo.outputDir, { recursive: true });
   const archive = join(testInfo.outputDir, "tiled-world.tar.gz");
@@ -91,7 +99,41 @@ async function verifyTiledParity(
   };
 
   const native = await render(fixture.referenceSize, 1, fixture.reference);
+  const checkGuideIsolation = async (baseline: string, reference: string): Promise<void> => {
+    await page.evaluate(() => {
+      const game = window.__zappaloo?.game;
+      if (game === undefined) throw new Error("the Phaser test hook is not available");
+      game.setGuides({
+        collisions: true,
+        borders: true,
+        spawns: true,
+        portals: true,
+        grid: true,
+      });
+    });
+    await page.evaluate(() => {
+      return new Promise<void>((resolve) => {
+        requestAnimationFrame(() => {
+          requestAnimationFrame(() => {
+            resolve();
+          });
+        });
+      });
+    });
+    const withGuides = await canvasDataUrl(page);
+    expect(withGuides).toBe(baseline);
+    const measurement = await comparePhaserCanvas(page, reference);
+    expect(measurement.differingVisiblePixels).toBe(0);
+  };
+  if (verifyGuideIsolation) {
+    const baseline = await canvasDataUrl(page);
+    await checkGuideIsolation(baseline, fixture.reference);
+  }
   const zoom2 = await render(fixture.reference2xSize, 2, fixture.reference2x);
+  if (verifyGuideIsolation) {
+    const baseline = await canvasDataUrl(page);
+    await checkGuideIsolation(baseline, fixture.reference2x);
+  }
   expect(fixture.reference2xSize).toEqual({
     width: fixture.referenceSize.width * 2,
     height: fixture.referenceSize.height * 2,
@@ -203,7 +245,7 @@ test("[GAME-20][MAP-02] Phaser's native object conversion matches a bottom-align
   await verifyTiledParity(page, createTiledNativeObjectFixture(testInfo.outputDir), testInfo, true);
 });
 
-test("[GAME-19][GAME-20][MAP-02] native Props and Foreground layers preserve depth-sorted actor occlusion", async ({
+test("[GAME-19][GAME-20][MAP-02] Props sort around the actor and Foreground covers both", async ({
   page,
   context,
 }, testInfo) => {
@@ -213,5 +255,40 @@ test("[GAME-19][GAME-20][MAP-02] native Props and Foreground layers preserve dep
     "pinned Tiled is Linux x86_64 only",
   );
   await signInAsAdmin(page, context);
-  await verifyTiledParity(page, createTiledNativeLayeringFixture(testInfo.outputDir), testInfo);
+  await verifyTiledParity(
+    page,
+    createTiledNativeLayeringFixture(testInfo.outputDir),
+    testInfo,
+    true,
+    true,
+  );
+  await page.reload();
+  await expect(page.getByTestId("game-canvas")).toBeVisible();
+  await gameState(page);
+  await page.evaluate(() => {
+    const game = window.__zappaloo?.game;
+    if (game === undefined) throw new Error("the Phaser test hook is not available");
+    game.selectSpawn("kirche", "between-props");
+  });
+  await expect.poll(async () => (await readState(page))?.y).toBe(112);
+  const stack = await page.evaluate(() => {
+    const game = window.__zappaloo?.game;
+    if (game === undefined) throw new Error("the Phaser test hook is not available");
+    return game.renderStack();
+  });
+  const sprites = stack.filter(({ type }) => type === "Sprite");
+  const spriteDepths = sprites.map(({ depth }) => depth);
+  expect(sprites).toHaveLength(4);
+  expect(spriteDepths).toContain(112);
+  expect(spriteDepths.some((depth) => depth > 95 && depth < 97)).toBe(true);
+  expect(spriteDepths.some((depth) => depth > 127 && depth < 129)).toBe(true);
+
+  const tileLayerDepths = stack
+    .filter(({ type }) => type === "TilemapLayer")
+    .map(({ depth }) => depth);
+  expect(tileLayerDepths).toHaveLength(3);
+  expect(tileLayerDepths.filter((depth) => depth < 0)).toHaveLength(2);
+  const foregroundDepth = tileLayerDepths.find((depth) => depth > 1_000_000);
+  expect(foregroundDepth).toBeDefined();
+  expect(foregroundDepth).toBeGreaterThan(Math.max(...spriteDepths));
 });

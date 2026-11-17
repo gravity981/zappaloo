@@ -1,10 +1,21 @@
 // Test hook for the end-to-end tests (test-strategy.md, "Game world tests"): exposes the engine state to Playwright.
 // Only built in when VITE_TEST_HOOKS=true.
-import { WORLD_SCENE_KEY, type GameInstance, type GameState } from "@zappaloo/game-engine";
+import {
+  getGameRenderStack,
+  setGameGuides,
+  setGameSelection,
+  WORLD_SCENE_KEY,
+  type GameGuides,
+  type GameInstance,
+  type GameState,
+} from "@zappaloo/game-engine";
 
 export interface GameTestHook {
   activeScenes: () => string[];
   state: () => GameState | undefined;
+  renderStack: () => { type: string; depth: number }[];
+  selectSpawn: (mapId: string, spawn: string) => void;
+  setGuides: (guides: GameGuides) => void;
   renderArtwork: (
     mapId: string,
     width: number,
@@ -31,6 +42,13 @@ function publish(): void {
       ? {
           activeScenes: () => instance.scene.getScenes(true).map((scene) => scene.scene.key),
           state: () => read?.(),
+          renderStack: () => getGameRenderStack(instance),
+          selectSpawn: (mapId, spawn) => {
+            setGameSelection(instance, { mapId, spawn });
+          },
+          setGuides: (guides) => {
+            setGameGuides(instance, guides);
+          },
           renderArtwork: async (mapId, width, height, zoom = 1, nativeObjects = true) => {
             const parent = instance.canvas.parentElement;
             if (parent !== null) {
