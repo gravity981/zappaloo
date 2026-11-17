@@ -38,6 +38,16 @@ import {
 import { onAvatar, playerSpritePosition } from "./player-anchor.ts";
 import { isTypingTarget } from "./keys.ts";
 import { startsPaused } from "./pause.ts";
+import { SHADOW_DEPTH_BELOW, figureShadow } from "./figure-shadow.ts";
+import {
+  GLOW_COLOR,
+  NO_FEEDBACK,
+  PULSE_MS,
+  nextFeedback,
+  objectGlowStrength,
+  type FeedbackEvent,
+  type WalkFeedback,
+} from "./walk-feedback.ts";
 import { tilesetImageKey, type ClickableArea, type ParsedMap, type TileDraw } from "./map-model.ts";
 import type { FigureData, LoadedWorld } from "./world-data.ts";
 import {
@@ -50,6 +60,12 @@ import {
   type GameSelection,
   type GameView,
 } from "./host.ts";
+
+/** The warm glow of a portal's floating arrow (GAME-15). */
+const PORTAL_GLOW_COLOR = 0xffd36b;
+
+/** Below the objects and figures (their depths are the y of their feet, from 0 on), above the ground layers. */
+const MARKER_DEPTH = -1;
 
 /** The zoom of the camera; fixed for every map (decided 2026-11-15). */
 export const CAMERA_ZOOM = 2;
@@ -134,6 +150,21 @@ export class WorldScene extends Phaser.Scene {
   readonly #walkWatch = new WalkWatch();
   /** The navigation grid of the map and the cells reachable from a start cell, kept while the player taps (GAME-23). */
   #navigation: MapNavigation | undefined;
+  /** The marker at the target of a tap walk and the glow of the object it leads to (GAME-24, GAME-25). */
+  #feedback: WalkFeedback = NO_FEEDBACK;
+  /** The ring of the marker, and the tween that makes it pulse. */
+  #marker: Phaser.GameObjects.Container | undefined;
+  #markerPulse: Phaser.Tweens.Tween | undefined;
+  /** The target the ring is at now, so that a new target restarts the pulse. */
+  #markerAt: Point | undefined;
+  /** The glow of every clickable object and of every portal's arrow, by the Tiled id of the object (GAME-25, GAME-29). */
+  #glows = new Map<number, Phaser.Filters.Glow>();
+  /** The ids of the glows that are a portal's arrow's, which have a glow of their own that breathes (GAME-15). */
+  readonly #portalGlows = new Set<number>();
+  /** When the walk that makes an object glow started, in scene time (GAME-25). */
+  #glowSince = 0;
+  /** The shadow under the player's figure (GAME-28). */
+  #shadow: Phaser.GameObjects.Ellipse | undefined;
   readonly #onKeyDown = (event: KeyboardEvent): void => {
     // The scroll and button keys are the game's only while it runs and no field or button of the page has the focus.
     if (
@@ -186,6 +217,13 @@ export class WorldScene extends Phaser.Scene {
     this.#path = [];
     this.#pending = undefined;
     this.#objectSprites = new Map();
+    this.#feedback = NO_FEEDBACK;
+    this.#marker = undefined;
+    this.#markerPulse = undefined;
+    this.#markerAt = undefined;
+    this.#glows = new Map();
+    this.#portalGlows.clear();
+    this.#shadow = undefined;
     this.#sparkles = 0;
     this.#activeSparkles = 0;
     this.#edges = new Map();
@@ -229,6 +267,8 @@ export class WorldScene extends Phaser.Scene {
       sprite.setOrigin(0.5, 1);
       sprite.setDepth(figureDepth(this.#position, map.occluders, map.size.width));
       this.#player = sprite;
+      this.#createShadow(map, sprite);
+      this.#createMarker(map);
       // The camera does not follow by itself: it is centred on the snapped sprite in update() (GAME-27).
       this.cameras.main.setRoundPixels(true);
     }
@@ -244,6 +284,7 @@ export class WorldScene extends Phaser.Scene {
     if (!this.#artworkOnly) {
       this.#floatPortals(map);
       this.#startSparkles(map);
+      this.#glowClickables(map);
       this.#startShines(map);
       this.#host?.rememberMap?.(map.id);
     }
@@ -256,6 +297,8 @@ export class WorldScene extends Phaser.Scene {
         y: Math.round(this.#position.y),
         direction: this.#direction,
         sparkles: this.#sparkles,
+        walk: { marker: this.#feedback.marker ?? null, glow: this.#feedback.glow ?? null },
+        glows: this.#glows.size,
         view: {
           // In CSS pixels, whatever the pixel ratio of the canvas is.
           x: camera.midPoint.x,
@@ -314,6 +357,91 @@ export class WorldScene extends Phaser.Scene {
     camera.centerOn(player.x, player.y);
   }
 
+  /** The shadow of the player's figure: an ellipse on the ground under its feet (GAME-28). */
+  #createShadow(map: ParsedMap, sprite: Phaser.GameObjects.Sprite): void {
+    const shadow = figureShadow(this.#position, map.size.width, CAMERA_ZOOM, this.#pixelRatio());
+    this.#shadow = this.add
+      .ellipse(shadow.x, shadow.y, shadow.width, shadow.height, 0x000000, shadow.opacity)
+      .setDepth(sprite.depth - SHADOW_DEPTH_BELOW);
+  }
+
+  /** Moves the shadow with the figure, a hair below it in depth, so that objects in front cover both (GAME-28). */
+  #placeShadow(map: ParsedMap, player: Phaser.GameObjects.Sprite): void {
+    const shadow = figureShadow(this.#position, map.size.width, CAMERA_ZOOM, this.#pixelRatio());
+    this.#shadow?.setPosition(shadow.x, shadow.y).setDepth(player.depth - SHADOW_DEPTH_BELOW);
+  }
+
+  /**
+   * The ring of the target marker (GAME-24): an ellipse of the tile's 2 : 1 ratio, 0.4 tile widths wide, in the colour
+   * of the glow with a dark contour, flat on the ground. It pulses once per second, from 0.8 to 1.2 times its size
+   * while it fades out. It lies above the ground layers and below objects and figures.
+   */
+  #createMarker(map: ParsedMap): void {
+    const width = map.size.width * 0.4;
+    const contour = this.add.ellipse(0, 0, width, width / 2).setStrokeStyle(3.5, 0x141414, 0.9);
+    const ring = this.add.ellipse(0, 0, width, width / 2).setStrokeStyle(2, GLOW_COLOR, 1);
+    const marker = this.add
+      .container(0, 0, [contour, ring])
+      .setDepth(MARKER_DEPTH)
+      .setVisible(false);
+    this.#marker = marker;
+    this.#markerPulse = this.tweens.add({
+      targets: marker,
+      scale: { from: 0.8, to: 1.2 },
+      alpha: { from: 1, to: 0 },
+      duration: PULSE_MS,
+      repeat: -1,
+      paused: true,
+    });
+  }
+
+  /** The glow along the edges of the clickable objects that sparkle, steady until a walk leads to one (GAME-29). */
+  #glowClickables(map: ParsedMap): void {
+    for (const area of map.clickables) {
+      if (area.hidden || area.objectId === undefined || !this.#edges.has(area.name)) continue;
+      const sprite = this.#objectSprites.get(area.objectId);
+      if (sprite === undefined) continue;
+      sprite.enableFilters();
+      const glow = sprite.filters?.internal.addGlow(GLOW_COLOR, 0, 0, 0.8, false, 8, 10);
+      if (glow === undefined) continue;
+      // Without this, a glow is cut off at the picture's own bounds.
+      glow.setPaddingOverride(null);
+      this.#glows.set(area.objectId, glow);
+    }
+  }
+
+  /** Shows the marker where the walk leads, and makes the object or portal it leads to pulse (GAME-24, GAME-25). */
+  #showFeedback(time: number): void {
+    const { marker: at, glow: glowing } = this.#feedback;
+    const marker = this.#marker;
+    if (marker !== undefined) {
+      if (at === undefined) {
+        if (this.#markerAt !== undefined) {
+          this.#markerAt = undefined;
+          marker.setVisible(false);
+          this.#markerPulse?.pause();
+        }
+      } else if (this.#markerAt !== at) {
+        this.#markerAt = at;
+        marker.setPosition(at.x, at.y).setVisible(true);
+        this.#markerPulse?.restart();
+      }
+    }
+    for (const [id, glow] of this.#glows) {
+      if (this.#portalGlows.has(id)) {
+        // A portal's arrow glows warm and breathes; while the avatar walks into it, it pulses like an object.
+        if (id === glowing) {
+          glow.color = GLOW_COLOR;
+          glow.outerStrength = objectGlowStrength(true, time - this.#glowSince);
+        } else {
+          glow.color = PORTAL_GLOW_COLOR;
+        }
+        continue;
+      }
+      glow.outerStrength = objectGlowStrength(id === glowing, time - this.#glowSince);
+    }
+  }
+
   setGuides(guides: GameGuides): void {
     this.#guides = { ...guides };
     this.#drawGuides();
@@ -357,7 +485,7 @@ export class WorldScene extends Phaser.Scene {
     });
   }
 
-  override update(_time: number, delta: number): void {
+  override update(time: number, delta: number): void {
     const map = this.#map;
     const figure = this.#figure;
     const player = this.#player;
@@ -428,6 +556,7 @@ export class WorldScene extends Phaser.Scene {
     player.setPosition(spritePosition.x, spritePosition.y);
     this.#followPlayer();
     player.setDepth(figureDepth(this.#position, map.occluders, map.size.width));
+    this.#placeShadow(map, player);
     this.#drawOcclusionActor();
     this.#drawCollisionActor();
 
@@ -437,6 +566,9 @@ export class WorldScene extends Phaser.Scene {
       this.#pending = undefined;
       if (arrivedAt(map, pending, this.#position)) this.#activate(pending);
     }
+
+    this.#feedbackEvent({ type: "frame", waypoints: this.#path.length, keysHeld });
+    this.#showFeedback(time);
 
     const portal = portalAt(map, this.#position);
     if (!this.#armed) {
@@ -845,6 +977,19 @@ export class WorldScene extends Phaser.Scene {
     };
   }
 
+  /** The glow of a walk and its marker follow the events of the scene (GAME-24, GAME-25). */
+  #feedbackEvent(event: FeedbackEvent): void {
+    this.#feedback = nextFeedback(this.#feedback, event);
+  }
+
+  /** A walk to the end of the new path has started: the marker lies there, and the object or portal `glow` glows. */
+  #beginFeedback(glow?: number): void {
+    const target = this.#path[this.#path.length - 1];
+    if (target === undefined) return;
+    this.#glowSince = this.time.now;
+    this.#feedbackEvent({ type: "walk", target, ...(glow === undefined ? {} : { glow }) });
+  }
+
   /** Tap-to-move (GAME-10): walks around the blocked shapes to the tapped point, or into a portal. */
   #tapTo(point: Point): void {
     const map = this.#map;
@@ -854,6 +999,7 @@ export class WorldScene extends Phaser.Scene {
     // A tap on a clickable object walks to its approach point, where its action runs (GAME-16).
     const area = portal === undefined ? clickableAt(map, point) : undefined;
     this.#pending = undefined;
+    this.#feedbackEvent({ type: "tap" });
     if (area !== undefined) {
       this.#walkToObject(map, area);
       return;
@@ -865,7 +1011,10 @@ export class WorldScene extends Phaser.Scene {
       const cells = findPath(grid, start, cellOf(goal, size));
       if (cells === undefined) return;
       const route = walkRoute(map, this.#position, cells, goal);
-      if (route !== undefined) this.#path = route;
+      if (route !== undefined) {
+        this.#path = route;
+        this.#beginFeedback(portal.objectId);
+      }
       return;
     }
     const reachable = this.#reachableFrom(map, start);
@@ -877,6 +1026,7 @@ export class WorldScene extends Phaser.Scene {
     if (cells !== undefined) {
       // The walk ends where the player tapped, not at the centre of that cell.
       this.#path = routeToPoint(map, this.#position, cells, point);
+      this.#beginFeedback();
       return;
     }
     // A blocked point, or one that cannot be reached: the nearest reachable point nearby, or nothing (GAME-23). The
@@ -887,7 +1037,10 @@ export class WorldScene extends Phaser.Scene {
     const toCell = findPath(grid, start, target.cell);
     if (toCell === undefined) return;
     const route = walkRoute(map, this.#position, toCell, target.point);
-    if (route !== undefined) this.#path = route;
+    if (route !== undefined) {
+      this.#path = route;
+      this.#beginFeedback();
+    }
   }
 
   /** The navigation grid of a map, built once while the player taps on it. */
@@ -929,10 +1082,12 @@ export class WorldScene extends Phaser.Scene {
     if (route === undefined) return;
     this.#path = route;
     this.#pending = area;
+    this.#beginFeedback(area.objectId);
   }
 
   /** Ends a walk where it is: its path and the object it was walking to (GAME-10). */
   #stopWalk(): void {
+    this.#feedbackEvent({ type: "stopped" });
     this.#path = [];
     this.#pending = undefined;
     this.#walkWatch.reset();
@@ -983,9 +1138,13 @@ export class WorldScene extends Phaser.Scene {
       const base = sprite.y - HOVER;
       // A warm glow around the arrow's own pixels, which breathes with the float.
       sprite.enableFilters();
-      const glow = sprite.filters?.internal.addGlow(0xffd36b, 3, 0, 0.8);
+      const glow = sprite.filters?.internal.addGlow(PORTAL_GLOW_COLOR, 3, 0, 0.8);
       // Without this, a glow is cut off at the picture's own bounds.
       glow?.setPaddingOverride(null);
+      if (glow !== undefined) {
+        this.#glows.set(portal.objectId, glow);
+        this.#portalGlows.add(portal.objectId);
+      }
       this.tweens.addCounter({
         from: 0,
         to: 1,
@@ -998,7 +1157,8 @@ export class WorldScene extends Phaser.Scene {
           sprite.y = base - AMPLITUDE * rise;
           shadow.setScale(1 - 0.25 * rise);
           shadow.setAlpha(1 - 0.4 * rise);
-          if (glow) glow.outerStrength = 2 + 3 * rise;
+          // While the avatar walks into this portal, the pulse of the walk sets the glow (GAME-25).
+          if (glow && this.#feedback.glow !== portal.objectId) glow.outerStrength = 2 + 3 * rise;
         },
       });
     }

@@ -11,6 +11,8 @@ declare global {
               y: number;
               direction: string;
               sparkles: number;
+              walk: { marker: { x: number; y: number } | null; glow: number | null };
+              glows: number;
               view: { x: number; y: number; zoom: number; width: number; height: number };
             }
           | undefined;

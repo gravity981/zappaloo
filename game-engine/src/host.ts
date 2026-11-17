@@ -1,5 +1,6 @@
 import type { WorldObjectAction } from "@zappaloo/shared";
 import type { LoadedWorld } from "./world-data.ts";
+import type { Point } from "./geometry.ts";
 
 export const ENGINE_CONFIG_REGISTRY_KEY = "zappaloo.game-engine";
 /** The pause the page asked for (GAME-11), kept in the game registry until the scene runs. */
@@ -36,6 +37,10 @@ export interface GameState {
   direction: string;
   /** How many times a clickable object has sparkled in this map (test hook). */
   sparkles: number;
+  /** The marker's target and the id of the object or portal that glows, while a tap walk lasts (test hook, GAME-24). */
+  walk: { marker: Point | null; glow: number | null };
+  /** How many objects and portal arrows have a glow (test hook, GAME-29). */
+  glows: number;
   /** The camera: the map point at its centre, its zoom, and its size in game pixels (the canvas). */
   view: { x: number; y: number; zoom: number; width: number; height: number };
 }

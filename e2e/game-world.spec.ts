@@ -124,6 +124,42 @@ test("[GAME-09] the arrow keys move the player in the screen's directions", asyn
   expect(Math.hypot(after.x - before.x, after.y - before.y)).toBeGreaterThan(expected * 0.7);
 });
 
+test("[GAME-24][GAME-28][GAME-29] a tap on the ground shows the marker while the avatar walks, and it is gone on arrival; the figure has a shadow and the clickable objects glow", async ({
+  page,
+  context,
+}, testInfo) => {
+  test.skip(testInfo.project.name !== "desktop-chromium", "shared settings: one profile only");
+  await signInAsAdmin(page, context);
+  await enterGame(page);
+  const before = await gameState(page);
+  // The clickable objects glow along their edges (GAME-29).
+  expect(before.glows).toBeGreaterThan(0);
+  expect(before.walk).toEqual({ marker: null, glow: null });
+  // The shadow is an ellipse a hair below the figure's sprite (GAME-28).
+  const stack = await page.evaluate(() => window.__zappaloo?.game?.renderStack() ?? []);
+  const sprites = stack.filter((object) => object.type === "Sprite");
+  const shadows = stack.filter((object) => object.type === "Ellipse");
+  expect(
+    shadows.some((shadow) =>
+      sprites.some((sprite) => Math.abs(sprite.depth - shadow.depth - 0.001) < 1e-6),
+    ),
+  ).toBe(true);
+
+  // A tap on the ground a few tiles away: the marker shows at its target while the avatar walks (GAME-24).
+  const target = await pagePoint(page, { x: before.x + 70, y: before.y + 35 });
+  await page.mouse.click(target.x, target.y);
+  await expect
+    .poll(async () => (await gameState(page)).walk.marker, { timeout: 5_000 })
+    .not.toBeNull();
+  // The tap was on the ground, not on an object: nothing glows because of it.
+  expect((await gameState(page)).walk.glow).toBeNull();
+  await expect
+    .poll(async () => (await gameState(page)).walk.marker, { timeout: 20_000 })
+    .toBeNull();
+  const after = await gameState(page);
+  expect(Math.hypot(after.x - before.x, after.y - before.y)).toBeGreaterThan(20);
+});
+
 test("[GAME-10][GAME-03] a tap walks the player into the portal, which leads to the next map; the device remembers the map", async ({
   page,
   context,

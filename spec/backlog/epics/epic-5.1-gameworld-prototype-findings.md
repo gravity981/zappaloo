@@ -94,14 +94,18 @@ Re-verified: GAME-02, GAME-10, GAME-16.
 Requirements: GAME-23.
 Re-verified: GAME-10.
 
-### Story 5.1e – Target marker and object glow
+### Story 5.1e – Target marker, object glow and figure shadow
 
 Mock screen: `game` (from 5.1b).
 - The pulsing marker on the ground at the target of every click or tap walk, with the depth and look of the confirmed proposal. It is removed on arrival, on stop, on a blocked walk (the stuck check of 5l.4) and on the arrow keys.
 - The pulse glow on a clickable object, or on a portal's floating arrow, while the avatar walks to it. It ends when the action runs or the walk ends.
 - The decisions about when the marker and glow show or hide are made by a small pure state helper, which unit tests check. An end-to-end test (`e2e/game-world.spec.ts`, desktop Chromium) taps the ground and reads the marker's state through the test hook: shown while walking, gone on arrival.
 
-Requirements: GAME-24, GAME-25.
+- The player's figure gets a soft elliptical shadow on the ground (GAME-28, added 2026-11-17 at the project owner's request while the story ran), like the shadow of a portal's arrow: a pure function gives its position and size from the feet, and a unit test checks it; the render stack shows it just below the figure.
+
+- Clickable objects glow softly along their edges all the time, in the colour of their sparkles (GAME-29, added 2026-11-17 at the project owner's request, as they were still not highlighted enough), as the portal's arrow does; the glow of the object the avatar walks to pulses. The frame rate with this many filters is checked on the iPhone with the diagnostics overlay.
+
+Requirements: GAME-24, GAME-25, GAME-28, GAME-29.
 Re-verified: GAME-15, GAME-16.
 
 ### Story 5.1f – Edge indicators
