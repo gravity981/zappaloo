@@ -15,6 +15,7 @@ export interface GameGuides {
   spawns: boolean;
   portals: boolean;
   grid: boolean;
+  occlusion: boolean;
 }
 
 export interface GameView {
@@ -24,7 +25,7 @@ export interface GameView {
 
 export interface GameState {
   mapId: string;
-  /** The player's foot anchor in the map's pixel space (sprite bottom-centre, used for depth and triggers). */
+  /** The player's logical foot position in map pixels, used for depth and triggers. */
   x: number;
   y: number;
   direction: string;

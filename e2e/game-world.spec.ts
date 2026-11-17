@@ -109,6 +109,7 @@ async function verifyTiledParity(
         spawns: true,
         portals: true,
         grid: true,
+        occlusion: true,
       });
     });
     await page.evaluate(() => {

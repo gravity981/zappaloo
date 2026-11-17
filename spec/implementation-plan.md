@@ -470,11 +470,11 @@ Requirements: GAME-01, GAME-02, GAME-03, GAME-07, GAME-09, GAME-10, GAME-19, MAP
 - Support **both** opening a world `tar.gz` package and watching local Tiled sources. The source workflow exports/packages locally and then uses the same validator and runtime format as a package import; it does not introduce a TMX/TSX browser parser.
 - **Tiled is the visual authority**, not the asset repository's preview. Match the authored artwork by default. Extra shadows or other preview effects are not part of the baseline and must be off during parity checks; implementing optional effects is not required by these steps.
 - All data under `world/hz-event-assets/` is sensitive and remains local. Use its preview as a reference for behaviour and workflow, not as a runtime dependency or a source of committed assets, fixtures or copied source files. Public/CI fixtures must be independently generated. Local captures, exports, differences and logs containing private data must stay ignored and must not enter CI uploads, release bundles or container build contexts.
-- **Decision revised after local-world visual review:** follow Phaser 4.2.1's native Tiled rendering and the Ground → Props → Foreground convention. Tile objects use natural image size, bottom alignment and zero tileset offset. Reject scaling, non-bottom alignment and non-zero offsets. Collision, portal trigger and actor-relative occlusion guides remain image-local gameplay/rendering data; do not split artwork into lower images and a static overlay. The player's collision circle is anchored above its feet.
+- **Decision revised after local-world visual review:** follow Phaser 4.2.1's native Tiled rendering and the Ground → Props → Foreground convention. Tile objects use natural image size, bottom alignment and zero tileset offset. Reject scaling, non-bottom alignment and non-zero offsets. Collision, portal trigger and actor-relative occlusion guides remain image-local gameplay/rendering data; do not split artwork into lower images and a static overlay. The player's collision ellipse is centered 2 px left of its feet, with horizontal and vertical radii of 0.1 and 0.05 tile widths.
 
 **Evidence from the initial source review** (historical; the rendering path and test strategy have since changed):
 - The first implementation used a custom Tiled renderer and did not verify artwork against Tiled. The Phaser-native spike and public parity fixtures replaced that approach.
-- The initial collision implementation treated the sprite's bottom-centre as the centre of its collision circle, extending the footprint below the visible feet. Step 5e.6 corrects and tests the anchor.
+- The initial collision implementation treated the sprite's bottom-centre as the centre of its collision circle, extending the footprint below the visible feet. Step 5e.6 corrected and tested the anchor; a later preview review changed the footprint to an ellipse centered at the logical feet, then shifted its center 2 px left.
 - Private world data remains local and read-only. Check its authoring features against the final package subset before claiming local-world compatibility; do not modify private assets.
 
 **5e.1 – Fidelity contract, private-data boundaries and Tiled reference tests.**
@@ -527,16 +527,18 @@ Requirements: GAME-20; re-verified: GAME-01, GAME-02, GAME-03, GAME-09, GAME-10,
 Exit: placement fixtures have zero visible-pixel differences, with gameplay geometry aligned to their artwork.
 
 **5e.6 – Foot-anchored collision and the WorldPackage rendering contract.**
-- Treat the player's sprite bottom-centre as its feet for depth, portals and movement. Center the radius-`0.1 × tileWidth` collision circle one radius above the feet; keyboard movement and tap-to-move must use the same footprint.
+- Treat the visible feet as the logical position for depth, portals, movement and collision; render each sprite frame with its bottom-centre 3 px left and 10 px down from that point. Center the collision ellipse 2 px left of the feet with horizontal radius `0.1 × tileWidth` and vertical radius `0.05 × tileWidth`; keyboard movement and tap-to-move must use the same footprint.
 - Keep Phaser-native rendering aligned with the package rules: natural-size, bottom-aligned tile objects, zero tile offsets, Tiled's top-down object order, collision/trigger guides as gameplay data, and Ground → Props → Foreground layering. Preserve intact tile artwork and support actor-relative depth from image-local occlusion polylines.
 - Add validator tests that refuse non-zero tileset offsets, non-bottom tile-object alignment, scaled tile objects and malformed occlusion guides. Retain collision and portal trigger guide validation and verify native tile-object parity when those guides are present.
 - Synchronize the shared WorldPackage definition, architecture requirements, generated package documentation, test strategy, preview guide, engine integration guide and development README. Audit the configured private Tiled source read-only and report any asset using a refused feature; do not modify private files.
 Requirements: GAME-02, GAME-19, GAME-20, MAP-02, MAP-06, MAP-16.
-Exit: the player footprint ends at the feet; validator, runtime, tests, package documentation and integration guides describe the same supported Tiled subset.
+Exit: the player's elliptical footprint is centered 2 px left of the feet; validator, runtime, tests, package documentation and integration guides describe the same supported Tiled subset.
 
 **5e.7 – Native depth-layer integration.**
 - Verify the Ground → Props → Foreground convention through the real Phaser scene: Props objects and the player sort by object bottom/feet, while later foreground layers cover both.
 - Exercise actors in front of and behind static props, collection tile objects carrying collision/trigger/occlusion guides, hidden gameplay layers, and a foreground tile layer. Artwork-only comparisons must remain unchanged when guides are present.
+- Provide an occlusion debug toggle in the shared preview that shows authored polylines, the player's occlusion point 3 px left of its feet, and the player's front/behind relation to each line without changing gameplay or artwork.
+- Extend the Collision debug toggle to show the player's collision ellipse, offset 2 px left of the feet, using the same geometry as movement collision checks.
 - Keep the implementation native-first; implement actor-relative depth using Phaser object depths and Tiled-authored polylines, not image splitting, masks or a per-pixel compositor.
 Requirements: GAME-19, GAME-20; re-verified: GAME-02, GAME-03, GAME-07, MAP-02.
 Exit: native layering and actor depth tests pass without changing the static artwork.

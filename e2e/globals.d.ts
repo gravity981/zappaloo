@@ -21,6 +21,7 @@ declare global {
           spawns: boolean;
           portals: boolean;
           grid: boolean;
+          occlusion: boolean;
         }) => void;
         renderArtwork: (
           mapId: string,

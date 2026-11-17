@@ -1,15 +1,8 @@
 // Collisions of a map (sw-architecture.md 14.4, GAME-02): the cells of the `collision` tile layer, collision
 // rectangles and polygons (and the collision guides of placed tiles) block their inside; a border blocks its
-// outline in both directions while its inside stays walkable. The input point is the figure's feet; its circular
-// footprint is centred one radius above that point, so it never extends below the feet.
-import {
-  distanceToOutline,
-  pixelToTile,
-  pointInPolygon,
-  tileToPixel,
-  type Point,
-  type TileSize,
-} from "./geometry.ts";
+// outline in both directions while its inside stays walkable. The player's collision footprint is an ellipse
+// centered 2 pixels left of its logical feet.
+import { pixelToTile, pointInPolygon, tileToPixel, type Point, type TileSize } from "./geometry.ts";
 
 export interface Obstacles {
   size: TileSize;
@@ -24,25 +17,66 @@ export interface Obstacles {
   borders: readonly (readonly Point[])[];
 }
 
-/** The player's collision radius, in tile widths (GAME-02). */
-export const PLAYER_COLLISION_RADIUS_TILES = 0.1;
+/** The player's horizontal and vertical collision radii, in tile widths (GAME-02). */
+export const PLAYER_COLLISION_RADII_TILES = { x: 0.1, y: 0.05 } as const;
+const PLAYER_COLLISION_CENTER_OFFSET = { x: -2, y: 0 } as const;
 
-/** The sample points of a figure's foot-anchored circle: its centre and points on its edge. */
-const CIRCLE_SAMPLES = 8;
+export interface PlayerCollisionEllipse {
+  center: Point;
+  radiusX: number;
+  radiusY: number;
+}
+
+export function playerCollisionEllipse(feet: Point, tileWidth: number): PlayerCollisionEllipse {
+  return {
+    center: {
+      x: feet.x + PLAYER_COLLISION_CENTER_OFFSET.x,
+      y: feet.y + PLAYER_COLLISION_CENTER_OFFSET.y,
+    },
+    radiusX: tileWidth * PLAYER_COLLISION_RADII_TILES.x,
+    radiusY: tileWidth * PLAYER_COLLISION_RADII_TILES.y,
+  };
+}
+
+/** The sample points of the player's collision ellipse. */
+const ELLIPSE_SAMPLES = 16;
 
 function cellKey(column: number, row: number): string {
   return `${String(column)},${String(row)}`;
 }
 
-/** Whether a figure with its feet at `point` (in pixel space) would touch a blocked shape. */
-export function blocked(obstacles: Obstacles, feet: Point, radius: number): boolean {
-  const centre = { x: feet.x, y: feet.y - radius };
-  const samples: Point[] = [centre];
-  for (let i = 0; i < CIRCLE_SAMPLES; i++) {
-    const angle = (i / CIRCLE_SAMPLES) * Math.PI * 2;
+function distanceToEllipseOutline(
+  ellipse: PlayerCollisionEllipse,
+  polygon: readonly Point[],
+): number {
+  const { center, radiusX, radiusY } = ellipse;
+  let minimum = Number.POSITIVE_INFINITY;
+  for (let i = 0; i < polygon.length; i++) {
+    const start = polygon[i];
+    const end = polygon[(i + 1) % polygon.length];
+    if (start === undefined || end === undefined) continue;
+
+    const ax = (start.x - center.x) / radiusX;
+    const ay = (start.y - center.y) / radiusY;
+    const dx = (end.x - start.x) / radiusX;
+    const dy = (end.y - start.y) / radiusY;
+    const lengthSquared = dx * dx + dy * dy;
+    const t =
+      lengthSquared === 0 ? 0 : Math.max(0, Math.min(1, -(ax * dx + ay * dy) / lengthSquared));
+    minimum = Math.min(minimum, Math.hypot(ax + t * dx, ay + t * dy));
+  }
+  return minimum;
+}
+
+/** Whether the player's collision ellipse touches a blocked shape. */
+export function blocked(obstacles: Obstacles, ellipse: PlayerCollisionEllipse): boolean {
+  const { center, radiusX, radiusY } = ellipse;
+  const samples: Point[] = [center];
+  for (let i = 0; i < ELLIPSE_SAMPLES; i++) {
+    const angle = (i / ELLIPSE_SAMPLES) * Math.PI * 2;
     samples.push({
-      x: centre.x + Math.cos(angle) * radius,
-      y: centre.y + Math.sin(angle) * radius,
+      x: center.x + Math.cos(angle) * radiusX,
+      y: center.y + Math.sin(angle) * radiusY,
     });
   }
   for (const sample of samples) {
@@ -51,17 +85,17 @@ export function blocked(obstacles: Obstacles, feet: Point, radius: number): bool
     if (obstacles.blockedCells.has(cellKey(column, row))) return true;
   }
   for (const solid of obstacles.solids) {
-    if (pointInPolygon(centre, solid) || distanceToOutline(centre, solid) < radius) return true;
+    if (pointInPolygon(center, solid) || distanceToEllipseOutline(ellipse, solid) < 1) return true;
   }
   for (const border of obstacles.borders) {
-    if (distanceToOutline(centre, border) < radius) return true;
+    if (distanceToEllipseOutline(ellipse, border) < 1) return true;
   }
   return false;
 }
 
-/** Whether a figure with its feet at `feet` may stand there. */
-export function walkable(obstacles: Obstacles, feet: Point, radius: number): boolean {
-  return !blocked(obstacles, feet, radius);
+/** Whether the player may stand at the feet position described by this collision ellipse. */
+export function walkable(obstacles: Obstacles, ellipse: PlayerCollisionEllipse): boolean {
+  return !blocked(obstacles, ellipse);
 }
 
 /** The cell of a point in pixel space, as tile column and row. */
@@ -84,7 +118,7 @@ export function clearLine(
   obstacles: Obstacles,
   a: Point,
   b: Point,
-  radius: number,
+  tileWidth: number,
   step: number,
 ): boolean {
   const length = Math.hypot(b.x - a.x, b.y - a.y);
@@ -92,7 +126,7 @@ export function clearLine(
   for (let i = 1; i <= parts; i++) {
     const t = i / parts;
     const point = { x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t };
-    if (blocked(obstacles, point, radius)) return false;
+    if (blocked(obstacles, playerCollisionEllipse(point, tileWidth))) return false;
   }
   return true;
 }

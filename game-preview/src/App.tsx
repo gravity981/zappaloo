@@ -26,6 +26,7 @@ const INITIAL_GUIDES: GameGuides = {
   spawns: false,
   portals: false,
   grid: false,
+  occlusion: false,
 };
 
 const INITIAL_VIEW: GameView = { artworkOnly: false, zoom: 2 };
@@ -590,6 +591,7 @@ export default function App() {
                 ["spawns", "Spawn"],
                 ["portals", "Portal"],
                 ["grid", "Grid"],
+                ["occlusion", "Occlusion debug"],
               ] as const
             ).map(([key, label]) => (
               <label key={key}>
@@ -604,6 +606,18 @@ export default function App() {
                 {label}
               </label>
             ))}
+            {currentGuides.occlusion && (
+              <small className="guide-legend">
+                Cyan: occlusion lines · white: vertices · yellow: player occlusion point (3 px left
+                of feet) · green/red: front/behind
+              </small>
+            )}
+            {currentGuides.collisions && (
+              <small className="guide-legend">
+                Red: blocked areas · orange ellipse: player collision footprint · white: ellipse
+                center
+              </small>
+            )}
             <label>
               <input
                 checked={currentView.artworkOnly}

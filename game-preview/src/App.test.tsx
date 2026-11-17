@@ -61,6 +61,7 @@ describe("standalone world preview (MAP-18)", () => {
     });
     vi.stubGlobal("fetch", fetchMock);
     render(<App />);
+    expect(screen.getByRole("checkbox", { name: "Occlusion debug" })).toBeDisabled();
 
     fireEvent.change(screen.getByLabelText("World package"), {
       target: {

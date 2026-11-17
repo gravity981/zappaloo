@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { figureDepth, lineY } from "./draw-order.ts";
+import { figureDepth, figureOcclusionPoint, lineY } from "./draw-order.ts";
 
 const frontOccluder = {
   depth: 100,
@@ -23,6 +23,19 @@ describe("the draw order (GAME-19)", () => {
 
   it("[GAME-19] a figure in front of an occlusion line is drawn in front of its object", () => {
     expect(figureDepth({ x: 32, y: 90 }, [frontOccluder])).toBe(100.5);
+  });
+
+  it("[GAME-19] evaluates occlusion three pixels left of the logical feet", () => {
+    const feet = { x: 35, y: 133 };
+    const slantedOccluder = {
+      depth: 100,
+      line: [
+        { x: 0, y: 100 },
+        { x: 64, y: 164 },
+      ],
+    };
+    expect(figureOcclusionPoint(feet)).toEqual({ x: 32, y: 133 });
+    expect(figureDepth(feet, [slantedOccluder])).toBe(133);
   });
 
   it("[GAME-19] without a line spanning the figure, the feet decide depth", () => {

@@ -7,6 +7,13 @@ export interface Occluder {
   line: readonly Point[];
 }
 
+const FIGURE_OCCLUSION_OFFSET_X = -3;
+
+/** The point used for actor occlusion, three pixels left of the logical feet. */
+export function figureOcclusionPoint(feet: Point): Point {
+  return { x: feet.x + FIGURE_OCCLUSION_OFFSET_X, y: feet.y };
+}
+
 /** The y of an occlusion line at `x`, or undefined when the line does not span `x`. */
 export function lineY(line: readonly Point[], x: number): number | undefined {
   for (let i = 0; i + 1 < line.length; i++) {
@@ -23,15 +30,16 @@ export function lineY(line: readonly Point[], x: number): number | undefined {
   return undefined;
 }
 
-/** Places the figure in the depth slot that satisfies the most occlusion guides spanning its feet. */
+/** Places the figure in the depth slot that satisfies the most occlusion guides spanning its occlusion point. */
 export function figureDepth(feet: Point, occluders: readonly Occluder[]): number {
+  const point = figureOcclusionPoint(feet);
   const constraints = occluders
     .map((occluder, order) => ({
       depth: occluder.depth,
       order,
       behind: (() => {
-        const y = lineY(occluder.line, feet.x);
-        return y === undefined ? undefined : feet.y < y;
+        const y = lineY(occluder.line, point.x);
+        return y === undefined ? undefined : point.y < y;
       })(),
     }))
     .filter((constraint) => constraint.behind !== undefined)

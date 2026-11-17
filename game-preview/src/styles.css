@@ -218,6 +218,13 @@ button:disabled {
   gap: 0.45rem;
 }
 
+.guide-legend {
+  display: block;
+  margin-top: 0.4rem;
+  color: #536157;
+  font-size: 0.75rem;
+}
+
 .guide-options button {
   width: 100%;
 }

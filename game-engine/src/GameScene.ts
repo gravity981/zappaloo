@@ -3,13 +3,14 @@
 // with the camera at the map's zoom. What the map means (collisions, paths, portals, draw order) is in the plain
 // modules next to it; this scene only wires them to Phaser.
 import Phaser from "phaser";
-import { walkable, cellOf, cellCentre, PLAYER_COLLISION_RADIUS_TILES } from "./collision.ts";
+import { walkable, cellOf, cellCentre, playerCollisionEllipse } from "./collision.ts";
 import { walkFrameIndex } from "./figures.ts";
-import { figureDepth } from "./draw-order.ts";
+import { figureDepth, figureOcclusionPoint, lineY } from "./draw-order.ts";
 import { mapBounds, type Point, polygonCentre, tileToPixel, type TileSize } from "./geometry.ts";
 import { findPath, type Grid } from "./pathfinding.ts";
 import { directionOf, keyDirection, stepPosition, type Direction } from "./movement.ts";
 import { portalAt, spawnPosition } from "./entry.ts";
+import { playerSpritePosition } from "./player-anchor.ts";
 import { tilesetImageKey, type ParsedMap, type TileDraw } from "./map-model.ts";
 import type { FigureData, LoadedWorld } from "./world-data.ts";
 import {
@@ -36,6 +37,7 @@ const DEFAULT_GUIDES: GameGuides = {
   spawns: false,
   portals: false,
   grid: false,
+  occlusion: false,
 };
 
 /** The data the scene starts with. Without it, the scene enters the world where the guest was last. */
@@ -57,6 +59,9 @@ export class WorldScene extends Phaser.Scene {
   #map: ParsedMap | undefined;
   #guides: GameGuides = DEFAULT_GUIDES;
   #guideGraphics: Phaser.GameObjects.Graphics | undefined;
+  #occlusionGraphics: Phaser.GameObjects.Graphics | undefined;
+  #occlusionActorGraphics: Phaser.GameObjects.Graphics | undefined;
+  #collisionActorGraphics: Phaser.GameObjects.Graphics | undefined;
   #position: Point = { x: 0, y: 0 };
   #player: Phaser.GameObjects.Sprite | undefined;
   #figure: FigureData | undefined;
@@ -122,12 +127,17 @@ export class WorldScene extends Phaser.Scene {
     this.cameras.main.setZoom(this.#artworkOnly ? (this.#zoom ?? 1) : CAMERA_ZOOM);
     this.#drawMap(map);
     this.#guideGraphics = this.add.graphics().setDepth(1_000_000);
+    this.#occlusionGraphics = this.add.graphics().setDepth(1_000_001);
+    this.#occlusionActorGraphics = this.add.graphics().setDepth(1_000_002);
+    this.#collisionActorGraphics = this.add.graphics().setDepth(1_000_003);
     this.#drawGuides();
+    this.#drawOcclusionGuides();
     this.#armed = portalAt(map, this.#position) === undefined;
     if (!this.#artworkOnly && this.#figure !== undefined) {
+      const spritePosition = playerSpritePosition(this.#position);
       const sprite = this.add.sprite(
-        this.#position.x,
-        this.#position.y,
+        spritePosition.x,
+        spritePosition.y,
         this.#figure.standing.south,
       );
       sprite.setOrigin(0.5, 1);
@@ -135,6 +145,8 @@ export class WorldScene extends Phaser.Scene {
       this.#player = sprite;
       this.cameras.main.startFollow(sprite, true);
     }
+    this.#drawOcclusionActor();
+    this.#drawCollisionActor();
     const bounds = mapBounds(map.columns, map.rows, map.size);
     this.cameras.main.setBounds(bounds.x, bounds.y, bounds.width, bounds.height);
     if (this.#artworkOnly) {
@@ -164,12 +176,18 @@ export class WorldScene extends Phaser.Scene {
       this.input.off(Phaser.Input.Events.POINTER_DOWN, this.#onTap);
       this.#host?.onStateChange?.(null);
       this.#guideGraphics = undefined;
+      this.#occlusionGraphics = undefined;
+      this.#occlusionActorGraphics = undefined;
+      this.#collisionActorGraphics = undefined;
     });
   }
 
   setGuides(guides: GameGuides): void {
     this.#guides = { ...guides };
     this.#drawGuides();
+    this.#drawOcclusionGuides();
+    this.#drawOcclusionActor();
+    this.#drawCollisionActor();
   }
 
   setSelection(selection: GameSelection): void {
@@ -205,8 +223,8 @@ export class WorldScene extends Phaser.Scene {
     if (map === undefined || figure === undefined || player === undefined || this.#transitioning)
       return;
     const size = map.size;
-    const radius = size.width * PLAYER_COLLISION_RADIUS_TILES;
-    const isWalkable = (point: Point) => walkable(map.obstacles, point, radius);
+    const isWalkable = (point: Point) =>
+      walkable(map.obstacles, playerCollisionEllipse(point, size.width));
     const step = (size.width * SPEED_TILES_PER_SECOND * delta) / 1000;
 
     // The keys win over a walk to a point. Otherwise the walk heads for its next waypoint, skipping the ones reached.
@@ -243,8 +261,11 @@ export class WorldScene extends Phaser.Scene {
         : figure.standing[this.#direction];
     if (texture !== undefined && player.texture.key !== texture) player.setTexture(texture);
     // Whole pixels: a fractional position is snapped differently from frame to frame, which made things shimmer.
-    player.setPosition(Math.round(this.#position.x), Math.round(this.#position.y));
+    const spritePosition = playerSpritePosition(this.#position);
+    player.setPosition(spritePosition.x, spritePosition.y);
     player.setDepth(figureDepth(this.#position, map.occluders));
+    this.#drawOcclusionActor();
+    this.#drawCollisionActor();
 
     const portal = portalAt(map, this.#position);
     if (!this.#armed) {
@@ -501,6 +522,84 @@ export class WorldScene extends Phaser.Scene {
     }
   }
 
+  #drawOcclusionGuides(): void {
+    const graphics = this.#occlusionGraphics;
+    const map = this.#map;
+    if (graphics === undefined || map === undefined) return;
+    graphics.clear();
+    const visible = this.#guides.occlusion && !this.#artworkOnly;
+    graphics.setVisible(visible);
+    if (!visible) return;
+
+    graphics.lineStyle(3, 0x00e5ff, 1);
+    for (const { line } of map.occluders) {
+      const first = line[0];
+      if (first === undefined || line.length < 2) continue;
+      graphics.beginPath();
+      graphics.moveTo(first.x, first.y);
+      for (const point of line.slice(1)) graphics.lineTo(point.x, point.y);
+      graphics.strokePath();
+      graphics.fillStyle(0xffffff, 1);
+      for (const point of line) graphics.fillCircle(point.x, point.y, 3);
+    }
+  }
+
+  #drawOcclusionActor(): void {
+    const graphics = this.#occlusionActorGraphics;
+    const map = this.#map;
+    if (graphics === undefined || map === undefined) return;
+    const visible = this.#guides.occlusion && !this.#artworkOnly && this.#player !== undefined;
+    if (!visible) {
+      if (graphics.visible) graphics.clear();
+      graphics.setVisible(false);
+      return;
+    }
+    graphics.setVisible(true);
+    graphics.clear();
+
+    const point = figureOcclusionPoint(this.#position);
+    for (const { line } of map.occluders) {
+      const y = lineY(line, point.x);
+      if (y === undefined) continue;
+      const color = point.y >= y ? 0x4dff88 : 0xff5d73;
+      graphics.lineStyle(2, color, 0.9);
+      graphics.lineBetween(point.x, point.y, point.x, y);
+      graphics.fillStyle(color, 1);
+      graphics.fillCircle(point.x, y, 3);
+    }
+
+    graphics.lineStyle(2, 0xffff00, 1);
+    graphics.strokeCircle(point.x, point.y, 5);
+    graphics.lineBetween(point.x - 7, point.y, point.x + 7, point.y);
+    graphics.lineBetween(point.x, point.y - 7, point.x, point.y + 7);
+  }
+
+  #drawCollisionActor(): void {
+    const graphics = this.#collisionActorGraphics;
+    const map = this.#map;
+    if (graphics === undefined || map === undefined) return;
+    const visible = this.#guides.collisions && !this.#artworkOnly && this.#player !== undefined;
+    if (!visible) {
+      if (graphics.visible) graphics.clear();
+      graphics.setVisible(false);
+      return;
+    }
+    graphics.setVisible(true);
+    graphics.clear();
+
+    const feet = this.#position;
+    const ellipse = playerCollisionEllipse(feet, map.size.width);
+    graphics.lineStyle(2, 0xffa500, 1);
+    graphics.strokeEllipse(
+      ellipse.center.x,
+      ellipse.center.y,
+      ellipse.radiusX * 2,
+      ellipse.radiusY * 2,
+    );
+    graphics.fillStyle(0xffffff, 1);
+    graphics.fillCircle(ellipse.center.x, ellipse.center.y, 2);
+  }
+
   /**
    * Draws a tile as a frame of its image. A frame is a rectangle of the texture (a sheet's cell, or the whole image
    * of a collection tile); frames are Phaser's own, so no crop of the texture is needed.
@@ -549,14 +648,15 @@ export class WorldScene extends Phaser.Scene {
     const map = this.#map;
     if (map === undefined) return;
     const size = map.size;
-    const radius = size.width * PLAYER_COLLISION_RADIUS_TILES;
     const portal = portalAt(map, point);
-    if (portal === undefined && !walkable(map.obstacles, point, radius)) return;
+    if (portal === undefined && !walkable(map.obstacles, playerCollisionEllipse(point, size.width)))
+      return;
     const goal = portal === undefined ? point : polygonCentre(portal.polygon);
     const grid: Grid = {
       columns: map.columns,
       rows: map.rows,
-      walkable: (cell) => walkable(map.obstacles, centreOf(cell, size), radius),
+      walkable: (cell) =>
+        walkable(map.obstacles, playerCollisionEllipse(centreOf(cell, size), size.width)),
     };
     const cells = findPath(grid, cellOf(this.#position, size), cellOf(goal, size));
     if (cells === undefined) return;
