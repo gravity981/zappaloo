@@ -109,6 +109,7 @@ describe("the start page (WEB-10, WEB-11)", () => {
     });
     renderAt("/admin/content/pages/start");
     user.type(await screen.findByLabelText("Beschreibung (Alt-Text)"), "Das Paar");
+    await screen.findByRole("option", { name: "Bild 7" });
     user.type(screen.getByLabelText("Bild wählen"), "7");
     user.click(screen.getByRole("switch", { name: "Countdown auf der Startseite zeigen" }));
     user.click(screen.getByRole("button", { name: "Veröffentlichen" }));

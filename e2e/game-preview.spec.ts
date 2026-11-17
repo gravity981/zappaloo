@@ -3,7 +3,8 @@ import { readdir, readFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import { buildTestWorld } from "../backend/src/world/build.ts";
 
-const PREVIEW_URL = "http://localhost:5175";
+const PREVIEW_PORT = process.env.ZAPPALOO_GAME_PREVIEW_PORT ?? "5175";
+const PREVIEW_URL = `http://localhost:${PREVIEW_PORT}`;
 
 test("[MAP-18][MAP-06][MAP-16] the standalone preview loads validated packages without the application API", async ({
   page,
@@ -18,8 +19,9 @@ test("[MAP-18][MAP-06][MAP-16] the standalone preview loads validated packages w
   });
 
   await page.goto(PREVIEW_URL);
-  await expect(page.getByText("No world package loaded")).toBeVisible();
+  await expect(page.getByText("Load a validated", { exact: false })).toBeVisible();
   await expect(page.locator("canvas")).toHaveCount(0);
+  const packageStatus = page.getByRole("status").filter({ hasText: "Testwelt" });
 
   const validPackage = {
     name: "test-world.tar.gz",
@@ -28,7 +30,7 @@ test("[MAP-18][MAP-06][MAP-16] the standalone preview loads validated packages w
   };
   await page.getByLabel("World package").setInputFiles(validPackage);
   await page.getByRole("button", { name: "Load package" }).click();
-  await expect(page.getByRole("status")).toContainText("Testwelt");
+  await expect(packageStatus).toBeVisible();
   await expect(page.locator("canvas")).toHaveCount(1);
   await expect(page.getByLabel("Map").locator("option")).toHaveCount(3);
   await expect(page.getByRole("combobox", { name: "Spawn" })).toHaveValue("start");
@@ -55,7 +57,7 @@ test("[MAP-18][MAP-06][MAP-16] the standalone preview loads validated packages w
   await page.getByRole("button", { name: "Load package" }).click();
   await expect(page.getByRole("alert")).toContainText("(archive)");
   await expect(page.locator("canvas")).toHaveCount(1);
-  await expect(page.getByRole("status")).toContainText("Testwelt");
+  await expect(packageStatus).toBeVisible();
 
   const packageRelease = page.waitForResponse(
     (response) =>
@@ -63,7 +65,7 @@ test("[MAP-18][MAP-06][MAP-16] the standalone preview loads validated packages w
       response.url().includes("/__game-preview/api/packages/"),
   );
   await page.getByRole("button", { name: "Reload" }).click();
-  await expect(page.getByRole("status")).toContainText("Testwelt");
+  await expect(packageStatus).toBeVisible();
   await expect(page.locator("canvas")).toHaveCount(1);
   expect((await packageRelease).status()).toBe(204);
   expect(applicationRequests).toEqual([]);
