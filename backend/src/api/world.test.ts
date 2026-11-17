@@ -4,6 +4,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import type { PublicWorld, WorldObjects, WorldStatus } from "@zappaloo/shared";
 import { buildArchive } from "../packages/build.ts";
 import { buildTestWorld, testWorldFiles } from "../world/build.ts";
+import { WorldService } from "../world/service.ts";
 import { createTestApp, signIn } from "../test-support.ts";
 import type { TestContext } from "../test-support.ts";
 
@@ -261,6 +262,48 @@ describe("the world of the event (MAP-04, MAP-05, MAP-06, MAP-08, MAP-09, MAP-10
       const response = await ctx.app.inject({ url, headers: player });
       expect(response.statusCode, url).toBe(404);
     }
+  });
+
+  it("[ACS-07][MAP-10] the world file route does not leave the world's folder: encoded `..` segments answer 404", async () => {
+    context = await createTestApp();
+    const ctx = context;
+    ctx.event.setSetting("platformOpen", true, "cli");
+    const admin = await signIn(ctx, "boss", ["admin"]);
+    const status = bodyOf<WorldStatus>(await upload(ctx, admin, buildTestWorld()));
+    const id = status.active?.importId ?? "";
+    const player = await signIn(ctx, "gast", ["vip"]);
+    // The manifest exists in the world's folder, so the requests below would read it without the guard.
+    expect(
+      existsSync(join(ctx.paths.events, ctx.event.eventId, "world", id, "manifest.json")),
+    ).toBe(true);
+    for (const url of [
+      `/api/world/${id}/avatar/..%2F..%2F${id}%2Fmanifest.json`,
+      `/api/world/${id}/avatar/%2e%2e%2f%2e%2e%2f${id}%2Fmanifest.json`,
+      `/api/world/${id}/avatar/..%2F..%2Fmanifest.json`,
+      `/api/world/${id}/avatar/wedding-guest/..%2F..%2F..%2F${id}%2Fmanifest.json`,
+    ]) {
+      const response = await ctx.app.inject({ url, headers: player });
+      expect(response.statusCode, url).toBe(404);
+    }
+    // A real figure frame is still served.
+    const frame = await ctx.app.inject({
+      url: `/api/world/${id}/avatar/wedding-guest/Idle/rotations/south.png`,
+      headers: player,
+    });
+    expect(frame.statusCode).toBe(200);
+  });
+
+  it("[ACS-07][MAP-10] WorldService.file() returns nothing outside the active world's folder", async () => {
+    context = await createTestApp();
+    const ctx = context;
+    ctx.event.setSetting("platformOpen", true, "cli");
+    const admin = await signIn(ctx, "boss", ["admin"]);
+    const status = bodyOf<WorldStatus>(await upload(ctx, admin, buildTestWorld()));
+    const id = status.active?.importId ?? "";
+    const service = new WorldService(ctx.database, ctx.event, ctx.paths.events);
+    expect(service.file(id, `avatar/../../${id}/manifest.json`)).toBeUndefined();
+    expect(service.file(id, "avatar/../../manifest.json")).toBeUndefined();
+    expect(service.file(id, "avatar/wedding-guest/metadata.json")).toBeDefined();
   });
 
   it("[ACS-07] a world is served to signed-in guests of an open platform only", async () => {

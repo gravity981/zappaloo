@@ -5,7 +5,7 @@
 import { randomUUID } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { mkdir, rename, rm, writeFile } from "node:fs/promises";
-import { dirname, join } from "node:path";
+import { dirname, join, resolve, sep } from "node:path";
 import { and, eq } from "drizzle-orm";
 import {
   contentPages,
@@ -33,6 +33,7 @@ import { presetWarnings } from "./presets.ts";
 import { mapSummaries } from "./summary.ts";
 import type { InstallationNames } from "./presets.ts";
 import { warningFinding } from "./findings.ts";
+import { isSafePath } from "../packages/archive.ts";
 
 /** The name of the guest-access switch among the event's settings (MAP-19). */
 const GUEST_ACCESS_SETTING = "worldGuestAccess";
@@ -88,7 +89,7 @@ export interface StoredWorld {
  * frames (in their folders under avatar/). The manifest and the door scene are not served.
  */
 const SERVED_FILE =
-  /^(?:maps\/[a-z0-9-]{1,40}\.json|tilesets\/[A-Za-z0-9._-]+\.png|avatar\/figures\.json|avatar\/(?:[A-Za-z0-9._-]+\/)+[A-Za-z0-9._-]+\.(?:png|json))$/;
+  /^(?:maps\/[a-z0-9-]{1,40}\.json|tilesets\/[A-Za-z0-9._-]+\.png|avatar\/figures\.json|avatar\/(?:[A-Za-z0-9][A-Za-z0-9._-]*\/)+[A-Za-z0-9][A-Za-z0-9._-]*\.(?:png|json))$/;
 
 type Row = typeof worldPackages.$inferSelect;
 
@@ -376,13 +377,17 @@ export class WorldService {
    * tileset images and avatar sprites are served; anything else is not there.
    */
   file(importId: string, path: string): Buffer | undefined {
-    if (!SERVED_FILE.test(path)) return undefined;
+    if (!SERVED_FILE.test(path) || !isSafePath(path)) return undefined;
     const known = [this.active(), this.#role("previous")].some(
       (item) => item?.importId === importId,
     );
     if (!known) return undefined;
+    // Last guard: the resolved file must lie inside the world's folder, whatever the path encodes.
+    const root = resolve(this.directory, importId);
+    const full = resolve(root, path);
+    if (!full.startsWith(root + sep)) return undefined;
     try {
-      return readFileSync(join(this.directory, importId, path));
+      return readFileSync(full);
     } catch {
       return undefined;
     }
