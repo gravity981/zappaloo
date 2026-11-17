@@ -4,7 +4,7 @@
 // first object is used, and a tap on the own avatar opens the profile. Pages open as an overlay above the paused game.
 import { lazy, Suspense, useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Navigate } from "react-router";
+import { Navigate, useNavigate } from "react-router";
 import { rsvpStateSchema, rsvpStatus } from "@zappaloo/shared";
 import type { RsvpState } from "@zappaloo/shared";
 import AvatarEditor from "../avatar/AvatarEditor.tsx";
@@ -66,6 +66,15 @@ export default function GamePage() {
   const openPage = useCallback((page: string, label: string) => {
     setOverlay({ action: { kind: "page", page }, label });
   }, []);
+  const navigate = useNavigate();
+  // A page of the overlay that leaves the game (a sign-out ends in the login) closes it and goes there.
+  const leaveOverlay = useCallback(
+    (path: string) => {
+      setOverlay(undefined);
+      void navigate(path);
+    },
+    [navigate],
+  );
   const closeOverlay = useCallback(() => {
     setOverlay(undefined);
   }, []);
@@ -113,7 +122,7 @@ export default function GamePage() {
           {hint && overlay === undefined && <GameHint />}
         </div>
       </div>
-      {overlay && <GameOverlay overlay={overlay} onClose={closeOverlay} />}
+      {overlay && <GameOverlay overlay={overlay} onClose={closeOverlay} onLeave={leaveOverlay} />}
     </div>
   );
 }

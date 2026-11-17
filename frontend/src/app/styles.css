@@ -96,6 +96,8 @@ body {
   min-height: 0;
   overflow: auto;
   border-radius: 18px 18px 0 0;
+  /* The last line of the page stays clear of the home indicator of a phone. */
+  padding-bottom: env(safe-area-inset-bottom, 0px);
 }
 .game-sheet-head {
   position: sticky;
@@ -139,7 +141,8 @@ body {
   background: #111;
 }
 /* A phone shows the game on the whole screen; a wide window caps it at 1280 x 800 pixels (GAME-20). */
-.game-window {
+/* Two classes: the guest scope (ui.css) gives every guest page a full-height minimum, which the game must not have. */
+.game-window.guest {
   display: flex;
   flex-direction: column;
   width: 100%;
@@ -148,7 +151,7 @@ body {
   background: #111;
 }
 @media (min-width: 720px) {
-  .game-window {
+  .game-window.guest {
     width: min(100%, 1280px);
     height: min(100%, 800px);
     border-radius: 12px;
