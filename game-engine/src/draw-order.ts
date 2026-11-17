@@ -23,14 +23,58 @@ export function lineY(line: readonly Point[], x: number): number | undefined {
   return undefined;
 }
 
-/** Places the figure immediately behind or in front of every occluder whose line spans its feet. */
+/** Places the figure in the depth slot that satisfies the most occlusion guides spanning its feet. */
 export function figureDepth(feet: Point, occluders: readonly Occluder[]): number {
-  let depth = feet.y;
-  for (const occluder of occluders) {
-    const y = lineY(occluder.line, feet.x);
-    if (y === undefined) continue;
-    if (feet.y < y) depth = Math.min(depth, occluder.depth - 0.5);
-    else depth = Math.max(depth, occluder.depth + 0.5);
+  const constraints = occluders
+    .map((occluder, order) => ({
+      depth: occluder.depth,
+      order,
+      behind: (() => {
+        const y = lineY(occluder.line, feet.x);
+        return y === undefined ? undefined : feet.y < y;
+      })(),
+    }))
+    .filter((constraint) => constraint.behind !== undefined)
+    .sort((a, b) => a.depth - b.depth || a.order - b.order);
+  if (constraints.length === 0) return feet.y;
+
+  let bestIndex = 0;
+  let bestViolations = Number.POSITIVE_INFINITY;
+  let bestDistance = Number.POSITIVE_INFINITY;
+  let bestDepth = feet.y;
+  let violations = constraints.filter((constraint) => !constraint.behind).length;
+  for (let index = 0; index <= constraints.length; index++) {
+    const depth = depthAtSlot(feet.y, constraints, index);
+    const distance = Math.abs(depth - feet.y);
+    if (
+      violations < bestViolations ||
+      (violations === bestViolations && distance < bestDistance) ||
+      (violations === bestViolations && distance === bestDistance && index > bestIndex)
+    ) {
+      bestIndex = index;
+      bestViolations = violations;
+      bestDistance = distance;
+      bestDepth = depth;
+    }
+    const crossed = constraints[index];
+    if (crossed !== undefined) violations += crossed.behind ? 1 : -1;
   }
-  return depth;
+  return bestDepth;
+}
+
+function depthAtSlot(
+  feetY: number,
+  constraints: readonly { depth: number }[],
+  index: number,
+): number {
+  const before = constraints[index - 1];
+  const after = constraints[index];
+  if (before === undefined) return Math.min(feetY, (after?.depth ?? feetY) - 0.5);
+  if (after === undefined) return Math.max(feetY, before.depth + 0.5);
+
+  const low = before.depth + 0.5;
+  const high = after.depth - 0.5;
+  if (low <= high) return Math.max(low, Math.min(high, feetY));
+  if (before.depth === after.depth) return before.depth + 0.000001;
+  return (before.depth + after.depth) / 2;
 }

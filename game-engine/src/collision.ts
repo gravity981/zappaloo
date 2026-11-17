@@ -24,6 +24,9 @@ export interface Obstacles {
   borders: readonly (readonly Point[])[];
 }
 
+/** The player's collision radius, in tile widths (GAME-02). */
+export const PLAYER_COLLISION_RADIUS_TILES = 0.1;
+
 /** The sample points of a figure's foot-anchored circle: its centre and points on its edge. */
 const CIRCLE_SAMPLES = 8;
 

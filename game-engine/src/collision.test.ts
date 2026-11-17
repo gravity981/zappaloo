@@ -1,5 +1,13 @@
 import { describe, expect, it } from "vitest";
-import { blocked, cellCentre, cellOf, clearLine, walkable, type Obstacles } from "./collision.ts";
+import {
+  blocked,
+  cellCentre,
+  cellOf,
+  clearLine,
+  PLAYER_COLLISION_RADIUS_TILES,
+  walkable,
+  type Obstacles,
+} from "./collision.ts";
 
 const size = { width: 64, height: 32 };
 
@@ -27,6 +35,20 @@ describe("collisions (GAME-02, MAP-02)", () => {
 
   it("[GAME-02] a figure cannot leave the map", () => {
     expect(blocked(obstacles(), { x: 0, y: -400 }, 4)).toBe(true);
+  });
+
+  it("[GAME-02] the 0.1-tile footprint clears a 8-pixel gap but blocks within its radius", () => {
+    const wall = [
+      { x: 72, y: 0 },
+      { x: 100, y: 0 },
+      { x: 100, y: 100 },
+      { x: 72, y: 100 },
+    ];
+    const map = obstacles({ solids: [wall] });
+    expect(PLAYER_COLLISION_RADIUS_TILES).toBe(0.1);
+    const radius = size.width * PLAYER_COLLISION_RADIUS_TILES;
+    expect(walkable(map, { x: 64, y: 64 }, radius)).toBe(true);
+    expect(walkable(map, { x: 65.7, y: 64 }, radius)).toBe(false);
   });
 
   it("[GAME-02] a figure touching a solid polygon is blocked, one further away is not", () => {

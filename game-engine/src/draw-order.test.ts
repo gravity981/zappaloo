@@ -38,4 +38,44 @@ describe("the draw order (GAME-19)", () => {
     expect(lineY(line, 5)).toBe(5);
     expect(lineY(line, 20)).toBeUndefined();
   });
+
+  it("[GAME-19] overlapping guides produce the same depth regardless of input order", () => {
+    const fartherObjectInFront = {
+      depth: 200,
+      line: [
+        { x: 0, y: 120 },
+        { x: 64, y: 120 },
+      ],
+    };
+    const nearerObjectBehind = {
+      depth: 100,
+      line: [
+        { x: 0, y: 80 },
+        { x: 64, y: 80 },
+      ],
+    };
+    const feet = { x: 32, y: 90 };
+    expect(figureDepth(feet, [fartherObjectInFront, nearerObjectBehind])).toBe(100.5);
+    expect(figureDepth(feet, [nearerObjectBehind, fartherObjectInFront])).toBe(100.5);
+  });
+
+  it("[GAME-19] when guides conflict, a tied depth favors the figure being in front", () => {
+    const behindNearerObject = {
+      depth: 100,
+      line: [
+        { x: 0, y: 120 },
+        { x: 64, y: 120 },
+      ],
+    };
+    const inFrontOfFartherObject = {
+      depth: 200,
+      line: [
+        { x: 0, y: 80 },
+        { x: 64, y: 80 },
+      ],
+    };
+    expect(figureDepth({ x: 32, y: 150 }, [behindNearerObject, inFrontOfFartherObject])).toBe(
+      200.5,
+    );
+  });
 });

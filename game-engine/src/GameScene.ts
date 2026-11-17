@@ -3,7 +3,7 @@
 // with the camera at the map's zoom. What the map means (collisions, paths, portals, draw order) is in the plain
 // modules next to it; this scene only wires them to Phaser.
 import Phaser from "phaser";
-import { walkable, cellOf, cellCentre } from "./collision.ts";
+import { walkable, cellOf, cellCentre, PLAYER_COLLISION_RADIUS_TILES } from "./collision.ts";
 import { walkFrameIndex } from "./figures.ts";
 import { figureDepth } from "./draw-order.ts";
 import { mapBounds, type Point, polygonCentre, tileToPixel, type TileSize } from "./geometry.ts";
@@ -27,9 +27,6 @@ export const CAMERA_ZOOM = 2;
 
 /** The walking speed, in tile widths per second. */
 const SPEED_TILES_PER_SECOND = 1.4;
-
-/** The radius of a figure, in tile widths: how close it may come to a blocked shape. */
-const RADIUS_TILES = 0.2;
 
 /** The distance in pixels at which a waypoint counts as reached. */
 const REACHED = 1;
@@ -208,7 +205,7 @@ export class WorldScene extends Phaser.Scene {
     if (map === undefined || figure === undefined || player === undefined || this.#transitioning)
       return;
     const size = map.size;
-    const radius = size.width * RADIUS_TILES;
+    const radius = size.width * PLAYER_COLLISION_RADIUS_TILES;
     const isWalkable = (point: Point) => walkable(map.obstacles, point, radius);
     const step = (size.width * SPEED_TILES_PER_SECOND * delta) / 1000;
 
@@ -552,7 +549,7 @@ export class WorldScene extends Phaser.Scene {
     const map = this.#map;
     if (map === undefined) return;
     const size = map.size;
-    const radius = size.width * RADIUS_TILES;
+    const radius = size.width * PLAYER_COLLISION_RADIUS_TILES;
     const portal = portalAt(map, point);
     if (portal === undefined && !walkable(map.obstacles, point, radius)) return;
     const goal = portal === undefined ? point : polygonCentre(portal.polygon);

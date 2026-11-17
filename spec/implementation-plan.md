@@ -527,7 +527,7 @@ Requirements: GAME-20; re-verified: GAME-01, GAME-02, GAME-03, GAME-09, GAME-10,
 Exit: placement fixtures have zero visible-pixel differences, with gameplay geometry aligned to their artwork.
 
 **5e.6 – Foot-anchored collision and the WorldPackage rendering contract.**
-- Treat the player's sprite bottom-centre as its feet for depth, portals and movement. Center the radius-`0.2 × tileWidth` collision circle one radius above the feet; keyboard movement and tap-to-move must use the same footprint.
+- Treat the player's sprite bottom-centre as its feet for depth, portals and movement. Center the radius-`0.1 × tileWidth` collision circle one radius above the feet; keyboard movement and tap-to-move must use the same footprint.
 - Keep Phaser-native rendering aligned with the package rules: natural-size, bottom-aligned tile objects, zero tile offsets, Tiled's top-down object order, collision/trigger guides as gameplay data, and Ground → Props → Foreground layering. Preserve intact tile artwork and support actor-relative depth from image-local occlusion polylines.
 - Add validator tests that refuse non-zero tileset offsets, non-bottom tile-object alignment, scaled tile objects and malformed occlusion guides. Retain collision and portal trigger guide validation and verify native tile-object parity when those guides are present.
 - Synchronize the shared WorldPackage definition, architecture requirements, generated package documentation, test strategy, preview guide, engine integration guide and development README. Audit the configured private Tiled source read-only and report any asset using a refused feature; do not modify private files.
