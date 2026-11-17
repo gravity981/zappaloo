@@ -20,12 +20,21 @@ const TILE_COLOURS: [number, number, number][] = [
   [0x6f, 0x6f, 0x78],
 ];
 
-/** A sheet image of `columns` × `rows` tiles; the tiles alternate in colour, so they are told apart. */
+/**
+ * A sheet image of `columns` × `rows` tiles. Each tile is a diamond of the isometric grid, transparent outside it;
+ * the tiles alternate in colour, so they are told apart.
+ */
 function tilesetPng(columns: number, rows: number, transparent: boolean): Buffer {
   return encodePngPixels(columns * TILE_WIDTH, rows * TILE_HEIGHT, (x, y) => {
-    const index = ((x / TILE_WIDTH) | 0) + ((y / TILE_HEIGHT) | 0) * columns;
+    const column = (x / TILE_WIDTH) | 0;
+    const row = (y / TILE_HEIGHT) | 0;
+    const index = column + row * columns;
     const [r, g, b] = TILE_COLOURS[index % TILE_COLOURS.length] ?? [0, 0, 0];
-    return [r, g, b, transparent && index % TILE_COLOURS.length === 1 ? 0 : 255];
+    const lx = (x % TILE_WIDTH) - TILE_WIDTH / 2;
+    const ly = (y % TILE_HEIGHT) - TILE_HEIGHT / 2;
+    const inside = Math.abs(lx) / (TILE_WIDTH / 2) + Math.abs(ly) / (TILE_HEIGHT / 2) <= 1;
+    const hidden = transparent && index % TILE_COLOURS.length === 1;
+    return [r, g, b, inside && !hidden ? 255 : 0];
   });
 }
 
@@ -203,10 +212,31 @@ function collection(firstgid: number) {
           name: "",
           draworder: "index",
           objects: [
-            { id: 1, name: "collision", x: 0, y: 0, polygon: [
-              { x: 8, y: 80 }, { x: 64, y: 96 }, { x: 120, y: 80 }, { x: 120, y: 56 }, { x: 64, y: 40 }, { x: 8, y: 56 },
-            ] },
-            { id: 2, name: "occlusion", x: 0, y: 0, polyline: [{ x: 8, y: 72 }, { x: 64, y: 88 }, { x: 120, y: 72 }] },
+            {
+              id: 1,
+              name: "collision",
+              x: 0,
+              y: 0,
+              polygon: [
+                { x: 8, y: 80 },
+                { x: 64, y: 96 },
+                { x: 120, y: 80 },
+                { x: 120, y: 56 },
+                { x: 64, y: 40 },
+                { x: 8, y: 56 },
+              ],
+            },
+            {
+              id: 2,
+              name: "occlusion",
+              x: 0,
+              y: 0,
+              polyline: [
+                { x: 8, y: 72 },
+                { x: 64, y: 88 },
+                { x: 120, y: 72 },
+              ],
+            },
           ],
         },
       },
@@ -264,8 +294,21 @@ function maps(): Record<string, unknown> {
     [sheet(1, "boden", 4, 4), sheet(17, "dekor", 4, 2), sheet(25, "objekte", 3, 1), collection(30)],
     [
       groupLayer(1, "Terrain", [
-        tiledLayer(2, "boden", 12, 10, base64(12, 10, (x, y) => 1 + ((x + y) % 4)), "base64"),
-        tiledLayer(3, "dekor", 12, 10, csv(12, 10, (x, y) => (x === 5 && y === 5 ? 17 : 0))),
+        tiledLayer(
+          2,
+          "boden",
+          12,
+          10,
+          base64(12, 10, (x, y) => 1 + ((x + y) % 4)),
+          "base64",
+        ),
+        tiledLayer(
+          3,
+          "dekor",
+          12,
+          10,
+          csv(12, 10, (x, y) => (x === 5 && y === 5 ? 17 : 0)),
+        ),
       ]),
       groupLayer(4, "Entities", [
         objectLayer(5, "Gebaeude", [
@@ -274,39 +317,80 @@ function maps(): Record<string, unknown> {
         ]),
       ]),
       groupLayer(8, "Gameplay", [
-        objectLayer(9, "Gameplay", [
-          point(1, "start", "spawn", 160, 200),
-          point(2, "eingang", "spawn", 160, 40),
-          object(3, "zum-garten", "portal", { x: 0, y: 160, width: 64, height: 32 }, [
-            property("targetMap", "garten"),
-            property("targetSpawn", "start"),
-            property("label", "Garten"),
-            objectProperty("marker", 12),
-          ], polygon([[0, 0], [64, 0], [64, 32], [0, 32]])),
-          tileObject(12, "", "decoration", { x: 0, y: 176, width: 64, height: 32 }, 25),
-          tileObject(4, "altar", "clickable", { x: 96, y: 96, width: 32, height: 32 }, 25, [
-            property("label", "Programm"),
-            property("action", "page"),
-            property("page", "programme"),
-          ]),
-          object(5, "schild", "clickable", { x: 128, y: 128, width: 16, height: 16 }, [
-            property("action", "content"),
-            property("contentId", "anreise"),
-            property("approach", "anfahrt"),
-          ], polygon([[0, 0], [16, 0], [16, 16], [0, 16]])),
-          point(6, "anfahrt", "", 128, 152),
-          object(7, "pastor", "clickable", { x: 64, y: 112, width: 16, height: 16 }, [
-            property("label", "Pfarrer"),
-            property("action", "dialog"),
-            property("contentId", "npc-pastor"),
-          ]),
-          object(8, "osterei", "clickable", { x: 32, y: 32, width: 16, height: 16 }, [
-            property("hidden", true),
-          ]),
-          object(10, "", "collision", { x: 64, y: 64, width: 32, height: 16 }),
-          object(13, "", "border", { x: 200, y: 40 }, [], polygon([[0, 0], [120, 0], [120, 60], [0, 60]])),
-          object(11, "sakristei", "protected", { x: 256, y: 32, width: 32, height: 32 }),
-        ], true),
+        objectLayer(
+          9,
+          "Gameplay",
+          [
+            point(1, "start", "spawn", 160, 200),
+            point(2, "eingang", "spawn", 160, 40),
+            object(
+              3,
+              "zum-garten",
+              "portal",
+              { x: 0, y: 160, width: 64, height: 32 },
+              [
+                property("targetMap", "garten"),
+                property("targetSpawn", "start"),
+                property("label", "Garten"),
+                objectProperty("marker", 12),
+              ],
+              polygon([
+                [0, 0],
+                [64, 0],
+                [64, 32],
+                [0, 32],
+              ]),
+            ),
+            tileObject(12, "", "decoration", { x: 0, y: 176, width: 64, height: 32 }, 25),
+            tileObject(4, "altar", "clickable", { x: 96, y: 96, width: 32, height: 32 }, 25, [
+              property("label", "Programm"),
+              property("action", "page"),
+              property("page", "programme"),
+            ]),
+            object(
+              5,
+              "schild",
+              "clickable",
+              { x: 128, y: 128, width: 16, height: 16 },
+              [
+                property("action", "content"),
+                property("contentId", "anreise"),
+                property("approach", "anfahrt"),
+              ],
+              polygon([
+                [0, 0],
+                [16, 0],
+                [16, 16],
+                [0, 16],
+              ]),
+            ),
+            point(6, "anfahrt", "", 128, 152),
+            object(7, "pastor", "clickable", { x: 64, y: 112, width: 16, height: 16 }, [
+              property("label", "Pfarrer"),
+              property("action", "dialog"),
+              property("contentId", "npc-pastor"),
+            ]),
+            object(8, "osterei", "clickable", { x: 32, y: 32, width: 16, height: 16 }, [
+              property("hidden", true),
+            ]),
+            object(10, "", "collision", { x: 64, y: 64, width: 32, height: 16 }),
+            object(
+              13,
+              "",
+              "border",
+              { x: 200, y: 40 },
+              [],
+              polygon([
+                [0, 0],
+                [120, 0],
+                [120, 60],
+                [0, 60],
+              ]),
+            ),
+            object(11, "sakristei", "protected", { x: 256, y: 32, width: 32, height: 32 }),
+          ],
+          true,
+        ),
       ]),
     ],
     [property("name", "Kirche")],
@@ -318,19 +402,55 @@ function maps(): Record<string, unknown> {
     10,
     [sheet(1, "boden", 4, 4), sheet(17, "dekor", 4, 2)],
     [
-      tiledLayer(1, "boden", 14, 10, csv(14, 10, (x, y) => 1 + ((x * 2 + y) % 4))),
+      tiledLayer(
+        1,
+        "boden",
+        14,
+        10,
+        csv(14, 10, (x, y) => 1 + ((x * 2 + y) % 4)),
+      ),
       tiledLayer(2, "collision", 14, 10, csv(14, 10, border(14, 10))),
       objectLayer(3, "Gameplay", [
         point(1, "start", "spawn", 64, 64),
-        object(2, "zur-kirche", "portal", { x: 0, y: 0, width: 32, height: 32 }, [
-          property("targetMap", "kirche"),
-          property("targetSpawn", "eingang"),
-        ], polygon([[0, 0], [32, 0], [32, 32], [0, 32]])),
-        object(3, "zum-saal", "portal", { x: 304, y: 200, width: 32, height: 32 }, [
-          property("targetMap", "saal"),
-          property("targetSpawn", "start"),
-        ], polygon([[0, 0], [32, 0], [32, 32], [0, 32]])),
-        object(4, "wiese", "wander", { x: 100, y: 100 }, [], polygon([[0, 0], [200, 0], [200, 100], [0, 100]])),
+        object(
+          2,
+          "zur-kirche",
+          "portal",
+          { x: 0, y: 0, width: 32, height: 32 },
+          [property("targetMap", "kirche"), property("targetSpawn", "eingang")],
+          polygon([
+            [0, 0],
+            [32, 0],
+            [32, 32],
+            [0, 32],
+          ]),
+        ),
+        object(
+          3,
+          "zum-saal",
+          "portal",
+          { x: 304, y: 200, width: 32, height: 32 },
+          [property("targetMap", "saal"), property("targetSpawn", "start")],
+          polygon([
+            [0, 0],
+            [32, 0],
+            [32, 32],
+            [0, 32],
+          ]),
+        ),
+        object(
+          4,
+          "wiese",
+          "wander",
+          { x: 100, y: 100 },
+          [],
+          polygon([
+            [0, 0],
+            [200, 0],
+            [200, 100],
+            [0, 100],
+          ]),
+        ),
         object(5, "spiel", "clickable", { x: 160, y: 96, width: 16, height: 16 }, [
           property("action", "minigame"),
           property("minigameId", "quiz-01"),
@@ -350,14 +470,30 @@ function maps(): Record<string, unknown> {
     10,
     [sheet(1, "boden", 4, 4), sheet(17, "dekor", 4, 2)],
     [
-      tiledLayer(1, "boden", 12, 10, base64(12, 10, (x, y) => 1 + ((x + y) % 4)), "base64"),
+      tiledLayer(
+        1,
+        "boden",
+        12,
+        10,
+        base64(12, 10, (x, y) => 1 + ((x + y) % 4)),
+        "base64",
+      ),
       tiledLayer(2, "collision", 12, 10, csv(12, 10, border(12, 10))),
       objectLayer(3, "Gameplay", [
         point(1, "start", "spawn", 160, 160),
-        object(2, "zum-garten", "portal", { x: 0, y: 160, width: 32, height: 32 }, [
-          property("targetMap", "garten"),
-          property("targetSpawn", "start"),
-        ], polygon([[0, 0], [32, 0], [32, 32], [0, 32]])),
+        object(
+          2,
+          "zum-garten",
+          "portal",
+          { x: 0, y: 160, width: 32, height: 32 },
+          [property("targetMap", "garten"), property("targetSpawn", "start")],
+          polygon([
+            [0, 0],
+            [32, 0],
+            [32, 32],
+            [0, 32],
+          ]),
+        ),
         point(3, "platz-1", "seat", 80, 80, [property("table", "1")]),
         point(4, "platz-2", "seat", 96, 80, [property("table", 3)]),
         object(5, "tanzflaeche", "wander", { x: 64, y: 64, width: 96, height: 64 }),
@@ -377,16 +513,27 @@ function maps(): Record<string, unknown> {
 const WALK_FRAMES = 3;
 const FIGURE_SIDE = 16;
 
+/** A figure's frame: a head and a body in its colour, transparent around them. */
+function figureFrame(colour: [number, number, number]): Buffer {
+  return encodePngPixels(FIGURE_SIDE, FIGURE_SIDE, (x, y) => {
+    const head = (x - 8) ** 2 + (y - 4) ** 2 <= 9;
+    const body = x >= 4 && x < 12 && y >= 8 && y < 16;
+    const [r, g, b] = colour;
+    return [r, g, b, head || body ? 255 : 0];
+  });
+}
+
 /** One figure's PixelLab metadata, its frames and the folder they sit in. */
-function figure(folder: string, grey: number): Record<string, Buffer> {
-  const frame = () => encodePng(FIGURE_SIDE, FIGURE_SIDE, [grey, grey, grey]);
+function figure(folder: string, colour: [number, number, number]): Record<string, Buffer> {
+  const frame = () => figureFrame(colour);
   const directions = ["south", "west", "east", "north"] as const;
   const rotations = Object.fromEntries(directions.map((d) => [d, `Idle/rotations/${d}.png`]));
   const walking = Object.fromEntries(
     directions.map((d) => [
       d,
-      Array.from({ length: WALK_FRAMES }, (_, index) =>
-        `Idle/animations/walking/${d}/frame_${String(index).padStart(3, "0")}.png`,
+      Array.from(
+        { length: WALK_FRAMES },
+        (_, index) => `Idle/animations/walking/${d}/frame_${String(index).padStart(3, "0")}.png`,
       ),
     ]),
   );
@@ -415,7 +562,9 @@ function figure(folder: string, grey: number): Record<string, Buffer> {
   for (const d of directions) {
     files[`avatar/${folder}/Idle/rotations/${d}.png`] = frame();
     for (let index = 0; index < WALK_FRAMES; index++) {
-      files[`avatar/${folder}/Idle/animations/walking/${d}/frame_${String(index).padStart(3, "0")}.png`] = frame();
+      files[
+        `avatar/${folder}/Idle/animations/walking/${d}/frame_${String(index).padStart(3, "0")}.png`
+      ] = frame();
     }
   }
   return files;
@@ -452,8 +601,8 @@ export function testWorldFiles(): Record<string, Buffer> {
     }),
     "door/door.png": encodePng(128, 32, [0x8a, 0x5a, 0x3a]),
     "door/door-glimpse.png": encodePng(64, 64, [0xf2, 0xd3, 0x8a]),
-    ...figure("wedding-guest", 0x70),
-    ...figure("male-guest", 0xa0),
+    ...figure("wedding-guest", [0xb0, 0x2a, 0x3a]),
+    ...figure("male-guest", [0x2a, 0x3a, 0xb0]),
   };
   for (const [id, map] of Object.entries(maps())) {
     files[`maps/${id}.json`] = json(map);

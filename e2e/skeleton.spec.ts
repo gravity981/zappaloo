@@ -37,14 +37,21 @@ test("[LANG-01] the website shows its texts in German", async ({ page, context }
   await expect(page.getByRole("link", { name: de.nav.game })).toBeVisible();
 });
 
-test("Phaser mounts with an empty scene", async ({ page, context }) => {
+test("the game route mounts Phaser with the world, or says that no world is set up yet", async ({
+  page,
+  context,
+}) => {
   await signInAsAdmin(page, context);
   await page.goto("/");
   await page.getByRole("link", { name: de.nav.game }).click();
-  await expect(page.locator("[data-testid=game-canvas] canvas")).toBeVisible();
-  await expect
-    .poll(() => page.evaluate(() => window.__zappaloo?.game?.activeScenes() ?? []))
-    .toEqual(["empty"]);
+  // The world tests import a world on the same installation, so both outcomes are possible here.
+  const canvas = page.locator("[data-testid=game-canvas] canvas");
+  await expect(canvas.or(page.getByText(de.game.noWorld))).toBeVisible();
+  if ((await canvas.count()) > 0) {
+    await expect
+      .poll(() => page.evaluate(() => window.__zappaloo?.game?.activeScenes() ?? []))
+      .toEqual(["world"]);
+  }
 });
 
 test("the backend reports health and version", async ({ request }) => {

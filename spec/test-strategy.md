@@ -84,7 +84,7 @@ All active requirements are listed here until their stage is delivered. Shrink t
 
 | Prefix | IDs | Count |
 |---|---|---|
-| GAME | GAME-01 – GAME-19 | 19 |
+| GAME | GAME-04 – GAME-08, GAME-11 – GAME-18 | 13 |
 | PRES | PRES-01, PRES-02, PRES-04 – PRES-10, PRES-12 – PRES-15 | 13 |
 | HUNT | HUNT-01 – HUNT-07 | 7 |
 | MG | MG-01 – MG-13 | 13 |
@@ -95,11 +95,11 @@ All active requirements are listed here until their stage is delivered. Shrink t
 | ACS | ACS-04 | 1 |
 | PHO | PHO-01 – PHO-03, PHO-05 – PHO-19 | 18 |
 | MOD | MOD-01 – MOD-05 | 5 |
-| MAP | MAP-02, MAP-03, MAP-12 – MAP-15 | 6 |
+| MAP | MAP-03, MAP-12 – MAP-15 | 5 |
 | OPS | OPS-13 | 1 |
 | SEC | SEC-04, SEC-06 – SEC-08 | 4 |
 | PERF | PERF-01, PERF-03, PERF-04 | 3 |
-| **Total** | | **103** |
+| **Total** | | **96** |
 
 The stage each requirement belongs to is listed in `sw-architecture.md`, section 28.
 

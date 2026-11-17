@@ -672,7 +672,8 @@
   },
   "game": {
     "loading": "Die digitale Erlebniswelt wird geladen …",
-    "loadFailed": "Die digitale Erlebniswelt konnte nicht geladen werden."
+    "loadFailed": "Die digitale Erlebniswelt konnte nicht geladen werden.",
+    "noWorld": "Die digitale Erlebniswelt ist noch nicht eingerichtet."
   },
   "notFound": {
     "title": "Seite nicht gefunden",

@@ -176,7 +176,12 @@ function pruneLayers(layers: unknown[], file: string, findings: WorldFinding[]):
       findings.push(errorFinding(file, "map_layer", "a layer is not an object"));
       continue;
     }
-    const item = layer as { type?: unknown; name?: unknown; compression?: unknown; layers?: unknown };
+    const item = layer as {
+      type?: unknown;
+      name?: unknown;
+      compression?: unknown;
+      layers?: unknown;
+    };
     const name = typeof item.name === "string" ? item.name : "(unnamed)";
     if (!ALLOWED_LAYER_TYPES.includes(String(item.type))) {
       findings.push(
@@ -189,7 +194,11 @@ function pruneLayers(layers: unknown[], file: string, findings: WorldFinding[]):
       );
       continue;
     }
-    if (item.type === "tilelayer" && typeof item.compression === "string" && item.compression !== "") {
+    if (
+      item.type === "tilelayer" &&
+      typeof item.compression === "string" &&
+      item.compression !== ""
+    ) {
       findings.push(
         errorFinding(
           file,
@@ -211,7 +220,9 @@ function pruneLayers(layers: unknown[], file: string, findings: WorldFinding[]):
 
 /** Every object of the map's object layers, and the tile objects inside them. */
 function allObjects(layers: TiledLayer[]): TiledObject[] {
-  return flattenLayers(layers).flatMap((layer) => (layer.type === "objectgroup" ? layer.objects : []));
+  return flattenLayers(layers).flatMap((layer) =>
+    layer.type === "objectgroup" ? layer.objects : [],
+  );
 }
 
 /** Checks one Tiled map of the package. */
@@ -239,7 +250,11 @@ export function checkMap(id: string, bytes: Buffer, context: MapContext): MapRes
   }
   if (document.orientation !== undefined && document.orientation !== "isometric") {
     findings.push(
-      errorFinding(file, "map_format", `the orientation is ${JSON.stringify(document.orientation)}; the map must be isometric`),
+      errorFinding(
+        file,
+        "map_format",
+        `the orientation is ${JSON.stringify(document.orientation)}; the map must be isometric`,
+      ),
     );
   }
 
@@ -450,7 +465,12 @@ function sizeMatches(
     (context.tileHeight !== undefined && tileset.tileheight !== context.tileHeight)
   ) {
     findings.push(
-      errorFinding(file, "map_tileset", "the tiles are not of the package's tile size", tileset.name),
+      errorFinding(
+        file,
+        "map_tileset",
+        "the tiles are not of the package's tile size",
+        tileset.name,
+      ),
     );
     return false;
   }
@@ -496,7 +516,12 @@ function checkCollection(
       (tile.imageheight !== undefined && tile.imageheight !== size.height)
     ) {
       findings.push(
-        errorFinding(file, "map_tileset", `the size of ${imagePath} does not match the tileset`, name),
+        errorFinding(
+          file,
+          "map_tileset",
+          `the size of ${imagePath} does not match the tileset`,
+          name,
+        ),
       );
     }
   }
@@ -528,7 +553,11 @@ function checkTileGuides(
     const shape = shapeOf(guide);
     if (guide.name === "collision" && (shape === "polygon" || shape === "rectangle")) {
       blocks = true;
-    } else if (guide.name === "occlusion" && shape === "polyline" && (guide.polyline?.length ?? 0) >= 2) {
+    } else if (
+      guide.name === "occlusion" &&
+      shape === "polyline" &&
+      (guide.polyline?.length ?? 0) >= 2
+    ) {
       occlusion += 1;
     } else {
       findings.push(
@@ -542,7 +571,9 @@ function checkTileGuides(
     }
   }
   if (occlusion > 1) {
-    findings.push(errorFinding(file, "map_guide", "a tile has more than one occlusion line", label));
+    findings.push(
+      errorFinding(file, "map_guide", "a tile has more than one occlusion line", label),
+    );
   }
   return blocks;
 }
@@ -681,7 +712,9 @@ function checkObject(
     }
     const gid = object.gid & TILE_ID_MASK;
     if (!inRanges(gid, ranges)) {
-      findings.push(errorFinding(file, "map_tiles", `the tile id ${String(gid)} is in no tileset`, label));
+      findings.push(
+        errorFinding(file, "map_tiles", `the tile id ${String(gid)} is in no tileset`, label),
+      );
       return;
     }
     if (blockingTiles.has(gid)) result.placedBlocking = true;
@@ -780,7 +813,12 @@ function checkPortal(
   const hasTarget = properties.has("targetMap") || properties.has("targetSpawn");
   if (!hasTarget) {
     findings.push(
-      warningFinding(file, "portal_no_target", "the portal has no target and does nothing yet", label),
+      warningFinding(
+        file,
+        "portal_no_target",
+        "the portal has no target and does nothing yet",
+        label,
+      ),
     );
   } else {
     if (targetMap === undefined || !WORLD_ID_PATTERN.test(targetMap)) {

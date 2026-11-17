@@ -144,7 +144,7 @@ function withEntryType(gzipped: Buffer, type: string): Buffer {
 /** The test world's figure `wedding-guest`, with its metadata edited. */
 function editMetadata(files: Files, figure: string, change: (metadata: Json) => void): Files {
   return edit(files, `avatar/${figure}/metadata.json`, (metadata) => {
-    change(((metadata.states as Json[])[0] ?? {}));
+    change((metadata.states as Json[])[0] ?? {});
   });
 }
 
@@ -162,7 +162,10 @@ describe("the test world", () => {
     if (!result.ok) return;
     expect(result.package.door?.sheet.frames).toBe(4);
     expect(result.package.door?.glimpse).toBe(true);
-    expect(result.package.figures.map((figure) => figure.id)).toEqual(["wedding-guest", "male-guest"]);
+    expect(result.package.figures.map((figure) => figure.id)).toEqual([
+      "wedding-guest",
+      "male-guest",
+    ]);
     expect(result.package.manifest.startMap).toBe("kirche");
     expect(result.package.manifest.tileWidth).toBe(64);
     expect(result.package.manifest.tileHeight).toBe(32);
@@ -222,7 +225,9 @@ describe("the archive and the layout (MAP-16)", () => {
 
   it("[MAP-16] refuses a package without any map", () => {
     const files = world();
-    const withoutMaps = Object.fromEntries(Object.entries(files).filter(([path]) => !path.startsWith("maps/")));
+    const withoutMaps = Object.fromEntries(
+      Object.entries(files).filter(([path]) => !path.startsWith("maps/")),
+    );
     expectRefused(withoutMaps, "file_missing");
   });
 
@@ -321,7 +326,11 @@ describe("the maps: format and layers (MAP-02, MAP-06)", () => {
   });
 
   it("[MAP-06] accepts a map name of 1–60 characters, and a map without a name", () => {
-    expectAccepted(edit(world(), "maps/saal.json", (m) => { setMapName(m, "Saal, 60 Zeichen"); }));
+    expectAccepted(
+      edit(world(), "maps/saal.json", (m) => {
+        setMapName(m, "Saal, 60 Zeichen");
+      }),
+    );
     const unnamed = edit(world(), "maps/saal.json", (m) => {
       m.properties = [];
     });
@@ -329,7 +338,12 @@ describe("the maps: format and layers (MAP-02, MAP-06)", () => {
   });
 
   it("[MAP-06] refuses a map name of more than 60 characters", () => {
-    expectRefused(edit(world(), "maps/saal.json", (m) => { setMapName(m, "x".repeat(61)); }), "map_property");
+    expectRefused(
+      edit(world(), "maps/saal.json", (m) => {
+        setMapName(m, "x".repeat(61));
+      }),
+      "map_property",
+    );
   });
 
   it("[MAP-06] refuses a map that is not valid JSON", () => {
@@ -368,7 +382,13 @@ describe("the maps: format and layers (MAP-02, MAP-06)", () => {
 
   it("[MAP-06] refuses an image layer", () => {
     const files = edit(world(), "maps/saal.json", (m) => {
-      (m.layers as Json[]).push({ type: "imagelayer", name: "bild", id: 99, visible: true, image: "x.png" });
+      (m.layers as Json[]).push({
+        type: "imagelayer",
+        name: "bild",
+        id: 99,
+        visible: true,
+        image: "x.png",
+      });
     });
     expectRefused(files, "map_layer");
   });
@@ -432,7 +452,13 @@ describe("the maps: format and layers (MAP-02, MAP-06)", () => {
 describe("the maps: tilesets (MAP-02, MAP-06)", () => {
   it("[MAP-06] refuses an external tileset", () => {
     const files = edit(world(), "maps/saal.json", (m) => {
-      (m.tilesets as Json[])[0] = { firstgid: 1, name: "boden", source: "boden.tsx", tilewidth: 64, tileheight: 32 };
+      (m.tilesets as Json[])[0] = {
+        firstgid: 1,
+        name: "boden",
+        source: "boden.tsx",
+        tilewidth: 64,
+        tileheight: 32,
+      };
     });
     expectRefused(files, "map_tileset");
   });
@@ -510,7 +536,16 @@ describe("the objects (MAP-02, MAP-06)", () => {
   it("[MAP-06] refuses an untyped object that is not a point", () => {
     const files = edit(world(), "maps/saal.json", (m) => {
       const layer = layerNamed(m, "Gameplay");
-      (layer.objects as Json[]).push({ id: 900, name: "ohne", x: 1, y: 1, width: 8, height: 8, rotation: 0, visible: true });
+      (layer.objects as Json[]).push({
+        id: 900,
+        name: "ohne",
+        x: 1,
+        y: 1,
+        width: 8,
+        height: 8,
+        rotation: 0,
+        visible: true,
+      });
     });
     expectRefused(files, "map_object");
   });
@@ -518,7 +553,11 @@ describe("the objects (MAP-02, MAP-06)", () => {
   it("[MAP-06] refuses an object of a shape its type does not take", () => {
     const files = edit(world(), "maps/saal.json", (m) => {
       objectNamed(m, "platz-1").point = undefined;
-      objectNamed(m, "platz-1").polygon = [{ x: 0, y: 0 }, { x: 4, y: 0 }, { x: 4, y: 4 }];
+      objectNamed(m, "platz-1").polygon = [
+        { x: 0, y: 0 },
+        { x: 4, y: 0 },
+        { x: 4, y: 4 },
+      ];
     });
     expectRefused(files, "map_object");
   });
@@ -551,7 +590,11 @@ describe("the objects (MAP-02, MAP-06)", () => {
         y: 40,
         rotation: 0,
         visible: true,
-        polygon: [{ x: 0, y: 0 }, { x: 40, y: 0 }, { x: 20, y: 30 }],
+        polygon: [
+          { x: 0, y: 0 },
+          { x: 40, y: 0 },
+          { x: 20, y: 30 },
+        ],
       });
     });
     expectAccepted(files);
@@ -720,7 +763,11 @@ describe("the objects (MAP-02, MAP-06)", () => {
         y: 10,
         rotation: 0,
         visible: true,
-        polygon: [{ x: 0, y: 0 }, { x: 10, y: 0 }, { x: 5, y: 9 }],
+        polygon: [
+          { x: 0, y: 0 },
+          { x: 10, y: 0 },
+          { x: 5, y: 9 },
+        ],
       });
       // The tile collision layer is removed, so only the hidden collision object blocks.
       m.layers = (m.layers as Json[]).filter((item) => item.name !== "collision");
@@ -737,7 +784,18 @@ describe("tile guides: collision and occlusion (MAP-02)", () => {
       tileAt(collection, 0).objectgroup = {
         type: "objectgroup",
         name: "",
-        objects: [{ id: 1, name: "licht", x: 0, y: 0, polyline: [{ x: 0, y: 0 }, { x: 5, y: 5 }] }],
+        objects: [
+          {
+            id: 1,
+            name: "licht",
+            x: 0,
+            y: 0,
+            polyline: [
+              { x: 0, y: 0 },
+              { x: 5, y: 5 },
+            ],
+          },
+        ],
       };
     });
     expectRefused(files, "map_guide");
@@ -748,7 +806,16 @@ describe("tile guides: collision and occlusion (MAP-02)", () => {
       const collection = tilesetNamed(m, "gebaeude");
       const tile = tileAt(collection, 0);
       const group = tile.objectgroup as Json;
-      (group.objects as Json[]).push({ id: 3, name: "occlusion", x: 0, y: 0, polyline: [{ x: 0, y: 0 }, { x: 5, y: 5 }] });
+      (group.objects as Json[]).push({
+        id: 3,
+        name: "occlusion",
+        x: 0,
+        y: 0,
+        polyline: [
+          { x: 0, y: 0 },
+          { x: 5, y: 5 },
+        ],
+      });
     });
     expectRefused(files, "map_guide");
   });
@@ -760,7 +827,12 @@ describe("tile guides: collision and occlusion (MAP-02)", () => {
       for (const group of groups) {
         group.layers = (group.layers as Json[]).map((item) =>
           item.type === "objectgroup"
-            ? { ...item, objects: (item.objects as Json[]).filter((object) => object.type !== "collision" && object.type !== "border") }
+            ? {
+                ...item,
+                objects: (item.objects as Json[]).filter(
+                  (object) => object.type !== "collision" && object.type !== "border",
+                ),
+              }
             : item,
         );
       }
@@ -781,7 +853,10 @@ describe("warnings (MAP-08): listed, the package is still accepted", () => {
 
   it("[MAP-06] the camera zoom is fixed at 2: a cameraZoom on a map is a warning and not read", () => {
     const files = edit(world(), "maps/saal.json", (m) => {
-      m.properties = [...((m.properties as Json[] | undefined) ?? []), { name: "cameraZoom", type: "float", value: 3 }];
+      m.properties = [
+        ...((m.properties as Json[] | undefined) ?? []),
+        { name: "cameraZoom", type: "float", value: 3 },
+      ];
     });
     const findings = expectAccepted(files);
     expect(findings.some((finding) => finding.detail.includes("fixed at 2"))).toBe(true);
@@ -789,7 +864,10 @@ describe("warnings (MAP-08): listed, the package is still accepted", () => {
 
   it("[MAP-06] a map property such as programItem is a warning", () => {
     const files = edit(world(), "maps/saal.json", (m) => {
-      m.properties = [...((m.properties as Json[] | undefined) ?? []), { name: "programItem", type: "string", value: "x" }];
+      m.properties = [
+        ...((m.properties as Json[] | undefined) ?? []),
+        { name: "programItem", type: "string", value: "x" },
+      ];
     });
     const findings = expectAccepted(files);
     expect(codes(findings, "warning")).toContain("property_unknown");
@@ -799,7 +877,9 @@ describe("warnings (MAP-08): listed, the package is still accepted", () => {
     const files = edit(world(), "maps/garten.json", (m) => {
       m.layers = (m.layers as Json[]).filter((layer) => layer.name !== "collision");
       const objects = layerNamed(m, "Gameplay");
-      objects.objects = (objects.objects as Json[]).filter((object) => object.type !== "wander" && object.type !== "collision");
+      objects.objects = (objects.objects as Json[]).filter(
+        (object) => object.type !== "wander" && object.type !== "collision",
+      );
     });
     const findings = expectAccepted(files);
     expect(codes(findings, "warning")).toContain("map_collision");
@@ -860,7 +940,11 @@ describe("the figures (AVA-01, AVA-02, MAP-16)", () => {
 
   it("[MAP-06] refuses a figure label of more than 30 characters", () => {
     const files = edit(world(), "avatar/figures.json", (f) => {
-      (f.figures as Json[])[0] = { id: "gast", label: "x".repeat(31), metadata: "wedding-guest/metadata.json" };
+      (f.figures as Json[])[0] = {
+        id: "gast",
+        label: "x".repeat(31),
+        metadata: "wedding-guest/metadata.json",
+      };
     });
     expectRefused(files, "figure_list");
   });
@@ -928,7 +1012,8 @@ describe("the figures (AVA-01, AVA-02, MAP-16)", () => {
 
   it("[MAP-06] refuses a frame outside the figure's folder", () => {
     const files = editMetadata(world(), "male-guest", (state) => {
-      ((state.frames as Json).rotations as Json).south = "../wedding-guest/Idle/rotations/south.png";
+      ((state.frames as Json).rotations as Json).south =
+        "../wedding-guest/Idle/rotations/south.png";
     });
     expectRefused(files, "figure_frame");
   });
@@ -968,7 +1053,9 @@ describe("the door scene (10.4, 14.4)", () => {
 
   it("[MAP-06] a package without the door folder has no door scene and no finding", () => {
     const files = world();
-    const withoutDoor = Object.fromEntries(Object.entries(files).filter(([path]) => !path.startsWith("door/")));
+    const withoutDoor = Object.fromEntries(
+      Object.entries(files).filter(([path]) => !path.startsWith("door/")),
+    );
     const result = checkWorldPackage(archive(withoutDoor));
     expect(result.ok).toBe(true);
     if (result.ok) expect(result.package.door).toBeUndefined();

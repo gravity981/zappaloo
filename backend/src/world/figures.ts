@@ -3,7 +3,12 @@
 // frames, which the package holds unchanged. The validator checks the list, the metadata, every frame
 // and that every file of avatar/ is named by a figure.
 import { posix } from "node:path";
-import { pixelLabMetadataSchema, WORLD_DIRECTIONS, WORLD_LIMITS, worldFiguresSchema } from "@zappaloo/shared";
+import {
+  pixelLabMetadataSchema,
+  WORLD_DIRECTIONS,
+  WORLD_LIMITS,
+  worldFiguresSchema,
+} from "@zappaloo/shared";
 import type { WorldFigure } from "@zappaloo/shared";
 import type { PngSize } from "../packages/png.ts";
 import { errorFinding, zodDetail } from "./findings.ts";
@@ -52,7 +57,9 @@ export function checkFigures(
   const referenced = new Set<string>([FIGURES_FILE]);
   for (const figure of figures) {
     if (ids.has(figure.id)) {
-      findings.push(errorFinding(FIGURES_FILE, "figure_list", `figure ${figure.id} is listed twice`, figure.id));
+      findings.push(
+        errorFinding(FIGURES_FILE, "figure_list", `figure ${figure.id} is listed twice`, figure.id),
+      );
     }
     ids.add(figure.id);
     for (const path of checkFigure(figure, files, images, findings)) referenced.add(path);
@@ -84,7 +91,9 @@ function checkFigure(
   const named = [metadataPath];
   const bytes = files.get(metadataPath);
   if (bytes === undefined) {
-    findings.push(errorFinding(metadataPath, "file_missing", `the metadata of ${label} is missing`, label));
+    findings.push(
+      errorFinding(metadataPath, "file_missing", `the metadata of ${label} is missing`, label),
+    );
     return named;
   }
   let raw: unknown;
@@ -127,11 +136,20 @@ function checkFigure(
     const path = posix.normalize(posix.join(folder, frame));
     named.push(path);
     if (path.startsWith("../") || !path.startsWith(`${folder}/`)) {
-      findings.push(errorFinding(metadataPath, "figure_frame", `the frame ${frame} is outside the figure's folder`, label));
+      findings.push(
+        errorFinding(
+          metadataPath,
+          "figure_frame",
+          `the frame ${frame} is outside the figure's folder`,
+          label,
+        ),
+      );
       return;
     }
     if (!files.has(path)) {
-      findings.push(errorFinding(path, "file_missing", `the frame ${frame} of ${label} is missing`, label));
+      findings.push(
+        errorFinding(path, "file_missing", `the frame ${frame} of ${label} is missing`, label),
+      );
       return;
     }
     const size = images.get(path);
