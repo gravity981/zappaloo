@@ -608,8 +608,8 @@ export default function App() {
             ))}
             {currentGuides.occlusion && (
               <small className="guide-legend">
-                Cyan: occlusion lines · white: vertices · yellow: player occlusion point (3 px left
-                of feet) · green/red: front/behind
+                Cyan: occlusion lines · white: vertices · yellow: player occlusion segment and its
+                guide intersections · green/red: majority front/behind
               </small>
             )}
             {currentGuides.collisions && (

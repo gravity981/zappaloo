@@ -5,7 +5,7 @@
 import Phaser from "phaser";
 import { walkable, cellOf, cellCentre, playerCollisionEllipse } from "./collision.ts";
 import { walkFrameIndex } from "./figures.ts";
-import { figureDepth, figureOcclusionPoint, lineY } from "./draw-order.ts";
+import { figureDepth, figureOcclusionSegment, occlusionSegmentRelation } from "./draw-order.ts";
 import { mapBounds, type Point, polygonCentre, tileToPixel, type TileSize } from "./geometry.ts";
 import { findPath, type Grid } from "./pathfinding.ts";
 import { directionOf, keyDirection, stepPosition, type Direction } from "./movement.ts";
@@ -141,7 +141,7 @@ export class WorldScene extends Phaser.Scene {
         this.#figure.standing.south,
       );
       sprite.setOrigin(0.5, 1);
-      sprite.setDepth(figureDepth(this.#position, map.occluders));
+      sprite.setDepth(figureDepth(this.#position, map.occluders, map.size.width));
       this.#player = sprite;
       this.cameras.main.startFollow(sprite, true);
     }
@@ -263,7 +263,7 @@ export class WorldScene extends Phaser.Scene {
     // Whole pixels: a fractional position is snapped differently from frame to frame, which made things shimmer.
     const spritePosition = playerSpritePosition(this.#position);
     player.setPosition(spritePosition.x, spritePosition.y);
-    player.setDepth(figureDepth(this.#position, map.occluders));
+    player.setDepth(figureDepth(this.#position, map.occluders, map.size.width));
     this.#drawOcclusionActor();
     this.#drawCollisionActor();
 
@@ -557,21 +557,29 @@ export class WorldScene extends Phaser.Scene {
     graphics.setVisible(true);
     graphics.clear();
 
-    const point = figureOcclusionPoint(this.#position);
+    const segment = figureOcclusionSegment(this.#position, map.size.width);
+    const intersections: Point[] = [];
     for (const { line } of map.occluders) {
-      const y = lineY(line, point.x);
-      if (y === undefined) continue;
-      const color = point.y >= y ? 0x4dff88 : 0xff5d73;
+      const relation = occlusionSegmentRelation(segment, line);
+      if (relation === undefined) continue;
+      const color = relation.behind ? 0xff5d73 : 0x4dff88;
       graphics.lineStyle(2, color, 0.9);
-      graphics.lineBetween(point.x, point.y, point.x, y);
+      graphics.lineBetween(
+        relation.sample.x,
+        segment.center.y,
+        relation.sample.x,
+        relation.sample.y,
+      );
       graphics.fillStyle(color, 1);
-      graphics.fillCircle(point.x, y, 3);
+      graphics.fillCircle(relation.sample.x, relation.sample.y, 3);
+      intersections.push(...relation.intersections);
     }
 
     graphics.lineStyle(2, 0xffff00, 1);
-    graphics.strokeCircle(point.x, point.y, 5);
-    graphics.lineBetween(point.x - 7, point.y, point.x + 7, point.y);
-    graphics.lineBetween(point.x, point.y - 7, point.x, point.y + 7);
+    graphics.lineBetween(segment.start.x, segment.start.y, segment.end.x, segment.end.y);
+    graphics.fillStyle(0xffff00, 1);
+    graphics.fillCircle(segment.center.x, segment.center.y, 2);
+    for (const point of intersections) graphics.fillCircle(point.x, point.y, 3);
   }
 
   #drawCollisionActor(): void {
@@ -587,8 +595,7 @@ export class WorldScene extends Phaser.Scene {
     graphics.setVisible(true);
     graphics.clear();
 
-    const feet = this.#position;
-    const ellipse = playerCollisionEllipse(feet, map.size.width);
+    const ellipse = playerCollisionEllipse(this.#position, map.size.width);
     graphics.lineStyle(2, 0xffa500, 1);
     graphics.strokeEllipse(
       ellipse.center.x,
