@@ -47,6 +47,7 @@ export const WORLD_FINDING_CODES = [
   // Checked at import, against the installation (MAP-08)
   "preset_missing",
   "preset_minigame",
+  "action_dropped",
 ] as const;
 export type WorldFindingCode = (typeof WORLD_FINDING_CODES)[number];
 

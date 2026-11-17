@@ -5,6 +5,7 @@ import {
   publicWorldSchema,
   WORLD_DIRECTIONS,
   type PublicWorld,
+  type WorldObjectAction,
 } from "@zappaloo/shared";
 import type { Direction } from "./movement.ts";
 import { parseMap, type ParsedMap } from "./map-model.ts";
@@ -29,6 +30,8 @@ export interface LoadedWorld {
   figures: FigureData[];
   /** Every image the world draws, by its texture key, with its URL. */
   images: Map<string, string>;
+  /** The actions the admin assigned to clickable objects, by `<map id>/<object name>` (MAP-15). */
+  actions: Map<string, WorldObjectAction>;
 }
 
 /** Inputs already loaded by a host adapter; the same path prepares authenticated and local packages. */
@@ -112,5 +115,6 @@ export function prepareWorld(source: WorldSource): LoadedWorld {
     maps,
     figures,
     images,
+    actions: new Map(summary.actions.map((item) => [`${item.map}/${item.object}`, item.action])),
   };
 }

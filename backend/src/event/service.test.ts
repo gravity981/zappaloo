@@ -223,6 +223,7 @@ describe("data model", () => {
       "rsvp_config",
       "theme_active",
       "waiting_config",
+      "world_object_actions",
       "world_packages",
     ]);
     for (const { name } of tables) {

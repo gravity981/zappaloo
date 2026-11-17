@@ -155,6 +155,13 @@
       "when": 1794779948103,
       "tag": "0021_world_format_2",
       "breakpoints": true
+    },
+    {
+      "idx": 22,
+      "version": "6",
+      "when": 1794913785263,
+      "tag": "0022_world_object_actions",
+      "breakpoints": true
     }
   ]
 }

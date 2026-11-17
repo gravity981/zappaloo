@@ -9,6 +9,7 @@ import type { WorldFindingDto, WorldStatus } from "@zappaloo/shared";
 import { apiRequest } from "../app/api.ts";
 import { useSession } from "../app/session.ts";
 import { useEventFormat } from "../rsvp/format.ts";
+import AdminWorldObjects from "./AdminWorldObjects.tsx";
 import { useAdminData, useErrorText } from "./data.ts";
 
 const WORLD_PATH = "/api/admin/world";
@@ -23,12 +24,32 @@ function findingText(finding: WorldFindingDto): string {
 
 export default function AdminWorldPage() {
   const { t } = useTranslation();
+  const [tab, setTab] = useState<"objects" | "import">("import");
+  const tabs = [
+    ["objects", t("admin.world.tabObjects")],
+    ["import", t("admin.world.tabImport")],
+  ] as const;
   return (
     <>
       <div className="row">
         <h1 className="grow">{t("admin.nav.world")}</h1>
       </div>
-      <WorldCard />
+      <div className="row" role="group" aria-label={t("admin.world.tabs")}>
+        {tabs.map(([key, label]) => (
+          <button
+            key={key}
+            type="button"
+            className={`btn sm ${tab === key ? "soft" : "ghost"}`}
+            aria-pressed={tab === key}
+            onClick={() => {
+              setTab(key);
+            }}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+      {tab === "objects" ? <AdminWorldObjects /> : <WorldCard />}
     </>
   );
 }

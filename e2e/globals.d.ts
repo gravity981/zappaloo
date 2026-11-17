@@ -10,10 +10,19 @@ declare global {
               x: number;
               y: number;
               direction: string;
+              sparkles: number;
               view: { x: number; y: number; zoom: number; width: number; height: number };
             }
           | undefined;
         renderStack: () => { type: string; depth: number }[];
+        clickables: () => {
+          name: string;
+          x: number;
+          y: number;
+          ax: number;
+          ay: number;
+          hidden: boolean;
+        }[];
         selectSpawn: (mapId: string, spawn: string) => void;
         setGuides: (guides: {
           collisions: boolean;

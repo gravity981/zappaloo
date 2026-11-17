@@ -21,6 +21,20 @@ describe("where a guest enters the world (GAME-03, 14.4)", () => {
     });
   });
 
+  it("[GAME-04] nothing locks an area: a portal leads on whenever the player is inside it, whatever the schedule", () => {
+    const polygon = [
+      { x: 0, y: 0 },
+      { x: 10, y: 0 },
+      { x: 10, y: 10 },
+      { x: 0, y: 10 },
+    ];
+    const garden = map("kirche", [
+      { name: "zum-garten", objectId: 1, polygon, targetMap: "garten", targetSpawn: "start" },
+    ]);
+    // portalAt takes a point and nothing else: no time, no condition (the conditions come with ACS-05).
+    expect(portalAt(garden, { x: 5, y: 5 })?.targetMap).toBe("garten");
+  });
+
   it("[GAME-03] a portal with a target leads on when the player is inside it", () => {
     const polygon = [
       { x: 0, y: 0 },
@@ -29,11 +43,11 @@ describe("where a guest enters the world (GAME-03, 14.4)", () => {
       { x: 0, y: 10 },
     ];
     const withTarget = map("kirche", [
-      { name: "zum-garten", polygon, targetMap: "garten", targetSpawn: "start" },
+      { name: "zum-garten", objectId: 1, polygon, targetMap: "garten", targetSpawn: "start" },
     ]);
     expect(portalAt(withTarget, { x: 5, y: 5 })?.targetMap).toBe("garten");
     expect(portalAt(withTarget, { x: 50, y: 5 })).toBeUndefined();
-    const withoutTarget = map("kirche", [{ name: "leer", polygon }]);
+    const withoutTarget = map("kirche", [{ name: "leer", objectId: 2, polygon }]);
     expect(portalAt(withoutTarget, { x: 5, y: 5 })).toBeUndefined();
   });
 });

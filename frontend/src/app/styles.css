@@ -63,3 +63,58 @@ body {
     display: none !important;
   }
 }
+
+/* A page above the paused game (GAME-11): a sheet on a phone, a centred panel on a wide screen. */
+.game-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  align-items: center;
+  background: rgba(18, 18, 18, 0.5);
+}
+.game-paused {
+  position: absolute;
+  top: 14px;
+  left: 14px;
+  color: #fff;
+  font: 12px/1 monospace;
+  letter-spacing: 0.05em;
+}
+.game-sheet {
+  width: 100%;
+  max-height: 90%;
+  overflow: auto;
+  background: var(--w-bg, #fff);
+  color: inherit;
+  border-radius: 18px 18px 0 0;
+}
+.game-sheet-head {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px;
+  background: var(--w-card, #fff);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.12);
+}
+.game-sheet-head b {
+  flex: 1;
+}
+.game-sheet-body {
+  padding: 16px;
+}
+@media (min-width: 720px) {
+  .game-overlay {
+    justify-content: center;
+  }
+  .game-sheet {
+    width: 620px;
+    max-height: 84%;
+    border-radius: 18px;
+  }
+}

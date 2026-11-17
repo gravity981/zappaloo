@@ -377,7 +377,8 @@
       "theme_import": "Ein Design wurde importiert",
       "theme_reset": "Das Standard-Design gilt wieder",
       "world_import": "Eine Welt wurde importiert",
-      "world_rollback": "Die vorherige Welt gilt wieder"
+      "world_rollback": "Die vorherige Welt gilt wieder",
+      "world_action": "Die Aktion eines Objekts der Welt wurde geändert"
     },
     "rsvp": {
       "title": "Rückmeldungen",
@@ -662,7 +663,39 @@
       "mapColumn": "Karte",
       "objectsColumn": "Objekte",
       "portalsColumn": "Portale",
-      "startMarker": "★"
+      "startMarker": "★",
+      "tabs": "Bereiche der Erlebniswelt",
+      "tabObjects": "Objekte & Portale",
+      "tabImport": "Welt & Import",
+      "objects": {
+        "noWorld": "Es ist noch keine Welt importiert. Objekte und Portale erscheinen nach dem Import.",
+        "maps": "Karten",
+        "title": "Anklickbare Objekte ({{count}})",
+        "info": "Die Vorgabe aus der Tiled-Datei gilt, bis hier etwas anderes gewählt wird. Änderungen gelten sofort, ohne neuen Import.",
+        "none": "Diese Karte hat keine anklickbaren Objekte.",
+        "object": "Objekt",
+        "action": "Aktion",
+        "actionOf": "Aktion von {{name}}",
+        "preset": "Vorgabe: {{action}}",
+        "noPreset": "Vorgabe: keine",
+        "hidden": "Easter Egg",
+        "missing": "fehlt",
+        "saved": "Gespeichert.",
+        "portalsTitle": "Portale ({{count}})",
+        "portalsInfo": "Portale werden in Tiled eingestellt und sind hier nur zu lesen.",
+        "kinds": {
+          "page": "Seite {{target}}",
+          "content": "Inhaltsseite {{target}}",
+          "dialog": "Dialog {{target}}",
+          "minigame": "Minispiel {{target}} (ab Stufe 8)",
+          "none": "Keine Aktion"
+        },
+        "groups": {
+          "page": "Seite als Overlay",
+          "content": "Inhaltsseite lesen",
+          "dialog": "Dialog"
+        }
+      }
     }
   },
   "home": {
@@ -673,7 +706,13 @@
   "game": {
     "loading": "Die digitale Erlebniswelt wird geladen …",
     "loadFailed": "Die digitale Erlebniswelt konnte nicht geladen werden.",
-    "noWorld": "Die digitale Erlebniswelt ist noch nicht eingerichtet."
+    "noWorld": "Die digitale Erlebniswelt ist noch nicht eingerichtet.",
+    "overlay": {
+      "title": "Erlebniswelt",
+      "paused": "II PAUSIERT",
+      "close": "Schliessen",
+      "comingSoon": "Das gibt es hier bald."
+    }
   },
   "notFound": {
     "title": "Seite nicht gefunden",

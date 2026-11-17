@@ -7,17 +7,27 @@ import { readFileSync } from "node:fs";
 import { mkdir, rename, rm, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { and, eq } from "drizzle-orm";
-import { contentPages, worldPackages } from "../database/schema.ts";
+import { contentPages, worldObjectActions, worldPackages } from "../database/schema.ts";
 import type { Database } from "../database/database.ts";
 import type { Actor, EventService } from "../event/service.ts";
-import type { PublicWorld, WorldActive, WorldStatus } from "@zappaloo/shared";
+import { WORLD_BUILTIN_PAGES, worldActionSchema } from "@zappaloo/shared";
+import type {
+  PublicWorld,
+  WorldObjectAction,
+  WorldActionOverride,
+  WorldActive,
+  WorldObjects,
+  WorldStatus,
+} from "@zappaloo/shared";
 import type { WorldFigure, WorldMapSummary } from "@zappaloo/shared";
 import { checkWorldPackage } from "./validate.ts";
 import type { WorldPackage } from "./validate.ts";
 import type { WorldFinding } from "./findings.ts";
+import { packageObjects, type MapObjects } from "./objects.ts";
 import { presetWarnings } from "./presets.ts";
 import { mapSummaries } from "./summary.ts";
 import type { InstallationNames } from "./presets.ts";
+import { warningFinding } from "./findings.ts";
 
 /** A refused package: nothing was imported, and these are its findings (MAP-06). */
 export class WorldRefused extends Error {
@@ -27,6 +37,17 @@ export class WorldRefused extends Error {
     super("the world package was refused");
     this.name = "WorldRefused";
     this.findings = findings;
+  }
+}
+
+/** Why an action could not be assigned (MAP-15). */
+export class WorldObjectError extends Error {
+  readonly code: "no_world" | "object_not_found" | "target_not_found";
+
+  constructor(code: WorldObjectError["code"], message: string) {
+    super(message);
+    this.name = "WorldObjectError";
+    this.code = code;
   }
 }
 
@@ -157,7 +178,149 @@ export class WorldService {
       tileHeight: active.tileHeight,
       maps: active.maps.map((map) => map.id),
       figures: active.figures,
+      actions: this.#overridesOf(active),
     };
+  }
+
+  /** The maps of a stored world with their objects, read from its files. */
+  #objectsOf(world: StoredWorld): MapObjects[] {
+    const maps = new Map<string, Buffer>();
+    for (const map of world.maps) {
+      try {
+        maps.set(
+          map.id,
+          readFileSync(join(this.directory, world.importId, "maps", `${map.id}.json`)),
+        );
+      } catch {
+        // A map file that is gone has no objects; the world is not served either.
+      }
+    }
+    return packageObjects(maps);
+  }
+
+  /** The assignments of the admin for objects that exist in the world; the others wait for their object. */
+  #overridesOf(world: StoredWorld): WorldActionOverride[] {
+    const existing = new Set(
+      this.#objectsOf(world).flatMap((map) =>
+        map.clickables.map((clickable) => `${map.id}/${clickable.name}`),
+      ),
+    );
+    return this.#storedOverrides().filter((item) => existing.has(`${item.map}/${item.object}`));
+  }
+
+  #storedOverrides(): WorldActionOverride[] {
+    return this.#database.db
+      .select()
+      .from(worldObjectActions)
+      .where(eq(worldObjectActions.eventId, this.#event.eventId))
+      .all()
+      .flatMap((row) => {
+        const action = worldActionSchema.safeParse(JSON.parse(row.action));
+        return action.success
+          ? [{ map: row.mapId, object: row.objectName, action: action.data }]
+          : [];
+      });
+  }
+
+  /** The pages, content pages and dialogues an action can point to. */
+  #targets(): { pages: string[]; contentPages: string[]; dialogues: string[] } {
+    const slugs = [...this.#installation().pageSlugs].sort();
+    return {
+      pages: [...WORLD_BUILTIN_PAGES, ...slugs.map((slug) => `p/${slug}`)],
+      contentPages: slugs,
+      dialogues: [...this.#installation().dialogueIds].sort(),
+    };
+  }
+
+  /** The clickable objects and portals of every map, with the presets and the assignments (MAP-15). */
+  objects(): WorldObjects {
+    const active = this.active();
+    const targets = this.#targets();
+    if (active === undefined) return { maps: [], ...targets };
+    const overrides = new Map(
+      this.#storedOverrides().map((item) => [`${item.map}/${item.object}`, item.action]),
+    );
+    const missing = (action: WorldObjectAction | undefined): boolean => {
+      if (action === undefined) return false;
+      if (action.kind === "page") return !targets.pages.includes(action.page);
+      if (action.kind === "content") return !targets.contentPages.includes(action.contentId);
+      if (action.kind === "dialog") return !targets.dialogues.includes(action.dialogId);
+      return action.kind === "minigame";
+    };
+    return {
+      maps: this.#objectsOf(active).map((map) => ({
+        id: map.id,
+        ...(map.name === undefined ? {} : { name: map.name }),
+        clickables: map.clickables.map((clickable) => {
+          const override = overrides.get(`${map.id}/${clickable.name}`);
+          return {
+            name: clickable.name,
+            ...(clickable.label === undefined ? {} : { label: clickable.label }),
+            hidden: clickable.hidden,
+            ...(clickable.preset === undefined ? {} : { preset: clickable.preset }),
+            ...(override === undefined ? {} : { override }),
+            missing: missing(override ?? clickable.preset),
+          };
+        }),
+        portals: map.portals,
+      })),
+      ...targets,
+    };
+  }
+
+  /**
+   * Assigns an action to a clickable object of the active world, or returns it to its preset with `null`
+   * (MAP-15). Live at once: the next load of the world reads it. The audit entry names ids only.
+   */
+  setAction(
+    mapId: string,
+    objectName: string,
+    action: WorldObjectAction | null,
+    actor: Actor,
+  ): void {
+    const active = this.active();
+    if (active === undefined) throw new WorldObjectError("no_world", "no world is imported");
+    const exists = this.#objectsOf(active).some(
+      (map) => map.id === mapId && map.clickables.some((item) => item.name === objectName),
+    );
+    if (!exists) {
+      throw new WorldObjectError(
+        "object_not_found",
+        `the map ${mapId} has no clickable object ${objectName}`,
+      );
+    }
+    if (action !== null) {
+      const targets = this.#targets();
+      const known =
+        action.kind === "page"
+          ? targets.pages.includes(action.page)
+          : action.kind === "content"
+            ? targets.contentPages.includes(action.contentId)
+            : action.kind === "dialog"
+              ? targets.dialogues.includes(action.dialogId)
+              : true;
+      if (!known)
+        throw new WorldObjectError("target_not_found", "the target of the action does not exist");
+    }
+    const key = and(
+      eq(worldObjectActions.eventId, this.#event.eventId),
+      eq(worldObjectActions.mapId, mapId),
+      eq(worldObjectActions.objectName, objectName),
+    );
+    this.#database.db.transaction((tx) => {
+      tx.delete(worldObjectActions).where(key).run();
+      if (action !== null) {
+        tx.insert(worldObjectActions)
+          .values({
+            eventId: this.#event.eventId,
+            mapId,
+            objectName,
+            action: JSON.stringify(action),
+          })
+          .run();
+      }
+      this.#event.audit(actor, "world.action", { map: mapId, object: objectName }, tx);
+    });
   }
 
   /** The folder of the active world's door scene (`door/` of the package), when it has one. */
@@ -214,9 +377,28 @@ export class WorldService {
     const check = checkWorldPackage(archive);
     if (!check.ok) throw new WorldRefused(check.findings);
     const { package: worldPackage } = check;
+    const mapBytes = WorldService.#mapBytes(worldPackage.files);
+    // An assignment follows its object by the map's id and the object's name; one whose object is gone is
+    // dropped, and the import says so (MAP-15).
+    const existing = new Set(
+      packageObjects(mapBytes).flatMap((map) =>
+        map.clickables.map((clickable) => `${map.id}/${clickable.name}`),
+      ),
+    );
+    const dropped = this.#storedOverrides().filter(
+      (item) => !existing.has(`${item.map}/${item.object}`),
+    );
     const warnings = [
       ...check.findings,
-      ...presetWarnings(WorldService.#mapBytes(worldPackage.files), this.#installation()),
+      ...presetWarnings(mapBytes, this.#installation()),
+      ...dropped.map((item) =>
+        warningFinding(
+          `maps/${item.map}.json`,
+          "action_dropped",
+          "the object no longer exists; the action assigned to it was removed",
+          item.object,
+        ),
+      ),
     ];
 
     const summaries = mapSummaries(worldPackage.files);
@@ -242,6 +424,17 @@ export class WorldService {
           .set({ role: "previous" })
           .where(and(scope, eq(worldPackages.role, "active")))
           .run();
+        for (const item of dropped) {
+          tx.delete(worldObjectActions)
+            .where(
+              and(
+                eq(worldObjectActions.eventId, this.#event.eventId),
+                eq(worldObjectActions.mapId, item.map),
+                eq(worldObjectActions.objectName, item.object),
+              ),
+            )
+            .run();
+        }
         tx.insert(worldPackages)
           .values({
             importId,

@@ -1,6 +1,8 @@
 export {
   createGame,
+  getGameClickables,
   getGameRenderStack,
+  setGamePaused,
   setGameGuides,
   setGameSelection,
   setGameView,
@@ -9,6 +11,7 @@ export {
 export { entryPoint } from "./entry.ts";
 export type { GameInstance, GameMountOptions } from "./engine.ts";
 export type {
+  GameActivation,
   GameEngineOptions,
   GameGuides,
   GameHost,
@@ -19,4 +22,4 @@ export type {
 } from "./host.ts";
 export { prepareWorld } from "./world-data.ts";
 export type { FigureData, LoadedWorld, WorldSource } from "./world-data.ts";
-export type { ParsedMap, TileDraw, TileImage } from "./map-model.ts";
+export type { ClickableArea, ParsedMap, TileDraw, TileImage } from "./map-model.ts";

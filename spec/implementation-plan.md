@@ -393,7 +393,7 @@ world.tar.gz
 - **Names** stay required for spawn points, portals and clickable objects (1–40 characters of `a–z 0–9 -`), because the assignments in "Erlebniswelt" are keyed by name.
 - **Portals.**
   - Targets stay in Tiled (`targetMap`, `targetSpawn`). MAP-07 stays withdrawn.
-  - Changed 2026-11-16: a portal is a tile object (its arrow, which wobbles); its trigger area is the polygon `trigger` in the tile's object group, like the collision polygons of buildings. Walking into it takes the player through; tapping it walks the player into it. The former property `marker` is gone.
+  - Changed 2026-11-16: a portal is a tile object (its arrow, which floats); its trigger area is the polygon `trigger` in the tile's object group, like the collision polygons of buildings. Walking into it takes the player through; tapping it walks the player into it. The former property `marker` is gone.
   - A portal without `targetMap` and `targetSpawn` is a warning and does nothing, so a world with one map imports. A target that is given but missing in the package stays an error (MAP-06).
 - **Figures instead of avatar parts.** The avatar editor only chooses a complete figure. There is no skin colour, hairstyle, clothing, colour or template anymore.
   - `avatar/figures.json`: `{ "figures": [{ "id", "label"?, "metadata" }] }`. `id` is 1–40 characters of `a–z 0–9 -`, unique. `label` is optional and is the name the editor shows; without it, the editor shows no name. `metadata` is the path of the figure's PixelLab metadata, relative to `figures.json`.
@@ -463,8 +463,8 @@ The project owner confirms that the world renders correctly and that the world-i
 Requirements: GAME-01, GAME-02, GAME-03, GAME-07, GAME-09, GAME-10, GAME-19, GAME-20, MAP-02, MAP-06, MAP-16, MAP-17, MAP-18.
 Exit: the shared engine and world-package integration are accepted; step 5f may begin. Step 5j still owns the sign-in-to-playable loading budget.
 
-**5f – Objects and overlays.** Mock screens: `game`, `game-overlay`, `admin-world` (variant "objects").
-- Object types `portal`, `clickable`, `decoration` and the properties of 14.2. Clickable objects sparkle at random; a portal's tile arrow wobbles. A click or tap on a clickable object walks to the approach point and runs the action; a tap on a portal walks into its trigger area; Enter or Space activates the object in front of the avatar. Easter eggs.
+**5f – Objects and overlays. Done (2026-11-17).** Decisions: sw-architecture.md 14.4 "Decisions of step 5f". Mock screens: `game`, `game-overlay`, `admin-world` (variant "objects").
+- Object types `portal`, `clickable`, `decoration` and the properties of 14.2. Clickable objects sparkle along their edges at random (small sparkles, up to five at a time) and a shine passes over them now and then; a portal's arrow floats up and down above a shadow, like a boat on waves, and glows. A click or tap on a clickable object walks to the approach point and runs the action; a tap on a portal walks into its trigger area; Enter or Space activates the object in front of the avatar. Easter eggs.
 - Pages as overlays above the paused game; closing returns to the same position; links inside stay in the overlay.
 - Erlebniswelt › Objekte & Portale: assign each clickable object's action per map (page, content item, dialogue, none); portals read-only.
 Requirements: GAME-04, GAME-05, GAME-06 (without minigames), GAME-08, GAME-11, GAME-15, GAME-16, MAP-03, MAP-15.

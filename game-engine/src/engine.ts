@@ -44,3 +44,15 @@ export function setGameView(game: GameInstance, view: GameView): void {
 }
 
 export { WORLD_SCENE_KEY };
+
+/** Pauses the game while a page is open above it, and resumes it when the page is closed (GAME-11). */
+export function setGamePaused(game: GameInstance, paused: boolean): void {
+  const scene = game.scene.getScene(WORLD_SCENE_KEY);
+  if (scene instanceof WorldScene) scene.setPaused(paused);
+}
+
+/** The clickable objects of the current map: names and positions in map pixels (test hook). */
+export function getGameClickables(game: GameInstance): ReturnType<WorldScene["clickables"]> {
+  const scene = game.scene.getScene(WORLD_SCENE_KEY);
+  return scene instanceof WorldScene ? scene.clickables() : [];
+}

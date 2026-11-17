@@ -84,7 +84,7 @@ All active requirements are listed here until their stage is delivered. Shrink t
 
 | Prefix | IDs | Count |
 |---|---|---|
-| GAME | GAME-04 – GAME-08, GAME-11 – GAME-18 | 13 |
+| GAME | GAME-07, GAME-12 – GAME-14, GAME-17, GAME-18 | 6 |
 | PRES | PRES-01, PRES-02, PRES-04 – PRES-10, PRES-12 – PRES-15 | 13 |
 | HUNT | HUNT-01 – HUNT-07 | 7 |
 | MG | MG-01 – MG-13 | 13 |
@@ -95,11 +95,11 @@ All active requirements are listed here until their stage is delivered. Shrink t
 | ACS | ACS-04 | 1 |
 | PHO | PHO-01 – PHO-03, PHO-05 – PHO-19 | 18 |
 | MOD | MOD-01 – MOD-05 | 5 |
-| MAP | MAP-03, MAP-15, MAP-19 | 3 |
+| MAP | MAP-19 | 1 |
 | OPS | OPS-13 | 1 |
 | SEC | SEC-04, SEC-06 – SEC-08 | 4 |
 | PERF | PERF-01, PERF-03, PERF-04 | 3 |
-| **Total** | | **94** |
+| **Total** | | **85** |
 
 The stage each requirement belongs to is listed in `sw-architecture.md`, section 28.
 
@@ -107,6 +107,7 @@ The stage each requirement belongs to is listed in `sw-architecture.md`, section
 
 - ACS-05: the treasure-hunt condition (step 8d); the admin page for manual releases, with the first step that stores access conditions (5b; pages carry none in stage 4, decided 2026-11-13).
 - ACS-07: server checks for map loading and protected game areas (5b), contribution upload (7b), moderation (7c), minigame start and result submission (8b).
+- GAME-06 and MAP-15 (from step 5f on, decided 2026-11-17): the action `minigame` (stage 8; a preset `minigame` is reported at import and does nothing, and the admin cannot assign it). The actions `content` and `dialog` are assignable and run from step 5g; until then the game shows a short note.
 - CNT-02 (from stage 4 on, decided 2026-11-13): dialogues and NPC texts (5d), photo albums (7d). Unlock conditions are covered by ACS-05.
 - CNT-03 (from stage 4 on): the reference from a game-world object by `contentId` (5d).
 - ROLE-06: the capabilities in use: `editWebsiteContent` (4a), `moderateContributions` (7c). Until then only test routes use them.

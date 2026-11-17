@@ -2,7 +2,9 @@
 // the visible ground layers in order, bottom-aligned unscaled tile objects, collisions, spawn points and portals.
 // Pure: it takes the parsed Tiled map and returns plain data.
 import {
+  presetActionOf,
   tiledMapSchema,
+  type WorldObjectAction,
   type TiledLayer,
   type TiledObject,
   type TiledTile,
@@ -47,10 +49,31 @@ export interface TileDraw {
   height: number;
   /** The depth of the object (the y of its bottom edge), or of the ground layer (below everything). */
   depth: number;
+  /** The Tiled id of a tile object (not of a ground tile): the effects of portals and clickables find it by this. */
+  objectId?: number;
+}
+
+/** A clickable object (14.2, GAME-05): where it is, where the avatar stops, and the preset of its action. */
+export interface ClickableArea {
+  name: string;
+  /** The label for the prompt, if the object has one. */
+  label?: string;
+  /** An easter egg: it does not sparkle (GAME-08). */
+  hidden: boolean;
+  /** The Tiled id of a tile object (its drawn sprite shines, GAME-15); undefined for a rectangle or polygon. */
+  objectId?: number;
+  /** The shape of the object in the map's pixel space. */
+  polygon: Point[];
+  /** Where the avatar stops: the `approach` point, or below the object's bottom edge (14.2). */
+  approach: Point;
+  /** The preset of the Tiled file; the admin's assignment replaces it (MAP-15). */
+  preset?: WorldObjectAction;
 }
 
 export interface PortalArea {
   name: string;
+  /** The Tiled id of the portal's tile object: its arrow, which wobbles (GAME-15). */
+  objectId: number;
   polygon: Point[];
   targetMap?: string;
   targetSpawn?: string;
@@ -73,6 +96,7 @@ export interface ParsedMap {
   obstacles: Obstacles;
   spawns: Map<string, Point>;
   portals: PortalArea[];
+  clickables: ClickableArea[];
   /** The number of tile layers that are drawn (for the tests and the test hook). */
   drawnLayers: number;
 }
@@ -281,6 +305,8 @@ export function parseMap(id: string, json: unknown): ParsedMap {
   const borders: Point[][] = [];
   const spawns = new Map<string, Point>();
   const portals: PortalArea[] = [];
+  const clickables: (Omit<ClickableArea, "approach"> & { approachName?: string })[] = [];
+  const points = new Map<string, Point>();
   const toScreen = (x: number, y: number): Point => tiledToWorld({ x, y }, size);
   for (const layer of layers) {
     if (layer.type !== "objectgroup") continue;
@@ -301,6 +327,7 @@ export function parseMap(id: string, json: unknown): ParsedMap {
             width: image.width,
             height: image.height,
             depth: anchor.y,
+            objectId: object.id,
           });
           if (image.occlusion !== undefined) {
             occluders.push({
@@ -313,9 +340,16 @@ export function parseMap(id: string, json: unknown): ParsedMap {
         if (type === "portal" && image.trigger !== undefined) {
           portals.push({
             name: object.name ?? "",
+            objectId: object.id,
             polygon: image.trigger.map(toPixel),
             targetMap: stringOf(propertyOf(object, "targetMap")),
             targetSpawn: stringOf(propertyOf(object, "targetSpawn")),
+          });
+        }
+        if (type === "clickable") {
+          clickables.push({
+            ...clickableOf(object, rectangleToPolygon(x, y, image.width, image.height)),
+            objectId: object.id,
           });
         }
         for (const shape of image.collision) solids.push(shape.map(toPixel));
@@ -324,6 +358,11 @@ export function parseMap(id: string, json: unknown): ParsedMap {
       const polygon = polygonOf(object, toScreen);
       if (type === "spawn") {
         spawns.set(object.name ?? "", toScreen(object.x, object.y));
+      } else if (type === "" && object.point === true && object.name !== undefined) {
+        // An untyped point is the approach point of a clickable object (14.2).
+        points.set(object.name, toScreen(object.x, object.y));
+      } else if (type === "clickable" && polygon !== undefined) {
+        clickables.push(clickableOf(object, polygon));
       } else if (type === "border" && polygon !== undefined) {
         borders.push(polygon);
       } else if (type === "collision" && polygon !== undefined) {
@@ -345,7 +384,41 @@ export function parseMap(id: string, json: unknown): ParsedMap {
     obstacles: { size, columns: map.width, rows: map.height, blockedCells, solids, borders },
     spawns,
     portals,
+    clickables: clickables.map(({ approachName, ...clickable }) => ({
+      ...clickable,
+      approach:
+        (approachName === undefined ? undefined : points.get(approachName)) ??
+        belowOf(clickable.polygon, size),
+    })),
     drawnLayers,
+  };
+}
+
+/** A clickable object before its approach point is resolved: the point has a name, which may come later. */
+function clickableOf(
+  object: TiledObject,
+  polygon: Point[],
+): Omit<ClickableArea, "approach"> & { approachName?: string } {
+  const label = stringOf(propertyOf(object, "label"));
+  const approachName = stringOf(propertyOf(object, "approach"));
+  const preset = presetActionOf(object.properties);
+  return {
+    name: object.name ?? "",
+    ...(label === undefined ? {} : { label }),
+    hidden: propertyOf(object, "hidden") === true,
+    polygon,
+    ...(approachName === undefined ? {} : { approachName }),
+    ...(preset === undefined ? {} : { preset }),
+  };
+}
+
+/** The default approach point (14.2): below the object's bottom edge, half a tile height under its centre. */
+function belowOf(polygon: readonly Point[], size: TileSize): Point {
+  const xs = polygon.map((point) => point.x);
+  const ys = polygon.map((point) => point.y);
+  return {
+    x: (Math.min(...xs) + Math.max(...xs)) / 2,
+    y: Math.max(...ys) + size.height / 2,
   };
 }
 

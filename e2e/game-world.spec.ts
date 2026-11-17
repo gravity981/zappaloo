@@ -1,4 +1,4 @@
-// The game world end to end (sw-architecture.md 3.1, 3.5, 14.4; GAME-01, GAME-03, GAME-07, GAME-09, GAME-10): an admin
+// The game world end to end (sw-architecture.md 3.1, 3.5, 14.4; GAME-01, GAME-03, GAME-07, GAME-09, GAME-10, GAME-11, GAME-15, GAME-16): an admin
 // imports the test world, and the game route draws its start map with the player at the start point; the arrow keys
 // and a tap move the player, and a portal leads on to the next map, which the device remembers.
 // The tests share one installation and one world, so they run one after the other.
@@ -102,4 +102,48 @@ test("[GAME-10][GAME-03] a tap walks the player into the portal, which leads to 
 
   await page.reload();
   expect((await gameState(page)).mapId).toBe("garten");
+});
+
+test("[GAME-06][GAME-08][GAME-11][GAME-15][GAME-16] a tap on an object walks to it and opens its page above the paused game; closing returns to the same spot, and Enter opens it again", async ({
+  page,
+  context,
+}, testInfo) => {
+  test.skip(testInfo.project.name !== "desktop-chromium", "shared settings: one profile only");
+  await signInAsAdmin(page, context);
+  await page.goto("/game");
+  await gameState(page);
+  const objects = await page.evaluate(() => window.__zappaloo?.game?.clickables() ?? []);
+  const altar = objects.find((item) => item.name === "altar");
+  if (altar === undefined) throw new Error("the start map has no object altar");
+  // The easter egg is a clickable object like the others, but it does not sparkle (GAME-08).
+  expect(objects.find((item) => item.name === "osterei")?.hidden).toBe(true);
+
+  // Objects sparkle at random intervals (GAME-15).
+  await expect
+    .poll(async () => (await readState(page))?.sparkles ?? 0, { timeout: 20_000 })
+    .toBeGreaterThan(0);
+
+  // The tap walks to the object's approach point; there its page opens over the game (GAME-16, GAME-11).
+  const target = await pagePoint(page, { x: altar.x, y: altar.y });
+  await page.mouse.click(target.x, target.y);
+  const overlay = page.getByRole("dialog", { name: "Programm" });
+  await expect(overlay).toBeVisible({ timeout: 20_000 });
+
+  // The game is paused: the avatar stays where it stopped.
+  const stopped = await gameState(page);
+  await page.waitForTimeout(600);
+  const later = await gameState(page);
+  expect([later.x, later.y]).toEqual([stopped.x, stopped.y]);
+
+  // Closing returns to the same spot.
+  await page.getByRole("button", { name: de.game.overlay.close }).click();
+  await expect(overlay).toHaveCount(0);
+  const back = await gameState(page);
+  expect([back.x, back.y]).toEqual([stopped.x, stopped.y]);
+
+  // On the desktop, Enter activates the object in front of the avatar.
+  await page.keyboard.press("Enter");
+  await expect(overlay).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(overlay).toHaveCount(0);
 });

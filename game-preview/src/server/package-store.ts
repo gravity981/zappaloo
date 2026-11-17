@@ -43,6 +43,8 @@ export class PreviewPackageStore {
           tileHeight: result.package.manifest.tileHeight,
           maps: result.package.mapIds,
           figures: result.package.figures,
+          // A preview has no installation: the presets of the maps apply (MAP-15).
+          actions: [],
         },
         findings: result.findings,
       },

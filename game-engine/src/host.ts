@@ -1,3 +1,4 @@
+import type { WorldObjectAction } from "@zappaloo/shared";
 import type { LoadedWorld } from "./world-data.ts";
 
 export const ENGINE_CONFIG_REGISTRY_KEY = "zappaloo.game-engine";
@@ -29,17 +30,29 @@ export interface GameState {
   x: number;
   y: number;
   direction: string;
+  /** How many times a clickable object has sparkled in this map (test hook). */
+  sparkles: number;
   /** The camera: the map point at its centre, its zoom, and its size in game pixels (the canvas). */
   view: { x: number; y: number; zoom: number; width: number; height: number };
 }
 
 export type GameStateReader = () => GameState;
 
+/** What the player activated: a clickable object and what its action is (GAME-06). */
+export interface GameActivation {
+  mapId: string;
+  object: string;
+  label?: string;
+  action: WorldObjectAction;
+}
+
 export interface GameHost {
   selection: GameSelection;
   rememberMap?: (mapId: string) => void;
   onStateChange?: (reader: GameStateReader | null) => void;
   onReady?: () => void;
+  /** The player activated a clickable object; the host runs the action (overlay, reading panel, dialogue). */
+  onActivate?: (activation: GameActivation) => void;
 }
 
 export interface GameEngineOptions {

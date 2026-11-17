@@ -38,7 +38,7 @@ The decisions behind the mocks, by question number in the prototype's "Questions
 | 14, 47 | Own figure | Always shown, no switch (PRES-04). |
 | 15 | Avatar step | Cannot be skipped; "Zufällig" makes it one tap. |
 | 16, 41 | Game bar | Bar at the top: Programm, Rückmeldung (badge), Hochladen, Website. "Website" leaves the game. No buttons at the bottom, no event-day "now / next" in the game (GAME-14, WEB-07). |
-| 17, 40, 42 | World objects | Clickable objects come from the event's Tiled maps; each map has its own. They sparkle briefly at random; tapping one walks the avatar there and runs its action. Portals between scenes are wobbling arrows. The admin assigns each object's action per map in "Erlebniswelt" (GAME-05, GAME-06, GAME-15, GAME-16, MAP-15). |
+| 17, 40, 42 | World objects | Clickable objects come from the event's Tiled maps; each map has its own. They sparkle along their edges at random, and a shine passes over them now and then; tapping one walks the avatar there and runs its action. Portals between scenes are floating arrows. The admin assigns each object's action per map in "Erlebniswelt" (GAME-05, GAME-06, GAME-15, GAME-16, MAP-15). |
 | 40 | Own avatar | Tapping it opens the profile (GAME-18). |
 | 43 | Discoverability | The sparkle plus a hint at the first entry, "Tippe auf Dinge, die funkeln" (GAME-17). |
 | 18 | Overlay links | Links inside an overlay stay in the overlay. |

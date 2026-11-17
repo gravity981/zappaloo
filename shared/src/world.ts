@@ -374,6 +374,113 @@ export const worldStatusSchema = z.object({
 });
 export type WorldStatus = z.infer<typeof worldStatusSchema>;
 
+// --- The actions of clickable objects (sw-architecture.md 14.2, GAME-06, MAP-15). ---
+
+/** What activating a clickable object does: the preset of the Tiled file, or the admin's assignment. */
+export const worldActionSchema = z.discriminatedUnion("kind", [
+  /** A website page as an overlay: `programme`, `rsvp`, `profile` or `p/<slug>`. */
+  z.strictObject({ kind: z.literal("page"), page: z.string().min(1).max(100) }),
+  /** A content page, shown in a reading panel (stage 5g). */
+  z.strictObject({ kind: z.literal("content"), contentId: z.string().min(1).max(100) }),
+  /** A dialogue the guest taps through (stage 5g). */
+  z.strictObject({ kind: z.literal("dialog"), dialogId: z.string().min(1).max(100) }),
+  /** A minigame (stage 8): only a preset of the Tiled file can name one. */
+  z.strictObject({ kind: z.literal("minigame"), minigameId: z.string().min(1).max(100) }),
+  /** Nothing happens. */
+  z.strictObject({ kind: z.literal("none") }),
+]);
+export type WorldObjectAction = z.infer<typeof worldActionSchema>;
+
+/** The actions an admin can assign: everything but the minigame (from stage 8). */
+export const worldAssignableActionSchema = z.discriminatedUnion("kind", [
+  worldActionSchema.options[0],
+  worldActionSchema.options[1],
+  worldActionSchema.options[2],
+  worldActionSchema.options[4],
+]);
+
+/**
+ * The preset action of a clickable object, from its Tiled custom properties (14.2): `action` with `page`,
+ * `contentId` (also for a dialogue) or `minigameId`. Undefined without a valid preset.
+ */
+export function presetActionOf(
+  properties: readonly { name: string; value: unknown }[] | undefined,
+): WorldObjectAction | undefined {
+  const value = (name: string): string | undefined => {
+    const found = properties?.find((property) => property.name === name)?.value;
+    return typeof found === "string" && found !== "" ? found : undefined;
+  };
+  const page = value("page");
+  const contentId = value("contentId");
+  const minigameId = value("minigameId");
+  switch (value("action")) {
+    case "page":
+      return page === undefined ? undefined : { kind: "page", page };
+    case "content":
+      return contentId === undefined ? undefined : { kind: "content", contentId };
+    case "dialog":
+      return contentId === undefined ? undefined : { kind: "dialog", dialogId: contentId };
+    case "minigame":
+      return minigameId === undefined ? undefined : { kind: "minigame", minigameId };
+    default:
+      return undefined;
+  }
+}
+
+/** An action the admin assigned to a clickable object of a map; it replaces the preset (MAP-15). */
+export const worldActionOverrideSchema = z.strictObject({
+  map: z.string(),
+  object: z.string(),
+  action: worldActionSchema,
+});
+export type WorldActionOverride = z.infer<typeof worldActionOverrideSchema>;
+
+/** `PUT /api/admin/world/objects/:map/:object`: the action to assign, or null to return to the preset. */
+export const worldActionRequestSchema = z.strictObject({
+  action: worldAssignableActionSchema.nullable(),
+});
+
+/** One clickable object of a map, as the admin's list shows it (MAP-15). */
+export const worldClickableSchema = z.object({
+  name: z.string(),
+  label: z.string().optional(),
+  /** An easter egg: it does not sparkle (GAME-08). */
+  hidden: z.boolean(),
+  /** The preset of the Tiled file, if it has one. */
+  preset: worldActionSchema.optional(),
+  /** The admin's assignment, if there is one. */
+  override: worldActionSchema.optional(),
+  /** Whether the effective action points to something that does not exist (a missing page). */
+  missing: z.boolean(),
+});
+export type WorldClickable = z.infer<typeof worldClickableSchema>;
+
+/** One portal of a map, read-only (MAP-15). */
+export const worldPortalSchema = z.object({
+  name: z.string(),
+  targetMap: z.string().optional(),
+  targetSpawn: z.string().optional(),
+});
+
+/** `GET /api/admin/world/objects`: the objects of every map of the active world and what can be assigned. */
+export const worldObjectsSchema = z.object({
+  maps: z.array(
+    z.object({
+      id: z.string(),
+      name: z.string().optional(),
+      clickables: z.array(worldClickableSchema),
+      portals: z.array(worldPortalSchema),
+    }),
+  ),
+  /** The pages that can be shown as an overlay: `programme`, `rsvp`, `profile` and `p/<slug>`. */
+  pages: z.array(z.string()),
+  /** The slugs of the content pages. */
+  contentPages: z.array(z.string()),
+  /** The ids of the dialogues (they come with stage 5g). */
+  dialogues: z.array(z.string()),
+});
+export type WorldObjects = z.infer<typeof worldObjectsSchema>;
+
 /** `GET /api/world`: what a player's browser needs to load the world (MAP-10). `version` is the import id. */
 export const publicWorldSchema = z.object({
   version: z.string(),
@@ -384,6 +491,8 @@ export const publicWorldSchema = z.object({
   maps: z.array(z.string()),
   /** The figures a guest can choose; `metadata` is relative to `avatar/`. */
   figures: z.array(worldFigureSchema),
+  /** The actions the admin assigned to clickable objects; they replace the presets of the maps (MAP-15). */
+  actions: z.array(worldActionOverrideSchema).default([]),
 });
 export type PublicWorld = z.infer<typeof publicWorldSchema>;
 

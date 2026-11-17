@@ -225,6 +225,61 @@ describe("the map as the game draws it (MAP-02, GAME-19)", () => {
       { x: topLeft.x + 20, y: topLeft.y + 20 },
     ]);
     expect(map.obstacles.borders).toHaveLength(1);
+    // The drawn picture of a portal's arrow is found by the Tiled id of its object (GAME-15).
+    expect(map.portals[0]?.objectId).toBe(11);
+    expect(map.objects.map((draw) => draw.objectId)).toContain(11);
+  });
+
+  it("[GAME-05][GAME-08][MAP-03] clickable objects are read with their label, preset, easter-egg flag and approach point", () => {
+    const property = (name: string, value: unknown) => ({ name, type: "string", value });
+    const map = parseMap(
+      "kirche",
+      tiledMap({
+        objects: [
+          { id: 1, name: "start", type: "spawn", x: 96, y: 64, point: true, properties: [] },
+          {
+            id: 2,
+            name: "altar",
+            type: "clickable",
+            x: 64,
+            y: 64,
+            width: 32,
+            height: 16,
+            properties: [
+              property("label", "Programm"),
+              property("action", "page"),
+              property("page", "programme"),
+              property("approach", "davor"),
+            ],
+          },
+          { id: 3, name: "davor", x: 128, y: 160, point: true, properties: [] },
+          {
+            id: 4,
+            name: "osterei",
+            type: "clickable",
+            x: 32,
+            y: 32,
+            width: 16,
+            height: 16,
+            properties: [{ name: "hidden", type: "bool", value: true }],
+          },
+        ],
+      }),
+    );
+    expect(map.clickables.map((item) => item.name)).toEqual(["altar", "osterei"]);
+    const [altar, egg] = map.clickables;
+    expect(altar).toMatchObject({
+      label: "Programm",
+      hidden: false,
+      preset: { kind: "page", page: "programme" },
+    });
+    // The named approach point, in the map's pixel space.
+    expect(altar?.approach).toEqual({ x: -32, y: 144 });
+    expect(egg?.hidden).toBe(true);
+    expect(egg?.preset).toBeUndefined();
+    // Without an approach point: below the object's bottom edge (14.2).
+    const bottom = Math.max(...(egg?.polygon.map((point) => point.y) ?? []));
+    expect(egg?.approach.y).toBe(bottom + 16);
   });
 
   it("[GAME-20] a bottom-aligned tile object shares its image transform with collision and trigger guides", () => {

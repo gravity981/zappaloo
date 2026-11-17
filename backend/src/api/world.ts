@@ -6,11 +6,13 @@ import { z } from "zod";
 import {
   publicWorldSchema,
   WORLD_LIMITS,
+  worldActionRequestSchema,
+  worldObjectsSchema,
   worldRefusalSchema,
   worldStatusSchema,
 } from "@zappaloo/shared";
 import type { FastifyPluginAsyncZod } from "fastify-type-provider-zod";
-import { NoPreviousWorld, WorldRefused } from "../world/service.ts";
+import { NoPreviousWorld, WorldObjectError, WorldRefused } from "../world/service.ts";
 import type { WorldService } from "../world/service.ts";
 import { requireRole, signedIn } from "./auth.ts";
 
@@ -103,6 +105,48 @@ const worldPlugin: FastifyPluginAsyncZod<WorldOptions> = (app, { world }) => {
         throw error;
       }
       return reply.send(world.status());
+    },
+  );
+
+  // The clickable objects and portals of every map with their actions, and the assignment of an action to a
+  // clickable object (MAP-15). An assignment is live at once; null returns the object to its preset.
+  app.get(
+    "/api/admin/world/objects",
+    { ...admin, schema: { querystring: noQuery, response: { 200: worldObjectsSchema } } },
+    () => world.objects(),
+  );
+
+  app.put(
+    "/api/admin/world/objects/:map/:object",
+    {
+      ...admin,
+      schema: {
+        querystring: noQuery,
+        params: z.strictObject({ map: z.string().max(60), object: z.string().max(60) }),
+        body: worldActionRequestSchema,
+        response: {
+          200: worldObjectsSchema,
+          404: worldRefusalSchema.pick({ error: true }),
+          422: worldRefusalSchema.pick({ error: true }),
+        },
+      },
+    },
+    async (request, reply) => {
+      try {
+        world.setAction(
+          request.params.map,
+          request.params.object,
+          request.body.action,
+          actor(request),
+        );
+      } catch (error) {
+        if (error instanceof WorldObjectError) {
+          const status = error.code === "target_not_found" ? 422 : 404;
+          return reply.status(status).send({ error: { code: error.code, message: error.message } });
+        }
+        throw error;
+      }
+      return await reply.send(world.objects());
     },
   );
 

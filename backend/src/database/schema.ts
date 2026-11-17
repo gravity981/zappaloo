@@ -689,3 +689,22 @@ export const worldPackages = sqliteTable(
   },
   (table) => [uniqueIndex("world_packages_role").on(table.eventId, table.role)],
 );
+
+/**
+ * The actions the admin assigned to clickable objects (sw-architecture.md 14.2, MAP-15): one row per object of
+ * a map, keyed by the map's id and the object's Tiled name, so an assignment survives a new import of the world.
+ * The row replaces the preset of the Tiled file; without a row the preset applies.
+ */
+export const worldObjectActions = sqliteTable(
+  "world_object_actions",
+  {
+    eventId: text("event_id")
+      .notNull()
+      .references(() => events.id),
+    mapId: text("map_id").notNull(),
+    objectName: text("object_name").notNull(),
+    /** The action as JSON (`worldActionSchema`). */
+    action: text("action").notNull(),
+  },
+  (table) => [primaryKey({ columns: [table.eventId, table.mapId, table.objectName] })],
+);

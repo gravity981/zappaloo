@@ -1080,7 +1080,7 @@ add({
 add({
   id: "game", group: "game", title: "Game world", path: "/game", reqs: ["GAME-02", "GAME-05", "GAME-06", "GAME-09", "GAME-10", "GAME-12", "GAME-14", "GAME-15", "GAME-16", "GAME-17", "GAME-18", "PRES-01", "PRES-02", "PRES-10"],
   variants: [["rsvp", "RSVP open (badge)"], ["done", "RSVP answered"]],
-  shows: ["Live demo: tap/click to walk (arrow keys on desktop). Walk near a guest and their speech bubble opens. Click it to pin.", "Bar at the top: Programm, Rückmeldung (badge while open), Hochladen, Website (leaves the game). No buttons at the bottom, no event-day banner. Stage 5 builds the bar without «Hochladen», which comes with the upload in stage 7 (decided 2026-11-14).", "Clickable objects sparkle now and then at random. Tap one: the avatar walks there, stops in front of it, and its action runs. Each map's objects come from its Tiled file. The admin assigns their actions (see Admin › Erlebniswelt).", "Example assignments: Kirche → Programm · Linde → Wo sitze ich? · Post → Rückmeldung · Fotobox → Hochladen · Torte → Minispiel Tortenturm · own figure → Profil.", "Portal: the wobbling arrow “Dinner” leads to another scene (here it fades and restarts).", "Desktop: walk up to an object and press Enter (or Space).", "Hint “Tippe auf Dinge, die funkeln” at the first entry.", "Wander area outlined for the review only, not in the real game."],
+  shows: ["Live demo: tap/click to walk (arrow keys on desktop). Walk near a guest and their speech bubble opens. Click it to pin.", "Bar at the top: Programm, Rückmeldung (badge while open), Hochladen, Website (leaves the game). No buttons at the bottom, no event-day banner. Stage 5 builds the bar without «Hochladen», which comes with the upload in stage 7 (decided 2026-11-14).", "Clickable objects sparkle now and then at random. Tap one: the avatar walks there, stops in front of it, and its action runs. Each map's objects come from its Tiled file. The admin assigns their actions (see Admin › Erlebniswelt).", "Example assignments: Kirche → Programm · Linde → Wo sitze ich? · Post → Rückmeldung · Fotobox → Hochladen · Torte → Minispiel Tortenturm · own figure → Profil.", "Portal: the floating arrow “Dinner” leads to another scene (here it fades and restarts).", "Desktop: walk up to an object and press Enter (or Space).", "Hint “Tippe auf Dinge, die funkeln” at the first entry.", "Wander area outlined for the review only, not in the real game."],
   qs: [
     { q: "Does “Website” leave the game (full website), or open the website as an overlay too?", p: "Mock: leaves the game. The website header has “Erlebniswelt” to come back. Programm, Rückmeldung and Hochladen open as overlays." },
     { q: "Where do profile and table finder live in the game, since the bar has only four buttons?", p: "Mock: two small round buttons bottom-left (Profil, Wo sitze ich?)." },
@@ -1610,7 +1610,7 @@ const DECIDED = {
   14: "No switch: the figure is always shown.",
   15: "No skip.",
   16: "Website leaves the game.",
-  17: "No buttons at the bottom (the bar at the top stays). Information also opens when the player clicks an object in the world: the avatar walks to it, stops in front of it, and the overlay opens (church → programme, restaurant → table finder). Clickable objects sparkle now and then at random (no wobble, wobbling arrows mark portals).",
+  17: "No buttons at the bottom (the bar at the top stays). Information also opens when the player clicks an object in the world: the avatar walks to it, stops in front of it, and the overlay opens (church → programme, restaurant → table finder). Clickable objects sparkle now and then at random (no wobble, floating arrows mark portals).",
   18: "Yes, links stay in the overlay.",
   19: "Yes, these five tabs.",
   20: "Fixed layout (changed 2026-11-13). The hosts edit the hero image, the welcome text and the countdown switch in Inhalte. The cards are fixed: countdown, RSVP and shortcuts before the event day, now/next, feature cards and shortcuts on the event day (sw-architecture.md 5.6).",
@@ -1633,7 +1633,7 @@ const DECIDED = {
   37: "Not as a fixed column (takes too much space): an overlay in the bottom-right corner from time to time.",
   38: "The mock style is fine. For the website the theme means colours and fonts. The pixel style of the game UI is decided later.",
   39: "Calm website. Pixel accents only in game-related places.",
-  40: "Clickable objects come from the event's Tiled world files (several scenes, connected by portals shown as wobbling arrows). A defined interface describes clickable objects and portals. In an admin view each scene lists its clickable objects, and the admin assigns each one to an overlay or a minigame.",
+  40: "Clickable objects come from the event's Tiled world files (several scenes, connected by portals shown as floating arrows). A defined interface describes clickable objects and portals. In an admin view each scene lists its clickable objects, and the admin assigns each one to an overlay or a minigame.",
   41: "Keep the bar at the top (Programm, Rückmeldung, Hochladen, Website — one click back to the website). Only the bottom buttons go. No event-day “now / next” in the game world.",
   42: "Each map has its own clickable objects, assigned individually (see Q40).",
   43: "The sparkle plus a hint at the first entry.",
@@ -1847,7 +1847,7 @@ function mountGame(root, isDesktop) {
     ctx.fillRect(x - 1, y - r, 2, r * 2); ctx.fillRect(x - r, y - 1, r * 2, 2);
     ctx.fillStyle = `rgba(255,255,255,${a})`; ctx.fillRect(x - 1, y - 1, 2, 2);
   }
-  // shine: clickable objects sparkle for a moment at random intervals; portals wobble all the time
+  // shine: clickable objects sparkle for a moment at random intervals; portals float up and down all the time
   function shineOf(o, t) {
     if (paused || o.portal) return 0;
     if (t > o.next) { o.until = t + 900; o.next = t + 3500 + Math.random() * 5000; o.sp = [0, 1, 2].map(() => [Math.random(), Math.random()]); }

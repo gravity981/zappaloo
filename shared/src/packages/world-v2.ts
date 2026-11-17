@@ -471,6 +471,14 @@ export const worldV2: PackageDefinition<WorldFindingCode> = {
       text: "At import, a preset `minigame` is reported while minigames are not available yet.",
       codes: ["preset_minigame"],
     },
+    {
+      id: "action.dropped",
+      scope: "installation",
+      severity: "warning",
+      requirements: ["MAP-15"],
+      text: "At import, an action that the admin assigned to a clickable object (by map id and object name) whose object is no longer in the package is removed and reported. The import is still accepted.",
+      codes: ["action_dropped"],
+    },
   ],
   changes: [
     {

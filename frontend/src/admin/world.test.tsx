@@ -188,3 +188,96 @@ describe("game world › Welt & Import", () => {
     });
   });
 });
+
+describe("game world › Objekte & Portale (MAP-15)", () => {
+  const objects = {
+    maps: [
+      {
+        id: "kirche",
+        name: "Kirche & Garten",
+        clickables: [
+          {
+            name: "altar",
+            label: "Programm",
+            hidden: false,
+            preset: { kind: "page", page: "programme" },
+            missing: false,
+          },
+          {
+            name: "pastor",
+            hidden: false,
+            preset: { kind: "dialog", dialogId: "npc-pastor" },
+            missing: true,
+          },
+          { name: "osterei", hidden: true, missing: false },
+        ],
+        portals: [{ name: "zum-garten", targetMap: "garten", targetSpawn: "start" }],
+      },
+      { id: "garten", clickables: [], portals: [] },
+    ],
+    pages: ["programme", "rsvp", "profile", "p/anreise"],
+    contentPages: ["anreise"],
+    dialogues: [],
+  };
+
+  it("[MAP-15] lists each map's clickable objects with their preset, marks what is missing, and shows portals read-only", async () => {
+    fakeBackend({
+      "GET /api/session": asAdmin,
+      "GET /api/admin/world": () => ({ status: 200, body: { active: sommerfest, previous: null } }),
+      "GET /api/admin/world/objects": () => ({ status: 200, body: objects }),
+    });
+    renderAt("/admin/world");
+    user.click(await screen.findByRole("button", { name: "Objekte & Portale" }));
+    expect(await screen.findByText("Anklickbare Objekte (3)")).toBeVisible();
+    const altar = screen.getByRole("combobox", { name: "Aktion von Programm" });
+    expect(within(altar).getByRole("option", { name: "Vorgabe: Seite programme" })).toBeVisible();
+    // A preset that points to nothing is marked; an easter egg is named as such.
+    const row = screen.getByRole("combobox", { name: "Aktion von pastor" }).closest("tr");
+    expect(row && within(row).getByText("fehlt")).toBeVisible();
+    expect(screen.getByText("Easter Egg")).toBeVisible();
+    expect(screen.getByText("Portale (1)")).toBeVisible();
+    expect(screen.getByText("zum-garten")).toBeVisible();
+    // Portals are read-only: nothing to change in their list.
+    expect(
+      within(screen.getByRole("region", { name: "Portale (1)" })).queryByRole("combobox"),
+    ).toBeNull();
+  });
+
+  it("[MAP-15] picking an action saves it at once; the preset can be restored", async () => {
+    const calls = fakeBackend({
+      "GET /api/session": asAdmin,
+      "GET /api/admin/world": () => ({ status: 200, body: { active: sommerfest, previous: null } }),
+      "GET /api/admin/world/objects": () => ({ status: 200, body: objects }),
+      "PUT /api/admin/world/objects/kirche/altar": () => ({ status: 200, body: objects }),
+    });
+    renderAt("/admin/world");
+    user.click(await screen.findByRole("button", { name: "Objekte & Portale" }));
+    const altar = await screen.findByRole("combobox", { name: "Aktion von Programm" });
+    fireEvent.change(altar, { target: { value: "page:p/anreise" } });
+    expect(await screen.findByText("Gespeichert.")).toBeVisible();
+    fireEvent.change(altar, { target: { value: "none" } });
+    fireEvent.change(altar, { target: { value: "" } });
+    await waitFor(() => {
+      expect(calls.filter((call) => call.method === "PUT").map((call) => call.body)).toEqual([
+        { action: { kind: "page", page: "p/anreise" } },
+        { action: { kind: "none" } },
+        { action: null },
+      ]);
+    });
+    expect(calls.find((call) => call.method === "PUT")?.csrf).toBe("csrf-9");
+  });
+
+  it("[MAP-15] without a world, the tab says so", async () => {
+    fakeBackend({
+      "GET /api/session": asAdmin,
+      "GET /api/admin/world": () => ({ status: 200, body: { active: null, previous: null } }),
+      "GET /api/admin/world/objects": () => ({
+        status: 200,
+        body: { maps: [], pages: ["programme"], contentPages: [], dialogues: [] },
+      }),
+    });
+    renderAt("/admin/world");
+    user.click(await screen.findByRole("button", { name: "Objekte & Portale" }));
+    expect(await screen.findByText(/noch keine Welt importiert/)).toBeVisible();
+  });
+});

@@ -16,8 +16,19 @@ import {
   type Direction,
 } from "./movement.ts";
 import { portalAt, spawnPosition } from "./entry.ts";
+import {
+  actionOf,
+  arrivedAt,
+  clickableAt,
+  clickableInReach,
+  MAX_SPARKLES,
+  nextShineDelay,
+  nextSparkleDelay,
+  shineGradient,
+  visibleEdge,
+} from "./interaction.ts";
 import { playerSpritePosition } from "./player-anchor.ts";
-import { tilesetImageKey, type ParsedMap, type TileDraw } from "./map-model.ts";
+import { tilesetImageKey, type ClickableArea, type ParsedMap, type TileDraw } from "./map-model.ts";
 import type { FigureData, LoadedWorld } from "./world-data.ts";
 import {
   ENGINE_CONFIG_REGISTRY_KEY,
@@ -56,6 +67,9 @@ function centreOf(cell: { column: number; row: number }, size: TileSize): Point 
   return cellCentre(cell.column, cell.row, size);
 }
 
+/** The drawn picture of a tile object: a sprite when Phaser's native renderer drew it, an image otherwise. */
+type ObjectPicture = Phaser.GameObjects.Sprite | Phaser.GameObjects.Image;
+
 export class WorldScene extends Phaser.Scene {
   #world: LoadedWorld | undefined;
   #host: GameHost | undefined;
@@ -79,6 +93,19 @@ export class WorldScene extends Phaser.Scene {
   /** Whether portals may take the player: false while the player stands in one after arriving. */
   #armed = true;
   #transitioning = false;
+  /** The clickable object a walk leads to: its action runs when the avatar arrives (GAME-16). */
+  #pending: ClickableArea | undefined;
+  /** The arrows of the portals by the Tiled id of their tile object, which wobble (GAME-15). */
+  #objectSprites = new Map<number, ObjectPicture>();
+  /** How many sparkles have appeared in this map, and how many are visible now (GAME-15). */
+  #sparkles = 0;
+  #activeSparkles = 0;
+  #shines = 0;
+  /** The visible edge of each tile object's picture in map pixels, by object name (GAME-15). */
+  #edges = new Map<string, Point[]>();
+  #sparkleTimer: Phaser.Time.TimerEvent | undefined;
+  #shineTimer: Phaser.Time.TimerEvent | undefined;
+  #activateKeys: Phaser.Input.Keyboard.Key[] = [];
   #cursor: Phaser.Types.Input.Keyboard.CursorKeys | undefined;
   #wasd: Record<"W" | "A" | "S" | "D", Phaser.Input.Keyboard.Key> | undefined;
   readonly #onTap = (pointer: Phaser.Input.Pointer): void => {
@@ -112,6 +139,13 @@ export class WorldScene extends Phaser.Scene {
     this.#direction = "south";
     this.#walkClock = 0;
     this.#path = [];
+    this.#pending = undefined;
+    this.#objectSprites = new Map();
+    this.#sparkles = 0;
+    this.#activeSparkles = 0;
+    this.#edges = new Map();
+    this.#sparkleTimer = undefined;
+    this.#shineTimer = undefined;
     this.#transitioning = false;
   }
 
@@ -156,7 +190,12 @@ export class WorldScene extends Phaser.Scene {
       this.cameras.main.centerOn(bounds.x + bounds.width / 2, bounds.y + bounds.height / 2);
     }
     this.#bindInput();
-    if (!this.#artworkOnly) this.#host?.rememberMap?.(map.id);
+    if (!this.#artworkOnly) {
+      this.#floatPortals(map);
+      this.#startSparkles(map);
+      this.#startShines(map);
+      this.#host?.rememberMap?.(map.id);
+    }
 
     this.#host?.onStateChange?.(() => {
       const camera = this.cameras.main;
@@ -165,6 +204,7 @@ export class WorldScene extends Phaser.Scene {
         x: Math.round(this.#position.x),
         y: Math.round(this.#position.y),
         direction: this.#direction,
+        sparkles: this.#sparkles,
         view: {
           x: camera.midPoint.x,
           y: camera.midPoint.y,
@@ -177,6 +217,10 @@ export class WorldScene extends Phaser.Scene {
     this.#host?.onReady?.();
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
       this.input.off(Phaser.Input.Events.POINTER_DOWN, this.#onTap);
+      this.#sparkleTimer?.remove();
+      this.#sparkleTimer = undefined;
+      this.#shineTimer?.remove();
+      this.#shineTimer = undefined;
       this.#host?.onStateChange?.(null);
       this.#guideGraphics = undefined;
       this.#occlusionGraphics = undefined;
@@ -233,7 +277,18 @@ export class WorldScene extends Phaser.Scene {
     // The keys win over a walk to a point. Otherwise the walk heads for its next waypoint, skipping the ones reached.
     let move = keyDirection(this.#keys());
     const keysHeld = move.x !== 0 || move.y !== 0;
-    if (keysHeld) this.#path = [];
+    if (keysHeld) {
+      this.#path = [];
+      this.#pending = undefined;
+    }
+    if (this.#activateKeys.some((key) => Phaser.Input.Keyboard.JustDown(key))) {
+      const area = clickableInReach(map, this.#position);
+      if (area !== undefined) {
+        this.#path = [];
+        this.#pending = undefined;
+        this.#activate(area);
+      }
+    }
     while (!keysHeld && this.#path.length > 0) {
       const next = this.#path[0];
       if (next === undefined) break;
@@ -270,6 +325,13 @@ export class WorldScene extends Phaser.Scene {
     this.#drawOcclusionActor();
     this.#drawCollisionActor();
 
+    // A walk to an object has ended: the action runs where the avatar stands in front of it (GAME-16).
+    const pending = this.#pending;
+    if (pending !== undefined && this.#path.length === 0) {
+      this.#pending = undefined;
+      if (arrivedAt(map, pending, this.#position)) this.#activate(pending);
+    }
+
     const portal = portalAt(map, this.#position);
     if (!this.#armed) {
       if (portal === undefined) this.#armed = true;
@@ -285,7 +347,10 @@ export class WorldScene extends Phaser.Scene {
       for (const draw of map.ground) this.#drawTile(draw);
     }
     if (!native.objects) {
-      for (const draw of map.objects) this.#drawTile(draw);
+      for (const draw of map.objects) {
+        const picture = this.#drawTile(draw);
+        if (draw.objectId !== undefined) this.#objectSprites.set(draw.objectId, picture);
+      }
     }
   }
 
@@ -453,6 +518,7 @@ export class WorldScene extends Phaser.Scene {
         ignoreTileset: true,
       })[0];
       if (!(sprite instanceof Phaser.GameObjects.Sprite)) return false;
+      this.#objectSprites.set(object.id, sprite);
       const feetY = sprite.y + (1 - sprite.originY) * sprite.displayHeight;
       sprite.setDepth(feetY + index / 1000);
     }
@@ -614,7 +680,7 @@ export class WorldScene extends Phaser.Scene {
    * Draws a tile as a frame of its image. A frame is a rectangle of the texture (a sheet's cell, or the whole image
    * of a collection tile); frames are Phaser's own, so no crop of the texture is needed.
    */
-  #drawTile(draw: TileDraw): void {
+  #drawTile(draw: TileDraw): Phaser.GameObjects.Image {
     const { image } = draw;
     const { x, y, width, height } = image.crop;
     const frame = `${String(x)},${String(y)},${String(width)},${String(height)}`;
@@ -625,6 +691,7 @@ export class WorldScene extends Phaser.Scene {
       .setOrigin(0, 0)
       .setDepth(draw.depth);
     sprite.setScale(draw.width / width, draw.height / height);
+    return sprite;
   }
 
   #bindInput(): void {
@@ -637,6 +704,10 @@ export class WorldScene extends Phaser.Scene {
         S: keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.S),
         D: keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.D),
       };
+      this.#activateKeys = [
+        keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.ENTER),
+        keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE),
+      ];
     }
     this.input.on(Phaser.Input.Events.POINTER_DOWN, this.#onTap);
   }
@@ -659,6 +730,13 @@ export class WorldScene extends Phaser.Scene {
     if (map === undefined) return;
     const size = map.size;
     const portal = portalAt(map, point);
+    // A tap on a clickable object walks to its approach point, where its action runs (GAME-16).
+    const area = portal === undefined ? clickableAt(map, point) : undefined;
+    this.#pending = undefined;
+    if (area !== undefined) {
+      this.#walkToObject(map, area);
+      return;
+    }
     if (portal === undefined && !walkable(map.obstacles, playerCollisionEllipse(point, size.width)))
       return;
     const goal = portal === undefined ? point : polygonCentre(portal.polygon);
@@ -672,6 +750,278 @@ export class WorldScene extends Phaser.Scene {
     if (cells === undefined) return;
     this.#path = cells.slice(1).map((cell) => centreOf(cell, size));
     if (portal !== undefined) this.#path.push(goal);
+  }
+
+  /** Walks to the approach point of an object; stands already there, the action runs at once. */
+  #walkToObject(map: ParsedMap, area: ClickableArea): void {
+    if (arrivedAt(map, area, this.#position)) {
+      this.#path = [];
+      this.#activate(area);
+      return;
+    }
+    const size = map.size;
+    const grid: Grid = {
+      columns: map.columns,
+      rows: map.rows,
+      walkable: (cell) =>
+        walkable(map.obstacles, playerCollisionEllipse(centreOf(cell, size), size.width)),
+    };
+    const cells = findPath(grid, cellOf(this.#position, size), cellOf(area.approach, size));
+    if (cells === undefined) return;
+    this.#path = cells.slice(1).map((cell) => centreOf(cell, size));
+    this.#path.push(area.approach);
+    this.#pending = area;
+  }
+
+  /** Runs the action of an object through the host (GAME-06); an object without an action does nothing. */
+  #activate(area: ClickableArea): void {
+    const world = this.#world;
+    const map = this.#map;
+    if (world === undefined || map === undefined) return;
+    const action = actionOf(world.actions, map.id, area);
+    if (action.kind === "none") return;
+    this.#host?.onActivate?.({
+      mapId: map.id,
+      object: area.name,
+      ...(area.label === undefined ? {} : { label: area.label }),
+      action,
+    });
+  }
+
+  /**
+   * The arrow of each portal floats smoothly up and down, again and again, like a boat on waves, above a shadow
+   * on the ground that shrinks and fades while the arrow rises (GAME-15).
+   */
+  #floatPortals(map: ParsedMap): void {
+    // The arrow hovers above the ground, so its shadow shows below it, and rises and sinks by the amplitude.
+    const HOVER = 6;
+    /** Above the foreground layers (at most about 1,100,000), below the effects of the objects (1,500,000). */
+    const PORTAL_ARROW_DEPTH = 1_200_000;
+    const AMPLITUDE = 4;
+    for (const portal of map.portals) {
+      const sprite = this.#objectSprites.get(portal.objectId);
+      if (sprite === undefined) continue;
+      const bounds = sprite.getBounds();
+      const shadow = this.add
+        .ellipse(
+          bounds.centerX,
+          bounds.bottom - bounds.height * 0.15,
+          bounds.width * 0.6,
+          bounds.height * 0.3,
+          0x000000,
+          0.3,
+        )
+        .setDepth(sprite.depth - 0.5);
+      // The arrow floats above the world: nothing in it, no prop and no foreground layer, covers it. Its shadow
+      // keeps the depth of the ground it lies on, so a figure in front still stands over the shadow.
+      sprite.setDepth(PORTAL_ARROW_DEPTH);
+      const base = sprite.y - HOVER;
+      // A warm glow around the arrow's own pixels, which breathes with the float.
+      sprite.enableFilters();
+      const glow = sprite.filters?.internal.addGlow(0xffd36b, 3, 0, 0.8);
+      // Without this, a glow is cut off at the picture's own bounds.
+      glow?.setPaddingOverride(null);
+      this.tweens.addCounter({
+        from: 0,
+        to: 1,
+        duration: 1500,
+        ease: "Sine.easeInOut",
+        yoyo: true,
+        repeat: -1,
+        onUpdate: (tween) => {
+          const rise = tween.getValue() ?? 0;
+          sprite.y = base - AMPLITUDE * rise;
+          shadow.setScale(1 - 0.25 * rise);
+          shadow.setAlpha(1 - 0.4 * rise);
+          if (glow) glow.outerStrength = 2 + 3 * rise;
+        },
+      });
+    }
+  }
+
+  /**
+   * Small sparkles appear at random points along the edges of the clickable objects, a few at a time (GAME-15).
+   * Easter eggs do not sparkle (GAME-08).
+   */
+  #startSparkles(map: ParsedMap): void {
+    // Only objects with a picture sparkle, and only on the opaque pixels of that picture: a shape without one has
+    // nothing visible to sparkle on.
+    for (const area of map.clickables) if (!area.hidden) this.#readEdge(area);
+    const visible = map.clickables.filter((area) => this.#edges.has(area.name));
+    if (visible.length === 0) return;
+    const schedule = (): void => {
+      this.#sparkleTimer = this.time.delayedCall(nextSparkleDelay(), () => {
+        const area = visible[Math.floor(Math.random() * visible.length)];
+        if (area !== undefined && this.#activeSparkles < MAX_SPARKLES) this.#sparkle(area);
+        schedule();
+      });
+    };
+    schedule();
+  }
+
+  /**
+   * The visible edge of a tile object's picture, read once from its pixels: sparkles must not appear on the
+   * transparent pixels of its image, and they sit where the picture is drawn (GAME-15). A picture that cannot be
+   * read has no edge, and the object does not sparkle.
+   */
+  #readEdge(area: ClickableArea): void {
+    const source = area.objectId === undefined ? undefined : this.#objectSprites.get(area.objectId);
+    if (source === undefined) return;
+    try {
+      const key = source.texture.key;
+      const frame = source.frame.name;
+      const edge = visibleEdge(
+        (x, y) => this.textures.getPixelAlpha(x, y, key, frame),
+        source.frame.width,
+        source.frame.height,
+      );
+      // Where the picture is drawn: the top left of the sprite, as Phaser places it (origin, scale and all).
+      const topLeft = source.getTopLeft();
+      const left = topLeft.x;
+      const top = topLeft.y;
+      const scaleX = source.displayWidth / source.frame.width;
+      const scaleY = source.displayHeight / source.frame.height;
+      if (edge.length > 0) {
+        this.#edges.set(
+          area.name,
+          edge.map((point) => ({ x: left + point.x * scaleX, y: top + point.y * scaleY })),
+        );
+      }
+    } catch {
+      // The pixels cannot be read: the object does not sparkle.
+    }
+  }
+
+  #sparkle(area: ClickableArea): void {
+    const edge = this.#edges.get(area.name);
+    const at = edge?.[Math.floor(Math.random() * edge.length)];
+    if (at === undefined) return;
+    const radius = 1.5 + Math.random() * 1.5;
+    const star = this.add.graphics({ x: at.x, y: at.y }).setDepth(1_500_000);
+    star.fillStyle(0xfff3a0, 1);
+    star.fillPoints(
+      [
+        { x: 0, y: -radius },
+        { x: radius * 0.25, y: -radius * 0.25 },
+        { x: radius, y: 0 },
+        { x: radius * 0.25, y: radius * 0.25 },
+        { x: 0, y: radius },
+        { x: -radius * 0.25, y: radius * 0.25 },
+        { x: -radius, y: 0 },
+        { x: -radius * 0.25, y: -radius * 0.25 },
+      ].map(({ x, y }) => new Phaser.Math.Vector2(x, y)),
+      true,
+    );
+    this.#sparkles += 1;
+    this.#activeSparkles += 1;
+    this.tweens.add({
+      targets: star,
+      alpha: 0,
+      scale: 1.8,
+      angle: 45,
+      duration: 450 + Math.random() * 300,
+      onComplete: () => {
+        star.destroy();
+        this.#activeSparkles -= 1;
+      },
+    });
+  }
+
+  /** Now and then a shine sweeps once over one clickable object that has a picture (GAME-15, GAME-08). */
+  #startShines(map: ParsedMap): void {
+    const visible = map.clickables.filter(
+      (area) =>
+        !area.hidden && area.objectId !== undefined && this.#objectSprites.has(area.objectId),
+    );
+    if (visible.length === 0) return;
+    const schedule = (): void => {
+      this.#shineTimer = this.time.delayedCall(nextShineDelay(), () => {
+        const area = visible[Math.floor(Math.random() * visible.length)];
+        if (area !== undefined) this.#shine(area);
+        schedule();
+      });
+    };
+    schedule();
+  }
+
+  /**
+   * A diagonal band of light moves through the object's picture. The light is painted into a canvas of the
+   * picture's size with the picture itself as the stencil (`source-in`), so it shows only on the picture's opaque
+   * pixels; the canvas is drawn over the object, and nothing else is touched. An object without a picture has
+   * no shine: there are no pixels of its own to light.
+   */
+  #shine(area: ClickableArea): void {
+    const DURATION = 800;
+    const source = area.objectId === undefined ? undefined : this.#objectSprites.get(area.objectId);
+    if (source === undefined) return;
+    const frame = source.frame;
+    const image = source.texture.getSourceImage(frame.name) as CanvasImageSource;
+    const width = frame.cutWidth;
+    const height = frame.cutHeight;
+    this.#shines += 1;
+    const key = `shine:${String(this.#shines)}`;
+    const canvas = this.textures.createCanvas(key, width, height);
+    if (canvas === null) return;
+    const context = canvas.getContext();
+    const copy = this.add
+      .sprite(source.x, source.y, key)
+      .setOrigin(source.originX, source.originY)
+      .setDisplaySize(source.displayWidth, source.displayHeight)
+      .setDepth(source.depth + 0.0005)
+      .setBlendMode(Phaser.BlendModes.ADD);
+    this.tweens.addCounter({
+      from: 0,
+      to: 1,
+      duration: DURATION,
+      ease: "Sine.easeInOut",
+      onUpdate: (tween) => {
+        const line = shineGradient(width, height, tween.getValue() ?? 0);
+        const gradient = context.createLinearGradient(line.x0, line.y0, line.x1, line.y1);
+        gradient.addColorStop(0, "rgba(255,255,255,0)");
+        gradient.addColorStop(0.5, "rgba(255,255,255,0.7)");
+        gradient.addColorStop(1, "rgba(255,255,255,0)");
+        context.clearRect(0, 0, width, height);
+        context.globalCompositeOperation = "source-over";
+        context.drawImage(image, frame.cutX, frame.cutY, width, height, 0, 0, width, height);
+        context.globalCompositeOperation = "source-in";
+        context.fillStyle = gradient;
+        context.fillRect(0, 0, width, height);
+        context.globalCompositeOperation = "source-over";
+        canvas.refresh();
+      },
+      onComplete: () => {
+        copy.destroy();
+        this.textures.remove(key);
+      },
+    });
+  }
+
+  /** Stops the game while a page is open above it, and lets the keys reach the page (GAME-11). */
+  setPaused(paused: boolean): void {
+    const keyboard = this.input.keyboard;
+    if (paused) {
+      this.scene.pause();
+      keyboard?.resetKeys();
+      keyboard?.disableGlobalCapture();
+    } else {
+      keyboard?.enableGlobalCapture();
+      this.scene.resume();
+    }
+  }
+
+  /** The clickable objects of the map the player is in, for the test hook and the host. */
+  clickables(): { name: string; x: number; y: number; ax: number; ay: number; hidden: boolean }[] {
+    return (this.#map?.clickables ?? []).map((area) => {
+      const centre = polygonCentre(area.polygon);
+      return {
+        name: area.name,
+        x: centre.x,
+        y: centre.y,
+        ax: area.approach.x,
+        ay: area.approach.y,
+        hidden: area.hidden,
+      };
+    });
   }
 
   #transition(mapId: string, spawn: string | undefined): void {

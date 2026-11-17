@@ -1,6 +1,7 @@
 // Test hook for the end-to-end tests (test-strategy.md, "Game world tests"): exposes the engine state to Playwright.
 // Only built in when VITE_TEST_HOOKS=true.
 import {
+  getGameClickables,
   getGameRenderStack,
   setGameGuides,
   setGameSelection,
@@ -14,6 +15,8 @@ export interface GameTestHook {
   activeScenes: () => string[];
   state: () => GameState | undefined;
   renderStack: () => { type: string; depth: number }[];
+  /** The clickable objects of the current map: centre and approach point in map pixels. */
+  clickables: () => ReturnType<typeof getGameClickables>;
   selectSpawn: (mapId: string, spawn: string) => void;
   setGuides: (guides: GameGuides) => void;
   renderArtwork: (
@@ -43,6 +46,7 @@ function publish(): void {
           activeScenes: () => instance.scene.getScenes(true).map((scene) => scene.scene.key),
           state: () => read?.(),
           renderStack: () => getGameRenderStack(instance),
+          clickables: () => getGameClickables(instance),
           selectSpawn: (mapId, spawn) => {
             setGameSelection(instance, { mapId, spawn });
           },

@@ -1,7 +1,7 @@
 import { existsSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
-import type { PublicWorld, WorldStatus } from "@zappaloo/shared";
+import type { PublicWorld, WorldObjects, WorldStatus } from "@zappaloo/shared";
 import { buildArchive } from "../packages/build.ts";
 import { buildTestWorld, testWorldFiles } from "../world/build.ts";
 import { createTestApp, signIn } from "../test-support.ts";
@@ -326,5 +326,129 @@ describe("the world of the event (MAP-04, MAP-05, MAP-06, MAP-08, MAP-09, MAP-10
     await upload(ctx, admin, buildArchive(files));
     const withoutDoor = await ctx.app.inject({ url: "/api/waiting/door", headers: player });
     expect(withoutDoor.json()).toMatchObject({ kind: "default" });
+  });
+});
+
+describe("the actions of clickable objects (MAP-15, GAME-06)", () => {
+  const put = (ctx: TestContext, headers: Headers, map: string, object: string, action: unknown) =>
+    ctx.app.inject({
+      method: "PUT",
+      url: `/api/admin/world/objects/${map}/${object}`,
+      headers,
+      payload: { action },
+    });
+  const objects = async (ctx: TestContext, headers: Headers) =>
+    bodyOf<WorldObjects>(await ctx.app.inject({ url: "/api/admin/world/objects", headers }));
+  const world = async (ctx: TestContext, headers: Headers) =>
+    bodyOf<PublicWorld>(await ctx.app.inject({ url: "/api/world", headers }));
+
+  it("[MAP-15] the admin sees each map's clickable objects with their presets, and its portals read-only", async () => {
+    context = await createTestApp();
+    const ctx = context;
+    const admin = await signIn(ctx, "boss", ["admin"]);
+    await upload(ctx, admin, buildTestWorld());
+    const list = await objects(ctx, admin);
+    const church = list.maps.find((map) => map.id === "kirche");
+    const altar = church?.clickables.find((item) => item.name === "altar");
+    expect(altar?.preset).toEqual({ kind: "page", page: "programme" });
+    expect(altar?.missing).toBe(false);
+    // The dialogue of "pastor" does not exist before stage 5g; the preset is marked as missing.
+    const pastor = church?.clickables.find((item) => item.name === "pastor");
+    expect(pastor).toMatchObject({
+      preset: { kind: "dialog", dialogId: "npc-pastor" },
+      missing: true,
+    });
+    expect(church?.portals.map((portal) => portal.name)).toContain("zum-garten");
+    expect(list.pages).toEqual(expect.arrayContaining(["programme", "rsvp", "profile"]));
+  });
+
+  it("[MAP-15][GAME-06] an assignment replaces the preset at once, without a new import; null returns to the preset", async () => {
+    context = await createTestApp();
+    const ctx = context;
+    const admin = await signIn(ctx, "boss", ["admin"]);
+    ctx.event.setSetting("platformOpen", true, "cli");
+    const player = await signIn(ctx, "gast", ["vip"]);
+    await upload(ctx, admin, buildTestWorld());
+    expect((await world(ctx, player)).actions).toEqual([]);
+
+    const assigned = await put(ctx, admin, "kirche", "altar", { kind: "page", page: "profile" });
+    expect(assigned.statusCode).toBe(200);
+    expect((await world(ctx, player)).actions).toEqual([
+      { map: "kirche", object: "altar", action: { kind: "page", page: "profile" } },
+    ]);
+    const altar = (await objects(ctx, admin)).maps
+      .find((map) => map.id === "kirche")
+      ?.clickables.find((item) => item.name === "altar");
+    expect(altar).toMatchObject({
+      preset: { kind: "page", page: "programme" },
+      override: { kind: "page", page: "profile" },
+    });
+
+    await put(ctx, admin, "kirche", "altar", { kind: "none" });
+    expect((await world(ctx, player)).actions[0]?.action).toEqual({ kind: "none" });
+    await put(ctx, admin, "kirche", "altar", null);
+    expect((await world(ctx, player)).actions).toEqual([]);
+    // Ids only in the audit log.
+    const entry = ctx.event.auditEntries().find((item) => item.action === "world.action");
+    expect(entry?.details).toEqual({ map: "kirche", object: "altar" });
+  });
+
+  it("[MAP-15] an assignment names an existing object and an existing target; a minigame cannot be assigned; only admins assign", async () => {
+    context = await createTestApp();
+    const ctx = context;
+    const admin = await signIn(ctx, "boss", ["admin"]);
+    const player = await signIn(ctx, "gast", ["vip"]);
+    await upload(ctx, admin, buildTestWorld());
+    expect((await put(ctx, admin, "kirche", "gibt-es-nicht", { kind: "none" })).statusCode).toBe(
+      404,
+    );
+    expect(
+      (await put(ctx, admin, "kirche", "altar", { kind: "page", page: "p/fehlt" })).statusCode,
+    ).toBe(422);
+    expect(
+      (await put(ctx, admin, "kirche", "altar", { kind: "content", contentId: "fehlt" }))
+        .statusCode,
+    ).toBe(422);
+    expect(
+      (await put(ctx, admin, "kirche", "altar", { kind: "minigame", minigameId: "quiz" }))
+        .statusCode,
+    ).toBe(400);
+    expect((await put(ctx, player, "kirche", "altar", { kind: "none" })).statusCode).toBe(403);
+    expect(
+      (await ctx.app.inject({ url: "/api/admin/world/objects", headers: player })).statusCode,
+    ).toBe(403);
+  });
+
+  it("[MAP-15] a new import keeps the assignments of objects that still exist and drops, with a warning, those of objects that are gone", async () => {
+    context = await createTestApp();
+    const ctx = context;
+    const admin = await signIn(ctx, "boss", ["admin"]);
+    await upload(ctx, admin, buildTestWorld());
+    await put(ctx, admin, "kirche", "altar", { kind: "page", page: "profile" });
+    await put(ctx, admin, "kirche", "osterei", { kind: "none" });
+
+    const files = testWorldFiles();
+    interface Layer {
+      objects?: { name: string }[];
+      layers?: Layer[];
+    }
+    const map = JSON.parse(files["maps/kirche.json"]?.toString("utf8") ?? "{}") as {
+      layers: Layer[];
+    };
+    const drop = (layers: Layer[]): void => {
+      for (const layer of layers) {
+        if (layer.objects) layer.objects = layer.objects.filter((item) => item.name !== "osterei");
+        if (layer.layers) drop(layer.layers);
+      }
+    };
+    drop(map.layers);
+    files["maps/kirche.json"] = Buffer.from(JSON.stringify(map));
+    const imported = await upload(ctx, admin, buildArchive(files));
+    expect(imported.statusCode).toBe(200);
+    const warnings = bodyOf<WorldStatus>(imported).active?.warnings ?? [];
+    expect(
+      warnings.filter((item) => item.code === "action_dropped").map((item) => item.object),
+    ).toEqual(["osterei"]);
+    expect((await world(ctx, admin)).actions.map((item) => item.object)).toEqual(["altar"]);
   });
 });
