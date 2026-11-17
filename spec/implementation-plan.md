@@ -394,8 +394,7 @@ world.tar.gz
 - **Names** stay required for spawn points, portals and clickable objects (1–40 characters of `a–z 0–9 -`), because the assignments in "Erlebniswelt" are keyed by name.
 - **Portals.**
   - Targets stay in Tiled (`targetMap`, `targetSpawn`). MAP-07 stays withdrawn.
-  - A portal is a rectangle or a polygon, the trigger area. Walking into it takes the player through; tapping it walks the player into it.
-  - The arrow is a tile object that the portal names in its object property `marker` (a Tiled object reference). The game wobbles the arrow.
+  - Changed 2026-11-16: a portal is a tile object (its arrow, which wobbles); its trigger area is the polygon `trigger` in the tile's object group, like the collision polygons of buildings. Walking into it takes the player through; tapping it walks the player into it. The former property `marker` is gone.
   - A portal without `targetMap` and `targetSpawn` is a warning and does nothing, so a world with one map imports. A target that is given but missing in the package stays an error (MAP-06).
 - **Figures instead of avatar parts.** The avatar editor only chooses a complete figure. There is no skin colour, hairstyle, clothing, colour or template anymore.
   - `avatar/figures.json`: `{ "figures": [{ "id", "label"?, "metadata" }] }`. `id` is 1–40 characters of `a–z 0–9 -`, unique. `label` is optional and is the name the editor shows; without it, the editor shows no name. `metadata` is the path of the figure's PixelLab metadata, relative to `figures.json`.

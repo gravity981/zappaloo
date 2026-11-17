@@ -1,7 +1,7 @@
 // The rules of one Tiled map of the world package (sw-architecture.md 14.4, MAP-02, MAP-03, MAP-06, MAP-08):
 // the format (isometric, finite), the layers (group layers read recursively), the embedded tilesets with
 // their images (sheets and image collections), the tile ids, the objects by type, shape and properties
-// (collision and border polygons, portals with markers, occlusion guides of tiles), and the references
+// (collision and border polygons, portals as tile objects with a trigger polygon, occlusion guides of tiles), and the references
 // inside the map and to the other maps of the package.
 import {
   tiledMapSchema,
@@ -75,7 +75,7 @@ type Shape = "point" | "rectangle" | "polygon" | "polyline" | "tile";
 /** The shapes each object type accepts (14.2, 14.4). An untyped object is a point. */
 const SHAPES: Record<string, Shape[]> = {
   spawn: ["point"],
-  portal: ["rectangle", "polygon"],
+  portal: ["tile"],
   clickable: ["rectangle", "polygon", "tile"],
   decoration: ["rectangle", "polygon", "tile", "point"],
   seat: ["point"],
@@ -89,7 +89,7 @@ const SHAPES: Record<string, Shape[]> = {
 /** The properties each type uses (14.2, 14.4); others are reported as unknown (warnings). */
 const PROPERTIES: Record<string, string[]> = {
   spawn: [],
-  portal: ["targetMap", "targetSpawn", "marker", "label", "approach"],
+  portal: ["targetMap", "targetSpawn", "label", "approach"],
   clickable: ["label", "approach", "action", "page", "contentId", "minigameId", "hidden"],
   decoration: [],
   seat: ["table"],
@@ -281,13 +281,11 @@ export function checkMap(id: string, bytes: Buffer, context: MapContext): MapRes
 
   const ranges = checkTilesets(map, file, context, findings);
   const tilesetImages = new Set<string>(ranges.flatMap((range) => range.images));
-  // Tile objects of a collection tile may carry a collision guide; those tiles block when placed.
-  const blockingTiles = new Set<number>();
+  // The guides of collection tiles: a collision guide makes a placed tile block, a trigger guide makes it a portal.
+  const tileGuides = new Map<number, TileGuides>();
   for (const tileset of map.tilesets) {
     for (const tile of tileset.tiles ?? []) {
-      if (checkTileGuides(tile, tileset, file, findings)) {
-        blockingTiles.add(tileset.firstgid + tile.id);
-      }
+      tileGuides.set(tileset.firstgid + tile.id, checkTileGuides(tile, tileset, file, findings));
     }
   }
 
@@ -309,7 +307,7 @@ export function checkMap(id: string, bytes: Buffer, context: MapContext): MapRes
   }
 
   // Objects: the spawn points, the portals, the approach points, the collision shapes, the tiles placed.
-  const objects = checkObjects(map, file, ranges, blockingTiles, findings);
+  const objects = checkObjects(map, file, ranges, tileGuides, findings);
   if (objects.collision || objects.placedBlocking) collision = true;
   if (!objects.spawns.has("start")) {
     findings.push(errorFinding(file, "map_reference", "the map has no spawn point named start"));
@@ -485,7 +483,6 @@ function checkCollection(
   findings: WorldFinding[],
 ): TileRange | undefined {
   const name = tileset.name;
-  if (!sizeMatches(tileset, context, file, findings)) return undefined;
   const ids = new Set<number>();
   const images: string[] = [];
   for (const tile of tileset.tiles ?? []) {
@@ -540,19 +537,35 @@ function checkCollection(
  * The guides of one collection tile: a collision polygon or rectangle named `collision` blocks, and a
  * polyline named `occlusion` (at most one) gives the depth line. Returns whether the tile blocks.
  */
+/** What the guides of a collection tile make of it. */
+interface TileGuides {
+  /** A `collision` guide: a placed tile blocks. */
+  blocks: boolean;
+  /** A `trigger` guide: the tile is a portal, and the polygon is its trigger area. */
+  trigger: boolean;
+}
+
 function checkTileGuides(
   tile: TiledTile,
   tileset: TiledTileset,
   file: string,
   findings: WorldFinding[],
-): boolean {
+): TileGuides {
   let blocks = false;
+  let trigger = false;
   let occlusion = 0;
   const label = `${tileset.name} tile ${String(tile.id)}`;
   for (const guide of tile.objectgroup?.objects ?? []) {
     const shape = shapeOf(guide);
     if (guide.name === "collision" && (shape === "polygon" || shape === "rectangle")) {
       blocks = true;
+    } else if (guide.name === "trigger" && (shape === "polygon" || shape === "rectangle")) {
+      if (trigger) {
+        findings.push(
+          errorFinding(file, "map_guide", "a tile has more than one trigger area", label),
+        );
+      }
+      trigger = true;
     } else if (
       guide.name === "occlusion" &&
       shape === "polyline" &&
@@ -564,7 +577,7 @@ function checkTileGuides(
         errorFinding(
           file,
           "map_guide",
-          "a guide of a tile is a polygon or rectangle named collision, or a polyline named occlusion",
+          "a guide of a tile is a polygon or rectangle named collision or trigger, or a polyline named occlusion",
           label,
         ),
       );
@@ -575,7 +588,7 @@ function checkTileGuides(
       errorFinding(file, "map_guide", "a tile has more than one occlusion line", label),
     );
   }
-  return blocks;
+  return { blocks, trigger };
 }
 
 /** Whether a global tile id belongs to one of the tilesets of the map. */
@@ -658,7 +671,7 @@ function checkObjects(
   map: TiledMap,
   file: string,
   ranges: TileRange[],
-  blockingTiles: Set<number>,
+  tileGuides: Map<number, TileGuides>,
   findings: WorldFinding[],
 ): ObjectsResult {
   const result: ObjectsResult = {
@@ -671,14 +684,8 @@ function checkObjects(
   };
   const objects = allObjects(map.layers);
   const typedNames = new Set<string>();
-  const tileObjects = new Set<number>();
   for (const object of objects) {
-    if (object.gid !== undefined) {
-      tileObjects.add(object.id);
-    }
-  }
-  for (const object of objects) {
-    checkObject(object, file, ranges, findings, result, typedNames, tileObjects, blockingTiles);
+    checkObject(object, file, ranges, findings, result, typedNames, tileGuides);
   }
   return result;
 }
@@ -690,8 +697,7 @@ function checkObject(
   findings: WorldFinding[],
   result: ObjectsResult,
   typedNames: Set<string>,
-  tileObjects: Set<number>,
-  blockingTiles: Set<number>,
+  tileGuides: Map<number, TileGuides>,
 ): void {
   const type = typeOf(object);
   const name = object.name ?? "";
@@ -717,7 +723,7 @@ function checkObject(
       );
       return;
     }
-    if (blockingTiles.has(gid)) result.placedBlocking = true;
+    if (tileGuides.get(gid)?.blocks === true) result.placedBlocking = true;
   }
 
   if (type === "") {
@@ -783,7 +789,7 @@ function checkObject(
   if (type === "spawn") {
     result.spawns.add(name);
   } else if (type === "portal") {
-    checkPortal(object, label, file, findings, result, properties, tileObjects);
+    checkPortal(object, label, file, findings, result, properties, tileGuides);
   } else if (type === "clickable") {
     checkClickable(label, file, findings, properties);
   } else if (type === "seat") {
@@ -806,7 +812,7 @@ function checkPortal(
   findings: WorldFinding[],
   result: ObjectsResult,
   properties: Map<string, unknown>,
-  tileObjects: Set<number>,
+  tileGuides: Map<number, TileGuides>,
 ): void {
   const targetMap = stringProperty(properties.get("targetMap"));
   const targetSpawn = stringProperty(properties.get("targetSpawn"));
@@ -832,10 +838,17 @@ function checkPortal(
       );
     }
   }
-  const marker = properties.get("marker");
-  if (marker !== undefined && (typeof marker !== "number" || !tileObjects.has(marker))) {
+  // The arrow is the tile itself; its trigger area is the tile's trigger guide (14.2).
+  const trigger =
+    object.gid !== undefined && tileGuides.get(object.gid & TILE_ID_MASK)?.trigger === true;
+  if (!trigger) {
     findings.push(
-      errorFinding(file, "map_property", "marker must name a tile object of the same map", label),
+      errorFinding(
+        file,
+        "map_object",
+        "a portal's tile needs a trigger polygon named trigger",
+        label,
+      ),
     );
   }
   checkLabel(properties, label, file, findings);

@@ -6,6 +6,7 @@ import {
   distanceToOutline,
   pixelToTile,
   pointInPolygon,
+  tileToPixel,
   type Point,
   type TileSize,
 } from "./geometry.ts";
@@ -38,9 +39,7 @@ export function blocked(obstacles: Obstacles, point: Point, radius: number): boo
     samples.push({ x: point.x + Math.cos(angle) * radius, y: point.y + Math.sin(angle) * radius });
   }
   for (const sample of samples) {
-    const tile = pixelToTile(sample, obstacles.size);
-    const column = Math.floor(tile.x);
-    const row = Math.floor(tile.y);
+    const { column, row } = cellOf(sample, obstacles.size);
     if (column < 0 || row < 0 || column >= obstacles.columns || row >= obstacles.rows) return true;
     if (obstacles.blockedCells.has(cellKey(column, row))) return true;
   }
@@ -59,9 +58,18 @@ export function walkable(obstacles: Obstacles, point: Point, radius: number): bo
 }
 
 /** The cell of a point in pixel space, as tile column and row. */
+/**
+ * The cell a point of the screen lies in. The cell (column, row) is the diamond whose centre is the tile corner
+ * (column + 1, row), where Phaser draws it: its top corner is the tile corner (column, row).
+ */
 export function cellOf(point: Point, size: TileSize): { column: number; row: number } {
   const tile = pixelToTile(point, size);
-  return { column: Math.floor(tile.x), row: Math.floor(tile.y) };
+  return { column: Math.floor(tile.x - 0.5), row: Math.floor(tile.y + 0.5) };
+}
+
+/** The pixel position of the centre of a cell (see cellOf). */
+export function cellCentre(column: number, row: number, size: TileSize): Point {
+  return tileToPixel({ x: column + 1, y: row }, size);
 }
 
 /** Whether the segment from `a` to `b` is free of obstacles, sampled every `step` pixels. */

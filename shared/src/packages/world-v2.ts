@@ -340,7 +340,7 @@ export const worldV2: PackageDefinition<WorldFindingCode> = {
       scope: "validator",
       severity: "error",
       requirements: ["MAP-06", "MAP-02"],
-      text: "Tilesets are embedded and have the tile width and height of the world. A sheet tileset uses one image from `tilesets/`, a whole number of tiles; an image-collection tileset uses one PNG per tile, each from `tilesets/`, with the size stated in the tileset. The tile ids of the tilesets do not overlap.",
+      text: "Tilesets are embedded. A sheet tileset has the tile width and height of the world and uses one image from `tilesets/`, a whole number of tiles; an image-collection tileset uses one PNG per tile, each from `tilesets/`, of any size, with the size stated in the tileset (the objects of a map, such as buildings or signs, are image collections). The tile ids of the tilesets do not overlap.",
       codes: ["map_tileset"],
     },
     {
@@ -364,7 +364,7 @@ export const worldV2: PackageDefinition<WorldFindingCode> = {
       scope: "validator",
       severity: "error",
       requirements: ["MAP-02"],
-      text: "The guides in the object group of an image-collection tile are a polygon named `collision`, a rectangle named `collision` or a polyline named `occlusion` (at least two points, at most one per tile). Other guides are reported as unknown.",
+      text: "The guides in the object group of an image-collection tile are a polygon or rectangle named `collision`, a polygon named `trigger` (the trigger area of a portal, at most one per tile) or a polyline named `occlusion` (at least two points, at most one per tile). Other guides are reported as unknown.",
       codes: ["map_guide"],
     },
     {
@@ -372,7 +372,7 @@ export const worldV2: PackageDefinition<WorldFindingCode> = {
       scope: "validator",
       severity: "error",
       requirements: ["MAP-06", "MAP-03"],
-      text: "The properties of each object type are present and valid: a portal names a map and a spawn point, a clickable object's action comes with its property (`page`, `contentId` or `minigameId`), a seat has a table, `marker` names a tile object of the same map. The map property `name`, if given, is the name the admin area shows: 1–60 characters.",
+      text: "The properties of each object type are present and valid: a portal is a tile object whose tile has a `trigger` polygon or rectangle and names a map and a spawn point (both or neither), a clickable object's action comes with its property (`page`, `contentId` or `minigameId`), a seat has a table. The map property `name`, if given, is the name the admin area shows: 1–60 characters.",
       codes: ["map_property"],
     },
     {
@@ -479,7 +479,7 @@ export const worldV2: PackageDefinition<WorldFindingCode> = {
     },
     {
       date: "2026-11-15",
-      text: "Format version 2 replaces version 1: isometric maps, group layers, image-collection tilesets, polygon collisions, borders, occlusion guides and portal markers; complete figures with their PixelLab metadata instead of tinted avatar parts; `tileWidth` and `tileHeight` instead of `tileSize`.",
+      text: "Format version 2 replaces version 1: isometric maps, group layers, image-collection tilesets, polygon collisions, borders, occlusion guides and portals as tile objects with a trigger polygon; complete figures with their PixelLab metadata instead of tinted avatar parts; `tileWidth` and `tileHeight` instead of `tileSize`.",
     },
   ],
 };

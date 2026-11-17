@@ -360,8 +360,8 @@ A treasure hunt connects the real venue with the game world:
 | GAME-12 | Once the platform is open (ACS-10), the user lands in the game world after sign-in; the classic website is reachable with one click from the game; direct links (upload links, links in emails) open their target page directly. | Must |
 | GAME-13 | On the first entry into the world, the guest is guided: create the avatar (also for their accompanying persons), optionally add a profile photo and greeting, answer the RSVP in an overlay if not yet done, then play freely. | Must |
 | GAME-14 | A bar with buttons for Programme, RSVP, Upload and Website is always visible at the top of the game; while the guest's RSVP is open, it shows a badge; there are no further buttons on top of the game. | Must |
-| GAME-15 | Clickable objects sparkle briefly at random intervals, and portals are shown as wobbling arrows, so players see what they can use; the arrow of a portal is the tile object named by its `marker` (decided 2026-11-10, reworded 2026-11-15). | Must |
-| GAME-16 | Clicking or tapping a clickable object walks the avatar to the object's approach point; when it arrives, the action runs. Walking into a portal's trigger area takes the player through, and tapping a portal walks the player into it (reworded 2026-11-15). On desktop, Enter or Space activates the object the avatar stands in front of. | Must |
+| GAME-15 | Clickable objects sparkle briefly at random intervals, and portals are shown as wobbling arrows, so players see what they can use; a portal's arrow is its tile object (decided 2026-11-10, reworded 2026-11-15, 2026-11-16). | Must |
+| GAME-16 | Clicking or tapping a clickable object walks the avatar to the object's approach point; when it arrives, the action runs. Walking into a portal's trigger area takes the player through, and tapping a portal walks the player into it (reworded 2026-11-15, 2026-11-16). On desktop, Enter or Space activates the object the avatar stands in front of. | Must |
 | GAME-17 | On the first entry, a short hint ("Tippe auf Dinge, die funkeln") is shown until the player activates the first object. | Should |
 | GAME-18 | Clicking or tapping the player's own avatar opens the profile as an overlay. | Could |
 | GAME-19 | Objects and figures are drawn in depth order: a figure whose feet are behind an occlusion line of a tile object is drawn behind that object, otherwise in front (14.2; added 2026-11-15). | Must |
@@ -1552,16 +1552,20 @@ They define, for example:
 In Tiled, each object gets a `type` (Tiled's "Class"), a unique name where the type needs one, and its properties. Examples:
 
 - Spawn point: `type = spawn`, name e.g. `entrance`
-- Portal to another map: `type = portal`, `targetMap = dinner`, `targetSpawn = entrance`, optional `marker` (the arrow, see below)
+- Portal to another map: `type = portal` (a tile object, its arrow), `targetMap = dinner`, `targetSpawn = entrance`; its trigger area is the polygon `trigger` of the tile (see below)
 - Clickable object: `type = clickable`, unique name e.g. `church`, optional `label` (shown in the prompt, e.g. "Programm"), optional `approach` (name of a point object where the avatar stops; default: below the object's bottom edge), optional preset action `action = page | content | dialog | minigame` with `page = programme`, `contentId = npc-pastor` or `minigameId = quiz-01`
 - Seat: `type = seat`, `table = 3` (see 3.6)
 - Wander area: `type = wander`, where guest figures walk around
 - Border: `type = border`, a closed polygon whose outline blocks the guests in both directions; its inside stays walkable (decided 2026-11-15)
 - Collision: `type = collision`, a rectangle or polygon that blocks its inside
 
-**Portals** (decided 2026-11-15, format version 2). A portal is a rectangle or a polygon, the **trigger area**: a guest who walks into it is taken to `targetMap` at `targetSpawn`; a guest who taps it walks into it first. The wobbling arrow is a separate tile object, a `decoration`, which the portal names in its property `marker` (a Tiled object reference to that tile object on the same map). A portal without `targetMap` and `targetSpawn` does nothing yet and is reported as a warning, so a world with one map imports. The target stays in Tiled: the admin area shows it read-only.
+**Portals** (decided 2026-11-15, changed 2026-11-16, format version 2). A portal is a tile object with `type = portal`: the tile is its arrow, which wobbles in the game. Its **trigger area** is a polygon named `trigger` in the object group of the tile, drawn in the tile image like the collision polygons of buildings, and moved and scaled with each placed tile object. A guest who walks into the trigger area is taken to `targetMap` at `targetSpawn`; a guest who taps the portal walks into it first. A portal needs its name (unique among the spawn points, portals and clickable objects), its trigger polygon, and `targetMap` and `targetSpawn` (both, or neither: a portal without a target is a warning and does nothing yet, so a world with one map imports). The target stays in Tiled: the admin area shows it read-only.
 
-**Tile guides** (decided 2026-11-15). A tile of an image-collection tileset may carry guides in its object group, drawn in the tile image's own pixel coordinates and moved, scaled and aligned with each placed tile object:
+**Tile guides** (decided 2026-11-15, `trigger` added 2026-11-16). A tile of an image-collection tileset may carry guides in its object group, drawn in the tile image's own pixel coordinates and moved, scaled and aligned with each placed tile object:
+
+- a polygon or rectangle named `collision` blocks its inside;
+- a polygon or rectangle named `trigger` is the trigger area of a portal (accepted as polygon or rectangle, 2026-11-16) (the tile is a portal);
+- a polyline named `occlusion` is the depth line of the object: a figure whose feet are behind the line (above it on screen) is drawn behind the object, otherwise in front (GAME-19). Without a line, the object's bottom edge decides.
 
 - a polygon or rectangle named `collision` blocks its inside;
 - a polyline named `occlusion` is the depth line of the object: a figure whose feet are behind the line (above it on screen) is drawn behind the object, otherwise in front (GAME-19). Without a line, the object's bottom edge decides.
@@ -1652,20 +1656,21 @@ world.tar.gz
 - `orientation` is `isometric`, the map is not `infinite`, and `tilewidth` and `tileheight` equal `tileWidth` and `tileHeight`. At most 200 × 200 tiles.
 - **Tilesets are embedded** in the map (in Tiled: "Embed tilesets" in the export options). A reference to an external tileset (`source`) is refused, because the game cannot load it.
   - A **sheet tileset** has one image in `tilesets/`, a whole number of tiles.
-  - An **image-collection tileset** has one PNG per tile in `tilesets/` (its `tiles` list). Its tile ids may have gaps. Its images are not whole tiles; their size is the size declared in the tileset.
+  - An **image-collection tileset** has one PNG per tile in `tilesets/` (its `tiles` list), of any size, for example a building, a sign or a portal arrow. Its tile ids may have gaps. Its tile width and height are not checked against the world (decided 2026-11-16); the size of each image is the size declared in the tileset.
   - Every image is named relative to the map (`../tilesets/<name>.png`), and the margin and spacing of a sheet are allowed.
 - **Layers** are tile layers, object layers and group layers. Group layers are read recursively, in the order of the file. Image layers are refused. Tile data is stored as an array (Tiled's layer format "CSV") or as Base64 without compression; compressed data is refused. A **hidden** layer is not drawn, but its objects still apply.
 - **Tile objects** may be scaled, not rotated or flipped. Their alignment and offset are honoured.
 - **Collisions:** every tile of the tile layer named `collision` blocks; the layer itself is not drawn. Collision objects (14.2) and tile guides named `collision` block too. A border blocks its outline (14.2). A map without any of these gets a warning.
 - **Drawing order:** objects and figures are sorted by depth; the occlusion lines of tiles decide between a figure and an object (14.2, GAME-19).
+- **Positions** (decided 2026-11-16, following Phaser's isometric tilemaps, which the game's reference app uses): in an isometric map, Tiled stores the positions of objects, polygon points and spawn points scaled by half the tile width on both axes: a position `(x, y)` is the tile `(x ÷ w/2, y ÷ w/2)`, where `w` is the tile width. The game converts a tile to screen pixels with `((column − row) · w/2, (column + row) · h/2)`. A tile of a layer is drawn with its top-left at the top corner of its cell, so the cell `(column, row)` is centred on the tile corner `(column + 1, row)`. A tile object is anchored at its bottom-left corner, and tile offsets are not applied to objects. Positions are drawn in whole pixels, so that the view and the objects do not shimmer while the player moves. Terrain tiles are drawn as frames of their sheet, not as crops.
 - **Objects** carry their type in Tiled's field "Class" (saved as `type`, or as `class` by Tiled 1.9). Each object of the types `spawn`, `portal` and `clickable` has a name that is unique among the spawn points, portals and clickable objects of the map, 1–40 characters of `a–z 0–9 -`. Properties are Tiled custom properties.
 
 | Type | Shape | Properties |
 |---|---|---|
 | `spawn` | Point | – Every map has a spawn point named `start`, where a player enters the map without a portal. |
-| `portal` | Rectangle or polygon (the trigger area) | `targetMap` and `targetSpawn` (a map id of the package and a spawn point of that map; both or neither), optional `marker` (a tile object of the same map), optional `label`, optional `approach`. Neither target is a warning. |
+| `portal` | Tile object whose tile has a `trigger` polygon or rectangle (the trigger area is that shape) | Name (1–40 characters, unique among spawn points, portals and clickable objects), `targetMap` and `targetSpawn` (a map id of the package and a spawn point of that map; both or neither). Neither target is a warning. |
 | `clickable` | Rectangle, polygon, or tile object | Optional `label` (1–40 characters), optional `approach` (name of a point object on the same map), optional preset `action` = `page`, `content`, `dialog` or `minigame` with `page`, `contentId` or `minigameId` (14.2). Optional `hidden` (boolean): an easter egg, which does not sparkle (GAME-08). |
-| `decoration` | Rectangle, polygon, point or tile object, usually a tile object | – A portal's arrow is a decoration named by the portal's `marker`. |
+| `decoration` | Rectangle, polygon, point or tile object, usually a tile object | – |
 | `seat` | Point | `table`: 1–40 characters (3.6, stage 6). |
 | `wander` | Rectangle or polygon | – (3.6, stage 6) |
 | `border` | Polygon | – The outline blocks, the inside is walkable. |
@@ -1715,7 +1720,7 @@ Game side, not in the package: the standing pose is shown when the figure stands
 - It contains only regular files and folders, with relative paths inside the layout above. Links, absolute paths, `..` and files the layout does not name (for example Tiled's `.tmx`, `.tsx` or `.tiled-project` files) are refused.
 - Every JSON file is valid JSON of at most 5 MB. `manifest.json` and `avatar/figures.json` have exactly the fields above; an unknown field is refused. The PixelLab metadata is checked as described above.
 - Every PNG is a PNG of at most 4096 × 4096 pixels and 8 MB.
-- Every map follows the map rules above: format, layers, embedded tilesets with existing images, tile ids, the spawn point `start`, unique names, object types and shapes, tile guides, the properties of each type. `approach` names a point object of the same map. `action` is one of the four values and comes with its property; `page` is `programme`, `rsvp`, `profile` or `p/<slug>`. `marker` names a tile object of the same map.
+- Every map follows the map rules above: format, layers, embedded tilesets with existing images, tile ids, the spawn point `start`, unique names, object types and shapes, tile guides, the properties of each type. `approach` names a point object of the same map. `action` is one of the four values and comes with its property; `page` is `programme`, `rsvp`, `profile` or `p/<slug>`. A portal names no other object: its trigger area is in its tile.
 - Every portal with a target points to a map of the package and a spawn point of that map (MAP-08).
 - `startMap` names a map of the package.
 - The figures follow the rules above: the list, the metadata, the canvas and every frame, the walk of the same length in all directions, and no file of `avatar/` that no figure names.
@@ -1781,10 +1786,10 @@ A new world is used the next time a player enters a map. Cached graphics are ref
 - **Figures:** at most 50 per world (decided 2026-11-15), at least one. The sides of a frame are 8 to 256 pixels, and the walk has 1 to 16 frames per direction (proposed in the step; not yet confirmed with the project owner, to review).
 - **`cameraZoom`** is fixed at 2 (decided 2026-11-15). The map property is not read and is reported as a warning.
 - **Tile size:** 8 to 128 pixels for each of width and height (proposed in the step, not yet confirmed with the project owner; the prototype uses 64 × 32).
-- **Portals:** a portal is a rectangle or polygon. Its arrow is a decoration named by `marker`. A portal without a target is a warning, not an error. A portal that is a tile object is refused.
+- **Portals** (changed 2026-11-16): a portal is a tile object whose tile has a `trigger` polygon or rectangle. The trigger area is that shape; the tile is the arrow. A portal without a target is a warning, not an error. A portal that is a rectangle, polygon or point is refused, and so is one whose tile has no `trigger` polygon.
 - **Names:** portals keep their required name, as the assignments of "Erlebniswelt" are keyed by name. The prototype's unnamed arrow is refused.
 - **Serving:** the files of a world are served under `/api/world/<import id>/…` for `maps/`, `tilesets/` and the figures in `avatar/` (the list, the metadata and the frames). The manifest and the door folder are not served.
-- **Tests:** the validator has one test per rule, with a broken package each; the test world (`backend/src/world/build.ts`) has three isometric maps, group layers, a sheet and an image-collection tileset with guides, a polygon portal with its marker, a border, and two figures with generated frames. It passes with no finding.
+- **Tests:** the validator has one test per rule, with a broken package each; the test world (`backend/src/world/build.ts`) has three isometric maps, group layers, a sheet and an image-collection tileset with guides, a tile portal with its trigger polygon, a border, and two figures with generated frames. It passes with no finding.
 - **The prototype** (the world project's prototype package in the local folder `world/`, not in the repository) is refused by design: its manifest has `tileSize`, and its portal is an unnamed tile object. The other findings are warnings: decorations and clickables with descriptive properties (`name`, `category`, `symbol`), the camera zoom and `previewFormat`. These go back to the world project.
 
 ## 14.5 Template Map Set
@@ -1802,7 +1807,7 @@ Drawing pixel art is the main effort per event. To keep it low, the platform shi
 |---|---|---|
 | MAP-01 | Maps are drawn in Tiled, exported as JSON and imported at runtime as part of the world package through the admin world importer; Tiled is not part of the running system (reworded 2026-11-13). | Must |
 | MAP-02 | The engine supports isometric maps with tile layers (background, ground, decoration, objects, foreground, collision), group layers read recursively, and object layers defining spawn points, collisions, borders, portals, clickable objects (buildings, NPCs, signs, items), protected zones, seats and wander areas; image-collection tilesets with per-tile collision and occlusion guides (reworded 2026-11-15). | Must |
-| MAP-03 | The engine interprets the object properties `type`, `label`, `approach`, `action`, `contentId`, `targetMap`, `targetSpawn`, `marker`, `minigameId`, `page` and `table` and executes the corresponding behaviour (14.2; the map property `programItem` was dropped on 2026-11-14; `cameraZoom` is fixed at 2 and not read, reworded 2026-11-15). | Must |
+| MAP-03 | The engine interprets the object properties `type`, `label`, `approach`, `action`, `contentId`, `targetMap`, `targetSpawn`, `minigameId`, `page` and `table` and executes the corresponding behaviour (14.2; the map property `programItem` was dropped on 2026-11-14; `cameraZoom` is fixed at 2 and not read, reworded 2026-11-15). | Must |
 | MAP-04 | A new or changed world (maps, tilesets, door scene, avatar editor assets) can be imported without a redeployment or code change (reworded 2026-11-13). | Must |
 | MAP-05 | The world importer shows the active world (name, import time, maps, start map) and lets the admin import a new world package; the start map is named in the package (reworded 2026-11-13). | Must |
 | MAP-06 | A world package is validated as a whole (format version, layout, and per map the format, required layers, referenced tilesets, spawn points and portal targets); an invalid package is rejected with its findings and the active world stays unchanged (reworded 2026-11-13). | Must |

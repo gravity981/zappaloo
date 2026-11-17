@@ -89,7 +89,9 @@ describe("game world › Welt & Import", () => {
     renderAt("/admin/world");
     expect(await screen.findByText("Warnungen (1)")).toBeVisible();
     expect(
-      screen.getByText("maps/kirche.json › infotafel: the page p/geschichte does not exist"),
+      screen.getByText(
+        "warning: maps/kirche.json › infotafel: the page p/geschichte does not exist",
+      ),
     ).toBeVisible();
   });
 
@@ -126,11 +128,11 @@ describe("game world › Welt & Import", () => {
     });
     expect(await screen.findByText("Das Paket wurde abgelehnt")).toBeVisible();
     expect(
-      screen.getByText("maps/linde.json › zum-garten: spawn tor not found in map kirche"),
+      screen.getByText("error: maps/linde.json › zum-garten: spawn tor not found in map kirche"),
     ).toBeVisible();
     expect(
       screen.getByText(
-        "avatar/wedding-guest/Idle/rotations/south.png: the frame is 32 × 32; the canvas is 48 × 48",
+        "error: avatar/wedding-guest/Idle/rotations/south.png: the frame is 32 × 32; the canvas is 48 × 48",
       ),
     ).toBeVisible();
     expect(screen.getByText("Aktiv: Sommerfest")).toBeVisible();

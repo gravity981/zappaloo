@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { blocked, cellOf, clearLine, walkable, type Obstacles } from "./collision.ts";
+import { blocked, cellCentre, cellOf, clearLine, walkable, type Obstacles } from "./collision.ts";
 
 const size = { width: 64, height: 32 };
 
@@ -16,11 +16,8 @@ function obstacles(extra: Partial<Obstacles> = {}): Obstacles {
   };
 }
 
-// The centre of tile (column, row) in pixel space.
-const centre = (column: number, row: number) => ({
-  x: ((column + 0.5 - (row + 0.5)) * size.width) / 2,
-  y: ((column + 0.5 + row + 0.5) * size.height) / 2,
-});
+// The centre of a cell, where it is drawn.
+const centre = (column: number, row: number) => cellCentre(column, row, size);
 
 describe("collisions (GAME-02, MAP-02)", () => {
   it("[GAME-02] a blocked cell of the collision layer blocks a figure standing in it", () => {
@@ -33,31 +30,31 @@ describe("collisions (GAME-02, MAP-02)", () => {
   });
 
   it("[GAME-02] a figure touching a solid polygon is blocked, one further away is not", () => {
-    // The square sits around the centre of tile (2, 2), which is (0, 64) in pixel space.
+    // The square sits around the centre of cell (2, 2).
     const square = [
-      { x: -10, y: 54 },
-      { x: 10, y: 54 },
-      { x: 10, y: 74 },
-      { x: -10, y: 74 },
+      { x: 22, y: 70 },
+      { x: 42, y: 70 },
+      { x: 42, y: 90 },
+      { x: 22, y: 90 },
     ];
     const map = obstacles({ solids: [square] });
-    expect(blocked(map, { x: 0, y: 64 }, 4)).toBe(true);
-    expect(blocked(map, { x: 0, y: 51 }, 4)).toBe(true);
-    expect(blocked(map, { x: 40, y: 64 }, 4)).toBe(false);
+    expect(blocked(map, centre(2, 2), 4)).toBe(true);
+    expect(blocked(map, { x: 32, y: 67 }, 4)).toBe(true);
+    expect(blocked(map, { x: 72, y: 80 }, 4)).toBe(false);
   });
 
   it("[GAME-02] a border blocks its outline in both directions, while its inside stays walkable", () => {
-    // Around the centre of tile (3, 0), (96, 64) in pixel space, away from the blocked cell.
+    // Around the centre of cell (3, 0).
     const border = [
-      { x: 76, y: 44 },
-      { x: 116, y: 44 },
-      { x: 116, y: 84 },
-      { x: 76, y: 84 },
+      { x: 108, y: 44 },
+      { x: 148, y: 44 },
+      { x: 148, y: 84 },
+      { x: 108, y: 84 },
     ];
     const map = obstacles({ borders: [border] });
-    expect(blocked(map, { x: 96, y: 44 }, 4)).toBe(true);
-    expect(blocked(map, { x: 96, y: 42 }, 4)).toBe(true);
-    expect(blocked(map, { x: 96, y: 64 }, 4)).toBe(false);
+    expect(blocked(map, { x: 128, y: 44 }, 4)).toBe(true);
+    expect(blocked(map, { x: 128, y: 42 }, 4)).toBe(true);
+    expect(blocked(map, centre(3, 0), 4)).toBe(false);
   });
 
   it("[GAME-02] a clear line of sight is free of obstacles; a line through a blocked cell is not", () => {

@@ -56,6 +56,48 @@ function base64(width: number, height: number, tile: (x: number, y: number) => n
   return bytes.toString("base64");
 }
 
+/** The gid of the portal tile: an arrow of 64 × 32 whose trigger area is its diamond (14.2, changed 2026-11-16). */
+const PORTAL = 80;
+
+/** The image-collection tileset `portale`: the portal tile, with its `trigger` polygon. */
+function portals() {
+  return {
+    firstgid: PORTAL,
+    name: "portale",
+    columns: 0,
+    tilecount: 1,
+    tilewidth: TILE_WIDTH,
+    tileheight: TILE_HEIGHT,
+    tiles: [
+      {
+        id: 0,
+        image: "../tilesets/portal.png",
+        imagewidth: TILE_WIDTH,
+        imageheight: TILE_HEIGHT,
+        objectgroup: {
+          type: "objectgroup",
+          name: "",
+          draworder: "index",
+          objects: [
+            {
+              id: 1,
+              name: "trigger",
+              x: 0,
+              y: 0,
+              polygon: [
+                { x: 32, y: 0 },
+                { x: 64, y: 16 },
+                { x: 32, y: 32 },
+                { x: 0, y: 16 },
+              ],
+            },
+          ],
+        },
+      },
+    ],
+  };
+}
+
 /** The edge of a map as walls: the collision tile on the edge, nothing inside. */
 const border = (width: number, height: number) => (x: number, y: number) =>
   x === 0 || y === 0 || x === width - 1 || y === height - 1 ? 1 : 0;
@@ -71,9 +113,15 @@ function property(name: string, value: string | number | boolean): TiledProperty
   return { name, type, value };
 }
 
-/** A reference to a tile object of the map, by its object id (Tiled's "object" property). */
-function objectProperty(name: string, id: number): TiledProperty {
-  return { name, type: "object", value: id };
+/**
+ * Tiled stores the positions of an isometric map's objects in tile space, scaled by the tile size (x is the column
+ * times the tile width). The helpers below describe positions on screen, as the game draws them, and convert them.
+ */
+function tiledVector(dx: number, dy: number): { x: number; y: number } {
+  // The inverse of the game's projection: the tile of a screen vector, scaled by half the tile width.
+  const tileX = (dx / (TILE_WIDTH / 2) + dy / (TILE_HEIGHT / 2)) / 2;
+  const tileY = (dy / (TILE_HEIGHT / 2) - dx / (TILE_WIDTH / 2)) / 2;
+  return { x: tileX * (TILE_WIDTH / 2), y: tileY * (TILE_WIDTH / 2) };
 }
 
 /** A Tiled object; `kind` is the object's type. Extra fields carry the shape (polygon, point, gid). */
@@ -89,8 +137,7 @@ function object(
     id,
     name,
     type: kind,
-    x: box.x,
-    y: box.y,
+    ...tiledVector(box.x, box.y),
     width: box.width ?? 0,
     height: box.height ?? 0,
     rotation: 0,
@@ -126,7 +173,7 @@ function tileObject(
 
 /** A polygon, with its points relative to the object's position (Tiled's convention). */
 const polygon = (points: [number, number][]) => ({
-  polygon: points.map(([x, y]) => ({ x, y })),
+  polygon: points.map(([x, y]) => tiledVector(x, y)),
 });
 
 function tiledLayer(
@@ -291,7 +338,13 @@ function maps(): Record<string, unknown> {
   const kirche = tiledMap(
     12,
     10,
-    [sheet(1, "boden", 4, 4), sheet(17, "dekor", 4, 2), sheet(25, "objekte", 3, 1), collection(30)],
+    [
+      sheet(1, "boden", 4, 4),
+      sheet(17, "dekor", 4, 2),
+      sheet(25, "objekte", 3, 1),
+      collection(30),
+      portals(),
+    ],
     [
       groupLayer(1, "Terrain", [
         tiledLayer(
@@ -323,25 +376,11 @@ function maps(): Record<string, unknown> {
           [
             point(1, "start", "spawn", 160, 200),
             point(2, "eingang", "spawn", 160, 40),
-            object(
-              3,
-              "zum-garten",
-              "portal",
-              { x: 0, y: 160, width: 64, height: 32 },
-              [
-                property("targetMap", "garten"),
-                property("targetSpawn", "start"),
-                property("label", "Garten"),
-                objectProperty("marker", 12),
-              ],
-              polygon([
-                [0, 0],
-                [64, 0],
-                [64, 32],
-                [0, 32],
-              ]),
-            ),
-            tileObject(12, "", "decoration", { x: 0, y: 176, width: 64, height: 32 }, 25),
+            tileObject(3, "zum-garten", "portal", { x: 0, y: 192, width: 64, height: 32 }, PORTAL, [
+              property("targetMap", "garten"),
+              property("targetSpawn", "start"),
+              property("label", "Garten"),
+            ]),
             tileObject(4, "altar", "clickable", { x: 96, y: 96, width: 32, height: 32 }, 25, [
               property("label", "Programm"),
               property("action", "page"),
@@ -400,7 +439,7 @@ function maps(): Record<string, unknown> {
   const garten = tiledMap(
     14,
     10,
-    [sheet(1, "boden", 4, 4), sheet(17, "dekor", 4, 2)],
+    [sheet(1, "boden", 4, 4), sheet(17, "dekor", 4, 2), portals()],
     [
       tiledLayer(
         1,
@@ -412,32 +451,14 @@ function maps(): Record<string, unknown> {
       tiledLayer(2, "collision", 14, 10, csv(14, 10, border(14, 10))),
       objectLayer(3, "Gameplay", [
         point(1, "start", "spawn", 64, 64),
-        object(
-          2,
-          "zur-kirche",
-          "portal",
-          { x: 0, y: 0, width: 32, height: 32 },
-          [property("targetMap", "kirche"), property("targetSpawn", "eingang")],
-          polygon([
-            [0, 0],
-            [32, 0],
-            [32, 32],
-            [0, 32],
-          ]),
-        ),
-        object(
-          3,
-          "zum-saal",
-          "portal",
-          { x: 304, y: 200, width: 32, height: 32 },
-          [property("targetMap", "saal"), property("targetSpawn", "start")],
-          polygon([
-            [0, 0],
-            [32, 0],
-            [32, 32],
-            [0, 32],
-          ]),
-        ),
+        tileObject(2, "zur-kirche", "portal", { x: 0, y: 32, width: 64, height: 32 }, PORTAL, [
+          property("targetMap", "kirche"),
+          property("targetSpawn", "eingang"),
+        ]),
+        tileObject(3, "zum-saal", "portal", { x: 304, y: 232, width: 64, height: 32 }, PORTAL, [
+          property("targetMap", "saal"),
+          property("targetSpawn", "start"),
+        ]),
         object(
           4,
           "wiese",
@@ -468,7 +489,7 @@ function maps(): Record<string, unknown> {
   const saal = tiledMap(
     12,
     10,
-    [sheet(1, "boden", 4, 4), sheet(17, "dekor", 4, 2)],
+    [sheet(1, "boden", 4, 4), sheet(17, "dekor", 4, 2), portals()],
     [
       tiledLayer(
         1,
@@ -481,19 +502,10 @@ function maps(): Record<string, unknown> {
       tiledLayer(2, "collision", 12, 10, csv(12, 10, border(12, 10))),
       objectLayer(3, "Gameplay", [
         point(1, "start", "spawn", 160, 160),
-        object(
-          2,
-          "zum-garten",
-          "portal",
-          { x: 0, y: 160, width: 32, height: 32 },
-          [property("targetMap", "garten"), property("targetSpawn", "start")],
-          polygon([
-            [0, 0],
-            [32, 0],
-            [32, 32],
-            [0, 32],
-          ]),
-        ),
+        tileObject(2, "zum-garten", "portal", { x: 0, y: 192, width: 64, height: 32 }, PORTAL, [
+          property("targetMap", "garten"),
+          property("targetSpawn", "start"),
+        ]),
         point(3, "platz-1", "seat", 80, 80, [property("table", "1")]),
         point(4, "platz-2", "seat", 96, 80, [property("table", 3)]),
         object(5, "tanzflaeche", "wander", { x: 64, y: 64, width: 96, height: 64 }),
@@ -586,6 +598,7 @@ export function testWorldFiles(): Record<string, Buffer> {
     "tilesets/objekte.png": tilesetPng(3, 1, false),
     "tilesets/gebaeude-haus.png": encodePng(128, 96, [0xb0, 0x6a, 0x4a]),
     "tilesets/gebaeude-schild.png": encodePng(32, 48, [0xf2, 0xd3, 0x8a]),
+    "tilesets/portal.png": encodePng(64, 32, [0xe0, 0x4a, 0x9c]),
     "avatar/figures.json": json({
       figures: [
         { id: "wedding-guest", label: "Gast", metadata: "wedding-guest/metadata.json" },

@@ -17,7 +17,8 @@ const WORLD_MEDIA_TYPE = "application/vnd.zappaloo.world";
 /** One finding as the server gives it: the file, the map object if any, and the reason in English. */
 function findingText(finding: WorldFindingDto): string {
   const place = finding.object === undefined ? finding.file : `${finding.file} › ${finding.object}`;
-  return `${place}: ${finding.detail}`;
+  // The severity comes first, as the command line prints it: "error: " refuses the package, "warning: " does not.
+  return `${finding.severity}: ${place}: ${finding.detail}`;
 }
 
 export default function AdminWorldPage() {

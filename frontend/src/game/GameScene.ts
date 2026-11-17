@@ -3,10 +3,10 @@
 // with the camera at the map's zoom. What the map means (collisions, paths, portals, draw order) is in the plain
 // modules next to it; this scene only wires them to Phaser.
 import Phaser from "phaser";
-import { walkable, cellOf } from "./collision.ts";
+import { walkable, cellOf, cellCentre } from "./collision.ts";
 import { walkFrameIndex } from "./figures.ts";
 import { figureDepth } from "./draw-order.ts";
-import { type Point, polygonCentre, tileToPixel, type TileSize } from "./geometry.ts";
+import { type Point, polygonCentre, type TileSize } from "./geometry.ts";
 import { findPath, type Grid } from "./pathfinding.ts";
 import { directionOf, keyDirection, stepPosition, type Direction } from "./movement.ts";
 import { entryPoint, portalAt, rememberedMap, rememberMap, spawnPosition } from "./entry.ts";
@@ -38,7 +38,7 @@ export interface WorldSceneData {
 }
 
 function centreOf(cell: { column: number; row: number }, size: TileSize): Point {
-  return tileToPixel({ x: cell.column + 0.5, y: cell.row + 0.5 }, size);
+  return cellCentre(cell.column, cell.row, size);
 }
 
 export class WorldScene extends Phaser.Scene {
@@ -182,7 +182,8 @@ export class WorldScene extends Phaser.Scene {
         ? frames[walkFrameIndex(this.#walkClock, frames.length)]
         : figure.standing[this.#direction];
     if (texture !== undefined && player.texture.key !== texture) player.setTexture(texture);
-    player.setPosition(this.#position.x, this.#position.y);
+    // Whole pixels: a fractional position is snapped differently from frame to frame, which made things shimmer.
+    player.setPosition(Math.round(this.#position.x), Math.round(this.#position.y));
     player.setDepth(figureDepth(this.#position, map.occluders));
 
     const portal = portalAt(map, this.#position);
@@ -199,11 +200,21 @@ export class WorldScene extends Phaser.Scene {
     for (const draw of map.objects) this.#drawTile(draw);
   }
 
+  /**
+   * Draws a tile as a frame of its image. A frame is a rectangle of the texture (a sheet's cell, or the whole image
+   * of a collection tile); frames are Phaser's own, so no crop of the texture is needed.
+   */
   #drawTile(draw: TileDraw): void {
     const { image } = draw;
-    const sprite = this.add.image(draw.x, draw.y, image.key).setOrigin(0, 0).setDepth(draw.depth);
-    sprite.setCrop(image.crop.x, image.crop.y, image.crop.width, image.crop.height);
-    sprite.setScale(draw.width / image.crop.width, draw.height / image.crop.height);
+    const { x, y, width, height } = image.crop;
+    const frame = `${String(x)},${String(y)},${String(width)},${String(height)}`;
+    const texture = this.textures.get(image.key);
+    if (!texture.has(frame)) texture.add(frame, 0, x, y, width, height);
+    const sprite = this.add
+      .image(Math.round(draw.x), Math.round(draw.y), image.key, frame)
+      .setOrigin(0, 0)
+      .setDepth(draw.depth);
+    sprite.setScale(draw.width / width, draw.height / height);
   }
 
   #bindInput(): void {

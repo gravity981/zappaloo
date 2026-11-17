@@ -28,6 +28,8 @@ export interface TileImage {
   collision: Point[][];
   /** The occlusion line of the tile, in the image's pixels. */
   occlusion?: Point[];
+  /** The trigger area of a portal tile (its polygon named `trigger`), in the image's pixels. */
+  trigger?: Point[];
 }
 
 /** One drawn tile: its image and where it goes, the top-left corner in the map's pixel space. */
@@ -132,6 +134,7 @@ function tileSources(tilesets: TiledTileset[]): TileSource[] {
             offset,
             collision: collisionOf(tile),
             occlusion: occlusionOf(tile),
+            trigger: triggerOf(tile),
           };
         },
       });
@@ -180,6 +183,16 @@ function collisionOf(tile: TiledTile): Point[][] {
     }
   }
   return shapes;
+}
+
+/** The trigger area of a portal tile: its polygon named `trigger` (14.2, changed 2026-11-16). */
+function triggerOf(tile: TiledTile): Point[] | undefined {
+  const guide = tile.objectgroup?.objects.find((item) => item.name === "trigger");
+  if (guide === undefined) return undefined;
+  if (guide.polygon !== undefined)
+    return guide.polygon.map((p) => ({ x: guide.x + p.x, y: guide.y + p.y }));
+  if (guide.width === undefined || guide.height === undefined) return undefined;
+  return rectangleToPolygon(guide.x, guide.y, guide.width, guide.height);
 }
 
 /** The occlusion line of a collection tile, its polyline named `occlusion`. */
@@ -232,11 +245,12 @@ export function parseMap(id: string, json: unknown): ParsedMap {
       const column = index % layer.width;
       const row = Math.floor(index / layer.width);
       // A tile's image sits with its bottom centre at the bottom corner of its cell (Tiled's isometric rule).
-      const bottom = tileToPixel({ x: column + 1, y: row + 1 }, size);
+      // Like Phaser's isometric tile layers, a tile is drawn with its top-left at the top corner of its cell.
+      const top = tileToPixel({ x: column, y: row }, size);
       ground.push({
         image,
-        x: bottom.x - image.width / 2 + image.offset.x,
-        y: bottom.y - image.height + image.offset.y,
+        x: top.x + image.offset.x,
+        y: top.y + image.offset.y,
         width: image.width,
         height: image.height,
         depth: -1_000_000 + order * 1000 + row * 0.001 + column * 0.000001,
@@ -250,6 +264,11 @@ export function parseMap(id: string, json: unknown): ParsedMap {
   const borders: Point[][] = [];
   const spawns = new Map<string, Point>();
   const portals: PortalArea[] = [];
+  // Tiled stores the positions of an isometric map's objects scaled by half the tile width on both axes: a
+  // position (x, y) is the tile (x / (w/2), y / (w/2)). The game draws and checks in screen pixels; the projection
+  // of a tile is (tile x − tile y) · w/2, (tile x + tile y) · h/2, as in Phaser's isometric tilemaps.
+  const half = size.width / 2;
+  const toScreen = (x: number, y: number): Point => tileToPixel({ x: x / half, y: y / half }, size);
   for (const layer of layers) {
     if (layer.type !== "objectgroup") continue;
     for (const object of layer.objects) {
@@ -257,33 +276,37 @@ export function parseMap(id: string, json: unknown): ParsedMap {
       if (object.gid !== undefined) {
         const image = imageOf(object.gid);
         if (image === undefined) continue;
-        // A tile object sits with its bottom-left corner at (x, y); it may be scaled.
+        // A tile object sits with its bottom-left corner at its anchor; it may be scaled.
+        const anchor = toScreen(object.x, object.y);
         const width = object.width ?? image.width;
         const height = object.height ?? image.height;
         const scaleX = image.width === 0 ? 1 : width / image.width;
         const scaleY = image.height === 0 ? 1 : height / image.height;
-        const x = object.x + image.offset.x * scaleX;
-        const y = object.y - height + image.offset.y * scaleY;
+        // Tile objects take no tile offset (Phaser's isometric object placement, as in the world package's reference).
+        const x = anchor.x;
+        const y = anchor.y - height;
         const toPixel = (p: Point): Point => ({ x: x + p.x * scaleX, y: y + p.y * scaleY });
         if (layer.visible !== false) {
-          objects.push({ image, x, y, width, height, depth: object.y });
+          objects.push({ image, x, y, width, height, depth: anchor.y });
+        }
+        // A portal is a tile object: its tile's trigger polygon is the trigger area (14.2).
+        if (type === "portal" && image.trigger !== undefined) {
+          portals.push({
+            name: object.name ?? "",
+            polygon: image.trigger.map(toPixel),
+            targetMap: stringOf(propertyOf(object, "targetMap")),
+            targetSpawn: stringOf(propertyOf(object, "targetSpawn")),
+          });
         }
         for (const shape of image.collision) solids.push(shape.map(toPixel));
         if (image.occlusion !== undefined) {
-          occluders.push({ depth: object.y, line: image.occlusion.map(toPixel) });
+          occluders.push({ depth: anchor.y, line: image.occlusion.map(toPixel) });
         }
         continue;
       }
-      const polygon = polygonOf(object);
+      const polygon = polygonOf(object, toScreen);
       if (type === "spawn") {
-        spawns.set(object.name ?? "", { x: object.x, y: object.y });
-      } else if (type === "portal" && polygon !== undefined) {
-        portals.push({
-          name: object.name ?? "",
-          polygon,
-          targetMap: stringOf(propertyOf(object, "targetMap")),
-          targetSpawn: stringOf(propertyOf(object, "targetSpawn")),
-        });
+        spawns.set(object.name ?? "", toScreen(object.x, object.y));
       } else if (type === "border" && polygon !== undefined) {
         borders.push(polygon);
       } else if (type === "collision" && polygon !== undefined) {
@@ -309,12 +332,17 @@ export function parseMap(id: string, json: unknown): ParsedMap {
 }
 
 /** The polygon of a rectangle or polygon object, in the map's pixel space. Undefined for other shapes. */
-function polygonOf(object: TiledObject): Point[] | undefined {
+function polygonOf(
+  object: TiledObject,
+  toScreen: (x: number, y: number) => Point,
+): Point[] | undefined {
   if (object.polygon !== undefined)
-    return object.polygon.map((p) => ({ x: object.x + p.x, y: object.y + p.y }));
+    return object.polygon.map((p) => toScreen(object.x + p.x, object.y + p.y));
   if (object.point === true || object.gid !== undefined) return undefined;
   if (object.width === undefined || object.height === undefined) return undefined;
-  return rectangleToPolygon(object.x, object.y, object.width, object.height);
+  return rectangleToPolygon(object.x, object.y, object.width, object.height).map((p) =>
+    toScreen(p.x, p.y),
+  );
 }
 
 function stringOf(value: unknown): string | undefined {

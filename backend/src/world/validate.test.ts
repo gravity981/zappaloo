@@ -629,13 +629,50 @@ describe("the objects (MAP-02, MAP-06)", () => {
     expectRefused(files, "map_object");
   });
 
-  it("[MAP-06] refuses a portal that is a tile object: its arrow is a decoration named by marker", () => {
+  it("[MAP-06] refuses a portal that is a rectangle: a portal is a tile object (14.2)", () => {
     const files = edit(world(), "maps/kirche.json", (m) => {
       const portal = objectNamed(m, "zum-garten");
-      portal.gid = 25;
-      delete portal.polygon;
+      delete portal.gid;
+      portal.width = 64;
+      portal.height = 32;
     });
     expectRefused(files, "map_object");
+  });
+
+  it("[MAP-06] refuses a portal whose tile has no trigger polygon", () => {
+    const files = edit(world(), "maps/kirche.json", (m) => {
+      objectNamed(m, "zum-garten").gid = 25;
+    });
+    expectRefused(files, "map_object");
+  });
+
+  it("[MAP-06] accepts a trigger area that is a rectangle, as well as a polygon", () => {
+    const files = edit(world(), "maps/kirche.json", (m) => {
+      const portals = tilesetNamed(m, "portale");
+      const group = (tileAt(portals, 0).objectgroup as Json).objects as Json[];
+      group[0] = { id: 1, name: "trigger", x: 0, y: 0, width: 64, height: 32 };
+    });
+    expectAccepted(files);
+  });
+
+  it("[MAP-06] refuses a tile with two trigger polygons", () => {
+    const files = edit(world(), "maps/kirche.json", (m) => {
+      const portals = tilesetNamed(m, "portale");
+      const tile = tileAt(portals, 0);
+      const group = (tile.objectgroup as Json).objects as Json[];
+      group.push({
+        id: 2,
+        name: "trigger",
+        x: 0,
+        y: 0,
+        polygon: [
+          { x: 0, y: 0 },
+          { x: 4, y: 0 },
+          { x: 0, y: 4 },
+        ],
+      });
+    });
+    expectRefused(files, "map_guide");
   });
 
   it("[MAP-06] refuses a portal without a name", () => {
@@ -645,11 +682,12 @@ describe("the objects (MAP-02, MAP-06)", () => {
     expectRefused(files, "map_object");
   });
 
-  it("[MAP-06] refuses a marker that does not name a tile object of the map", () => {
+  it("[MAP-06] a marker property is no longer used: a portal's tile is its arrow, so the property is a warning", () => {
     const files = edit(world(), "maps/kirche.json", (m) => {
       setProperty(objectNamed(m, "zum-garten"), "marker", 9, "object");
     });
-    expectRefused(files, "map_property");
+    const findings = expectAccepted(files);
+    expect(codes(findings, "warning")).toContain("property_unknown");
   });
 
   it("[MAP-08] a portal without target is a warning: it does nothing yet, and the package imports", () => {
