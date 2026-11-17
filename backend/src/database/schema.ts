@@ -682,7 +682,7 @@ export const worldPackages = sqliteTable(
     tileWidth: integer("tile_width").notNull(),
     tileHeight: integer("tile_height").notNull(),
     importedAt: integer("imported_at", { mode: "timestamp_ms" }).notNull(),
-    /** The ids of the maps as JSON. */
+    /** The map summaries as JSON: each map's id, name, and the counts of its clickable objects and portals. */
     maps: text("maps").notNull(),
     /** The figures a guest can choose (`avatar/figures.json`) as JSON. */
     avatar: text("avatar").notNull(),

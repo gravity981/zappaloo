@@ -851,7 +851,7 @@ describe("the objects (MAP-02, MAP-06)", () => {
     expectRefused(files, "map_object");
   });
 
-  it("[MAP-06] a marker property is no longer used: a portal's tile is its arrow, so the property is a warning", () => {
+  it("[MAP-06] a portal's former marker property is not used: a portal's tile is its arrow, so the property is a warning", () => {
     const files = edit(world(), "maps/kirche.json", (m) => {
       setProperty(objectNamed(m, "zum-garten"), "marker", 9, "object");
     });

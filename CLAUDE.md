@@ -12,6 +12,7 @@ Zappaloo is a reusable event platform (first use: a wedding) that combines a bro
 | `spec/test-strategy.md` | Test levels, requirement traceability, "not yet implemented" list |
 | `spec/implementation-plan.md` | Stages and steps, preconditions per stage, releases, status reports |
 | `spec/mocks/` | Clickable UX mocks (`zappaloo-mocks.html`) and the UX decisions behind them |
+| `game-preview/README.md` | The standalone game preview: local world packages, watching, the preview's controls |
 
 ## Working with the spec
 
@@ -57,6 +58,8 @@ Zappaloo is a reusable event platform (first use: a wedding) that combines a bro
 | `npm run build` | Production build of the frontend (`frontend/dist`) |
 | `npm run cli -- <command>` | The `zappaloo` CLI from source (`version`, `migrate`, …) |
 | `npm run db:generate -w backend` | New Drizzle migration after a change of `backend/src/database/schema.ts` |
+| `npm run schemas` | Regenerates the JSON Schemas (`schemas/`, committed) and the format documents (`dist/formats/`) from the format definitions |
+| `npm run build:test-world` | Builds the test world package (`dist/zappaloo-world-test.tar.gz`) that the validator and the tests use |
 | `npm run migration-check` | Schema has no change without a migration; migrations apply to an empty database and to the latest release's schema; released migrations unchanged |
 | `npm run build:image` | Local image build (`ghcr.io/gravity981/zappaloo:local`, version `<last release>+local.<commit>`) plus smoke test |
 | `npm run test:deploy` | Deployment test: the bundle in `infrastructure/deploy/` with the image (default `:local`, or `ZAPPALOO_TEST_IMAGE`) in Docker; results in `reports/vitest-deploy.json`. Runs on CI only: it does not work in the devcontainer under WSL, so never run it here; the local `npm run req-report` then reads old results and shows their errors |

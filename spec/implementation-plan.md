@@ -350,12 +350,12 @@ Refined 2026-11-14 with the project owner, before the stage started. Branch `fea
 - **No locked maps or zones in stage 5.** Objects with `type = protected` are accepted by the validator and do nothing yet. ACS-07 for maps means: sign-in and an open platform are checked when the world is served. The admin page for manual releases (ACS-05) moves to the first feature that stores access conditions, the treasure hunt (HUNT-05, stage 8).
 - ~~**Avatar assets** are layered sprite sheets per part (body, hair, clothing, accessory), drawn in greyscale and tinted from the palettes named in `avatar/avatar.json`.~~ Replaced 2026-11-15 by complete figures (format version 2, below).
 - **Partially implemented after stage 5** (test-strategy.md, section 5): GAME-13 without the step "Say hello" (profile photo, greeting, "How I know the couple"), which follows in stage 6; GAME-14 without "Hochladen", which follows in stage 7; GAME-06 without the minigame action, which follows in stage 8. Until then "Erlebniswelt" offers no minigame, and a preset `action = minigame` is reported as a warning.
-- **Actions of a clickable object:** `page` opens a full overlay, either a built-in page (`programme`, `rsvp`, `profile`; later stages add theirs) or a content page as `p/<slug>`. `content` shows the text of the content page named by `contentId` (its slug) in a small reading panel, e.g. for a sign. `dialog` shows a dialogue: a new kind of content item with an NPC name and lines the guest taps through, edited in "Erlebniswelt" and referenced by `contentId`.
+- **Actions of a clickable object:** `page` opens a full overlay, either a built-in page (`programme`, `rsvp`, `profile`; later stages add theirs) or a content page as `p/<slug>`. ~~`content` shows the text of the content page named by `contentId` (its slug) in a small reading panel, e.g. for a sign.~~ A content page is linked as a page and opens as `p/<slug>` (step 5f, decided 2026-11-17). ~~`dialog` shows a dialogue: a new kind of content item with an NPC name and lines the guest taps through, edited in "Erlebniswelt" and referenced by `contentId`.~~ The action `dialog` comes with step 6d (decided 2026-11-17).
 - **Without an active world or with guest access disabled,** a signed-in guest of an open platform lands on the website and has no guest entry point to the Erlebniswelt; the door scene still comes from the data volume (10.4).
 - **Guest access** (MAP-19): the admin controls it in Erlebniswelt › Welt & Import. It is enabled automatically on the first successful world import. Disabling it hides guest entry points and blocks direct guest navigation and world-serving routes without removing the active package or the admin's management access.
 - **Where a player enters:** the last map is remembered on the device. Otherwise, and when that map no longer exists, the player enters the start map at its spawn point `start`. A portal leads to its `targetSpawn`.
 
-**Draft layout of the world package, format version 1** (agreed 2026-11-14; the complete layout, rules and limits are in sw-architecture.md 14.4 since step 5a):
+~~**Draft layout of the world package, format version 1** (agreed 2026-11-14; the complete layout, rules and limits are in sw-architecture.md 14.4 since step 5a):~~ Struck through 2026-11-17: format version 1 was never released as a format of its own, and format version 2 replaces it (sw-architecture.md 14.4). The text below is the history of that draft.
 
 ```text
 world.tar.gz
@@ -407,20 +407,17 @@ world.tar.gz
 
 **Steps:**
 
-**5a – Spec and mocks** (no code).
+**5a – Spec and mocks** (no code). Done.
 - Section 14.4 gets the layout of format version 1: files, fields of `manifest.json` and `avatar.json`, the Tiled rules, the validator's rules and limits.
 - Mocks: `admin-world` tab "Karten & Import" becomes "Welt & Import", the importer of one whole package (active world with name, import time, maps and start map; import with findings and warnings; rollback). A tab "Dialoge" in `admin-world`. The game bar without "Hochladen". The first entry with the avatar step only. "Hingehen" removed (WEB-08 withdrawn).
 
 **5b – Validator and test world.** Done 2026-11-14 (decisions of the step in sw-architecture.md 14.4).
-**5c – Import, rollback and serving.** Done 2026-11-14 (decisions of the step in sw-architecture.md 14.4).
-**5d – Erlebniswelt › Welt & Import.** Done 2026-11-14: the page with the import tab only (Objekte & Portale came with 5f; the tab Dialoge comes with 6d), no template-world import action, per-map counts in the admin status. Open: the mock shows map names, the world carries only map ids (see the step report).
-**5d.1 – World format 2.** Done 2026-11-15 (inserted 2026-11-15; details below 5d). The decisions are in sw-architecture.md 14.4 ("Decisions of step 5d.1"); the frame and tile-size limits await the project owner's confirmation.
 - The package reader (gzip and tar, limits, paths; shared with the theme package), `manifest.json`, the Tiled checks per map (format, orientation, embedded tilesets, referenced images, layers, spawn points), portal targets inside the package, the door scene, the avatar assets. Returns all findings. One test per validator rule with a broken package.
 - A script builds the test world (two or three maps with generated placeholder tiles, avatar parts and objects of every type) for the tests and for development.
 - Checking a package outside the platform (decided 2026-11-14; 19.7, 14.4): JSON Schemas generated from the Zod schemas, theme first, then world (manifest, avatar, maps), committed in `schemas/` with a test that fails when they differ; attached to every release. The CLI command `zappaloo validate <file>` for both kinds of package, with `--json` and exit code 0 or 1, tested with the test world and the example theme.
 Requirements: MAP-06, MAP-16, MAP-17, THM-07.
 
-**5c – Import, rollback and serving.**
+**5c – Import, rollback and serving.** Done 2026-11-14 (decisions of the step in sw-architecture.md 14.4).
 - Import and rollback routes, the table of the active and the previous world (migration), a folder per import, audit entries on the card "Zuletzt". A refused package leaves the active world unchanged.
 - Warnings for presets that point to a missing page or content item, and for minigame presets.
 - The world (manifest, maps, tilesets, avatar assets) is served with a version in the URL, so a new world is loaded on the next map entry. Sign-in and an open platform are checked.
@@ -429,11 +426,11 @@ Requirements: MAP-01, MAP-04, MAP-08, MAP-09, MAP-10.
 Follow-up from stage 2: map loading checked on the server, with `[ACS-07]` tests.
 Re-verified: ACS-12.
 
-**5d – Erlebniswelt › Welt & Import.** Mock screen: `admin-world` (variant "import").
+**5d – Erlebniswelt › Welt & Import.** Done 2026-11-14: the page with the import tab only (Objekte & Portale came with 5f; the tab Dialoge comes with 6d), no template-world import action, per-map counts in the admin status. Resolved 2026-11-17: the mock's map names come from the optional map property `name` (14.4). Mock screen: `admin-world` (variant "import").
 - The admin card: the active world with its maps, import with findings and warnings, rollback to the previous world, admins only.
 Requirements: MAP-05.
 
-**5d.1 – World format 2.** Mock screens: `onboard-avatar`, `admin-world` (variant "import"). Branch `feature/stage-5-world-v2`. Implements the decisions in "Format version 2" above; replaces what 5a–5d built for format version 1. No rendering yet (5e).
+**5d.1 – World format 2.** Done 2026-11-15 (inserted 2026-11-15; details below 5d). The decisions are in sw-architecture.md 14.4 ("Decisions of step 5d.1"); the frame and tile-size limits await the project owner's confirmation. Mock screens: `onboard-avatar`, `admin-world` (variant "import"). Branch `feature/stage-5-world-v2`. Implements the decisions in "Format version 2" above; replaces what 5a–5d built for format version 1. No rendering yet (5e).
 - **Spec** (sw-architecture.md):
   - 14.1, 14.2, 14.4 and 14.5 rewritten for format version 2: layout, manifest, map rules, object types (with `border`), collisions, portal triggers, figures with the PixelLab metadata, validator rules, errors and warnings, limits. The final native rendering contract is recorded in 5e.6.
   - 7.3: the avatar editor chooses a complete figure.
@@ -466,12 +463,12 @@ Exit: the shared engine and world-package integration are accepted; step 5f may 
 **5f – Objects and overlays. Done (2026-11-17).** Decisions: sw-architecture.md 14.4 "Decisions of step 5f". Mock screens: `game`, `game-overlay`, `admin-world` (variant "objects").
 - Object types `portal`, `clickable`, `decoration` and the properties of 14.2. Clickable objects sparkle along their edges at random (small sparkles, up to five at a time) and a shine passes over them now and then; a portal's arrow floats up and down above a shadow, like a boat on waves, and glows. A click or tap on a clickable object walks to the approach point and runs the action; a tap on a portal walks into its trigger area; Enter or Space activates the object in front of the avatar. Easter eggs.
 - Pages as overlays above the paused game; closing returns to the same position; links inside stay in the overlay.
-- Erlebniswelt › Objekte & Portale: assign each clickable object's action per map (page, content item, dialogue, none); portals read-only.
+- Erlebniswelt › Objekte & Portale: assign each clickable object's action per map (page including content pages, none; dialogues in 6d); portals read-only.
 Requirements: GAME-04, GAME-05, GAME-06 (without minigames), GAME-08, GAME-11, GAME-15, GAME-16, MAP-03, MAP-15.
 
 **5g – Dropped (decided 2026-11-17).** Dialogues moved to step 6d, and a content page is linked to a clickable object as a page (`p/<slug>`) that opens in the page overlay of 5f, so there is no separate content action and no reading panel. CNT-03 is covered by 5f for content pages; its dialogue part completes in 6d.
 
-**5h – Avatar editor.** Mock screen: `onboard-avatar`. Decisions: sw-architecture.md 14.4 ("Decisions of step 5h").
+**5h – Avatar editor.** Done 2026-11-17. Mock screen: `onboard-avatar`. Decisions: sw-architecture.md 14.4 ("Decisions of step 5h").
 - The world package: a mandatory `tier` and a mandatory `type` per figure (breaking change of format version 2), checked by the validator, in the JSON Schema and the test world.
 - The editor chooses first the kind (male, female, child, other; only kinds with a figure the user may choose), then a figure of that kind: a grid with labels, a walking preview, and "Zufällig" within the kind. Tabs for the guest and each approved companion; "Weiter" waits until every person has a figure.
 - The tiers decide which figures a user may choose (vip tier1, staff tier2, admin tier3, companions tier1), checked on the server.
@@ -479,7 +476,7 @@ Requirements: GAME-04, GAME-05, GAME-06 (without minigames), GAME-08, GAME-11, G
 - The same editor is reached from the profile. The game shows the player's own avatar.
 Requirements: AVA-01, AVA-02, AVA-03.
 
-**5i – Entering the game.** Decisions: sw-architecture.md 14.4 "Decisions of step 5i". Mock screens: `game`, `onboard-avatar`, `home`.
+**5i – Entering the game.** Done 2026-11-17. Decisions: sw-architecture.md 14.4 "Decisions of step 5i". Mock screens: `game`, `onboard-avatar`, `home`.
 - With an active world, a signed-in user of an open platform lands in the game; direct links open their target. "Website" in the bar returns to the website; "Erlebniswelt betreten" on the start page.
 - The guided first entry: avatar (also for companions), the RSVP in an overlay if not answered, then free play.
 - The bar at the top with Programm, Rückmeldung (badge while the RSVP is open) and Website. The hint "Tippe auf Dinge, die funkeln" until the first object is used. The own avatar opens the profile.
@@ -1135,7 +1132,7 @@ An admin imports a whole world package (isometric maps from Tiled, complete figu
 - **5k – Erlebniswelt access and stage report:** done. The switch for guest access (MAP-19), no template world shipped, this report.
 - **Changed during the stage:** world format 2 replaced format 1 (2026-11-15); the template world (MAP-12 – MAP-14) was withdrawn (2026-11-17); WEB-08 was withdrawn (2026-11-14); step 5g was dropped and 5j moved (2026-11-17); GAME-21 was added (2026-11-17).
 
-**Requirements:** 39 of 39 planned for this stage, all with passing tests (requirement report; PERF-04 moved to stage 9). GAME-13 (without "Say hello"), GAME-14 (without "Hochladen") and GAME-06 (without the minigame action) are partially implemented, as listed in test-strategy.md, section 5. Overall: 172 of 247 active requirements implemented, 162 with passing tests. The others are the ones whose deployment-test results the local report reads from an old file (see below); none is from stage 5.
+**Requirements:** 39 of 39 planned for this stage (THM-07 from step 5b included), all with passing tests (requirement report; PERF-04 moved to stage 9). GAME-13 (without "Say hello"), GAME-14 (without "Hochladen") and GAME-06 (without the minigame action) are partially implemented, as listed in test-strategy.md, section 5. Overall: 172 of 247 active requirements implemented, 162 with passing tests. The others are the ones whose deployment-test results the local report reads from an old file (see below); none is from stage 5.
 
 **Tests:**
 - Unit, component and integration (Vitest): 1140 tests in 109 files, all passing (`npm test`, run once more before the report).
@@ -1173,8 +1170,7 @@ An admin imports a whole world package (isometric maps from Tiled, complete figu
 - Confirm the preconditions and steps of stage 6 before it starts.
 - **Open points (from stage 5):**
   - The frame and tile-size limits of format 2 (frame sides 8 to 256 pixels, 1 to 16 walk frames, tiles 8 to 128 pixels) were proposed in step 5d.1 and are not confirmed.
-  - "Erlebniswelt betreten" is also on the event-day start page, above the shortcuts (section 5.6 names only the layout before the event day). Confirm.
-  - Staff reach the world while guest access is off, like admins. Confirm.
+  - Review 2026-11-17: findings fixed in step 5l. The two former "Confirm" points are decided (14.4 "Decisions of step 5k"): "Erlebniswelt betreten" is also on the event-day start page, and staff reach the world while guest access is off, like admins.
   - A guest whose figure no longer exists after a new world is led through the avatar step again (confirmed 2026-11-17 for the step; mentioned here for the world update runbook).
 
 **Risks and notes:**

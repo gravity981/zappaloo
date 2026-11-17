@@ -16,6 +16,7 @@ This folder is the **source of truth**. The code implements the spec. When the c
 | [implementation-plan.md](implementation-plan.md) | Stages and steps, preconditions, releases, status reports after each stage |
 | [manual-test-protocol.md](manual-test-protocol.md) | Records of manual checks in real environments, read by the requirement report |
 | [mocks/](mocks/README.md) | Clickable UX mocks of website, game world and admin area, with the UX decisions; frontend steps follow them |
+| [game-engine/README.md](../game-engine/README.md) | The contract of the game world: Tiled maps to world package to the shared Phaser engine, rendering and collisions |
 
 ## Conventions
 
@@ -49,16 +50,16 @@ Status values: **specified** (requirements written, not implemented) · **in pro
 
 | Prefix | Topic | Section in sw-architecture.md | Reqs (active) | Stage | Status |
 |---|---|---|---|---|---|
-| GAME | Game world: entry, guided start, controls, movement, objects and rendering fidelity | 3 | 20 | 5 | specified |
+| GAME | Game world: entry, guided start, controls, movement, objects and rendering fidelity | 3 | 21 | 5 | in progress |
 | PRES | Guest presence (wandering figures, speech bubble with profile) and seating | 3.6 | 13 (2 withdrawn) | 6 | specified |
 | HUNT | Treasure hunt | 3.7 | 7 | 8 | specified |
 | MG | Minigames, results, highscores | 4 | 13 | 8 | specified |
 | WEB | Classic website | 5 | 11 | 4, 5, 7, 8 | specified |
 | LANG | Language and i18n | 5.3 | 2 | 1, 4 | in progress |
 | SCR | Event screen (photo wall, live rankings) | 5.4 | 5 (2 withdrawn) | 7, 8 | specified |
-| CNT | Shared content base, Markdown editing, images, places | 6 | 7 | 4, 5, 7 | specified |
+| CNT | Shared content base, Markdown editing, images, places | 6 | 7 | 4, 5, 7 | in progress |
 | ACC | User accounts, account states, authentication, email | 7, 23.8 | 19 (1 withdrawn) | 2, 3, 3.9 | in progress |
-| AVA | Avatars | 7.3 | 4 | 5, 6 | specified |
+| AVA | Avatars | 7.3 | 4 | 5, 6 | in progress |
 | RSVP | RSVP, program items, accompanying persons, person types | 7.4 | 15 | 3, 3.9 | in progress |
 | ROLE | Roles (vip, staff, admin) and staff capabilities | 8 | 8 (2 withdrawn) | 2 | implemented |
 | INV | VIP invitations | 9 | 16 (6 withdrawn) | 2, 3.9 | in progress |
@@ -66,18 +67,18 @@ Status values: **specified** (requirements written, not implemented) · **in pro
 | GRP | Guest groups | 12 | 2 | 2 | implemented |
 | PHO | Contributions: snapshots (gallery, photo wall) and keepsakes (keepsake page, printable book) | 13 | 18 (1 withdrawn) | 7 | specified |
 | MOD | Moderation (swipe view) | 13.7 | 5 | 7 | specified |
-| MAP | World packages, importer, Erlebniswelt access and development preview | 14 | 14 (5 withdrawn) | 5 | specified |
+| MAP | World packages, importer, Erlebniswelt access and development preview | 14 | 14 (5 withdrawn) | 5 | implemented |
 | DATA | Database and data model | 18 | 5 | 1, 2, 3 | implemented |
 | CFG | Event configuration, installation model | 19, 20 | 7 | 2, 4 | in progress |
 | OPS | Deployment, backup tools, CI/CD, versioning and releases (hosting out of scope) | 21–23 | 17 (2 withdrawn) | 1, 3 | in progress |
 | SEC | Security and privacy (Swiss FADP) | 24 | 11 | 1, 2, 3, 10 | in progress |
-| PERF | Performance and load | 25 | 3 (1 withdrawn) | 5, 7, 9 | specified |
+| PERF | Performance and load | 25 | 3 (1 withdrawn) | 7, 9 | specified |
 | MP | Multiplayer — removed | 3.3 | 0 (6 withdrawn) | – | withdrawn |
 | GB | Guestbook — merged into PHO | 13.6 | 0 (4 withdrawn) | – | withdrawn |
 | PWA | Installable app (manifest, icons, home screen) | 19.5 | 5 | 3.5 | implemented |
 | LIC | Copyright and license notice in the footer | 19.6 | 3 | 3.5 | implemented |
-| THM | Theme package (app icons, colours, fonts) | 19.7 | 6 | 4 | specified |
-| | **Total** | | **248** (282 IDs, 34 withdrawn) | | |
+| THM | Theme package (app icons, colours, fonts) | 19.7 | 6 | 4 | implemented |
+| | **Total** | | **247** (284 IDs, 37 withdrawn) | | |
 
 Sections with no requirement table describe architecture and technology choices: 15 (stack), 16 (frontend), 17 (backend), 26 (project structure), 27 (decision summary), 28 (stages) and 29 (principles). Section 30 lists what is out of scope for the first version.
 
@@ -107,7 +108,7 @@ Sections with no requirement table describe architecture and technology choices:
 | 2026-11-04 | No anonymous access. Website and game world require sign-in, except login, password reset, invitation redemption, privacy notice and upload-link pages. Long sessions keep sign-in rare (ACS-01/02 withdrawn, ACS-09, ACC-13). |
 | 2026-11-04 | The game experience is the core: a portal to a website page opens it as an overlay above the paused game (GAME-11). |
 | 2026-11-04 | The photo wall delay is configurable, with a default of 10 seconds (SCR-02). |
-| 2026-11-04 | The project owner draws the template map art (MAP-12). |
+| 2026-11-04 | ~~The project owner draws the template map art (MAP-12).~~ Superseded 2026-11-17: no template world is shipped (MAP-12 – MAP-14 withdrawn). |
 | 2026-11-04 | Verification beyond CI: automate what is possible with Playwright, and record the rest in a manual test protocol (test-strategy.md 6.1). |
 | 2026-11-04 | Game first: after sign-in, users land in the game world. The website is one click away, and direct links open their target (GAME-12). |
 | 2026-11-04 | Accompanying persons get a static figure whose avatar their VIP chooses. Seat by default at the VIP's table, and the admin can override (PRES-07). |

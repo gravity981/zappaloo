@@ -84,33 +84,35 @@ All active requirements are listed here until their stage is delivered. Shrink t
 
 | Prefix | IDs | Count |
 |---|---|---|
-| PRES | PRES-01, PRES-02, PRES-04 – PRES-10, PRES-12 – PRES-15 | 13 |
+| PRES | PRES-01, PRES-02, PRES-04 – PRES-06, PRES-08 – PRES-10, PRES-12 – PRES-15 | 12 |
 | HUNT | HUNT-01 – HUNT-07 | 7 |
 | MG | MG-01 – MG-13 | 13 |
 | WEB | WEB-05, WEB-06 | 2 |
 | SCR | SCR-01, SCR-02, SCR-04, SCR-05, SCR-07 | 5 |
-| CNT | CNT-02, CNT-03 | 2 |
-| AVA | AVA-04 | 1 |
 | ACS | ACS-04 | 1 |
 | PHO | PHO-01 – PHO-03, PHO-05 – PHO-19 | 18 |
 | MOD | MOD-01 – MOD-05 | 5 |
 | OPS | OPS-13 | 1 |
 | SEC | SEC-04, SEC-06 – SEC-08 | 4 |
 | PERF | PERF-01, PERF-03, PERF-04 | 3 |
-| **Total** | | **75** |
+| **Total** | | **71** |
 
 The stage each requirement belongs to is listed in `sw-architecture.md`, section 28.
 
 **Partially implemented** (decided 2026-11-10). These requirements count as implemented from stage 2 on, because their mechanism exists and is tested, but parts of them belong to features of later stages. Each part is a "Follow-up from stage 2" line of the step that builds the feature in `implementation-plan.md`, and that step adds tests tagged with the ID:
 
-- ACS-05: the treasure-hunt condition (step 8d); the admin page for manual releases, with the first step that stores access conditions (5b; pages carry none in stage 4, decided 2026-11-13).
-- ACS-07: server checks for map loading and protected game areas (5b), contribution upload (7b), moderation (7c), minigame start and result submission (8b).
+- ACS-05: the treasure-hunt condition (step 8d); the admin page for manual releases, with the step that stores access conditions (step 8d, HUNT-05; pages carry none in stage 4, decided 2026-11-13).
+- ACS-07: server checks for protected game areas (step 8d; stage 5 checks only sign-in, the open platform and guest access, decided 2026-11-17), contribution upload (7b), moderation (7c), minigame start and result submission (8b).
+- PRES-07 (tagged in `frontend/src/avatar/avatar.test.tsx`): the accompanying persons' figures, chosen by the VIP in the avatar editor, are done in step 5h; their seats and the table finder come with their own steps.
+- AVA-04: the player's own figure in the game is done in step 5h; the wandering figures of the other guests come with stage 6.
 - GAME-06 and MAP-15 (from step 5f on, decided 2026-11-17): the action `minigame` (stage 8; a preset `minigame` is reported at import and does nothing, and the admin cannot assign it). A content page is linked as a page and runs from step 5f; the action `dialog` comes with step 6d (dialogues moved there on 2026-11-17), and until then the game shows a short note.
 - GAME-13 and GAME-14 (from step 5i on, decided 2026-11-17): the step "Say hello" (profile photo, greeting, "How I know the couple"; stage 6) and the button "Hochladen" (stage 7).
 - CNT-02 (from stage 4 on, decided 2026-11-13): dialogues and NPC texts (5d), photo albums (7d). Unlock conditions are covered by ACS-05.
 - CNT-03 (from stage 4 on): the reference from a game-world object by `contentId` (5d).
 - ROLE-06: the capabilities in use: `editWebsiteContent` (4a), `moderateContributions` (7c). Until then only test routes use them.
 - ROLE-07: every step that adds an administration function guards it with the admin role and adds a `[ROLE-07]` test that a user without it is refused. The admin pages of stage 2 are built in step 2h; each later admin page adds its own `[ROLE-07]` test.
+
+**Withdrawn** (decided 2026-11-17). MAP-12, MAP-13 and MAP-14 (the template map set, its decoration layers and its import) are withdrawn: no template world will be shipped. They are not tested.
 
 **Not yet tested** (decided 2026-11-11). These requirements are implemented and their automated tests pass, but the check in a real environment that completes them has not been done. They stay on this list until it has been done and recorded in the manual test protocol. The requirement report does not read this list; it is kept by hand.
 

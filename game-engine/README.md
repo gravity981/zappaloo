@@ -37,8 +37,9 @@ generated package-format documentation is derived from
   movement; a portal's `trigger` polygon or rectangle defines its activation
   area; an `occlusion` polyline defines the prop's front edge for actor depth.
   No artwork splitting or pixel masks are used.
-- The player sprite uses its bottom-centre as the logical foot anchor. The
-  circular movement footprint is centered one radius above that anchor, so
+- The logical position of the player is the visible feet (GAME-02): each frame
+  is drawn 3 px left and 10 px down from it. The movement footprint is an
+  ellipse centred 2 px left of the feet with radii 0.1 and 0.05 tile widths, so
   it does not extend below the feet. The same point is used for actor depth
   and portal checks.
 

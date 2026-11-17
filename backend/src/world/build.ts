@@ -1,6 +1,6 @@
 // Builds the test world (sw-architecture.md 14.4, step 5d.1): three isometric maps with generated placeholder
 // art, group layers, a sheet tileset and an image-collection tileset with collision and trigger guides,
-// every object type, a polygon portal with its marker, and two figures in the PixelLab layout with generated
+// every object type, a portal tile with its trigger area, and two figures in the PixelLab layout with generated
 // frames. It passes every rule of the validator with no finding. The tests use it as their valid package,
 // and the script `scripts/build-test-world.ts` writes it for development. The art is generated, not drawn:
 // it is for checks, not for the game.

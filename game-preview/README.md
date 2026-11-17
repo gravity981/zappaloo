@@ -13,8 +13,7 @@ event. A failed replacement leaves the current world running.
 
 To preview a local world package, enter its absolute path in **Local world
 package** and select **Preview and watch**. Use the path as seen by the preview
-server (for example, `/workspaces/hz-event-assets/world.tar.gz` in the
-devcontainer); no environment variable is needed. The preview watches the
+server (for example, `/path/to/world.tar.gz`); no environment variable is needed. The preview watches the
 package's containing directory and reloads after in-place edits or atomic file
 replacement. A failed read or validation keeps the last valid world running
 and displays the error.
@@ -56,7 +55,8 @@ Use bottom-aligned, unscaled tile objects and zero tileset offsets. Tile-image
 `collision` and `trigger` guides remain gameplay data; `occlusion` guides drive
 actor depth, without splitting artwork or adding pixel masks.
 
-The engine's player position is the bottom-centre of the sprite frame. Its
-circular collision footprint is centered one radius above that foot anchor,
-so its lower tangent ends at the feet. This same anchor drives depth sorting,
-portals, and movement checks.
+The engine's player position is the visible feet (GAME-02): each frame is drawn
+3 px left and 10 px down from it. The collision footprint is an ellipse centred
+2 px left of the feet with radii 0.1 and 0.05 tile widths, so it does not extend
+below the feet. This same point drives depth sorting, portals, and movement
+checks.
