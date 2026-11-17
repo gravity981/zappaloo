@@ -93,6 +93,74 @@ button:disabled {
   align-items: end;
 }
 
+.source-controls {
+  display: flex;
+  flex: 1 1 100%;
+  flex-wrap: wrap;
+  align-items: end;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid #d5dbd2;
+}
+
+.source-controls h2 {
+  margin: 0;
+  font-size: 0.95rem;
+}
+
+.source-controls p {
+  margin: 0.3rem 0 0;
+  color: #536a58;
+  font-size: 0.85rem;
+}
+
+.source-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: 0.5rem;
+}
+
+.source-actions label {
+  display: grid;
+  gap: 0.3rem;
+  color: #34493a;
+  font-size: 0.82rem;
+  font-weight: 650;
+}
+
+.source-actions select {
+  min-height: 2.4rem;
+  max-width: 18rem;
+  border: 1px solid #aeb9ad;
+  border-radius: 0.35rem;
+  padding: 0.35rem 0.5rem;
+  color: #17231b;
+  background: #fff;
+}
+
+.source-controls .source-error {
+  flex: 1 1 100%;
+  padding: 0.6rem 0.75rem;
+  border-left: 0.25rem solid #b83232;
+  color: #5f1f1f;
+  background: #fff0ef;
+}
+
+.source-error ul {
+  margin: 0.4rem 0 0;
+  padding-left: 1.3rem;
+}
+
+.selection-warning {
+  margin: 0;
+  padding: 0.55rem 0.75rem;
+  border-left: 0.25rem solid #a26d16;
+  color: #5c461b;
+  background: #fff7df;
+}
+
 .package-picker label,
 .selection-controls label,
 .guide-options > label {
@@ -242,6 +310,15 @@ button:disabled {
 
   .selection-controls select {
     max-width: none;
+  }
+
+  .source-controls,
+  .source-actions {
+    width: 100%;
+  }
+
+  .source-actions > * {
+    flex: 1 1 8rem;
   }
 
   .preview-viewport {

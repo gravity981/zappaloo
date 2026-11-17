@@ -17,6 +17,22 @@ const failureSchema = z.object({
   error: z.string().optional(),
   findings: z.array(worldFindingSchema).optional(),
 });
+export const sourceStatusSchema = z.strictObject({
+  available: z.boolean(),
+  message: z.string(),
+  mapIds: z.array(z.string()),
+  active: z.boolean(),
+  exporting: z.boolean(),
+  revision: z.number().int().nonnegative(),
+  snapshot: uploadSchema.optional(),
+  error: z
+    .strictObject({
+      message: z.string(),
+      findings: z.array(worldFindingSchema),
+    })
+    .optional(),
+});
+export type SourceStatus = z.infer<typeof sourceStatusSchema>;
 
 export class PreviewLoadError extends Error {
   readonly findings: WorldFindingDto[];
@@ -30,10 +46,12 @@ export class PreviewLoadError extends Error {
 
 export interface LoadedPreview {
   token: string;
+  source: "package" | "tiled";
   summary: PublicWorld;
   world: LoadedWorld;
   findings: WorldFindingDto[];
-  file: File;
+  file?: File;
+  snapshot: z.infer<typeof uploadSchema>;
   releaseAssets: () => void;
 }
 
@@ -114,8 +132,12 @@ export async function releasePreviewPackage(token: string): Promise<void> {
 }
 
 /** Validates through the local server, prepares through the shared engine, then verifies every image before use. */
-export async function loadPreviewPackage(file: File): Promise<LoadedPreview> {
-  const uploaded = await upload(file);
+export async function loadPreviewSnapshot(
+  snapshot: unknown,
+  source: LoadedPreview["source"],
+  file?: File,
+): Promise<LoadedPreview> {
+  const uploaded = uploadSchema.parse(snapshot);
   const { token, summary } = uploaded;
   let releaseAssets: (() => void) | undefined;
   try {
@@ -140,14 +162,30 @@ export async function loadPreviewPackage(file: File): Promise<LoadedPreview> {
       resolveAsset: (path) => packageFileUrl(token, path),
     });
     releaseAssets = await prepareAssets(world);
-    return { token, summary, world, findings: uploaded.findings, file, releaseAssets };
+    return {
+      token,
+      source,
+      summary,
+      world,
+      findings: uploaded.findings,
+      ...(file === undefined ? {} : { file }),
+      snapshot: uploaded,
+      releaseAssets,
+    };
   } catch (error) {
     releaseAssets?.();
-    try {
-      await releasePreviewPackage(token);
-    } catch (releaseError) {
-      console.error("Could not release a failed preview package", releaseError);
+    if (source === "package") {
+      try {
+        await releasePreviewPackage(token);
+      } catch (releaseError) {
+        console.error("Could not release a failed preview package", releaseError);
+      }
     }
     throw error;
   }
+}
+
+/** Validates through the local server, prepares through the shared engine, then verifies every image before use. */
+export async function loadPreviewPackage(file: File): Promise<LoadedPreview> {
+  return loadPreviewSnapshot(await upload(file), "package", file);
 }

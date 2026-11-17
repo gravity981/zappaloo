@@ -515,6 +515,7 @@ Exit: the standalone preview can load a package and reproduce the same engine be
 - Add an explicit local-source selection for the ignored asset checkout. Watch relevant TMX, TSX, templates, object-type defaults, PNGs and figure metadata; do not watch generated output or `node_modules`.
 - Use pinned Tiled export with detached templates, resolved types/properties and embedded tilesets, followed by packaging into the existing world format. Keep the exporter/package adapter outside the engine. Resolve all maps and portal references in the selected world, not just the current map. Do not make the prototype-specific build script the general Zappaloo world format.
 - Reuse existing Zappaloo archive/validation helpers where applicable. Do not modify the asset repository or fetch its dependencies/specs. Any missing source configuration is reported explicitly, not guessed; the package picker still works without the private checkout.
+- **Decision (2026-11-16):** the local source root is supplied through `ZAPPALOO_TILED_SOURCE_DIR`. If it is unset or points to an unusable source, the preview reports that explicitly and keeps package loading available; it never guesses a checkout path.
 - Debounce edits, serialize exports and publish a new validated snapshot atomically. Show export/validation errors while retaining the last working snapshot. Refresh changed textures as well as maps, preserve valid selections where possible, and report when a selection no longer exists.
 - Test export/watch/recovery with generated public sources. Compare source-preview output with opening its exported package; both must enter the same preparation and renderer path.
 Requirements: MAP-18; re-verified: MAP-01, MAP-06, MAP-10, MAP-16.
@@ -522,6 +523,7 @@ Exit: saving a local Tiled source refreshes the preview safely, without an appli
 
 **5e.5 – Correct placement and coordinate transforms.**
 - Establish one documented Tiled-to-world transform and inverse, with explicit map origin and bounds. Apply it consistently to tile layers, tile-object anchors, spawns, shapes, camera limits and pointer/pathfinding coordinates.
+- the current prototype world package should be loadable if there are no big problems with it
 - Fix tile-layer image anchoring (including oversized collection images), sheet margin/spacing and sparse collection IDs. Honour supported tile-object alignment, default isometric alignment, tile offsets and scaled/fractional dimensions. Use the same placed-image transform for collision, trigger and occlusion guides.
 - Add Tiled-backed fixtures for non-square maps, sheets and collections, mixed image sizes, offsets, supported alignments, scaling and shared tile/object landmarks. Add independent geometry assertions for guides, spawn positions and pointer inversion; do not calculate expected positions with the implementation under test.
 - Re-run keyboard, tap-to-move, collision and portal tests after coordinate changes. Fix the shared engine, never compensate inside the preview.

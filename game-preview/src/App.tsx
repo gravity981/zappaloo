@@ -11,8 +11,14 @@ import {
 } from "@zappaloo/game-engine";
 import { useEffect, useRef, useState } from "react";
 import type { ChangeEvent } from "react";
-import { loadPreviewPackage, PreviewLoadError, releasePreviewPackage } from "./package-loader.ts";
-import type { LoadedPreview } from "./package-loader.ts";
+import {
+  loadPreviewPackage,
+  loadPreviewSnapshot,
+  PreviewLoadError,
+  releasePreviewPackage,
+  sourceStatusSchema,
+} from "./package-loader.ts";
+import type { LoadedPreview, SourceStatus } from "./package-loader.ts";
 
 const INITIAL_GUIDES: GameGuides = {
   collisions: false,
@@ -66,6 +72,13 @@ export default function App() {
   const [currentGuides, setCurrentGuides] = useState<GameGuides>(INITIAL_GUIDES);
   const [currentView, setCurrentView] = useState<GameView>(INITIAL_VIEW);
   const [readState, setReadState] = useState<GameStateReader | null>(null);
+  const [sourceStatus, setSourceStatus] = useState<SourceStatus | null>(null);
+  const [sourceStartMap, setSourceStartMap] = useState("");
+  const [sourceBusy, setSourceBusy] = useState(false);
+  const [sourceRequestError, setSourceRequestError] = useState<string>();
+  const [selectionWarning, setSelectionWarning] = useState<string>();
+  const loadedSourceRevision = useRef(0);
+  const loadSnapshotRef = useRef<(snapshot: unknown) => void>(() => undefined);
 
   useEffect(() => {
     isMounted.current = true;
@@ -90,7 +103,7 @@ export default function App() {
     };
   }, []);
 
-  async function loadFile(file: File): Promise<void> {
+  async function loadPreview(load: () => Promise<LoadedPreview>): Promise<void> {
     const pageIsMounted = (): boolean => isMounted.current;
     setLoading(true);
     setLoadError(undefined);
@@ -98,7 +111,7 @@ export default function App() {
     let candidate: PendingPreview | undefined;
     let timeout: number | undefined;
     try {
-      const loadedPreview = await loadPreviewPackage(file);
+      const loadedPreview = await load();
       preview = loadedPreview;
       if (!pageIsMounted()) {
         loadedPreview.releaseAssets();
@@ -125,12 +138,30 @@ export default function App() {
       timeout = window.setTimeout(() => {
         rejectReady?.(new Error("The game engine did not finish loading the package"));
       }, 15_000);
+      const previousSelection = selection.current;
+      const previousMap =
+        previousSelection === null
+          ? undefined
+          : loadedPreview.world.maps.get(previousSelection.mapId);
+      const nextMap = previousMap ?? loadedPreview.world.maps.get(loadedPreview.world.startMap);
+      const spawnOptions = [...(nextMap?.spawns.keys() ?? [])];
+      const nextSpawn =
+        previousMap !== undefined &&
+        previousSelection !== null &&
+        spawnOptions.includes(previousSelection.spawn)
+          ? previousSelection.spawn
+          : spawnOptions.includes("start")
+            ? "start"
+            : (spawnOptions[0] ?? "start");
+      const figureIds = new Set(loadedPreview.world.figures.map((figure) => figure.id));
+      const previousFigure =
+        previousSelection?.figureId !== undefined && figureIds.has(previousSelection.figureId)
+          ? previousSelection.figureId
+          : loadedPreview.world.figures[0]?.id;
       const startingSelection: GameSelection = {
-        mapId: loadedPreview.world.startMap,
-        spawn: "start",
-        ...(loadedPreview.world.figures[0] === undefined
-          ? {}
-          : { figureId: loadedPreview.world.figures[0].id }),
+        mapId: nextMap?.id ?? loadedPreview.world.startMap,
+        spawn: nextSpawn,
+        ...(previousFigure === undefined ? {} : { figureId: previousFigure }),
       };
       const game = createGame({
         parent: stage,
@@ -168,6 +199,24 @@ export default function App() {
       setCurrentSelection(startingSelection);
       setReadState(() => candidateState);
       setLoadError(undefined);
+      const lostSelections: string[] = [];
+      if (previousSelection !== null) {
+        if (previousMap === undefined) lostSelections.push(`map "${previousSelection.mapId}"`);
+        else if (!spawnOptions.includes(previousSelection.spawn)) {
+          lostSelections.push(`spawn "${previousSelection.spawn}"`);
+        }
+        if (
+          previousSelection.figureId !== undefined &&
+          !figureIds.has(previousSelection.figureId)
+        ) {
+          lostSelections.push(`figure "${previousSelection.figureId}"`);
+        }
+      }
+      setSelectionWarning(
+        lostSelections.length > 0
+          ? `The previous ${lostSelections.join(", ")} is not available in this preview; a valid selection was chosen.`
+          : undefined,
+      );
       if (previousPreview !== null && previousGame !== null && previousStage !== null) {
         destroyPreview(previousPreview, previousGame, previousStage);
       }
@@ -191,6 +240,109 @@ export default function App() {
       if (isMounted.current) setLoadError({ message, findings });
     } finally {
       if (isMounted.current) setLoading(false);
+    }
+  }
+
+  async function loadFile(file: File | undefined): Promise<void> {
+    if (file === undefined) {
+      setLoadError({ message: "The current package file is no longer available.", findings: [] });
+      return;
+    }
+    if (sourceStatus?.active === true) {
+      try {
+        const response = await fetch("/__game-preview/api/source/stop", { method: "POST" });
+        if (!response.ok) throw new Error(`The preview server answered ${String(response.status)}`);
+        setSourceStatus(sourceStatusSchema.parse(await response.json()));
+      } catch (error) {
+        setSourceRequestError(`Could not stop local source watching: ${describeError(error)}`);
+        return;
+      }
+    }
+    await loadPreview(() => loadPreviewPackage(file));
+  }
+
+  async function loadSourceSnapshot(snapshot: unknown): Promise<void> {
+    await loadPreview(() => loadPreviewSnapshot(snapshot, "tiled"));
+  }
+
+  loadSnapshotRef.current = (snapshot) => {
+    void loadSourceSnapshot(snapshot);
+  };
+
+  useEffect(() => {
+    let disposed = false;
+    let polling = false;
+    const poll = async (): Promise<void> => {
+      if (polling) return;
+      polling = true;
+      try {
+        const response = await fetch("/__game-preview/api/source/status");
+        if (!response.ok) throw new Error(`The preview server answered ${String(response.status)}`);
+        const status = sourceStatusSchema.parse(await response.json());
+        if (disposed) return;
+        setSourceStatus(status);
+        setSourceRequestError(undefined);
+        setSourceStartMap((currentMap) => {
+          if (status.mapIds.includes(currentMap)) return currentMap;
+          return status.mapIds.length === 1 ? (status.mapIds[0] ?? "") : "";
+        });
+        if (
+          status.active &&
+          status.snapshot !== undefined &&
+          status.revision > loadedSourceRevision.current
+        ) {
+          loadedSourceRevision.current = status.revision;
+          loadSnapshotRef.current(status.snapshot);
+        }
+      } catch (error) {
+        if (!disposed) setSourceRequestError(describeError(error));
+      } finally {
+        polling = false;
+      }
+    };
+    void poll();
+    const interval = window.setInterval(() => void poll(), 750);
+    return () => {
+      disposed = true;
+      window.clearInterval(interval);
+    };
+  }, []);
+
+  async function startSourcePreview(): Promise<void> {
+    if (sourceStartMap === "") return;
+    setSourceBusy(true);
+    setSourceRequestError(undefined);
+    try {
+      const response = await fetch("/__game-preview/api/source/start", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ startMap: sourceStartMap }),
+      });
+      if (!response.ok) throw new Error(`The preview server answered ${String(response.status)}`);
+      const status = sourceStatusSchema.parse(await response.json());
+      setSourceStatus(status);
+      if (status.snapshot !== undefined && status.revision > loadedSourceRevision.current) {
+        loadedSourceRevision.current = status.revision;
+        await loadSourceSnapshot(status.snapshot);
+      }
+    } catch (error) {
+      setSourceRequestError(`Could not start local source preview: ${describeError(error)}`);
+    } finally {
+      setSourceBusy(false);
+    }
+  }
+
+  async function stopSourcePreview(): Promise<void> {
+    setSourceBusy(true);
+    setSourceRequestError(undefined);
+    try {
+      const response = await fetch("/__game-preview/api/source/stop", { method: "POST" });
+      if (!response.ok) throw new Error(`The preview server answered ${String(response.status)}`);
+      setSourceStatus(sourceStatusSchema.parse(await response.json()));
+    } catch (error) {
+      setSourceRequestError(`Could not stop local source watching: ${describeError(error)}`);
+    } finally {
+      setSourceBusy(false);
     }
   }
 
@@ -232,9 +384,9 @@ export default function App() {
         </div>
         <p className="preview-state" role="status" aria-live="polite">
           {loading
-            ? "Loading and validating package…"
+            ? "Loading and validating world…"
             : current === null
-              ? "No world package loaded"
+              ? "No world loaded"
               : `${current.summary.name} · ${current.world.maps.size} maps`}
         </p>
       </header>
@@ -267,15 +419,99 @@ export default function App() {
             Load package
           </button>
           <button
-            disabled={current === null || loading}
+            disabled={current === null || loading || sourceBusy}
             onClick={() => {
-              if (current !== null) void loadFile(current.file);
+              if (current === null) return;
+              if (current.source === "tiled") {
+                void startSourcePreview();
+                return;
+              }
+              void loadFile(current.file);
             }}
             type="button"
           >
-            Reload
+            {current?.source === "tiled" ? "Re-export source" : "Reload"}
           </button>
         </form>
+
+        <section className="source-controls" aria-labelledby="source-preview-heading">
+          <div>
+            <h2 id="source-preview-heading">Local Tiled source</h2>
+            <p role="status" aria-live="polite">
+              {sourceStatus?.message ?? "Checking local source configuration…"}
+            </p>
+            {sourceStatus?.active === true && (
+              <p>
+                Watching source changes
+                {sourceStatus.exporting ? " · exporting and validating…" : ""}
+              </p>
+            )}
+          </div>
+          {sourceStatus?.available === true && sourceStatus.mapIds.length > 0 && (
+            <div className="source-actions">
+              <label>
+                Start map
+                <select
+                  aria-label="Tiled source start map"
+                  disabled={loading || sourceBusy}
+                  onChange={(event) => {
+                    setSourceStartMap(event.currentTarget.value);
+                  }}
+                  value={sourceStartMap}
+                >
+                  {sourceStatus.mapIds.map((mapId) => (
+                    <option key={mapId} value={mapId}>
+                      {mapId}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <button
+                disabled={sourceStartMap === "" || loading || sourceBusy}
+                onClick={() => {
+                  void startSourcePreview();
+                }}
+                type="button"
+              >
+                {sourceStatus.active ? "Restart source preview" : "Preview and watch"}
+              </button>
+              {sourceStatus.active && (
+                <button
+                  disabled={sourceBusy}
+                  onClick={() => {
+                    void stopSourcePreview();
+                  }}
+                  type="button"
+                >
+                  Stop watching
+                </button>
+              )}
+            </div>
+          )}
+          {sourceRequestError !== undefined && (
+            <p className="source-error" role="alert">
+              {sourceRequestError}
+            </p>
+          )}
+          {sourceStatus?.error !== undefined && (
+            <div className="source-error" role="alert">
+              <p>{sourceStatus.error.message}</p>
+              {sourceStatus.error.findings.length > 0 && (
+                <ul>
+                  {sourceStatus.error.findings.map((finding, index) => (
+                    <li key={`${finding.file}-${finding.code}-${String(index)}`}>
+                      <strong>
+                        {finding.severity}: {finding.file}
+                      </strong>
+                      {finding.object === undefined ? "" : ` › ${finding.object}`} —{" "}
+                      {finding.detail}
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          )}
+        </section>
 
         <div className="selection-controls">
           <label>
@@ -411,7 +647,7 @@ export default function App() {
 
       {loadError !== undefined && (
         <section className="load-error" role="alert">
-          <h2>Could not load package</h2>
+          <h2>Could not load preview</h2>
           <p>{loadError.message}</p>
           {loadError.findings.length > 0 && (
             <ul>
@@ -426,6 +662,12 @@ export default function App() {
             </ul>
           )}
         </section>
+      )}
+
+      {selectionWarning !== undefined && (
+        <p className="selection-warning" role="status">
+          {selectionWarning}
+        </p>
       )}
 
       {current?.findings.some((finding) => finding.severity === "warning") === true && (
@@ -447,7 +689,8 @@ export default function App() {
         <div ref={viewport} className="preview-game-container" />
         {current === null && (
           <p className="empty-world">
-            Select a validated <code>.tar.gz</code> world package to preview it.
+            Load a validated <code>.tar.gz</code> world package or start the local Tiled source
+            preview.
           </p>
         )}
       </section>
