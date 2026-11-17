@@ -113,6 +113,10 @@ body {
 }
 .game-sheet-body {
   padding: 16px;
+  /* Its own stacking context: the sticky headers of the pages inside (the RSVP's, z-index 5) stay below the
+     sheet's header while the content scrolls. */
+  position: relative;
+  z-index: 0;
 }
 @media (min-width: 720px) {
   .game-overlay {
