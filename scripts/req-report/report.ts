@@ -1,7 +1,7 @@
-// Combines requirements, the "not yet implemented" list, the stage plan and the
+// Combines requirements, the "not yet implemented" list, the epics of the backlog and the
 // test results into the requirement report (spec/test-strategy.md, section 3).
 
-import type { Priority, Requirement, Stage } from "./spec.ts";
+import type { Epic, Priority, Requirement } from "./spec.ts";
 import { isRequirementId } from "./spec.ts";
 import type { TestCase } from "./results.ts";
 
@@ -18,13 +18,13 @@ export interface RequirementRow {
   text: string;
   implemented: boolean;
   status: RequirementStatus;
-  stage: number | null;
+  epic: number | null;
   tests: TestCase[];
 }
 
 export interface Report {
   rows: RequirementRow[];
-  stages: Stage[];
+  epics: Epic[];
   totals: {
     ids: number;
     active: number;
@@ -42,7 +42,7 @@ export interface Report {
 export interface ReportInput {
   requirements: Requirement[];
   notImplemented: Set<string>;
-  stages: Stage[];
+  epics: Epic[];
   tests: TestCase[];
   /** Errors found while reading the inputs; they are carried into the report. */
   inputErrors?: string[];
@@ -98,28 +98,24 @@ export function buildReport(input: ReportInput): Report {
     }
   }
 
-  // Stage assignment from the implementation plan.
-  const stageOf = new Map<string, number>();
-  for (const stage of input.stages) {
-    for (const id of stage.ids) {
+  // Epic assignment from the backlog (spec/backlog/epics/).
+  const epicOf = new Map<string, number>();
+  for (const epic of input.epics) {
+    for (const id of epic.ids) {
       const req = byId.get(id);
       if (!req) {
-        errors.push(
-          `implementation-plan.md: stage ${stage.number} lists unknown requirement ${id}`,
-        );
+        errors.push(`backlog: epic ${epic.number} lists unknown requirement ${id}`);
         continue;
       }
       if (req.withdrawn) {
-        errors.push(
-          `implementation-plan.md: stage ${stage.number} lists withdrawn requirement ${id}`,
-        );
+        errors.push(`backlog: epic ${epic.number} lists withdrawn requirement ${id}`);
         continue;
       }
-      const previous = stageOf.get(id);
-      if (previous !== undefined && previous !== stage.number) {
-        warnings.push(`${id} is planned in stage ${previous} and stage ${stage.number}`);
+      const previous = epicOf.get(id);
+      if (previous !== undefined && previous !== epic.number) {
+        warnings.push(`${id} is planned in epic ${previous} and epic ${epic.number}`);
       }
-      if (previous === undefined) stageOf.set(id, stage.number);
+      if (previous === undefined) epicOf.set(id, epic.number);
     }
   }
 
@@ -133,13 +129,13 @@ export function buildReport(input: ReportInput): Report {
       text: req.text,
       implemented: !input.notImplemented.has(req.id),
       status: statusOf(tests),
-      stage: stageOf.get(req.id) ?? null,
+      epic: epicOf.get(req.id) ?? null,
       tests,
     };
     rows.push(row);
 
-    if (row.stage === null && input.stages.length > 0) {
-      warnings.push(`${req.id} is not planned in any stage of implementation-plan.md`);
+    if (row.epic === null && input.epics.length > 0) {
+      warnings.push(`${req.id} is not planned in any epic of the backlog`);
     }
     if (row.status === "failed") {
       const failing = tests.filter((test) => test.status === "failed").map(describeTest);
@@ -157,7 +153,7 @@ export function buildReport(input: ReportInput): Report {
   const implementedRows = rows.filter((row) => row.implemented);
   return {
     rows,
-    stages: input.stages,
+    epics: input.epics,
     totals: {
       ids: input.requirements.length,
       active: rows.length,
@@ -179,33 +175,33 @@ export function buildReport(input: ReportInput): Report {
   };
 }
 
-export interface StageProgress {
-  stage: number | null;
+export interface EpicProgress {
+  epic: number | null;
   title: string;
   planned: number;
   implemented: number;
   remaining: number;
 }
 
-/** Requirements per stage: planned, implemented and remaining (for the status reports). */
-export function progressByStage(report: Report): StageProgress[] {
-  const result: StageProgress[] = report.stages.map((stage) => {
-    const rows = report.rows.filter((row) => row.stage === stage.number);
+/** Requirements per epic: planned, implemented and remaining (for the status reports). */
+export function progressByEpic(report: Report): EpicProgress[] {
+  const result: EpicProgress[] = report.epics.map((epic) => {
+    const rows = report.rows.filter((row) => row.epic === epic.number);
     const implemented = rows.filter((row) => row.implemented).length;
     return {
-      stage: stage.number,
-      title: stage.title,
+      epic: epic.number,
+      title: epic.title,
       planned: rows.length,
       implemented,
       remaining: rows.length - implemented,
     };
   });
-  const unassigned = report.rows.filter((row) => row.stage === null);
+  const unassigned = report.rows.filter((row) => row.epic === null);
   if (unassigned.length > 0) {
     const implemented = unassigned.filter((row) => row.implemented).length;
     result.push({
-      stage: null,
-      title: "(no stage)",
+      epic: null,
+      title: "(no epic)",
       planned: unassigned.length,
       implemented,
       remaining: unassigned.length - implemented,
@@ -224,7 +220,7 @@ function escapeCell(text: string): string {
   return text.replaceAll("|", "\\|");
 }
 
-/** Full report as Markdown: summary, stages, problems, and one row per active requirement. */
+/** Full report as Markdown: summary, epics, problems, and one row per active requirement. */
 export function renderMarkdown(report: Report): string {
   const { totals } = report;
   const out: string[] = [];
@@ -243,14 +239,14 @@ export function renderMarkdown(report: Report): string {
   );
 
   out.push(
-    "## Stages",
+    "## Epics",
     "",
-    "| Stage | Title | Planned | Implemented | Remaining |",
+    "| Epic | Title | Planned | Implemented | Remaining |",
     "|---|---|---|---|---|",
   );
-  for (const p of progressByStage(report)) {
+  for (const p of progressByEpic(report)) {
     out.push(
-      `| ${p.stage ?? "–"} | ${p.title} | ${p.planned} | ${p.implemented} | ${p.remaining} |`,
+      `| ${p.epic ?? "–"} | ${p.title} | ${p.planned} | ${p.implemented} | ${p.remaining} |`,
     );
   }
   out.push("");
@@ -265,7 +261,7 @@ export function renderMarkdown(report: Report): string {
   out.push(
     "## Requirements",
     "",
-    "| ID | Prio | Stage | Implemented | Status | Tests |",
+    "| ID | Prio | Epic | Implemented | Status | Tests |",
     "|---|---|---|---|---|---|",
   );
   for (const row of report.rows) {
@@ -276,14 +272,14 @@ export function renderMarkdown(report: Report): string {
       )
       .join("<br>");
     out.push(
-      `| ${row.id} | ${row.priority} | ${row.stage ?? "–"} | ${row.implemented ? "yes" : "not yet"} | ${STATUS_LABEL[row.status]} | ${escapeCell(tests)} |`,
+      `| ${row.id} | ${row.priority} | ${row.epic ?? "–"} | ${row.implemented ? "yes" : "not yet"} | ${STATUS_LABEL[row.status]} | ${escapeCell(tests)} |`,
     );
   }
   out.push("");
   return out.join("\n");
 }
 
-/** Short console summary: totals, stages, errors, warnings, and the implemented requirements. */
+/** Short console summary: totals, epics, errors, warnings, and the implemented requirements. */
 export function renderConsole(report: Report): string {
   const { totals } = report;
   const out: string[] = [];
@@ -297,11 +293,11 @@ export function renderConsole(report: Report): string {
   for (const t of totals.tests) {
     out.push(`  ${t.runner.padEnd(12)}${t.total} test result(s), ${t.tagged} tagged`);
   }
-  out.push("", "  Stage  Implemented / planned  Remaining");
-  for (const p of progressByStage(report)) {
-    const stage = String(p.stage ?? "–").padStart(5);
+  out.push("", "   Epic  Implemented / planned  Remaining");
+  for (const p of progressByEpic(report)) {
+    const epic = String(p.epic ?? "–").padStart(5);
     out.push(
-      `  ${stage}  ${`${p.implemented} / ${p.planned}`.padEnd(21)}  ${p.remaining}   ${p.title}`,
+      `  ${epic}  ${`${p.implemented} / ${p.planned}`.padEnd(21)}  ${p.remaining}   ${p.title}`,
     );
   }
 

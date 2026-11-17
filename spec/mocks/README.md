@@ -105,7 +105,7 @@ Written into sw-architecture.md 7.4.1, 10.4 and 24 as well.
 
 ## UX decisions for stage 3.9 (2026-11-12, findings of the Release 1 pilot)
 
-Written into sw-architecture.md 7.1.2, 7.4.2 and 8.3 as well. The screens are drawn into the mock at the start of the step that builds them (implementation-plan.md, stage 3.9).
+Written into sw-architecture.md 7.1.2, 7.4.2 and 8.3 as well. The screens are drawn into the mock at the start of the step that builds them (epic 3.9, `spec/backlog/epics/epic-3.9-release-1-pilot.md`).
 
 | Topic | Decision |
 |---|---|

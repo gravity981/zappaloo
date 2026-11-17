@@ -1,5 +1,14 @@
 import { describe, expect, it } from "vitest";
-import { expandIdList, parseNotImplemented, parseRequirements, parseStages } from "./spec.ts";
+import {
+  checkEpicStatuses,
+  expandIdList,
+  parseEpic,
+  parseEpicHeader,
+  parseEpics,
+  parseNotImplemented,
+  parseRequirements,
+  parseRoadmap,
+} from "./spec.ts";
 
 describe("parseRequirements", () => {
   const spec = [
@@ -107,37 +116,124 @@ describe("parseNotImplemented", () => {
   });
 });
 
-describe("parseStages", () => {
-  it("reads stage numbers, titles and the IDs of their Requirements lines", () => {
-    const plan = [
-      "## 3. Stages",
-      "### Stage 1 – Walking Skeleton",
-      "**1a – Tooling.**",
-      "Requirements: none (foundation).",
-      "**1b – Skeleton.** Mentions AB-09 in prose.",
-      "Requirements: AB-01, AB-02.",
-      "### Stage 2 – Accounts",
-      "Requirements: CD-01.",
-      "## 4. Template",
+describe("parseEpic", () => {
+  it("reads the epic's number, title and the IDs of the Requirements lines of its stories", () => {
+    const epic = [
+      "# Epic 1 – Walking Skeleton",
+      "## Refinement",
       "Requirements: XY-01.",
+      "## Stories",
+      "### Story 1a – Tooling",
+      "Requirements: none (foundation).",
+      "### Story 1b – Skeleton",
+      "Mentions AB-09 in prose.",
+      "Requirements: AB-01, AB-02.",
+      "Re-verified: AB-03.",
+      "## Report",
+      "Requirements: XY-02.",
     ].join("\n");
-    expect(parseStages(plan)).toEqual([
-      { number: 1, title: "Walking Skeleton", ids: ["AB-01", "AB-02"] },
-      { number: 2, title: "Accounts", ids: ["CD-01"] },
+    expect(parseEpic(epic)).toEqual({
+      number: 1,
+      title: "Walking Skeleton",
+      ids: ["AB-01", "AB-02"],
+    });
+  });
+
+  it("reads inserted epics with a decimal number", () => {
+    expect(parseEpic("# Epic 3.5 – Installable App\n## Stories\nRequirements: PW-01.")).toEqual({
+      number: 3.5,
+      title: "Installable App",
+      ids: ["PW-01"],
+    });
+  });
+
+  it("returns undefined for a file without an epic heading", () => {
+    expect(parseEpic("# Backlog\n## Stories\nRequirements: AB-01.")).toBeUndefined();
+  });
+});
+
+describe("parseEpics", () => {
+  it("orders the epics by number and reports files without an epic and duplicate numbers", () => {
+    const result = parseEpics([
+      { name: "epic-10-last.md", markdown: "# Epic 10 – Last" },
+      { name: "epic-3.5-inserted.md", markdown: "# Epic 3.5 – Inserted" },
+      { name: "epic-3-first.md", markdown: "# Epic 3 – First" },
+      { name: "epic-3-again.md", markdown: "# Epic 3 – Again" },
+      { name: "notes.md", markdown: "# Notes" },
+    ]);
+    expect(result.value.map((e) => e.number)).toEqual([3, 3, 3.5, 10]);
+    expect(result.errors).toEqual([
+      'notes.md: no "# Epic <n> – <title>" heading',
+      "backlog: epic 3 has more than one file",
+    ]);
+  });
+});
+
+describe("parseEpicHeader", () => {
+  it("reads the status and the dependencies from the header table", () => {
+    const epic = [
+      "# Epic 9 – Event Readiness",
+      "",
+      "| Status | Release | Depends on | Branch |",
+      "|---|---|---|---|",
+      "| in progress | Event-ready | 6, 7, 3.5 | `feature/epic-9-event-readiness` |",
+    ].join("\n");
+    expect(parseEpicHeader(epic)).toEqual({ status: "in progress", dependsOn: [6, 7, 3.5] });
+  });
+
+  it("reads an epic without dependencies, and none without a header table", () => {
+    const epic =
+      "| Status | Release | Depends on | Branch |\n|---|---|---|---|\n| done | R1 | – | x |";
+    expect(parseEpicHeader(epic)).toEqual({ status: "done", dependsOn: [] });
+    expect(parseEpicHeader("# Epic 1 – One")).toBeUndefined();
+  });
+});
+
+describe("parseRoadmap", () => {
+  it("reads the epic rows and skips the release rows", () => {
+    const roadmap = [
+      "| Epic | Content | Depends on | Status |",
+      "|---|---|---|---|",
+      "| [5](epics/epic-5-game-world.md) | Game world | 4 | done |",
+      "| ▶ | **Opening** | | open |",
+      "| [9](epics/epic-9-x.md) | Event readiness | 6, 7 | refined |",
+    ].join("\n");
+    expect(parseRoadmap(roadmap)).toEqual([
+      { number: 5, status: "done", dependsOn: [4] },
+      { number: 9, status: "refined", dependsOn: [6, 7] },
+    ]);
+  });
+});
+
+describe("checkEpicStatuses", () => {
+  const epic = (number: number, status: string, dependsOn: number[] = []) => ({
+    number,
+    status,
+    dependsOn,
+  });
+
+  it("accepts a consistent backlog", () => {
+    const epics = [epic(1, "done"), epic(2, "ready", [1]), epic(3, "refined", [2])];
+    expect(checkEpicStatuses(epics, epics)).toEqual([]);
+  });
+
+  it("refuses a ready or in-progress epic whose dependency is not done", () => {
+    const epics = [epic(1, "in progress"), epic(2, "ready", [1]), epic(3, "in progress", [1])];
+    expect(checkEpicStatuses(epics, epics)).toEqual([
+      "epic 2 is ready, but epic 1 it depends on is in progress",
+      "epic 3 is in progress, but epic 1 it depends on is in progress",
     ]);
   });
 
-  it("ignores the stage headings of the status reports after the stages", () => {
-    const plan = [
-      "## 3. Stages",
-      "### Stage 1 – Walking Skeleton",
-      "Requirements: AB-01.",
-      "## 4. Template",
-      "### Stage <n> – <title> (<date>)",
-      "## 5. Status reports",
-      "### Stage 1 – Walking Skeleton (2026-11-10)",
-      "Requirements: XY-01.",
-    ].join("\n");
-    expect(parseStages(plan)).toEqual([{ number: 1, title: "Walking Skeleton", ids: ["AB-01"] }]);
+  it("refuses unknown statuses and dependencies, and a roadmap that disagrees with the files", () => {
+    const epics = [epic(1, "next"), epic(2, "open", [7]), epic(3, "open")];
+    const roadmap = [epic(1, "next"), epic(2, "ready", [7]), epic(4, "open")];
+    expect(checkEpicStatuses(epics, roadmap)).toEqual([
+      'epic 1: unknown status "next"',
+      "epic 2: depends on epic 7, which does not exist",
+      "roadmap.md: epic 2 is ready, but its file says open",
+      "roadmap.md: epic 3 is missing",
+      "roadmap.md: epic 4 has no file",
+    ]);
   });
 });

@@ -631,7 +631,7 @@ The start page has a fixed layout. The hosts edit its content, not its arrangeme
 | WEB-04 | The website renders and is usable on smartphones, tablets and desktop computers. | Must |
 | WEB-05 | The website offers highscore and minigame overview pages. | Should |
 | WEB-06 | The website gives access to contribution upload, the gallery and the keepsake page (see PHO). | Must |
-| WEB-07 | The program items are the schedule (name, start time, optional end time, place; reworded 2026-11-13, optional map removed 2026-11-17); on the event day, the website start page shows the current and the next entry in the event's timezone, and schedule changes are visible immediately; the game world shows no "now / next" (decided 2026-11-10). Added 2026-11-13: the "now" and "next" entries, and the "now" marker in the programme, are shown only to a guest who accepted, i.e. whose RSVP status is "attending" (7.4.1); the other guests see the programme without the "now" marker and no "now / next" card. Open points: see the stage 4 part of implementation-plan.md. | Should |
+| WEB-07 | The program items are the schedule (name, start time, optional end time, place; reworded 2026-11-13, optional map removed 2026-11-17); on the event day, the website start page shows the current and the next entry in the event's timezone, and schedule changes are visible immediately; the game world shows no "now / next" (decided 2026-11-10). Added 2026-11-13: the "now" and "next" entries, and the "now" marker in the programme, are shown only to a guest who accepted, i.e. whose RSVP status is "attending" (7.4.1); the other guests see the programme without the "now" marker and no "now / next" card. Open points: see the report of epic 4 (backlog/epics/epic-4-content-website.md). | Should |
 | WEB-08 | ~~A schedule entry with a map offers "Go there", which opens that map in the game.~~ (withdrawn 2026-11-14: the game world and the program items are not linked, 14.2) | – |
 | WEB-09 | The programme shows a guest only the program items they are invited to. When it leaves items out, one line says so (changed 2026-11-14: the line is shown only when items are hidden, as in the mock variant "invited to Apéro only"). | Should |
 | WEB-10 | The start page has a fixed layout (5.6). Before the event day it shows an optional hero image, the welcome text, the countdown card, the RSVP card and shortcuts. On the event day it shows "now / next" (to guests who accepted, WEB-07), the cards of the existing features and the shortcuts. The hosts pick the hero image (uncropped, with an alt text) and edit the welcome text in Inhalte (added 2026-11-13). | Must |
@@ -2519,7 +2519,7 @@ Production data and uploads must never be overwritten or deleted by a deployment
 
 ## 23.2 Branches and CI
 
-- `main` is always releasable. Work happens on short-lived feature branches (one per stage, see implementation-plan.md) and is merged into `main` through pull requests.
+- `main` is always releasable. Work happens on short-lived feature branches (one per epic, `feature/epic-<n>-<title>`, see backlog/README.md) and is merged into `main` through pull requests.
 - No branch protection on `main` (single developer). CI runs on every pull request and push, and a release candidate is only built from a commit whose CI passed (23.3).
 - Workflow **`ci.yml`** runs on every pull request and every push to `main`:
 
@@ -2572,7 +2572,7 @@ flowchart LR
 - Tags matching `v*` are protected by a repository ruleset: only the release workflows can create them; nobody can move or delete them.
 - Releases and candidates are immutable. A problem found in `1.2.0-rc.1` is fixed on `main` and released as `1.2.0-rc.2`. A problem found after `1.2.0` is released becomes `1.2.1`.
 - Releases are always made from `main`; there are no release branches. Hotfixes follow the same flow with a patch version.
-- The product releases in implementation-plan.md (Release 1, Opening, Event-ready, After the event) are each shipped as such a release.
+- The product releases in backlog/roadmap.md (Release 1, Opening, Event-ready, After the event) are each shipped as such a release.
 
 ### 23.3.1 Release Notes
 
@@ -2987,7 +2987,7 @@ Implementation proceeds in stages. The system is deployed to staging from the fi
 
 The concrete steps of each stage are agreed before the stage starts (see CLAUDE.md).
 
-The spec is approved (2026-11-04). The steps of each stage and the status reports are in [implementation-plan.md](implementation-plan.md).
+The spec is approved (2026-11-04). The epics (formerly stages), their stories (formerly steps) and their reports are in the [backlog](backlog/README.md), ordered by the [roadmap](backlog/roadmap.md).
 
 ## Release 1 (early): Invitations and RSVP — Stages 1–3.5
 

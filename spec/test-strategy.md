@@ -100,7 +100,7 @@ All active requirements are listed here until their stage is delivered. Shrink t
 
 The stage each requirement belongs to is listed in `sw-architecture.md`, section 28.
 
-**Partially implemented** (decided 2026-11-10). These requirements count as implemented from stage 2 on, because their mechanism exists and is tested, but parts of them belong to features of later stages. Each part is a "Follow-up from stage 2" line of the step that builds the feature in `implementation-plan.md`, and that step adds tests tagged with the ID:
+**Partially implemented** (decided 2026-11-10). These requirements count as implemented from stage 2 on, because their mechanism exists and is tested, but parts of them belong to features of later stages. Each part is a "Follow-up from stage 2" line of the story that builds the feature in its epic file (`backlog/epics/`), and that step adds tests tagged with the ID:
 
 - ACS-05: the treasure-hunt condition (step 8d); the admin page for manual releases, with the step that stores access conditions (step 8d, HUNT-05; pages carry none in stage 4, decided 2026-11-13).
 - ACS-07: server checks for protected game areas (step 8d; stage 5 checks only sign-in, the open platform and guest access, decided 2026-11-17), contribution upload (7b), moderation (7c), minigame start and result submission (8b).

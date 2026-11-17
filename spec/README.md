@@ -2,7 +2,7 @@
 
 Zappaloo is a reusable digital event platform (e.g. for weddings) that combines a browser-based pixel-art game world with a classic, responsive event website. Both draw on one central content and data base. The game is the core experience: guests explore the event venues with their own avatar among the wandering figures of all attending guests, play minigames with central highscores, answer the RSVP, and contribute photos and messages via QR codes.
 
-**Status: approved (2026-11-04).** Implementation follows [implementation-plan.md](implementation-plan.md).
+**Status: approved (2026-11-04).** Implementation follows the [backlog](backlog/README.md): the [roadmap](backlog/roadmap.md) and one file per epic.
 
 This folder is the **source of truth**. The code implements the spec. When the code and the spec disagree, either the code gets fixed or the spec gets changed explicitly. Silent deviations are not allowed.
 
@@ -13,7 +13,9 @@ This folder is the **source of truth**. The code implements the spec. When the c
 | [README.md](README.md) | Purpose, document index, conventions, topic status, decisions |
 | [sw-architecture.md](sw-architecture.md) | Concept, architecture, technology choices, and all requirement tables |
 | [test-strategy.md](test-strategy.md) | Test levels, tooling, requirement traceability, "not yet implemented" list |
-| [implementation-plan.md](implementation-plan.md) | Stages and steps, preconditions, releases, status reports after each stage |
+| [backlog/README.md](backlog/README.md) | How we work on epics and stories (policy), templates |
+| [backlog/roadmap.md](backlog/roadmap.md) | Order of the epics, release points, status of each epic |
+| [backlog/epics/](backlog/epics/) | One file per epic (formerly a stage): refinement, stories (formerly steps), epic report |
 | [manual-test-protocol.md](manual-test-protocol.md) | Records of manual checks in real environments, read by the requirement report |
 | [mocks/](mocks/README.md) | Clickable UX mocks of website, game world and admin area, with the UX decisions; frontend steps follow them |
 | [game-engine/README.md](../game-engine/README.md) | The contract of the game world: Tiled maps to world package to the shared Phaser engine, rendering and collisions |
