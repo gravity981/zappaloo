@@ -49,7 +49,7 @@ Status values: **specified** (requirements written, not implemented) · **in pro
 
 | Prefix | Topic | Section in sw-architecture.md | Reqs (active) | Stage | Status |
 |---|---|---|---|---|---|
-| GAME | Game world: entry, guided start, controls, movement, objects | 3 | 18 | 5 | specified |
+| GAME | Game world: entry, guided start, controls, movement, objects and rendering fidelity | 3 | 20 | 5 | specified |
 | PRES | Guest presence (wandering figures, speech bubble with profile) and seating | 3.6 | 13 (2 withdrawn) | 6 | specified |
 | HUNT | Treasure hunt | 3.7 | 7 | 8 | specified |
 | MG | Minigames, results, highscores | 4 | 13 | 8 | specified |
@@ -66,7 +66,7 @@ Status values: **specified** (requirements written, not implemented) · **in pro
 | GRP | Guest groups | 12 | 2 | 2 | implemented |
 | PHO | Contributions: snapshots (gallery, photo wall) and keepsakes (keepsake page, printable book) | 13 | 18 (1 withdrawn) | 7 | specified |
 | MOD | Moderation (swipe view) | 13.7 | 5 | 7 | specified |
-| MAP | Tiled maps, world importer and world package, template world | 14 | 14 (2 withdrawn) | 5 | specified |
+| MAP | Tiled maps, world importer and world package, template world and development preview | 14 | 16 (2 withdrawn) | 5 | specified |
 | DATA | Database and data model | 18 | 5 | 1, 2, 3 | implemented |
 | CFG | Event configuration, installation model | 19, 20 | 7 | 2, 4 | in progress |
 | OPS | Deployment, backup tools, CI/CD, versioning and releases (hosting out of scope) | 21–23 | 17 (2 withdrawn) | 1, 3 | in progress |
@@ -77,7 +77,7 @@ Status values: **specified** (requirements written, not implemented) · **in pro
 | PWA | Installable app (manifest, icons, home screen) | 19.5 | 5 | 3.5 | implemented |
 | LIC | Copyright and license notice in the footer | 19.6 | 3 | 3.5 | implemented |
 | THM | Theme package (app icons, colours, fonts) | 19.7 | 6 | 4 | specified |
-| | **Total** | | **244** (277 IDs, 33 withdrawn) | | |
+| | **Total** | | **248** (282 IDs, 34 withdrawn) | | |
 
 Sections with no requirement table describe architecture and technology choices: 15 (stack), 16 (frontend), 17 (backend), 26 (project structure), 27 (decision summary), 28 (stages) and 29 (principles). Section 30 lists what is out of scope for the first version.
 

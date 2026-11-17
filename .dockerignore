@@ -7,6 +7,8 @@
 .devcontainer
 # The devcontainer build (context ".." ) copies its own Dockerfile
 !.devcontainer/Dockerfile
+/world/
+/world-scratch/
 .e2e-data
 reports
 coverage

@@ -471,6 +471,7 @@ Requirements: GAME-01, GAME-02, GAME-03, GAME-07, GAME-09, GAME-10, GAME-19, MAP
 - Support **both** opening a world `tar.gz` package and watching local Tiled sources. The source workflow exports/packages locally and then uses the same validator and runtime format as a package import; it does not introduce a TMX/TSX browser parser.
 - **Tiled is the visual authority**, not the asset repository's preview. Match the authored artwork by default. Extra shadows or other preview effects are not part of the baseline and must be off during parity checks; implementing optional effects is not required by these steps.
 - All data under `world/hz-event-assets/` is sensitive and remains local. Use its preview as a reference for behaviour and workflow, not as a runtime dependency or a source of committed assets, fixtures or copied source files. Public/CI fixtures must be independently generated. Local captures, exports, differences and logs containing private data must stay ignored and must not enter CI uploads, release bundles or container build contexts.
+- The preview's tested behavior establishes part of the target subset: inherited group visibility, `topdown`/`index` object-layer order, individually hidden objects, `bottom`/`bottomleft` tile-object alignment, and non-zero tileset offsets. These behaviors must be reproduced from Tiled semantics, not by copying the preview implementation. Until each renderer fix lands, the package validator must refuse the corresponding unsupported input.
 
 **Evidence from the initial source review** (not yet a measured visual comparison):
 - `frontend/src/game/map-model.ts` reads tileset offsets but ignores them for tile objects, always places tile objects from a bottom-left anchor, and never applies `objectalignment`. Artwork and its collision, trigger and occlusion guides can therefore disagree with Tiled.
@@ -482,13 +483,14 @@ Requirements: GAME-01, GAME-02, GAME-03, GAME-07, GAME-09, GAME-10, GAME-19, MAP
 
 **5e.1 – Fidelity contract, private-data boundaries and Tiled reference tests.**
 - First update sw-architecture.md 14.1/14.4 and test-strategy.md with the confirmed decisions above. Add requirements at the end of the relevant requirement tables for visual fidelity and the development-only shared-engine preview, without renumbering existing IDs. Assign those IDs to the following steps and the requirement report; do not claim them implemented until their acceptance tests pass.
-- Define the supported Tiled rendering subset explicitly. Catalogue fields currently accepted but ignored, including layer/group offsets, opacity, tint, parallax, object visibility and draw order, and tile transforms. Implement the supported semantics in the later steps or reject unsupported non-default settings with actionable validator findings. Never accept a setting and silently draw a different world. Changes to the package contract, generated schemas and compatibility must be documented and tested together.
-- Add reproducible, version-pinned Tiled CLI/rasterizer tooling to the devcontainer and to the public-fixture test job. Use the same version for reference image generation and source exports; no download or asset-repository access during a test. Keep Tiled out of the production runtime image.
+- Define the supported Tiled rendering subset explicitly. Include the preview-tested visibility, object-layer ordering, tile-object alignment and tileset-offset behavior described above; retain explicit refusals for unsupported opacity, tint, parallax, map/layer offsets and tile transforms. Catalogue all settings currently accepted but ignored. Until each supported behavior is implemented, reject its non-default settings with actionable validator findings; remove each temporary refusal only with its renderer change and parity regression test. Never accept a setting and silently draw a different world. Changes to the package contract, generated schemas and compatibility must be documented and tested together.
+- Add reproducible, version-pinned Tiled CLI/rasterizer tooling to the devcontainer and to the public-fixture test job. Use the same version for reference image generation and source exports; no download or asset-repository access during a test. Keep Tiled out of the production runtime image. The pinned AppImage is Linux x86_64-only; CI runs on x86_64 and ARM64 devcontainers remain buildable without local parity tooling.
 - Explicitly exclude the private world directory and private generated output from Docker build contexts, git tracking and automatic test-artifact uploads. Keep the local asset checkout read-only; export into a separate ignored scratch directory.
-- Create small, independently generated Tiled fixtures and a comparison harness. Generate expected artwork with Tiled's rasterizer, excluding editor-only gameplay shapes but retaining tile objects. Capture actual artwork through the real Phaser renderer, not only a pure map-model calculation. Use a fixed viewport, DPR 1, native scale, nearest-neighbour sampling, deterministic colour/alpha handling and no player, guides, generated shadows or animations.
+- Create small, independently generated Tiled 1.12.2 fixtures and a comparison harness. Generate expected artwork with Tiled's rasterizer, excluding editor-only gameplay shapes but retaining tile objects. Capture actual artwork through the real Phaser renderer, not only a pure map-model calculation. Use a fixed viewport, DPR 1, native scale, nearest-neighbour sampling, deterministic colour/alpha handling and no player, guides, generated shadows or animations.
 - Compare image dimensions, artwork bounds and visible RGBA pixels: **zero differing visible pixels** at native scale; ignore RGB values only where both pixels are fully transparent. Do not mask misplaced artwork or auto-align images. A single documented coordinate-origin translation is allowed only if shared by artwork, gameplay and camera transforms. Check zoom 2 separately for crisp scaling.
 - Record initial failures as a baseline, not acceptance. Use existing test runners and requirement-tagged tests; do not leave deliberately failing tests in the normal suite. Activate each regression as its fix lands, with the complete parity gate mandatory in 5e.8. Private-world comparisons run locally only and return a non-zero result on a mismatch.
-Requirements: new fidelity/preview requirements (defined here); re-verified: GAME-01, MAP-02, MAP-06, MAP-16, MAP-17.
+- **Initial public-fixture baseline (Tiled 1.12.2, desktop Chromium, DPR 1):** the 4 × 3 map produces a 224 × 112 reference; Phaser dimensions match, but its visible bounds are `(32, 0)–(223, 111)` versus Tiled's `(0, 0)–(223, 111)`, with 10,891 differing visible pixels. At 2×, dimensions are 448 × 224; Phaser bounds are `(64, 0)–(447, 223)` versus `(0, 0)–(447, 223)`, with 43,418 differing visible pixels. These are recorded failures, not acceptance thresholds; no alignment or masking is applied.
+Requirements: GAME-20, MAP-18; re-verified: GAME-01, MAP-02, MAP-06, MAP-16, MAP-17.
 Exit: a reproducible Tiled-vs-engine comparison, a documented mismatch baseline and private-output boundaries. No renderer fix yet.
 
 **5e.2 – Extract one reusable game engine without changing its behaviour.**
@@ -496,7 +498,7 @@ Exit: a reproducible Tiled-vs-engine comparison, a documented mismatch baseline 
 - Separate transport from world preparation: loading a production world uses authenticated versioned URLs; loading a preview world uses a local validated package. Both produce the same engine input and resolve textures/frames through the same preparation code. Keep browser code free of Node archive/validator dependencies.
 - Keep authentication, application routes, React overlays and production API requests in the frontend adapter. Make map/spawn/figure selection and persistence host inputs; preserve the guest's existing entry rules and keep preview selections from changing the guest's remembered map.
 - Wire the frontend to the extracted engine and retain lazy Phaser loading. Move the relevant unit tests and include the workspace in TypeScript, lint, Vitest and requirement-report discovery. Update Docker build inputs for the new production dependency without including the preview or private assets.
-Requirements: new shared-engine preview requirement; re-verified: GAME-01, GAME-02, GAME-03, GAME-09, GAME-10, GAME-19, MAP-02, MAP-10.
+Requirements: MAP-18; re-verified: GAME-01, GAME-02, GAME-03, GAME-09, GAME-10, GAME-19, MAP-02, MAP-10.
 Exit: Zappaloo runs the shared engine with existing behaviour and passing focused tests; the recorded fidelity failures remain identifiable.
 
 **5e.3 – Standalone game-preview with package loading.**
@@ -506,7 +508,7 @@ Exit: Zappaloo runs the shared engine with existing behaviour and passing focuse
 - A failed load shows its findings and retains the previous usable world; a first-load failure shows no success-shaped scene. Dispose old scenes, textures and local package resources when replacing a world.
 - Require the development environment explicitly; do not add a production route or preview service to Docker Compose/Caddy. Test that production images/bundles contain neither preview endpoints nor preview UI or private assets. Scope file access to the selected validated package, not arbitrary filesystem paths.
 - Add public-fixture component/integration and browser tests for startup without a backend, selectors, failed/replaced packages, resource cleanup and the shared engine path. Document the command and controls.
-Requirements: new preview requirement; re-verified: MAP-06, MAP-16.
+Requirements: MAP-18; re-verified: MAP-06, MAP-16.
 Exit: the standalone preview can load a package and reproduce the same engine behaviour as the webapp, including the still-open visual defects.
 
 **5e.4 – Local Tiled-source export and watch workflow.**
@@ -515,7 +517,7 @@ Exit: the standalone preview can load a package and reproduce the same engine be
 - Reuse existing Zappaloo archive/validation helpers where applicable. Do not modify the asset repository or fetch its dependencies/specs. Any missing source configuration is reported explicitly, not guessed; the package picker still works without the private checkout.
 - Debounce edits, serialize exports and publish a new validated snapshot atomically. Show export/validation errors while retaining the last working snapshot. Refresh changed textures as well as maps, preserve valid selections where possible, and report when a selection no longer exists.
 - Test export/watch/recovery with generated public sources. Compare source-preview output with opening its exported package; both must enter the same preparation and renderer path.
-Requirements: new preview requirement; re-verified: MAP-01, MAP-06, MAP-10, MAP-16.
+Requirements: MAP-18; re-verified: MAP-01, MAP-06, MAP-10, MAP-16.
 Exit: saving a local Tiled source refreshes the preview safely, without an application import or a second map parser.
 
 **5e.5 – Correct placement and coordinate transforms.**
@@ -523,7 +525,7 @@ Exit: saving a local Tiled source refreshes the preview safely, without an appli
 - Fix tile-layer image anchoring (including oversized collection images), sheet margin/spacing and sparse collection IDs. Honour supported tile-object alignment, default isometric alignment, tile offsets and scaled/fractional dimensions. Use the same placed-image transform for collision, trigger and occlusion guides.
 - Add Tiled-backed fixtures for non-square maps, sheets and collections, mixed image sizes, offsets, supported alignments, scaling and shared tile/object landmarks. Add independent geometry assertions for guides, spawn positions and pointer inversion; do not calculate expected positions with the implementation under test.
 - Re-run keyboard, tap-to-move, collision and portal tests after coordinate changes. Fix the shared engine, never compensate inside the preview.
-Requirements: new fidelity requirement; re-verified: GAME-01, GAME-02, GAME-03, GAME-09, GAME-10, MAP-02.
+Requirements: GAME-20; re-verified: GAME-01, GAME-02, GAME-03, GAME-09, GAME-10, MAP-02.
 Exit: placement fixtures have zero visible-pixel differences, with gameplay geometry aligned to their artwork.
 
 **5e.6 – Preserve Tiled's static composition.**
@@ -531,7 +533,7 @@ Exit: placement fixtures have zero visible-pixel differences, with gameplay geom
 - Preserve Tiled's isometric tile traversal and object-layer `draworder` (`index` or `topdown`, including stable ties). Do not substitute projected screen y for Tiled's authored object ordering or move every object above every tile layer.
 - Test interleaved object/tile layers, overlapping translucent artwork, multiple object groups, hidden parents with visible children, hidden individual objects, and objects whose authored and projected y orders differ.
 - Choose the simplest shared rendering strategy that passes the actual Tiled comparisons. The reference's static composition is useful prior art, not a mandate to allocate one full-map pixel/depth buffer: map-size limits, memory and browser texture limits must remain viable. Retain authored order across any chunks or batches.
-Requirements: new fidelity requirement; re-verified: GAME-01, MAP-02.
+Requirements: GAME-20; re-verified: GAME-01, MAP-02.
 Exit: the complete static composition fixtures match Tiled exactly, not merely object positions.
 
 **5e.7 – Player occlusion without changing the authored world.**
@@ -539,7 +541,7 @@ Exit: the complete static composition fixtures match Tiled exactly, not merely o
 - Transform guides with their artwork. Test a player in front of, behind and crossing a sloped occlusion line; overlapping occluders; transparent pixels; scaled objects; and objects without a guide. Check visible feet against frame padding so animation does not make the player jump or change occlusion incorrectly.
 - Preserve collision and portal semantics. Debug guides and player/effect toggles must not change the underlying artwork or leak into parity captures.
 - Measure representative map memory, render cost and frame stability before accepting a compositing strategy; do not regress the existing map limits or defer an unbounded allocation to the later loading-time step.
-Requirements: GAME-19 and new fidelity requirement; re-verified: GAME-02, GAME-03, GAME-07.
+Requirements: GAME-19, GAME-20; re-verified: GAME-02, GAME-03, GAME-07.
 Exit: deterministic player-occlusion tests pass while artwork-only comparisons remain unchanged.
 
 **5e.8 – End-to-end parity and local-world acceptance gate.**
@@ -548,7 +550,7 @@ Exit: deterministic player-occlusion tests pass while artwork-only comparisons r
 - Run the existing movement, portal, import/rollback, lazy-loading and access-control tests. Check preview and guest game in desktop/mobile Chromium and WebKit; finish the outstanding phone-display check with the project owner. Run focused tests during each repair, then the combined relevant suites, lint, typecheck, production build and requirement report after fresh test results.
 - Locally compare the sensitive world from both its sources and its package against Tiled. Inspect representative overlaps, props, layer visibility and the camera while walking. Keep screenshots/diffs private and record only the acceptance outcome and non-sensitive defect descriptions in tracked documentation.
 - Update the architecture, test strategy and development instructions to describe the implemented boundaries, commands and supported Tiled settings. Do not mark visual fidelity complete based solely on the generated fixtures: require the local private-world comparison and project-owner visual approval too.
-Requirements: new fidelity/preview requirements; re-verified: GAME-01, GAME-02, GAME-03, GAME-07, GAME-09, GAME-10, GAME-19, MAP-01, MAP-02, MAP-06, MAP-10, MAP-16, MAP-17.
+Requirements: GAME-20, MAP-18; re-verified: GAME-01, GAME-02, GAME-03, GAME-07, GAME-09, GAME-10, GAME-19, MAP-01, MAP-02, MAP-06, MAP-10, MAP-16, MAP-17.
 Exit: no unexplained visual differences on supported features; both hosts use one engine; private assets remain local; 5f may begin. Step 5j still owns the sign-in-to-playable loading budget.
 
 **5f – Objects and overlays.** Mock screens: `game`, `game-overlay`, `admin-world` (variant "objects").

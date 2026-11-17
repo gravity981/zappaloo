@@ -16,6 +16,7 @@ export interface GameState {
 export interface GameTestHook {
   activeScenes: () => string[];
   state: () => GameState | undefined;
+  renderArtwork: (mapId: string, width: number, height: number, zoom?: number) => Promise<void>;
 }
 
 declare global {
@@ -29,11 +30,48 @@ let read: (() => GameState) | null = null;
 
 function publish(): void {
   if (import.meta.env.VITE_TEST_HOOKS !== "true") return;
+  const instance = game;
   window.__zappaloo = {
-    game: game
+    game: instance
       ? {
-          activeScenes: () => game?.scene.getScenes(true).map((scene) => scene.scene.key) ?? [],
+          activeScenes: () => instance.scene.getScenes(true).map((scene) => scene.scene.key),
           state: () => read?.(),
+          renderArtwork: async (mapId, width, height, zoom = 1) => {
+            const parent = instance.canvas.parentElement;
+            if (parent !== null) {
+              parent.style.width = `${String(width)}px`;
+              parent.style.height = `${String(height)}px`;
+            }
+            instance.scale.setParentSize(width, height).setGameSize(width, height);
+            instance.scene.start("world", { mapId, spawn: "start", artworkOnly: true, zoom });
+            await new Promise<void>((resolve, reject) => {
+              const timeout = window.setTimeout(() => {
+                reject(
+                  new Error(
+                    `Phaser did not render ${width}x${height}; canvas is ${instance.canvas.width}x${instance.canvas.height}, scale is ${instance.scale.width}x${instance.scale.height}, parent is ${parent?.clientWidth}x${parent?.clientHeight}`,
+                  ),
+                );
+              }, 10_000);
+              const waitForRender = () => {
+                if (
+                  !instance.scene.isActive("world") ||
+                  read?.().mapId !== mapId ||
+                  instance.canvas.width !== width ||
+                  instance.canvas.height !== height
+                ) {
+                  requestAnimationFrame(waitForRender);
+                  return;
+                }
+                requestAnimationFrame(() => {
+                  requestAnimationFrame(() => {
+                    window.clearTimeout(timeout);
+                    resolve();
+                  });
+                });
+              };
+              requestAnimationFrame(waitForRender);
+            });
+          },
         }
       : undefined,
   };

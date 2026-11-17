@@ -6,6 +6,7 @@ import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { expect, test, type Page } from "@playwright/test";
 import { buildTestWorld, TEST_WORLD_NAME } from "../backend/src/world/build.ts";
+import { comparePhaserCanvas, createTiledParityFixture } from "./tiled-parity.ts";
 import { signInAsAdmin } from "./support.ts";
 import de from "../frontend/src/i18n/locales/de/common.json" with { type: "json" };
 
@@ -95,4 +96,60 @@ test("[GAME-10][GAME-03] a tap walks the player into the portal, which leads to 
 
   await page.reload();
   expect((await gameState(page)).mapId).toBe("garten");
+});
+
+test("[GAME-20] records a Tiled-to-Phaser artwork parity baseline", async ({
+  page,
+  context,
+}, testInfo) => {
+  test.skip(testInfo.project.name !== "desktop-chromium", "fixed viewport and DPR 1 baseline");
+  test.skip(
+    process.platform !== "linux" || process.arch !== "x64",
+    "pinned Tiled is Linux x86_64 only",
+  );
+  await signInAsAdmin(page, context);
+
+  mkdirSync(testInfo.outputDir, { recursive: true });
+  const fixture = createTiledParityFixture(testInfo.outputDir);
+  const archive = join(testInfo.outputDir, "tiled-world.tar.gz");
+  writeFileSync(archive, fixture.archive);
+  await page.goto("/admin/world");
+  await page.locator('input[type="file"]').setInputFiles(archive);
+  await expect(page.getByText(de.admin.world.imported)).toBeVisible();
+
+  await page.goto("/game");
+  await expect(page.getByTestId("game-canvas")).toBeVisible();
+  await gameState(page);
+  expect(await page.evaluate(() => window.devicePixelRatio)).toBe(1);
+
+  const render = async (
+    size: { width: number; height: number },
+    zoom: number,
+    reference: string,
+  ) => {
+    await page.evaluate(
+      async ({ width, height, renderZoom }) => {
+        const game = window.__zappaloo?.game;
+        if (game === undefined) throw new Error("the Phaser test hook is not available");
+        await game.renderArtwork("kirche", width, height, renderZoom);
+      },
+      { width: size.width, height: size.height, renderZoom: zoom },
+    );
+    const measurement = await comparePhaserCanvas(page, reference);
+    expect(measurement.dimensionsMatch).toBe(true);
+    return measurement;
+  };
+
+  const native = await render(fixture.referenceSize, 1, fixture.reference);
+  const zoom2 = await render(fixture.reference2xSize, 2, fixture.reference2x);
+  expect(fixture.reference2xSize).toEqual({
+    width: fixture.referenceSize.width * 2,
+    height: fixture.referenceSize.height * 2,
+  });
+  const baseline = { native, zoom2 };
+  await testInfo.attach("tiled-parity-baseline.json", {
+    body: Buffer.from(`${JSON.stringify(baseline, null, 2)}\n`),
+    contentType: "application/json",
+  });
+  console.info(`Tiled-to-Phaser parity baseline: ${JSON.stringify(baseline)}`);
 });

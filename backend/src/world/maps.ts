@@ -225,6 +225,94 @@ function allObjects(layers: TiledLayer[]): TiledObject[] {
   );
 }
 
+/** Refuses Tiled settings whose rendering or map behaviour the game does not reproduce. */
+function checkRenderingSettings(
+  layers: TiledLayer[],
+  file: string,
+  findings: WorldFinding[],
+): void {
+  for (const layer of layers) {
+    const label = layer.name || "(unnamed)";
+    const numericDefaults: [string, number | undefined, number][] = [
+      ["x", layer.x, 0],
+      ["y", layer.y, 0],
+      ["offsetx", layer.offsetx, 0],
+      ["offsety", layer.offsety, 0],
+      ["opacity", layer.opacity, 1],
+      ["parallaxx", layer.parallaxx, 1],
+      ["parallaxy", layer.parallaxy, 1],
+    ];
+    for (const [key, value, expected] of numericDefaults) {
+      if (value !== undefined && value !== expected) {
+        findings.push(
+          errorFinding(
+            file,
+            "map_layer",
+            `layer ${label} has ${key}=${String(value)}; only ${String(expected)} is supported`,
+            label,
+          ),
+        );
+      }
+    }
+    if (layer.tintcolor !== undefined) {
+      findings.push(
+        errorFinding(
+          file,
+          "map_layer",
+          `layer ${label} has tintcolor=${JSON.stringify(layer.tintcolor)}; tint is not supported`,
+          label,
+        ),
+      );
+    }
+    if (layer.blendmode !== undefined && layer.blendmode !== "normal") {
+      findings.push(
+        errorFinding(
+          file,
+          "map_layer",
+          `layer ${label} has blendmode=${JSON.stringify(layer.blendmode)}; only normal is supported`,
+          label,
+        ),
+      );
+    }
+    if (layer.type === "tilelayer" && ((layer.repeatx ?? false) || (layer.repeaty ?? false))) {
+      findings.push(
+        errorFinding(
+          file,
+          "map_layer",
+          `layer ${label} repeats tiles; repetition is not supported`,
+          label,
+        ),
+      );
+    }
+    if (layer.type === "group") {
+      if (layer.visible === false) {
+        findings.push(
+          errorFinding(
+            file,
+            "map_layer",
+            `group ${label} is hidden; inherited group visibility is not supported`,
+            label,
+          ),
+        );
+      }
+      checkRenderingSettings(layer.layers, file, findings);
+    } else if (
+      layer.type === "objectgroup" &&
+      layer.draworder !== undefined &&
+      layer.draworder !== "topdown"
+    ) {
+      findings.push(
+        errorFinding(
+          file,
+          "map_layer",
+          `object layer ${label} has draworder=${JSON.stringify(layer.draworder)}; only topdown is supported`,
+          label,
+        ),
+      );
+    }
+  }
+}
+
 /** Checks one Tiled map of the package. */
 export function checkMap(id: string, bytes: Buffer, context: MapContext): MapResult {
   const file = mapFile(id);
@@ -265,6 +353,30 @@ export function checkMap(id: string, bytes: Buffer, context: MapContext): MapRes
     return { findings };
   }
   const map: TiledMap = parsed.data;
+  if (map.renderorder !== undefined && map.renderorder !== "right-down") {
+    findings.push(
+      errorFinding(
+        file,
+        "map_format",
+        `renderorder is ${JSON.stringify(map.renderorder)}; only right-down is supported`,
+      ),
+    );
+  }
+  for (const [key, value] of [
+    ["parallaxoriginx", map.parallaxoriginx],
+    ["parallaxoriginy", map.parallaxoriginy],
+  ] as const) {
+    if (value !== undefined && value !== 0) {
+      findings.push(
+        errorFinding(
+          file,
+          "map_format",
+          `${key} is ${String(value)}; only the default origin 0 is supported`,
+        ),
+      );
+    }
+  }
+  checkRenderingSettings(map.layers, file, findings);
   if (
     context.tileWidth !== undefined &&
     context.tileHeight !== undefined &&
@@ -285,6 +397,16 @@ export function checkMap(id: string, bytes: Buffer, context: MapContext): MapRes
   const tileGuides = new Map<number, TileGuides>();
   for (const tileset of map.tilesets) {
     for (const tile of tileset.tiles ?? []) {
+      if (tile.animation !== undefined && tile.animation.length > 0) {
+        findings.push(
+          errorFinding(
+            file,
+            "map_tileset",
+            `tileset ${tileset.name} tile ${String(tile.id)} is animated; tile animation is not supported`,
+            tileset.name,
+          ),
+        );
+      }
       tileGuides.set(tileset.firstgid + tile.id, checkTileGuides(tile, tileset, file, findings));
     }
   }
@@ -372,6 +494,44 @@ function checkTilesets(
   const ranges: TileRange[] = [];
   for (const tileset of map.tilesets) {
     const name = tileset.name;
+    if (
+      tileset.tileoffset !== undefined &&
+      (tileset.tileoffset.x !== 0 || tileset.tileoffset.y !== 0)
+    ) {
+      findings.push(
+        errorFinding(
+          file,
+          "map_tileset",
+          `tileset ${name} has a non-zero tileoffset (${String(tileset.tileoffset.x)}, ${String(tileset.tileoffset.y)}); only zero is supported`,
+          name,
+        ),
+      );
+    }
+    const nextFirstGid = map.tilesets.reduce(
+      (next, candidate) =>
+        candidate.firstgid > tileset.firstgid ? Math.min(next, candidate.firstgid) : next,
+      Number.POSITIVE_INFINITY,
+    );
+    const hasTileObjects = flattenLayers(map.layers).some(
+      (layer) =>
+        layer.type === "objectgroup" &&
+        layer.objects.some((object) => {
+          if (object.gid === undefined) return false;
+          const gid = object.gid & TILE_ID_MASK;
+          return gid >= tileset.firstgid && gid < nextFirstGid;
+        }),
+    );
+    const effectiveAlignment = tileset.objectalignment ?? "bottom";
+    if (hasTileObjects && effectiveAlignment !== "bottomleft") {
+      findings.push(
+        errorFinding(
+          file,
+          "map_tileset",
+          `tileset ${name} uses objectalignment=${JSON.stringify(effectiveAlignment)}; only bottomleft is currently supported`,
+          name,
+        ),
+      );
+    }
     if (tileset.source !== undefined) {
       findings.push(
         errorFinding(file, "map_tileset", "an external tileset; embed it in the map", name),
@@ -557,6 +717,16 @@ function checkTileGuides(
   const label = `${tileset.name} tile ${String(tile.id)}`;
   for (const guide of tile.objectgroup?.objects ?? []) {
     const shape = shapeOf(guide);
+    if (guide.visible === false) {
+      findings.push(
+        errorFinding(
+          file,
+          "map_guide",
+          `${label} has an individually hidden guide; hidden guides are not supported`,
+          label,
+        ),
+      );
+    }
     if (guide.name === "collision" && (shape === "polygon" || shape === "rectangle")) {
       blocks = true;
     } else if (guide.name === "trigger" && (shape === "polygon" || shape === "rectangle")) {
@@ -639,7 +809,22 @@ function checkTileLayer(
   }
   let placed = false;
   let unknownReported = false;
+  let transformReported = false;
   for (const value of values) {
+    if ((value & FLIP_MASK) !== 0) {
+      if (!transformReported) {
+        findings.push(
+          errorFinding(
+            file,
+            "map_layer",
+            `layer ${name} contains a flipped or rotated tile; tile transforms are refused`,
+            name,
+          ),
+        );
+        transformReported = true;
+      }
+      continue;
+    }
     const gid = value & TILE_ID_MASK;
     if (gid === 0) continue;
     placed = true;
@@ -703,6 +888,16 @@ function checkObject(
   const name = object.name ?? "";
   const label = name === "" ? `object ${String(object.id)}` : name;
   const shape = shapeOf(object);
+  if (object.visible === false) {
+    findings.push(
+      errorFinding(
+        file,
+        "map_object",
+        `${label} is individually hidden; hidden objects are not supported`,
+        label,
+      ),
+    );
+  }
   if (shape === "ellipse" || shape === "text") {
     findings.push(errorFinding(file, "map_object", `a ${shape} is not allowed`, label));
     return;

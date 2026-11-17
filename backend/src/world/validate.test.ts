@@ -366,6 +366,98 @@ describe("the maps: format and layers (MAP-02, MAP-06)", () => {
     expectRefused(files, "map_format");
   });
 
+  it.each([
+    ["renderorder", (m: Json) => (m.renderorder = "left-down")],
+    ["parallax origin", (m: Json) => (m.parallaxoriginx = 12)],
+  ])("[MAP-06][GAME-20] refuses unsupported map %s", (_setting, change) => {
+    const files = edit(world(), "maps/saal.json", change);
+    expectRefused(files, "map_format");
+  });
+
+  it.each([
+    ["x", (layer: Json) => (layer.x = 1)],
+    ["y", (layer: Json) => (layer.y = 1)],
+    ["offsetx", (layer: Json) => (layer.offsetx = 1)],
+    ["offsety", (layer: Json) => (layer.offsety = 1)],
+    ["opacity", (layer: Json) => (layer.opacity = 0.5)],
+    ["tintcolor", (layer: Json) => (layer.tintcolor = "#ff0000")],
+    ["parallaxx", (layer: Json) => (layer.parallaxx = 0.5)],
+    ["parallaxy", (layer: Json) => (layer.parallaxy = 0.5)],
+    ["blendmode", (layer: Json) => (layer.blendmode = "multiply")],
+    ["repeatx", (layer: Json) => (layer.repeatx = true)],
+  ])("[MAP-06][GAME-20] refuses non-default layer %s", (_setting, change) => {
+    const files = edit(world(), "maps/kirche.json", (m) => change(layerNamed(m, "boden")));
+    expectRefused(files, "map_layer");
+  });
+
+  it("[MAP-06][GAME-20] refuses a hidden group because visibility is inherited", () => {
+    const files = edit(world(), "maps/kirche.json", (m) => {
+      const group = (m.layers as Json[]).find((layer) => layer.type === "group");
+      if (group === undefined) throw new Error("no group layer");
+      group.visible = false;
+    });
+    expectRefused(files, "map_layer");
+  });
+
+  it("[MAP-06][GAME-20] refuses index draw order on an object layer", () => {
+    const files = edit(world(), "maps/kirche.json", (m) => {
+      const layer = allLayers(m.layers as Json[]).find((item) => item.type === "objectgroup");
+      if (layer === undefined) throw new Error("no object layer");
+      layer.draworder = "index";
+    });
+    expectRefused(files, "map_layer");
+  });
+
+  it("[MAP-06][GAME-20] refuses an individually hidden map object", () => {
+    const files = edit(world(), "maps/kirche.json", (m) => {
+      objectNamed(m, "altar").visible = false;
+    });
+    expectRefused(files, "map_object");
+  });
+
+  it.each([
+    ["tile offset", (set: Json) => (set.tileoffset = { x: 1, y: 0 })],
+    ["object alignment", (set: Json) => (set.objectalignment = "center")],
+  ])("[MAP-06][GAME-20] refuses unsupported tileset %s", (_setting, change) => {
+    const files = edit(world(), "maps/kirche.json", (m) => change(tilesetNamed(m, "gebaeude")));
+    expectRefused(files, "map_tileset");
+  });
+
+  it("[MAP-06][GAME-20] refuses the isometric default tile alignment until it is rendered", () => {
+    const files = edit(world(), "maps/kirche.json", (m) => {
+      delete tilesetNamed(m, "gebaeude").objectalignment;
+    });
+    expectRefused(files, "map_tileset");
+  });
+
+  it("[MAP-06][GAME-20] refuses animated tiles", () => {
+    const files = edit(world(), "maps/kirche.json", (m) => {
+      tileAt(tilesetNamed(m, "gebaeude"), 0).animation = [
+        {
+          tileid: 0,
+          duration: 100,
+        },
+      ];
+    });
+    expectRefused(files, "map_tileset");
+  });
+
+  it("[MAP-06][GAME-20] refuses flipped or rotated tiles in a tile layer", () => {
+    const files = edit(world(), "maps/kirche.json", (m) => {
+      const layer = layerNamed(m, "boden");
+      if (Array.isArray(layer.data)) {
+        layer.data[0] = 0x80000001;
+      } else if (typeof layer.data === "string") {
+        const data = Buffer.from(layer.data, "base64");
+        data.writeUInt32LE(0x80000001);
+        layer.data = data.toString("base64");
+      } else {
+        throw new Error("the layer has no tile data");
+      }
+    });
+    expectRefused(files, "map_layer");
+  });
+
   it("[MAP-06] refuses tiles that are not of the package's tile size", () => {
     const files = edit(world(), "maps/saal.json", (m) => {
       m.tilewidth = 32;

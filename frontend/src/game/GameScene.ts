@@ -35,6 +35,8 @@ const REACHED = 1;
 export interface WorldSceneData {
   mapId?: string;
   spawn?: string;
+  artworkOnly?: boolean;
+  zoom?: number;
 }
 
 function centreOf(cell: { column: number; row: number }, size: TileSize): Point {
@@ -48,6 +50,8 @@ export class WorldScene extends Phaser.Scene {
   #player: Phaser.GameObjects.Sprite | undefined;
   #figure: FigureData | undefined;
   #direction: Direction = "south";
+  #artworkOnly = false;
+  #zoom: number | undefined;
   #walkClock = 0;
   /** Waypoints of a tap-to-move walk, in pixels. */
   #path: Point[] = [];
@@ -72,6 +76,8 @@ export class WorldScene extends Phaser.Scene {
     const map = world.maps.get(data.mapId ?? entry.mapId) ?? world.maps.get(world.startMap);
     if (map === undefined) throw new Error("the world has no start map");
     this.#map = map;
+    this.#artworkOnly = data.artworkOnly === true;
+    this.#zoom = data.zoom;
     this.#figure = world.figures[0];
     this.#position = spawnPosition(map, data.spawn ?? entry.spawn) ?? { x: 0, y: 0 };
     this.#player = undefined;
@@ -92,11 +98,11 @@ export class WorldScene extends Phaser.Scene {
   create(): void {
     const map = this.#map;
     if (map === undefined) return;
-    this.cameras.main.setBackgroundColor("#2d6a4f");
-    this.cameras.main.setZoom(CAMERA_ZOOM);
+    this.cameras.main.setBackgroundColor(this.#artworkOnly ? "rgba(0,0,0,0)" : "#2d6a4f");
+    this.cameras.main.setZoom(this.#artworkOnly ? (this.#zoom ?? 1) : CAMERA_ZOOM);
     this.#drawMap(map);
     this.#armed = portalAt(map, this.#position) === undefined;
-    if (this.#figure !== undefined) {
+    if (!this.#artworkOnly && this.#figure !== undefined) {
       const sprite = this.add.sprite(
         this.#position.x,
         this.#position.y,
@@ -114,8 +120,14 @@ export class WorldScene extends Phaser.Scene {
       (map.columns + map.rows) * (size.width / 2),
       (map.columns + map.rows) * (size.height / 2),
     );
+    if (this.#artworkOnly) {
+      this.cameras.main.centerOn(
+        ((map.columns - map.rows) * size.width) / 4,
+        ((map.columns + map.rows) * size.height) / 4,
+      );
+    }
     this.#bindInput();
-    rememberMap(map.id, this.#storage());
+    if (!this.#artworkOnly) rememberMap(map.id, this.#storage());
     exposeState(() => {
       const camera = this.cameras.main;
       return {

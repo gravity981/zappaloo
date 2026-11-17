@@ -64,6 +64,7 @@ function portals() {
   return {
     firstgid: PORTAL,
     name: "portale",
+    objectalignment: "bottomleft",
     columns: 0,
     tilecount: 1,
     tilewidth: TILE_WIDTH,
@@ -223,6 +224,7 @@ function sheet(firstgid: number, name: string, columns: number, rows: number) {
   return {
     firstgid,
     name,
+    objectalignment: "bottomleft",
     image: `../tilesets/${name}.png`,
     imagewidth: columns * TILE_WIDTH,
     imageheight: rows * TILE_HEIGHT,
@@ -243,6 +245,7 @@ function collection(firstgid: number) {
   return {
     firstgid,
     name: "gebaeude",
+    objectalignment: "bottomleft",
     columns: 0,
     tilecount: 2,
     tilewidth: TILE_WIDTH,

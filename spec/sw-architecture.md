@@ -365,6 +365,7 @@ A treasure hunt connects the real venue with the game world:
 | GAME-17 | On the first entry, a short hint ("Tippe auf Dinge, die funkeln") is shown until the player activates the first object. | Should |
 | GAME-18 | Clicking or tapping the player's own avatar opens the profile as an overlay. | Could |
 | GAME-19 | Objects and figures are drawn in depth order: a figure whose feet are behind an occlusion line of a tile object is drawn behind that object, otherwise in front (14.2; added 2026-11-15). | Must |
+| GAME-20 | For the supported Tiled rendering subset (14.1, 14.4), static world artwork matches the Tiled 1.12.2 rasterizer pixel-for-pixel at native scale; at zoom 2 it remains crisp with nearest-neighbour scaling. | Must |
 | MP-01 | ~~Each map is a separate multiplayer room managed by the server.~~ (withdrawn: no multiplayer, see 3.3) | – |
 | MP-02 | ~~Players on the same map see the avatars and movements of the other players in that room in near real time.~~ (withdrawn: no multiplayer, see 3.3) | – |
 | MP-03 | ~~Passing through a portal moves the player from the current room to the target map's room at the configured target spawn point.~~ (withdrawn: no multiplayer; portals are covered by GAME-06) | – |
@@ -1537,6 +1538,8 @@ Maps consist of several layers, for example:
 
 Object layers can also be used. Maps are **isometric** Tiled maps with 2:1 tiles (decided 2026-11-15, format version 2). Layers may be grouped; the platform reads groups recursively, in the order of the file. A hidden layer is not drawn, but its objects still apply.
 
+The renderer's supported Tiled settings are deliberately restricted; unsupported non-default rendering settings are refused by the importer instead of being silently ignored (14.4).
+
 They define, for example:
 - Spawn points.
 - Collisions and borders.
@@ -1594,6 +1597,8 @@ Tiled exports each map as a JSON file. The maps, their tilesets and the other ar
 Phaser loads this data and interprets the layers, objects and properties.
 
 Tiled is only needed to create maps and is not part of the running server.
+
+The pinned Tiled 1.12.2 CLI is used in development and public-fixture tests to export sources and produce reference artwork. It is not included in production images. Public comparison fixtures are independently generated and need no network or asset-repository access when tests run.
 
 ## 14.4 World Importer
 
@@ -1659,10 +1664,16 @@ world.tar.gz
   - An **image-collection tileset** has one PNG per tile in `tilesets/` (its `tiles` list), of any size, for example a building, a sign or a portal arrow. Its tile ids may have gaps. Its tile width and height are not checked against the world (decided 2026-11-16); the size of each image is the size declared in the tileset.
   - Every image is named relative to the map (`../tilesets/<name>.png`), and the margin and spacing of a sheet are allowed.
 - **Layers** are tile layers, object layers and group layers. Group layers are read recursively, in the order of the file. Image layers are refused. Tile data is stored as an array (Tiled's layer format "CSV") or as Base64 without compression; compressed data is refused. A **hidden** layer is not drawn, but its objects still apply.
-- **Tile objects** may be scaled, not rotated or flipped. Their alignment and offset are honoured.
+- **Supported rendering subset (decided 2026-11-16; Tiled 1.12.2 is the pinned authoring and rasterizer version).** A setting outside this subset is refused with a finding naming the file, layer or object and the unsupported value; it is never accepted and silently rendered differently. The local world preview is a behavior reference only; its source and assets are not reused.
+  - Maps use `renderorder = right-down` (or omit it, which has that default). Other render orders are refused.
+  - Layers and groups use `x = 0`, `y = 0`, `offsetx = 0`, `offsety = 0`, `opacity = 1`, no `tintcolor`, and `parallaxx = 1`, `parallaxy = 1` (omitted fields have these defaults). Hidden groups inherit visibility; visibility affects artwork only, not gameplay data. Image layers are refused.
+  - Object layers use `draworder = topdown` or `index` (or omit it, which has the `topdown` default). Individual object visibility affects artwork only, not gameplay data.
+  - Tile objects may be scaled, not rotated or flipped. Support Tiled's isometric `bottom` alignment and `bottomleft` alignment. Apply non-zero tileset `tileoffset` to tile artwork and its guides.
+  - Tile-layer flip/rotation bits and tile-object flip/rotation are refused. Tile animation, blend modes, image layers and other render-affecting Tiled features are not supported.
+  - At the start of step 5e.1, the validator still refuses hidden groups, `draworder = index`, individually hidden objects, tile-object alignments other than `bottomleft`, and non-zero tileset offsets. These are temporary gates: remove each only with its renderer change and parity regression test.
 - **Collisions:** every tile of the tile layer named `collision` blocks; the layer itself is not drawn. Collision objects (14.2) and tile guides named `collision` block too. A border blocks its outline (14.2). A map without any of these gets a warning.
-- **Drawing order:** objects and figures are sorted by depth; the occlusion lines of tiles decide between a figure and an object (14.2, GAME-19).
-- **Positions** (decided 2026-11-16, following Phaser's isometric tilemaps, which the game's reference app uses): in an isometric map, Tiled stores the positions of objects, polygon points and spawn points scaled by half the tile width on both axes: a position `(x, y)` is the tile `(x ÷ w/2, y ÷ w/2)`, where `w` is the tile width. The game converts a tile to screen pixels with `((column − row) · w/2, (column + row) · h/2)`. A tile of a layer is drawn with its top-left at the top corner of its cell, so the cell `(column, row)` is centred on the tile corner `(column + 1, row)`. A tile object is anchored at its bottom-left corner, and tile offsets are not applied to objects. Positions are drawn in whole pixels, so that the view and the objects do not shimmer while the player moves. Terrain tiles are drawn as frames of their sheet, not as crops.
+- **Drawing order:** preserve authored layer order; apply each object layer's selected `draworder`. Figures and static objects use the depth/occlusion rules in 14.2 and GAME-19.
+- **Positions** (decided 2026-11-16, following Phaser's isometric tilemaps, which the game's reference app uses): in an isometric map, Tiled stores the positions of objects, polygon points and spawn points scaled by half the tile width on both axes: a position `(x, y)` is the tile `(x ÷ w/2, y ÷ w/2)`, where `w` is the tile width. The game converts a tile to screen pixels with `((column − row) · w/2, (column + row) · h/2)`. A tile of a layer is drawn with its top-left at the top corner of its cell, so the cell `(column, row)` is centred on the tile corner `(column + 1, row)`. Tile objects follow their tileset's `objectalignment` (`bottom` is Tiled's isometric default; `bottomleft` is also supported) and `tileoffset`; unsupported alignments are refused. Positions are drawn in whole pixels, so that the view and the objects do not shimmer while the player moves. Terrain tiles are drawn as frames of their sheet, not as crops.
 - **Objects** carry their type in Tiled's field "Class" (saved as `type`, or as `class` by Tiled 1.9). Each object of the types `spawn`, `portal` and `clickable` has a name that is unique among the spawn points, portals and clickable objects of the map, 1–40 characters of `a–z 0–9 -`. Properties are Tiled custom properties.
 
 | Type | Shape | Properties |
@@ -1822,6 +1833,7 @@ Drawing pixel art is the main effort per event. To keep it low, the platform shi
 | MAP-15 | In the admin view "Erlebniswelt", each map lists its clickable objects (Tiled name and label) and its portals; the admin assigns each clickable object's action (page as overlay, content item, dialogue, minigame or none) without re-importing the map; the preset from the Tiled file applies until the admin changes it; portals are shown read-only (decided 2026-11-10). | Must |
 | MAP-16 | The world package is a `tar.gz` with a defined layout and a format version (version 2, decided 2026-11-15). It holds the whole game world: isometric maps, tilesets, objects, the door scene and the figures of the avatar editor (reworded 2026-11-15). Only whole packages are imported, and a new package replaces the whole world. | Must |
 | MAP-17 | The JSON files of the world package (manifest, avatar definition, maps) are described by JSON Schemas per format version, committed in the repository, attached to every release and kept equal to the platform's checks by a test. `zappaloo validate` checks a whole world package outside the platform with the platform's validator (added 2026-11-14). | Should |
+| MAP-18 | A development-only game preview loads validated world packages and local Tiled sources through the same game engine as the production app; the preview and private world assets are absent from production bundles and images. | Must |
 
 ---
 

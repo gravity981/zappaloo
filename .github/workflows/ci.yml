@@ -73,6 +73,12 @@ jobs:
           node-version-file: .node-version
           cache: npm
       - run: npm ci
+      - name: Install pinned Tiled CLI
+        run: |
+          apt-get update
+          apt-get install -y --no-install-recommends squashfs-tools xvfb xauth
+          TILED_INSTALL_DIR="$RUNNER_TEMP/tiled/1.12.2" sh scripts/tiled/install.sh
+          echo "$RUNNER_TEMP/tiled/1.12.2/bin" >> "$GITHUB_PATH"
       - name: End-to-end tests
         run: npm run test:e2e
       - name: Upload test results
@@ -83,6 +89,8 @@ jobs:
           path: |
             reports/playwright.json
             playwright-report/
+            !world/**
+            !world-scratch/**
           retention-days: 14
 
   image:

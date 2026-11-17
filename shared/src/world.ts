@@ -187,6 +187,15 @@ const tiledObjectLayerBase = {
   id: z.number().int().optional(),
   name: z.string(),
   visible: z.boolean().optional(),
+  x: z.number().optional(),
+  y: z.number().optional(),
+  offsetx: z.number().optional(),
+  offsety: z.number().optional(),
+  opacity: z.number().min(0).max(1).optional(),
+  tintcolor: z.string().optional(),
+  parallaxx: z.number().optional(),
+  parallaxy: z.number().optional(),
+  blendmode: z.string().optional(),
   properties: z.array(tiledPropertySchema).optional(),
 };
 
@@ -195,6 +204,8 @@ export const tiledTileLayerSchema = z.looseObject({
   type: z.literal("tilelayer"),
   width: z.number().int().positive(),
   height: z.number().int().positive(),
+  repeatx: z.boolean().optional(),
+  repeaty: z.boolean().optional(),
   /** The tile ids: an array (encoding "csv") or Base64 text (encoding "base64"). */
   data: z.union([z.array(z.number().int().nonnegative()), z.string()]),
   encoding: z.enum(["csv", "base64"]).optional(),
@@ -205,6 +216,7 @@ export type TiledTileLayer = z.infer<typeof tiledTileLayerSchema>;
 export const tiledObjectLayerSchema = z.looseObject({
   ...tiledObjectLayerBase,
   type: z.literal("objectgroup"),
+  draworder: z.enum(["topdown", "index"]).optional(),
   objects: z.array(tiledObjectSchema),
 });
 export type TiledObjectLayer = z.infer<typeof tiledObjectLayerSchema>;
@@ -215,6 +227,14 @@ export const tiledTileSchema = z.looseObject({
   image: z.string().optional(),
   imagewidth: z.number().int().positive().optional(),
   imageheight: z.number().int().positive().optional(),
+  animation: z
+    .array(
+      z.strictObject({
+        tileid: z.number().int().nonnegative(),
+        duration: z.number().int().positive(),
+      }),
+    )
+    .optional(),
   objectgroup: z
     .looseObject({
       type: z.literal("objectgroup").optional(),
@@ -242,7 +262,19 @@ export const tiledTilesetSchema = z.looseObject({
   /** An external tileset file, refused: tilesets are embedded in the map. */
   source: z.string().optional(),
   tileoffset: z.looseObject({ x: z.number(), y: z.number() }).optional(),
-  objectalignment: z.string().optional(),
+  objectalignment: z
+    .enum([
+      "topleft",
+      "top",
+      "topright",
+      "left",
+      "center",
+      "right",
+      "bottomleft",
+      "bottom",
+      "bottomright",
+    ])
+    .optional(),
 });
 export type TiledTileset = z.infer<typeof tiledTilesetSchema>;
 
@@ -257,6 +289,15 @@ const tiledGroupLayerBase = z.looseObject({
   type: z.literal("group"),
   name: z.string(),
   visible: z.boolean().optional(),
+  x: z.number().optional(),
+  y: z.number().optional(),
+  offsetx: z.number().optional(),
+  offsety: z.number().optional(),
+  opacity: z.number().min(0).max(1).optional(),
+  tintcolor: z.string().optional(),
+  parallaxx: z.number().optional(),
+  parallaxy: z.number().optional(),
+  blendmode: z.string().optional(),
   properties: z.array(tiledPropertySchema).optional(),
 });
 
@@ -277,6 +318,9 @@ export const tiledMapSchema = z.looseObject({
   height: z.number().int().min(1).max(WORLD_LIMITS.mapSide),
   tilewidth: z.number().int().positive(),
   tileheight: z.number().int().positive(),
+  renderorder: z.enum(["right-down", "right-up", "left-down", "left-up"]).optional(),
+  parallaxoriginx: z.number().optional(),
+  parallaxoriginy: z.number().optional(),
   layers: z.array(tiledLayerSchema),
   tilesets: z.array(tiledTilesetSchema),
   properties: z.array(tiledPropertySchema).optional(),

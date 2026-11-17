@@ -40,6 +40,8 @@ export default function GameCanvas() {
       type: Phaser.AUTO,
       parent: parent.current,
       pixelArt: true,
+      transparent: import.meta.env.VITE_TEST_HOOKS === "true",
+      render: { preserveDrawingBuffer: import.meta.env.VITE_TEST_HOOKS === "true" },
       scale: { mode: Phaser.Scale.RESIZE, width: "100%", height: "100%" },
       scene: [WorldScene],
     });

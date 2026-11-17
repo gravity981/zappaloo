@@ -29,8 +29,18 @@ RUN mkdir -p /var/lib/zappaloo && chown vscode:vscode /var/lib/zappaloo
 
 # sqlite3 CLI to inspect the dev database; xz-utils to unpack Node.js
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends sqlite3 xz-utils \
+    && apt-get install -y --no-install-recommends sqlite3 xz-utils squashfs-tools xvfb xauth \
     && rm -rf /var/lib/apt/lists/*
+
+# Pinned headless Tiled CLI for development and public visual-reference fixtures.
+COPY scripts/tiled/install.sh /tmp/install-tiled.sh
+RUN case "$(dpkg --print-architecture)" in \
+        amd64) TILED_INSTALL_DIR=/opt/tiled/1.12.2 sh /tmp/install-tiled.sh \
+            && ln -s /opt/tiled/1.12.2/bin/tiled /usr/local/bin/tiled ;; \
+        arm64) echo "Pinned Tiled AppImage is x86_64-only; parity tooling is unavailable in this ARM64 devcontainer" ;; \
+        *) echo "unsupported architecture" >&2; exit 1 ;; \
+    esac \
+    && rm /tmp/install-tiled.sh
 
 # Node.js (current LTS), installed here rather than as a devcontainer feature,
 # because the Playwright browsers below need node while the image is built.

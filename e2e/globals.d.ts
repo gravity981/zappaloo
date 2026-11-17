@@ -13,6 +13,12 @@ declare global {
               view: { x: number; y: number; zoom: number; width: number; height: number };
             }
           | undefined;
+        renderArtwork: (
+          mapId: string,
+          width: number,
+          height: number,
+          zoom?: number,
+        ) => Promise<void>;
       };
     };
   }
