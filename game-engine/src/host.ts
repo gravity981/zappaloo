@@ -4,6 +4,8 @@ import type { LoadedWorld } from "./world-data.ts";
 export const ENGINE_CONFIG_REGISTRY_KEY = "zappaloo.game-engine";
 /** The pause the page asked for (GAME-11), kept in the game registry until the scene runs. */
 export const PAUSED_REGISTRY_KEY = "zappaloo.game-paused";
+/** The canvas's pixel ratio (device pixels per CSS pixel), kept up to date by the engine (GAME-27). */
+export const PIXEL_RATIO_REGISTRY_KEY = "zappaloo.game-pixel-ratio";
 export const WORLD_SCENE_KEY = "world";
 
 export interface GameSelection {
@@ -66,4 +68,6 @@ export interface GameEngineOptions {
   preserveDrawingBuffer?: boolean;
   guides?: GameGuides;
   view?: GameView;
+  /** Shows the development diagnostics overlay (GAME-27); never set in a production build. */
+  diagnostics?: boolean;
 }

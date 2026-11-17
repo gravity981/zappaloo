@@ -101,6 +101,10 @@ export default function GameCanvas({
       },
       transparent: import.meta.env.VITE_TEST_HOOKS === "true",
       preserveDrawingBuffer: import.meta.env.VITE_TEST_HOOKS === "true",
+      // The frame diagnostics (GAME-27) exist on the dev server only; a production build drops them.
+      diagnostics:
+        import.meta.env.DEV &&
+        new URLSearchParams(window.location.search).get("debug") === "frames",
     });
     game.current = instance;
     exposeGame(instance);

@@ -1,5 +1,6 @@
 import {
   createGame,
+  setGameDiagnostics,
   setGameGuides,
   setGameSelection,
   setGameView,
@@ -62,6 +63,7 @@ export default function App() {
   const isMounted = useRef(false);
   const selection = useRef<GameSelection | null>(null);
   const guides = useRef<GameGuides>(INITIAL_GUIDES);
+  const diagnostics = useRef(new URLSearchParams(window.location.search).get("debug") === "frames");
   const view = useRef<GameView>(INITIAL_VIEW);
   const fileInput = useRef<HTMLInputElement>(null);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -73,6 +75,7 @@ export default function App() {
   const [current, setCurrent] = useState<LoadedPreview | null>(null);
   const [currentSelection, setCurrentSelection] = useState<GameSelection | null>(null);
   const [currentGuides, setCurrentGuides] = useState<GameGuides>(INITIAL_GUIDES);
+  const [showFrames, setShowFrames] = useState(diagnostics.current);
   const [currentView, setCurrentView] = useState<GameView>(INITIAL_VIEW);
   const [readState, setReadState] = useState<GameStateReader | null>(null);
   const [sourceStatus, setSourceStatus] = useState<SourceStatus | null>(null);
@@ -187,6 +190,7 @@ export default function App() {
           onReady: () => resolveReady?.(),
         },
         transparent: true,
+        diagnostics: diagnostics.current,
         guides: guides.current,
         view: view.current,
       });
@@ -377,6 +381,13 @@ export default function App() {
     setCurrentGuides(next);
     const game = activeGame.current;
     if (game !== null) setGameGuides(game, next);
+  }
+
+  function updateDiagnostics(on: boolean): void {
+    diagnostics.current = on;
+    setShowFrames(on);
+    const game = activeGame.current;
+    if (game !== null) setGameDiagnostics(game, on);
   }
 
   function updateView(next: GameView): void {
@@ -636,6 +647,16 @@ export default function App() {
                 center
               </small>
             )}
+            <label>
+              <input
+                checked={showFrames}
+                onChange={(event) => {
+                  updateDiagnostics(event.currentTarget.checked);
+                }}
+                type="checkbox"
+              />
+              Frame rate and canvas
+            </label>
             <label>
               <input
                 checked={currentView.artworkOnly}

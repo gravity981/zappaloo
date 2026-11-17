@@ -2,6 +2,7 @@ export {
   createGame,
   getGameClickables,
   getGameRenderStack,
+  setGameDiagnostics,
   setGameFigure,
   setGamePaused,
   setGameGuides,

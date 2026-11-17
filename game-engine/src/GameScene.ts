@@ -36,6 +36,7 @@ import { tilesetImageKey, type ClickableArea, type ParsedMap, type TileDraw } fr
 import type { FigureData, LoadedWorld } from "./world-data.ts";
 import {
   ENGINE_CONFIG_REGISTRY_KEY,
+  PIXEL_RATIO_REGISTRY_KEY,
   WORLD_SCENE_KEY,
   type GameGuides,
   type GameEngineOptions,
@@ -190,7 +191,10 @@ export class WorldScene extends Phaser.Scene {
     const map = this.#map;
     if (map === undefined) return;
     this.cameras.main.setBackgroundColor(this.#artworkOnly ? "rgba(0,0,0,0)" : "#2d6a4f");
-    this.cameras.main.setZoom(this.#artworkOnly ? (this.#zoom ?? 1) : CAMERA_ZOOM);
+    this.#applyZoom();
+    // The canvas has device pixels (GAME-27), so its size changes the zoom's share of the view, and a new pixel
+    // ratio (the window moves to another screen) changes the zoom itself.
+    this.scale.on(Phaser.Scale.Events.RESIZE, this.#onResize);
     this.#drawMap(map);
     // The guides lie above every layer, the foreground ones included (MAP-18).
     this.#guideGraphics = this.add.graphics().setDepth(2_000_000);
@@ -201,7 +205,7 @@ export class WorldScene extends Phaser.Scene {
     this.#drawOcclusionGuides();
     this.#armed = portalAt(map, this.#position) === undefined;
     if (!this.#artworkOnly && this.#figure !== undefined) {
-      const spritePosition = playerSpritePosition(this.#position);
+      const spritePosition = playerSpritePosition(this.#position, CAMERA_ZOOM, this.#pixelRatio());
       const sprite = this.add.sprite(
         spritePosition.x,
         spritePosition.y,
@@ -210,12 +214,14 @@ export class WorldScene extends Phaser.Scene {
       sprite.setOrigin(0.5, 1);
       sprite.setDepth(figureDepth(this.#position, map.occluders, map.size.width));
       this.#player = sprite;
-      this.cameras.main.startFollow(sprite, true);
+      // The camera does not follow by itself: it is centred on the snapped sprite in update() (GAME-27).
+      this.cameras.main.setRoundPixels(true);
     }
     this.#drawOcclusionActor();
     this.#drawCollisionActor();
     const bounds = mapBounds(map.columns, map.rows, map.size);
     this.cameras.main.setBounds(bounds.x, bounds.y, bounds.width, bounds.height);
+    this.#followPlayer();
     if (this.#artworkOnly) {
       this.cameras.main.centerOn(bounds.x + bounds.width / 2, bounds.y + bounds.height / 2);
     }
@@ -236,11 +242,12 @@ export class WorldScene extends Phaser.Scene {
         direction: this.#direction,
         sparkles: this.#sparkles,
         view: {
+          // In CSS pixels, whatever the pixel ratio of the canvas is.
           x: camera.midPoint.x,
           y: camera.midPoint.y,
-          zoom: camera.zoom,
-          width: camera.width,
-          height: camera.height,
+          zoom: camera.zoom / this.#pixelRatio(),
+          width: camera.width / this.#pixelRatio(),
+          height: camera.height / this.#pixelRatio(),
         },
       };
     });
@@ -251,6 +258,7 @@ export class WorldScene extends Phaser.Scene {
     });
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
       this.#removeShines();
+      this.scale.off(Phaser.Scale.Events.RESIZE, this.#onResize);
       window.removeEventListener("keydown", this.#onKeyDown);
       window.removeEventListener("keyup", this.#onKeyUp);
       this.input.off(Phaser.Input.Events.POINTER_DOWN, this.#onTap);
@@ -264,6 +272,31 @@ export class WorldScene extends Phaser.Scene {
       this.#occlusionActorGraphics = undefined;
       this.#collisionActorGraphics = undefined;
     });
+  }
+
+  /** The canvas's device pixels per CSS pixel (GAME-27). */
+  #pixelRatio(): number {
+    const ratio: unknown = this.game.registry.get(PIXEL_RATIO_REGISTRY_KEY);
+    return typeof ratio === "number" ? ratio : 1;
+  }
+
+  /** The camera's zoom in device pixels per world pixel: the zoom of the map times the canvas's pixel ratio. */
+  #applyZoom(): void {
+    const zoom = this.#artworkOnly ? (this.#zoom ?? 1) : CAMERA_ZOOM;
+    this.cameras.main.setZoom(zoom * this.#pixelRatio());
+  }
+
+  readonly #onResize = (): void => {
+    this.#applyZoom();
+    this.#followPlayer();
+  };
+
+  /** Centres the camera on the player's snapped sprite; the scene has no other camera movement (GAME-27). */
+  #followPlayer(): void {
+    const player = this.#player;
+    if (player === undefined) return;
+    const camera = this.cameras.main;
+    camera.centerOn(player.x, player.y);
   }
 
   setGuides(guides: GameGuides): void {
@@ -375,9 +408,10 @@ export class WorldScene extends Phaser.Scene {
         ? frames[walkFrameIndex(this.#walkClock, frames.length)]
         : figure.standing[this.#direction];
     if (texture !== undefined && player.texture.key !== texture) player.setTexture(texture);
-    // Whole pixels: a fractional position is snapped differently from frame to frame, which made things shimmer.
-    const spritePosition = playerSpritePosition(this.#position);
+    // The sprite and the camera are snapped to the same device-pixel grid (GAME-27).
+    const spritePosition = playerSpritePosition(this.#position, CAMERA_ZOOM, this.#pixelRatio());
     player.setPosition(spritePosition.x, spritePosition.y);
+    this.#followPlayer();
     player.setDepth(figureDepth(this.#position, map.occluders, map.size.width));
     this.#drawOcclusionActor();
     this.#drawCollisionActor();

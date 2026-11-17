@@ -118,7 +118,9 @@ The stage each requirement belongs to is listed in `sw-architecture.md`, section
 
 **Not yet tested** (decided 2026-11-11). These requirements are implemented and their automated tests pass, but the check in a real environment that completes them has not been done. They stay on this list until it has been done and recorded in the manual test protocol. The requirement report does not read this list; it is kept by hand.
 
-The list is empty (cleared 2026-11-13). PWA-01 – PWA-05, LIC-03 and OPS-02 were checked on prod and are recorded as `pass` rows in [manual-test-protocol.md](manual-test-protocol.md). OPS-02 and OPS-12 (tag ruleset, recorded the same day) left the "not yet implemented" list.
+- **GAME-27** (added 2026-11-17, story 5.1a): the view moves smoothly while the camera follows the avatar. The automated tests cover the pixel grid and the canvas size. The check is on an iPhone 16 Pro (Safari and the installed app) with the dev server on the LAN, or a release candidate on staging, with `?debug=frames`: the frame times and the camera step before and after the fix; then Android Chrome and desktop. It goes into the manual test protocol as a row for GAME-27.
+
+Cleared on 2026-11-13 and filled again since: PWA-01 – PWA-05, LIC-03 and OPS-02 were checked on prod and are recorded as `pass` rows in [manual-test-protocol.md](manual-test-protocol.md). OPS-02 and OPS-12 (tag ruleset, recorded the same day) left the "not yet implemented" list.
 
 **When a requirement is added here:** the entry names the check, where and when it is done. Once the check is recorded as a `pass` row in the manual test protocol, the entry is deleted, and the requirement leaves the "not yet implemented" list if it was kept there for this check.
 
