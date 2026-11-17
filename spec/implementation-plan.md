@@ -341,7 +341,6 @@ Refined 2026-11-14 with the project owner, before the stage started. Branch `fea
 **Before the stage starts:**
 - The layout of the world package is defined and confirmed (sw-architecture.md 14.4). A draft was agreed on 2026-11-14 (below); step 5a writes it into the spec.
 - A first world package of the project owner, with maps drawn in Tiled, is needed for the Opening, not for building the steps. Steps 5b to 5j use a test world that a script generates.
-- The template art for step 5k is drawn by the project owner (14.5).
 
 **Decisions from the plan review (2026-11-14):**
 - **Importer first, then the engine.** The validator, the import and the admin card come before the rendering. The engine is built against the generated test world.
@@ -352,8 +351,8 @@ Refined 2026-11-14 with the project owner, before the stage started. Branch `fea
 - ~~**Avatar assets** are layered sprite sheets per part (body, hair, clothing, accessory), drawn in greyscale and tinted from the palettes named in `avatar/avatar.json`.~~ Replaced 2026-11-15 by complete figures (format version 2, below).
 - **Partially implemented after stage 5** (test-strategy.md, section 5): GAME-13 without the step "Say hello" (profile photo, greeting, "How I know the couple"), which follows in stage 6; GAME-14 without "Hochladen", which follows in stage 7; GAME-06 without the minigame action, which follows in stage 8. Until then "Erlebniswelt" offers no minigame, and a preset `action = minigame` is reported as a warning.
 - **Actions of a clickable object:** `page` opens a full overlay, either a built-in page (`programme`, `rsvp`, `profile`; later stages add theirs) or a content page as `p/<slug>`. `content` shows the text of the content page named by `contentId` (its slug) in a small reading panel, e.g. for a sign. `dialog` shows a dialogue: a new kind of content item with an NPC name and lines the guest taps through, edited in "Erlebniswelt" and referenced by `contentId`.
-- **Without an imported world,** a signed-in guest of an open platform keeps landing on the website, the start page has no "Erlebniswelt betreten", and the door scene still comes from the data volume (10.4).
-- **Template world:** shipped inside the image. The world importer offers "Vorlagenwelt importieren" (MAP-14). Step 5k may move to after stage 6 if the art is not ready; MAP-12 – MAP-14 are "Should". With format version 2 the template world is isometric.
+- **Without an active world or with guest access disabled,** a signed-in guest of an open platform lands on the website and has no guest entry point to the Erlebniswelt; the door scene still comes from the data volume (10.4).
+- **Guest access** (MAP-19): the admin controls it in Erlebniswelt › Welt & Import. It is enabled automatically on the first successful world import. Disabling it hides guest entry points and blocks direct guest navigation and world-serving routes without removing the active package or the admin's management access.
 - **Where a player enters:** the last map is remembered on the device. Otherwise, and when that map no longer exists, the player enters the start map at its spawn point `start`. A portal leads to its `targetSpawn`.
 
 **Draft layout of the world package, format version 1** (agreed 2026-11-14; the complete layout, rules and limits are in sw-architecture.md 14.4 since step 5a):
@@ -410,11 +409,11 @@ world.tar.gz
 
 **5a – Spec and mocks** (no code).
 - Section 14.4 gets the layout of format version 1: files, fields of `manifest.json` and `avatar.json`, the Tiled rules, the validator's rules and limits.
-- Mocks: `admin-world` tab "Karten & Import" becomes "Welt & Import", the importer of one whole package (active world with name, import time, maps and start map; import with findings and warnings; rollback; "Vorlagenwelt importieren"). A tab "Dialoge" in `admin-world`. The game bar without "Hochladen". The first entry with the avatar step only. "Hingehen" removed (WEB-08 withdrawn).
+- Mocks: `admin-world` tab "Karten & Import" becomes "Welt & Import", the importer of one whole package (active world with name, import time, maps and start map; import with findings and warnings; rollback). A tab "Dialoge" in `admin-world`. The game bar without "Hochladen". The first entry with the avatar step only. "Hingehen" removed (WEB-08 withdrawn).
 
 **5b – Validator and test world.** Done 2026-11-14 (decisions of the step in sw-architecture.md 14.4).
 **5c – Import, rollback and serving.** Done 2026-11-14 (decisions of the step in sw-architecture.md 14.4).
-**5d – Erlebniswelt › Welt & Import.** Done 2026-11-14: the page with the import tab only (the other tabs come with 5f and 5g), no «Vorlagenwelt importieren» (5k), per-map counts in the admin status. Open: the mock shows map names, the world carries only map ids (see the step report).
+**5d – Erlebniswelt › Welt & Import.** Done 2026-11-14: the page with the import tab only (the other tabs come with 5f and 5g), no template-world import action, per-map counts in the admin status. Open: the mock shows map names, the world carries only map ids (see the step report).
 **5d.1 – World format 2.** Done 2026-11-15 (inserted 2026-11-15; details below 5d). The decisions are in sw-architecture.md 14.4 ("Decisions of step 5d.1"); the frame and tile-size limits await the project owner's confirmation.
 - The package reader (gzip and tar, limits, paths; shared with the theme package), `manifest.json`, the Tiled checks per map (format, orientation, embedded tilesets, referenced images, layers, spawn points), portal targets inside the package, the door scene, the avatar assets. Returns all findings. One test per validator rule with a broken package.
 - A script builds the test world (two or three maps with generated placeholder tiles, avatar parts and objects of every type) for the tests and for development.
@@ -453,99 +452,16 @@ Requirements: MAP-05.
 - **Tests:** one validator test per new or changed rule with a broken package; the tests of MAP-06, MAP-16 and MAP-17 rewritten for format 2. Run `npm run cli -- validate world/<package>.tar.gz` on the prototype and list its findings in the step report. The original prototype is expected to be refused: its manifest has `tileSize` instead of `tileWidth` and `tileHeight`, `figures.json` has no labels (allowed, but worth noting), and its portal is an unnamed tile object without a trigger area. These findings go back to the world project; the platform does not loosen its rules for them.
 Requirements: MAP-06, MAP-16, MAP-17 (re-verified with format 2).
 
-**5e – Rendering and movement.** Initial implementation delivered 2026-11-16; package and engine behavior is tracked by steps 5e.1–5e.8 below. Phaser 4.2.1's native Tiled-compatible rendering is the default for the supported subset. Zappaloo consumes world packages produced by the external asset workflow and does not install or invoke Tiled. The reusable `game-engine/` workspace serves both the app and developer preview. GAME-07 on a phone is not yet checked.
-- The game route loads the active world: ordered Tiled layers (group layers flattened, hidden layers not drawn), native tile layers and bottom-aligned natural-size tile objects, depth-sorted actors in the Props band and later foreground layers (GAME-19), the camera following the player, and the first figure of the world as placeholder avatar.
-- Movement, collisions, pathfinding and wander areas work in Tiled's map coordinates and are projected to the screen only for drawing. Collisions: the `collision` tile layer, `collision` rectangles and polygons, tile collision polygons, `border` outlines.
-- Arrow keys move in screen directions (two keys move diagonally); tap-to-move with a path around the collisions (pathfinding as unit tests), suitable for phone and desktop.
-- Walking into a portal's trigger area leads to another map at a spawn point.
-Requirements: GAME-01, GAME-02, GAME-03, GAME-07, GAME-09, GAME-10, GAME-19, MAP-02.
+**5e – Shared game engine and world-package integration. Done (2026-11-17).**
 
-#### Rendering fidelity and the development preview (added 2026-11-16)
+The project owner confirms that the world renders correctly and that the world-integration risks and acceptance criteria formerly listed under 5e.1–5e.8 are resolved. Those substeps and their acceptance gates are retired; the requirement-tagged automated tests remain regression coverage.
 
-**Priority:** the world artwork must look like it does in Tiled. A playable map or a plausible screenshot is not sufficient. Complete these steps before 5f; keep the existing step numbers. Each step ends with its own review and commit by the project owner. The current branch `feature/stage-5-world-v2` belongs to stage 5; check the branch and clean working tree again before each implementation step.
+- The application and standalone preview load world packages through the shared `game-engine/` workspace.
+- The engine renders package maps, layers and objects; handles depth, collision, movement, pathfinding and portals; and exposes the development guides needed to inspect world behavior.
+- The standalone preview validates uploaded or locally watched packages. Invalid replacements preserve the last working preview.
 
-**Decisions confirmed with the project owner, 2026-11-16:**
-- Add a separate development application named **game-preview**, not a route or mode of the Zappaloo webapp. It runs only in the development environment, without signing in, a running application backend, or changes to the installed event.
-- Both applications use the **same Zappaloo engine implementation**. Extract the existing engine into a private workspace `@zappaloo/game-engine` in `game-engine/`; put the standalone Vite application in `game-preview/`. The preview must not acquire its own renderer, movement implementation or Tiled parser. Share the Phaser version and game-creation path.
-- Support opening an uploaded world `tar.gz` package and watching a local package selected by absolute filepath in the preview UI. Package export remains in the external asset workflow; do not add an environment variable, a Tiled executable or a TMX/TSX browser parser.
-- **Decision:** authored Tiled-compatible world packages are the input contract. Source export and any authoring-tool comparisons belong to the external asset workflow, not Zappaloo development or CI.
-- All data under `world/hz-event-assets/` is sensitive and remains local. Use its preview as a reference for behaviour and workflow, not as a runtime dependency or a source of committed assets, fixtures or copied source files. Public/CI fixtures must be independently generated. Local captures, exports, differences and logs containing private data must stay ignored and must not enter CI uploads, release bundles or container build contexts.
-- **Decision revised after local-world visual review:** follow Phaser 4.2.1's native Tiled rendering and the Ground → Props → Foreground convention. Tile objects use natural image size, bottom alignment and zero tileset offset. Reject scaling, non-bottom alignment and non-zero offsets. Collision, portal trigger and actor-relative occlusion guides remain image-local gameplay/rendering data; do not split artwork into lower images and a static overlay. The player's collision ellipse is centered 2 px left of its feet, with horizontal and vertical radii of 0.1 and 0.05 tile widths.
-
-**Evidence from the initial source review** (historical; the rendering path and test strategy have since changed):
-- The first implementation used a custom Tiled renderer. The Phaser-native renderer and independent expected-value geometry tests replaced that approach.
-- The initial collision implementation treated the sprite's bottom-centre as the centre of its collision circle, extending the footprint below the visible feet. Step 5e.6 corrected and tested the anchor; a later preview review changed the footprint to an ellipse centered at the logical feet, then shifted its center 2 px left.
-- Private world data remains local and read-only. Check its authoring features against the final package subset before claiming local-world compatibility; do not modify private assets.
-
-**5e.1 – Rendering contract and private-data boundaries.**
-- Define the supported Tiled-compatible rendering subset and keep it aligned with Phaser 4.2.1's native behavior plus the documented actor-depth extension. Retain actionable refusals for unsupported opacity, tint, parallax, map/layer offsets and tile transforms. Reject non-zero tile offsets, non-bottom tile-object alignment and scaling; accept valid image-local occlusion polylines.
-- Keep world-source export and authoring-tool comparison outside Zappaloo. Do not install or invoke Tiled in the devcontainer, CI, preview or production image. Zappaloo validates imported packages and tests package interpretation; the asset-producing repository tests its export with `zappaloo validate`.
-- Explicitly exclude private world data and generated private output from Docker build contexts, Git tracking and automatic test-artifact uploads. Never commit private assets, captures, exports, differences or logs.
-- Use independently generated package fixtures and expected-value geometry tests for map positions, tile-object anchors, tileset crops and map bounds. No Tiled executable or rasterizer is required for Zappaloo tests.
-Requirements: GAME-20, MAP-18; re-verified: GAME-01, MAP-02, MAP-06, MAP-16, MAP-17.
-Exit: the supported package subset, renderer geometry and private-data boundaries are documented and testable without Tiled tooling.
-
-**5e.2 – Extract one reusable game engine without changing its behaviour.**
-- Move the framework-independent map model, geometry, movement, collision, pathfinding, figures, depth logic and Phaser scene from `frontend/src/game/` into `game-engine/`. Share a small typed engine host/configuration interface rather than copying the React wrapper.
-- Separate transport from world preparation: loading a production world uses authenticated versioned URLs; loading a preview world uses a local validated package. Both produce the same engine input and resolve textures/frames through the same preparation code. Keep browser code free of Node archive/validator dependencies.
-- Keep authentication, application routes, React overlays and production API requests in the frontend adapter. Make map/spawn/figure selection and persistence host inputs; preserve the guest's existing entry rules and keep preview selections from changing the guest's remembered map.
-- Wire the frontend to the extracted engine and retain lazy Phaser loading. Move the relevant unit tests and include the workspace in TypeScript, lint, Vitest and requirement-report discovery. Update Docker build inputs for the new production dependency without including the preview or private assets.
-Requirements: MAP-18; re-verified: GAME-01, GAME-02, GAME-03, GAME-09, GAME-10, GAME-19, MAP-02, MAP-10.
-Exit: Zappaloo runs the shared engine with existing behavior and passing focused tests.
-
-**5e.3 – Standalone game-preview with package loading.**
-- Add the private `game-preview/` workspace, a root `npm run dev:game-preview` command, a VS Code task and a dedicated forwarded port (5175, leaving frontend 5173 and mocks 5174 unchanged). Use the repository's existing Vite/TypeScript tooling.
-- Provide the useful controls of the reference preview: package picker, map/spawn/figure selectors, reload, explicit loading/validation/asset errors and toggles for collision, border, spawn and portal guides. Include an artwork-only view and deterministic camera/reset controls for comparison. Keep this developer UI separate from guest UX mocks.
-- Also accept an absolute local package filepath in the preview UI; watching and reloading that package is specified in step 5e.4.
-- Validate packages locally through the existing archive reader and world validator before preparing engine input. A development-only Vite server adapter can host Node-only validation and serve only the validated package files. No database or production import is required, and the active event is never modified.
-- A failed load shows its findings and retains the previous usable world; a first-load failure shows no success-shaped scene. Dispose old scenes, textures and local package resources when replacing a world.
-- Require the development environment explicitly; do not add a production route or preview service to Docker Compose/Caddy. Test that production images/bundles contain neither preview endpoints nor preview UI or private assets. Scope file access to the selected validated package, not arbitrary filesystem paths.
-- Add public-fixture component/integration and browser tests for startup without a backend, selectors, failed/replaced packages, resource cleanup and the shared engine path. Document the command and controls.
-Requirements: MAP-18; re-verified: MAP-06, MAP-16.
-Exit: the standalone preview can load a package and reproduce the same engine behaviour as the webapp, including the still-open visual defects.
-
-**5e.4 – Local world-package file watch.**
-- Let the developer enter the package's absolute filepath directly in the preview UI; do not require an environment variable or guess a checkout path.
-- Watch the selected file's containing directory and filter changes to that package so in-place writes and atomic replacements are detected. Debounce updates and validate the full archive using the existing package validator.
-- On a valid replacement, publish a new preview snapshot through the shared engine. On unreadable or invalid changes, show the error and keep the last valid world running. Stop watching on request and when the preview server closes.
-- Keep package loading available without a local asset checkout. Do not invoke Tiled, parse TMX/TSX, modify the asset repository, or fetch its dependencies.
-Requirements: MAP-18; re-verified: MAP-06, MAP-16.
-Exit: changing the selected package reloads the preview only after successful validation; failures retain the previous working scene.
-
-**5e.5 – Correct placement and coordinate transforms.**
-- Establish documented Tiled-to-world transforms and inverses for general map positions and tile-object anchors, with explicit map origin and bounds. Apply them consistently to tile layers, tile objects, spawns, shapes, camera limits and pointer/pathfinding coordinates.
-- Use Phaser 4.2.1's native isometric tile-layer and tile-object rendering for the supported subset.
-- Fix tile-layer image anchoring (including oversized collection images), sheet margin/spacing and sparse collection IDs. Tile objects use natural image dimensions, bottom alignment and zero tileset offsets; collision and trigger guides translate with their tile image. The validator rejects unsupported scale, alignment and offset settings.
-- Add independently generated WorldPackage fixtures for non-square maps, sheets and collections, mixed image sizes, and shared tile/object landmarks. Add independent geometry assertions for collision and trigger guides, spawn positions and pointer inversion; do not calculate expected positions with the implementation under test.
-- Re-run keyboard, tap-to-move, collision and portal tests after coordinate changes. Fix the shared engine, never compensate inside the preview.
-Requirements: GAME-20; re-verified: GAME-01, GAME-02, GAME-03, GAME-09, GAME-10, MAP-02.
-Exit: expected-value geometry fixtures pass, with gameplay geometry aligned to package artwork.
-
-**5e.6 – Foot-anchored collision and the WorldPackage rendering contract.**
-- Treat the visible feet as the logical position for depth, portals, movement and collision; render each sprite frame with its bottom-centre 3 px left and 10 px down from that point. Center the collision ellipse 2 px left of the feet with horizontal radius `0.1 × tileWidth` and vertical radius `0.05 × tileWidth`; keyboard movement and tap-to-move must use the same footprint.
-- Keep Phaser-native rendering aligned with the package rules: natural-size, bottom-aligned tile objects, zero tile offsets, Tiled's top-down object order, collision/trigger guides as gameplay data, and Ground → Props → Foreground layering. Preserve intact tile artwork and support actor-relative depth from image-local occlusion polylines.
-- Add validator tests that refuse non-zero tileset offsets, non-bottom tile-object alignment, scaled tile objects and malformed occlusion guides. Retain collision and portal trigger guide validation and verify tile-object transform and guide alignment with expected-value tests.
-- Synchronize the shared WorldPackage definition, architecture requirements, generated package documentation, test strategy, preview guide, engine integration guide and development README. Do not modify private assets.
-Requirements: GAME-02, GAME-19, GAME-20, MAP-02, MAP-06, MAP-16.
-Exit: the player's elliptical footprint is centered 2 px left of the feet; validator, runtime, tests, package documentation and integration guides describe the same supported Tiled subset.
-
-**5e.7 – Native depth-layer integration.**
-- Verify the Ground → Props → Foreground convention through the real Phaser scene: Props objects and the player sort by object bottom/feet, while later foreground layers cover both.
-- Exercise actors in front of and behind static props, collection tile objects carrying collision/trigger/occlusion guides, hidden gameplay layers, and a foreground tile layer with deterministic engine fixtures.
-- Provide an occlusion debug toggle in the shared preview that shows authored polylines, the player's occlusion point 3 px left of its feet, and the player's front/behind relation to each line without changing gameplay or artwork.
-- Extend the Collision debug toggle to show the player's collision ellipse, offset 2 px left of the feet, using the same geometry as movement collision checks.
-- Keep the implementation native-first; implement actor-relative depth using Phaser object depths and Tiled-authored polylines, not image splitting, masks or a per-pixel compositor.
-Requirements: GAME-19, GAME-20; re-verified: GAME-02, GAME-03, GAME-07, MAP-02.
-Exit: deterministic native-layering and actor-depth tests pass without changing package artwork.
-
-**5e.8 – Package-preview and game integration acceptance gate.**
-- Verify supported map positions, tile-object transforms, sheet crops and map bounds with independent expected-value tests; do not add a Tiled executable or rasterizer to CI.
-- Exercise package replacement, watched-file reload, map/spawn/figure selection and recovery from invalid input in the preview. The asset-producing repository validates generated packages with `zappaloo validate`.
-- Run the existing movement, portal, import/rollback, lazy-loading and access-control tests. Check preview and guest game in desktop/mobile Chromium and WebKit; finish the outstanding phone-display check with the project owner. Run focused tests during each repair, then the combined relevant suites, lint, typecheck, production build and requirement report after fresh test results.
-- Do not inspect or modify private world sources. Record only non-sensitive package-contract or renderer defects in tracked documentation.
-- Update the architecture, test strategy and development instructions to describe the implemented package boundary, commands and supported Tiled-compatible settings.
-Requirements: GAME-20, MAP-18; re-verified: GAME-01, GAME-02, GAME-03, GAME-07, GAME-09, GAME-10, GAME-19, MAP-01, MAP-02, MAP-06, MAP-10, MAP-16, MAP-17.
-Exit: package and engine behavior is validated without bundling authoring tools; both hosts use one engine; private assets remain local; 5f may begin. Step 5j still owns the sign-in-to-playable loading budget.
+Requirements: GAME-01, GAME-02, GAME-03, GAME-07, GAME-09, GAME-10, GAME-19, GAME-20, MAP-02, MAP-06, MAP-16, MAP-17, MAP-18.
+Exit: the shared engine and world-package integration are accepted; step 5f may begin. Step 5j still owns the sign-in-to-playable loading budget.
 
 **5f – Objects and overlays.** Mock screens: `game`, `game-overlay`, `admin-world` (variant "objects").
 - Object types `portal`, `clickable`, `decoration` and the properties of 14.2. Clickable objects sparkle at random; a portal's tile arrow wobbles. A click or tap on a clickable object walks to the approach point and runs the action; a tap on a portal walks into its trigger area; Enter or Space activates the object in front of the avatar. Easter eggs.
@@ -575,10 +491,11 @@ Requirements: GAME-12, GAME-13 (without "Say hello"), GAME-14 (without "Hochlade
 - An end-to-end test in Chromium with a throttled 4G profile measures the time from sign-in to the first playable map (test hook). The validator gets a size budget for the start map.
 Requirements: PERF-04.
 
-**5k – Template world and stage report.**
-- Church, garden, banquet hall and party area, isometric (format version 2), decoration on separate layers, the typical objects placed, built as a world package and shipped inside the image; "Vorlagenwelt importieren" in the importer.
+**5k – Erlebniswelt access and stage report.**
+- Do not create or ship a template world.
+- Add an admin switch in Erlebniswelt › Welt & Import to disable or re-enable guest access. Guest access starts enabled on the first successful world import. When disabled, guest entry points and direct guest navigation are unavailable and guest world-serving routes are blocked; the active package and admin management remain available.
 - Status report for stage 5.
-Requirements: MAP-12, MAP-13, MAP-14.
+Requirements: MAP-19.
 
 ### Stage 6 – Living World (completes the Opening)
 

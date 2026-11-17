@@ -89,7 +89,7 @@
   - [14.2 Object Properties](#142-object-properties)
   - [14.3 Export and Import](#143-export-and-import)
   - [14.4 World Importer](#144-world-importer)
-  - [14.5 Template Map Set](#145-template-map-set)
+  - [14.5 Guest Access to Erlebniswelt](#145-guest-access-to-erlebniswelt)
   - [14.6 Requirements](#146-requirements)
 - [15. Technology Stack](#15-technology-stack)
   - [15.1 Decision: TypeScript for the Backend](#151-decision-typescript-for-the-backend)
@@ -1764,7 +1764,7 @@ The answer lists every finding with its file, the map object where there is one,
 
 - **Without an active world,** a signed-in guest of an open platform lands on the website (GAME-12 applies once a world is imported), and the start page offers no "Erlebniswelt betreten".
 - **Where a player enters:** the last map is remembered on the device. Otherwise, and when that map no longer exists, the player enters the start map at its spawn point `start`. A portal leads to its `targetSpawn`.
-- **Template world** (14.5, MAP-14): shipped inside the image; the importer offers "Vorlagenwelt importieren".
+- **Guest access** (14.5, MAP-19): the admin controls it from Erlebniswelt › Welt & Import. It is enabled automatically on the first successful world import. When disabled, guest navigation and world-serving routes are unavailable; the imported world remains in place and admin management stays available.
 - **Map loading** (ACS-07): the world is served only to signed-in users of an open platform (staff and admins also while it is closed). There are no locked maps or zones yet.
 
 Next to the importer, the admin view **"Erlebniswelt"** shows one tab per map. It lists the map's clickable objects with their Tiled name, label and preset, and lets the admin assign each one's action: a page as overlay, a content item, a dialogue, a minigame, or none. The assignment is stored per map and object name, is live at once and survives a new world package as long as the map and the object keep their names. Portals are listed read-only with their target map and spawn point (decided 2026-11-10, confirmed 2026-11-13).
@@ -1809,14 +1809,9 @@ A new world is used the next time a player enters a map. Cached graphics are ref
 - **Tests:** the validator has one test per rule, with a broken package each; the test world (`backend/src/world/build.ts`) has three isometric maps, group layers, a sheet and an image-collection tileset with guides, a tile portal with its trigger polygon, a border, and two figures with generated frames. It passes with no finding.
 - **The prototype** (the world project's prototype package in the local folder `world/`, not in the repository) is refused by design: its manifest has `tileSize`, and its portal is an unnamed tile object. The other findings are warnings: decorations and clickables with descriptive properties (`name`, `category`, `symbol`), the camera zoom and `previewFormat`. These go back to the world project.
 
-## 14.5 Template Map Set
+## 14.5 Guest Access to Erlebniswelt
 
-Drawing pixel art is the main effort per event. To keep it low, the platform ships a set of template maps with matching tilesets: church, garden (aperitif), banquet hall and party area.
-
-- The typical objects are already placed: spawn points, portals, clickable objects (with preset actions), tables with seats, and wander areas.
-- Decoration sits on separate layers. An event changes the look by editing only those layers in Tiled, without touching structure, collisions or objects.
-- The templates ship as a world package (isometric, format version 2). In the world importer, a new installation can import this template world instead of its own.
-- The template art is drawn by the project owner, so it can be reused in any event.
+The platform does not ship a template world. An admin controls guest access to the Erlebniswelt with a switch on Erlebniswelt › Welt & Import. Guest access is enabled automatically when the first world package is imported. Turning it off hides guest entry points and blocks direct guest navigation and world-serving API routes, while retaining the active package and keeping admin management available. Turning access back on does not require another import.
 
 ## 14.6 Requirements
 
@@ -1833,13 +1828,14 @@ Drawing pixel art is the main effort per event. To keep it low, the platform shi
 | MAP-09 | The previous world package is kept and the admin can roll back to it (reworded 2026-11-13). | Should |
 | MAP-10 | A newly imported world is used the next time a player enters a map; cached graphics are refreshed, so improved art becomes visible without a redeployment. | Must |
 | MAP-11 | ~~The server reads each map's collision layer on import and uses it to validate movement (MP-04).~~ (withdrawn: no server-side movement validation without multiplayer) | – |
-| MAP-12 | The platform ships a template map set (church, garden, banquet hall, party area) with tilesets, and with spawn points, portals, tables with seats and wander areas already placed. | Should |
-| MAP-13 | Decoration in the template maps is on separate layers, so the look can be changed in Tiled without touching structure, collisions or objects. | Should |
-| MAP-14 | In the world importer, the admin can import the shipped template world instead of an own world package (reworded 2026-11-13). | Should |
+| MAP-12 | ~~The platform ships a template map set (church, garden, banquet hall, party area) with tilesets, and with spawn points, portals, tables with seats and wander areas already placed.~~ (withdrawn 2026-11-17: no template world will be shipped) | – |
+| MAP-13 | ~~Decoration in the template maps is on separate layers, so the look can be changed in Tiled without touching structure, collisions or objects.~~ (withdrawn 2026-11-17: no template world will be shipped) | – |
+| MAP-14 | ~~In the world importer, the admin can import the shipped template world instead of an own world package (reworded 2026-11-13).~~ (withdrawn 2026-11-17: no template world will be shipped) | – |
 | MAP-15 | In the admin view "Erlebniswelt", each map lists its clickable objects (Tiled name and label) and its portals; the admin assigns each clickable object's action (page as overlay, content item, dialogue, minigame or none) without re-importing the map; the preset from the Tiled file applies until the admin changes it; portals are shown read-only (decided 2026-11-10). | Must |
 | MAP-16 | The world package is a `tar.gz` with the format-version-2 layout and the Phaser 4.2.1 / Tiled 1.12.2 rendering contract in 14.4. It holds the whole game world: isometric maps, tilesets, objects, the door scene and the figures of the avatar editor. Only whole packages are imported, and a new package replaces the whole world (reworded 2026-11-17). | Must |
 | MAP-17 | The JSON files of the world package (manifest, avatar definition, maps) are described by JSON Schemas per format version, committed in the repository, attached to every release and kept equal to the platform's checks by a test. `zappaloo validate` checks a whole world package outside the platform with the platform's validator (added 2026-11-14). | Should |
 | MAP-18 | A development-only game preview loads validated world packages and can watch a world package selected by absolute file path, using the same game engine as the production app. Valid changes reload automatically; invalid changes keep the last valid preview. The preview and private world assets are absent from production bundles and images. | Must |
+| MAP-19 | An admin can disable guest access to the Erlebniswelt in Erlebniswelt › Welt & Import. Access is enabled automatically when the first world package is imported. When disabled, guest entry points and direct guest navigation are unavailable and guest world-serving routes are blocked; the active world is retained and admin management remains available. | Must |
 
 ---
 
@@ -2175,7 +2171,7 @@ The event has no slug and no configurable id: its `eventId` is the fixed value `
 - **Not set up yet:** the first start of a fresh database creates the event record (`eventId` `event1`, features and settings with defaults) without name, time zone and language, so accounts and the CLI have an event to refer to; the setup fills these in. The application starts anyway. Until the setup is complete, an admin sees the setup form as the only content of the admin area, and every other signed-in user sees a neutral "not set up yet" page; sign-in, the setup link and the admin area's setup work. Routes of features that need the event answer `409` with the code `setup_incomplete`. The closed-platform behaviour (ACS-10, ACS-14, stage 3) comes on top once the event is set up.
 - **Setup form:** name, time zone, default language, validated like every admin input (a valid IANA time zone, a language the platform ships). Saving (`POST /api/admin/event/setup`, once; a second call answers `409 already_set_up`; audited with the admin as actor) completes the setup. Features and settings start with their defaults (19.3) and are changed in Einstellungen and Übersicht (8.3), as before.
 - **Changing later:** name, time zone and default language stay editable in the admin area (`PATCH /api/admin/event` takes them next to `features` and `settings`, and answers `409 setup_incomplete` before the setup; all or nothing; each change audited with the admin as actor, an unchanged value is not). Changing the time zone changes how stored times are displayed, not the stored times.
-- **Content and game world** are not part of the setup. They are managed at runtime in their own admin areas: website content and theme (stage 4, 6.2 and 19.7; program items are created with the RSVP in stage 3, 7.4.1), the world and its clickable objects (world importer and "Erlebniswelt", stage 5), guest groups and invitations (stage 2). A fresh installation starts with no pages, the default theme and no world; MAP-14 imports the template world.
+- **Content and game world** are not part of the setup. They are managed at runtime in their own admin areas: website content and theme (stage 4, 6.2 and 19.7; program items are created with the RSVP in stage 3, 7.4.1), the world and its clickable objects (world importer and "Erlebniswelt", stage 5), guest groups and invitations (stage 2). A fresh installation starts with no pages, the default theme and no world.
 - **Dev and test seed:** `zappaloo event seed-example` completes the setup of an empty installation with the example event "Event Muster" (Europe/Zurich, de). It refuses an installation that is already set up. Dev and e2e tests use it; one e2e test runs the real setup from an empty database.
 - **Runtime reads:** name, time zone, language, features and settings are read from the database on every request, so a change applies at once, in every process. The operator can also use the CLI (`zappaloo event feature|setting <name> on|off`, 23.8, actor `cli`). `GET /api/event` returns the event with its features and settings and whether the setup is complete; the frontend loads it again whenever the page becomes visible, so a changed value shows up without a reload.
 - **Disabled features** (CFG-03): the API answers `404` with the code `feature_disabled` for a disabled feature (a guard every feature route uses), and the frontend hides it (`useFeature`, `FeatureGate`).
