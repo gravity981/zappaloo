@@ -62,6 +62,11 @@ export const routes: RouteObject[] = [
               // Add to the home screen: a flow of its own, like the RSVP (PWA-05).
               { path: "install", element: <InstallPage /> },
               {
+                // The game has a frame of its own: the bar at the top, no website header (GAME-14).
+                element: <RequireOpen />,
+                children: [{ path: "game", element: <GamePage /> }],
+              },
+              {
                 element: <Layout />,
                 children: [
                   { index: true, element: <HomePage /> },
@@ -69,7 +74,6 @@ export const routes: RouteObject[] = [
                     // Pages of the open platform; guests wait at the front door until it opens.
                     element: <RequireOpen />,
                     children: [
-                      { path: "game", element: <GamePage /> },
                       // The website pages: a content page and "Mehr" (WEB-02, WEB-05).
                       { path: "p/:slug", element: <ContentPage /> },
                       { path: "mehr", element: <MorePage /> },

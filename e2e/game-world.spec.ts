@@ -7,10 +7,16 @@ import { join } from "node:path";
 import { expect, test, type Page } from "@playwright/test";
 import { buildTestWorld, FIGURE_SIDE, TEST_WORLD_NAME } from "../backend/src/world/build.ts";
 import { SPEED_TILES_PER_SECOND } from "../game-engine/src/movement.ts";
-import { signInAsAdmin } from "./support.ts";
+import { chooseFirstFigure, signInAsAdmin } from "./support.ts";
 import de from "../frontend/src/i18n/locales/de/common.json" with { type: "json" };
 
 test.describe.configure({ mode: "serial" });
+
+/** Opens the game as the signed-in user, who has chosen a figure (the first-entry avatar step is tested apart). */
+async function enterGame(page: Page): Promise<void> {
+  await chooseFirstFigure(page);
+  await page.goto("/game");
+}
 
 type State = NonNullable<Awaited<ReturnType<typeof readState>>>;
 
@@ -56,7 +62,7 @@ test("[GAME-01][GAME-03] an admin imports the test world, and the game draws its
   await expect(page.getByText(de.admin.world.imported)).toBeVisible();
   await expect(page.getByText(`Aktiv: ${TEST_WORLD_NAME}`)).toBeVisible();
 
-  await page.goto("/game");
+  await enterGame(page);
   await expect(page.getByTestId("game-canvas")).toBeVisible();
   const state = await gameState(page);
   expect(state.mapId).toBe("kirche");
@@ -71,7 +77,7 @@ test("[GAME-09] the arrow keys move the player in the screen's directions", asyn
 }, testInfo) => {
   test.skip(testInfo.project.name !== "desktop-chromium", "shared settings: one profile only");
   await signInAsAdmin(page, context);
-  await page.goto("/game");
+  await enterGame(page);
   const before = await gameState(page);
   const pressedAt = Date.now();
   await page.keyboard.down("ArrowRight");
@@ -93,7 +99,7 @@ test("[GAME-10][GAME-03] a tap walks the player into the portal, which leads to 
 }, testInfo) => {
   test.skip(testInfo.project.name !== "desktop-chromium", "shared settings: one profile only");
   await signInAsAdmin(page, context);
-  await page.goto("/game");
+  await enterGame(page);
   await gameState(page);
   // The portal "zum-garten" of the start map lies at the left corner of the map, around (32, 176) in map pixels.
   const target = await pagePoint(page, { x: 32, y: 176 });
@@ -110,7 +116,7 @@ test("[GAME-06][GAME-08][GAME-11][GAME-15][GAME-16] a tap on an object walks to 
 }, testInfo) => {
   test.skip(testInfo.project.name !== "desktop-chromium", "shared settings: one profile only");
   await signInAsAdmin(page, context);
-  await page.goto("/game");
+  await enterGame(page);
   await gameState(page);
   const objects = await page.evaluate(() => window.__zappaloo?.game?.clickables() ?? []);
   const altar = objects.find((item) => item.name === "altar");
@@ -144,8 +150,11 @@ test("[GAME-06][GAME-08][GAME-11][GAME-15][GAME-16] a tap on an object walks to 
   // On the desktop, Enter activates the object in front of the avatar.
   await page.keyboard.press("Enter");
   await expect(overlay).toBeVisible();
-  await page.keyboard.press("Escape");
-  await expect(overlay).toHaveCount(0);
+  // The key may arrive before the overlay listens for it: press again until it closes.
+  await expect(async () => {
+    await page.keyboard.press("Escape");
+    await expect(overlay).toHaveCount(0, { timeout: 1000 });
+  }).toPass();
 });
 
 test("[AVA-01][AVA-02] the avatar editor offers an admin the tier3 figures only, by kind; choosing a kind stores a figure and enables the next step", async ({
@@ -168,6 +177,69 @@ test("[AVA-01][AVA-02] the avatar editor offers an admin the tier3 figures only,
   await page.reload();
   await expect(page.getByRole("group", { name: de.avatar.figure })).toBeVisible();
   // The game starts with the chosen figure.
-  await page.goto("/game");
+  await enterGame(page);
   await gameState(page);
+});
+
+test("[GAME-12][GAME-13][GAME-14][GAME-17][GAME-18] first entry: the avatar comes first, then the game with its bar and hint; the own avatar opens the profile; the sign-in lands in the game and Website leaves it", async ({
+  page,
+  context,
+}, testInfo) => {
+  test.skip(testInfo.project.name !== "desktop-chromium", "shared settings: one profile only");
+  await signInAsAdmin(page, context);
+  // Nothing chosen yet: the avatar editor, no game, "Weiter" waits for a figure.
+  await page.goto("/game");
+  await expect(page.getByRole("heading", { name: de.avatar.title })).toBeVisible();
+  await expect(page.getByTestId("game-canvas")).toHaveCount(0);
+  await expect(page.getByRole("button", { name: de.game.first.continue })).toBeDisabled();
+  await page.getByRole("group", { name: de.avatar.kind }).getByRole("button").first().click();
+  await page.getByRole("button", { name: de.game.first.continue }).click();
+
+  // The game: the bar at the top, the hint for newcomers.
+  await expect(page.getByTestId("game-canvas")).toBeVisible();
+  const bar = page.getByRole("navigation", { name: de.game.bar.label });
+  await expect(bar.getByRole("button", { name: de.nav.programme })).toBeVisible();
+  await expect(bar.getByRole("link", { name: de.nav.site })).toBeVisible();
+  await expect(page.getByTestId("game-hint")).toBeVisible();
+
+  // A tap on the own avatar opens the profile above the game.
+  const state = await gameState(page);
+  // The sprite stands on its feet point (offset by the anchor); its body is about 16 pixels high.
+  const own = await pagePoint(page, { x: state.x - 3, y: state.y + 2 });
+  await page.mouse.click(own.x, own.y);
+  await expect(page.getByRole("dialog", { name: de.nav.profile })).toBeVisible();
+  await page.getByRole("button", { name: de.game.overlay.close }).click();
+
+  // "Website" leaves the game; the start page offers the way back.
+  await bar.getByRole("link", { name: de.nav.site }).click();
+  await expect(page.getByRole("link", { name: de.website.enterWorld })).toBeVisible();
+
+  // The next sign-in start (`/` in a new session) lands in the game.
+  await page.evaluate(() => {
+    sessionStorage.clear();
+  });
+  await page.goto("/");
+  await expect(page.getByTestId("game-canvas")).toBeVisible();
+});
+
+test("[GAME-21] the game fills a phone's screen and is a window of at most 1280 x 800 on a wide screen", async ({
+  page,
+  context,
+}, testInfo) => {
+  test.skip(testInfo.project.name !== "desktop-chromium", "shared settings: one profile only");
+  await signInAsAdmin(page, context);
+  await chooseFirstFigure(page);
+  const window = page.locator(".game-window");
+
+  await page.setViewportSize({ width: 390, height: 780 });
+  await page.goto("/game");
+  await expect(page.getByTestId("game-canvas")).toBeVisible();
+  expect(await window.boundingBox()).toMatchObject({ x: 0, y: 0, width: 390, height: 780 });
+
+  await page.setViewportSize({ width: 1900, height: 1200 });
+  await expect(window).toHaveCSS("width", "1280px");
+  await expect(window).toHaveCSS("height", "800px");
+
+  await page.setViewportSize({ width: 1000, height: 700 });
+  expect(await window.boundingBox()).toMatchObject({ width: 1000, height: 700 });
 });

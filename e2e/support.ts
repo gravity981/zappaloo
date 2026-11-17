@@ -42,3 +42,18 @@ export async function signInAsAdmin(page: Page, context: BrowserContext): Promis
   if (!login.ok()) throw new Error(`signing in failed: ${await login.text()}`);
   return username;
 }
+
+/** Chooses the first figure the signed-in user may choose, so that the game opens without the first-entry avatar step. */
+export async function chooseFirstFigure(page: Page): Promise<void> {
+  const session = (await (await page.request.get("/api/session")).json()) as { csrfToken: string };
+  const avatar = (await (await page.request.get("/api/avatar")).json()) as {
+    persons: { figures: { id: string }[] }[];
+  };
+  const figure = avatar.persons[0]?.figures[0]?.id;
+  if (figure === undefined) throw new Error("the world has no figure for this user");
+  const put = await page.request.put("/api/avatar/me", {
+    headers: { "x-csrf-token": session.csrfToken },
+    data: { figure },
+  });
+  if (!put.ok()) throw new Error(`choosing a figure failed: ${await put.text()}`);
+}

@@ -118,3 +118,77 @@ body {
     border-radius: 18px;
   }
 }
+
+/* The game frame (GAME-14): the bar at the top, the world below it, the hint over the world. */
+.game-page {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background: #111;
+}
+/* A phone shows the game on the whole screen; a wide window caps it at 1280 x 800 pixels (GAME-20). */
+.game-window {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
+  padding-top: env(safe-area-inset-top);
+  background: #111;
+}
+@media (min-width: 720px) {
+  .game-window {
+    width: min(100%, 1280px);
+    height: min(100%, 800px);
+    padding-top: 0;
+    border-radius: 12px;
+    overflow: hidden;
+  }
+}
+.game-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  background: var(--w-card, #fff);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.12);
+}
+.game-bar-end {
+  margin-left: auto;
+}
+.game-badge {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  margin-left: 6px;
+  border-radius: 50%;
+  background: #d33;
+}
+.game-stage {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+}
+.game-stage .game-canvas {
+  height: 100%;
+}
+.game-hint {
+  position: absolute;
+  left: 50%;
+  bottom: calc(16px + env(safe-area-inset-bottom));
+  transform: translateX(-50%);
+  margin: 0;
+  padding: 8px 14px;
+  border-radius: 999px;
+  background: rgba(18, 18, 18, 0.8);
+  color: #fff;
+  font-size: 0.85rem;
+  pointer-events: none;
+  text-align: center;
+}
+.game-first {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 16px;
+}

@@ -1,16 +1,16 @@
 // Loads the active world and mounts the reusable engine, then destroys it on unmount. This module (and Phaser with
 // it) is loaded lazily with the game route. Without an imported world, the guest is told so.
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   createGame,
   entryPoint,
   setGameFigure,
   setGamePaused,
+  type GameActivation,
   type GameInstance,
   type LoadedWorld,
 } from "@zappaloo/game-engine";
-import GameOverlay, { type Overlay } from "./GameOverlay.tsx";
 import { avatarResponseSchema } from "@zappaloo/shared";
 import { apiRequest } from "../app/api.ts";
 import { exposeGame, exposeState } from "./test-hook.ts";
@@ -30,31 +30,30 @@ type Status =
   | { kind: "failed" }
   | { kind: "ready"; world: LoadedWorld; figure: string | undefined };
 
-export default function GameCanvas() {
+/**
+ * The game. The page above it (GAME-11) belongs to the parent: `paused` stands the game still while a page is open,
+ * and `onActivate` and `onPlayerTap` tell the parent what the player used (GAME-06, GAME-18).
+ */
+export default function GameCanvas({
+  paused,
+  onActivate,
+  onPlayerTap,
+}: {
+  paused: boolean;
+  onActivate: (activation: GameActivation) => void;
+  onPlayerTap: () => void;
+}) {
   const { t } = useTranslation();
   const parent = useRef<HTMLDivElement>(null);
   const [status, setStatus] = useState<Status>({ kind: "loading" });
   const game = useRef<GameInstance>(null);
-  /** The page above the paused game, or none (GAME-11). */
-  const [overlay, setOverlay] = useState<Overlay>();
-  const closeOverlay = useCallback(() => {
-    setOverlay(undefined);
-  }, []);
-
-  // The game stands still while a page is open, and goes on at the same spot when it is closed.
+  // The engine keeps the first callbacks it gets; these refs let it call the latest ones.
+  const activate = useRef(onActivate);
+  const tap = useRef(onPlayerTap);
   useEffect(() => {
-    if (!game.current) return undefined;
-    setGamePaused(game.current, overlay !== undefined);
-    if (overlay !== undefined) return undefined;
-    // A page may have changed the avatar (the profile leads to the editor): the player wears the new figure.
-    let active = true;
-    void ownFigure().then((figure) => {
-      if (active && figure !== undefined && game.current) setGameFigure(game.current, figure);
-    });
-    return () => {
-      active = false;
-    };
-  }, [overlay]);
+    activate.current = onActivate;
+    tap.current = onPlayerTap;
+  });
 
   useEffect(() => {
     let active = true;
@@ -94,10 +93,10 @@ export default function GameCanvas() {
         },
         onStateChange: exposeState,
         onActivate: (activation) => {
-          setOverlay({
-            action: activation.action,
-            ...(activation.label === undefined ? {} : { label: activation.label }),
-          });
+          activate.current(activation);
+        },
+        onPlayerTap: () => {
+          tap.current();
         },
       },
       transparent: import.meta.env.VITE_TEST_HOOKS === "true",
@@ -112,13 +111,23 @@ export default function GameCanvas() {
     };
   }, [status]);
 
+  // The game stands still while a page is open, and goes on at the same spot when it is closed.
+  useEffect(() => {
+    if (!game.current) return undefined;
+    setGamePaused(game.current, paused);
+    if (paused) return undefined;
+    // A page may have changed the avatar (the profile leads to the editor): the player wears the new figure.
+    let active = true;
+    void ownFigure().then((figure) => {
+      if (active && figure !== undefined && game.current) setGameFigure(game.current, figure);
+    });
+    return () => {
+      active = false;
+    };
+  }, [paused, status]);
+
   if (status.kind === "loading") return <p>{t("game.loading")}</p>;
   if (status.kind === "none") return <p>{t("game.noWorld")}</p>;
   if (status.kind === "failed") return <p role="alert">{t("game.loadFailed")}</p>;
-  return (
-    <>
-      <div ref={parent} className="game-canvas" data-testid="game-canvas" />
-      {overlay && <GameOverlay overlay={overlay} onClose={closeOverlay} />}
-    </>
-  );
+  return <div ref={parent} className="game-canvas" data-testid="game-canvas" />;
 }

@@ -110,6 +110,12 @@ export class WorldScene extends Phaser.Scene {
   #wasd: Record<"W" | "A" | "S" | "D", Phaser.Input.Keyboard.Key> | undefined;
   readonly #onTap = (pointer: Phaser.Input.Pointer): void => {
     const world = this.cameras.main.getWorldPoint(pointer.x, pointer.y);
+    // A tap on the player's own avatar goes to the host and does not walk (GAME-18).
+    const own = this.#host?.onPlayerTap;
+    if (own !== undefined && this.#player?.getBounds().contains(world.x, world.y) === true) {
+      own();
+      return;
+    }
     this.#tapTo({ x: world.x, y: world.y });
   };
 

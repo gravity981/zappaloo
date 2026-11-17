@@ -702,6 +702,17 @@
     "loading": "Die digitale Erlebniswelt wird geladen …",
     "loadFailed": "Die digitale Erlebniswelt konnte nicht geladen werden.",
     "noWorld": "Die digitale Erlebniswelt ist noch nicht eingerichtet.",
+    "bar": {
+      "label": "Erlebniswelt",
+      "rsvpOpen": "offen"
+    },
+    "hint": {
+      "touch": "Tippe auf Dinge, die funkeln",
+      "desktop": "Klicke auf Dinge, die funkeln – oder geh hin und drück Enter"
+    },
+    "first": {
+      "continue": "Weiter"
+    },
     "overlay": {
       "title": "Erlebniswelt",
       "paused": "II PAUSIERT",
@@ -1043,6 +1054,7 @@
     "codeHint": "{{total}} Zeichen. Einfügen füllt alle Felder auf einmal."
   },
   "website": {
+    "enterWorld": "Erlebniswelt betreten",
     "mapAlt": "Karte von {{name}}",
     "openMaps": "In Google Maps öffnen",
     "pageNotFound": "Diese Seite gibt es nicht (mehr).",

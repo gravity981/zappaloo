@@ -5,8 +5,10 @@
 // (ACS-10).
 import "./ui.css";
 import { useTranslation } from "react-i18next";
+import { useEffect } from "react";
 import { NavLink, Outlet, useLocation } from "react-router";
 import { websiteResponseSchema } from "@zappaloo/shared";
+import { markWebsiteVisit } from "./gameEntry.ts";
 import { useSiteName } from "../guest/site.ts";
 import { useEventFormat } from "../rsvp/format.ts";
 import { useFeature } from "./event.ts";
@@ -40,6 +42,10 @@ export default function Layout() {
     restricted || !session.user ? undefined : "/api/website",
     websiteResponseSchema,
   );
+  // A website page other than the start page: from here on `/` is the start page, not the game (GAME-12).
+  useEffect(() => {
+    if (pathname !== "/") markWebsiteVisit();
+  }, [pathname]);
   // The waiting page is a full-screen scene of its own.
   if (restricted && pathname === "/") return <Outlet />;
   const vip = session.user?.roles.includes("vip") ?? false;

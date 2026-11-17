@@ -479,11 +479,12 @@ Requirements: GAME-04, GAME-05, GAME-06 (without minigames), GAME-08, GAME-11, G
 - The same editor is reached from the profile. The game shows the player's own avatar.
 Requirements: AVA-01, AVA-02, AVA-03.
 
-**5i – Entering the game.** Mock screens: `game`, `onboard-avatar`, `home`.
+**5i – Entering the game.** Decisions: sw-architecture.md 14.4 "Decisions of step 5i". Mock screens: `game`, `onboard-avatar`, `home`.
 - With an active world, a signed-in user of an open platform lands in the game; direct links open their target. "Website" in the bar returns to the website; "Erlebniswelt betreten" on the start page.
 - The guided first entry: avatar (also for companions), the RSVP in an overlay if not answered, then free play.
 - The bar at the top with Programm, Rückmeldung (badge while the RSVP is open) and Website. The hint "Tippe auf Dinge, die funkeln" until the first object is used. The own avatar opens the profile.
-Requirements: GAME-12, GAME-13 (without "Say hello"), GAME-14 (without "Hochladen"), GAME-17, GAME-18.
+- Size (added 2026-11-17): the game fills a phone's viewport and is a centred window of at most 1280 × 800 pixels on a wide screen.
+Requirements: GAME-12, GAME-13 (without "Say hello"), GAME-14 (without "Hochladen"), GAME-17, GAME-18, GAME-21.
 
 **5j – Loading time.**
 - The Phaser bundle and the start map load first; other maps load in the background.
