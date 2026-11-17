@@ -22,6 +22,7 @@ declare global {
           ax: number;
           ay: number;
           hidden: boolean;
+          reachable: boolean;
         }[];
         selectSpawn: (mapId: string, spawn: string) => void;
         setGuides: (guides: {

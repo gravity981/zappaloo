@@ -1099,8 +1099,19 @@ export class WorldScene extends Phaser.Scene {
   }
 
   /** The clickable objects of the map the player is in, for the test hook and the host. */
-  clickables(): { name: string; x: number; y: number; ax: number; ay: number; hidden: boolean }[] {
-    return (this.#map?.clickables ?? []).map((area) => {
+  clickables(): {
+    name: string;
+    x: number;
+    y: number;
+    ax: number;
+    ay: number;
+    hidden: boolean;
+    /** Whether Enter would activate this object now: the one the avatar's reach picks (GAME-06). */
+    reachable: boolean;
+  }[] {
+    const map = this.#map;
+    const inReach = map === undefined ? undefined : clickableInReach(map, this.#position)?.name;
+    return (map?.clickables ?? []).map((area) => {
       const centre = polygonCentre(area.polygon);
       return {
         name: area.name,
@@ -1109,6 +1120,7 @@ export class WorldScene extends Phaser.Scene {
         ax: area.approach.x,
         ay: area.approach.y,
         hidden: area.hidden,
+        reachable: area.name === inReach,
       };
     });
   }

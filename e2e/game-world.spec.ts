@@ -53,8 +53,13 @@ async function tapSettledObject(page: Page, object: { x: number; y: number }): P
       { timeout: 20_000 },
     )
     .toBe(true);
-  const target = await pagePoint(page, object);
-  await page.mouse.click(target.x, target.y);
+  // A tap can still miss the walk's start on a busy machine, so it is made again with a fresh target until the
+  // page opens (bounded). One tap alone proved too little in the full run.
+  await expect(async () => {
+    const target = await pagePoint(page, object);
+    await page.mouse.click(target.x, target.y);
+    await expect(page.getByRole("dialog", { name: "Programm" })).toBeVisible({ timeout: 4_000 });
+  }).toPass({ timeout: 40_000 });
 }
 
 /** The page position of a point of the map, from the camera view and the canvas box. */
@@ -172,7 +177,20 @@ test("[GAME-06][GAME-08][GAME-11][GAME-15][GAME-16] a tap on an object walks to 
   const back = await gameState(page);
   expect([back.x, back.y]).toEqual([stopped.x, stopped.y]);
 
-  // On the desktop, Enter activates the object in front of the avatar.
+  // On the desktop, Enter activates the object that the avatar's reach picks. Enter is pressed once the altar is that
+  // object: the avatar walks to the altar's approach point and stops there; the test hook says which object is in reach.
+  const altarInReach = async () => {
+    const objects = await page.evaluate(() => window.__zappaloo?.game?.clickables() ?? []);
+    return objects.find((item) => item.reachable)?.name === "altar";
+  };
+  await expect(async () => {
+    if (!(await altarInReach())) {
+      const target = await pagePoint(page, { x: altar.ax, y: altar.ay });
+      await page.mouse.click(target.x, target.y);
+      // The walk takes a few seconds: it is waited for, and the tap is repeated only when it did not get there.
+      await expect.poll(altarInReach, { timeout: 5_000 }).toBe(true);
+    }
+  }).toPass({ timeout: 40_000 });
   await page.keyboard.press("Enter");
   await expect(overlay).toBeVisible();
   // The key may arrive before the overlay listens for it: press again until it closes.
