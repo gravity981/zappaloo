@@ -236,6 +236,51 @@ test("[GAME-06][GAME-08][GAME-11][GAME-15][GAME-16] a tap on an object walks to 
   }).toPass();
 });
 
+test("[GAME-26][GAME-06][GAME-16] an object outside the view has an indicator at the edge, the easter egg has none, and a tap on the indicator walks to the object and opens its page", async ({
+  page,
+  context,
+}, testInfo) => {
+  test.skip(testInfo.project.name !== "desktop-chromium", "shared settings: one profile only");
+  // A phone-sized view shows only a small part of the map, so objects lie outside it.
+  await page.setViewportSize({ width: 360, height: 340 });
+  await signInAsAdmin(page, context);
+  await enterGame(page);
+  const before = await gameState(page);
+  const indicators = page.getByTestId("edge-indicator");
+  await expect(indicators.first()).toBeVisible({ timeout: 10_000 });
+  // No indicator for the easter egg (GAME-08), and at most six (GAME-26).
+  await expect(page.locator('[data-indicator="object:osterei"]')).toHaveCount(0);
+  expect(await indicators.count()).toBeLessThanOrEqual(6);
+
+  // Each indicator lies in the view, with a touch area of at least 44 x 44 pixels, 12 pixels from its edge.
+  const canvas = await page.getByTestId("game-canvas").boundingBox();
+  if (canvas === null) throw new Error("no canvas");
+  for (const box of await indicators.evaluateAll((all) =>
+    all.map((one) => {
+      const rect = one.getBoundingClientRect();
+      return { x: rect.x, y: rect.y, width: rect.width, height: rect.height };
+    }),
+  )) {
+    expect(box.width).toBeGreaterThanOrEqual(44);
+    expect(box.height).toBeGreaterThanOrEqual(44);
+    expect(box.x).toBeGreaterThanOrEqual(canvas.x + 11);
+    expect(box.y).toBeGreaterThanOrEqual(canvas.y + 11);
+    expect(box.x + box.width).toBeLessThanOrEqual(canvas.x + canvas.width - 11);
+    expect(box.y + box.height).toBeLessThanOrEqual(canvas.y + canvas.height - 11);
+  }
+
+  // A tap on the indicator of the altar does what a tap on the altar does: the avatar walks there, and the page opens.
+  const altar = page.locator('[data-indicator="object:altar"]');
+  await expect(altar).toBeVisible();
+  await altar.click();
+  const overlay = page.getByRole("dialog", { name: "Programm" });
+  await expect(overlay).toBeVisible({ timeout: 40_000 });
+  const arrived = await gameState(page);
+  expect(Math.hypot(arrived.x - before.x, arrived.y - before.y)).toBeGreaterThan(30);
+  // The page is open above the paused game: no indicators over it (GAME-11).
+  await expect(indicators.first()).toBeHidden();
+});
+
 test("[GAME-11] Enter on the close button of an object's page closes it, and the object does not open again", async ({
   page,
   context,
@@ -371,9 +416,10 @@ test("[GAME-12][GAME-13][GAME-14][GAME-17][GAME-18] first entry: the avatar come
 
   // The game: the bar at the top, the hint for newcomers.
   await expect(page.getByTestId("game-canvas")).toBeVisible();
-  const bar = page.getByRole("navigation", { name: de.game.bar.label });
-  await expect(bar.getByRole("button", { name: de.nav.programme })).toBeVisible();
-  await expect(page.getByRole("link", { name: de.nav.site })).toBeVisible();
+  // The bar has only the title and "Website" (GAME-14).
+  const bar = page.getByRole("banner");
+  await expect(bar.getByRole("link", { name: de.nav.site })).toBeVisible();
+  await expect(bar.getByRole("button")).toHaveCount(0);
   await expect(page.getByTestId("game-hint")).toBeVisible();
 
   // A tap on the own avatar opens the profile above the game.

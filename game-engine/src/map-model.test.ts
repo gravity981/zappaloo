@@ -305,6 +305,8 @@ describe("the map as the game draws it (MAP-02, GAME-19)", () => {
           { x: topLeft.x + 24, y: topLeft.y + 14 },
           { x: topLeft.x + 112, y: topLeft.y + 14 },
         ],
+        // The picture of the object, which decides whether a figure overlaps it (GAME-19).
+        bounds: { x: topLeft.x, y: topLeft.y, width: 128, height: 96 },
       },
     ]);
   });

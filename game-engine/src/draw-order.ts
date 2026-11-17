@@ -4,6 +4,11 @@ import { playerCollisionEllipse } from "./collision.ts";
 export interface Occluder {
   /** The depth of the object: the y of its bottom edge. */
   depth: number;
+  /**
+   * The picture of the object in world pixels. Only an object whose picture overlaps the figure on the screen decides
+   * where the figure is drawn; without bounds, the object always does.
+   */
+  bounds?: { x: number; y: number; width: number; height: number };
   /** The occlusion polyline in world pixel coordinates. */
   line: readonly Point[];
 }
@@ -145,15 +150,61 @@ function horizontalIntersections(
   );
 }
 
-/** Places the figure in the depth slot that satisfies the most occlusion guides. */
+/**
+ * The part of the screen the figure covers, from its feet: as wide as a tile and as high as the figure's picture is
+ * (about a tile and a half) and a little more, which is more than the figure's own pixels.
+ */
+export function figureBounds(
+  feet: Point,
+  tileWidth: number,
+): { x: number; y: number; width: number; height: number } {
+  return {
+    x: feet.x - tileWidth / 2,
+    y: feet.y - tileWidth,
+    width: tileWidth,
+    height: tileWidth + 4,
+  };
+}
+
+/** Whether the object's picture overlaps what the figure covers; an object without bounds always does. */
+function overlapsFigure(occluder: Occluder, feet: Point, tileWidth: number): boolean {
+  const box = occluder.bounds;
+  if (box === undefined) return true;
+  const figure = figureBounds(feet, tileWidth);
+  return (
+    box.x < figure.x + figure.width &&
+    box.x + box.width > figure.x &&
+    box.y < figure.y + figure.height &&
+    box.y + box.height > figure.y
+  );
+}
+
+/**
+ * What it costs when a guide is broken. A guide that says the figure stands in front of an object, and is broken, draws
+ * the figure behind the object: it is hidden. A guide that says the figure stands behind an object, and is broken,
+ * draws the figure over the object: it overlaps it a little, which is far less bad.
+ */
+const HIDDEN_COST = 2;
+const OVERLAP_COST = 1;
+
+/**
+ * Places the figure in the depth slot that breaks the fewest occlusion guides, a guide that would hide the figure
+ * counting double. This matters where the guides contradict each other: a small prop in front of a building stands
+ * higher on the screen than the building's lowest edge, so its depth is lower, and no slot puts the figure in front
+ * of the building and behind the prop. The figure is then drawn over the prop, not behind the building.
+ */
 export function figureDepth(
   feet: Point,
   occluders: readonly Occluder[],
   tileWidth: number,
 ): number {
   const segment = figureOcclusionSegment(feet, tileWidth);
+  // An object whose picture the figure does not overlap on the screen cannot hide the figure or be hidden by it, so
+  // it does not take part: otherwise a big bush that lies below the figure would push it behind a building.
   const constraints = occluders
-    .map((occluder, order) => ({
+    .map((occluder, order) => ({ occluder, order }))
+    .filter(({ occluder }) => overlapsFigure(occluder, feet, tileWidth))
+    .map(({ occluder, order }) => ({
       depth: occluder.depth,
       order,
       behind: occlusionSegmentRelation(segment, occluder.line)?.behind,
@@ -163,25 +214,26 @@ export function figureDepth(
   if (constraints.length === 0) return feet.y;
 
   let bestIndex = 0;
-  let bestViolations = Number.POSITIVE_INFINITY;
+  let bestCost = Number.POSITIVE_INFINITY;
   let bestDistance = Number.POSITIVE_INFINITY;
   let bestDepth = feet.y;
-  let violations = constraints.filter((constraint) => !constraint.behind).length;
+  // At the lowest slot, every guide that puts the figure in front of its object is broken.
+  let cost = constraints.filter((constraint) => !constraint.behind).length * HIDDEN_COST;
   for (let index = 0; index <= constraints.length; index++) {
     const depth = depthAtSlot(feet.y, constraints, index);
     const distance = Math.abs(depth - feet.y);
     if (
-      violations < bestViolations ||
-      (violations === bestViolations && distance < bestDistance) ||
-      (violations === bestViolations && distance === bestDistance && index > bestIndex)
+      cost < bestCost ||
+      (cost === bestCost && distance < bestDistance) ||
+      (cost === bestCost && distance === bestDistance && index > bestIndex)
     ) {
       bestIndex = index;
-      bestViolations = violations;
+      bestCost = cost;
       bestDistance = distance;
       bestDepth = depth;
     }
     const crossed = constraints[index];
-    if (crossed !== undefined) violations += crossed.behind ? 1 : -1;
+    if (crossed !== undefined) cost += crossed.behind ? OVERLAP_COST : -HIDDEN_COST;
   }
   return bestDepth;
 }

@@ -191,6 +191,8 @@ export default function App() {
         },
         transparent: true,
         diagnostics: diagnostics.current,
+        // The preview cannot assign actions, so it shows an indicator for every clickable object (GAME-26).
+        indicateAllObjects: true,
         guides: guides.current,
         view: view.current,
       });

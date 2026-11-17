@@ -73,6 +73,8 @@ export interface GameEngineOptions {
   preserveDrawingBuffer?: boolean;
   guides?: GameGuides;
   view?: GameView;
+  /** The game preview cannot assign actions: it gives every clickable object but an easter egg an edge indicator (GAME-26). */
+  indicateAllObjects?: boolean;
   /** Shows the development diagnostics overlay (GAME-27); never set in a production build. */
   diagnostics?: boolean;
 }

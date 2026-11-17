@@ -39,6 +39,14 @@ import { onAvatar, playerSpritePosition } from "./player-anchor.ts";
 import { isTypingTarget } from "./keys.ts";
 import { startsPaused } from "./pause.ts";
 import { SHADOW_DEPTH_BELOW, figureShadow } from "./figure-shadow.ts";
+import { EdgeIndicatorLayer } from "./edge-indicators.ts";
+import {
+  indicatorPlace,
+  isOutside,
+  selectIndicators,
+  wantsIndicator,
+  type Rect,
+} from "./indicators.ts";
 import {
   GLOW_COLOR,
   NO_FEEDBACK,
@@ -60,6 +68,18 @@ import {
   type GameSelection,
   type GameView,
 } from "./host.ts";
+
+/** An object or portal that may get an edge indicator when it lies outside the view (GAME-26). */
+interface IndicatorSource {
+  id: string;
+  kind: "object" | "portal";
+  label: string;
+  /** Its bounds and centre in map pixels. */
+  bounds: Rect;
+  centre: Point;
+  /** The point a tap on the indicator taps: the same as a tap on the object itself. */
+  tap: Point;
+}
 
 /** The warm glow of a portal's floating arrow (GAME-15). */
 const PORTAL_GLOW_COLOR = 0xffd36b;
@@ -165,6 +185,9 @@ export class WorldScene extends Phaser.Scene {
   #glowSince = 0;
   /** The shadow under the player's figure (GAME-28). */
   #shadow: Phaser.GameObjects.Ellipse | undefined;
+  /** The edge indicators over the canvas and the objects they may point to (GAME-26). */
+  #indicatorLayer: EdgeIndicatorLayer | undefined;
+  #indicatorSources: IndicatorSource[] = [];
   readonly #onKeyDown = (event: KeyboardEvent): void => {
     // The scroll and button keys are the game's only while it runs and no field or button of the page has the focus.
     if (
@@ -224,6 +247,9 @@ export class WorldScene extends Phaser.Scene {
     this.#glows = new Map();
     this.#portalGlows.clear();
     this.#shadow = undefined;
+    this.#indicatorLayer?.destroy();
+    this.#indicatorLayer = undefined;
+    this.#indicatorSources = [];
     this.#sparkles = 0;
     this.#activeSparkles = 0;
     this.#edges = new Map();
@@ -285,6 +311,7 @@ export class WorldScene extends Phaser.Scene {
       this.#floatPortals(map);
       this.#startSparkles(map);
       this.#glowClickables(map);
+      this.#createIndicators(map);
       this.#startShines(map);
       this.#host?.rememberMap?.(map.id);
     }
@@ -316,6 +343,8 @@ export class WorldScene extends Phaser.Scene {
     });
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
       this.#removeShines();
+      this.#indicatorLayer?.destroy();
+      this.#indicatorLayer = undefined;
       this.scale.off(Phaser.Scale.Events.RESIZE, this.#onResize);
       window.removeEventListener("keydown", this.#onKeyDown);
       window.removeEventListener("keyup", this.#onKeyUp);
@@ -355,6 +384,102 @@ export class WorldScene extends Phaser.Scene {
     if (player === undefined) return;
     const camera = this.cameras.main;
     camera.centerOn(player.x, player.y);
+  }
+
+  /**
+   * The objects that may get an edge indicator: the clickable objects with an action and the portals with a target
+   * (GAME-26). Their bounds are the picture's, or the shape's when the object has no picture.
+   */
+  #createIndicators(map: ParsedMap): void {
+    const world = this.#world;
+    const parent = this.game.canvas.parentElement;
+    if (world === undefined || parent === null) return;
+    const options = this.game.registry.get(ENGINE_CONFIG_REGISTRY_KEY) as GameEngineOptions;
+    const anyObject = options.indicateAllObjects === true;
+    const bounds = (objectId: number | undefined, polygon: Point[]): Rect => {
+      const sprite = objectId === undefined ? undefined : this.#objectSprites.get(objectId);
+      if (sprite !== undefined) {
+        const box = sprite.getBounds();
+        return { x: box.x, y: box.y, width: box.width, height: box.height };
+      }
+      const xs = polygon.map((point) => point.x);
+      const ys = polygon.map((point) => point.y);
+      const x = Math.min(...xs);
+      const y = Math.min(...ys);
+      return { x, y, width: Math.max(...xs) - x, height: Math.max(...ys) - y };
+    };
+    const sources: IndicatorSource[] = [];
+    for (const area of map.clickables) {
+      const hasAction = actionOf(world.actions, map.id, area).kind !== "none";
+      if (!wantsIndicator({ kind: "object", hidden: area.hidden, hasAction }, anyObject)) continue;
+      const box = bounds(area.objectId, area.polygon);
+      sources.push({
+        id: `object:${area.name}`,
+        kind: "object",
+        label: area.label ?? area.name,
+        bounds: box,
+        centre: { x: box.x + box.width / 2, y: box.y + box.height / 2 },
+        tap: interiorPoint(area.polygon),
+      });
+    }
+    for (const portal of map.portals) {
+      if (!wantsIndicator({ kind: "portal", hasTarget: portal.targetMap !== undefined })) continue;
+      const box = bounds(portal.objectId, portal.polygon);
+      sources.push({
+        id: `portal:${portal.name}`,
+        kind: "portal",
+        label: portal.name,
+        bounds: box,
+        centre: { x: box.x + box.width / 2, y: box.y + box.height / 2 },
+        tap: interiorPoint(portal.polygon),
+      });
+    }
+    this.#indicatorSources = sources;
+    // A tap on an indicator does what a tap on the object does.
+    this.#indicatorLayer = new EdgeIndicatorLayer(parent, (id) => {
+      const source = this.#indicatorSources.find((item) => item.id === id);
+      if (source !== undefined && this.sys.isActive() && !this.#transitioning)
+        this.#tapTo(source.tap);
+    });
+  }
+
+  /** Shows the indicators of the objects outside the view, the nearest first and without overlaps (GAME-26). */
+  #updateIndicators(): void {
+    const layer = this.#indicatorLayer;
+    if (layer === undefined) return;
+    const camera = this.cameras.main;
+    const ratio = this.#pixelRatio();
+    // The view in CSS pixels: the camera's zoom is CAMERA_ZOOM times the pixel ratio (GAME-27).
+    const view = { width: camera.width / ratio, height: camera.height / ratio };
+    const toView = (point: Point): Point => ({
+      x: (point.x - camera.midPoint.x) * CAMERA_ZOOM + view.width / 2,
+      y: (point.y - camera.midPoint.y) * CAMERA_ZOOM + view.height / 2,
+    });
+    const avatar = toView(this.#position);
+    const candidates = this.#indicatorSources
+      .filter((source) => isOutside(source.bounds, camera.worldView))
+      .map((source) => {
+        const place = indicatorPlace(avatar, toView(source.centre), view);
+        return {
+          source,
+          point: place.point,
+          angle: place.angle,
+          distance: Math.hypot(
+            source.centre.x - this.#position.x,
+            source.centre.y - this.#position.y,
+          ),
+        };
+      });
+    layer.update(
+      selectIndicators(candidates).map(({ source, point, angle }) => ({
+        id: source.id,
+        kind: source.kind,
+        label: source.label,
+        x: point.x,
+        y: point.y,
+        angle,
+      })),
+    );
   }
 
   /** The shadow of the player's figure: an ellipse on the ground under its feet (GAME-28). */
@@ -569,6 +694,7 @@ export class WorldScene extends Phaser.Scene {
 
     this.#feedbackEvent({ type: "frame", waypoints: this.#path.length, keysHeld });
     this.#showFeedback(time);
+    this.#updateIndicators();
 
     const portal = portalAt(map, this.#position);
     if (!this.#armed) {
@@ -1342,12 +1468,14 @@ export class WorldScene extends Phaser.Scene {
     const keyboard = this.input.keyboard;
     if (paused) {
       this.scene.pause();
+      this.#indicatorLayer?.setHidden(true);
       keyboard?.resetKeys();
       return;
     }
     // An activation key still held when the page closes (Enter on its close button) must not open an object again.
     this.#activationBlocked = this.#activateKeys.some((key) => key.isDown);
     this.scene.resume();
+    this.#indicatorLayer?.setHidden(false);
     keyboard?.resetKeys();
   }
 

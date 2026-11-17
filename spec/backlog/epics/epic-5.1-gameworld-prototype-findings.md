@@ -112,8 +112,8 @@ Re-verified: GAME-15, GAME-16.
 
 Mock screen: `game` (from 5.1b).
 - Which objects get an indicator (action assigned, portal with a target, not an easter egg, outside the view), where each indicator sits on the edge, the limit of 6 and the overlap rule: pure functions in a new `game-engine/src/indicators.ts`, with unit tests for each rule, including a view with the game bar and a phone-sized view.
-- Drawing in `GameScene.ts`, fixed to the camera, updated as the camera moves. A tap on an indicator runs the same path as a tap on its object.
-- End-to-end (desktop Chromium): on the test world, an object outside the view has an indicator, and tapping it walks to the object and runs its action.
+- The indicators are HTML buttons over the canvas (`edge-indicators.ts`), updated by `GameScene.ts` as the camera moves (changed from "drawn in the scene": the touch area is then 44 × 44 CSS pixels whatever the canvas's pixel ratio, and a button can be named for screen readers). A tap on an indicator runs the same path as a tap on its object.
+- End-to-end (desktop Chromium, a phone-sized viewport so that objects lie outside the view): on the test world, the objects outside the view have an indicator and the easter egg has none, and tapping the altar's indicator walks to it and opens its page.
 
 Requirements: GAME-26.
 Re-verified: GAME-06, GAME-11, GAME-14, GAME-16.

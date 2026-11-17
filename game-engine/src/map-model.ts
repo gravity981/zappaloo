@@ -334,6 +334,7 @@ export function parseMap(id: string, json: unknown): ParsedMap {
             occluders.push({
               depth: anchor.y,
               line: image.occlusion.map(toPixel),
+              bounds: { x, y, width: image.width, height: image.height },
             });
           }
         }

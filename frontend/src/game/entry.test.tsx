@@ -1,6 +1,6 @@
 // Entering the game (GAME-12 – GAME-14, GAME-17, GAME-18; UX mocks game, onboard-avatar, home). The Phaser canvas and the
 // avatar editor are replaced by stand-ins: they are tested elsewhere (end-to-end, avatar.test.tsx).
-import { cleanup, screen, waitFor } from "@testing-library/react";
+import { cleanup, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { initI18n } from "../i18n/i18n.ts";
 import { fakeBackend, renderAt, signedIn, user } from "../test/backend.tsx";
@@ -187,22 +187,19 @@ describe("entering the game", () => {
     expect(screen.queryByRole("dialog")).toBeNull();
   });
 
-  it("[GAME-14] the bar has Programm, Rückmeldung with a badge while the RSVP is open, and Website", async () => {
-    setup({ answered: false });
-    renderAt("/game");
-    const bar = await screen.findByRole("navigation", { name: "Erlebniswelt" });
-    expect(bar).toBeVisible();
-    expect(await screen.findByRole("status", { name: "offen" })).toBeVisible();
-    expect(screen.getByRole("link", { name: "Website" })).toBeVisible();
-    user.click(screen.getByRole("button", { name: "Programm" }));
-    expect(await screen.findByRole("dialog", { name: "Programm" })).toBeVisible();
-  });
-
-  it("[GAME-14] no badge once the RSVP is answered", async () => {
-    setup({ answered: true });
-    renderAt("/game");
-    await screen.findByRole("button", { name: "Rückmeldung" });
-    expect(screen.queryByRole("status", { name: "offen" })).toBeNull();
+  it("[GAME-14] the bar has only the title and the Website button, whether the RSVP is open or answered", async () => {
+    for (const answered of [false, true]) {
+      setup({ chosen: true, answered });
+      renderAt("/game");
+      const bar = await screen.findByRole("banner");
+      expect(bar).toBeVisible();
+      expect(within(bar).getByRole("link", { name: "Website" })).toBeVisible();
+      // No Programm or Rückmeldung button, no badge, no navigation: they are reached through the objects.
+      expect(within(bar).queryAllByRole("button")).toHaveLength(0);
+      expect(within(bar).queryByRole("navigation")).toBeNull();
+      expect(within(bar).queryByRole("status")).toBeNull();
+      cleanup();
+    }
   });
 
   it("[GAME-07] the hint names the way of playing that suits the device: tapping on a phone, clicking and Enter with a mouse", async () => {

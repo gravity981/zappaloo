@@ -37,7 +37,7 @@ The decisions behind the mocks, by question number in the prototype's "Questions
 | 13 | Own contributions | "Meine Beiträge" in the profile (ACC-12). |
 | 14, 47 | Own figure | Always shown, no switch (PRES-04). |
 | 15 | Avatar step | Cannot be skipped; "Zufällig" makes it one tap. |
-| 16, 41 | Game bar | Bar at the top: Programm, Rückmeldung (badge), Hochladen, Website. "Website" leaves the game. No buttons at the bottom, no event-day "now / next" in the game (GAME-14, WEB-07). |
+| 16, 41 | Game bar | Bar at the top: the event's name and "Website", which leaves the game (changed 2026-11-17: Programm, Rückmeldung and Hochladen are objects of the world, not buttons). No buttons at the bottom, no event-day "now / next" in the game (GAME-14, WEB-07). |
 | 17, 40, 42 | World objects | Clickable objects come from the event's Tiled maps; each map has its own. They sparkle along their edges at random, and a shine passes over them now and then; tapping one walks the avatar there and runs its action. Portals between scenes are floating arrows. The admin assigns each object's action per map in "Erlebniswelt" (GAME-05, GAME-06, GAME-15, GAME-16, MAP-15). |
 | 40 | Own avatar | Tapping it opens the profile (GAME-18). |
 | 43 | Discoverability | The sparkle plus a hint at the first entry, "Tippe auf Dinge, die funkeln" (GAME-17). |
@@ -152,7 +152,7 @@ Written into sw-architecture.md 14.2 and 14.4 as well.
 | Objects | Erlebniswelt › "Objekte & Portale": a preset that points to something missing is marked "fehlt". A portal whose given target is missing cannot be imported; a portal without a target is a warning (reworded 2026-11-17). The minigame action is offered from stage 8. |
 | Dialogues | A tab "Dialoge" in Erlebniswelt, not in Inhalte, because dialogues belong to the game world (Q63). A dialogue has an id (its `contentId`), the NPC's name and lines in Markdown, a preview of the dialogue box and "Verwendet von" (CNT-02, CNT-03). A dialogue in use cannot be deleted. Its id can be changed (Q64). |
 | Who uses Erlebniswelt | Only admins manage the world: import, rollback, guest access, object actions and dialogues. Disabling guest access hides guest entry points and blocks direct guest navigation while leaving the active package and admin management available. |
-| Game bar in stage 5 | Programm, Rückmeldung, Website. "Hochladen" comes with stage 7 (GAME-14). |
+| Game bar in stage 5 | Programm, Rückmeldung, Website; since 2026-11-17 only the event's name and Website (GAME-14). |
 | First entry in stage 5 | The avatar step, then the RSVP overlay while the RSVP is open. "Sag hallo" comes with stage 6 (GAME-13). |
 | Without a world or with guest access disabled | Guests land on the website, and no guest navigation to the Erlebniswelt is shown. |
 
