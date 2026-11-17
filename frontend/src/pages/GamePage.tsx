@@ -87,7 +87,7 @@ export default function GamePage() {
 
   return (
     <div className="game-page">
-      <div className="game-window">
+      <div className="game-window guest">
         <GameBar rsvp={rsvpEnabled} rsvpOpen={rsvpOpen === true} onOpen={openPage} />
         <div className="game-stage">
           <Suspense fallback={<p>{t("game.loading")}</p>}>

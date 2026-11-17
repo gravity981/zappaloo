@@ -170,12 +170,12 @@ test("[AVA-01][AVA-02] the avatar editor offers an admin the tier3 figures only,
   await expect(page.getByRole("button", { name: de.avatar.finish })).toBeDisabled();
   await kinds.getByRole("button", { name: de.avatar.kinds.male }).click();
   await expect(page.getByRole("button", { name: de.avatar.finish })).toBeEnabled();
-  await expect(page.getByRole("group", { name: de.avatar.figure }).getByRole("button")).toHaveCount(
-    1,
-  );
+  await expect(
+    page.getByRole("group", { name: de.avatar.figure, exact: true }).getByRole("button"),
+  ).toHaveCount(1);
   // The choice is stored: a new visit shows it.
   await page.reload();
-  await expect(page.getByRole("group", { name: de.avatar.figure })).toBeVisible();
+  await expect(page.getByRole("group", { name: de.avatar.figure, exact: true })).toBeVisible();
   // The game starts with the chosen figure.
   await enterGame(page);
   await gameState(page);
@@ -199,7 +199,7 @@ test("[GAME-12][GAME-13][GAME-14][GAME-17][GAME-18] first entry: the avatar come
   await expect(page.getByTestId("game-canvas")).toBeVisible();
   const bar = page.getByRole("navigation", { name: de.game.bar.label });
   await expect(bar.getByRole("button", { name: de.nav.programme })).toBeVisible();
-  await expect(bar.getByRole("link", { name: de.nav.site })).toBeVisible();
+  await expect(page.getByRole("link", { name: de.nav.site })).toBeVisible();
   await expect(page.getByTestId("game-hint")).toBeVisible();
 
   // A tap on the own avatar opens the profile above the game.
@@ -211,7 +211,7 @@ test("[GAME-12][GAME-13][GAME-14][GAME-17][GAME-18] first entry: the avatar come
   await page.getByRole("button", { name: de.game.overlay.close }).click();
 
   // "Website" leaves the game; the start page offers the way back.
-  await bar.getByRole("link", { name: de.nav.site }).click();
+  await page.getByRole("link", { name: de.nav.site }).click();
   await expect(page.getByRole("link", { name: de.website.enterWorld })).toBeVisible();
 
   // The next sign-in start (`/` in a new session) lands in the game.

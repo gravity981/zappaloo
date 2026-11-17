@@ -4,6 +4,9 @@
 import { useTranslation } from "react-i18next";
 import { Link } from "react-router";
 import { markWebsiteVisit } from "../app/gameEntry.ts";
+import { useSiteName } from "../guest/site.ts";
+import { SITE_ICON_PATHS } from "../app/siteIconPaths.ts";
+import { SiteIcon } from "../app/siteIcons.tsx";
 
 export default function GameBar({
   rsvp,
@@ -17,34 +20,42 @@ export default function GameBar({
   onOpen: (page: "programme" | "rsvp", label: string) => void;
 }) {
   const { t } = useTranslation();
+  const name = useSiteName();
+  // The header of the website (UX mock `site`): the event's name, the buttons as its tabs, "Website" at the right end.
   return (
-    <nav className="game-bar" aria-label={t("game.bar.label")}>
-      <button
-        type="button"
-        className="btn soft sm"
-        onClick={() => {
-          onOpen("programme", t("nav.programme"));
-        }}
-      >
-        {t("nav.programme")}
-      </button>
-      {rsvp && (
+    <header className="guest-site-head game-bar">
+      <div className="site-brand">
+        <b>{name ?? t("app.name")}</b>
+      </div>
+      <nav aria-label={t("game.bar.label")}>
         <button
           type="button"
-          className="btn soft sm"
           onClick={() => {
-            onOpen("rsvp", t("nav.rsvp"));
+            onOpen("programme", t("nav.programme"));
           }}
         >
-          {t("nav.rsvp")}
-          {rsvpOpen && (
-            <span className="game-badge" role="status" aria-label={t("game.bar.rsvpOpen")} />
-          )}
+          {t("nav.programme")}
         </button>
-      )}
-      <Link className="btn soft sm game-bar-end" to="/" onClick={markWebsiteVisit}>
-        {t("nav.site")}
-      </Link>
-    </nav>
+        {rsvp && (
+          <button
+            type="button"
+            onClick={() => {
+              onOpen("rsvp", t("nav.rsvp"));
+            }}
+          >
+            {t("nav.rsvp")}
+            {rsvpOpen && (
+              <span className="game-badge" role="status" aria-label={t("game.bar.rsvpOpen")} />
+            )}
+          </button>
+        )}
+      </nav>
+      <div className="site-head-r">
+        <Link className="btn sm" to="/" onClick={markWebsiteVisit}>
+          <SiteIcon path={SITE_ICON_PATHS.home} />
+          {t("nav.site")}
+        </Link>
+      </div>
+    </header>
   );
 }

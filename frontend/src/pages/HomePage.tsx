@@ -19,6 +19,8 @@ import { useRestricted } from "../app/restricted.ts";
 import { useSession } from "../app/session.ts";
 import { hasVisitedWebsite, useWorldActive } from "../app/gameEntry.ts";
 import { useEventFormat } from "../rsvp/format.ts";
+import { SITE_ICON_PATHS } from "../app/siteIconPaths.ts";
+import { SiteIcon } from "../app/siteIcons.tsx";
 import WaitingPage from "../waiting/WaitingPage.tsx";
 
 /** The countdown card (WEB-11): the days, and the date and place of the first program item. */
@@ -112,6 +114,7 @@ export default function HomePage() {
   if (!content || world === undefined) return null;
   const enter = world && (
     <Link className="btn" to="/game">
+      <SiteIcon path={SITE_ICON_PATHS.play} />
       {t("website.enterWorld")}
     </Link>
   );
