@@ -1,6 +1,7 @@
 import Phaser from "phaser";
 import { ENGINE_CONFIG_REGISTRY_KEY, WORLD_SCENE_KEY } from "./host.ts";
 import { WorldScene } from "./GameScene.ts";
+import { rememberPause } from "./pause.ts";
 import type { GameEngineOptions, GameGuides, GameSelection, GameView } from "./host.ts";
 
 export type GameInstance = Phaser.Game;
@@ -51,10 +52,16 @@ export function setGameFigure(game: GameInstance, figureId: string): void {
   if (scene instanceof WorldScene) scene.setFigure(figureId);
 }
 
-/** Pauses the game while a page is open above it, and resumes it when the page is closed (GAME-11). */
+/**
+ * Pauses the game while a page is open above it, and resumes it when the page is closed (GAME-11). The state is
+ * kept even when the scene does not run yet; the scene applies it when it starts.
+ */
 export function setGamePaused(game: GameInstance, paused: boolean): void {
+  rememberPause(game.registry, paused);
   const scene = game.scene.getScene(WORLD_SCENE_KEY);
-  if (scene instanceof WorldScene) scene.setPaused(paused);
+  if (scene instanceof WorldScene && (scene.sys.isActive() || scene.sys.isPaused())) {
+    scene.setPaused(paused);
+  }
 }
 
 /** The clickable objects of the current map: names and positions in map pixels (test hook). */

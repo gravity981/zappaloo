@@ -2,6 +2,8 @@ import type { WorldObjectAction } from "@zappaloo/shared";
 import type { LoadedWorld } from "./world-data.ts";
 
 export const ENGINE_CONFIG_REGISTRY_KEY = "zappaloo.game-engine";
+/** The pause the page asked for (GAME-11), kept in the game registry until the scene runs. */
+export const PAUSED_REGISTRY_KEY = "zappaloo.game-paused";
 export const WORLD_SCENE_KEY = "world";
 
 export interface GameSelection {

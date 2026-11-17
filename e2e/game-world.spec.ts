@@ -7,7 +7,13 @@ import { join } from "node:path";
 import { expect, test, type Page } from "@playwright/test";
 import { buildTestWorld, FIGURE_SIDE, TEST_WORLD_NAME } from "../backend/src/world/build.ts";
 import { SPEED_TILES_PER_SECOND } from "../game-engine/src/movement.ts";
-import { chooseFirstFigure, signInAsAdmin } from "./support.ts";
+import {
+  chooseFirstFigure,
+  clientAddress,
+  PASSWORD,
+  signInAsAdmin,
+  stayOnWebsite,
+} from "./support.ts";
 import de from "../frontend/src/i18n/locales/de/common.json" with { type: "json" };
 
 test.describe.configure({ mode: "serial" });
@@ -160,6 +166,104 @@ test("[GAME-06][GAME-08][GAME-11][GAME-15][GAME-16] a tap on an object walks to 
     await page.keyboard.press("Escape");
     await expect(overlay).toHaveCount(0, { timeout: 1000 });
   }).toPass();
+});
+
+test("[GAME-11] Enter on the close button of an object's page closes it, and the object does not open again", async ({
+  page,
+  context,
+}, testInfo) => {
+  test.skip(testInfo.project.name !== "desktop-chromium", "shared settings: one profile only");
+  await signInAsAdmin(page, context);
+  await enterGame(page);
+  await gameState(page);
+  const objects = await page.evaluate(() => window.__zappaloo?.game?.clickables() ?? []);
+  const altar = objects.find((item) => item.name === "altar");
+  if (altar === undefined) throw new Error("the start map has no object altar");
+  const overlay = page.getByRole("dialog", { name: "Programm" });
+  await expect(async () => {
+    const target = await pagePoint(page, { x: altar.x, y: altar.y });
+    await page.mouse.click(target.x, target.y);
+    await expect(overlay).toBeVisible({ timeout: 10_000 });
+  }).toPass({ timeout: 40_000 });
+
+  // Enter on the focused close button closes the page; the game must not take the same press as a new activation.
+  const close = page.getByRole("button", { name: de.game.overlay.close });
+  await close.focus();
+  await page.keyboard.press("Enter");
+  await expect(overlay).toHaveCount(0);
+  await page.waitForTimeout(800);
+  await expect(overlay).toHaveCount(0);
+});
+
+test("[GAME-11][GAME-13] on the first entry with an open RSVP, typing into the RSVP's field types there and the avatar stays where it is", async ({
+  page,
+  context,
+  browser,
+  baseURL,
+}, testInfo) => {
+  test.skip(testInfo.project.name !== "desktop-chromium", "shared settings: one profile only");
+  test.setTimeout(90_000);
+  const suffix = Math.random().toString(36).slice(2, 8);
+  const name = `E2E Spiel ${suffix}`;
+  const username = `spiel${suffix}`;
+
+  // An admin opens the RSVP and invites a guest, as in the RSVP test.
+  await signInAsAdmin(page, context);
+  await page.goto("/admin/settings");
+  await page.getByLabel(de.admin.rsvpSettings.deadline).fill("2099-12-31");
+  await page.getByRole("button", { name: de.admin.rsvpSettings.saveDeadline }).click();
+  await expect(
+    page.getByRole("status").filter({ hasText: de.admin.rsvpSettings.saved }),
+  ).toBeVisible();
+  await page.goto("/admin/invitations");
+  await page.getByLabel(de.admin.invitations.names).fill(name);
+  await page.getByRole("button", { name: /Einladung erstellen/ }).click();
+  const codeCell = page.locator(".invitation-code");
+  await expect(codeCell).toHaveText(/^[A-Z0-9]{6}$/);
+  const code = (await codeCell.textContent()) ?? "";
+
+  // The guest redeems the invitation in a browser of their own and enters the game for the first time.
+  const guestContext = await browser.newContext({
+    ...(baseURL ? { baseURL } : {}),
+    extraHTTPHeaders: { "x-forwarded-for": clientAddress() },
+  });
+  await stayOnWebsite(guestContext);
+  const guest = await guestContext.newPage();
+  await guest.goto(`/invite/${code}`);
+  await guest.getByLabel(de.invite.username).fill(username);
+  await guest.getByLabel(de.setPassword.password, { exact: true }).fill(PASSWORD);
+  await guest.getByRole("button", { name: de.invite.register }).click();
+  // The guest is signed in on the closed platform, as in the RSVP test: the waiting page links to the answer.
+  await expect(guest.getByRole("link", { name: de.waiting.answer })).toBeVisible();
+  // The platform opens for guests now; it is closed again at the end, as the other tests expect it.
+  await page.goto("/admin/settings");
+  const opening = page.getByRole("region", { name: de.admin.waiting.openingTitle });
+  await opening.getByRole("button", { name: de.admin.waiting.openNow }).click();
+  await expect(opening.getByText(de.admin.waiting.opened, { exact: true })).toBeVisible();
+  await guest.goto("/game");
+  await guest.getByRole("group", { name: de.avatar.kind }).getByRole("button").first().click();
+  await guest.getByRole("button", { name: de.game.first.continue }).click();
+
+  // The RSVP opens above the game; the answer leads to the text field of the allergies.
+  const rsvp = guest.getByRole("dialog", { name: de.nav.rsvp });
+  await expect(rsvp).toBeVisible();
+  await guest.getByRole("button", { name: de.rsvp.yes, exact: true }).click();
+  await guest.getByRole("button", { name: de.rsvp.next }).click();
+  await guest.getByRole("button", { name: "Vegetarisch" }).click();
+  const field = guest.getByLabel(de.rsvp.allergies);
+  await field.click();
+  const before = await gameState(guest);
+  await guest.keyboard.type("wasd");
+  await guest.waitForTimeout(600);
+  await expect(field).toHaveValue("wasd");
+  const after = await gameState(guest);
+  expect([after.x, after.y]).toEqual([before.x, before.y]);
+  await guestContext.close();
+  await page.goto("/admin/settings");
+  await page
+    .getByRole("region", { name: de.admin.waiting.openingTitle })
+    .getByRole("button", { name: de.admin.waiting.closeAgain })
+    .click();
 });
 
 test("[AVA-01][AVA-02] the avatar editor offers an admin the tier3 figures only, by kind; choosing a kind stores a figure and enables the next step", async ({

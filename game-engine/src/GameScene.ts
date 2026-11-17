@@ -28,6 +28,8 @@ import {
   visibleEdge,
 } from "./interaction.ts";
 import { playerSpritePosition } from "./player-anchor.ts";
+import { isTypingTarget } from "./keys.ts";
+import { startsPaused } from "./pause.ts";
 import { tilesetImageKey, type ClickableArea, type ParsedMap, type TileDraw } from "./map-model.ts";
 import type { FigureData, LoadedWorld } from "./world-data.ts";
 import {
@@ -45,6 +47,10 @@ export const CAMERA_ZOOM = 2;
 
 /** The distance in pixels at which a waypoint counts as reached. */
 const REACHED = 1;
+/** The keys the browser would use to scroll or press a button; the game takes them while it runs (GAME-09). */
+const SCROLL_KEYS = new Set(["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", "Space"]);
+/** The keys that activate a clickable object. */
+const ACTIVATE_CODES = new Set(["Enter", "Space"]);
 const DEFAULT_GUIDES: GameGuides = {
   collisions: false,
   borders: false,
@@ -106,8 +112,23 @@ export class WorldScene extends Phaser.Scene {
   #sparkleTimer: Phaser.Time.TimerEvent | undefined;
   #shineTimer: Phaser.Time.TimerEvent | undefined;
   #activateKeys: Phaser.Input.Keyboard.Key[] = [];
-  #cursor: Phaser.Types.Input.Keyboard.CursorKeys | undefined;
+  #arrows: Record<"left" | "right" | "up" | "down", Phaser.Input.Keyboard.Key> | undefined;
   #wasd: Record<"W" | "A" | "S" | "D", Phaser.Input.Keyboard.Key> | undefined;
+  /** After a resume, the activation keys that were still held do not activate until they are released (GAME-11). */
+  #activationBlocked = false;
+  readonly #onKeyDown = (event: KeyboardEvent): void => {
+    // The scroll and button keys are the game's only while it runs and no field or button of the page has the focus.
+    if (
+      this.sys.isActive() &&
+      SCROLL_KEYS.has(event.code) &&
+      !isTypingTarget(document.activeElement)
+    ) {
+      event.preventDefault();
+    }
+  };
+  readonly #onKeyUp = (event: KeyboardEvent): void => {
+    if (ACTIVATE_CODES.has(event.code)) this.#activationBlocked = false;
+  };
   readonly #onTap = (pointer: Phaser.Input.Pointer): void => {
     const world = this.cameras.main.getWorldPoint(pointer.x, pointer.y);
     // A tap on the player's own avatar goes to the host and does not walk (GAME-18).
@@ -221,7 +242,13 @@ export class WorldScene extends Phaser.Scene {
       };
     });
     this.#host?.onReady?.();
+    // Phaser sets the scene to running after create() returns, so a pause the page asked for earlier is applied then.
+    this.events.once(Phaser.Scenes.Events.CREATE, () => {
+      if (startsPaused(this.registry)) this.setPaused(true);
+    });
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
+      window.removeEventListener("keydown", this.#onKeyDown);
+      window.removeEventListener("keyup", this.#onKeyUp);
       this.input.off(Phaser.Input.Events.POINTER_DOWN, this.#onTap);
       this.#sparkleTimer?.remove();
       this.#sparkleTimer = undefined;
@@ -296,7 +323,11 @@ export class WorldScene extends Phaser.Scene {
       this.#path = [];
       this.#pending = undefined;
     }
-    if (this.#activateKeys.some((key) => Phaser.Input.Keyboard.JustDown(key))) {
+    // Every activation key is read, so a press is used up even when it does not activate.
+    const pressed = this.#activateKeys
+      .map((key) => Phaser.Input.Keyboard.JustDown(key))
+      .some((value) => value);
+    if (pressed && !this.#activationBlocked && !isTypingTarget(document.activeElement)) {
       const area = clickableInReach(map, this.#position);
       if (area !== undefined) {
         this.#path = [];
@@ -712,30 +743,43 @@ export class WorldScene extends Phaser.Scene {
   #bindInput(): void {
     const keyboard = this.input.keyboard;
     if (keyboard !== null) {
-      this.#cursor = keyboard.createCursorKeys();
+      // The keys are added without capture: Phaser then leaves the page's own fields and buttons their keys (GAME-09).
+      // Only #onKeyDown prevents the browser's default, and only while the game runs.
+      const key = (code: number) => keyboard.addKey(code, false);
+      this.#arrows = {
+        left: key(Phaser.Input.Keyboard.KeyCodes.LEFT),
+        right: key(Phaser.Input.Keyboard.KeyCodes.RIGHT),
+        up: key(Phaser.Input.Keyboard.KeyCodes.UP),
+        down: key(Phaser.Input.Keyboard.KeyCodes.DOWN),
+      };
       this.#wasd = {
-        W: keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.W),
-        A: keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.A),
-        S: keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.S),
-        D: keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.D),
+        W: key(Phaser.Input.Keyboard.KeyCodes.W),
+        A: key(Phaser.Input.Keyboard.KeyCodes.A),
+        S: key(Phaser.Input.Keyboard.KeyCodes.S),
+        D: key(Phaser.Input.Keyboard.KeyCodes.D),
       };
       this.#activateKeys = [
-        keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.ENTER),
-        keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE),
+        key(Phaser.Input.Keyboard.KeyCodes.ENTER),
+        key(Phaser.Input.Keyboard.KeyCodes.SPACE),
       ];
     }
     this.input.on(Phaser.Input.Events.POINTER_DOWN, this.#onTap);
+    window.addEventListener("keydown", this.#onKeyDown);
+    window.addEventListener("keyup", this.#onKeyUp);
   }
 
-  /** The arrow keys, and W A S D, as they are held. */
+  /** The arrow keys, and W A S D, as they are held; none while a field or button of the page has the focus. */
   #keys(): { left: boolean; right: boolean; up: boolean; down: boolean } {
-    const cursor = this.#cursor;
+    if (isTypingTarget(document.activeElement)) {
+      return { left: false, right: false, up: false, down: false };
+    }
+    const arrows = this.#arrows;
     const wasd = this.#wasd;
     return {
-      left: cursor?.left.isDown === true || wasd?.A.isDown === true,
-      right: cursor?.right.isDown === true || wasd?.D.isDown === true,
-      up: cursor?.up.isDown === true || wasd?.W.isDown === true,
-      down: cursor?.down.isDown === true || wasd?.S.isDown === true,
+      left: arrows?.left.isDown === true || wasd?.A.isDown === true,
+      right: arrows?.right.isDown === true || wasd?.D.isDown === true,
+      up: arrows?.up.isDown === true || wasd?.W.isDown === true,
+      down: arrows?.down.isDown === true || wasd?.S.isDown === true,
     };
   }
 
@@ -1017,11 +1061,12 @@ export class WorldScene extends Phaser.Scene {
     if (paused) {
       this.scene.pause();
       keyboard?.resetKeys();
-      keyboard?.disableGlobalCapture();
-    } else {
-      keyboard?.enableGlobalCapture();
-      this.scene.resume();
+      return;
     }
+    // An activation key still held when the page closes (Enter on its close button) must not open an object again.
+    this.#activationBlocked = this.#activateKeys.some((key) => key.isDown);
+    this.scene.resume();
+    keyboard?.resetKeys();
   }
 
   /** The clickable objects of the map the player is in, for the test hook and the host. */
