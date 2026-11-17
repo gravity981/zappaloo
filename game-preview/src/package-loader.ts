@@ -18,12 +18,10 @@ const failureSchema = z.object({
   findings: z.array(worldFindingSchema).optional(),
 });
 export const sourceStatusSchema = z.strictObject({
-  available: z.boolean(),
-  message: z.string(),
-  mapIds: z.array(z.string()),
   active: z.boolean(),
-  exporting: z.boolean(),
+  loading: z.boolean(),
   revision: z.number().int().nonnegative(),
+  archivePath: z.string().optional(),
   snapshot: uploadSchema.optional(),
   error: z
     .strictObject({
@@ -46,7 +44,7 @@ export class PreviewLoadError extends Error {
 
 export interface LoadedPreview {
   token: string;
-  source: "package" | "tiled";
+  source: "package" | "local-package";
   summary: PublicWorld;
   world: LoadedWorld;
   findings: WorldFindingDto[];

@@ -25,15 +25,12 @@ afterEach(() => {
 describe("standalone world preview (MAP-18)", () => {
   it("[MAP-18] reports validation findings without showing a scene on the first failed load", async () => {
     const fetchMock = vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
-      if (requestUrl(input).endsWith("/source/status")) {
+      if (requestUrl(input).endsWith("/local-package/status")) {
         return Promise.resolve(
           new Response(
             JSON.stringify({
-              available: false,
-              message: "Local Tiled source is not configured.",
-              mapIds: [],
               active: false,
-              exporting: false,
+              loading: false,
               revision: 0,
             }),
             { headers: { "Content-Type": "application/json" } },
@@ -81,5 +78,47 @@ describe("standalone world preview (MAP-18)", () => {
         fetchMock.mock.calls.filter(([input]) => requestUrl(input).endsWith("/packages")),
       ).toHaveLength(1);
     });
+  });
+
+  it("[MAP-18] starts a watched local package preview with the absolute path entered in the UI", async () => {
+    const fetchMock = vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
+      const url = requestUrl(input);
+      if (url.endsWith("/local-package/status")) {
+        return Promise.resolve(
+          new Response(JSON.stringify({ active: false, loading: false, revision: 0 }), {
+            headers: { "Content-Type": "application/json" },
+          }),
+        );
+      }
+      if (url.endsWith("/local-package/start") && init?.method === "POST") {
+        return Promise.resolve(
+          new Response(
+            JSON.stringify({
+              active: false,
+              loading: false,
+              revision: 0,
+              error: { message: "World package does not exist.", findings: [] },
+            }),
+            { headers: { "Content-Type": "application/json" } },
+          ),
+        );
+      }
+      return Promise.resolve(new Response("Unexpected preview request", { status: 500 }));
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    render(<App />);
+
+    fireEvent.change(screen.getByLabelText("Local world package path"), {
+      target: { value: "/workspaces/hz-event-assets/world.tar.gz" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Preview and watch" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("World package does not exist.");
+    const startCall = fetchMock.mock.calls.find(([input]) =>
+      requestUrl(input).endsWith("/local-package/start"),
+    );
+    expect(startCall?.[1]?.body).toBe(
+      JSON.stringify({ archivePath: "/workspaces/hz-event-assets/world.tar.gz" }),
+    );
   });
 });

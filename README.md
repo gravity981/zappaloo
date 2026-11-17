@@ -35,7 +35,7 @@ Development data (SQLite database, uploads, maps) lives in the Docker volume `za
 
 | Command | Does |
 |---|---|
-| `APP_ENV=dev npm run dev:game-preview` | Run the standalone game preview on port 5175; set `ZAPPALOO_TILED_SOURCE_DIR` to preview a local Tiled source |
+| `APP_ENV=dev npm run dev:game-preview` | Run the standalone game preview on port 5175; enter an absolute world-package path in the preview to watch local changes |
 | `npm test` | Unit, component and integration tests (Vitest) |
 | `npm run test:e2e` | End-to-end tests (Playwright, desktop and mobile, Chromium and WebKit) |
 | `npm run lint` / `npm run format` | ESLint / Prettier |
@@ -53,7 +53,7 @@ The full list is in [CLAUDE.md](CLAUDE.md#environment).
 ```text
 frontend/        React app and i18n messages (src/i18n/locales)
 game-engine/     Shared Phaser 4.2.1 world renderer and movement engine
-game-preview/    Developer-only package and local Tiled source preview (port 5175)
+game-preview/    Developer-only world-package preview (port 5175)
 backend/         Fastify API, CLI, database schema and migrations (drizzle/)
 shared/          Code used by both: API schemas (Zod), version scheme, event setup schema
 e2e/             Playwright tests

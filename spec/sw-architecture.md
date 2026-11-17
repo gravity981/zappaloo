@@ -365,7 +365,7 @@ A treasure hunt connects the real venue with the game world:
 | GAME-17 | On the first entry, a short hint ("Tippe auf Dinge, die funkeln") is shown until the player activates the first object. | Should |
 | GAME-18 | Clicking or tapping the player's own avatar opens the profile as an overlay. | Could |
 | GAME-19 | In the standard Ground → Props → Foreground stack, static tile objects and figures share a depth band: objects sort by their bottom edge and figures by their feet. An image-collection tile's `occlusion` polyline lets a figure pass behind or in front of that object at its authored front edge, evaluated across a horizontal segment matching the player's collision ellipse and centered 2 px left of the logical feet. The side containing more of the segment decides; a tie favors the figure in front. Overlapping guides determine the figure's depth slot independent of input order; if their constraints conflict, choose the slot that violates the fewest guides, then the one closest to the feet depth, with ties favoring the figure in front. Foreground tile layers are drawn after Props and cover both (14.1, 14.2, 14.4; revised after local-world review). | Must |
-| GAME-20 | For the supported Tiled rendering subset (14.1, 14.4), static world artwork matches the Tiled 1.12.2 rasterizer pixel-for-pixel at native scale; at zoom 2 it remains crisp with nearest-neighbour scaling. | Must |
+| GAME-20 | The Phaser renderer correctly interprets the supported Tiled map subset in 14.1 and 14.4, including tile-layer positions, tile-object anchors, tileset crops and map bounds. | Must |
 | MP-01 | ~~Each map is a separate multiplayer room managed by the server.~~ (withdrawn: no multiplayer, see 3.3) | – |
 | MP-02 | ~~Players on the same map see the avatars and movements of the other players in that room in near real time.~~ (withdrawn: no multiplayer, see 3.3) | – |
 | MP-03 | ~~Passing through a portal moves the player from the current room to the target map's room at the configured target spawn point.~~ (withdrawn: no multiplayer; portals are covered by GAME-06) | – |
@@ -1593,13 +1593,14 @@ The engine interprets these generic object types and executes the associated beh
 
 ## 14.3 Export and Import
 
-Tiled exports each map as a JSON file. The maps, their tilesets and the other art of the game world are packed into one world package, which the admin imports through the world importer (14.4). No redeployment is needed, so the art can be improved while the platform is running.
+The external authoring workflow exports each map as Tiled-compatible JSON. The maps, their tilesets and the other art of the game world are packed into one world package, which the admin imports through the world importer (14.4). No redeployment is needed, so the art can be improved while the platform is running.
 
 Phaser loads this data and interprets the layers, objects and properties.
 
-Tiled is only needed to create maps and is not part of the running server.
-
-The pinned Tiled 1.12.2 CLI is used in development and public-fixture tests to export sources and produce reference artwork. It is not included in production images. Public comparison fixtures are independently generated and need no network or asset-repository access when tests run.
+Tiled is only needed in the external authoring workflow; it is not part of the
+running server, development container, preview or CI. The asset-producing
+repository exports world packages, and Zappaloo validates those packages.
+Zappaloo does not run Tiled exports or rasterizer comparisons.
 
 ## 14.4 World Importer
 
@@ -1676,7 +1677,7 @@ world.tar.gz
 - **Drawing order:** preserve authored layer order. In the standard Ground → Props → Foreground composition, Props objects and figures sort by depth (object bottom edge or figure feet); an image-collection tile's `occlusion` polyline places a figure just behind or in front of that intact object at its authored edge. Overlapping guides are resolved as a single figure depth slot: satisfy the most guides, then minimize the change from feet depth, with ties favoring the figure in front. The result is independent of object input order. Later foreground tile layers cover both (GAME-19).
 - **Positions** (decided 2026-11-16, following Phaser's isometric tilemaps): in an isometric map, Tiled stores the positions of general objects, polygon points and spawn points scaled by half the tile width on both axes: a position `(x, y)` is the tile `(x ÷ w/2, y ÷ w/2)`, where `w` is the tile width. The game converts a tile to screen pixels with `((column − row) · w/2, (column + row) · h/2)`. The projected tile corner `(0, 0)` is the world origin. A map of `columns × rows` has bounds `x = −(rows − 1) · w/2`, `y = 0`, `width = (columns + rows) · w/2`, `height = (columns + rows) · h/2`; the camera uses these bounds, so it translates world pixels to Tiled's raster origin without separately shifting gameplay coordinates. A tile-layer image's left edge is at the projected cell corner and its bottom edge is at the cell's bottom edge (`y = cellY + h − imageHeight`).
 
-  Tiled 1.12.2's rasterizer places tile-object anchors with a separate convention, confirmed by the public parity fixtures: project `(x, y)` as above, then add `w/2` to the horizontal coordinate. The inverse subtracts `w/2` before applying the general inverse. Bottom alignment centers the natural-size image horizontally at its anchor and places its bottom edge there. Collision and trigger guides use the same translation as their tile image. Positions are drawn in whole pixels, so that the view and the objects do not shimmer while the player moves. Terrain tiles are drawn as native Tiled frames.
+  Tiled 1.12.2 places tile-object anchors with a separate convention: project `(x, y)` as above, then add `w/2` to the horizontal coordinate. The inverse subtracts `w/2` before applying the general inverse. Bottom alignment centers the natural-size image horizontally at its anchor and places its bottom edge there. Collision and trigger guides use the same translation as their tile image. Positions are drawn in whole pixels, so that the view and the objects do not shimmer while the player moves. Terrain tiles are drawn as native Tiled frames.
 - **Objects** carry their type in Tiled's field "Class" (saved as `type`, or as `class` by Tiled 1.9). Each object of the types `spawn`, `portal` and `clickable` has a name that is unique among the spawn points, portals and clickable objects of the map, 1–40 characters of `a–z 0–9 -`. Properties are Tiled custom properties.
 
 | Type | Shape | Properties |
@@ -1838,7 +1839,7 @@ Drawing pixel art is the main effort per event. To keep it low, the platform shi
 | MAP-15 | In the admin view "Erlebniswelt", each map lists its clickable objects (Tiled name and label) and its portals; the admin assigns each clickable object's action (page as overlay, content item, dialogue, minigame or none) without re-importing the map; the preset from the Tiled file applies until the admin changes it; portals are shown read-only (decided 2026-11-10). | Must |
 | MAP-16 | The world package is a `tar.gz` with the format-version-2 layout and the Phaser 4.2.1 / Tiled 1.12.2 rendering contract in 14.4. It holds the whole game world: isometric maps, tilesets, objects, the door scene and the figures of the avatar editor. Only whole packages are imported, and a new package replaces the whole world (reworded 2026-11-17). | Must |
 | MAP-17 | The JSON files of the world package (manifest, avatar definition, maps) are described by JSON Schemas per format version, committed in the repository, attached to every release and kept equal to the platform's checks by a test. `zappaloo validate` checks a whole world package outside the platform with the platform's validator (added 2026-11-14). | Should |
-| MAP-18 | A development-only game preview loads validated world packages and local Tiled sources through the same game engine as the production app; the preview and private world assets are absent from production bundles and images. | Must |
+| MAP-18 | A development-only game preview loads validated world packages and can watch a world package selected by absolute file path, using the same game engine as the production app. Valid changes reload automatically; invalid changes keep the last valid preview. The preview and private world assets are absent from production bundles and images. | Must |
 
 ---
 

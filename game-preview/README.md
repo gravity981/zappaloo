@@ -11,29 +11,20 @@ selected `.tar.gz` world package locally and uses the shared game engine. It
 does not use the application backend or database and never modifies the active
 event. A failed replacement leaves the current world running.
 
-To preview the local Tiled source checkout as well, set
-`ZAPPALOO_TILED_SOURCE_DIR` to its absolute path before starting the server:
-
-```sh
-ZAPPALOO_TILED_SOURCE_DIR=/absolute/path/to/tiled-source \
-  APP_ENV=dev npm run dev:game-preview
-```
-
-The configured directory must contain one Tiled project with a `maps` folder.
-The source controls remain unavailable with a clear status message if the
-variable is missing or the checkout cannot be used. The preview exports and
-validates the source into a temporary archive; it does not write to the source
-checkout. While watching, changes are exported and validated automatically.
-If an export fails, the last successful world remains on screen and the error
-is shown in the source panel.
+To preview a local world package, enter its absolute path in **Local world
+package** and select **Preview and watch**. Use the path as seen by the preview
+server (for example, `/workspaces/hz-event-assets/world.tar.gz` in the
+devcontainer); no environment variable is needed. The preview watches the
+package's containing directory and reloads after in-place edits or atomic file
+replacement. A failed read or validation keeps the last valid world running
+and displays the error.
 
 ## Controls
 
 - Choose a world package and select **Load package**. **Reload** revalidates
   and reloads the current package.
-- Or choose a start map under **Local Tiled source** and select **Preview and
-  watch**. **Stop watching** leaves the current preview running; choose a
-  different start map and restart to change the source preview entry point.
+- Or enter an absolute path under **Local world package** and select
+  **Preview and watch**. **Stop watching** leaves the current preview running.
 - Use **Map**, **Spawn**, and **Figure** to choose the scene.
 - Expand **Guides and view** to toggle collision, border, spawn, portal,
   and grid guides, or **Artwork only** to hide gameplay elements.
@@ -46,12 +37,14 @@ The Vite server refuses to start unless `APP_ENV=dev` is set. Its package API
 exists only in that development server and exposes files from the selected,
 validated package only.
 
-## Tiled and engine integration
+## World-package and engine integration
 
 The integration contract is specified in [spec/sw-architecture.md](../spec/sw-architecture.md),
-section 14. Tiled 1.12.2 maps are exported with embedded tilesets, validated as
-a WorldPackage by the backend, then parsed by the shared Phaser 4.2.1 engine.
-The application and this preview use the same engine; see
+section 14. World packages use the documented Tiled-compatible JSON format,
+validated by the backend before the shared Phaser 4.2.1 engine loads them.
+Zappaloo does not ship or invoke the Tiled executable; authoring and package
+export happen outside this repository. The application and this preview use
+the same engine; see
 [game-engine/README.md](../game-engine/README.md) for the code boundaries.
 
 Author visible tile layers in draw order: ground layers first, one top-down

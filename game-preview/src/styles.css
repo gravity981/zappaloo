@@ -93,7 +93,7 @@ button:disabled {
   align-items: end;
 }
 
-.source-controls {
+.local-package-controls {
   display: flex;
   flex: 1 1 100%;
   flex-wrap: wrap;
@@ -104,25 +104,25 @@ button:disabled {
   border-top: 1px solid #d5dbd2;
 }
 
-.source-controls h2 {
+.local-package-controls h2 {
   margin: 0;
   font-size: 0.95rem;
 }
 
-.source-controls p {
+.local-package-controls p {
   margin: 0.3rem 0 0;
   color: #536a58;
   font-size: 0.85rem;
 }
 
-.source-actions {
+.local-package-actions {
   display: flex;
   flex-wrap: wrap;
   align-items: end;
   gap: 0.5rem;
 }
 
-.source-actions label {
+.local-package-actions label {
   display: grid;
   gap: 0.3rem;
   color: #34493a;
@@ -130,9 +130,9 @@ button:disabled {
   font-weight: 650;
 }
 
-.source-actions select {
+.local-package-actions select,
+.local-package-actions input {
   min-height: 2.4rem;
-  max-width: 18rem;
   border: 1px solid #aeb9ad;
   border-radius: 0.35rem;
   padding: 0.35rem 0.5rem;
@@ -140,7 +140,16 @@ button:disabled {
   background: #fff;
 }
 
-.source-controls .source-error {
+.local-package-actions select {
+  max-width: 18rem;
+}
+
+.local-package-actions input {
+  width: min(34rem, 70vw);
+  max-width: 34rem;
+}
+
+.local-package-controls .source-error {
   flex: 1 1 100%;
   padding: 0.6rem 0.75rem;
   border-left: 0.25rem solid #b83232;
@@ -319,13 +328,17 @@ button:disabled {
     max-width: none;
   }
 
-  .source-controls,
-  .source-actions {
+  .local-package-controls,
+  .local-package-actions {
     width: 100%;
   }
 
-  .source-actions > * {
+  .local-package-actions > * {
     flex: 1 1 8rem;
+  }
+
+  .local-package-actions input {
+    width: 100%;
   }
 
   .preview-viewport {

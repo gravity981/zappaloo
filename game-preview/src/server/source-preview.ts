@@ -1,108 +1,106 @@
+import { watch } from "node:fs";
+import type { FSWatcher } from "node:fs";
+import { readFile, stat } from "node:fs/promises";
+import { basename, dirname, isAbsolute, resolve } from "node:path";
+import { WORLD_LIMITS } from "@zappaloo/shared";
 import { PreviewPackageStore } from "./package-store.ts";
-import {
-  exportTiledSource,
-  getTiledSourceInfo,
-  resolveTiledSourceRoot,
-  TiledSourceError,
-} from "./tiled-source.ts";
-import type { TiledSourceInfo } from "./tiled-source.ts";
 import type { PreviewPackage } from "./package-store.ts";
 
-export interface TiledSourcePreviewStatus {
-  available: boolean;
+interface PreviewError {
   message: string;
-  mapIds: string[];
-  active: boolean;
-  exporting: boolean;
-  revision: number;
-  snapshot?: PreviewPackage;
-  error?: { message: string; findings: TiledSourceError["findings"] };
+  findings: PreviewPackage["findings"];
 }
 
-type Exporter = (startMap: string) => Promise<Buffer>;
-type Inspector = () => Promise<TiledSourceInfo>;
+export interface LocalPackagePreviewStatus {
+  active: boolean;
+  loading: boolean;
+  revision: number;
+  archivePath?: string;
+  snapshot?: PreviewPackage;
+  error?: PreviewError;
+}
 
-export class TiledSourcePreview {
+export class LocalPackagePreview {
   #packages: PreviewPackageStore;
-  #exporter: Exporter;
-  #inspector: Inspector;
-  #info: TiledSourceInfo = {
-    available: false,
-    message: "Checking local Tiled source configuration…",
-    mapIds: [],
-  };
   #active = false;
-  #startMap: string | undefined;
+  #loading = false;
+  #archivePath: string | undefined;
   #snapshot: PreviewPackage | undefined;
-  #error: TiledSourcePreviewStatus["error"];
+  #error: PreviewError | undefined;
   #revision = 0;
-  #exporting = false;
-  #queued = false;
   #generation = 0;
+  #watcher: FSWatcher | undefined;
   #timer: ReturnType<typeof setTimeout> | undefined;
-  #watchRoot: string | undefined;
+  #refreshPromise: Promise<void> | undefined;
+  #queued = false;
 
-  #isActive(): boolean {
-    return this.#active;
-  }
-
-  #hasQueuedRefresh(): boolean {
-    return this.#queued;
-  }
-
-  constructor(
-    packages: PreviewPackageStore,
-    exporter: Exporter = exportTiledSource,
-    inspector: Inspector = getTiledSourceInfo,
-  ) {
+  constructor(packages: PreviewPackageStore) {
     this.#packages = packages;
-    this.#exporter = exporter;
-    this.#inspector = inspector;
   }
 
-  async initialize(): Promise<string | undefined> {
-    try {
-      this.#watchRoot = await resolveTiledSourceRoot();
-    } catch {
-      this.#watchRoot = undefined;
-    }
-    await this.#refreshInfo();
-    return this.#watchRoot;
-  }
-
-  status(): TiledSourcePreviewStatus {
+  status(): LocalPackagePreviewStatus {
     return {
-      available: this.#info.available,
-      message: this.#info.message,
-      mapIds: this.#info.mapIds,
       active: this.#active,
-      exporting: this.#exporting,
+      loading: this.#loading,
       revision: this.#revision,
+      ...(this.#archivePath === undefined ? {} : { archivePath: this.#archivePath }),
       ...(this.#snapshot === undefined ? {} : { snapshot: this.#snapshot }),
       ...(this.#error === undefined ? {} : { error: this.#error }),
     };
   }
 
-  async start(startMap: string): Promise<TiledSourcePreviewStatus> {
-    this.#generation++;
+  async start(archivePath: string): Promise<LocalPackagePreviewStatus> {
+    this.stop();
+    if (!isAbsolute(archivePath)) {
+      this.#setError(new Error("World package path must be absolute."));
+      return this.status();
+    }
+
+    const absolutePath = resolve(archivePath);
+    this.#archivePath = absolutePath;
     this.#active = true;
-    this.#startMap = startMap;
+    const generation = this.#generation;
+    try {
+      this.#watcher = watch(dirname(absolutePath), { persistent: false }, (_event, filename) => {
+        if (!this.#isCurrent(absolutePath, generation)) return;
+        const changedFile = Buffer.isBuffer(filename) ? filename.toString() : filename;
+        if (changedFile !== null && changedFile !== basename(absolutePath)) return;
+        this.packageChanged();
+      });
+      this.#watcher.on("error", (error: Error) => {
+        if (!this.#isCurrent(absolutePath, generation)) return;
+        this.#stopWatcher();
+        this.#active = false;
+        this.#archivePath = undefined;
+        this.#generation++;
+        this.#setError(error);
+      });
+    } catch (error) {
+      this.#active = false;
+      this.#archivePath = undefined;
+      this.#setError(error);
+      return this.status();
+    }
+
     await this.#refresh();
     return this.status();
   }
 
-  stop(): TiledSourcePreviewStatus {
+  stop(): LocalPackagePreviewStatus {
     this.#generation++;
     this.#active = false;
-    this.#startMap = undefined;
+    this.#loading = false;
+    this.#archivePath = undefined;
+    this.#error = undefined;
     this.#queued = false;
     if (this.#timer !== undefined) clearTimeout(this.#timer);
     this.#timer = undefined;
+    this.#stopWatcher();
     return this.status();
   }
 
-  sourceChanged(): void {
-    this.#generation++;
+  packageChanged(): void {
+    if (!this.#active) return;
     if (this.#timer !== undefined) clearTimeout(this.#timer);
     this.#timer = setTimeout(() => {
       this.#timer = undefined;
@@ -110,72 +108,79 @@ export class TiledSourcePreview {
     }, 300);
   }
 
-  async #refreshInfo(): Promise<void> {
-    this.#info = await this.#inspector();
+  #stopWatcher(): void {
+    this.#watcher?.close();
+    this.#watcher = undefined;
   }
 
-  async #refresh(): Promise<void> {
-    if (this.#exporting) {
-      this.#queued = true;
-      return;
-    }
-    this.#exporting = true;
-    try {
-      do {
-        this.#queued = false;
-        await this.#refreshInfo();
-        if (this.#active) await this.#publish();
-      } while (this.#hasQueuedRefresh());
-    } catch (error) {
-      this.#setError(error);
-    } finally {
-      this.#exporting = false;
-    }
+  #isCurrent(archivePath: string, generation: number): boolean {
+    return this.#active && this.#archivePath === archivePath && this.#generation === generation;
   }
 
-  async #publish(): Promise<void> {
-    if (!this.#isActive()) return;
-    const startMap = this.#startMap;
-    const generation = this.#generation;
-    if (!this.#info.available) {
-      this.#setError(new Error(this.#info.message));
-      return;
-    }
-    if (startMap === undefined || !this.#info.mapIds.includes(startMap)) {
-      this.#setError(
-        new Error(`Start map ${startMap ?? "(not selected)"} is no longer available.`),
-      );
-      return;
-    }
-    try {
-      const archive = await this.#exporter(startMap);
-      if (!this.#isActive() || this.#startMap !== startMap || generation !== this.#generation) {
-        return;
-      }
-      const uploaded = this.#packages.upload(archive);
-      if (generation !== this.#generation) return;
-      if (!uploaded.ok) {
-        this.#error = {
-          message: "The exported Tiled source does not pass world validation.",
-          findings: uploaded.findings,
-        };
-        return;
-      }
-      const previousToken = this.#snapshot?.token;
-      this.#snapshot = uploaded.preview;
-      if (previousToken !== undefined) this.#packages.delete(previousToken);
-      this.#revision++;
-      this.#error = undefined;
-    } catch (error) {
-      if (generation === this.#generation) this.#setError(error);
-    }
+  #isGenerationCurrent(generation: number): boolean {
+    return this.#generation === generation;
   }
 
-  #setError(error: unknown): void {
-    const findings = error instanceof TiledSourceError ? error.findings : [];
+  #hasQueuedRefresh(): boolean {
+    return this.#queued;
+  }
+
+  #setError(error: unknown, findings: PreviewPackage["findings"] = []): void {
     this.#error = {
       message: error instanceof Error ? error.message : String(error),
       findings,
     };
+  }
+
+  #refresh(): Promise<void> {
+    if (this.#refreshPromise !== undefined) {
+      this.#queued = true;
+      return this.#refreshPromise;
+    }
+    this.#refreshPromise = this.#refreshLoop().finally(() => {
+      this.#refreshPromise = undefined;
+    });
+    return this.#refreshPromise;
+  }
+
+  async #refreshLoop(): Promise<void> {
+    do {
+      this.#queued = false;
+      const archivePath = this.#archivePath;
+      const generation = this.#generation;
+      if (!this.#active || archivePath === undefined) return;
+      this.#loading = true;
+      try {
+        const info = await stat(archivePath);
+        if (!info.isFile()) throw new Error("World package path must point to a regular file.");
+        if (info.size > WORLD_LIMITS.archiveBytes) {
+          throw new Error(`World package exceeds ${String(WORLD_LIMITS.archiveBytes)} bytes.`);
+        }
+        const archive = await readFile(archivePath);
+        if (archive.length > WORLD_LIMITS.archiveBytes) {
+          throw new Error(`World package exceeds ${String(WORLD_LIMITS.archiveBytes)} bytes.`);
+        }
+        if (!this.#isCurrent(archivePath, generation)) continue;
+
+        const uploaded = this.#packages.upload(archive);
+        if (!uploaded.ok) {
+          this.#setError(
+            new Error("The selected world package does not pass validation."),
+            uploaded.findings,
+          );
+          continue;
+        }
+
+        const previousToken = this.#snapshot?.token;
+        this.#snapshot = uploaded.preview;
+        this.#revision++;
+        this.#error = undefined;
+        if (previousToken !== undefined) this.#packages.delete(previousToken);
+      } catch (error) {
+        if (this.#isCurrent(archivePath, generation)) this.#setError(error);
+      } finally {
+        if (this.#isGenerationCurrent(generation)) this.#loading = false;
+      }
+    } while (this.#hasQueuedRefresh());
   }
 }

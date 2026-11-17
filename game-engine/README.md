@@ -2,13 +2,12 @@
 
 The engine in this workspace is shared by the application and the standalone
 developer preview. The application loads the active WorldPackage; the preview
-loads a selected package or exports a local Tiled source checkout to a
-temporary package. Both paths validate package data before the Phaser scene
-consumes it.
+loads an uploaded package or a selected local package file. Both paths
+validate package data before the Phaser scene consumes it.
 
 ## Data flow
 
-1. Author finite isometric maps in the pinned Tiled 1.12.2 format.
+1. Author finite isometric maps in the documented Tiled 1.12.2 format.
 2. Export maps as Tiled JSON with embedded tilesets and package images under
    `tilesets/`.
 3. Validate the complete WorldPackage in `backend/src/world/`; shared Zod
@@ -44,5 +43,6 @@ generated package-format documentation is derived from
   and portal checks.
 
 The preview's **Collision**, **Border**, **Spawn**, and **Portal** guides
-visualize gameplay geometry. Phaser rendering parity is tested against the
-pinned Tiled rasterizer for the supported authoring subset.
+visualize gameplay geometry. Renderer geometry and package constraints are
+covered by independent engine and validator tests; no Tiled executable is
+required in Zappaloo.

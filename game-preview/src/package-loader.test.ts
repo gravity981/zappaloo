@@ -18,7 +18,7 @@ afterEach(() => {
 });
 
 describe("standalone preview snapshot loading (MAP-18)", () => {
-  it("[MAP-18][MAP-06][MAP-16] prepares local-source snapshots through the shared world loader", async () => {
+  it("[MAP-18][MAP-06][MAP-16] prepares local-package snapshots through the shared world loader", async () => {
     const packages = new PreviewPackageStore();
     const upload = packages.upload(buildTestWorld());
     if (!upload.ok) throw new Error("the generated public world must pass validation");
@@ -30,9 +30,9 @@ describe("standalone preview snapshot loading (MAP-18)", () => {
       return Promise.resolve(new Response("{}", { status: 200 }));
     });
     vi.stubGlobal("fetch", fetchMock);
-    const preview = await loadPreviewSnapshot(upload.preview, "tiled");
+    const preview = await loadPreviewSnapshot(upload.preview, "local-package");
 
-    expect(preview.source).toBe("tiled");
+    expect(preview.source).toBe("local-package");
     expect(preview.token).toBe(upload.preview.token);
     expect(preview.file).toBeUndefined();
     expect(prepareWorld).toHaveBeenCalledWith(

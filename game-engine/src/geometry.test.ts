@@ -42,7 +42,7 @@ describe("the isometric geometry (MAP-02, GAME-02)", () => {
     expect(worldToTiled(world, { width: 80, height: 40 })).toEqual(tiled);
   });
 
-  it("[GAME-20] Tiled tile-object anchors match the rasterizer and invert", () => {
+  it("[GAME-20] Tiled tile-object anchors follow the documented convention and invert", () => {
     expect(tiledTileObjectToWorld({ x: 64, y: 32 }, size)).toEqual({ x: 64, y: 48 });
     expect(worldToTiledTileObject({ x: 64, y: 48 }, size)).toEqual({ x: 64, y: 32 });
     expect(tiledTileObjectToWorld({ x: 64, y: 96 }, size)).toEqual({ x: 0, y: 80 });

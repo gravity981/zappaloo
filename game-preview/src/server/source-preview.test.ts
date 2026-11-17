@@ -1,127 +1,100 @@
+import { mkdtemp, rename, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { buildTestWorld } from "../../../backend/src/world/build.ts";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
 import { PreviewPackageStore } from "./package-store.ts";
-import { TiledSourcePreview } from "./source-preview.ts";
+import { LocalPackagePreview } from "./source-preview.ts";
 
-const sourceInfo = {
-  available: true,
-  message: "Local Tiled source is ready.",
-  mapIds: ["kirche"],
-};
+const temporaryDirectories: string[] = [];
 
-function createSource(exporter: (startMap: string) => Promise<Buffer>) {
-  const packages = new PreviewPackageStore();
-  const source = new TiledSourcePreview(packages, exporter, () => Promise.resolve(sourceInfo));
-  return { packages, source };
+async function createPackageFile(contents: Buffer): Promise<string> {
+  const directory = await mkdtemp(join(tmpdir(), "zappaloo-preview-"));
+  temporaryDirectories.push(directory);
+  const path = join(directory, "world.tar.gz");
+  await writeFile(path, contents);
+  return path;
 }
 
 function wait(milliseconds: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, milliseconds));
 }
 
-describe("local Tiled source preview (MAP-18)", () => {
-  it("[MAP-18][MAP-06][MAP-16] publishes only validated snapshots and retains the last success on failure", async () => {
-    const exporter = vi
-      .fn<(_: string) => Promise<Buffer>>()
-      .mockResolvedValueOnce(buildTestWorld())
-      .mockRejectedValueOnce(new Error("Tiled export failed"))
-      .mockResolvedValueOnce(buildTestWorld());
-    const { packages, source } = createSource(exporter);
+afterEach(async () => {
+  await Promise.all(
+    temporaryDirectories.splice(0).map((directory) => rm(directory, { recursive: true })),
+  );
+});
 
-    const first = await source.start("kirche");
-    const firstToken = first.snapshot?.token;
-    expect(first.revision).toBe(1);
+describe("local world package preview (MAP-18)", () => {
+  it("[MAP-18][MAP-06][MAP-16] watches an absolute package path, reloads valid changes, and retains the last valid snapshot on errors", async () => {
+    const archivePath = await createPackageFile(buildTestWorld());
+    const packages = new PreviewPackageStore();
+    const preview = new LocalPackagePreview(packages);
+
+    const initial = await preview.start(archivePath);
+    const firstToken = initial.snapshot?.token;
+    expect(initial.active).toBe(true);
+    expect(initial.archivePath).toBe(archivePath);
+    expect(initial.revision).toBe(1);
     expect(firstToken).toBeDefined();
-    expect(first.error).toBeUndefined();
 
-    source.sourceChanged();
-    await wait(350);
-    expect(source.status().error?.message).toBe("Tiled export failed");
-    expect(source.status().snapshot?.token).toBe(firstToken);
+    await writeFile(archivePath, Buffer.from("not a package"));
+    await wait(450);
+    expect(preview.status().error?.findings).toHaveLength(1);
+    expect(preview.status().snapshot?.token).toBe(firstToken);
     expect(packages.file(firstToken ?? "", "maps/kirche.json")).toBeDefined();
 
-    source.sourceChanged();
-    await wait(350);
-    const recovered = source.status();
+    const replacementPath = `${archivePath}.new`;
+    await writeFile(replacementPath, buildTestWorld());
+    await rename(replacementPath, archivePath);
+    await wait(450);
+    const recovered = preview.status();
     expect(recovered.error).toBeUndefined();
     expect(recovered.revision).toBe(2);
     expect(recovered.snapshot?.token).not.toBe(firstToken);
     expect(packages.file(firstToken ?? "", "maps/kirche.json")).toBeUndefined();
+
+    preview.stop();
   });
 
-  it("[MAP-18] debounces edits, serializes exports and discards stale output", async () => {
-    let finishFirstExport: (() => void) | undefined;
-    const firstExport = new Promise<void>((resolve) => {
-      finishFirstExport = () => {
-        resolve();
-      };
-    });
-    let activeExports = 0;
-    let maximumConcurrentExports = 0;
-    const exporter = vi.fn(async () => {
-      activeExports++;
-      maximumConcurrentExports = Math.max(maximumConcurrentExports, activeExports);
-      if (exporter.mock.calls.length === 1) await firstExport;
-      activeExports--;
-      return buildTestWorld();
-    });
-    const { source } = createSource(exporter);
-    const starting = source.start("kirche");
-    await vi.waitFor(() => {
-      expect(exporter).toHaveBeenCalledTimes(1);
-    });
+  it("[MAP-18] reports missing packages and loads one when it is created", async () => {
+    const archivePath = await createPackageFile(Buffer.alloc(0));
+    const packages = new PreviewPackageStore();
+    const preview = new LocalPackagePreview(packages);
+    await rm(archivePath);
 
-    source.sourceChanged();
-    await wait(100);
-    source.sourceChanged();
-    await wait(100);
-    source.sourceChanged();
-    await wait(350);
-    expect(source.status().exporting).toBe(true);
+    const missing = await preview.start(archivePath);
+    expect(missing.active).toBe(true);
+    expect(missing.error?.message).toContain("ENOENT");
+    expect(missing.snapshot).toBeUndefined();
 
-    finishFirstExport?.();
-    await starting;
-    expect(exporter).toHaveBeenCalledTimes(2);
-    expect(maximumConcurrentExports).toBe(1);
-    expect(source.status().revision).toBe(1);
+    await writeFile(archivePath, buildTestWorld());
+    await wait(450);
+    expect(preview.status().revision).toBe(1);
+    expect(preview.status().error).toBeUndefined();
+    preview.stop();
   });
 
-  it("[MAP-18] stopping cancels a debounced source refresh", async () => {
-    const exporter = vi.fn(() => Promise.resolve(buildTestWorld()));
-    const { source } = createSource(exporter);
-    await source.start("kirche");
+  it("[MAP-18] refuses relative paths and stops watching without discarding the loaded package", async () => {
+    const packages = new PreviewPackageStore();
+    const preview = new LocalPackagePreview(packages);
+    const relativePath = await preview.start("world.tar.gz");
+    expect(relativePath.active).toBe(false);
+    expect(relativePath.error?.message).toContain("absolute");
 
-    source.sourceChanged();
-    source.stop();
-    await wait(350);
+    const archivePath = await createPackageFile(buildTestWorld());
+    const started = await preview.start(archivePath);
+    const token = started.snapshot?.token;
+    const stopped = preview.stop();
 
-    expect(source.status().active).toBe(false);
-    expect(exporter).toHaveBeenCalledTimes(1);
-  });
+    expect(stopped.active).toBe(false);
+    expect(stopped.snapshot?.token).toBe(token);
+    expect(packages.file(token ?? "", "maps/kirche.json")).toBeDefined();
 
-  it("[MAP-18] stopping during an export prevents stale output from being published", async () => {
-    let finishExport: (() => void) | undefined;
-    const exportGate = new Promise<void>((resolve) => {
-      finishExport = () => {
-        resolve();
-      };
-    });
-    const exporter = vi.fn(async () => {
-      await exportGate;
-      return buildTestWorld();
-    });
-    const { source } = createSource(exporter);
-    const starting = source.start("kirche");
-    await vi.waitFor(() => {
-      expect(exporter).toHaveBeenCalledTimes(1);
-    });
-
-    source.stop();
-    finishExport?.();
-    await starting;
-
-    expect(source.status().active).toBe(false);
-    expect(source.status().snapshot).toBeUndefined();
-    expect(source.status().revision).toBe(0);
+    await writeFile(archivePath, Buffer.from("changed after stop"));
+    await wait(450);
+    expect(preview.status().revision).toBe(1);
+    expect(preview.status().error).toBeUndefined();
   });
 });

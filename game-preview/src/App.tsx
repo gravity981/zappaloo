@@ -73,7 +73,7 @@ export default function App() {
   const [currentView, setCurrentView] = useState<GameView>(INITIAL_VIEW);
   const [readState, setReadState] = useState<GameStateReader | null>(null);
   const [sourceStatus, setSourceStatus] = useState<SourceStatus | null>(null);
-  const [sourceStartMap, setSourceStartMap] = useState("");
+  const [sourceArchivePath, setSourceArchivePath] = useState("");
   const [sourceBusy, setSourceBusy] = useState(false);
   const [sourceRequestError, setSourceRequestError] = useState<string>();
   const [selectionWarning, setSelectionWarning] = useState<string>();
@@ -250,11 +250,11 @@ export default function App() {
     }
     if (sourceStatus?.active === true) {
       try {
-        const response = await fetch("/__game-preview/api/source/stop", { method: "POST" });
+        const response = await fetch("/__game-preview/api/local-package/stop", { method: "POST" });
         if (!response.ok) throw new Error(`The preview server answered ${String(response.status)}`);
         setSourceStatus(sourceStatusSchema.parse(await response.json()));
       } catch (error) {
-        setSourceRequestError(`Could not stop local source watching: ${describeError(error)}`);
+        setSourceRequestError(`Could not stop local package watching: ${describeError(error)}`);
         return;
       }
     }
@@ -262,7 +262,7 @@ export default function App() {
   }
 
   async function loadSourceSnapshot(snapshot: unknown): Promise<void> {
-    await loadPreview(() => loadPreviewSnapshot(snapshot, "tiled"));
+    await loadPreview(() => loadPreviewSnapshot(snapshot, "local-package"));
   }
 
   loadSnapshotRef.current = (snapshot) => {
@@ -276,16 +276,15 @@ export default function App() {
       if (polling) return;
       polling = true;
       try {
-        const response = await fetch("/__game-preview/api/source/status");
+        const response = await fetch("/__game-preview/api/local-package/status");
         if (!response.ok) throw new Error(`The preview server answered ${String(response.status)}`);
         const status = sourceStatusSchema.parse(await response.json());
         if (disposed) return;
         setSourceStatus(status);
         setSourceRequestError(undefined);
-        setSourceStartMap((currentMap) => {
-          if (status.mapIds.includes(currentMap)) return currentMap;
-          return status.mapIds.length === 1 ? (status.mapIds[0] ?? "") : "";
-        });
+        if (status.active && status.archivePath !== undefined) {
+          setSourceArchivePath(status.archivePath);
+        }
         if (
           status.active &&
           status.snapshot !== undefined &&
@@ -309,14 +308,15 @@ export default function App() {
   }, []);
 
   async function startSourcePreview(): Promise<void> {
-    if (sourceStartMap === "") return;
+    const archivePath = sourceArchivePath.trim();
+    if (!archivePath.startsWith("/")) return;
     setSourceBusy(true);
     setSourceRequestError(undefined);
     try {
-      const response = await fetch("/__game-preview/api/source/start", {
+      const response = await fetch("/__game-preview/api/local-package/start", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ startMap: sourceStartMap }),
+        body: JSON.stringify({ archivePath }),
       });
       if (!response.ok) throw new Error(`The preview server answered ${String(response.status)}`);
       const status = sourceStatusSchema.parse(await response.json());
@@ -326,7 +326,7 @@ export default function App() {
         await loadSourceSnapshot(status.snapshot);
       }
     } catch (error) {
-      setSourceRequestError(`Could not start local source preview: ${describeError(error)}`);
+      setSourceRequestError(`Could not start local package preview: ${describeError(error)}`);
     } finally {
       setSourceBusy(false);
     }
@@ -336,11 +336,11 @@ export default function App() {
     setSourceBusy(true);
     setSourceRequestError(undefined);
     try {
-      const response = await fetch("/__game-preview/api/source/stop", { method: "POST" });
+      const response = await fetch("/__game-preview/api/local-package/stop", { method: "POST" });
       if (!response.ok) throw new Error(`The preview server answered ${String(response.status)}`);
       setSourceStatus(sourceStatusSchema.parse(await response.json()));
     } catch (error) {
-      setSourceRequestError(`Could not stop local source watching: ${describeError(error)}`);
+      setSourceRequestError(`Could not stop local package watching: ${describeError(error)}`);
     } finally {
       setSourceBusy(false);
     }
@@ -422,7 +422,7 @@ export default function App() {
             disabled={current === null || loading || sourceBusy}
             onClick={() => {
               if (current === null) return;
-              if (current.source === "tiled") {
+              if (current.source === "local-package") {
                 void startSourcePreview();
                 return;
               }
@@ -430,64 +430,67 @@ export default function App() {
             }}
             type="button"
           >
-            {current?.source === "tiled" ? "Re-export source" : "Reload"}
+            {current?.source === "local-package" ? "Reload watched package" : "Reload"}
           </button>
         </form>
 
-        <section className="source-controls" aria-labelledby="source-preview-heading">
+        <section className="local-package-controls" aria-labelledby="source-preview-heading">
           <div>
-            <h2 id="source-preview-heading">Local Tiled source</h2>
+            <h2 id="source-preview-heading">Local world package</h2>
             <p role="status" aria-live="polite">
-              {sourceStatus?.message ?? "Checking local source configuration…"}
+              {sourceStatus?.active
+                ? `Watching ${sourceStatus.archivePath ?? "world package"} for changes.`
+                : "Enter the absolute path to a world package archive in the preview server environment."}
             </p>
             {sourceStatus?.active === true && (
               <p>
-                Watching source changes
-                {sourceStatus.exporting ? " · exporting and validating…" : ""}
+                Watching package changes
+                {sourceStatus.loading ? " · validating…" : ""}
               </p>
             )}
           </div>
-          {sourceStatus?.available === true && sourceStatus.mapIds.length > 0 && (
-            <div className="source-actions">
-              <label>
-                Start map
-                <select
-                  aria-label="Tiled source start map"
-                  disabled={loading || sourceBusy}
-                  onChange={(event) => {
-                    setSourceStartMap(event.currentTarget.value);
-                  }}
-                  value={sourceStartMap}
-                >
-                  {sourceStatus.mapIds.map((mapId) => (
-                    <option key={mapId} value={mapId}>
-                      {mapId}
-                    </option>
-                  ))}
-                </select>
-              </label>
+          <div className="local-package-actions">
+            <label>
+              Absolute package path
+              <input
+                aria-label="Local world package path"
+                autoComplete="off"
+                disabled={sourceStatus?.active === true || loading || sourceBusy}
+                onChange={(event) => {
+                  setSourceArchivePath(event.currentTarget.value);
+                }}
+                placeholder="/workspaces/hz-event-assets/world.tar.gz"
+                spellCheck={false}
+                type="text"
+                value={sourceArchivePath}
+              />
+            </label>
+            <button
+              disabled={
+                !sourceArchivePath.trim().startsWith("/") ||
+                loading ||
+                sourceBusy ||
+                sourceStatus?.active === true
+              }
+              onClick={() => {
+                void startSourcePreview();
+              }}
+              type="button"
+            >
+              Preview and watch
+            </button>
+            {sourceStatus?.active === true && (
               <button
-                disabled={sourceStartMap === "" || loading || sourceBusy}
+                disabled={sourceBusy}
                 onClick={() => {
-                  void startSourcePreview();
+                  void stopSourcePreview();
                 }}
                 type="button"
               >
-                {sourceStatus.active ? "Restart source preview" : "Preview and watch"}
+                Stop watching
               </button>
-              {sourceStatus.active && (
-                <button
-                  disabled={sourceBusy}
-                  onClick={() => {
-                    void stopSourcePreview();
-                  }}
-                  type="button"
-                >
-                  Stop watching
-                </button>
-              )}
-            </div>
-          )}
+            )}
+          </div>
           {sourceRequestError !== undefined && (
             <p className="source-error" role="alert">
               {sourceRequestError}
@@ -701,8 +704,8 @@ export default function App() {
         <div ref={viewport} className="preview-game-container" />
         {current === null && (
           <p className="empty-world">
-            Load a validated <code>.tar.gz</code> world package or start the local Tiled source
-            preview.
+            Load a validated <code>.tar.gz</code> world package or enter an absolute local package
+            path to preview and watch it.
           </p>
         )}
       </section>

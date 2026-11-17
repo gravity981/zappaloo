@@ -1,9 +1,8 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
-import { basename, extname, relative, resolve, sep } from "node:path";
 import type { Plugin } from "vite";
 import { WORLD_LIMITS } from "@zappaloo/shared";
 import { PreviewPackageStore } from "./package-store.ts";
-import { TiledSourcePreview } from "./source-preview.ts";
+import { LocalPackagePreview } from "./source-preview.ts";
 
 const API_PREFIX = "/__game-preview/api";
 
@@ -70,7 +69,7 @@ async function handleRequest(
   request: IncomingMessage,
   response: ServerResponse,
   store: PreviewPackageStore,
-  source: TiledSourcePreview,
+  localPackage: LocalPackagePreview,
 ): Promise<void> {
   const pathname = new URL(request.url ?? "/", "http://localhost").pathname;
   const method = request.method ?? "GET";
@@ -88,25 +87,25 @@ async function handleRequest(
     sendJson(response, 201, upload.preview);
     return;
   }
-  if (pathname === `${API_PREFIX}/source/status` && method === "GET") {
-    sendJson(response, 200, source.status());
+  if (pathname === `${API_PREFIX}/local-package/status` && method === "GET") {
+    sendJson(response, 200, localPackage.status());
     return;
   }
-  if (pathname === `${API_PREFIX}/source/start` && method === "POST") {
+  if (pathname === `${API_PREFIX}/local-package/start` && method === "POST") {
     const body = await readJson(request);
     if (
       typeof body !== "object" ||
       body === null ||
-      !("startMap" in body) ||
-      typeof body.startMap !== "string"
+      !("archivePath" in body) ||
+      typeof body.archivePath !== "string"
     ) {
-      throw new RequestError(400, "Preview request must include a startMap string");
+      throw new RequestError(400, "Preview request must include an archivePath string");
     }
-    sendJson(response, 200, await source.start(body.startMap));
+    sendJson(response, 200, await localPackage.start(body.archivePath));
     return;
   }
-  if (pathname === `${API_PREFIX}/source/stop` && method === "POST") {
-    sendJson(response, 200, source.stop());
+  if (pathname === `${API_PREFIX}/local-package/stop` && method === "POST") {
+    sendJson(response, 200, localPackage.stop());
     return;
   }
 
@@ -165,54 +164,17 @@ async function handleRequest(
 
 export function worldPreviewServer(): Plugin {
   const store = new PreviewPackageStore();
-  const source = new TiledSourcePreview(store);
+  const localPackage = new LocalPackagePreview(store);
   return {
     name: "zappaloo-game-preview-server",
     apply: "serve",
     configureServer(server) {
-      void source.initialize().then((root) => {
-        if (root === undefined) return;
-        server.watcher.add(root);
-        const handleChange = (event: string, path: string): void => {
-          if (event === "addDir" || event === "unlinkDir") return;
-          const relativePath = relative(root, resolve(path));
-          if (relativePath === ".." || relativePath.startsWith(`..${sep}`)) return;
-          const segments = relativePath.split(sep);
-          if (
-            segments.some(
-              (segment) =>
-                segment.startsWith(".") ||
-                segment === "node_modules" ||
-                segment === "dist" ||
-                segment === "build" ||
-                segment === "coverage" ||
-                segment === "world-scratch",
-            )
-          ) {
-            return;
-          }
-          const extension = extname(path).toLowerCase();
-          if (
-            extension === ".tmx" ||
-            extension === ".tsx" ||
-            extension === ".tx" ||
-            extension === ".xml" ||
-            extension === ".png" ||
-            extension === ".tiled-project" ||
-            basename(path) === "metadata.json"
-          ) {
-            source.sourceChanged();
-          }
-        };
-        server.watcher.on("all", handleChange);
-        server.httpServer?.once("close", () => server.watcher.off("all", handleChange));
-      });
       server.middlewares.use((request, response, next) => {
         if (!request.url?.startsWith(API_PREFIX)) {
           next();
           return;
         }
-        void handleRequest(request, response, store, source).catch((error: unknown) => {
+        void handleRequest(request, response, store, localPackage).catch((error: unknown) => {
           if (error instanceof RequestError) {
             sendJson(response, error.status, { error: error.message });
             return;
@@ -227,7 +189,7 @@ export function worldPreviewServer(): Plugin {
       });
       server.httpServer?.once("close", () => {
         store.clear();
-        source.stop();
+        localPackage.stop();
       });
     },
   };
