@@ -413,6 +413,7 @@
   font-size: 12px;
   color: var(--a-muted);
 }
+/* The overview's two cards share the row, one half each, on a phone as on a wide screen. */
 :is(.admin, .guest) .kpis {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -484,6 +485,11 @@
   color: inherit;
   text-align: left;
   cursor: pointer;
+}
+/* Links and buttons show their own hover and focus, not the browser's tap overlay (iOS paints a dark grey box). */
+a,
+button {
+  -webkit-tap-highlight-color: transparent;
 }
 /* A row that opens its editor (UX mock admin-content, `.m-li.link`): the whole row is highlighted
    under the pointer with the mock's margins and padding; the › is the last thing in the row. */
@@ -656,7 +662,7 @@
     font-size: 28px;
   }
   :is(.admin, .guest) .kpis {
-    grid-template-columns: repeat(4, minmax(0, 1fr));
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
   :is(.admin, .guest) .panel {
     width: 440px;
@@ -1241,13 +1247,21 @@
   font-weight: 600;
   font-family: var(--a-number-font);
 }
+/* Two equal halves whatever the text: minmax(0, 1fr) keeps a long label from widening its column; the label wraps. */
 .shortcuts {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 8px;
 }
 .shortcuts .btn {
   justify-content: center;
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+  height: 100%;
+  white-space: normal;
+  text-align: center;
+  overflow-wrap: anywhere;
 }
 
 /* A page of the website and «Mehr» (UX mock `info`, `more`). */
@@ -1328,8 +1342,10 @@
 }
 
 /* The cards of "Mehr" hold their list rows with the mock's padding (UX mock more: 4px and 16px). */
+/* The highlight of a row reaches 8 px beyond the rows: with 8 px at the top and 16 px at the sides, the highlight
+   keeps the same 8 px distance from the card's top and from its sides. */
 .more .card {
-  padding: 4px 16px;
+  padding: 8px 16px;
 }
 
 /* The programme (UX mock programme): a timeline with the time, a rail and the entry. Entries that are
@@ -1412,12 +1428,15 @@
 
 /* The avatar editor (UX mock `m-avatar-stage`, `m-figure`) */
 /* Title, person chips, the editor and the button keep their distance on every layout */
+/* The page may carry the guest scope itself (the first entry) or sit inside it (the profile): both match. */
+:is(.admin, .guest).avatar-page,
 :is(.admin, .guest) .avatar-page,
 :is(.admin, .guest) .avatar-root {
   display: flex;
   flex-direction: column;
   gap: 20px;
 }
+:is(.admin, .guest).avatar-page .h1,
 :is(.admin, .guest) .avatar-page .h1 {
   margin: 0;
 }

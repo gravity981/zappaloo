@@ -85,7 +85,7 @@ export default function GamePage() {
   if (world === undefined || firstEntry === undefined) return <p>{t("game.loading")}</p>;
   if (firstEntry) {
     return (
-      <section className="game-first guest">
+      <section className="game-first guest avatar-page">
         <h1 className="h1">{t("avatar.title")}</h1>
         <AvatarEditor
           continueLabel={t("game.first.continue")}
