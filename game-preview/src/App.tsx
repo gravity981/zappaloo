@@ -1,5 +1,7 @@
 import {
   createGame,
+  setGameDiagnostics,
+  setGamePaused,
   setGameGuides,
   setGameSelection,
   setGameView,
@@ -19,6 +21,7 @@ import {
   sourceStatusSchema,
 } from "./package-loader.ts";
 import type { LoadedPreview, SourceStatus } from "./package-loader.ts";
+import { sceneIsStale, staleMessage } from "./stale-scene.ts";
 
 const INITIAL_GUIDES: GameGuides = {
   collisions: false,
@@ -62,6 +65,7 @@ export default function App() {
   const isMounted = useRef(false);
   const selection = useRef<GameSelection | null>(null);
   const guides = useRef<GameGuides>(INITIAL_GUIDES);
+  const diagnostics = useRef(new URLSearchParams(window.location.search).get("debug") === "frames");
   const view = useRef<GameView>(INITIAL_VIEW);
   const fileInput = useRef<HTMLInputElement>(null);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -73,6 +77,7 @@ export default function App() {
   const [current, setCurrent] = useState<LoadedPreview | null>(null);
   const [currentSelection, setCurrentSelection] = useState<GameSelection | null>(null);
   const [currentGuides, setCurrentGuides] = useState<GameGuides>(INITIAL_GUIDES);
+  const [showFrames, setShowFrames] = useState(diagnostics.current);
   const [currentView, setCurrentView] = useState<GameView>(INITIAL_VIEW);
   const [readState, setReadState] = useState<GameStateReader | null>(null);
   const [sourceStatus, setSourceStatus] = useState<SourceStatus | null>(null);
@@ -107,6 +112,14 @@ export default function App() {
       }
     };
   }, []);
+
+  // While a changed package is validated or loaded, the scene on show is paused and greyed out (MAP-18).
+  const validating = sourceStatus?.loading === true;
+  const stale = sceneIsStale({ hasScene: current !== null, loading, validating });
+  useEffect(() => {
+    const game = activeGame.current;
+    if (game !== null) setGamePaused(game, stale);
+  }, [stale]);
 
   async function loadPreview(load: () => Promise<LoadedPreview>): Promise<void> {
     const pageIsMounted = (): boolean => isMounted.current;
@@ -187,6 +200,10 @@ export default function App() {
           onReady: () => resolveReady?.(),
         },
         transparent: true,
+        diagnostics: diagnostics.current,
+        // The preview cannot assign actions, so it shows an indicator for every clickable object (GAME-26).
+        indicateAllObjects: true,
+        texts: { loading: "Loading…" },
         guides: guides.current,
         view: view.current,
       });
@@ -377,6 +394,13 @@ export default function App() {
     setCurrentGuides(next);
     const game = activeGame.current;
     if (game !== null) setGameGuides(game, next);
+  }
+
+  function updateDiagnostics(on: boolean): void {
+    diagnostics.current = on;
+    setShowFrames(on);
+    const game = activeGame.current;
+    if (game !== null) setGameDiagnostics(game, on);
   }
 
   function updateView(next: GameView): void {
@@ -638,6 +662,16 @@ export default function App() {
             )}
             <label>
               <input
+                checked={showFrames}
+                onChange={(event) => {
+                  updateDiagnostics(event.currentTarget.checked);
+                }}
+                type="checkbox"
+              />
+              Frame rate and canvas
+            </label>
+            <label>
+              <input
                 checked={currentView.artworkOnly}
                 disabled={current === null || loading}
                 onChange={(event) => {
@@ -717,6 +751,11 @@ export default function App() {
 
       <section className="preview-viewport" aria-label="World canvas">
         <div ref={viewport} className="preview-game-container" />
+        {stale && (
+          <div className="preview-stale" role="status">
+            <span>{staleMessage({ loading })}</span>
+          </div>
+        )}
         {current === null && (
           <p className="empty-world">
             Load a validated <code>.tar.gz</code> world package or enter an absolute local package

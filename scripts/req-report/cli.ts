@@ -4,14 +4,21 @@
 // Reads the spec and the JSON test results, prints a summary, writes the full
 // report as Markdown, and exits non-zero on any error (spec/test-strategy.md, 3).
 
-import { appendFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import {
+  appendFileSync,
+  existsSync,
+  mkdirSync,
+  readdirSync,
+  readFileSync,
+  writeFileSync,
+} from "node:fs";
 import { dirname, join } from "node:path";
 import { parseArgs } from "node:util";
 import { buildReport, renderConsole, renderMarkdown } from "./report.ts";
 import type { TestCase } from "./results.ts";
 import { manualTestCases, parseManualProtocol } from "./manual.ts";
 import { parsePlaywrightResults, parseVitestResults } from "./results.ts";
-import { parseNotImplemented, parseRequirements, parseStages } from "./spec.ts";
+import { parseEpics, parseNotImplemented, parseRequirements } from "./spec.ts";
 
 const { values: args } = parseArgs({
   options: {
@@ -28,8 +35,13 @@ const read = (path: string): string => readFileSync(path, "utf8");
 
 const requirements = parseRequirements(read(join(args["spec-dir"], "sw-architecture.md")));
 const notImplemented = parseNotImplemented(read(join(args["spec-dir"], "test-strategy.md")));
-const stages = parseStages(read(join(args["spec-dir"], "implementation-plan.md")));
-inputErrors.push(...requirements.errors, ...notImplemented.errors);
+const epicsDir = join(args["spec-dir"], "backlog", "epics");
+const epics = parseEpics(
+  readdirSync(epicsDir)
+    .filter((name) => name.endsWith(".md"))
+    .map((name) => ({ name, markdown: read(join(epicsDir, name)) })),
+);
+inputErrors.push(...requirements.errors, ...notImplemented.errors, ...epics.errors);
 
 const tests: TestCase[] = [];
 const results: [string, (json: unknown) => TestCase[]][] = [
@@ -61,7 +73,7 @@ if (existsSync(protocolPath)) {
 const report = buildReport({
   requirements: requirements.value,
   notImplemented: notImplemented.value.ids,
-  stages,
+  epics: epics.value,
   tests,
   inputErrors,
 });

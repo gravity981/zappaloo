@@ -67,7 +67,7 @@ spec/            The specification – the source of truth
 
 - **The spec decides.** Requirements, architecture and decisions are in [spec/](spec/README.md). Code that disagrees with the spec is a bug, or a reason to change the spec first.
 - **Every requirement has a test**, and the test names its requirement ID in its title: `it("[SEC-03] rejects invalid input", …)`. `npm run req-report` fails if an implemented requirement has no passing test. Requirements not built yet are listed in [spec/test-strategy.md](spec/test-strategy.md), section 5.
-- **Stages and steps:** the work is planned in [spec/implementation-plan.md](spec/implementation-plan.md), one branch per stage (`feature/stage-<n>-…`), merged into `main` by pull request.
+- **Epics and stories:** the work is planned in [spec/backlog/](spec/backlog/README.md): the [roadmap](spec/backlog/roadmap.md) orders the epics and marks the releases, and each epic file holds its stories. One branch per epic (`feature/epic-<n>-<title>`), one commit per story, merged into `main` by pull request.
 - **No hard-coded UI text:** all strings go through i18n (German for now); ESLint enforces it.
 - **API input is always validated** with a Zod schema; a route without one stops the server at startup.
 

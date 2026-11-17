@@ -177,38 +177,158 @@ export function parseNotImplemented(markdown: string): ParseResult<NotImplemente
   return { value: { ids, statedTotal }, errors };
 }
 
-export interface Stage {
+export interface Epic {
+  /** The epic's number, e.g. 6, or 3.5 for an epic inserted between 3 and 4. */
   number: number;
   title: string;
   ids: string[];
 }
 
 /**
- * Reads the stages of implementation-plan.md: each `### Stage <n> – <title>`
- * heading and the IDs on its `Requirements:` lines. Only the section with the
- * stages counts: the status reports further down repeat the headings.
+ * Reads one epic file of spec/backlog/epics/: the `# Epic <n> – <title>`
+ * heading and the IDs on the `Requirements:` lines of its `## Stories`
+ * section. The refinement and the report of the epic do not count.
  */
-export function parseStages(markdown: string): Stage[] {
-  const stages: Stage[] = [];
-  let current: Stage | undefined;
-  let finished = false;
+export function parseEpic(markdown: string): Epic | undefined {
+  let epic: Epic | undefined;
+  let inStories = false;
 
   for (const line of markdown.split("\n")) {
-    if (finished) break;
-    const heading = /^###\s+Stage\s+(\d+)\s+[–-]\s+(.+?)\s*$/.exec(line);
+    const heading = /^#\s+Epic\s+(\d+(?:\.\d+)?)\s+[–-]\s+(.+?)\s*$/.exec(line);
     if (heading) {
-      current = { number: Number(heading[1]), title: heading[2] ?? "", ids: [] };
-      stages.push(current);
+      if (epic) break;
+      epic = { number: Number(heading[1]), title: heading[2] ?? "", ids: [] };
       continue;
     }
-    if (/^##\s/.test(line)) {
-      current = undefined;
-      // The first section after the stages ends them.
-      finished = stages.length > 0;
-    }
-    if (current && line.startsWith("Requirements:")) {
-      current.ids.push(...(line.match(new RegExp(ID, "g")) ?? []));
+    if (/^##\s/.test(line)) inStories = /^##\s+Stories\s*$/.test(line);
+    if (epic && inStories && line.startsWith("Requirements:")) {
+      epic.ids.push(...(line.match(new RegExp(ID, "g")) ?? []));
     }
   }
-  return stages;
+  return epic;
+}
+
+/** Parses every epic file and returns the epics in the order of their numbers. */
+export function parseEpics(files: { name: string; markdown: string }[]): ParseResult<Epic[]> {
+  const epics: Epic[] = [];
+  const errors: string[] = [];
+  for (const file of files) {
+    const epic = parseEpic(file.markdown);
+    if (epic) epics.push(epic);
+    else errors.push(`${file.name}: no "# Epic <n> – <title>" heading`);
+  }
+  epics.sort((a, b) => a.number - b.number);
+  for (let i = 1; i < epics.length; i++) {
+    const epic = epics[i];
+    if (epic && epic.number === epics[i - 1]?.number) {
+      errors.push(`backlog: epic ${epic.number} has more than one file`);
+    }
+  }
+  return { value: epics, errors };
+}
+
+/** The statuses of an epic (spec/backlog/roadmap.md, "Status of an epic"). */
+export const EPIC_STATUSES = ["open", "refined", "ready", "in progress", "done", "dropped"];
+
+export interface EpicHeader {
+  status: string;
+  /** The epics that must be done before this one can be ready. */
+  dependsOn: number[];
+}
+
+function cells(row: string): string[] {
+  return row
+    .trim()
+    .replace(/^\||\|$/g, "")
+    .split("|")
+    .map((cell) => cell.trim());
+}
+
+function epicNumbers(cell: string): number[] {
+  return (cell.match(/\d+(?:\.\d+)?/g) ?? []).map(Number);
+}
+
+/**
+ * Reads the header table of an epic file: the row after
+ * `| Status | Release | Depends on | Branch |` and its separator.
+ */
+export function parseEpicHeader(markdown: string): EpicHeader | undefined {
+  const lines = markdown.split("\n");
+  const at = lines.findIndex((line) =>
+    /^\|\s*Status\s*\|\s*Release\s*\|\s*Depends on\s*\|/.test(line),
+  );
+  const row = at >= 0 ? lines[at + 2] : undefined;
+  if (!row?.startsWith("|")) return undefined;
+  const [status = "", , dependsOn = ""] = cells(row);
+  return { status, dependsOn: epicNumbers(dependsOn) };
+}
+
+export interface RoadmapEpic extends EpicHeader {
+  number: number;
+}
+
+/** Reads the epic rows of the roadmap table: `| [<n>](epics/…) | content | depends on | status |`. */
+export function parseRoadmap(markdown: string): RoadmapEpic[] {
+  const epics: RoadmapEpic[] = [];
+  for (const line of markdown.split("\n")) {
+    const link = /^\|\s*\[(\d+(?:\.\d+)?)\]\(epics\//.exec(line);
+    if (!link) continue;
+    const row = cells(line);
+    epics.push({
+      number: Number(link[1]),
+      status: row[3] ?? "",
+      dependsOn: epicNumbers(row[2] ?? ""),
+    });
+  }
+  return epics;
+}
+
+/**
+ * Checks the statuses and dependencies of the epics: known statuses and
+ * dependencies, an epic that is ready, in progress or done has all its
+ * dependencies done, and the roadmap agrees with the epic files.
+ */
+export function checkEpicStatuses(
+  epics: (EpicHeader & { number: number })[],
+  roadmap: RoadmapEpic[],
+): string[] {
+  const errors: string[] = [];
+  const byNumber = new Map(epics.map((epic) => [epic.number, epic]));
+  const same = (a: number[], b: number[]) => a.join(",") === b.join(",");
+
+  for (const epic of epics) {
+    if (!EPIC_STATUSES.includes(epic.status)) {
+      errors.push(`epic ${epic.number}: unknown status "${epic.status}"`);
+    }
+    for (const dependency of epic.dependsOn) {
+      const other = byNumber.get(dependency);
+      if (!other) {
+        errors.push(`epic ${epic.number}: depends on epic ${dependency}, which does not exist`);
+      } else if (
+        ["ready", "in progress", "done"].includes(epic.status) &&
+        other.status !== "done"
+      ) {
+        errors.push(
+          `epic ${epic.number} is ${epic.status}, but epic ${dependency} it depends on is ${other.status}`,
+        );
+      }
+    }
+    const row = roadmap.find((r) => r.number === epic.number);
+    if (!row) {
+      errors.push(`roadmap.md: epic ${epic.number} is missing`);
+    } else {
+      if (row.status !== epic.status) {
+        errors.push(
+          `roadmap.md: epic ${epic.number} is ${row.status}, but its file says ${epic.status}`,
+        );
+      }
+      if (!same(row.dependsOn, epic.dependsOn)) {
+        errors.push(`roadmap.md: epic ${epic.number} has other dependencies than its file`);
+      }
+    }
+  }
+  for (const row of roadmap) {
+    if (!byNumber.has(row.number)) errors.push(`roadmap.md: epic ${row.number} has no file`);
+  }
+  return errors;
 }

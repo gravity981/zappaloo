@@ -367,6 +367,8 @@ select.m-input { appearance: auto; }
 .m-game { position: relative; height: 100%; overflow: hidden; background: #9cbf73; user-select: none; }
 .m-game canvas.m-map { position: absolute; inset: 0; width: 100%; height: 100%; cursor: pointer; touch-action: none; }
 .m-gbar { position: absolute; top: 10px; left: 10px; right: 10px; display: flex; gap: 6px; z-index: 3; margin-inline: auto; max-width: 620px; }
+.m-gtitle { flex: 1; min-width: 0; align-self: center; background: rgba(255,255,255,0.95); border: 2px solid #222; border-radius: 11px; padding: 8px 12px; font-size: 13px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.m-gbtn.m-gweb { flex: 0 0 auto; min-height: 40px; padding: 0 14px; flex-direction: row; gap: 6px; }
 .m-gbtn { flex: 1; min-width: 0; background: rgba(255,255,255,0.95); border: 2px solid #222; border-radius: 11px; min-height: 52px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px; font-size: 11px; font-weight: 700; position: relative; cursor: pointer; color: #222; box-shadow: 2px 2px 0 rgba(0,0,0,0.25); padding: 4px 2px; }
 .m-gbtn small { font-weight: 500; font-size: 9.5px; color: var(--w-badge); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
 .m-gbtn .dot { position: absolute; top: -7px; right: -6px; min-width: 18px; height: 18px; border-radius: 9px; background: var(--w-badge); color: #fff; font-size: 11px; display: grid; place-items: center; border: 2px solid #fff; }
@@ -393,7 +395,9 @@ select.m-input { appearance: auto; }
 .m-viewer .img { flex: 1; display: flex; align-items: center; justify-content: center; padding: 0 14px; min-height: 0; }
 .m-viewer .img .m-ph { width: 100%; max-width: 760px; background-color: #2a2a2a; }
 .m-viewer .cap { padding: 14px 18px 22px; display: flex; flex-direction: column; gap: 4px; max-width: 760px; width: 100%; margin-inline: auto; }
-.m-gfade { position: absolute; inset: 0; z-index: 6; background: #111; color: #fff; display: grid; place-items: center; font: 12px/1.4 Silkscreen, monospace; text-align: center; animation: m-fade 1.2s ease both; }
+.m-gflash { position: absolute; inset: 0; z-index: 7; background: #fff; pointer-events: none; animation: m-flash 0.45s ease-out forwards; }
+@keyframes m-flash { from { opacity: 0.9; } to { opacity: 0; } }
+.m-gfade { position: absolute; inset: 0; z-index: 6; background: rgba(96,96,96,0.85); color: #fff; display: grid; place-items: center; font: 12px/1.4 Silkscreen, monospace; text-align: center; animation: m-fade 1.2s ease both; }
 .m-gfade[hidden] { display: none; }
 @keyframes m-fade { 0% { opacity: 0; } 30%, 70% { opacity: 1; } 100% { opacity: 0; } }
 .m-gtoast { position: absolute; left: 50%; bottom: 16px; transform: translateX(-50%); background: rgba(20,20,20,0.85); color: #fff; padding: 8px 14px; border-radius: 999px; font-size: 12px; z-index: 3; white-space: nowrap; pointer-events: none; }
@@ -614,15 +618,14 @@ function admin(active, body) {
 }
 function gameShell(v, overlay = "") {
   const rsvpOpen = v === "rsvp";
-  return `<div class="m-game" data-game data-rsvp="${rsvpOpen ? 1 : 0}">
+  return `<div class="m-game" data-game data-rsvp="${rsvpOpen ? 1 : 0}" data-edges="${v === "edges" ? 1 : 0}">
     <canvas class="m-map"></canvas>
     <div class="m-gbar">
-      <button class="m-gbtn" data-go="game-overlay" data-variant="programme">${ic("cal")}Programm</button>
-      <button class="m-gbtn" data-go="game-overlay" data-variant="rsvp">${ic("check")}Rückmeldung${rsvpOpen ? '<span class="dot">!</span>' : ""}</button>
-      <button class="m-gbtn" data-go="game-overlay" data-variant="upload">${ic("cam")}Hochladen</button>
-      <button class="m-gbtn" data-go="home">${ic("web")}Website</button>
+      <div class="m-gtitle">Event Muster</div>
+      <button class="m-gbtn m-gweb" data-go="home">${ic("web")}Website</button>
     </div>
     <div class="m-gfade" hidden></div>
+    <div class="m-gflash"></div>
     <div class="m-gprompt" hidden></div>
     <div class="m-bubble" hidden></div>
     ${overlay ? "" : '<div class="m-gtoast" data-hint></div>'}
@@ -1079,15 +1082,16 @@ add({
     `<button class="m-btn ghost" data-go="game">Überspringen</button><button class="m-btn" data-go="game">Los geht's</button>`, "game"),
 });
 add({
-  id: "game", group: "game", title: "Game world", path: "/game", reqs: ["GAME-02", "GAME-05", "GAME-06", "GAME-09", "GAME-10", "GAME-12", "GAME-14", "GAME-15", "GAME-16", "GAME-17", "GAME-18", "PRES-01", "PRES-02", "PRES-10"],
-  variants: [["rsvp", "RSVP open (badge)"], ["done", "RSVP answered"]],
-  shows: ["Live demo: tap/click to walk (arrow keys on desktop). Walk near a guest and their speech bubble opens. Click it to pin.", "Bar at the top: Programm, Rückmeldung (badge while open), Hochladen, Website (leaves the game). No buttons at the bottom, no event-day banner. Stage 5 builds the bar without «Hochladen», which comes with the upload in stage 7 (decided 2026-11-14).", "Clickable objects sparkle now and then at random. Tap one: the avatar walks there, stops in front of it, and its action runs. Each map's objects come from its Tiled file. The admin assigns their actions (see Admin › Erlebniswelt).", "Example assignments: Kirche → Programm · Linde → Wo sitze ich? · Post → Rückmeldung · Fotobox → Hochladen · Torte → Minispiel Tortenturm · own figure → Profil.", "Portal: the floating arrow “Dinner” leads to another scene (here it fades and restarts).", "Desktop: walk up to an object and press Enter (or Space).", "Hint “Tippe auf Dinge, die funkeln” at the first entry.", "Wander area outlined for the review only, not in the real game."],
+  id: "game", group: "game", title: "Game world", path: "/game", reqs: ["GAME-02", "GAME-05", "GAME-06", "GAME-09", "GAME-10", "GAME-12", "GAME-14", "GAME-15", "GAME-16", "GAME-17", "GAME-18", "GAME-22", "GAME-23", "GAME-24", "GAME-25", "GAME-26", "PRES-01", "PRES-02", "PRES-10"],
+  variants: [["rsvp", "RSVP open (badge)"], ["done", "RSVP answered"], ["edges", "Objects out of view (indicators)"]],
+  shows: ["Live demo: tap/click to walk (arrow keys on desktop). Walk near a guest and their speech bubble opens. Click it to pin.", "Bar at the top: the event's name and Website (leaves the game). Programm, Rückmeldung and Hochladen are objects of the world: the church, the mailbox (with its «!» while the RSVP is open) and the photo booth (changed 2026-11-17). No buttons at the bottom, no event-day banner.", "Clickable objects sparkle now and then at random. Tap one: the avatar walks there, stops in front of it, and its action runs. Each map's objects come from its Tiled file. The admin assigns their actions (see Admin › Erlebniswelt).", "Example assignments: Kirche → Programm · Linde → Wo sitze ich? · Post → Rückmeldung · Fotobox → Hochladen · Torte → Minispiel Tortenturm · own figure → Profil.", "Portal: the floating arrow “Dinner” leads to another scene: a grey veil with «Wird geladen …» covers the game while the map is built, and every map is entered with a white flash that fades out (GAME-30; here the game restarts).", "Desktop: walk up to an object and press Enter (or Space).", "Hint “Tippe auf Dinge, die funkeln” at the first entry.", "Wander area outlined for the review only, not in the real game.", "Target marker (GAME-24): every walk started by a tap shows a thick pulsing ring in the glow's light colour with a dark outline, flat on the ground, until the avatar arrives, is blocked, or the arrow keys take over. A tap on a blocked spot (a house, the edge) moves the marker to the nearest reachable spot within 3 tiles (GAME-23); farther away, nothing happens. The ring is drawn above the ground and below objects and figures.", "Glow (GAME-29): every clickable object glows softly along its edges all the time, in the colour of its sparkles, like the portal's arrow in its warm colour. Object glow (GAME-25): while the avatar walks to a clickable object or a portal, it pulses with a soft light glow along its edges until its action runs or the avatar arrives.", "State «Objects out of view» (GAME-26): the Fotobox, the Torte and the Dinner portal lie outside the view. Each shows an indicator on the edge of the view, 12 px inside it and below the bar, on the line from the avatar to the object: a sparkle for an object, an arrow for a portal, with a small pointer towards it. Beside the icon sits a label, black text on a white pill, on the side with more room (so it stays inside the view): the name of the connected page for an object, the name of the map it leads to for a portal (several portals on a map are told apart that way); a long name is cut off with an ellipsis. Touch area at least 44 × 44 px, label included (a tap on the label counts); at most 6 indicators, the nearest first; of two whose icon or label would overlap only the nearer is shown; hidden while an overlay is open. Easter eggs and objects without an action get none. Tapping an indicator does the same as tapping the object (here the avatar walks towards the edge, the real game scrolls with it). The mock's world is one screen, so the out-of-view objects are simply left out of the picture in this state."],
   qs: [
     { q: "Does “Website” leave the game (full website), or open the website as an overlay too?", p: "Mock: leaves the game. The website header has “Erlebniswelt” to come back. Programm, Rückmeldung and Hochladen open as overlays." },
     { q: "Where do profile and table finder live in the game, since the bar has only four buttons?", p: "Mock: two small round buttons bottom-left (Profil, Wo sitze ich?)." },
     { n: 40, q: "Which world objects open the RSVP, the upload, the website and the profile?", p: "Proposal as drawn: mailbox “Post” → Rückmeldung (with a red “!” while open), photo booth → Hochladen, signpost “Website” → website, tapping your own figure → Profil." },
     { n: 41, q: "On the event day, where does “now / next” (WEB-07) show without the Programm button?", p: "Proposal: a slim “Jetzt: Apéro” banner at the top of the screen, only on the event day. Tapping it opens the programme." },
     { n: 42, q: "Must every map carry these objects, or only the map where they fit (church on the ceremony map, restaurant on the dinner map)?", p: "Proposal: Programm, Rückmeldung, Hochladen and Website objects on every map (the map check warns if one is missing). The table finder on the map with the seats." },
+    { n: 69, q: "Do the target marker, the glow and the edge indicators look right? (epic 5.1, GAME-24 – GAME-26)", p: "Proposal as drawn: a thick pulsing ring in the glow's light colour with a dark outline at the target, a soft light glow on the object or portal being approached, and round dark indicators at the edge with a sparkle (object) or an arrow (portal). The mock is not to scale: in the game the ring is 0.4 tile widths wide with the tile's 2 : 1 ratio." },
     { n: 43, q: "How does a newcomer learn that things are clickable?", p: "Proposal: the sparkle, plus a hint at the first entry (“Tippe auf Dinge, die funkeln”) until the first object is opened." },
   ],
   render: (v) => gameShell(v),
@@ -1660,6 +1664,7 @@ const DECIDED = {
   66: "As proposed, plus a mandatory tier per figure (decided 2026-11-17): the field `type` is required (male, female, child or other: «other» is a kind of its own, not a default), and so is `tier` (tier1 vip, tier2 staff, tier3 admin, exact). A package without kinds or tiers is refused.",
   67: "Yes.",
   68: "As proposed (decided 2026-11-17): it falls back to the first figure the person may choose, like a figure that the world no longer has.",
+  69: "As drawn, with the glow also on a portal's arrow and a thick ring in the glow's light colour with its dark outline (decided 2026-11-17, confirmed before story 5.1e).",
 };
 const GLOBAL_QS = [
   { q: "Visual theme: when do we decide the look (colours, fonts, pixel style of the UI)?", p: "These mocks are deliberately neutral. theme.json fields are specified in stage 4." },
@@ -1739,6 +1744,7 @@ function mountGame(root, isDesktop) {
   const cv = host.querySelector("canvas.m-map");
   const paused = !!host.querySelector(".m-ovl");
   const rsvpOpen = host.dataset.rsvp === "1";
+  const edges = host.dataset.edges === "1";
   const W = host.clientWidth, H = host.clientHeight;
   const dpr = Math.min(2, window.devicePixelRatio || 1);
   cv.width = W * dpr; cv.height = H * dpr;
@@ -1784,26 +1790,34 @@ function mountGame(root, isDesktop) {
     { label: "Tortenturm (Minispiel)", hit: [cake[0] - 20, cake[1] - 22, 40, 36], front: [cake[0], cake[1] + 26], go: ["game-overlay", "minigame"] },
     { label: "Zum Dinner", hit: [portal.x - 26, portal.y - 24, 52, 34], front: [portal.x, portal.y - 6], portal: "Landgasthof Linde · Dinner", go: [] },
   ];
+  // State "edges": three objects lie outside the view (their virtual spots), shown by indicators instead
+  if (edges) {
+    OBJ[3].off = [-220, H * 0.5 + 140]; OBJ[4].off = [W * 0.5 + 40, H + 260]; OBJ[5].off = [W + 320, pathY - 160];
+    OBJ[3].kind = "object"; OBJ[4].kind = "object"; OBJ[5].kind = "portal";
+    // the label beside the icon: the name of the connected page, and for a portal the name of the map it leads to
+    OBJ[3].indLabel = "Hochladen"; OBJ[4].indLabel = "Tortenturm"; OBJ[5].indLabel = "Landgasthof Linde";
+  }
+  const visible = (o) => !o.off;
   const t0 = performance.now();
   OBJ.forEach((o) => { o.next = t0 + 800 + Math.random() * 3500; o.until = 0; });
   const keys = new Set();
   const bubble = host.querySelector(".m-bubble");
   const prompt = host.querySelector(".m-gprompt");
   const hint = host.querySelector("[data-hint]");
-  let pinned = null, shown = null, hintT = 5, pending = null;
+  let pinned = null, shown = null, hintT = edges ? 0 : 5, pending = null;
   if (hint) hint.textContent = isDesktop ? "Klicke auf Dinge, die funkeln – oder geh hin und drück Enter" : "Tippe auf Dinge, die funkeln";
   const inRect = (x, y, [rx, ry, rw, rh]) => x > rx && x < rx + rw && y > ry && y < ry + rh;
-  const nearObj = () => OBJ.find((o) => Math.hypot(o.front[0] - me.x, o.front[1] - me.y) < 34);
+  const nearObj = () => OBJ.filter(visible).find((o) => Math.hypot(o.front[0] - me.x, o.front[1] - me.y) < 34);
   const fade = host.querySelector(".m-gfade");
   const open = (o) => {
     if (!o.portal) { go(o.go[0], o.go[1]); return; }
-    fade.innerHTML = `Portal<br>→ ${o.portal}<br><small style="opacity:.6">(andere Szene · im Mock zurück zum Start)</small>`; fade.hidden = false; paused2 = true;
+    fade.innerHTML = `<span style="padding:6px 14px;border-radius:999px;background:rgba(20,20,20,.75)">Wird geladen …</span><br><small style="opacity:.8">→ ${o.portal.split(" · ")[0]}</small>`; fade.hidden = false; paused2 = true;
     const tm = setTimeout(() => go("game"), 1200); cleanups.push(() => clearTimeout(tm));
   };
   let paused2 = false;
 
   const blocked = (x, y) => inRect(x, y, [ch.x - 6, ch.y, ch.w + 12, ch.h + 6]) || inRect(x, y, [rest.x - 6, rest.y, rest.w + 12, rest.h + 6])
-    || inRect(x, y, [mailbox.x - 9, mailbox.y - 14, 18, 18]) || inRect(x, y, [booth.x - 15, booth.y - 20, 30, 24])
+    || inRect(x, y, [mailbox.x - 9, mailbox.y - 14, 18, 18]) || (!edges && inRect(x, y, [booth.x - 15, booth.y - 20, 30, 24]))
     || x < 10 || x > W - 10 || y < 84 || y > H - 6;
 
   if (!paused) {
@@ -1812,9 +1826,18 @@ function mountGame(root, isDesktop) {
       const px = (e.clientX - r.left) * (W / r.width), py = (e.clientY - r.top) * (H / r.height);
       hintT = 0;
       if (Math.abs(px - me.x) < 14 && py > me.y - 40 && py < me.y + 4) { go("profile"); return; }
-      const o = OBJ.find((ob) => inRect(px, py, ob.hit));
+      const hitInd = indicators().find((ind) => Math.abs(px - ind.x) <= 22 && Math.abs(py - ind.y) <= 22);
+      if (hitInd) { pending = hitInd.o; me.tx = hitInd.x; me.ty = hitInd.y; return; }
+      const o = OBJ.filter(visible).find((ob) => inRect(px, py, ob.hit));
       if (o) { pending = o; me.tx = o.front[0]; me.ty = o.front[1]; return; }
-      pending = null; me.tx = px; me.ty = py;
+      // GAME-23: a blocked spot leads to the nearest free spot within 3 tiles; there is none: nothing happens
+      let tx = px, ty = py;
+      if (blocked(px, py)) {
+        tx = null;
+        for (let r = 4; r <= 3 * T && tx === null; r += 4) for (let a = 0; a < 6.28; a += 0.2) { const cx = px + Math.cos(a) * r, cy = py + Math.sin(a) * r; if (!blocked(cx, cy)) { tx = cx; ty = cy; break; } }
+        if (tx === null) return;
+      }
+      pending = null; me.tx = tx; me.ty = ty;
     });
     const kd = (e) => {
       if (["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].includes(e.key)) { keys.add(e.key); e.preventDefault(); me.tx = null; pending = null; hintT = 0; }
@@ -1832,6 +1855,46 @@ function mountGame(root, isDesktop) {
     const [n, b, g, h] = f.d;
     bubble.innerHTML = `<div class="m-av">${n.split(" ").map((s) => s[0]).join("")}</div><div class="grow"><b>${n}</b><span><span class="m-tag">${b}</span></span>${g ? `<span>${g}</span>` : ""}${h ? `<span class="m-muted">${h}</span>` : ""}${pin ? "" : '<span class="m-hint">Tippen zum Anheften</span>'}</div>${pin ? '<button class="x" aria-label="Schliessen">×</button>' : ""}`;
     bubble.hidden = false;
+  }
+
+  // edge indicators (GAME-26): on the line from the avatar to the object, 12 px inside the edge, below the bar
+  const IN = { l: 12 + 22, r: W - 12 - 22, t: 84 + 12 + 22, b: H - 12 - 22 };
+  function indicators() {
+    return OBJ.filter((o) => o.off).map((o) => {
+      const dx = o.off[0] - me.x, dy = o.off[1] - me.y;
+      const k = Math.min(dx > 0 ? (IN.r - me.x) / dx : dx < 0 ? (IN.l - me.x) / dx : Infinity, dy > 0 ? (IN.b - me.y) / dy : dy < 0 ? (IN.t - me.y) / dy : Infinity);
+      return { o, x: me.x + dx * k, y: me.y + dy * k, angle: Math.atan2(dy, dx), dist: Math.hypot(dx, dy) };
+    }).sort((a, b) => a.dist - b.dist).slice(0, 6);
+  }
+  function drawIndicator(ind, t) {
+    const { x, y, angle, o } = ind;
+    const bob = Math.sin(t / 300) * 1.5;
+    ctx.save(); ctx.translate(x, y);
+    ctx.fillStyle = "rgba(34,34,34,0.88)"; ctx.strokeStyle = "#fff"; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.arc(0, 0, 18, 0, 7); ctx.fill(); ctx.stroke();
+    ctx.save(); ctx.rotate(angle); ctx.fillStyle = "#fff"; ctx.beginPath(); ctx.moveTo(27 + bob, 0); ctx.lineTo(19 + bob, -6); ctx.lineTo(19 + bob, 6); ctx.closePath(); ctx.fill(); ctx.restore();
+    if (o.kind === "portal") {
+      ctx.save(); ctx.rotate(angle); ctx.fillStyle = "#ffd23f"; ctx.strokeStyle = "#5a4200"; ctx.lineWidth = 1.5;
+      ctx.beginPath(); ctx.moveTo(10, 0); ctx.lineTo(-1, -9); ctx.lineTo(-1, -4); ctx.lineTo(-9, -4); ctx.lineTo(-9, 4); ctx.lineTo(-1, 4); ctx.lineTo(-1, 9); ctx.closePath(); ctx.fill(); ctx.stroke(); ctx.restore();
+    } else star(0, 0, 8, 1);
+    ctx.restore();
+    drawIndicatorLabel(ind);
+  }
+  // the label of an indicator: black text on a white pill, on the side of the icon with more room (GAME-26)
+  function drawIndicatorLabel({ x, y, o }) {
+    if (!o.indLabel) return;
+    ctx.save();
+    ctx.font = "600 12px system-ui, sans-serif";
+    const side = x > W / 2 ? -1 : 1;
+    const max = Math.min(160, (side < 0 ? x : W - x) - 22 - 6 - 12);
+    let text = o.indLabel, w = ctx.measureText(text).width + 16;
+    while (w > max && text.length > 1) { text = text.slice(0, -2) + "…"; w = ctx.measureText(text).width + 16; }
+    const bx = side < 0 ? x - 28 - w : x + 28;
+    ctx.beginPath();
+    if (ctx.roundRect) ctx.roundRect(bx, y - 10, w, 20, 6); else ctx.rect(bx, y - 10, w, 20);
+    ctx.fillStyle = "#fff"; ctx.fill(); ctx.strokeStyle = "rgba(0,0,0,0.3)"; ctx.lineWidth = 1; ctx.stroke();
+    ctx.fillStyle = "#000"; ctx.textAlign = "left"; ctx.textBaseline = "middle"; ctx.fillText(text, bx + 8, y + 0.5);
+    ctx.restore();
   }
 
   function drawTree(x, y, r) {
@@ -1857,9 +1920,22 @@ function mountGame(root, isDesktop) {
     if (t > o.next) { o.until = t + 900; o.next = t + 3500 + Math.random() * 5000; o.sp = [0, 1, 2].map(() => [Math.random(), Math.random()]); }
     return t < o.until ? Math.sin(((o.until - t) / 900) * Math.PI) : 0;
   }
-  function withShine(o, t, fn) {
-    const s = shineOf(o, t);
+  // glow along the edges while the avatar walks to an object or portal (GAME-25): swells and fades once per second
+  const GLOW = [255, 243, 160]; // the colour of the sparkles
+  function glowing(o, t, fn, idle = false) {
+    if (pending === o && me.tx != null) {
+      const ph = (t % 1000) / 1000, g = Math.sin(ph * Math.PI);
+      ctx.save(); ctx.shadowColor = `rgba(${GLOW},${0.45 + 0.5 * g})`; ctx.shadowBlur = (5 + 11 * g) * dpr; fn(); ctx.restore();
+    } else if (idle) {
+      // clickable objects glow softly all the time (GAME-29); the portal's arrow has its own warm glow
+      ctx.save(); ctx.shadowColor = `rgba(${GLOW},0.55)`; ctx.shadowBlur = 5 * dpr; fn(); ctx.restore();
+    }
     fn();
+  }
+  function withShine(o, t, fn) {
+    if (o.off) return;
+    const s = shineOf(o, t);
+    glowing(o, t, fn, true);
     if (s) { const [x, y, w, h] = o.hit; o.sp.forEach(([a, b], i) => star(x + a * w, y + b * h * 0.8, 3 + 3 * s, s * (0.6 + i * 0.15))); }
   }
   function drawChurch(t) {
@@ -1945,8 +2021,15 @@ function mountGame(root, isDesktop) {
       ctx.fillStyle = "#f7f2e6"; ctx.beginPath(); ctx.arc(x, y, 16, 0, 7); ctx.fill();
       ctx.fillStyle = "#e1d8c3"; ctx.fillRect(x - 2, y - 8, 4, 6); ctx.fillStyle = "#f0a0a8"; ctx.fillRect(x - 3, y - 11, 6, 4);
     }
+    // target marker (GAME-24): above the ground, below objects and figures; pulses once per second
+    if (me.tx != null && !keys.size) {
+      const ph = (t % 1000) / 1000, sc = 0.8 + 0.4 * ph, a = 1 - ph * 0.85;
+      ctx.save(); ctx.globalAlpha = a; ctx.lineWidth = 8; ctx.strokeStyle = "rgba(20,20,20,0.9)";
+      ctx.beginPath(); ctx.ellipse(me.tx, me.ty, 13 * sc, 6.5 * sc, 0, 0, 7); ctx.stroke();
+      ctx.lineWidth = 4.5; ctx.strokeStyle = `rgb(${GLOW})`; ctx.beginPath(); ctx.ellipse(me.tx, me.ty, 13 * sc, 6.5 * sc, 0, 0, 7); ctx.stroke(); ctx.restore();
+    }
     withShine(OBJ[4], t, drawCake);
-    drawPortal(t);
+    if (!edges) glowing(OBJ[5], t, () => drawPortal(t));
     withShine(OBJ[0], t, () => drawChurch(t));
     withShine(OBJ[1], t, drawRestaurant);
     for (const tr of trees) drawTree(...tr);
@@ -1964,6 +2047,7 @@ function mountGame(root, isDesktop) {
       if (o.isMe) { ctx.fillStyle = "#ffd23f"; ctx.beginPath(); ctx.moveTo(o.x - 5, fy - 10); ctx.lineTo(o.x + 5, fy - 10); ctx.lineTo(o.x, fy - 4); ctx.fill(); }
       else tag(o.x, fy - 3, o.d[0].split(" ")[0].toUpperCase());
     }
+    if (!paused) indicators().forEach((ind) => drawIndicator(ind, t));
   }
   let last = performance.now();
   function step(t) {

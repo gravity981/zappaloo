@@ -124,18 +124,70 @@ test("[GAME-09] the arrow keys move the player in the screen's directions", asyn
   expect(Math.hypot(after.x - before.x, after.y - before.y)).toBeGreaterThan(expected * 0.7);
 });
 
-test("[GAME-10][GAME-03] a tap walks the player into the portal, which leads to the next map; the device remembers the map", async ({
+test("[GAME-24][GAME-28][GAME-29] a tap on the ground shows the marker while the avatar walks, and it is gone on arrival; the figure has a shadow and the clickable objects glow", async ({
   page,
   context,
 }, testInfo) => {
   test.skip(testInfo.project.name !== "desktop-chromium", "shared settings: one profile only");
   await signInAsAdmin(page, context);
   await enterGame(page);
-  await gameState(page);
+  const before = await gameState(page);
+  // The clickable objects glow along their edges (GAME-29).
+  expect(before.glows).toBeGreaterThan(0);
+  expect(before.walk).toEqual({ marker: null, glow: null });
+  // The shadow is an ellipse a hair below the figure's sprite (GAME-28).
+  const stack = await page.evaluate(() => window.__zappaloo?.game?.renderStack() ?? []);
+  const sprites = stack.filter((object) => object.type === "Sprite");
+  const shadows = stack.filter((object) => object.type === "Ellipse");
+  expect(
+    shadows.some((shadow) =>
+      sprites.some((sprite) => Math.abs(sprite.depth - shadow.depth - 0.001) < 1e-6),
+    ),
+  ).toBe(true);
+
+  // A tap on the ground a few tiles away: the marker shows at its target while the avatar walks (GAME-24).
+  const target = await pagePoint(page, { x: before.x + 70, y: before.y + 35 });
+  await page.mouse.click(target.x, target.y);
+  await expect
+    .poll(async () => (await gameState(page)).walk.marker, { timeout: 5_000 })
+    .not.toBeNull();
+  // The tap was on the ground, not on an object: nothing glows because of it.
+  expect((await gameState(page)).walk.glow).toBeNull();
+  await expect
+    .poll(async () => (await gameState(page)).walk.marker, { timeout: 20_000 })
+    .toBeNull();
+  const after = await gameState(page);
+  expect(Math.hypot(after.x - before.x, after.y - before.y)).toBeGreaterThan(20);
+});
+
+test("[GAME-10][GAME-03][GAME-30] a tap walks the player into the portal, which leads to the next map, behind a loading veil and with a screen flash; the device remembers the map", async ({
+  page,
+  context,
+}, testInfo) => {
+  test.skip(testInfo.project.name !== "desktop-chromium", "shared settings: one profile only");
+  await signInAsAdmin(page, context);
+  await enterGame(page);
+  const first = await gameState(page);
+  expect(first.entries).toBe(1);
+  // Notes whether the grey loading veil is put up while the next map is built (GAME-30).
+  await page.evaluate(() => {
+    const seen = window as unknown as { sawLoadingVeil?: boolean };
+    seen.sawLoadingVeil = false;
+    new MutationObserver(() => {
+      if (document.querySelector('[data-testid="map-loading"]') !== null)
+        seen.sawLoadingVeil = true;
+    }).observe(document.body, { childList: true, subtree: true });
+  });
   // The portal "zum-garten" of the start map lies at the left corner of the map, around (32, 176) in map pixels.
   const target = await pagePoint(page, { x: 32, y: 176 });
   await page.mouse.click(target.x, target.y);
   await expect.poll(async () => (await readState(page))?.mapId, { timeout: 15_000 }).toBe("garten");
+  // The veil was up, and it is gone once the map is ready; the map was entered with a flash, which counts an entry.
+  expect(
+    await page.evaluate(() => (window as unknown as { sawLoadingVeil?: boolean }).sawLoadingVeil),
+  ).toBe(true);
+  await expect(page.getByTestId("map-loading")).toHaveCount(0);
+  await expect.poll(async () => (await readState(page))?.entries).toBe(2);
 
   await page.reload();
   expect((await gameState(page)).mapId).toBe("garten");
@@ -198,6 +250,59 @@ test("[GAME-06][GAME-08][GAME-11][GAME-15][GAME-16] a tap on an object walks to 
     await page.keyboard.press("Escape");
     await expect(overlay).toHaveCount(0, { timeout: 1000 });
   }).toPass();
+});
+
+test("[GAME-26][GAME-06][GAME-16] an object outside the view has an indicator at the edge, the easter egg has none, and a tap on the indicator walks to the object and opens its page", async ({
+  page,
+  context,
+}, testInfo) => {
+  test.skip(testInfo.project.name !== "desktop-chromium", "shared settings: one profile only");
+  // A phone-sized view shows only a small part of the map, so objects lie outside it.
+  await page.setViewportSize({ width: 360, height: 340 });
+  await signInAsAdmin(page, context);
+  await enterGame(page);
+  const before = await gameState(page);
+  const indicators = page.getByTestId("edge-indicator");
+  await expect(indicators.first()).toBeVisible({ timeout: 10_000 });
+  // No indicator for the easter egg (GAME-08), and at most six (GAME-26).
+  await expect(page.locator('[data-indicator="object:osterei"]')).toHaveCount(0);
+  expect(await indicators.count()).toBeLessThanOrEqual(6);
+
+  // Each indicator lies in the view, with a touch area of at least 44 x 44 pixels, 12 pixels from its edge.
+  const canvas = await page.getByTestId("game-canvas").boundingBox();
+  if (canvas === null) throw new Error("no canvas");
+  for (const box of await indicators.evaluateAll((all) =>
+    all.map((one) => {
+      const rect = one.getBoundingClientRect();
+      return { x: rect.x, y: rect.y, width: rect.width, height: rect.height };
+    }),
+  )) {
+    expect(box.width).toBeGreaterThanOrEqual(44);
+    expect(box.height).toBeGreaterThanOrEqual(44);
+    expect(box.x).toBeGreaterThanOrEqual(canvas.x + 11);
+    expect(box.y).toBeGreaterThanOrEqual(canvas.y + 11);
+    expect(box.x + box.width).toBeLessThanOrEqual(canvas.x + canvas.width - 11);
+    expect(box.y + box.height).toBeLessThanOrEqual(canvas.y + canvas.height - 11);
+  }
+
+  // A tap on the indicator of the altar does what a tap on the altar does: the avatar walks there, and the page opens.
+  const altar = page.locator('[data-indicator="object:altar"]');
+  await expect(altar).toBeVisible();
+  // The labels: the name of the object, or for a portal the name of the map it leads to, black on white (GAME-26).
+  await expect(altar).toContainText("Programm");
+  await expect(page.locator('[data-indicator="portal:zum-garten"]')).toContainText("Garten");
+  const labelColors = await altar.locator("span").evaluate((span) => {
+    const style = getComputedStyle(span);
+    return { color: style.color, background: style.backgroundColor };
+  });
+  expect(labelColors).toEqual({ color: "rgb(0, 0, 0)", background: "rgb(255, 255, 255)" });
+  await altar.click();
+  const overlay = page.getByRole("dialog", { name: "Programm" });
+  await expect(overlay).toBeVisible({ timeout: 40_000 });
+  const arrived = await gameState(page);
+  expect(Math.hypot(arrived.x - before.x, arrived.y - before.y)).toBeGreaterThan(30);
+  // The page is open above the paused game: no indicators over it (GAME-11).
+  await expect(indicators.first()).toBeHidden();
 });
 
 test("[GAME-11] Enter on the close button of an object's page closes it, and the object does not open again", async ({
@@ -289,10 +394,11 @@ test("[GAME-11][GAME-13] on the first entry with an open RSVP, typing into the R
   expect([after.x, after.y]).toEqual([before.x, before.y]);
   await guestContext.close();
   await page.goto("/admin/settings");
-  await page
-    .getByRole("region", { name: de.admin.waiting.openingTitle })
-    .getByRole("button", { name: de.admin.waiting.closeAgain })
-    .click();
+  const closing = page.getByRole("region", { name: de.admin.waiting.openingTitle });
+  await closing.getByRole("button", { name: de.admin.waiting.closeAgain }).click();
+  // The test must not end before the platform is closed: this installation is shared with the tests that follow,
+  // which expect it closed, and a request that the end of the test cuts off leaves it open.
+  await expect(closing.getByText(de.admin.waiting.closed)).toBeVisible();
 });
 
 test("[AVA-01][AVA-02] the avatar editor offers an admin the tier3 figures only, by kind; choosing a kind stores a figure and enables the next step", async ({
@@ -335,9 +441,10 @@ test("[GAME-12][GAME-13][GAME-14][GAME-17][GAME-18] first entry: the avatar come
 
   // The game: the bar at the top, the hint for newcomers.
   await expect(page.getByTestId("game-canvas")).toBeVisible();
-  const bar = page.getByRole("navigation", { name: de.game.bar.label });
-  await expect(bar.getByRole("button", { name: de.nav.programme })).toBeVisible();
-  await expect(page.getByRole("link", { name: de.nav.site })).toBeVisible();
+  // The bar has only the title and "Website" (GAME-14).
+  const bar = page.getByRole("banner");
+  await expect(bar.getByRole("link", { name: de.nav.site })).toBeVisible();
+  await expect(bar.getByRole("button")).toHaveCount(0);
   await expect(page.getByTestId("game-hint")).toBeVisible();
 
   // A tap on the own avatar opens the profile above the game.

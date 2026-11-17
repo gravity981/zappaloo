@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildReport, progressByStage, renderConsole, renderMarkdown } from "./report.ts";
+import { buildReport, progressByEpic, renderConsole, renderMarkdown } from "./report.ts";
 import type { ReportInput } from "./report.ts";
 import type { TestCase } from "./results.ts";
 import type { Requirement } from "./spec.ts";
@@ -29,7 +29,7 @@ function input(overrides: Partial<ReportInput> = {}): ReportInput {
   return {
     requirements: [req("AB-01"), req("AB-02"), req("AB-03", "Should"), req("AB-04", null)],
     notImplemented: new Set(["AB-03"]),
-    stages: [
+    epics: [
       { number: 1, title: "One", ids: ["AB-01", "AB-02"] },
       { number: 2, title: "Two", ids: ["AB-03"] },
     ],
@@ -50,7 +50,7 @@ describe("buildReport", () => {
       implementedPassing: 2,
       notImplemented: 1,
     });
-    expect(report.rows.map((r) => [r.id, r.implemented, r.status, r.stage])).toEqual([
+    expect(report.rows.map((r) => [r.id, r.implemented, r.status, r.epic])).toEqual([
       ["AB-01", true, "passed", 1],
       ["AB-02", true, "passed", 1],
       ["AB-03", false, "untested", 2],
@@ -98,18 +98,18 @@ describe("buildReport", () => {
     expect(report.totals.implemented).toBe(0);
   });
 
-  it("warns about passing requirements still on the list, and requirements without a stage", () => {
+  it("warns about passing requirements still on the list, and requirements without a epic", () => {
     const report = buildReport(
       input({
         notImplemented: new Set(["AB-02", "AB-03"]),
-        stages: [{ number: 1, title: "One", ids: ["AB-01"] }],
+        epics: [{ number: 1, title: "One", ids: ["AB-01"] }],
       }),
     );
     expect(report.errors).toEqual([]);
     expect(report.warnings).toEqual([
-      "AB-02 is not planned in any stage of implementation-plan.md",
+      "AB-02 is not planned in any epic of the backlog",
       'AB-02 has passing tests but is still on the "not yet implemented" list',
-      "AB-03 is not planned in any stage of implementation-plan.md",
+      "AB-03 is not planned in any epic of the backlog",
     ]);
   });
 
@@ -131,11 +131,11 @@ describe("buildReport", () => {
   });
 });
 
-describe("progressByStage", () => {
-  it("counts planned, implemented and remaining requirements per stage", () => {
-    expect(progressByStage(buildReport(input()))).toEqual([
-      { stage: 1, title: "One", planned: 2, implemented: 2, remaining: 0 },
-      { stage: 2, title: "Two", planned: 1, implemented: 0, remaining: 1 },
+describe("progressByEpic", () => {
+  it("counts planned, implemented and remaining requirements per epic", () => {
+    expect(progressByEpic(buildReport(input()))).toEqual([
+      { epic: 1, title: "One", planned: 2, implemented: 2, remaining: 0 },
+      { epic: 2, title: "Two", planned: 1, implemented: 0, remaining: 1 },
     ]);
   });
 });

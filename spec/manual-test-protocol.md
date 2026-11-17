@@ -18,3 +18,4 @@ Checks that need a real environment, real devices or real time (see [test-strate
 | OPS-12 | 2026-11-13 | GitHub | pass | Tag ruleset for `v*` in the repository settings: tags can't be moved or deleted |
 | OPS-10 | 2026-11-13 | GitHub | pass | First release candidate built by the manual workflow, tagged and published as a pre-release |
 | OPS-11 | 2026-11-13 | GitHub | pass | Promotion of the latest candidate to a release, with the version and minor, major tags and the GitHub release |
+| GAME-27 | 2026-11-17 | iPhone 16 Pro, Safari (game preview over Tailscale, dev server) | pass | View smooth while walking, 60 fps in the diagnostics overlay (story 5.1a); installed app, Android Chrome and desktop still to be checked |

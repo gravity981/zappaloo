@@ -158,7 +158,7 @@ body {
     overflow: hidden;
   }
 }
-/* The game's bar stays one row on every width: the name is elided, the tabs and "Website" keep their places.
+/* The game's bar stays one row on every width: the name is elided, "Website" keeps its place at the right end.
    Two classes, so that the wrapping of the website header (ui.css) does not win by the order of the stylesheets. */
 .guest-site-head.game-bar {
   flex-wrap: nowrap;
@@ -178,28 +178,9 @@ body {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-/* The tabs stay next to the title, as on the website; the button at the right end is pushed there by its own auto margin. */
-.guest-site-head.game-bar nav {
-  flex: 0 0 auto;
-  flex-wrap: nowrap;
-  gap: 2px;
-  margin-right: auto;
-}
-.guest-site-head.game-bar nav button {
-  padding-left: 8px;
-  padding-right: 8px;
-  white-space: nowrap;
-}
 .guest-site-head.game-bar .site-head-r {
   flex: 0 0 auto;
-}
-.game-badge {
-  display: inline-block;
-  width: 8px;
-  height: 8px;
-  margin-left: 6px;
-  border-radius: 50%;
-  background: #d33;
+  margin-left: auto;
 }
 .game-stage {
   position: relative;

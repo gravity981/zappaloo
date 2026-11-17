@@ -98,7 +98,9 @@ async function handleRequest(
       throw new RequestError(415, "Preview request must be application/json");
     }
     const origin = request.headers.origin;
-    if (origin !== undefined && origin !== `http://${request.headers.host ?? ""}`) {
+    // The same host, over http or over https (a tailnet proxy such as `tailscale serve` adds TLS).
+    const host = request.headers.host ?? "";
+    if (origin !== undefined && origin !== `http://${host}` && origin !== `https://${host}`) {
       throw new RequestError(403, "Preview request must come from the preview itself");
     }
     const body = await readJson(request);

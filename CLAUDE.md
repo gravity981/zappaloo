@@ -10,7 +10,9 @@ Zappaloo is a reusable event platform (first use: a wedding) that combines a bro
 | `spec/sw-architecture.md` | Requirements, architecture, technology choices |
 | `game-engine/README.md` | Tiled → WorldPackage → shared Phaser engine integration contract |
 | `spec/test-strategy.md` | Test levels, requirement traceability, "not yet implemented" list |
-| `spec/implementation-plan.md` | Stages and steps, preconditions per stage, releases, status reports |
+| `spec/backlog/README.md` | How to work on epics and stories (policy), templates for epic files and epic reports |
+| `spec/backlog/roadmap.md` | Order of the epics, release points, status and dependencies of each epic |
+| `spec/backlog/epics/` | One file per epic: refinement, stories, epic report |
 | `spec/mocks/` | Clickable UX mocks (`zappaloo-mocks.html`) and the UX decisions behind them |
 | `game-preview/README.md` | The standalone game preview: local world packages, watching, the preview's controls |
 
@@ -26,23 +28,26 @@ Zappaloo is a reusable event platform (first use: a wedding) that combines a bro
 - Every requirement is verified by at least one test, and each test names the requirement IDs it verifies:
   - Vitest (unit, component, integration): `it("[ABC-01] does something", ...)`
   - Playwright (end-to-end): `test("[ABC-01][ABC-02] does something", ...)`
-- A requirement report (`npm run req-report`, built in step 1a) lists requirement → tests → result. CI fails if an implemented requirement has no passing test. Requirements not implemented yet are listed in `spec/test-strategy.md` ("not yet implemented"); shrink that list as stages are delivered.
+- A requirement report (`npm run req-report`, built in step 1a) lists requirement → tests → result. CI fails if an implemented requirement has no passing test. Requirements not implemented yet are listed in `spec/test-strategy.md` ("not yet implemented"); shrink that list as epics are delivered.
 
-## Implementation in stages
+## Implementation in epics
 
-- The spec is implemented in stages, each split into steps (1a, 1b, …), as planned in `spec/implementation-plan.md`. Before starting a stage, confirm its preconditions and steps with the user.
+- The spec is implemented in epics, each split into stories (6a, 6b, …), as planned in `spec/backlog/`. Epics were called stages and stories steps until 2026-11-17; the numbers are the same, so "stage 6" or "step 6d" in the spec means epic 6 or story 6d.
+- **Follow the policy in `spec/backlog/README.md`** (refinement, branch, one story at a time, epic report, pull request). It adds to the rules here and does not replace them; if the two seem to disagree, these rules apply and you point out the contradiction.
+- Before starting an epic, refine it and confirm its preconditions, dependencies and stories with the user. **Start only an epic whose status is `ready`** (refined, preconditions met, every epic in "Depends on" done; `spec/backlog/roadmap.md`). Several epics can be in progress in parallel, each on its own branch; work only on the epic of the current branch.
 - **The user creates branches and makes all commits. Never commit, and never create or switch branches.**
 - **Commit messages feed the release notes** (OPS-19, sw-architecture.md 23.3.1). When suggesting a commit message, write the first line for the people who use the app and start it with `feat:` (or `Add`) for something new or `fix:` (or `Fix`) for a fix; other commits are listed as changes. `chore:`, `docs:`, `test:`, `ci:` and `build:` mark housekeeping that is left out, as is a bare `step 1d`; `step 1f - Backup and restore tools` is listed as "Backup and restore tools".
-- Each stage is built on a branch named `feature/stage-<n>` or `feature/stage-<n>-<text>`. Before changing any file for a step, check:
-  - `git branch --show-current` matches the current stage (exactly `n`, so `stage-1` does not match `stage-10`);
-  - the working tree is clean (the previous step is committed).
+- Each epic is built on a branch named `feature/epic-<n>-<title>` (`<title>` is the slug of the epic file, e.g. `feature/epic-6-living-world`). Before changing any file for a story, check:
+  - `git branch --show-current` matches the current epic (exactly `n`, so `epic-1` does not match `epic-10` and `epic-3` does not match `epic-3.5`);
+  - the working tree is clean (the previous story is committed).
   If either check fails, stop and ask the user. Don't fix it yourself.
-- **Frontend work follows the UX mocks** in `spec/mocks/`: build a screen from its mock (layout, flow, texts) and read the UX decisions in `spec/mocks/README.md`. If the mock and a requirement disagree, the requirement wins and the mock is fixed in the same step; propose other UX deviations before making them.
-- After each step: stop with a short summary (what changed, tests and their results, anything open) so the user can review and commit.
-- **When a stage is complete,** write a status report using the template in `spec/implementation-plan.md` (section 4), append it to section 5 there, update the overview table in section 3, and show the report in the conversation. It includes:
-  - a table of stage | content | status (done / next / open);
-  - the remaining requirements grouped by stage, with numbers taken from the requirement report;
+- **Frontend work follows the UX mocks** in `spec/mocks/`: build a screen from its mock (layout, flow, texts) and read the UX decisions in `spec/mocks/README.md`. If the mock and a requirement disagree, the requirement wins and the mock is fixed in the same story; propose other UX deviations before making them.
+- After each story: stop with a short summary (what changed, tests and their results, anything open) and a suggested commit message, so the user can review and commit.
+- **When an epic is complete,** write the epic report using the template in `spec/backlog/README.md` into the "Report" section of the epic file, set its status to `done` in its file and in `spec/backlog/roadmap.md`, propose `ready` for the refined epics it unblocks, and show the report in the conversation. It includes:
+  - the stories and their status (done / changed / moved / dropped);
+  - the remaining requirements grouped by epic, with numbers taken from the requirement report;
   - anything waiting on the user.
+- **Then the pull request:** write its title and description from `.github/PULL_REQUEST_TEMPLATE.md` and show them to the user. Open it with `gh pr create` only after the user confirms and has pushed the branch. Never merge.
 
 ## Environment
 
@@ -81,7 +86,7 @@ Minimize test execution time while keeping sufficient confidence. The full polic
 - **Before running tests:** inspect `git diff`, name the modified files and affected components, pick the smallest meaningful subset, and use the filtering the tools offer: `npx vitest run <path>` (from the repository root), `npx playwright test e2e/<file> --project=<project> -g "<title or ID>"` (the requirement IDs are in the titles).
 - **Order:** targeted unit tests, then relevant integration tests, then lint and type checking as appropriate, then broader regression only when the scope or risk justifies it.
 - **When a test fails:** analyze the failure first, decide whether the current changes caused it, fix the cause, and rerun only the failed test and the tests the fix affects, not the unrelated passing ones.
-- **Run the full suite only** when the user asks, when shared infrastructure or cross-cutting functionality changed, when dependencies or configuration with broad impact changed, when targeted tests cannot give enough confidence, or for a release or CI validation. The requirement report needs a complete Vitest and Playwright run, so `npm run req-report` falls under this rule: run it at the end of a stage, not after every step.
+- **Run the full suite only** when the user asks, when shared infrastructure or cross-cutting functionality changed, when dependencies or configuration with broad impact changed, when targeted tests cannot give enough confidence, or for a release or CI validation. The requirement report needs a complete Vitest and Playwright run, so `npm run req-report` falls under this rule: run it at the end of an epic, not after every story.
 - **Multiple agents:** avoid duplicate runs, reuse another agent's results only for the exact same code state, name one agent for the final verification, and never assume a result stays valid after relevant source changes.
 - **Completion report** (also the summary after each step): the tests executed, passed and failed, the tests skipped and why, and the remaining verification risks. Never claim that unexecuted tests passed.
 

@@ -2,6 +2,7 @@ export {
   createGame,
   getGameClickables,
   getGameRenderStack,
+  setGameDiagnostics,
   setGameFigure,
   setGamePaused,
   setGameGuides,
@@ -18,6 +19,7 @@ export type {
   GameHost,
   GameSelection,
   GameState,
+  GameTexts,
   GameStateReader,
   GameView,
 } from "./host.ts";

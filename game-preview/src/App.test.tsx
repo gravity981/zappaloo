@@ -5,6 +5,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 vi.mock("@zappaloo/game-engine", () => ({
   createGame: vi.fn(),
   setGameGuides: vi.fn(),
+  setGamePaused: vi.fn(),
   setGameSelection: vi.fn(),
   setGameView: vi.fn(),
 }));

@@ -100,7 +100,7 @@ All active requirements are listed here until their stage is delivered. Shrink t
 
 The stage each requirement belongs to is listed in `sw-architecture.md`, section 28.
 
-**Partially implemented** (decided 2026-11-10). These requirements count as implemented from stage 2 on, because their mechanism exists and is tested, but parts of them belong to features of later stages. Each part is a "Follow-up from stage 2" line of the step that builds the feature in `implementation-plan.md`, and that step adds tests tagged with the ID:
+**Partially implemented** (decided 2026-11-10). These requirements count as implemented from stage 2 on, because their mechanism exists and is tested, but parts of them belong to features of later stages. Each part is a "Follow-up from stage 2" line of the story that builds the feature in its epic file (`backlog/epics/`), and that step adds tests tagged with the ID:
 
 - ACS-05: the treasure-hunt condition (step 8d); the admin page for manual releases, with the step that stores access conditions (step 8d, HUNT-05; pages carry none in stage 4, decided 2026-11-13).
 - ACS-07: server checks for protected game areas (step 8d; stage 5 checks only sign-in, the open platform and guest access, decided 2026-11-17), contribution upload (7b), moderation (7c), minigame start and result submission (8b).
@@ -117,7 +117,9 @@ The stage each requirement belongs to is listed in `sw-architecture.md`, section
 
 **Not yet tested** (decided 2026-11-11). These requirements are implemented and their automated tests pass, but the check in a real environment that completes them has not been done. They stay on this list until it has been done and recorded in the manual test protocol. The requirement report does not read this list; it is kept by hand.
 
-The list is empty (cleared 2026-11-13). PWA-01 – PWA-05, LIC-03 and OPS-02 were checked on prod and are recorded as `pass` rows in [manual-test-protocol.md](manual-test-protocol.md). OPS-02 and OPS-12 (tag ruleset, recorded the same day) left the "not yet implemented" list.
+- **GAME-27** (added 2026-11-17, story 5.1a): checked on an iPhone 16 Pro in Safari (60 fps, recorded 2026-11-17). Still open: the installed app on iOS, Android Chrome and a desktop browser, with the diagnostics overlay (`Frame rate and canvas` in the game preview, or `?debug=frames`); each goes into the manual test protocol as a row for GAME-27.
+
+Cleared on 2026-11-13 and filled again since: PWA-01 – PWA-05, LIC-03 and OPS-02 were checked on prod and are recorded as `pass` rows in [manual-test-protocol.md](manual-test-protocol.md). OPS-02 and OPS-12 (tag ruleset, recorded the same day) left the "not yet implemented" list.
 
 **When a requirement is added here:** the entry names the check, where and when it is done. Once the check is recorded as a `pass` row in the manual test protocol, the entry is deleted, and the requirement leaves the "not yet implemented" list if it was kept there for this check.
 

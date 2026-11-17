@@ -37,7 +37,7 @@ The decisions behind the mocks, by question number in the prototype's "Questions
 | 13 | Own contributions | "Meine Beiträge" in the profile (ACC-12). |
 | 14, 47 | Own figure | Always shown, no switch (PRES-04). |
 | 15 | Avatar step | Cannot be skipped; "Zufällig" makes it one tap. |
-| 16, 41 | Game bar | Bar at the top: Programm, Rückmeldung (badge), Hochladen, Website. "Website" leaves the game. No buttons at the bottom, no event-day "now / next" in the game (GAME-14, WEB-07). |
+| 16, 41 | Game bar | Bar at the top: the event's name and "Website", which leaves the game (changed 2026-11-17: Programm, Rückmeldung and Hochladen are objects of the world, not buttons). No buttons at the bottom, no event-day "now / next" in the game (GAME-14, WEB-07). |
 | 17, 40, 42 | World objects | Clickable objects come from the event's Tiled maps; each map has its own. They sparkle along their edges at random, and a shine passes over them now and then; tapping one walks the avatar there and runs its action. Portals between scenes are floating arrows. The admin assigns each object's action per map in "Erlebniswelt" (GAME-05, GAME-06, GAME-15, GAME-16, MAP-15). |
 | 40 | Own avatar | Tapping it opens the profile (GAME-18). |
 | 43 | Discoverability | The sparkle plus a hint at the first entry, "Tippe auf Dinge, die funkeln" (GAME-17). |
@@ -105,7 +105,7 @@ Written into sw-architecture.md 7.4.1, 10.4 and 24 as well.
 
 ## UX decisions for stage 3.9 (2026-11-12, findings of the Release 1 pilot)
 
-Written into sw-architecture.md 7.1.2, 7.4.2 and 8.3 as well. The screens are drawn into the mock at the start of the step that builds them (implementation-plan.md, stage 3.9).
+Written into sw-architecture.md 7.1.2, 7.4.2 and 8.3 as well. The screens are drawn into the mock at the start of the step that builds them (epic 3.9, `spec/backlog/epics/epic-3.9-release-1-pilot.md`).
 
 | Topic | Decision |
 |---|---|
@@ -152,7 +152,7 @@ Written into sw-architecture.md 14.2 and 14.4 as well.
 | Objects | Erlebniswelt › "Objekte & Portale": a preset that points to something missing is marked "fehlt". A portal whose given target is missing cannot be imported; a portal without a target is a warning (reworded 2026-11-17). The minigame action is offered from stage 8. |
 | Dialogues | A tab "Dialoge" in Erlebniswelt, not in Inhalte, because dialogues belong to the game world (Q63). A dialogue has an id (its `contentId`), the NPC's name and lines in Markdown, a preview of the dialogue box and "Verwendet von" (CNT-02, CNT-03). A dialogue in use cannot be deleted. Its id can be changed (Q64). |
 | Who uses Erlebniswelt | Only admins manage the world: import, rollback, guest access, object actions and dialogues. Disabling guest access hides guest entry points and blocks direct guest navigation while leaving the active package and admin management available. |
-| Game bar in stage 5 | Programm, Rückmeldung, Website. "Hochladen" comes with stage 7 (GAME-14). |
+| Game bar in stage 5 | Programm, Rückmeldung, Website; since 2026-11-17 only the event's name and Website (GAME-14). |
 | First entry in stage 5 | The avatar step, then the RSVP overlay while the RSVP is open. "Sag hallo" comes with stage 6 (GAME-13). |
 | Without a world or with guest access disabled | Guests land on the website, and no guest navigation to the Erlebniswelt is shown. |
 
@@ -161,6 +161,7 @@ Written into sw-architecture.md 14.2 and 14.4 as well.
 | Topic | Decision |
 |---|---|
 | Avatar editor | Two choices (decided 2026-11-17). First the kind of figure: «Mann», «Frau», «Kind» or «Andere», as buttons only for the kinds that the active world has a figure for; the kind of a figure comes from the world package. Choosing a kind picks a random figure of that kind at once. Then the figures of that kind are shown as a grid with their labels (7.3, AVA-01), with a walking preview of the chosen one (it bobs between two frames in the mock; the game plays the walk frames), and "Zufällig", which draws again within the kind only. Which figures a person may choose depends on the tier of each figure and the roles of the user (tier1 vip, tier2 staff, tier3 admin, exact, companions tier1; decided 2026-11-17). Each person (the guest and every companion) has a tab and chooses on their own; "Weiter" waits until every person has a figure, and there is no skip. There are no skin, hair, clothing or template choices. A figure without a label shows no name. |
+| Game: walking, target and edges | Epic 5.1 (decided 2026-11-17, question 69; the owner confirmed the mock before story 5.1e). **Target marker:** a thick ring in the glow's light colour with a dark outline, lying flat on the ground in the tile's 2 : 1 ratio (0.4 tile widths wide in the game), pulsing once per second (scale 0.8 → 1.2, fading out), above the ground and below objects and figures; it shows for every walk started by a tap and disappears on arrival, stop, a blocked walk and the arrow keys. A tap on a blocked spot moves it to the nearest reachable spot within 3 tiles, or nothing happens. **Glow:** every clickable object glows softly along its edges all the time, in the colour of its sparkles (GAME-29), like the portal's arrow in its warm colour; the object or portal the avatar walks to pulses, swelling and fading once per second, until its action runs. **Edge indicators:** round dark buttons with a white outline, 12 px inside the edge of the game view and below the bar, on the line from the avatar to the object, with a small pointer towards it; a sparkle for a clickable object, a yellow arrow for a portal; a label beside the icon, black text on a white pill, on the side with more room: the name of the connected page for an object, the name of the map it leads to for a portal; at least 44 × 44 px to tap, the label included; at most 6, nearest first, only the nearer of two overlapping ones; hidden while an overlay is open; none for easter eggs and objects without an action. The mock shows them in the state "Objects out of view". |
 | Persons | Each tab (the guest, each approved companion) chooses its own figure. |
 | Admin card "Welt" | The info line shows the format, the tile size as width × height ("Kachel 64 × 32 Pixel"), the number of figures, the import time and the start map (MAP-05). |
 | Refused package | The findings name the file of a figure with its frame, for example `avatar/<figure>/…/south.png: falsches Format (32 × 32 instead of 48 × 48)`. |

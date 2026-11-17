@@ -27,8 +27,9 @@ in CI order.
 - **Tests:** every test names the requirements it verifies — `it("[OPS-19] …")` in
   Vitest, `test("[OPS-19] …")` in Playwright. Every requirement needs at least one
   passing test ([test strategy](spec/test-strategy.md)); `npm run req-report` checks it.
-- **Stages:** the work is planned in [spec/implementation-plan.md](spec/implementation-plan.md),
-  one branch per stage (`feature/stage-<n>-…`).
+- **Epics:** the work is planned in [spec/backlog/](spec/backlog/README.md), one branch per
+  epic (`feature/epic-<n>-<title>`) and one commit per story; the backlog's README is the
+  policy for working on an epic.
 - **Database changes** come with a Drizzle migration (`npm run db:generate -w backend`)
   that also works on existing data; `npm run migration-check` verifies it.
 - **UI text** goes through i18n, never hard-coded in components.
