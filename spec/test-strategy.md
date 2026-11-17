@@ -13,7 +13,7 @@ This document defines how the requirements in [sw-architecture.md](sw-architectu
 
 | Level | Tool | Scope | Runs in |
 |---|---|---|---|
-| Unit | Vitest | Pure logic in `backend`, `shared`, `frontend` (e.g. access-condition evaluation, role combination rules, result plausibility checks, config schema validation) | CI, every push |
+| Unit | Vitest | Pure logic in `backend`, `shared`, `game-engine`, `frontend` (e.g. access-condition evaluation, role combination rules, result plausibility checks, config schema validation) | CI, every push |
 | Component | Vitest + React Testing Library (jsdom) | React UI components and pages in isolation | CI, every push |
 | Integration | Vitest | Backend modules against a real SQLite database (temporary file per test run), and the HTTP API through the real server | CI, every push |
 | End-to-end | Playwright | Full stack in the browser: website flows, game world, contributions. Desktop and mobile viewports (Chromium, WebKit) | CI, every push |

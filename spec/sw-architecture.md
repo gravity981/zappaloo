@@ -1754,6 +1754,8 @@ The answer lists every finding with its file, the map object where there is one,
 
 **Serving.** `GET /api/world` returns the active world (name, import id as version, start map, tile width and height, maps, the figures) or `null`. The files are served under `/api/world/<import id>/…` (maps, tileset images, avatar images). The version in the path changes with every import, so a new world loads on the next map entry and the files can be cached for a year (MAP-10). All of it needs sign-in, and for guests an open platform (ACS-07, ACS-10).
 
+**Browser engine boundary.** The frontend adapter owns authenticated world requests, guest map persistence, React UI and application routes. The reusable `game-engine` workspace owns map preparation, rendering and movement; it receives already-loaded world data, an asset-URL resolver, and host-provided map/spawn/figure selection and persistence callbacks. Production and the development preview use the same preparation path. Preview persistence is omitted so preview choices cannot change a guest's remembered map. The engine has no React or Node archive/validator dependency.
+
 **Decisions of the stage 5 plan review (2026-11-14):**
 
 - **Without an active world,** a signed-in guest of an open platform lands on the website (GAME-12 applies once a world is imported), and the start page offers no "Erlebniswelt betreten".

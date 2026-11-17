@@ -242,8 +242,12 @@ describe("the map as the game draws it (MAP-02, GAME-19)", () => {
 
   it("[MAP-02] the tiles of a Base64 layer are read like the array of a CSV layer", () => {
     const values = [1, 2, 3, 4, 0, 0, 0, 0, 0];
-    const bytes = Buffer.alloc(values.length * 4);
-    values.forEach((value, index) => bytes.writeUInt32LE(value, index * 4));
+    const bytes = new Uint8Array(values.length * 4);
+    const view = new DataView(bytes.buffer);
+    values.forEach((value, index) => {
+      view.setUint32(index * 4, value, true);
+    });
+    const base64 = btoa(bytes.reduce((binary, byte) => binary + String.fromCharCode(byte), ""));
     const layers = [
       {
         type: "tilelayer",
@@ -251,7 +255,7 @@ describe("the map as the game draws it (MAP-02, GAME-19)", () => {
         visible: true,
         width: 3,
         height: 3,
-        data: bytes.toString("base64"),
+        data: base64,
         encoding: "base64",
       },
     ];

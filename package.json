@@ -10,6 +10,7 @@
   },
   "workspaces": [
     "shared",
+    "game-engine",
     "backend",
     "frontend"
   ],
@@ -18,8 +19,8 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "typecheck": "tsc -p tsconfig.json && npm run typecheck --workspaces --if-present",
-    "test": "vitest run --project shared --project backend --project frontend --project scripts",
-    "test:watch": "vitest --project shared --project backend --project frontend --project scripts",
+    "test": "vitest run --project shared --project game-engine --project backend --project frontend --project scripts",
+    "test:watch": "vitest --project shared --project game-engine --project backend --project frontend --project scripts",
     "test:e2e": "playwright test",
     "req-report": "node scripts/req-report/cli.ts",
     "check": "npm run lint && npm run format:check && npm run typecheck && npm run migration-check && npm run build && npm run test && npm run test:e2e && npm run build:image && npm run test:deploy && npm run req-report",

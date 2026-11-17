@@ -1,17 +1,6 @@
-// Test hook for the end-to-end tests (test-strategy.md, "Game world tests"): exposes the game state to Playwright:
-// the active scenes, and the map, the position and the direction of the player. Only built in when
-// VITE_TEST_HOOKS=true.
-import type Phaser from "phaser";
-
-export interface GameState {
-  mapId: string;
-  /** The player's position in the map's pixel space. */
-  x: number;
-  y: number;
-  direction: string;
-  /** The camera: the map point at its centre, its zoom, and its size in game pixels (the canvas). */
-  view: { x: number; y: number; zoom: number; width: number; height: number };
-}
+// Test hook for the end-to-end tests (test-strategy.md, "Game world tests"): exposes the engine state to Playwright.
+// Only built in when VITE_TEST_HOOKS=true.
+import { WORLD_SCENE_KEY, type GameInstance, type GameState } from "@zappaloo/game-engine";
 
 export interface GameTestHook {
   activeScenes: () => string[];
@@ -25,7 +14,7 @@ declare global {
   }
 }
 
-let game: Phaser.Game | null = null;
+let game: GameInstance | null = null;
 let read: (() => GameState) | null = null;
 
 function publish(): void {
@@ -43,7 +32,12 @@ function publish(): void {
               parent.style.height = `${String(height)}px`;
             }
             instance.scale.setParentSize(width, height).setGameSize(width, height);
-            instance.scene.start("world", { mapId, spawn: "start", artworkOnly: true, zoom });
+            instance.scene.start(WORLD_SCENE_KEY, {
+              mapId,
+              spawn: "start",
+              artworkOnly: true,
+              zoom,
+            });
             await new Promise<void>((resolve, reject) => {
               const timeout = window.setTimeout(() => {
                 reject(
@@ -78,7 +72,7 @@ function publish(): void {
 }
 
 /** Exposes the Phaser game (or removes it when `null`). */
-export function exposeGame(instance: Phaser.Game | null): void {
+export function exposeGame(instance: GameInstance | null): void {
   game = instance;
   publish();
 }

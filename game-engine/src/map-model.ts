@@ -15,7 +15,7 @@ import type { Occluder } from "./draw-order.ts";
 
 /** A picture of a tile: the texture it comes from, the part of it to draw, and its guides in its own pixels. */
 export interface TileImage {
-  /** The texture key of the image file (`tileset:<name>`, see world-data.ts). */
+  /** The texture key of the image file (`tileset:<name>`, resolved by world-data.ts). */
   key: string;
   /** The image's size in pixels. */
   width: number;

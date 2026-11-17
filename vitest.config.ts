@@ -8,6 +8,7 @@ export default defineConfig({
   test: {
     projects: [
       { test: { name: "shared", root: "./shared", include: ["src/**/*.test.ts"] } },
+      { test: { name: "game-engine", root: "./game-engine", include: ["src/**/*.test.ts"] } },
       { test: { name: "backend", root: "./backend", include: ["src/**/*.test.ts"] } },
       {
         // Uses the frontend's Vite config (React plugin), with a browser-like DOM.

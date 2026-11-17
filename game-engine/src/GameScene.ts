@@ -9,15 +9,15 @@ import { figureDepth } from "./draw-order.ts";
 import { type Point, polygonCentre, type TileSize } from "./geometry.ts";
 import { findPath, type Grid } from "./pathfinding.ts";
 import { directionOf, keyDirection, stepPosition, type Direction } from "./movement.ts";
-import { entryPoint, portalAt, rememberedMap, rememberMap, spawnPosition } from "./entry.ts";
+import { portalAt, spawnPosition } from "./entry.ts";
 import type { ParsedMap, TileDraw } from "./map-model.ts";
 import type { FigureData, LoadedWorld } from "./world-data.ts";
-import { exposeState } from "./test-hook.ts";
-
-export const WORLD_SCENE_KEY = "world";
-
-/** The world the scene draws, handed over by the game canvas through the registry. */
-export const WORLD_REGISTRY_KEY = "world";
+import {
+  ENGINE_CONFIG_REGISTRY_KEY,
+  WORLD_SCENE_KEY,
+  type GameEngineOptions,
+  type GameHost,
+} from "./host.ts";
 
 /** The zoom of the camera; fixed for every map (decided 2026-11-15). */
 export const CAMERA_ZOOM = 2;
@@ -45,6 +45,7 @@ function centreOf(cell: { column: number; row: number }, size: TileSize): Point 
 
 export class WorldScene extends Phaser.Scene {
   #world: LoadedWorld | undefined;
+  #host: GameHost | undefined;
   #map: ParsedMap | undefined;
   #position: Point = { x: 0, y: 0 };
   #player: Phaser.GameObjects.Sprite | undefined;
@@ -70,16 +71,20 @@ export class WorldScene extends Phaser.Scene {
   }
 
   init(data: WorldSceneData): void {
-    const world = this.game.registry.get(WORLD_REGISTRY_KEY) as LoadedWorld;
+    const options = this.game.registry.get(ENGINE_CONFIG_REGISTRY_KEY) as GameEngineOptions;
+    const { world, host } = options;
     this.#world = world;
-    const entry = entryPoint(world, rememberedMap(world, this.#storage()));
-    const map = world.maps.get(data.mapId ?? entry.mapId) ?? world.maps.get(world.startMap);
+    this.#host = host;
+    const map =
+      world.maps.get(data.mapId ?? host.selection.mapId) ?? world.maps.get(world.startMap);
     if (map === undefined) throw new Error("the world has no start map");
     this.#map = map;
     this.#artworkOnly = data.artworkOnly === true;
     this.#zoom = data.zoom;
-    this.#figure = world.figures[0];
-    this.#position = spawnPosition(map, data.spawn ?? entry.spawn) ?? { x: 0, y: 0 };
+    this.#figure =
+      world.figures.find((figure) => figure.id === host.selection.figureId) ?? world.figures[0];
+    const spawn = data.spawn ?? (map.id === host.selection.mapId ? host.selection.spawn : "start");
+    this.#position = spawnPosition(map, spawn) ?? { x: 0, y: 0 };
     this.#player = undefined;
     this.#direction = "south";
     this.#walkClock = 0;
@@ -127,8 +132,9 @@ export class WorldScene extends Phaser.Scene {
       );
     }
     this.#bindInput();
-    if (!this.#artworkOnly) rememberMap(map.id, this.#storage());
-    exposeState(() => {
+    if (!this.#artworkOnly) this.#host?.rememberMap?.(map.id);
+
+    this.#host?.onStateChange?.(() => {
       const camera = this.cameras.main;
       return {
         mapId: map.id,
@@ -146,7 +152,7 @@ export class WorldScene extends Phaser.Scene {
     });
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
       this.input.off(Phaser.Input.Events.POINTER_DOWN, this.#onTap);
-      exposeState(null);
+      this.#host?.onStateChange?.(null);
     });
   }
 
@@ -278,13 +284,5 @@ export class WorldScene extends Phaser.Scene {
   #transition(mapId: string, spawn: string | undefined): void {
     this.#transitioning = true;
     this.scene.restart({ mapId, spawn: spawn ?? "start" });
-  }
-
-  #storage(): Storage | undefined {
-    try {
-      return window.localStorage;
-    } catch {
-      return undefined;
-    }
   }
 }
