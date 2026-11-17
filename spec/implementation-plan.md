@@ -336,7 +336,7 @@ Requirements: CFG-01, CFG-04.
 
 ### Stage 5 – Game World and World Importer
 
-Refined 2026-11-14 with the project owner, before the stage started. Branch `feature/stage-5`.
+Refined 2026-11-14 with the project owner, before the stage started. Branch `feature/stage-5`. Changed 2026-11-15 to world format 2 (isometric maps, complete figures; see "Format version 2" below); from step 5d.1 on, branch `feature/stage-5-world-v2`.
 
 **Before the stage starts:**
 - The layout of the world package is defined and confirmed (sw-architecture.md 14.4). A draft was agreed on 2026-11-14 (below); step 5a writes it into the spec.
@@ -349,11 +349,11 @@ Refined 2026-11-14 with the project owner, before the stage started. Branch `fea
 - **Dialogues** belong to the game world. Admins edit them in "Erlebniswelt", tab "Dialoge", not in Inhalte. A dialogue cannot be deleted while an object shows it; its id can be changed (decided 2026-11-14, mock Q63, Q64).
 - **Only admins** use "Erlebniswelt" (import, rollback, object actions, dialogues; decided 2026-11-14).
 - **No locked maps or zones in stage 5.** Objects with `type = protected` are accepted by the validator and do nothing yet. ACS-07 for maps means: sign-in and an open platform are checked when the world is served. The admin page for manual releases (ACS-05) moves to the first feature that stores access conditions, the treasure hunt (HUNT-05, stage 8).
-- **Avatar assets** are layered sprite sheets per part (body, hair, clothing, accessory), drawn in greyscale and tinted from the palettes named in `avatar/avatar.json`. Each sheet has 4 directions × 4 walk frames of the frame size `avatar.json` names. A stored avatar whose part or colour is missing from a new package falls back to the first option of that part.
+- ~~**Avatar assets** are layered sprite sheets per part (body, hair, clothing, accessory), drawn in greyscale and tinted from the palettes named in `avatar/avatar.json`.~~ Replaced 2026-11-15 by complete figures (format version 2, below).
 - **Partially implemented after stage 5** (test-strategy.md, section 5): GAME-13 without the step "Say hello" (profile photo, greeting, "How I know the couple"), which follows in stage 6; GAME-14 without "Hochladen", which follows in stage 7; GAME-06 without the minigame action, which follows in stage 8. Until then "Erlebniswelt" offers no minigame, and a preset `action = minigame` is reported as a warning.
 - **Actions of a clickable object:** `page` opens a full overlay, either a built-in page (`programme`, `rsvp`, `profile`; later stages add theirs) or a content page as `p/<slug>`. `content` shows the text of the content page named by `contentId` (its slug) in a small reading panel, e.g. for a sign. `dialog` shows a dialogue: a new kind of content item with an NPC name and lines the guest taps through, edited in "Erlebniswelt" and referenced by `contentId`.
 - **Without an imported world,** a signed-in guest of an open platform keeps landing on the website, the start page has no "Erlebniswelt betreten", and the door scene still comes from the data volume (10.4).
-- **Template world:** shipped inside the image. The world importer offers "Vorlagenwelt importieren" (MAP-14). Step 5k may move to after stage 6 if the art is not ready; MAP-12 – MAP-14 are "Should".
+- **Template world:** shipped inside the image. The world importer offers "Vorlagenwelt importieren" (MAP-14). Step 5k may move to after stage 6 if the art is not ready; MAP-12 – MAP-14 are "Should". With format version 2 the template world is isometric.
 - **Where a player enters:** the last map is remembered on the device. Otherwise, and when that map no longer exists, the player enters the start map at its spawn point `start`. A portal leads to its `targetSpawn`.
 
 **Draft layout of the world package, format version 1** (agreed 2026-11-14; the complete layout, rules and limits are in sw-architecture.md 14.4 since step 5a):
@@ -372,6 +372,41 @@ world.tar.gz
 - Object types: `spawn`, `portal`, `clickable`, `decoration`, `seat`, `wander`, `protected`.
 - Limits around 40 MB packed and 100 MB unpacked; fixed in step 5a.
 
+**Format version 2** (decided 2026-11-15 with the project owner; replaces format version 1, which shipped only in `v1.3.0-rc.1` and never in a final release). The world project drew a first **prototype world**: isometric, with complete figures made in PixelLab instead of tinted parts. Its package and the world project's notes are the reference for step 5d.1: the package (`.tar.gz`) and the notes (`.md`) in the folder `world/` (local in the working copy, ignored by git; ask the project owner if they are missing). The notes are a draft of the world project; where they differ from the decisions below, the decisions apply.
+
+- **Only version 2.** The platform reads `formatVersion: 2` only. Format version 1 and its avatar parts are removed from code, schemas and spec, not kept alongside.
+- **Isometric only.** Maps have `orientation = isometric`; orthogonal maps are refused. The manifest names `tileWidth` and `tileHeight` instead of `tileSize` (the prototype: 64 × 32), and every map and sheet tileset uses them.
+- **Maps.**
+  - Group layers are allowed and read recursively, in the order of the file.
+  - Image-collection tilesets (one PNG per tile, tile ids with gaps, a size per tile) are allowed next to sheet tilesets. Every image is a PNG in `tilesets/`, named relative to the map.
+  - `objectalignment` and `tileoffset` are honoured. Tile objects may be scaled; rotated or flipped objects are refused.
+  - A hidden layer is not drawn, but its gameplay objects still apply (the prototype's border layer is hidden in Tiled).
+- **Collisions.**
+  - The tile layer `collision` stays: every tile blocks.
+  - Objects with `type = collision` may be rectangles or polygons.
+  - Collision polygons drawn on a tile image in Tiled's collision editor (objects named `collision` in the tile's `objectgroup`) block too. They are moved and scaled with each placed tile object.
+  - New type **`border`**: a closed polygon whose outline blocks in both directions; its inside stays walkable.
+- **Draw order.** Objects and figures are sorted by depth. A tile image may carry a polyline named `occlusion` in its `objectgroup`. A figure whose feet are behind that line (above it on screen) is drawn behind the object, otherwise in front. Without a line, the object's bottom edge decides. This replaces the rule for tile layers named `above…`. New requirement GAME-19.
+- **Properties.**
+  - Properties on tiles in the tilesets are ignored (the world project uses `category`, `symbol`, `text`, `direction`, `name`).
+  - The map property `cameraZoom` (a number) becomes supported; its range and its default are decided in step 5d.1 with the project owner (the prototype uses 2).
+  - Other unknown properties stay warnings (e.g. the prototype's `previewFormat`).
+- **Names** stay required for spawn points, portals and clickable objects (1–40 characters of `a–z 0–9 -`), because the assignments in "Erlebniswelt" are keyed by name.
+- **Portals.**
+  - Targets stay in Tiled (`targetMap`, `targetSpawn`). MAP-07 stays withdrawn.
+  - A portal is a rectangle or a polygon, the trigger area. Walking into it takes the player through; tapping it walks the player into it.
+  - The arrow is a tile object that the portal names in its object property `marker` (a Tiled object reference). The game wobbles the arrow.
+  - A portal without `targetMap` and `targetSpawn` is a warning and does nothing, so a world with one map imports. A target that is given but missing in the package stays an error (MAP-06).
+- **Figures instead of avatar parts.** The avatar editor only chooses a complete figure. There is no skin colour, hairstyle, clothing, colour or template anymore.
+  - `avatar/figures.json`: `{ "figures": [{ "id", "label"?, "metadata" }] }`. `id` is 1–40 characters of `a–z 0–9 -`, unique. `label` is optional and is the name the editor shows; without it, the editor shows no name. `metadata` is the path of the figure's PixelLab metadata, relative to `figures.json`.
+  - The **PixelLab metadata** (`metadata.json`) and its frames are included unchanged; frame paths are relative to the figure's folder. The validator relies only on: the first entry of `states`; its `character.size` (`width`, `height`); `frames.rotations` with `south`, `west`, `east` and `north`; `frames.animations.walking` with the same four directions and the same number of frames each (1–16). Every listed frame is a PNG of exactly that size inside the figure's folder. All other fields are ignored, which is an exception to the rule that unknown fields are refused.
+  - Every PNG in `avatar/` is named by a figure's metadata.
+  - Game side, not in the package: the rotation image is the standing pose, the walk frames play in the order listed at 8 frames per second, and the figure faces the nearest of its four directions on screen.
+  - The stored avatar is `{ "figure": "<id>" }`; an id that the active world no longer has falls back to the first figure. Companions choose a figure the same way.
+  - The limits (number of figures, frame size) are proposed in step 5d.1.
+- **Limits.** At most **3000 files** per package (was 500). The other limits stay: 40 MB packed, 100 MB unpacked, 5 MB per JSON file, 8 MB and 4096 × 4096 pixels per PNG.
+- **Door scene** unchanged (`door/`, optional).
+
 **Steps:**
 
 **5a – Spec and mocks** (no code).
@@ -381,6 +416,7 @@ world.tar.gz
 **5b – Validator and test world.** Done 2026-11-14 (decisions of the step in sw-architecture.md 14.4).
 **5c – Import, rollback and serving.** Done 2026-11-14 (decisions of the step in sw-architecture.md 14.4).
 **5d – Erlebniswelt › Welt & Import.** Done 2026-11-14: the page with the import tab only (the other tabs come with 5f and 5g), no «Vorlagenwelt importieren» (5k), per-map counts in the admin status. Open: the mock shows map names, the world carries only map ids (see the step report).
+**5d.1 – World format 2.** Next (inserted 2026-11-15; details below 5d).
 - The package reader (gzip and tar, limits, paths; shared with the theme package), `manifest.json`, the Tiled checks per map (format, orientation, embedded tilesets, referenced images, layers, spawn points), portal targets inside the package, the door scene, the avatar assets. Returns all findings. One test per validator rule with a broken package.
 - A script builds the test world (two or three maps with generated placeholder tiles, avatar parts and objects of every type) for the tests and for development.
 - Checking a package outside the platform (decided 2026-11-14; 19.7, 14.4): JSON Schemas generated from the Zod schemas, theme first, then world (manifest, avatar, maps), committed in `schemas/` with a test that fails when they differ; attached to every release. The CLI command `zappaloo validate <file>` for both kinds of package, with `--json` and exit code 0 or 1, tested with the test world and the example theme.
@@ -399,14 +435,35 @@ Re-verified: ACS-12.
 - The admin card: the active world with its maps, import with findings and warnings, rollback to the previous world, admins only.
 Requirements: MAP-05.
 
+**5d.1 – World format 2.** Mock screens: `onboard-avatar`, `admin-world` (variant "import"). Branch `feature/stage-5-world-v2`. Implements the decisions in "Format version 2" above; replaces what 5a–5d built for format version 1. No rendering yet (5e).
+- **Spec** (sw-architecture.md):
+  - 14.1, 14.2, 14.4 and 14.5 rewritten for format version 2: layout, manifest, map rules, object types (with `border`), collisions, occlusion lines, portals with `marker`, figures with the PixelLab metadata, validator rules, errors and warnings, limits. The decision lists of steps 5b and 5c in 14.4 are updated where they name format 1 (avatar parts, `tileSize`, flat `avatar/` folder).
+  - 7.3: the avatar editor chooses a complete figure.
+  - Section 3 says the world is isometric.
+  - Fix two contradictions found 2026-11-14: 4.1 starts a minigame through a *portal* (it is a clickable object, as in 14.2 and MG-11), and 14.2 says dialogues are edited in *Inhalte* (they are edited in "Erlebniswelt", as in 14.4).
+  - Requirements reworded, marked "(reworded 2026-11-15)": AVA-01, AVA-02 (figure), MAP-02 (group layers, image collections, polygons, `border`, occlusion), MAP-03 (properties incl. `marker`, `cameraZoom`), MAP-16 (figures instead of avatar editor assets), GAME-02 (polygon collisions, borders), GAME-05, GAME-15 and GAME-16 (portal trigger areas and arrows). New: GAME-19 (draw order with occlusion lines), added to the "not yet implemented" list in test-strategy.md until 5e.
+- **Mocks:** `onboard-avatar` becomes a figure picker: a grid of the figures with their labels, a walking preview of the chosen one, a tab for the guest and each approved companion. `admin-world` shows the tile size as width × height. UX decisions in `spec/mocks/README.md`.
+- **Code:**
+  - `shared`: the package definition `world-v1.ts` becomes `world-v2.ts`; `WORLD_FORMAT_VERSIONS = [2]`; the manifest, figure and map schemas and the limits in `shared/src/world.ts`; `GET /api/world` returns tile width and height and the figures.
+  - `backend/src/world/`: the map checks (`maps.ts`: isometric, group layers, image collections, alignment, scaled and refused rotated or flipped objects, tile collision and occlusion objects, `border`, polygon `collision`, portals with `marker` and optional targets, `cameraZoom`, tile properties ignored), `avatar.ts` replaced by the figure checks, the limits, `summary.ts`, the import and the storage of the figure list (the column `world_packages.avatar` holds it; a migration only if the column is renamed).
+  - Serving: the avatar files sit in a folder per figure; `backend/src/api/world.ts` serves only flat folders today.
+  - The test world generator (`backend/src/world/build.ts`): an isometric world of two maps with group layers, a sheet and an image-collection tileset, tile collision polygons and occlusion lines, a `border`, a polygon portal with `marker`, a portal without a target, and two figures in the PixelLab layout with generated frames.
+  - `npm run schemas` regenerates the JSON Schemas and the format document; `zappaloo validate` reads format 2.
+  - The admin page (`frontend/src/admin/AdminWorldPage.tsx`) and its tests show tile width × height.
+- **Ask the project owner before building:** what happens to a format-1 world already imported in a dev or staging installation (recommendation: a migration removes format-1 rows, the admin imports again); the range and default of `cameraZoom`; the limits for figures.
+- **Tests:** one validator test per new or changed rule with a broken package; the tests of MAP-06, MAP-16 and MAP-17 rewritten for format 2. Run `npm run cli -- validate world/<package>.tar.gz` on the prototype and list its findings in the step report. The prototype as built today is expected to be refused: its manifest has `tileSize` instead of `tileWidth` and `tileHeight`, `figures.json` has no labels (allowed, but worth noting), and its portal is an unnamed tile object without a trigger area or `marker`. These findings go back to the world project; the platform does not loosen its rules for them.
+Requirements: MAP-06, MAP-16, MAP-17 (re-verified with format 2).
+
 **5e – Rendering and movement.**
-- The game route loads the active world: tile layers, layers above the avatars, collisions, the camera following the player, a placeholder avatar.
-- Arrow keys (two keys move diagonally), tap-to-move with a path around the collisions (pathfinding as unit tests), suitable for phone and desktop.
-- Portals lead to another map at a spawn point.
-Requirements: GAME-01, GAME-02, GAME-03, GAME-07, GAME-09, GAME-10, MAP-02.
+- Starts with a short spike: Phaser 4's isometric tilemap support for the ground layers; objects and figures as sprites placed by the projection in the world project's notes.
+- The game route loads the active world: tile layers in order (group layers flattened, hidden layers not drawn), tile objects with alignment, offset and scale, draw order by depth with occlusion lines (GAME-19), the camera following the player with the map's `cameraZoom`, the first figure of the world as placeholder avatar.
+- Movement, collisions, pathfinding and wander areas work in Tiled's map coordinates and are projected to the screen only for drawing. Collisions: the `collision` tile layer, `collision` rectangles and polygons, tile collision polygons, `border` outlines.
+- Arrow keys move in screen directions (two keys move diagonally); tap-to-move with a path around the collisions (pathfinding as unit tests), suitable for phone and desktop.
+- Walking into a portal's trigger area leads to another map at a spawn point.
+Requirements: GAME-01, GAME-02, GAME-03, GAME-07, GAME-09, GAME-10, GAME-19, MAP-02.
 
 **5f – Objects and overlays.** Mock screens: `game`, `game-overlay`, `admin-world` (variant "objects").
-- Object types `portal`, `clickable`, `decoration` and the properties of 14.2. Clickable objects sparkle at random, portals wobble. A click or tap walks to the approach point and runs the action; Enter or Space activates the object in front of the avatar. Easter eggs.
+- Object types `portal`, `clickable`, `decoration` and the properties of 14.2. Clickable objects sparkle at random, a portal's arrow (`marker`) wobbles. A click or tap on a clickable object walks to the approach point and runs the action; a tap on a portal walks into its trigger area; Enter or Space activates the object in front of the avatar. Easter eggs.
 - Pages as overlays above the paused game; closing returns to the same position; links inside stay in the overlay.
 - Erlebniswelt › Objekte & Portale: assign each clickable object's action per map (page, content item, dialogue, none); portals read-only.
 Requirements: GAME-04, GAME-05, GAME-06 (without minigames), GAME-08, GAME-11, GAME-15, GAME-16, MAP-03, MAP-15.
@@ -417,8 +474,8 @@ Requirements: GAME-04, GAME-05, GAME-06 (without minigames), GAME-08, GAME-11, G
 Requirements: CNT-02, CNT-03 (completing them; albums follow in step 7d).
 
 **5h – Avatar editor.** Mock screen: `onboard-avatar`.
-- The editor composes the avatar from the package's parts and palettes: templates, skin, hairstyle, hair colour, clothing and its colour, accessory, "Zufällig". Tabs for the guest and each approved companion.
-- The configuration is stored with the membership (companions with their record); the fallback for missing parts.
+- The editor chooses one of the world's figures (format version 2): a grid with labels and a walking preview. Tabs for the guest and each approved companion.
+- The chosen figure is stored with the membership (companions with their record); the fallback to the first figure.
 - The same editor is reached from the profile. The game shows the player's own avatar.
 Requirements: AVA-01, AVA-02, AVA-03.
 
@@ -434,7 +491,7 @@ Requirements: GAME-12, GAME-13 (without "Say hello"), GAME-14 (without "Hochlade
 Requirements: PERF-04.
 
 **5k – Template world and stage report.**
-- Church, garden, banquet hall and party area, decoration on separate layers, the typical objects placed, built as a world package and shipped inside the image; "Vorlagenwelt importieren" in the importer.
+- Church, garden, banquet hall and party area, isometric (format version 2), decoration on separate layers, the typical objects placed, built as a world package and shipped inside the image; "Vorlagenwelt importieren" in the importer.
 - Status report for stage 5.
 Requirements: MAP-12, MAP-13, MAP-14.
 
