@@ -1,6 +1,7 @@
 import {
   createGame,
   setGameDiagnostics,
+  setGamePaused,
   setGameGuides,
   setGameSelection,
   setGameView,
@@ -20,6 +21,7 @@ import {
   sourceStatusSchema,
 } from "./package-loader.ts";
 import type { LoadedPreview, SourceStatus } from "./package-loader.ts";
+import { sceneIsStale, staleMessage } from "./stale-scene.ts";
 
 const INITIAL_GUIDES: GameGuides = {
   collisions: false,
@@ -110,6 +112,14 @@ export default function App() {
       }
     };
   }, []);
+
+  // While a changed package is validated or loaded, the scene on show is paused and greyed out (MAP-18).
+  const validating = sourceStatus?.loading === true;
+  const stale = sceneIsStale({ hasScene: current !== null, loading, validating });
+  useEffect(() => {
+    const game = activeGame.current;
+    if (game !== null) setGamePaused(game, stale);
+  }, [stale]);
 
   async function loadPreview(load: () => Promise<LoadedPreview>): Promise<void> {
     const pageIsMounted = (): boolean => isMounted.current;
@@ -740,6 +750,11 @@ export default function App() {
 
       <section className="preview-viewport" aria-label="World canvas">
         <div ref={viewport} className="preview-game-container" />
+        {stale && (
+          <div className="preview-stale" role="status">
+            <span>{staleMessage({ loading })}</span>
+          </div>
+        )}
         {current === null && (
           <p className="empty-world">
             Load a validated <code>.tar.gz</code> world package or enter an absolute local package

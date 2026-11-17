@@ -248,6 +248,26 @@ button:disabled {
   background: #244b38;
 }
 
+/* The scene on show while a changed package is validated or loaded: paused and greyed out (MAP-18). */
+.preview-stale {
+  position: absolute;
+  inset: 0;
+  z-index: 20;
+  display: grid;
+  place-items: center;
+  background: rgba(96, 96, 96, 0.55);
+  -webkit-backdrop-filter: grayscale(1) brightness(0.85);
+  backdrop-filter: grayscale(1) brightness(0.85);
+  color: #fff;
+  font-size: 0.95rem;
+}
+
+.preview-stale span {
+  padding: 0.4rem 0.9rem;
+  border-radius: 999px;
+  background: rgba(20, 20, 20, 0.75);
+}
+
 .preview-game-container,
 .preview-stage {
   position: absolute;
