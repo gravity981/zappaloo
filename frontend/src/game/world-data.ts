@@ -2,11 +2,9 @@
 // preview adapters can provide local package data and a different asset URL resolver.
 import { publicWorldSchema } from "@zappaloo/shared";
 import { prepareWorld, type LoadedWorld } from "@zappaloo/game-engine";
+import { worldBase } from "./world-base.ts";
 
-/** The base of the world's files for an import id. */
-export function worldBase(version: string): string {
-  return `/api/world/${version}`;
-}
+export { worldBase };
 
 async function fetchJson(url: string): Promise<unknown> {
   const response = await fetch(url, { credentials: "same-origin" });

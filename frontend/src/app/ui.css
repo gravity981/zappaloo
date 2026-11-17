@@ -1409,3 +1409,85 @@
   font-size: 12px;
   line-height: 1.3;
 }
+
+/* The avatar editor (UX mock `m-avatar-stage`, `m-figure`) */
+/* Title, person chips, the editor and the button keep their distance on every layout */
+:is(.admin, .guest) .avatar-page,
+:is(.admin, .guest) .avatar-root {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+:is(.admin, .guest) .avatar-page .h1 {
+  margin: 0;
+}
+:is(.admin, .guest) .avatar-editor {
+  display: grid;
+  gap: 20px;
+  min-width: 0;
+}
+@media (min-width: 720px) {
+  :is(.admin, .guest) .avatar-editor {
+    grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr);
+    align-items: start;
+  }
+}
+/* «Zufällig» sits under the stage in the middle, as in the mock, and does not stretch with the column */
+:is(.admin, .guest) .avatar-editor .stack {
+  gap: 14px;
+  min-width: 0;
+}
+:is(.admin, .guest) .avatar-random {
+  align-self: center;
+}
+:is(.admin, .guest) .avatar-stage {
+  background: repeating-conic-gradient(#e3e3dc 0 25%, #ecece6 0 50%) 0 0 / 24px 24px;
+  border-radius: 14px;
+  display: grid;
+  place-items: center;
+  min-height: 200px;
+  padding: 18px;
+  border: 1px solid var(--a-line);
+}
+:is(.admin, .guest) .figure-img {
+  image-rendering: pixelated;
+  display: block;
+}
+:is(.admin, .guest) .figure-grid {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding-bottom: 2px;
+}
+:is(.admin, .guest) .figure {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  background: none;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+  flex: none;
+  font: inherit;
+  color: inherit;
+}
+:is(.admin, .guest) .figure .figure-img,
+:is(.admin, .guest) .figure .figure-missing {
+  background: var(--a-fill);
+  border-radius: 10px;
+  border: 1.5px solid var(--a-line);
+  padding: 4px;
+  min-width: 50px;
+}
+:is(.admin, .guest) .figure[aria-pressed="true"] .figure-img {
+  border-color: var(--a-ink);
+}
+:is(.admin, .guest) .figure small {
+  font-size: 12px;
+}
+@media (min-width: 720px) {
+  :is(.admin, .guest) .avatar-root > .btn {
+    align-self: flex-start;
+  }
+}

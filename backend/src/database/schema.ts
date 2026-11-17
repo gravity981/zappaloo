@@ -128,6 +128,8 @@ export const memberships = sqliteTable(
     personType: text("person_type", { enum: ["adult", "child"] })
       .notNull()
       .default("adult"),
+    /** The id of the figure the user chose in the avatar editor (AVA-02); null until chosen. */
+    avatarFigure: text("avatar_figure"),
     /** For `invitation_code`: the invitation that was redeemed. */
     vipInvitationId: integer("vip_invitation_id").references(
       (): AnySQLiteColumn => invitations.id,
@@ -458,6 +460,8 @@ export const companions = sqliteTable(
     menuId: integer("menu_id").references(() => menuOptions.id, { onDelete: "set null" }),
     /** Health data: only admins and the guest read it (SEC-11). */
     allergies: text("allergies"),
+    /** The id of the figure the guest chose for the companion (AVA-02); null until chosen. */
+    avatarFigure: text("avatar_figure"),
     createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull(),
     decidedAt: integer("decided_at", { mode: "timestamp_ms" }),
   },

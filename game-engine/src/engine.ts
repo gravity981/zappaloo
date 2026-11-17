@@ -45,6 +45,12 @@ export function setGameView(game: GameInstance, view: GameView): void {
 
 export { WORLD_SCENE_KEY };
 
+/** Gives the player another figure without restarting the map (AVA-04). */
+export function setGameFigure(game: GameInstance, figureId: string): void {
+  const scene = game.scene.getScene(WORLD_SCENE_KEY);
+  if (scene instanceof WorldScene) scene.setFigure(figureId);
+}
+
 /** Pauses the game while a page is open above it, and resumes it when the page is closed (GAME-11). */
 export function setGamePaused(game: GameInstance, paused: boolean): void {
   const scene = game.scene.getScene(WORLD_SCENE_KEY);

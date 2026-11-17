@@ -69,7 +69,13 @@ describe("the world of the event (MAP-04, MAP-05, MAP-06, MAP-08, MAP-09, MAP-10
     expect(world.statusCode).toBe(200);
     const body = bodyOf<PublicWorld>(world);
     expect(body.version).toBe(status.active?.importId);
-    expect(body.figures.map((figure) => figure.id)).toEqual(["wedding-guest", "male-guest"]);
+    expect(body.figures.map((figure) => figure.id)).toEqual([
+      "wedding-guest",
+      "male-guest",
+      "kid",
+      "crew",
+      "pastor",
+    ]);
     expect(body.tileWidth).toBe(64);
     expect(body.tileHeight).toBe(32);
     expect(body.maps).toHaveLength(3);

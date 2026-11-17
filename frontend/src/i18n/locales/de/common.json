@@ -709,6 +709,33 @@
       "comingSoon": "Das gibt es hier bald."
     }
   },
+  "avatar": {
+    "title": "Wie siehst du aus?",
+    "loading": "Die Figuren werden geladen …",
+    "loadFailed": "Die Figuren konnten nicht geladen werden.",
+    "noFigures": "In der Erlebniswelt gibt es noch keine Figuren zur Auswahl.",
+    "persons": "Personen",
+    "done": "gewählt",
+    "check": " ✓",
+    "kind": "Art der Figur",
+    "kinds": {
+      "male": "Mann",
+      "female": "Frau",
+      "child": "Kind",
+      "other": "Andere"
+    },
+    "figure": "Figur",
+    "unnamed": "ohne Name",
+    "random": "Zufällig",
+    "chooseKindFirst": "Wähle zuerst die Art der Figur.",
+    "hintKind": "Danach wird gleich eine Figur dieser Art für dich ausgewählt.",
+    "hintFigure": "Figuren sind fertige Pixelfiguren aus der Erlebniswelt. «Zufällig» wählt nur unter den Figuren dieser Art.",
+    "everyone": "Wähle für jede Person eine Figur, dann geht es weiter.",
+    "finish": "Fertig",
+    "cardTitle": "Deine Figur",
+    "cardText": "So siehst du in der Erlebniswelt aus, und die Personen, die du mitbringst.",
+    "cardButton": "Figur wählen"
+  },
   "notFound": {
     "title": "Seite nicht gefunden",
     "backHome": "Zur Startseite",

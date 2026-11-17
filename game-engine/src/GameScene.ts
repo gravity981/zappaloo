@@ -244,6 +244,15 @@ export class WorldScene extends Phaser.Scene {
     this.scene.restart({ mapId: selection.mapId, spawn: selection.spawn });
   }
 
+  /** Another figure for the player, at once and where the player stands (the avatar editor, AVA-04). */
+  setFigure(figureId: string): void {
+    const world = this.#world;
+    const host = this.#host;
+    if (world === undefined || host === undefined) return;
+    host.selection = { ...host.selection, figureId };
+    this.#figure = world.figures.find((figure) => figure.id === figureId) ?? this.#figure;
+  }
+
   setView(view: GameView): void {
     const host = this.#host;
     if (host === undefined) return;

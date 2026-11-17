@@ -156,7 +156,7 @@ describe("the test world", () => {
     if (result.ok) expect(result.package.mapIds.sort()).toEqual(["garten", "kirche", "saal"]);
   });
 
-  it("[MAP-06][MAP-16] the package has its door scene and two figures", () => {
+  it("[MAP-06][MAP-16] the package has its door scene and its figures", () => {
     const result = checkWorldPackage(buildTestWorld());
     expect(result.ok).toBe(true);
     if (!result.ok) return;
@@ -165,6 +165,24 @@ describe("the test world", () => {
     expect(result.package.figures.map((figure) => figure.id)).toEqual([
       "wedding-guest",
       "male-guest",
+      "kid",
+      "crew",
+      "pastor",
+    ]);
+    // Kind and tier are both mandatory (7.3): the three tiers and all kinds but none missing are in the test world.
+    expect(result.package.figures.map((figure) => figure.tier)).toEqual([
+      "tier1",
+      "tier1",
+      "tier1",
+      "tier2",
+      "tier3",
+    ]);
+    expect(result.package.figures.map((figure) => figure.type)).toEqual([
+      "female",
+      "male",
+      "child",
+      "other",
+      "male",
     ]);
     expect(result.package.manifest.startMap).toBe("kirche");
     expect(result.package.manifest.tileWidth).toBe(64);
@@ -1122,6 +1140,39 @@ describe("the figures (AVA-01, AVA-02, MAP-16)", () => {
         id: `figur-${String(index)}`,
         metadata: "male-guest/metadata.json",
       }));
+    });
+    expectRefused(files, "figure_list");
+  });
+
+  it("[AVA-01][MAP-06] refuses a figure without a tier", () => {
+    const files = edit(world(), "avatar/figures.json", (f) => {
+      const [first] = f.figures as Json[];
+      if (first) delete first.tier;
+    });
+    expectRefused(files, "figure_list");
+  });
+
+  it("[AVA-01][MAP-06] refuses a figure without a kind: other is a kind of its own", () => {
+    const files = edit(world(), "avatar/figures.json", (f) => {
+      const [first] = f.figures as Json[];
+      if (first) delete first.type;
+    });
+    expectRefused(files, "figure_list");
+  });
+
+  it("[AVA-01][MAP-06] refuses a tier or a kind that the format does not know", () => {
+    for (const change of [{ tier: "tier4" }, { type: "robot" }]) {
+      const files = edit(world(), "avatar/figures.json", (f) => {
+        const figures = f.figures as Json[];
+        figures[0] = { ...figures[0], ...change };
+      });
+      expectRefused(files, "figure_list");
+    }
+  });
+
+  it("[AVA-01][MAP-06] refuses a world without a tier1 figure: the guests would have none to choose", () => {
+    const files = edit(world(), "avatar/figures.json", (f) => {
+      for (const figure of f.figures as Json[]) figure.tier = "tier2";
     });
     expectRefused(files, "figure_list");
   });

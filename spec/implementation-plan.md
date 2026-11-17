@@ -471,9 +471,11 @@ Requirements: GAME-04, GAME-05, GAME-06 (without minigames), GAME-08, GAME-11, G
 
 **5g – Dropped (decided 2026-11-17).** Dialogues moved to step 6d, and a content page is linked to a clickable object as a page (`p/<slug>`) that opens in the page overlay of 5f, so there is no separate content action and no reading panel. CNT-03 is covered by 5f for content pages; its dialogue part completes in 6d.
 
-**5h – Avatar editor.** Mock screen: `onboard-avatar`.
-- The editor chooses one of the world's figures (format version 2): a grid with labels and a walking preview. Tabs for the guest and each approved companion.
-- The chosen figure is stored with the membership (companions with their record); the fallback to the first figure.
+**5h – Avatar editor.** Mock screen: `onboard-avatar`. Decisions: sw-architecture.md 14.4 ("Decisions of step 5h").
+- The world package: a mandatory `tier` and a mandatory `type` per figure (breaking change of format version 2), checked by the validator, in the JSON Schema and the test world.
+- The editor chooses first the kind (male, female, child, other; only kinds with a figure the user may choose), then a figure of that kind: a grid with labels, a walking preview, and "Zufällig" within the kind. Tabs for the guest and each approved companion; "Weiter" waits until every person has a figure.
+- The tiers decide which figures a user may choose (vip tier1, staff tier2, admin tier3, companions tier1), checked on the server.
+- The chosen figure is stored with the membership (companions with their record); the fallback to the first figure the person may choose.
 - The same editor is reached from the profile. The game shows the player's own avatar.
 Requirements: AVA-01, AVA-02, AVA-03.
 

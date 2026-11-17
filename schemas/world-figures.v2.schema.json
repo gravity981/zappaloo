@@ -21,6 +21,23 @@
             "minLength": 1,
             "maxLength": 30
           },
+          "type": {
+            "type": "string",
+            "enum": [
+              "male",
+              "female",
+              "child",
+              "other"
+            ]
+          },
+          "tier": {
+            "type": "string",
+            "enum": [
+              "tier1",
+              "tier2",
+              "tier3"
+            ]
+          },
           "metadata": {
             "type": "string",
             "pattern": "^[A-Za-z0-9][A-Za-z0-9._/-]{0,199}\\.json$"
@@ -28,6 +45,8 @@
         },
         "required": [
           "id",
+          "type",
+          "tier",
           "metadata"
         ],
         "additionalProperties": false

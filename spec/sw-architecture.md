@@ -823,11 +823,15 @@ Every signed-in user can choose their own pixel-art figure. Each user chooses on
 
 The editor offers the figures of the active world package (14.4), decided 2026-11-15 to replace the parts of the former editor:
 
-- A grid of the figures, each with its label where it has one.
+- First the **kind** of figure: «Mann», «Frau», «Kind» or «Andere» (decided 2026-11-17). Only the kinds for which the user may choose at least one figure get a button. Choosing a kind picks a random figure of that kind at once.
+- Then a grid of the figures of that kind that the user may choose, each with its label where it has one; the user can pick another one.
 - A walking preview of the chosen figure.
-- "Zufällig" (random): picks a figure at random, so that the first entry takes one tap.
+- "Zufällig" (random): draws again, but only within the chosen kind; it is off when the kind has one figure only. Choosing another kind draws a new figure.
+- Each person (the user and every approved companion) has a tab and chooses on their own. "Weiter" in the first entry waits until every person has a figure; there is no skip.
 
-A figure is a complete, prepared pixel-art character. There is no skin colour, hairstyle, clothing or template; the figures of the package differ in what they show. The chosen figure is stored with the user or their event membership as `{ "figure": "<id>" }` (AVA-02). If the active world has no such figure, the first figure of the world applies.
+**Which figures a user may choose** (decided 2026-11-17): every figure of the package has a `tier`, and the user's roles decide which tiers they may choose from: `tier1` for `vip`, `tier2` for `staff`, `tier3` for `admin`. A user with several roles may choose from the union of their tiers; the tiers are exact, not cumulative, so a staff member without `vip` sees the `tier2` figures only. Accompanying persons always choose from `tier1`. The server checks the choice, not only the editor.
+
+A figure is a complete, prepared pixel-art character. There is no skin colour, hairstyle, clothing or template; the figures of the package differ in what they show. The chosen figure is stored with the user's event membership, and for a companion with the companion's record, as `{ "figure": "<id>" }` (AVA-02). If the active world has no such figure, the first figure that the person may choose applies.
 
 Avatars are based on prepared pixel-art graphics. No AI API is required, and avatars are not generated from photos. The figures come with the world package, so they match the style of the maps (14.4, decided 2026-11-13).
 
@@ -906,8 +910,8 @@ Every signed-in guest responds to the invitation. The RSVP gives guests a reason
 | ACC-18 | An admin can block and unblock an active account; a blocked account cannot sign in, its sessions and open links end, it gets no new link and no email, and its data stays and keeps counting. | Must |
 | ACC-19 | An admin can delete an account together with its RSVP, accompanying persons and invitations. | Must |
 | ACC-20 | An account an admin creates stays inactive until its setup link is used; when it gets `vip`, the admin chooses its invited program items in the same form. | Must |
-| AVA-01 | A signed-in user chooses a complete pixel-art figure for their avatar in the avatar editor, from the figures of the active world package; a figure may have a label (reworded 2026-11-15). | Must |
-| AVA-02 | The avatar configuration (`{ "figure": id }`) is stored with the user or their event membership; a figure that the active world no longer has falls back to its first figure (reworded 2026-11-15). | Must |
+| AVA-01 | A signed-in user chooses a complete pixel-art figure for their avatar in the avatar editor, from the figures of the active world package, first by kind (male, female, child, other) and then by figure; the kind and the tier of a figure come from the package, and the roles of the user decide which tiers they may choose; a figure may have a label (reworded 2026-11-15, 2026-11-17). | Must |
+| AVA-02 | The avatar configuration (`{ "figure": id }`) is stored with the user or their event membership; a figure that the active world no longer has, or that the person may not choose, falls back to the first figure the person may choose (reworded 2026-11-15, 2026-11-17). | Must |
 | AVA-03 | Avatars are composed from prepared pixel-art assets; no AI API is used. | Must |
 | AVA-04 | The configured avatar is rendered in the game world as the user's own avatar and, for other users, as the user's wandering figure. | Must |
 | RSVP-01 | Every signed-in guest can submit an RSVP for the program items they are invited to: one answer for all of them, or yes or no for each (RSVP-11). | Must |
@@ -1700,8 +1704,9 @@ A point object without a type (for example an `approach` point) is allowed. Othe
 
 ```json
 { "figures": [
-  { "id": "wedding-guest", "label": "Gast", "metadata": "wedding-guest/metadata.json" },
-  { "id": "male-guest", "metadata": "male-guest/metadata.json" }
+  { "id": "wedding-guest", "label": "Gast", "type": "female", "tier": "tier1", "metadata": "wedding-guest/metadata.json" },
+  { "id": "male-guest", "type": "male", "tier": "tier1", "metadata": "male-guest/metadata.json" },
+  { "id": "pastor", "label": "Pfarrer", "type": "male", "tier": "tier3", "metadata": "pastor/metadata.json" }
 ] }
 ```
 
@@ -1710,6 +1715,8 @@ A point object without a type (for example an `approach` point) is allowed. Othe
 | `figures` | 1 to 50 figures (decided 2026-11-15). |
 | `id` | 1–40 characters of `a–z 0–9 -`, unique. |
 | `label` | Optional, 1–30 characters: the name the editor shows. Without it, the editor shows no name. |
+| `type` | Required: `male`, `female`, `child` or `other` (decided 2026-11-17; `other` is a kind of its own, not a default). The editor first asks for the kind. A figure without a type refuses the package. |
+| `tier` | Required (decided 2026-11-17, a breaking change of format version 2, which has not been released): `tier1`, `tier2` or `tier3`. `tier1` figures can be chosen by `vip` (every guest), `tier2` by `staff`, `tier3` by `admin`. A figure without a tier refuses the package. |
 | `metadata` | The path of the figure's metadata, relative to `avatar/`. |
 
 The **PixelLab metadata** (`metadata.json`) and its frames are included unchanged. Frame paths inside the metadata are relative to the folder of the metadata. The validator reads only the following fields; all other fields are ignored, which is the one exception to the rule that unknown fields are refused:
@@ -1721,7 +1728,7 @@ The **PixelLab metadata** (`metadata.json`) and its frames are included unchange
 
 Every listed frame is a PNG of exactly the canvas size, with sides of 8 to 256 pixels, inside the figure's folder. Every PNG and metadata file in `avatar/` is named by a figure.
 
-Game side, not in the package: the standing pose is shown when the figure stands; the walk frames play in the listed order at 8 frames per second; the figure faces the nearest of its four directions on screen. The stored avatar is `{ "figure": "<id>" }` (AVA-02). An id that the active world no longer has falls back to the first figure; companions choose a figure the same way.
+Game side, not in the package: the standing pose is shown when the figure stands; the walk frames play in the listed order at 8 frames per second; the figure faces the nearest of its four directions on screen. The stored avatar is `{ "figure": "<id>" }` (AVA-02). An id that the active world no longer has, or that the person may not choose (the tier), falls back to the first figure the person may choose; companions choose a figure the same way, always from `tier1`.
 
 **Limits.** At most 3000 files per package (was 500). The other limits stay: 40 MB packed, 100 MB unpacked, 5 MB per JSON file, 8 MB and 4096 × 4096 pixels per PNG.
 
@@ -1796,6 +1803,15 @@ A new world is used the next time a player enters a map. Cached graphics are ref
 - **Serving:** `GET /api/world` returns the active world (`version` = import id, name, start map, tile width and height, maps, figures) or `null`. The files are served per folder, `/api/world/<import id>/maps/<file>`, `…/tilesets/<file>` and `…/avatar/<file>`, of the active or the previous world only; the door folder and the manifest are not served. Each answer carries a cache of one year, since a new import has a new id. Sign-in and the closed-platform gate apply as for every `/api` route (ACS-07).
 - **Door scene:** the waiting page takes the door of the active world (`door/`) when the world has one (ACS-12, 10.4); otherwise the event's files in the data volume are read, as before.
 - **Audit:** `world.import` and `world.rollback` appear on the card "Zuletzt".
+
+**Decisions of step 5h** (2026-11-17, with the project owner; the avatar editor):
+
+- **Package:** every figure of `avatar/figures.json` has a mandatory `tier` (`tier1`, `tier2`, `tier3`) and a mandatory `type` (`male`, `female`, `child` or `other`; `other` is a kind of its own, decided 2026-11-17). A package with a figure without a tier or without a type is refused (`figure_list`). Format version 2 is not released yet, so the change is made in it, not in a version 3. A package needs at least one `tier1` figure, so that every guest has a figure to choose (`figure_list`).
+- **Who may choose what:** `tier1` for `vip`, `tier2` for `staff`, `tier3` for `admin`; exact, and the union for several roles. Accompanying persons always `tier1`. The server refuses a figure the person may not choose (`403 figure_not_allowed`) or that the world does not have (`422 figure_not_found`).
+- **Storage:** the column `avatar_figure` (migration `0023`) on `memberships` and on `companions` holds the figure's id, or null until chosen. A null or no longer valid figure applies as the first figure the person may choose (AVA-02), so a person who never opened the editor still has a figure.
+- **API** (signed in): `GET /api/avatar` returns the persons (the user and each approved companion) with their chosen figure, and the figures each may choose (id, label, type; no tier); `PUT /api/avatar/:person` with `{ "figure": "<id>" }` stores the choice, where `:person` is `me` or a companion's id. The world's own files are served as before.
+- **Editor:** reached at `/avatar` (first entry in 5i, and from the profile); kind, then figure, preview and "Zufällig" as in 7.3 and the mock `onboard-avatar`.
+- **Game:** the player's own figure is the chosen one (AVA-04).
 
 **Decisions of step 5f** (2026-11-17, with the project owner; objects, actions and overlays):
 

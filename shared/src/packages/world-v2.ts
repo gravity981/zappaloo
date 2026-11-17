@@ -420,7 +420,7 @@ export const worldV2: PackageDefinition<WorldFindingCode> = {
       scope: "validator",
       severity: "error",
       requirements: ["MAP-16", "AVA-01"],
-      text: "`avatar/figures.json` lists 1 to 50 figures, each with an id that is unique and 1–40 characters of `a–z`, `0–9` and `-`, an optional label of 1–30 characters and the path of its metadata.",
+      text: "`avatar/figures.json` lists 1 to 50 figures, each with an id that is unique and 1–40 characters of `a–z`, `0–9` and `-`, an optional label of 1–30 characters, a mandatory `type` (`male`, `female`, `child` or `other`; `other` is a kind of its own), a mandatory `tier` (`tier1`, `tier2` or `tier3`) and the path of its metadata. At least one figure is `tier1`, so that every guest has a figure to choose.",
       codes: ["figure_list"],
     },
     {

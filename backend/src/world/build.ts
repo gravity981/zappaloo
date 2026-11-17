@@ -593,8 +593,29 @@ export function testWorldFiles(): Record<string, Buffer> {
     "tilesets/portal.png": encodePng(64, 32, [0xe0, 0x4a, 0x9c]),
     "avatar/figures.json": json({
       figures: [
-        { id: "wedding-guest", label: "Gast", metadata: "wedding-guest/metadata.json" },
-        { id: "male-guest", metadata: "male-guest/metadata.json" },
+        {
+          id: "wedding-guest",
+          label: "Gast",
+          type: "female",
+          tier: "tier1",
+          metadata: "wedding-guest/metadata.json",
+        },
+        { id: "male-guest", type: "male", tier: "tier1", metadata: "male-guest/metadata.json" },
+        { id: "kid", label: "Kind", type: "child", tier: "tier1", metadata: "kid/metadata.json" },
+        {
+          id: "crew",
+          label: "Team",
+          type: "other",
+          tier: "tier2",
+          metadata: "crew/metadata.json",
+        },
+        {
+          id: "pastor",
+          label: "Pfarrer",
+          type: "male",
+          tier: "tier3",
+          metadata: "pastor/metadata.json",
+        },
       ],
     }),
     "door/door.json": json({
@@ -608,6 +629,9 @@ export function testWorldFiles(): Record<string, Buffer> {
     "door/door-glimpse.png": encodePng(64, 64, [0xf2, 0xd3, 0x8a]),
     ...figure("wedding-guest", [0xb0, 0x2a, 0x3a]),
     ...figure("male-guest", [0x2a, 0x3a, 0xb0]),
+    ...figure("kid", [0xe0, 0xa0, 0x2a]),
+    ...figure("crew", [0x2a, 0xa0, 0x6a]),
+    ...figure("pastor", [0x30, 0x30, 0x30]),
   };
   for (const [id, map] of Object.entries(maps())) {
     files[`maps/${id}.json`] = json(map);

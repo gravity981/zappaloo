@@ -147,3 +147,27 @@ test("[GAME-06][GAME-08][GAME-11][GAME-15][GAME-16] a tap on an object walks to 
   await page.keyboard.press("Escape");
   await expect(overlay).toHaveCount(0);
 });
+
+test("[AVA-01][AVA-02] the avatar editor offers an admin the tier3 figures only, by kind; choosing a kind stores a figure and enables the next step", async ({
+  page,
+  context,
+}, testInfo) => {
+  test.skip(testInfo.project.name !== "desktop-chromium", "shared settings: one profile only");
+  await signInAsAdmin(page, context);
+  await page.goto("/avatar");
+  // The test world's only tier3 figure is the pastor, a man: the admin's editor offers that one kind.
+  const kinds = page.getByRole("group", { name: de.avatar.kind });
+  await expect(kinds.getByRole("button")).toHaveText([de.avatar.kinds.male]);
+  await expect(page.getByRole("button", { name: de.avatar.finish })).toBeDisabled();
+  await kinds.getByRole("button", { name: de.avatar.kinds.male }).click();
+  await expect(page.getByRole("button", { name: de.avatar.finish })).toBeEnabled();
+  await expect(page.getByRole("group", { name: de.avatar.figure }).getByRole("button")).toHaveCount(
+    1,
+  );
+  // The choice is stored: a new visit shows it.
+  await page.reload();
+  await expect(page.getByRole("group", { name: de.avatar.figure })).toBeVisible();
+  // The game starts with the chosen figure.
+  await page.goto("/game");
+  await gameState(page);
+});

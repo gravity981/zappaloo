@@ -143,6 +143,14 @@ export default function ProfilePage() {
           </form>
         </section>
 
+        <section className="card" aria-labelledby="avatar-card">
+          <b id="avatar-card">{t("avatar.cardTitle")}</b>
+          <span className="hint">{t("avatar.cardText")}</span>
+          <Link className="btn soft sm" to="/avatar">
+            {t("avatar.cardButton")}
+          </Link>
+        </section>
+
         {canInstall && (
           <section className="card" aria-labelledby="app-card">
             <b id="app-card">{t("install.cardTitle")}</b>

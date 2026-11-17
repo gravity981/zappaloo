@@ -53,6 +53,16 @@ export function checkFigures(
   }
 
   const figures = parsed.data.figures;
+  // Every guest (vip) chooses from tier1: a world without such a figure leaves them nothing (7.3).
+  if (!figures.some((figure) => figure.tier === "tier1")) {
+    findings.push(
+      errorFinding(
+        FIGURES_FILE,
+        "figure_list",
+        "at least one figure must be tier1, for the guests",
+      ),
+    );
+  }
   const ids = new Set<string>();
   const referenced = new Set<string>([FIGURES_FILE]);
   for (const figure of figures) {

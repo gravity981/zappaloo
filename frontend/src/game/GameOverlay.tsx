@@ -10,6 +10,7 @@ import { MemoryRouter, useRoutes } from "react-router";
 import type { WorldObjectAction } from "@zappaloo/shared";
 import { EventProvider } from "../app/EventProvider.tsx";
 import { SessionProvider } from "../app/SessionProvider.tsx";
+import AvatarPage from "../pages/AvatarPage.tsx";
 import ContentPage from "../pages/ContentPage.tsx";
 import MorePage from "../pages/MorePage.tsx";
 import NotFoundPage from "../pages/NotFoundPage.tsx";
@@ -39,6 +40,7 @@ function OverlayRoutes({ onClose }: { onClose: () => void }) {
     { path: "p/:slug", element: <ContentPage /> },
     { path: "mehr", element: <MorePage /> },
     { path: "profile", element: <ProfilePage /> },
+    { path: "avatar", element: <AvatarPage /> },
     { path: "rsvp", element: <RsvpPage /> },
     { path: "*", element: <NotFoundPage /> },
   ]);

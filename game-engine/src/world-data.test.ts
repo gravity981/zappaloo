@@ -12,7 +12,7 @@ describe("preparing world input (MAP-10, AVA-02)", () => {
       tileWidth: 64,
       tileHeight: 32,
       maps: ["courtyard"],
-      figures: [{ id: "guest", metadata: "guests/metadata.json" }],
+      figures: [{ id: "guest", type: "other", tier: "tier1", metadata: "guests/metadata.json" }],
     };
     const map = {
       type: "map",

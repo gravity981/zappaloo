@@ -80,10 +80,28 @@ export const worldManifestSchema = z.strictObject({
 });
 export type WorldManifest = z.infer<typeof worldManifestSchema>;
 
-/** One figure of `avatar/figures.json`: an id, an optional label, and its PixelLab metadata (14.4). */
+/** The kinds of figure the avatar editor asks for first (7.3, decided 2026-11-17). */
+export const WORLD_FIGURE_TYPES = ["male", "female", "child", "other"] as const;
+export type WorldFigureType = (typeof WORLD_FIGURE_TYPES)[number];
+
+/** The tiers of a figure: `tier1` for vip, `tier2` for staff, `tier3` for admin (7.3, decided 2026-11-17). */
+export const WORLD_FIGURE_TIERS = ["tier1", "tier2", "tier3"] as const;
+export type WorldFigureTier = (typeof WORLD_FIGURE_TIERS)[number];
+
+/** The tier each role may choose from; exact, not cumulative (7.3). */
+export const WORLD_ROLE_TIERS = { vip: "tier1", staff: "tier2", admin: "tier3" } as const;
+
+/**
+ * One figure of `avatar/figures.json`: an id, an optional label, the kind, the mandatory tier and its
+ * PixelLab metadata (14.4).
+ */
 export const worldFigureSchema = z.strictObject({
   id: idSchema,
   label: z.string().trim().min(1).max(WORLD_LIMITS.labelLength).optional(),
+  /** The kind the editor asks for first. `other` is a kind of its own, so every figure names one. */
+  type: z.enum(WORLD_FIGURE_TYPES),
+  /** Who may choose the figure: `tier1` vip, `tier2` staff, `tier3` admin. */
+  tier: z.enum(WORLD_FIGURE_TIERS),
   /** The metadata file, relative to `avatar/figures.json`, e.g. `wedding-guest/metadata.json`. */
   metadata: z
     .string()
@@ -500,3 +518,32 @@ export const worldRefusalSchema = z.object({
   error: z.object({ code: z.string(), message: z.string() }),
   findings: z.array(worldFindingSchema),
 });
+
+// --- The avatar (sw-architecture.md 7.3, AVA-01, AVA-02) ---
+
+/** A figure a person may choose: what the editor shows (the tier stays on the server). */
+export const avatarFigureSchema = z.object({
+  id: z.string(),
+  label: z.string().optional(),
+  type: z.enum(WORLD_FIGURE_TYPES),
+});
+export type AvatarFigure = z.infer<typeof avatarFigureSchema>;
+
+/** One person of the editor: the user (`me`) or an approved companion (the id of the companion). */
+export const avatarPersonSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  /** The figure that applies: the chosen one, or the first the person may choose; null without a world. */
+  figure: z.string().nullable(),
+  /** Whether the person has chosen a figure; the first entry waits until everyone has. */
+  chosen: z.boolean(),
+  /** The figures this person may choose. */
+  figures: z.array(avatarFigureSchema),
+});
+
+/** `GET /api/avatar`: the user and the approved companions, with the figures each may choose. */
+export const avatarResponseSchema = z.object({ persons: z.array(avatarPersonSchema) });
+export type AvatarResponse = z.infer<typeof avatarResponseSchema>;
+
+/** `PUT /api/avatar/:person`. */
+export const avatarRequestSchema = z.strictObject({ figure: idSchema });

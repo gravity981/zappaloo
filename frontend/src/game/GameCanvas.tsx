@@ -5,20 +5,30 @@ import { useTranslation } from "react-i18next";
 import {
   createGame,
   entryPoint,
+  setGameFigure,
   setGamePaused,
   type GameInstance,
   type LoadedWorld,
 } from "@zappaloo/game-engine";
 import GameOverlay, { type Overlay } from "./GameOverlay.tsx";
+import { avatarResponseSchema } from "@zappaloo/shared";
+import { apiRequest } from "../app/api.ts";
 import { exposeGame, exposeState } from "./test-hook.ts";
 import { rememberedMap, rememberMap } from "./map-preference.ts";
 import { loadWorld } from "./world-data.ts";
+
+/** The figure that applies to the signed-in player; undefined when it cannot be read. */
+async function ownFigure(): Promise<string | undefined> {
+  const result = await apiRequest("GET", "/api/avatar");
+  const parsed = avatarResponseSchema.safeParse(result.body);
+  return result.ok && parsed.success ? (parsed.data.persons[0]?.figure ?? undefined) : undefined;
+}
 
 type Status =
   | { kind: "loading" }
   | { kind: "none" }
   | { kind: "failed" }
-  | { kind: "ready"; world: LoadedWorld };
+  | { kind: "ready"; world: LoadedWorld; figure: string | undefined };
 
 export default function GameCanvas() {
   const { t } = useTranslation();
@@ -33,14 +43,27 @@ export default function GameCanvas() {
 
   // The game stands still while a page is open, and goes on at the same spot when it is closed.
   useEffect(() => {
-    if (game.current) setGamePaused(game.current, overlay !== undefined);
+    if (!game.current) return undefined;
+    setGamePaused(game.current, overlay !== undefined);
+    if (overlay !== undefined) return undefined;
+    // A page may have changed the avatar (the profile leads to the editor): the player wears the new figure.
+    let active = true;
+    void ownFigure().then((figure) => {
+      if (active && figure !== undefined && game.current) setGameFigure(game.current, figure);
+    });
+    return () => {
+      active = false;
+    };
   }, [overlay]);
 
   useEffect(() => {
     let active = true;
-    loadWorld().then(
-      (world) => {
-        if (active) setStatus(world === undefined ? { kind: "none" } : { kind: "ready", world });
+    // The world, and the figure the player chose in the avatar editor (AVA-04); without one, the world's first.
+    Promise.all([loadWorld(), ownFigure()]).then(
+      ([world, figure]) => {
+        if (active) {
+          setStatus(world === undefined ? { kind: "none" } : { kind: "ready", world, figure });
+        }
       },
       () => {
         if (active) setStatus({ kind: "failed" });
@@ -60,7 +83,7 @@ export default function GameCanvas() {
       storage = undefined;
     }
     const selection = entryPoint(status.world, rememberedMap(status.world, storage));
-    const figureId = status.world.figures[0]?.id;
+    const figureId = status.figure ?? status.world.figures[0]?.id;
     const instance = createGame({
       parent: parent.current,
       world: status.world,

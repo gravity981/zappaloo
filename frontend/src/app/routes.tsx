@@ -12,6 +12,7 @@ import AdminRsvpPage from "../admin/AdminRsvpPage.tsx";
 import AdminSettingsPage from "../admin/AdminSettingsPage.tsx";
 import AdminWorldPage from "../admin/AdminWorldPage.tsx";
 import AdminUsersPage from "../admin/AdminUsersPage.tsx";
+import AvatarPage from "../pages/AvatarPage.tsx";
 import ContentPage from "../pages/ContentPage.tsx";
 import ForgotPasswordPage from "../pages/ForgotPasswordPage.tsx";
 import GamePage from "../pages/GamePage.tsx";
@@ -72,6 +73,7 @@ export const routes: RouteObject[] = [
                       // The website pages: a content page and "Mehr" (WEB-02, WEB-05).
                       { path: "p/:slug", element: <ContentPage /> },
                       { path: "mehr", element: <MorePage /> },
+                      { path: "avatar", element: <AvatarPage /> },
                       { path: "programme", element: <ProgrammePage /> },
                     ],
                   },
