@@ -1,5 +1,5 @@
 // The finding codes of the package validators (sw-architecture.md 14.4, 19.7). Each code is listed here
-// once; the declarative definitions of the packages (theme-v1.ts, world-v1.ts) assign every code to
+// once; the declarative definitions of the packages (theme-v1.ts, world-v2.ts) assign every code to
 // exactly one rule, and a test checks that the lists and the definitions agree.
 
 /** The codes of the world package validator. */
@@ -31,18 +31,18 @@ export const WORLD_FINDING_CODES = [
   "map_tileset",
   "map_tiles",
   "map_object",
+  "map_guide",
   "map_property",
   "map_reference",
-  // The avatar and the door scene
-  "avatar_palette",
-  "avatar_part",
-  "avatar_option",
-  "avatar_sheet",
-  "avatar_template",
+  // The figures and the door scene
+  "figure_list",
+  "figure_metadata",
+  "figure_frame",
   "door_sheet",
   // Warnings of the package
   "property_unknown",
   "map_collision",
+  "portal_no_target",
   "tileset_unused",
   // Checked at import, against the installation (MAP-08)
   "preset_missing",

@@ -39,10 +39,11 @@ function namedWorld(name: string): Buffer {
   files["manifest.json"] = Buffer.from(
     JSON.stringify({
       kind: "zappaloo-world",
-      formatVersion: 1,
+      formatVersion: 2,
       name,
       startMap: "kirche",
-      tileSize: 16,
+      tileWidth: 64,
+      tileHeight: 32,
     }),
   );
   return buildArchive(files);
@@ -68,7 +69,9 @@ describe("the world of the event (MAP-04, MAP-05, MAP-06, MAP-08, MAP-09, MAP-10
     expect(world.statusCode).toBe(200);
     const body = bodyOf<PublicWorld>(world);
     expect(body.version).toBe(status.active?.importId);
-    expect(body.avatar.parts.body.options[0]?.id).toBe("base");
+    expect(body.figures.map((figure) => figure.id)).toEqual(["wedding-guest", "male-guest"]);
+    expect(body.tileWidth).toBe(64);
+    expect(body.tileHeight).toBe(32);
     expect(body.maps).toHaveLength(3);
   });
 
@@ -207,7 +210,7 @@ describe("the world of the event (MAP-04, MAP-05, MAP-06, MAP-08, MAP-09, MAP-10
     expect(map.statusCode).toBe(200);
     expect(map.headers["content-type"]).toContain("application/json");
     expect(map.headers["cache-control"]).toContain("immutable");
-    expect(map.json()).toMatchObject({ orientation: "orthogonal" });
+    expect(map.json()).toMatchObject({ orientation: "isometric" });
 
     const tileset = await ctx.app.inject({
       url: `/api/world/${id}/tilesets/boden.png`,
@@ -216,11 +219,23 @@ describe("the world of the event (MAP-04, MAP-05, MAP-06, MAP-08, MAP-09, MAP-10
     expect(tileset.statusCode).toBe(200);
     expect(tileset.headers["content-type"]).toBe("image/png");
 
-    const sprite = await ctx.app.inject({
-      url: `/api/world/${id}/avatar/body.png`,
+    // A figure: its metadata and its frames, in the folder of the figure (AVA-01, AVA-02).
+    const figures = await ctx.app.inject({
+      url: `/api/world/${id}/avatar/figures.json`,
       headers: player,
     });
-    expect(sprite.statusCode).toBe(200);
+    expect(figures.statusCode).toBe(200);
+    const metadata = await ctx.app.inject({
+      url: `/api/world/${id}/avatar/wedding-guest/metadata.json`,
+      headers: player,
+    });
+    expect(metadata.statusCode).toBe(200);
+    const frame = await ctx.app.inject({
+      url: `/api/world/${id}/avatar/wedding-guest/Idle/rotations/south.png`,
+      headers: player,
+    });
+    expect(frame.statusCode).toBe(200);
+    expect(frame.headers["content-type"]).toBe("image/png");
   });
 
   it("[MAP-10] nothing else of a world is served: the door folder, the manifest, other import ids", async () => {

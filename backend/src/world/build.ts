@@ -1,12 +1,16 @@
-// Builds the test world (sw-architecture.md 14.4, step 5b): three maps with generated placeholder tiles,
-// all object types, the avatar assets and a door scene. It passes every rule of the validator with no
-// findings. The tests use it as their valid package, and the script `scripts/build-test-world.ts`
-// writes it for development. The art is generated, not drawn: it is for checks, not for the game.
+// Builds the test world (sw-architecture.md 14.4, step 5d.1): three isometric maps with generated placeholder
+// art, group layers, a sheet tileset and an image-collection tileset with collision and occlusion guides,
+// every object type, a polygon portal with its marker, and two figures in the PixelLab layout with generated
+// frames. It passes every rule of the validator with no finding. The tests use it as their valid package,
+// and the script `scripts/build-test-world.ts` writes it for development. The art is generated, not drawn:
+// it is for checks, not for the game.
 import { buildArchive, encodePng, encodePngPixels } from "../packages/build.ts";
 
 export const TEST_WORLD_NAME = "Testwelt";
 
-const TILE = 16;
+/** The tile size of the test world: isometric tiles are twice as wide as high (2:1). */
+export const TILE_WIDTH = 64;
+export const TILE_HEIGHT = 32;
 
 /** Four placeholder tile colours, one per tile of a tileset. */
 const TILE_COLOURS: [number, number, number][] = [
@@ -16,12 +20,12 @@ const TILE_COLOURS: [number, number, number][] = [
   [0x6f, 0x6f, 0x78],
 ];
 
-/** A tileset image of `columns` × `rows` tiles; the tiles alternate in colour, so they are told apart. */
+/** A sheet image of `columns` × `rows` tiles; the tiles alternate in colour, so they are told apart. */
 function tilesetPng(columns: number, rows: number, transparent: boolean): Buffer {
-  return encodePngPixels(columns * TILE, rows * TILE, (x, y) => {
-    const index = ((x >> 4) + (y >> 4) * columns) % TILE_COLOURS.length;
-    const [r, g, b] = TILE_COLOURS[index] ?? [0, 0, 0];
-    return [r, g, b, transparent && index === 1 ? 0 : 255];
+  return encodePngPixels(columns * TILE_WIDTH, rows * TILE_HEIGHT, (x, y) => {
+    const index = ((x / TILE_WIDTH) | 0) + ((y / TILE_HEIGHT) | 0) * columns;
+    const [r, g, b] = TILE_COLOURS[index % TILE_COLOURS.length] ?? [0, 0, 0];
+    return [r, g, b, transparent && index % TILE_COLOURS.length === 1 ? 0 : 255];
   });
 }
 
@@ -43,7 +47,7 @@ function base64(width: number, height: number, tile: (x: number, y: number) => n
   return bytes.toString("base64");
 }
 
-/** The border of a map as walls: the id of the collision tile on the edge, nothing inside. */
+/** The edge of a map as walls: the collision tile on the edge, nothing inside. */
 const border = (width: number, height: number) => (x: number, y: number) =>
   x === 0 || y === 0 || x === width - 1 || y === height - 1 ? 1 : 0;
 
@@ -58,7 +62,12 @@ function property(name: string, value: string | number | boolean): TiledProperty
   return { name, type, value };
 }
 
-/** A Tiled object; `kind` is the object's type (Tiled's class). */
+/** A reference to a tile object of the map, by its object id (Tiled's "object" property). */
+function objectProperty(name: string, id: number): TiledProperty {
+  return { name, type: "object", value: id };
+}
+
+/** A Tiled object; `kind` is the object's type. Extra fields carry the shape (polygon, point, gid). */
 function object(
   id: number,
   name: string,
@@ -106,6 +115,11 @@ function tileObject(
   return object(id, name, kind, box, properties, { gid });
 }
 
+/** A polygon, with its points relative to the object's position (Tiled's convention). */
+const polygon = (points: [number, number][]) => ({
+  polygon: points.map(([x, y]) => ({ x, y })),
+});
+
 function tiledLayer(
   id: number,
   name: string,
@@ -113,6 +127,7 @@ function tiledLayer(
   height: number,
   data: number[] | string,
   encoding?: "csv" | "base64",
+  visible = true,
 ) {
   return {
     id,
@@ -123,13 +138,13 @@ function tiledLayer(
     x: 0,
     y: 0,
     opacity: 1,
-    visible: true,
+    visible,
     data,
     ...(encoding === undefined ? {} : { encoding }),
   };
 }
 
-function objectLayer(id: number, name: string, objects: unknown[]) {
+function objectLayer(id: number, name: string, objects: unknown[], visible = true) {
   return {
     id,
     type: "objectgroup",
@@ -138,30 +153,80 @@ function objectLayer(id: number, name: string, objects: unknown[]) {
     x: 0,
     y: 0,
     opacity: 1,
-    visible: true,
+    visible,
     draworder: "topdown",
   };
 }
 
-/** An embedded tileset of one image in `tilesets/`. */
-function tileset(firstgid: number, name: string, columns: number, rows: number) {
+function groupLayer(id: number, name: string, layers: unknown[]) {
+  return { id, type: "group", name, layers, x: 0, y: 0, opacity: 1, visible: true };
+}
+
+/** An embedded sheet tileset of one image in `tilesets/`. */
+function sheet(firstgid: number, name: string, columns: number, rows: number) {
   return {
     firstgid,
     name,
     image: `../tilesets/${name}.png`,
-    imagewidth: columns * TILE,
-    imageheight: rows * TILE,
+    imagewidth: columns * TILE_WIDTH,
+    imageheight: rows * TILE_HEIGHT,
     margin: 0,
     spacing: 0,
-    tilewidth: TILE,
-    tileheight: TILE,
+    tilewidth: TILE_WIDTH,
+    tileheight: TILE_HEIGHT,
     tilecount: columns * rows,
     columns,
-    tiles: [],
   };
 }
 
-/** A Tiled map of `width` × `height` tiles around its layers, tilesets and objects. */
+/**
+ * The image-collection tileset `gebaeude`: one PNG per tile, with gaps in the tile ids. Tile 0 is a house
+ * with a collision polygon and an occlusion line, tile 3 a sign with a collision rectangle only.
+ */
+function collection(firstgid: number) {
+  return {
+    firstgid,
+    name: "gebaeude",
+    columns: 0,
+    tilecount: 2,
+    tilewidth: TILE_WIDTH,
+    tileheight: TILE_HEIGHT,
+    tiles: [
+      {
+        id: 0,
+        image: "../tilesets/gebaeude-haus.png",
+        imagewidth: 128,
+        imageheight: 96,
+        properties: [property("category", "building")],
+        objectgroup: {
+          type: "objectgroup",
+          name: "",
+          draworder: "index",
+          objects: [
+            { id: 1, name: "collision", x: 0, y: 0, polygon: [
+              { x: 8, y: 80 }, { x: 64, y: 96 }, { x: 120, y: 80 }, { x: 120, y: 56 }, { x: 64, y: 40 }, { x: 8, y: 56 },
+            ] },
+            { id: 2, name: "occlusion", x: 0, y: 0, polyline: [{ x: 8, y: 72 }, { x: 64, y: 88 }, { x: 120, y: 72 }] },
+          ],
+        },
+      },
+      {
+        id: 3,
+        image: "../tilesets/gebaeude-schild.png",
+        imagewidth: 32,
+        imageheight: 48,
+        objectgroup: {
+          type: "objectgroup",
+          name: "",
+          draworder: "index",
+          objects: [{ id: 1, name: "collision", x: 4, y: 40, width: 24, height: 8 }],
+        },
+      },
+    ],
+  };
+}
+
+/** A Tiled map of `width` × `height` tiles around its tilesets and layers, isometric. */
 function tiledMap(
   width: number,
   height: number,
@@ -173,14 +238,14 @@ function tiledMap(
     type: "map",
     version: "1.10",
     tiledversion: "1.10.2",
-    orientation: "orthogonal",
+    orientation: "isometric",
     renderorder: "right-down",
     infinite: false,
     width,
     height,
-    tilewidth: TILE,
-    tileheight: TILE,
-    nextlayerid: layers.length + 1,
+    tilewidth: TILE_WIDTH,
+    tileheight: TILE_HEIGHT,
+    nextlayerid: 100,
     nextobjectid: 100,
     properties,
     tilesets,
@@ -192,101 +257,80 @@ const json = (value: unknown): Buffer => Buffer.from(`${JSON.stringify(value, nu
 
 /** The maps of the test world, by their ids. */
 function maps(): Record<string, unknown> {
-  // Kirche: the start map. Every object type is placed at least once in the three maps.
+  // Kirche: the start map. Every object type is placed here or in the other maps.
   const kirche = tiledMap(
-    20,
-    15,
-    [tileset(1, "boden", 4, 4), tileset(17, "dekor", 4, 2), tileset(25, "objekte", 3, 1)],
+    12,
+    10,
+    [sheet(1, "boden", 4, 4), sheet(17, "dekor", 4, 2), sheet(25, "objekte", 3, 1), collection(30)],
     [
-      tiledLayer(
-        1,
-        "boden",
-        20,
-        15,
-        base64(20, 15, (x, y) => 1 + ((x + y) % 4)),
-        "base64",
-      ),
-      tiledLayer(
-        2,
-        "dekor",
-        20,
-        15,
-        csv(20, 15, (x, y) => (x === 5 && y === 5 ? 17 : 0)),
-      ),
-      tiledLayer(
-        3,
-        "above-dach",
-        20,
-        15,
-        csv(20, 15, (x, y) => (y === 0 ? 2 : 0)),
-      ),
-      tiledLayer(4, "collision", 20, 15, csv(20, 15, border(20, 15))),
-      objectLayer(5, "objekte", [
-        point(1, "start", "spawn", 160, 200),
-        point(2, "eingang", "spawn", 160, 40),
-        object(3, "zum-garten", "portal", { x: 0, y: 200, width: 16, height: 32 }, [
-          property("targetMap", "garten"),
-          property("targetSpawn", "start"),
-          property("label", "Garten"),
+      groupLayer(1, "Terrain", [
+        tiledLayer(2, "boden", 12, 10, base64(12, 10, (x, y) => 1 + ((x + y) % 4)), "base64"),
+        tiledLayer(3, "dekor", 12, 10, csv(12, 10, (x, y) => (x === 5 && y === 5 ? 17 : 0))),
+      ]),
+      groupLayer(4, "Entities", [
+        objectLayer(5, "Gebaeude", [
+          tileObject(6, "", "decoration", { x: 320, y: 96, width: 128, height: 96 }, 30),
+          tileObject(7, "", "decoration", { x: 480, y: 160, width: 32, height: 48 }, 33),
         ]),
-        tileObject(4, "altar", "clickable", { x: 96, y: 96, width: 16, height: 16 }, 25, [
-          property("label", "Programm"),
-          property("action", "page"),
-          property("page", "programme"),
-        ]),
-        object(5, "schild", "clickable", { x: 128, y: 128, width: 16, height: 16 }, [
-          property("action", "content"),
-          property("contentId", "anreise"),
-          property("approach", "anfahrt"),
-        ]),
-        point(6, "anfahrt", "", 128, 152),
-        object(7, "pastor", "clickable", { x: 64, y: 112, width: 16, height: 16 }, [
-          property("label", "Pfarrer"),
-          property("action", "dialog"),
-          property("contentId", "npc-pastor"),
-        ]),
-        object(8, "osterei", "clickable", { x: 32, y: 32, width: 16, height: 16 }, [
-          property("hidden", true),
-        ]),
-        tileObject(9, "", "decoration", { x: 48, y: 48, width: 16, height: 16 }, 26),
-        object(10, "", "collision", { x: 64, y: 64, width: 32, height: 16 }),
-        object(11, "sakristei", "protected", { x: 256, y: 32, width: 32, height: 32 }),
+      ]),
+      groupLayer(8, "Gameplay", [
+        objectLayer(9, "Gameplay", [
+          point(1, "start", "spawn", 160, 200),
+          point(2, "eingang", "spawn", 160, 40),
+          object(3, "zum-garten", "portal", { x: 0, y: 160, width: 64, height: 32 }, [
+            property("targetMap", "garten"),
+            property("targetSpawn", "start"),
+            property("label", "Garten"),
+            objectProperty("marker", 12),
+          ], polygon([[0, 0], [64, 0], [64, 32], [0, 32]])),
+          tileObject(12, "", "decoration", { x: 0, y: 176, width: 64, height: 32 }, 25),
+          tileObject(4, "altar", "clickable", { x: 96, y: 96, width: 32, height: 32 }, 25, [
+            property("label", "Programm"),
+            property("action", "page"),
+            property("page", "programme"),
+          ]),
+          object(5, "schild", "clickable", { x: 128, y: 128, width: 16, height: 16 }, [
+            property("action", "content"),
+            property("contentId", "anreise"),
+            property("approach", "anfahrt"),
+          ], polygon([[0, 0], [16, 0], [16, 16], [0, 16]])),
+          point(6, "anfahrt", "", 128, 152),
+          object(7, "pastor", "clickable", { x: 64, y: 112, width: 16, height: 16 }, [
+            property("label", "Pfarrer"),
+            property("action", "dialog"),
+            property("contentId", "npc-pastor"),
+          ]),
+          object(8, "osterei", "clickable", { x: 32, y: 32, width: 16, height: 16 }, [
+            property("hidden", true),
+          ]),
+          object(10, "", "collision", { x: 64, y: 64, width: 32, height: 16 }),
+          object(13, "", "border", { x: 200, y: 40 }, [], polygon([[0, 0], [120, 0], [120, 60], [0, 60]])),
+          object(11, "sakristei", "protected", { x: 256, y: 32, width: 32, height: 32 }),
+        ], true),
       ]),
     ],
+    [property("name", "Kirche")],
   );
 
-  // Garten: a portal to the church and to the hall, a wander area and a minigame.
+  // Garten: portals to the church and the hall, a wander area with a polygon, a minigame.
   const garten = tiledMap(
-    24,
-    16,
-    [tileset(1, "boden", 4, 4), tileset(17, "dekor", 4, 2)],
+    14,
+    10,
+    [sheet(1, "boden", 4, 4), sheet(17, "dekor", 4, 2)],
     [
-      tiledLayer(
-        1,
-        "boden",
-        24,
-        16,
-        csv(24, 16, (x, y) => 1 + ((x * 2 + y) % 4)),
-      ),
-      tiledLayer(2, "collision", 24, 16, csv(24, 16, border(24, 16))),
-      objectLayer(3, "objekte", [
+      tiledLayer(1, "boden", 14, 10, csv(14, 10, (x, y) => 1 + ((x * 2 + y) % 4))),
+      tiledLayer(2, "collision", 14, 10, csv(14, 10, border(14, 10))),
+      objectLayer(3, "Gameplay", [
         point(1, "start", "spawn", 64, 64),
-        object(2, "zur-kirche", "portal", { x: 0, y: 0, width: 16, height: 32 }, [
+        object(2, "zur-kirche", "portal", { x: 0, y: 0, width: 32, height: 32 }, [
           property("targetMap", "kirche"),
           property("targetSpawn", "eingang"),
-        ]),
-        object(3, "zum-saal", "portal", { x: 304, y: 200, width: 16, height: 32 }, [
+        ], polygon([[0, 0], [32, 0], [32, 32], [0, 32]])),
+        object(3, "zum-saal", "portal", { x: 304, y: 200, width: 32, height: 32 }, [
           property("targetMap", "saal"),
           property("targetSpawn", "start"),
-        ]),
-        object(4, "wiese", "wander", { x: 100, y: 100 }, [], {
-          polygon: [
-            { x: 0, y: 0 },
-            { x: 200, y: 0 },
-            { x: 200, y: 100 },
-            { x: 0, y: 100 },
-          ],
-        }),
+        ], polygon([[0, 0], [32, 0], [32, 32], [0, 32]])),
+        object(4, "wiese", "wander", { x: 100, y: 100 }, [], polygon([[0, 0], [200, 0], [200, 100], [0, 100]])),
         object(5, "spiel", "clickable", { x: 160, y: 96, width: 16, height: 16 }, [
           property("action", "minigame"),
           property("minigameId", "quiz-01"),
@@ -294,32 +338,26 @@ function maps(): Record<string, unknown> {
         object(6, "bank", "clickable", { x: 200, y: 48, width: 16, height: 16 }, [
           property("label", "Bank"),
         ]),
-        tileObject(7, "", "decoration", { x: 96, y: 160, width: 16, height: 16 }, 17),
+        tileObject(7, "", "decoration", { x: 96, y: 160, width: 64, height: 32 }, 17),
       ]),
     ],
+    [property("name", "Garten")],
   );
 
-  // Saal: the banquet hall with seats at two tables and a wander area.
+  // Saal: the banquet hall with seats at two tables, a wander area and a dialogue sign.
   const saal = tiledMap(
-    20,
-    14,
-    [tileset(1, "boden", 4, 4), tileset(17, "dekor", 4, 2)],
+    12,
+    10,
+    [sheet(1, "boden", 4, 4), sheet(17, "dekor", 4, 2)],
     [
-      tiledLayer(
-        1,
-        "boden",
-        20,
-        14,
-        base64(20, 14, (x, y) => 1 + ((x + y) % 4)),
-        "base64",
-      ),
-      tiledLayer(2, "collision", 20, 14, csv(20, 14, border(20, 14))),
-      objectLayer(3, "objekte", [
+      tiledLayer(1, "boden", 12, 10, base64(12, 10, (x, y) => 1 + ((x + y) % 4)), "base64"),
+      tiledLayer(2, "collision", 12, 10, csv(12, 10, border(12, 10))),
+      objectLayer(3, "Gameplay", [
         point(1, "start", "spawn", 160, 160),
-        object(2, "zum-garten", "portal", { x: 0, y: 160, width: 16, height: 32 }, [
+        object(2, "zum-garten", "portal", { x: 0, y: 160, width: 32, height: 32 }, [
           property("targetMap", "garten"),
           property("targetSpawn", "start"),
-        ]),
+        ], polygon([[0, 0], [32, 0], [32, 32], [0, 32]])),
         point(3, "platz-1", "seat", 80, 80, [property("table", "1")]),
         point(4, "platz-2", "seat", 96, 80, [property("table", 3)]),
         object(5, "tanzflaeche", "wander", { x: 64, y: 64, width: 96, height: 64 }),
@@ -329,91 +367,82 @@ function maps(): Record<string, unknown> {
         ]),
       ]),
     ],
+    [property("name", "Saal")],
   );
 
-  // The name of each map is the map property `name`, which the admin area shows (14.4).
-  const named = (map: Record<string, unknown>, name: string) => ({
-    ...map,
-    properties: [property("name", name)],
-  });
-  return {
-    kirche: named(kirche, "Kirche"),
-    garten: named(garten, "Garten"),
-    saal: named(saal, "Saal"),
-  };
+  return { kirche, garten, saal };
 }
 
-/** The sprite sheet of an avatar part: 4 × 4 frames of 16 × 24 pixels, drawn in greyscale. */
-const sheet = (grey: number) => encodePng(64, 96, [grey, grey, grey]);
+/** The frames of a figure: the standing pose of four directions and a walk of three frames each. */
+const WALK_FRAMES = 3;
+const FIGURE_SIDE = 16;
+
+/** One figure's PixelLab metadata, its frames and the folder they sit in. */
+function figure(folder: string, grey: number): Record<string, Buffer> {
+  const frame = () => encodePng(FIGURE_SIDE, FIGURE_SIDE, [grey, grey, grey]);
+  const directions = ["south", "west", "east", "north"] as const;
+  const rotations = Object.fromEntries(directions.map((d) => [d, `Idle/rotations/${d}.png`]));
+  const walking = Object.fromEntries(
+    directions.map((d) => [
+      d,
+      Array.from({ length: WALK_FRAMES }, (_, index) =>
+        `Idle/animations/walking/${d}/frame_${String(index).padStart(3, "0")}.png`,
+      ),
+    ]),
+  );
+  const metadata = {
+    group_id: `${folder}-group`,
+    states: [
+      {
+        character: {
+          id: `${folder}-character`,
+          name: "Idle",
+          prompt: "A wedding guest, full body, standing pose.",
+          size: { width: FIGURE_SIDE, height: FIGURE_SIDE },
+          template_id: "mannequin",
+          directions: 4,
+          view: "high top-down",
+        },
+        folder: "Idle",
+        frames: { rotations, animations: { walking } },
+      },
+    ],
+    export_version: "1",
+  };
+  const files: Record<string, Buffer> = {
+    [`avatar/${folder}/metadata.json`]: json(metadata),
+  };
+  for (const d of directions) {
+    files[`avatar/${folder}/Idle/rotations/${d}.png`] = frame();
+    for (let index = 0; index < WALK_FRAMES; index++) {
+      files[`avatar/${folder}/Idle/animations/walking/${d}/frame_${String(index).padStart(3, "0")}.png`] = frame();
+    }
+  }
+  return files;
+}
 
 /** The files of the test world, by their paths in the archive. */
 export function testWorldFiles(): Record<string, Buffer> {
   const files: Record<string, Buffer> = {
     "manifest.json": json({
       kind: "zappaloo-world",
-      formatVersion: 1,
+      formatVersion: 2,
       name: TEST_WORLD_NAME,
       startMap: "kirche",
-      tileSize: TILE,
+      tileWidth: TILE_WIDTH,
+      tileHeight: TILE_HEIGHT,
     }),
     "tilesets/boden.png": tilesetPng(4, 4, false),
     "tilesets/dekor.png": tilesetPng(4, 2, true),
     "tilesets/objekte.png": tilesetPng(3, 1, false),
-    "avatar/avatar.json": json({
-      frameWidth: 16,
-      frameHeight: 24,
-      palettes: {
-        skin: ["#f6d7b0", "#e0ac7e", "#a86f4b", "#6b4329"],
-        hair: ["#2b1d14", "#7a4a26", "#d8b25a", "#b8b8b8"],
-        outfit: ["#3b5b92", "#8e3b46", "#3f7a4f", "#e7e2d4"],
-      },
-      parts: {
-        body: {
-          palette: "skin",
-          options: [{ id: "base", label: "Standard", file: "body.png", detail: "body-detail.png" }],
-        },
-        outfit: {
-          palette: "outfit",
-          options: [
-            { id: "suit", label: "Anzug", file: "outfit-suit.png" },
-            { id: "kleid", label: "Kleid", file: "outfit-kleid.png" },
-          ],
-        },
-        hair: {
-          palette: "hair",
-          optional: true,
-          options: [
-            { id: "kurz", label: "Kurz", file: "hair-kurz.png" },
-            { id: "lang", label: "Lang", file: "hair-lang.png" },
-          ],
-        },
-        accessory: {
-          optional: true,
-          options: [{ id: "brille", label: "Brille", file: "acc-brille.png" }],
-        },
-      },
-      templates: [
-        {
-          label: "Festlich",
-          avatar: {
-            body: "base",
-            skin: "#e0ac7e",
-            outfit: "suit",
-            outfitColor: "#3b5b92",
-            hair: "kurz",
-            hairColor: "#2b1d14",
-            accessory: null,
-          },
-        },
+    "tilesets/gebaeude-haus.png": encodePng(128, 96, [0xb0, 0x6a, 0x4a]),
+    "tilesets/gebaeude-schild.png": encodePng(32, 48, [0xf2, 0xd3, 0x8a]),
+    "avatar/figures.json": json({
+      figures: [
+        { id: "wedding-guest", label: "Gast", metadata: "wedding-guest/metadata.json" },
+        { id: "male-guest", metadata: "male-guest/metadata.json" },
       ],
     }),
-    "avatar/body.png": sheet(200),
-    "avatar/body-detail.png": sheet(40),
-    "avatar/outfit-suit.png": sheet(170),
-    "avatar/outfit-kleid.png": sheet(150),
-    "avatar/hair-kurz.png": sheet(120),
-    "avatar/hair-lang.png": sheet(100),
-    "avatar/acc-brille.png": sheet(230),
     "door/door.json": json({
       frameWidth: 32,
       frameHeight: 32,
@@ -423,6 +452,8 @@ export function testWorldFiles(): Record<string, Buffer> {
     }),
     "door/door.png": encodePng(128, 32, [0x8a, 0x5a, 0x3a]),
     "door/door-glimpse.png": encodePng(64, 64, [0xf2, 0xd3, 0x8a]),
+    ...figure("wedding-guest", 0x70),
+    ...figure("male-guest", 0xa0),
   };
   for (const [id, map] of Object.entries(maps())) {
     files[`maps/${id}.json`] = json(map);

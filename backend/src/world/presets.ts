@@ -5,6 +5,7 @@
 import { tiledMapSchema, WORLD_BUILTIN_PAGES } from "@zappaloo/shared";
 import type { TiledObject } from "@zappaloo/shared";
 import { warningFinding } from "./findings.ts";
+import { flattenLayers } from "./layers.ts";
 import type { WorldFinding } from "./findings.ts";
 
 /** What the installation has: the slugs of its content pages and the ids of its dialogues. */
@@ -31,7 +32,7 @@ export function presetWarnings(
     const file = `maps/${id}.json`;
     const parsed = tiledMapSchema.safeParse(JSON.parse(bytes.toString("utf8")) as unknown);
     if (!parsed.success) continue; // the validator reported it
-    for (const layer of parsed.data.layers) {
+    for (const layer of flattenLayers(parsed.data.layers)) {
       if (layer.type !== "objectgroup") continue;
       for (const object of layer.objects) {
         if ((object.type ?? object.class) !== "clickable") continue;

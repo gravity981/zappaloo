@@ -11,7 +11,7 @@ import { contentPages, worldPackages } from "../database/schema.ts";
 import type { Database } from "../database/database.ts";
 import type { Actor, EventService } from "../event/service.ts";
 import type { PublicWorld, WorldActive, WorldStatus } from "@zappaloo/shared";
-import type { WorldAvatar, WorldMapSummary } from "@zappaloo/shared";
+import type { WorldFigure, WorldMapSummary } from "@zappaloo/shared";
 import { checkWorldPackage } from "./validate.ts";
 import type { WorldPackage } from "./validate.ts";
 import type { WorldFinding } from "./findings.ts";
@@ -44,17 +44,22 @@ export interface StoredWorld {
   name: string;
   formatVersion: number;
   startMap: string;
-  tileSize: number;
+  tileWidth: number;
+  tileHeight: number;
   importedAt: Date;
   maps: WorldMapSummary[];
-  avatar: WorldAvatar;
+  /** The figures a guest can choose (`avatar/figures.json`). */
+  figures: WorldFigure[];
   hasDoor: boolean;
   warnings: WorldFinding[];
 }
 
-/** The files a player's browser may load from a world: maps, tileset images and avatar sprites. */
+/**
+ * The files a player's browser may load from a world: maps, tileset images, and the figures' metadata and
+ * frames (in their folders under avatar/). The manifest and the door scene are not served.
+ */
 const SERVED_FILE =
-  /^(?:maps\/[a-z0-9-]{1,40}\.json|tilesets\/[A-Za-z0-9._-]+\.png|avatar\/[A-Za-z0-9._-]+\.png)$/;
+  /^(?:maps\/[a-z0-9-]{1,40}\.json|tilesets\/[A-Za-z0-9._-]+\.png|avatar\/figures\.json|avatar\/(?:[A-Za-z0-9._-]+\/)+[A-Za-z0-9._-]+\.(?:png|json))$/;
 
 type Row = typeof worldPackages.$inferSelect;
 
@@ -64,10 +69,11 @@ function toStored(row: Row): StoredWorld {
     name: row.name,
     formatVersion: row.formatVersion,
     startMap: row.startMap,
-    tileSize: row.tileSize,
+    tileWidth: row.tileWidth,
+    tileHeight: row.tileHeight,
     importedAt: row.importedAt,
     maps: JSON.parse(row.maps) as WorldMapSummary[],
-    avatar: JSON.parse(row.avatar) as WorldAvatar,
+    figures: JSON.parse(row.avatar) as WorldFigure[],
     hasDoor: row.hasDoor,
     warnings: JSON.parse(row.warnings) as WorldFinding[],
   };
@@ -125,8 +131,10 @@ export class WorldService {
               formatVersion: active.formatVersion,
               importedAt: active.importedAt.toISOString(),
               startMap: active.startMap,
-              tileSize: active.tileSize,
+              tileWidth: active.tileWidth,
+              tileHeight: active.tileHeight,
               maps: active.maps,
+              figures: active.figures.length,
               hasDoor: active.hasDoor,
               warnings: active.warnings,
             } satisfies WorldActive),
@@ -145,9 +153,10 @@ export class WorldService {
       version: active.importId,
       name: active.name,
       startMap: active.startMap,
-      tileSize: active.tileSize,
+      tileWidth: active.tileWidth,
+      tileHeight: active.tileHeight,
       maps: active.maps.map((map) => map.id),
-      avatar: active.avatar,
+      figures: active.figures,
     };
   }
 
@@ -241,10 +250,11 @@ export class WorldService {
             name: worldPackage.manifest.name,
             formatVersion: worldPackage.manifest.formatVersion,
             startMap: worldPackage.manifest.startMap,
-            tileSize: worldPackage.manifest.tileSize,
+            tileWidth: worldPackage.manifest.tileWidth,
+            tileHeight: worldPackage.manifest.tileHeight,
             importedAt,
             maps: JSON.stringify(summaries),
-            avatar: JSON.stringify(worldPackage.avatar),
+            avatar: JSON.stringify(worldPackage.figures),
             hasDoor: worldPackage.door !== undefined,
             warnings: JSON.stringify(warnings),
           })
@@ -269,10 +279,11 @@ export class WorldService {
       name: worldPackage.manifest.name,
       formatVersion: worldPackage.manifest.formatVersion,
       startMap: worldPackage.manifest.startMap,
-      tileSize: worldPackage.manifest.tileSize,
+      tileWidth: worldPackage.manifest.tileWidth,
+      tileHeight: worldPackage.manifest.tileHeight,
       importedAt,
       maps: summaries,
-      avatar: worldPackage.avatar,
+      figures: worldPackage.figures,
       hasDoor: worldPackage.door !== undefined,
       warnings,
     };

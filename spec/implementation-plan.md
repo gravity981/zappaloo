@@ -389,7 +389,7 @@ world.tar.gz
 - **Draw order.** Objects and figures are sorted by depth. A tile image may carry a polyline named `occlusion` in its `objectgroup`. A figure whose feet are behind that line (above it on screen) is drawn behind the object, otherwise in front. Without a line, the object's bottom edge decides. This replaces the rule for tile layers named `above…`. New requirement GAME-19.
 - **Properties.**
   - Properties on tiles in the tilesets are ignored (the world project uses `category`, `symbol`, `text`, `direction`, `name`).
-  - The map property `cameraZoom` (a number) becomes supported; its range and its default are decided in step 5d.1 with the project owner (the prototype uses 2).
+  - The map property `cameraZoom` is fixed at 2 and is not read from the map (decided 2026-11-15 with the project owner).
   - Other unknown properties stay warnings (e.g. the prototype's `previewFormat`).
 - **Names** stay required for spawn points, portals and clickable objects (1–40 characters of `a–z 0–9 -`), because the assignments in "Erlebniswelt" are keyed by name.
 - **Portals.**
@@ -403,7 +403,7 @@ world.tar.gz
   - Every PNG in `avatar/` is named by a figure's metadata.
   - Game side, not in the package: the rotation image is the standing pose, the walk frames play in the order listed at 8 frames per second, and the figure faces the nearest of its four directions on screen.
   - The stored avatar is `{ "figure": "<id>" }`; an id that the active world no longer has falls back to the first figure. Companions choose a figure the same way.
-  - The limits (number of figures, frame size) are proposed in step 5d.1.
+  - The limits: at most 50 figures per world (decided 2026-11-15); the frame size and the tile size are proposed in step 5d.1 and await the project owner's confirmation.
 - **Limits.** At most **3000 files** per package (was 500). The other limits stay: 40 MB packed, 100 MB unpacked, 5 MB per JSON file, 8 MB and 4096 × 4096 pixels per PNG.
 - **Door scene** unchanged (`door/`, optional).
 
@@ -416,7 +416,7 @@ world.tar.gz
 **5b – Validator and test world.** Done 2026-11-14 (decisions of the step in sw-architecture.md 14.4).
 **5c – Import, rollback and serving.** Done 2026-11-14 (decisions of the step in sw-architecture.md 14.4).
 **5d – Erlebniswelt › Welt & Import.** Done 2026-11-14: the page with the import tab only (the other tabs come with 5f and 5g), no «Vorlagenwelt importieren» (5k), per-map counts in the admin status. Open: the mock shows map names, the world carries only map ids (see the step report).
-**5d.1 – World format 2.** Next (inserted 2026-11-15; details below 5d).
+**5d.1 – World format 2.** Done 2026-11-15 (inserted 2026-11-15; details below 5d). The decisions are in sw-architecture.md 14.4 ("Decisions of step 5d.1"); the frame and tile-size limits await the project owner's confirmation.
 - The package reader (gzip and tar, limits, paths; shared with the theme package), `manifest.json`, the Tiled checks per map (format, orientation, embedded tilesets, referenced images, layers, spawn points), portal targets inside the package, the door scene, the avatar assets. Returns all findings. One test per validator rule with a broken package.
 - A script builds the test world (two or three maps with generated placeholder tiles, avatar parts and objects of every type) for the tests and for development.
 - Checking a package outside the platform (decided 2026-11-14; 19.7, 14.4): JSON Schemas generated from the Zod schemas, theme first, then world (manifest, avatar, maps), committed in `schemas/` with a test that fails when they differ; attached to every release. The CLI command `zappaloo validate <file>` for both kinds of package, with `--json` and exit code 0 or 1, tested with the test world and the example theme.

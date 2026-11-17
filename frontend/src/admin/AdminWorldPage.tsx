@@ -206,6 +206,9 @@ function WorldSummary({
         <span className="hint">
           {t("admin.world.info", {
             version: active.formatVersion,
+            width: active.tileWidth,
+            height: active.tileHeight,
+            figures: active.figures,
             date: format.date(active.importedAt),
             time: format.time(active.importedAt),
             start: active.startMap,

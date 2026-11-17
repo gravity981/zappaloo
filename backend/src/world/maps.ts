@@ -1,6 +1,8 @@
-// The rules of one Tiled map of the world package (sw-architecture.md 14.4, MAP-06, MAP-08): the format,
-// the layers, the embedded tilesets and their images, the tile ids, the objects by type, shape and
-// properties, and the references inside the map and to the other maps of the package.
+// The rules of one Tiled map of the world package (sw-architecture.md 14.4, MAP-02, MAP-03, MAP-06, MAP-08):
+// the format (isometric, finite), the layers (group layers read recursively), the embedded tilesets with
+// their images (sheets and image collections), the tile ids, the objects by type, shape and properties
+// (collision and border polygons, portals with markers, occlusion guides of tiles), and the references
+// inside the map and to the other maps of the package.
 import {
   tiledMapSchema,
   WORLD_ACTIONS,
@@ -8,15 +10,24 @@ import {
   WORLD_ID_PATTERN,
   WORLD_LIMITS,
 } from "@zappaloo/shared";
-import type { TiledMap, TiledObject, TiledTileLayer, TiledTileset } from "@zappaloo/shared";
+import type {
+  TiledLayer,
+  TiledMap,
+  TiledObject,
+  TiledTile,
+  TiledTileLayer,
+  TiledTileset,
+} from "@zappaloo/shared";
 import type { PngSize } from "../packages/png.ts";
 import { errorFinding, warningFinding, zodDetail } from "./findings.ts";
 import type { WorldFinding } from "./findings.ts";
+import { flattenLayers } from "./layers.ts";
 
 /** What the rules of a map need from the rest of the package. */
 export interface MapContext {
-  /** The tile size of `manifest.json`; undefined while the manifest is refused. */
-  tileSize: number | undefined;
+  /** The tile width and height of `manifest.json`; undefined while the manifest is refused. */
+  tileWidth: number | undefined;
+  tileHeight: number | undefined;
   /** Every file of the package by its path. */
   files: Map<string, Buffer>;
   /** The size of every PNG of the package by its path. */
@@ -36,7 +47,7 @@ export interface MapInfo {
   /** The names of its spawn points. */
   spawns: Set<string>;
   portals: PortalInfo[];
-  /** The names (without `.png`) of the tileset images the map uses. */
+  /** The names (without `.png`) of the tileset images the map uses, sheets and collection tiles. */
   tilesetImages: Set<string>;
 }
 
@@ -46,37 +57,44 @@ export interface MapResult {
   findings: WorldFinding[];
 }
 
-/** A global tile id range of one tileset. */
+/** The global tile ids of one tileset: a range, or the ids of a collection with gaps (absolute ids). */
 interface TileRange {
+  /** The tileset name, for the findings. */
   name: string;
+  /** The names (without `.png`) of the images the tileset uses: one for a sheet, one per tile for a collection. */
+  images: string[];
   first: number;
   last: number;
+  /** The global ids of an image collection (sparse); undefined for a sheet, whose ids are a range. */
+  ids?: Set<number>;
 }
 
-/** The three shapes the platform accepts for an object of a map. */
-type Shape = "point" | "rectangle" | "polygon" | "tile";
+/** The shapes of a Tiled object. */
+type Shape = "point" | "rectangle" | "polygon" | "polyline" | "tile";
 
-/** The shapes each object type accepts (14.4). An untyped object is a point. */
+/** The shapes each object type accepts (14.2, 14.4). An untyped object is a point. */
 const SHAPES: Record<string, Shape[]> = {
   spawn: ["point"],
-  portal: ["rectangle", "tile"],
-  clickable: ["rectangle", "tile"],
-  decoration: ["rectangle", "tile", "point", "polygon"],
+  portal: ["rectangle", "polygon"],
+  clickable: ["rectangle", "polygon", "tile"],
+  decoration: ["rectangle", "polygon", "tile", "point"],
   seat: ["point"],
   wander: ["rectangle", "polygon"],
-  collision: ["rectangle"],
+  border: ["polygon"],
+  collision: ["rectangle", "polygon"],
   protected: ["rectangle"],
   "": ["point"],
 };
 
-/** The properties each type uses (14.4); others are reported as unknown (warnings). */
+/** The properties each type uses (14.2, 14.4); others are reported as unknown (warnings). */
 const PROPERTIES: Record<string, string[]> = {
   spawn: [],
-  portal: ["targetMap", "targetSpawn", "label", "approach"],
+  portal: ["targetMap", "targetSpawn", "marker", "label", "approach"],
   clickable: ["label", "approach", "action", "page", "contentId", "minigameId", "hidden"],
   decoration: [],
   seat: ["table"],
   wander: [],
+  border: [],
   collision: [],
   protected: [],
   "": [],
@@ -93,10 +111,17 @@ const ACTION_PROPERTY: Record<string, "page" | "contentId" | "minigameId"> = {
 /** A content slug: lower-case letters, digits and single hyphens, as the content pages use. */
 const SLUG_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 
-/** The longest text of a label is 40 characters (14.4). */
+/** The longest text of a label is 40 characters (14.2). */
 const LABEL_LENGTH = 40;
 
+/** The map property the camera zoom had in the prototype; the platform fixes the zoom at 2. */
+const FIXED_ZOOM_PROPERTY = "cameraZoom";
+
+/** The flip and rotation bits of a Tiled global tile id. */
+const FLIP_MASK = 0xe0000000;
 const TILE_ID_MASK = 0x1fffffff;
+
+const ALLOWED_LAYER_TYPES = ["tilelayer", "objectgroup", "group"];
 
 function mapFile(id: string): string {
   return `maps/${id}.json`;
@@ -112,6 +137,7 @@ function shapeOf(object: TiledObject): Shape | "ellipse" | "text" {
   if (object.ellipse === true) return "ellipse";
   if (object.text !== undefined) return "text";
   if (object.polygon !== undefined) return "polygon";
+  if (object.polyline !== undefined) return "polyline";
   if (object.gid !== undefined) return "tile";
   return "rectangle";
 }
@@ -121,20 +147,71 @@ function propertyTable(properties: { name: string; value: unknown }[] | undefine
   return new Map((properties ?? []).map((property) => [property.name, property.value]));
 }
 
-/** The number of tiles of a tileset image, from its size, margin and spacing; undefined if not whole. */
+/** The number of tiles of a sheet image, from its size, margin and spacing; undefined if not whole. */
 function tileCount(
   tileset: TiledTileset,
   image: PngSize,
+  tileWidth: number,
+  tileHeight: number,
 ): { columns: number; count: number } | undefined {
   const margin = tileset.margin ?? 0;
   const spacing = tileset.spacing ?? 0;
   const width = image.width - 2 * margin + spacing;
   const height = image.height - 2 * margin + spacing;
-  const stepX = tileset.tilewidth + spacing;
-  const stepY = tileset.tileheight + spacing;
+  const stepX = tileWidth + spacing;
+  const stepY = tileHeight + spacing;
   if (width <= 0 || height <= 0 || width % stepX !== 0 || height % stepY !== 0) return undefined;
   const columns = width / stepX;
   return { columns, count: columns * (height / stepY) };
+}
+
+/**
+ * Refused layers are reported and removed before the map is read: image layers, unknown layer types and
+ * compressed tile layers. Group layers are kept and their layers checked the same way.
+ */
+function pruneLayers(layers: unknown[], file: string, findings: WorldFinding[]): unknown[] {
+  const kept: unknown[] = [];
+  for (const layer of layers) {
+    if (typeof layer !== "object" || layer === null) {
+      findings.push(errorFinding(file, "map_layer", "a layer is not an object"));
+      continue;
+    }
+    const item = layer as { type?: unknown; name?: unknown; compression?: unknown; layers?: unknown };
+    const name = typeof item.name === "string" ? item.name : "(unnamed)";
+    if (!ALLOWED_LAYER_TYPES.includes(String(item.type))) {
+      findings.push(
+        errorFinding(
+          file,
+          "map_layer",
+          `layer ${name} is of type ${String(item.type)}; only tile, object and group layers are allowed`,
+          name,
+        ),
+      );
+      continue;
+    }
+    if (item.type === "tilelayer" && typeof item.compression === "string" && item.compression !== "") {
+      findings.push(
+        errorFinding(
+          file,
+          "map_layer",
+          `layer ${name} is compressed; export the map without compression`,
+          name,
+        ),
+      );
+      continue;
+    }
+    if (item.type === "group" && Array.isArray(item.layers)) {
+      kept.push({ ...item, layers: pruneLayers(item.layers, file, findings) });
+      continue;
+    }
+    kept.push(layer);
+  }
+  return kept;
+}
+
+/** Every object of the map's object layers, and the tile objects inside them. */
+function allObjects(layers: TiledLayer[]): TiledObject[] {
+  return flattenLayers(layers).flatMap((layer) => (layer.type === "objectgroup" ? layer.objects : []));
 }
 
 /** Checks one Tiled map of the package. */
@@ -160,63 +237,49 @@ export function checkMap(id: string, bytes: Buffer, context: MapContext): MapRes
   if (document.infinite === true) {
     findings.push(errorFinding(file, "map_format", "infinite maps are refused; the map is finite"));
   }
-
-  // Layers of other kinds (groups, images) are refused before the rest is read; the layer name
-  // says which one.
-  const layers: unknown[] = [];
-  for (const layer of Array.isArray(document.layers) ? document.layers : []) {
-    const item = layer as { type?: unknown; name?: unknown; compression?: unknown };
-    const name = typeof item.name === "string" ? item.name : "(unnamed)";
-    if (item.type !== "tilelayer" && item.type !== "objectgroup") {
-      findings.push(
-        errorFinding(
-          file,
-          "map_layer",
-          `layer ${name} is of type ${String(item.type)}; only tile and object layers are allowed`,
-          name,
-        ),
-      );
-      continue;
-    }
-    if (typeof item.compression === "string" && item.compression !== "") {
-      findings.push(
-        errorFinding(
-          file,
-          "map_layer",
-          `layer ${name} is compressed; export the map without compression`,
-          name,
-        ),
-      );
-      continue;
-    }
-    layers.push(layer);
+  if (document.orientation !== undefined && document.orientation !== "isometric") {
+    findings.push(
+      errorFinding(file, "map_format", `the orientation is ${JSON.stringify(document.orientation)}; the map must be isometric`),
+    );
   }
 
+  const layers = pruneLayers(Array.isArray(document.layers) ? document.layers : [], file, findings);
   const parsed = tiledMapSchema.safeParse({ ...document, layers });
   if (!parsed.success) {
     findings.push(errorFinding(file, "map_format", zodDetail(parsed.error)));
     return { findings };
   }
   const map: TiledMap = parsed.data;
-  const tileSize = context.tileSize;
-  if (tileSize !== undefined && (map.tilewidth !== tileSize || map.tileheight !== tileSize)) {
+  if (
+    context.tileWidth !== undefined &&
+    context.tileHeight !== undefined &&
+    (map.tilewidth !== context.tileWidth || map.tileheight !== context.tileHeight)
+  ) {
     findings.push(
       errorFinding(
         file,
         "map_format",
-        `the tiles are ${String(map.tilewidth)} × ${String(map.tileheight)} pixels; the package's tile size is ${String(tileSize)}`,
+        `the tiles are ${String(map.tilewidth)} × ${String(map.tileheight)} pixels; the package's tile size is ${String(context.tileWidth)} × ${String(context.tileHeight)}`,
       ),
     );
   }
 
   const ranges = checkTilesets(map, file, context, findings);
-  const tilesetImages = new Set<string>();
-  for (const range of ranges) tilesetImages.add(range.name);
+  const tilesetImages = new Set<string>(ranges.flatMap((range) => range.images));
+  // Tile objects of a collection tile may carry a collision guide; those tiles block when placed.
+  const blockingTiles = new Set<number>();
+  for (const tileset of map.tilesets) {
+    for (const tile of tileset.tiles ?? []) {
+      if (checkTileGuides(tile, tileset, file, findings)) {
+        blockingTiles.add(tileset.firstgid + tile.id);
+      }
+    }
+  }
 
-  // Layer names, tile data and the collision layer.
+  const flat = flattenLayers(map.layers);
   let collision = false;
   let tileLayers = 0;
-  for (const layer of map.layers) {
+  for (const layer of flat) {
     if (layer.name === "") {
       findings.push(errorFinding(file, "map_layer", "a layer has no name"));
     }
@@ -230,9 +293,9 @@ export function checkMap(id: string, bytes: Buffer, context: MapContext): MapRes
     findings.push(errorFinding(file, "map_layer", "the map needs a tile layer besides collision"));
   }
 
-  // Objects: the spawn points, the portals, the approach points, the collision rectangles.
-  const objects = checkObjects(map, file, findings);
-  if (objects.collision) collision = true;
+  // Objects: the spawn points, the portals, the approach points, the collision shapes, the tiles placed.
+  const objects = checkObjects(map, file, ranges, blockingTiles, findings);
+  if (objects.collision || objects.placedBlocking) collision = true;
   if (!objects.spawns.has("start")) {
     findings.push(errorFinding(file, "map_reference", "the map has no spawn point named start"));
   }
@@ -248,15 +311,17 @@ export function checkMap(id: string, bytes: Buffer, context: MapContext): MapRes
       );
     }
   }
-  // The map property `name` is the name the admin area shows (optional, 1–60 characters); other map
-  // properties are not used by the platform and are reported (a typo or an old property such as programItem).
+
+  // Map properties: `name` is the name the admin area shows; the camera zoom is fixed at 2 and read
+  // from nowhere; other properties are not used by the platform and are reported.
   const mapProperties = propertyTable(map.properties);
   for (const key of mapProperties.keys()) {
-    if (key !== "name") {
-      findings.push(
-        warningFinding(file, "property_unknown", `map property ${key} is not used by the platform`),
-      );
-    }
+    if (key === "name") continue;
+    const detail =
+      key === FIXED_ZOOM_PROPERTY
+        ? "the camera zoom is fixed at 2 and is not read from the map"
+        : `map property ${key} is not used by the platform`;
+    findings.push(warningFinding(file, "property_unknown", detail));
   }
   const name = mapProperties.get("name");
   if (
@@ -270,7 +335,7 @@ export function checkMap(id: string, bytes: Buffer, context: MapContext): MapRes
       warningFinding(
         file,
         "map_collision",
-        "the map has no collision tiles or rectangles; guests walk through everything",
+        "the map has no collision tiles, collision shapes, borders or collision guides; guests walk through everything",
       ),
     );
   }
@@ -281,7 +346,10 @@ export function checkMap(id: string, bytes: Buffer, context: MapContext): MapRes
   };
 }
 
-/** The tilesets of a map: embedded, one image each in `tilesets/`, whole tiles. Returns their tile ids. */
+/**
+ * The tilesets of a map: embedded, sheets with one image, image collections with one image per tile. The
+ * images are PNGs in `tilesets/`, whole tiles of the world's tile size. Returns the tile ids of each.
+ */
 function checkTilesets(
   map: TiledMap,
   file: string,
@@ -297,19 +365,19 @@ function checkTilesets(
       );
       continue;
     }
+    if (tileset.tiles !== undefined) {
+      const range = checkCollection(tileset, file, context, findings);
+      if (range !== undefined) ranges.push(range);
+      continue;
+    }
     if (tileset.image === undefined) {
       findings.push(
-        errorFinding(
-          file,
-          "map_tileset",
-          "a collection of images; use one image per tileset",
-          name,
-        ),
+        errorFinding(file, "map_tileset", "a tileset has neither an image nor tiles", name),
       );
       continue;
     }
-    const match = /^\.\.\/tilesets\/([A-Za-z0-9][A-Za-z0-9._-]{0,80})\.png$/.exec(tileset.image);
-    if (match?.[1] === undefined) {
+    const imageName = imageNameOf(tileset.image);
+    if (imageName === undefined) {
       findings.push(
         errorFinding(
           file,
@@ -320,20 +388,15 @@ function checkTilesets(
       );
       continue;
     }
-    const imageName = match[1];
+    if (!sizeMatches(tileset, context, file, findings)) continue;
     const imagePath = `tilesets/${imageName}.png`;
-    if (tileset.tilewidth !== context.tileSize && context.tileSize !== undefined) {
-      findings.push(
-        errorFinding(file, "map_tileset", "the tiles are not of the package's tile size", name),
-      );
-    }
     if (!context.files.has(imagePath)) {
       findings.push(errorFinding(file, "map_tileset", `the image ${imagePath} is missing`, name));
       continue;
     }
     const size = context.images.get(imagePath);
     if (size === undefined) continue; // not a PNG: reported for the file itself
-    const count = tileCount(tileset, size);
+    const count = tileCount(tileset, size, tileset.tilewidth, tileset.tileheight);
     if (count === undefined) {
       findings.push(
         errorFinding(
@@ -346,7 +409,8 @@ function checkTilesets(
       continue;
     }
     ranges.push({
-      name: imageName,
+      name: tileset.name,
+      images: [imageName],
       first: tileset.firstgid,
       last: tileset.firstgid + count.count - 1,
     });
@@ -366,6 +430,128 @@ function checkTilesets(
     }
   }
   return ranges;
+}
+
+/** The name of an image in `tilesets/` from the path a map gives it (`../tilesets/<name>.png`). */
+function imageNameOf(image: string): string | undefined {
+  const match = /^\.\.\/tilesets\/([A-Za-z0-9][A-Za-z0-9._-]{0,80})\.png$/.exec(image);
+  return match?.[1];
+}
+
+/** A sheet's tile size is the world's; without a tile size of the package, nothing is compared. */
+function sizeMatches(
+  tileset: TiledTileset,
+  context: MapContext,
+  file: string,
+  findings: WorldFinding[],
+): boolean {
+  if (
+    (context.tileWidth !== undefined && tileset.tilewidth !== context.tileWidth) ||
+    (context.tileHeight !== undefined && tileset.tileheight !== context.tileHeight)
+  ) {
+    findings.push(
+      errorFinding(file, "map_tileset", "the tiles are not of the package's tile size", tileset.name),
+    );
+    return false;
+  }
+  return true;
+}
+
+/** An image-collection tileset: one PNG per tile, their ids may have gaps. */
+function checkCollection(
+  tileset: TiledTileset,
+  file: string,
+  context: MapContext,
+  findings: WorldFinding[],
+): TileRange | undefined {
+  const name = tileset.name;
+  if (!sizeMatches(tileset, context, file, findings)) return undefined;
+  const ids = new Set<number>();
+  const images: string[] = [];
+  for (const tile of tileset.tiles ?? []) {
+    const image = tile.image;
+    const imageName = image === undefined ? undefined : imageNameOf(image);
+    if (imageName === undefined) {
+      findings.push(
+        errorFinding(
+          file,
+          "map_tileset",
+          `tile ${String(tile.id)} has the image ${String(image)}; it must be ../tilesets/<name>.png`,
+          name,
+        ),
+      );
+      continue;
+    }
+    const imagePath = `tilesets/${imageName}.png`;
+    if (!context.files.has(imagePath)) {
+      findings.push(errorFinding(file, "map_tileset", `the image ${imagePath} is missing`, name));
+      continue;
+    }
+    images.push(imageName);
+    ids.add(tileset.firstgid + tile.id);
+    const size = context.images.get(imagePath);
+    if (size === undefined) continue; // not a PNG: reported for the file itself
+    if (
+      (tile.imagewidth !== undefined && tile.imagewidth !== size.width) ||
+      (tile.imageheight !== undefined && tile.imageheight !== size.height)
+    ) {
+      findings.push(
+        errorFinding(file, "map_tileset", `the size of ${imagePath} does not match the tileset`, name),
+      );
+    }
+  }
+  if (ids.size === 0) return undefined;
+  const sorted = [...ids].sort((a, b) => a - b);
+  return {
+    name,
+    images,
+    first: sorted[0] ?? tileset.firstgid,
+    last: sorted[sorted.length - 1] ?? tileset.firstgid,
+    ids,
+  };
+}
+
+/**
+ * The guides of one collection tile: a collision polygon or rectangle named `collision` blocks, and a
+ * polyline named `occlusion` (at most one) gives the depth line. Returns whether the tile blocks.
+ */
+function checkTileGuides(
+  tile: TiledTile,
+  tileset: TiledTileset,
+  file: string,
+  findings: WorldFinding[],
+): boolean {
+  let blocks = false;
+  let occlusion = 0;
+  const label = `${tileset.name} tile ${String(tile.id)}`;
+  for (const guide of tile.objectgroup?.objects ?? []) {
+    const shape = shapeOf(guide);
+    if (guide.name === "collision" && (shape === "polygon" || shape === "rectangle")) {
+      blocks = true;
+    } else if (guide.name === "occlusion" && shape === "polyline" && (guide.polyline?.length ?? 0) >= 2) {
+      occlusion += 1;
+    } else {
+      findings.push(
+        errorFinding(
+          file,
+          "map_guide",
+          "a guide of a tile is a polygon or rectangle named collision, or a polyline named occlusion",
+          label,
+        ),
+      );
+    }
+  }
+  if (occlusion > 1) {
+    findings.push(errorFinding(file, "map_guide", "a tile has more than one occlusion line", label));
+  }
+  return blocks;
+}
+
+/** Whether a global tile id belongs to one of the tilesets of the map. */
+function inRanges(gid: number, ranges: TileRange[]): boolean {
+  return ranges.some((range) =>
+    range.ids !== undefined ? range.ids.has(gid) : gid >= range.first && gid <= range.last,
+  );
 }
 
 /** Checks the tile data of a layer; returns whether it places any tile. */
@@ -413,7 +599,7 @@ function checkTileLayer(
     const gid = value & TILE_ID_MASK;
     if (gid === 0) continue;
     placed = true;
-    if (!unknownReported && !ranges.some((range) => gid >= range.first && gid <= range.last)) {
+    if (!unknownReported && !inRanges(gid, ranges)) {
       findings.push(
         errorFinding(file, "map_tiles", `the tile id ${String(gid)} is in no tileset`, name),
       );
@@ -430,24 +616,38 @@ interface ObjectsResult {
   points: Set<string>;
   /** Approach references: object name → the point it names. */
   approaches: [string, string][];
+  /** Whether a collision rectangle, polygon or border is on the map. */
   collision: boolean;
+  /** Whether a tile with a collision guide is placed on the map. */
+  placedBlocking: boolean;
 }
 
 /** Checks the objects of all object layers of a map. */
-function checkObjects(map: TiledMap, file: string, findings: WorldFinding[]): ObjectsResult {
+function checkObjects(
+  map: TiledMap,
+  file: string,
+  ranges: TileRange[],
+  blockingTiles: Set<number>,
+  findings: WorldFinding[],
+): ObjectsResult {
   const result: ObjectsResult = {
     spawns: new Set(),
     portals: [],
     points: new Set(),
     approaches: [],
     collision: false,
+    placedBlocking: false,
   };
+  const objects = allObjects(map.layers);
   const typedNames = new Set<string>();
-  for (const layer of map.layers) {
-    if (layer.type !== "objectgroup") continue;
-    for (const object of layer.objects) {
-      checkObject(object, file, findings, result, typedNames);
+  const tileObjects = new Set<number>();
+  for (const object of objects) {
+    if (object.gid !== undefined) {
+      tileObjects.add(object.id);
     }
+  }
+  for (const object of objects) {
+    checkObject(object, file, ranges, findings, result, typedNames, tileObjects, blockingTiles);
   }
   return result;
 }
@@ -455,9 +655,12 @@ function checkObjects(map: TiledMap, file: string, findings: WorldFinding[]): Ob
 function checkObject(
   object: TiledObject,
   file: string,
+  ranges: TileRange[],
   findings: WorldFinding[],
   result: ObjectsResult,
   typedNames: Set<string>,
+  tileObjects: Set<number>,
+  blockingTiles: Set<number>,
 ): void {
   const type = typeOf(object);
   const name = object.name ?? "";
@@ -466,6 +669,22 @@ function checkObject(
   if (shape === "ellipse" || shape === "text") {
     findings.push(errorFinding(file, "map_object", `a ${shape} is not allowed`, label));
     return;
+  }
+  if (object.rotation !== undefined && object.rotation !== 0) {
+    findings.push(errorFinding(file, "map_object", "a rotated object is refused", label));
+    return;
+  }
+  if (object.gid !== undefined) {
+    if ((object.gid & FLIP_MASK) !== 0) {
+      findings.push(errorFinding(file, "map_object", "a flipped tile object is refused", label));
+      return;
+    }
+    const gid = object.gid & TILE_ID_MASK;
+    if (!inRanges(gid, ranges)) {
+      findings.push(errorFinding(file, "map_tiles", `the tile id ${String(gid)} is in no tileset`, label));
+      return;
+    }
+    if (blockingTiles.has(gid)) result.placedBlocking = true;
   }
 
   if (type === "") {
@@ -531,7 +750,7 @@ function checkObject(
   if (type === "spawn") {
     result.spawns.add(name);
   } else if (type === "portal") {
-    checkPortal(object, label, file, findings, result, properties);
+    checkPortal(object, label, file, findings, result, properties, tileObjects);
   } else if (type === "clickable") {
     checkClickable(label, file, findings, properties);
   } else if (type === "seat") {
@@ -542,7 +761,7 @@ function checkObject(
         errorFinding(file, "map_property", "table is missing or not 1–40 characters", label),
       );
     }
-  } else if (type === "collision") {
+  } else if (type === "collision" || type === "border") {
     result.collision = true;
   }
 }
@@ -554,21 +773,41 @@ function checkPortal(
   findings: WorldFinding[],
   result: ObjectsResult,
   properties: Map<string, unknown>,
+  tileObjects: Set<number>,
 ): void {
   const targetMap = stringProperty(properties.get("targetMap"));
   const targetSpawn = stringProperty(properties.get("targetSpawn"));
-  if (targetMap === undefined || !WORLD_ID_PATTERN.test(targetMap)) {
+  const hasTarget = properties.has("targetMap") || properties.has("targetSpawn");
+  if (!hasTarget) {
     findings.push(
-      errorFinding(file, "map_property", "targetMap is missing or not a map id", label),
+      warningFinding(file, "portal_no_target", "the portal has no target and does nothing yet", label),
     );
+  } else {
+    if (targetMap === undefined || !WORLD_ID_PATTERN.test(targetMap)) {
+      findings.push(
+        errorFinding(file, "map_property", "targetMap is missing or not a map id", label),
+      );
+    }
+    if (targetSpawn === undefined || !WORLD_ID_PATTERN.test(targetSpawn)) {
+      findings.push(
+        errorFinding(file, "map_property", "targetSpawn is missing or not a spawn name", label),
+      );
+    }
   }
-  if (targetSpawn === undefined || !WORLD_ID_PATTERN.test(targetSpawn)) {
+  const marker = properties.get("marker");
+  if (marker !== undefined && (typeof marker !== "number" || !tileObjects.has(marker))) {
     findings.push(
-      errorFinding(file, "map_property", "targetSpawn is missing or not a spawn name", label),
+      errorFinding(file, "map_property", "marker must name a tile object of the same map", label),
     );
   }
   checkLabel(properties, label, file, findings);
-  if (targetMap !== undefined && targetSpawn !== undefined && object.name !== undefined) {
+  if (
+    targetMap !== undefined &&
+    targetSpawn !== undefined &&
+    WORLD_ID_PATTERN.test(targetMap) &&
+    WORLD_ID_PATTERN.test(targetSpawn) &&
+    object.name !== undefined
+  ) {
     result.portals.push({ object: label, targetMap, targetSpawn });
   }
 }
@@ -678,8 +917,8 @@ function stringProperty(value: unknown): string | undefined {
 }
 
 /**
- * The references between the maps of the package (MAP-08): every portal names a map of the package
- * and a spawn point of that map; the start map is one of the maps. `mapIds` holds every map of the
+ * The references between the maps of the package (MAP-08): every portal with a target names a map of the
+ * package and a spawn point of that map; the start map is one of the maps. `mapIds` holds every map of the
  * package, also those that could not be read, so a broken map is not reported as missing; the spawn
  * points of an unreadable map are not known and are not checked.
  */

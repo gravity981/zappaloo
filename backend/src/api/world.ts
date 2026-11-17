@@ -1,7 +1,6 @@
 // The world of the event (sw-architecture.md 14.4, MAP-05, MAP-09, MAP-10): the admin imports a world
 // package as a whole, reads the worlds, and rolls back. Players load the active world and its maps,
 // tilesets and avatar sprites; sign-in and the closed-platform gate apply as for every /api route.
-import type { FastifyReply, FastifyRequest } from "fastify";
 import fp from "fastify-plugin";
 import { z } from "zod";
 import {
@@ -114,31 +113,23 @@ const worldPlugin: FastifyPluginAsyncZod<WorldOptions> = (app, { world }) => {
     () => world.publicWorld(),
   );
 
-  // The files of a world: maps, tileset images and avatar sprites, by the import id (the version).
-  // A world changes its import id with every import, so the files are cached for a year (MAP-10).
-  // Each folder has its own route, so the route table names every address the app serves.
-  const file = async (
-    request: FastifyRequest<{ Params: { importId: string; file: string } }>,
-    folder: string,
-    reply: FastifyReply,
-  ) => {
-    const path = `${folder}/${request.params.file}`;
-    const bytes = world.file(request.params.importId, path);
-    if (bytes === undefined) return reply.status(404).send();
-    const extension = request.params.file.split(".").pop() ?? "";
-    return reply
-      .type(CONTENT_TYPES[extension] ?? "application/octet-stream")
-      .header("cache-control", "public, max-age=31536000, immutable")
-      .send(bytes);
-  };
-  const fileParams = z.object({ importId: z.string(), file: z.string() });
-  for (const folder of ["maps", "tilesets", "avatar"]) {
-    app.get<{ Params: { importId: string; file: string } }>(
-      `/api/world/:importId/${folder}/:file`,
-      { schema: { params: fileParams, querystring: noQuery } },
-      (request, reply) => file(request, folder, reply),
-    );
-  }
+  // The files of a world: maps, tileset images, and the figures' metadata and frames, by the import id (the
+  // version). A world changes its import id with every import, so the files are cached for a year (MAP-10).
+  const fileParams = z.object({ importId: z.string(), "*": z.string() });
+  app.get<{ Params: { importId: string; "*": string } }>(
+    "/api/world/:importId/*",
+    { schema: { params: fileParams, querystring: noQuery } },
+    (request, reply) => {
+      const path = request.params["*"];
+      const bytes = world.file(request.params.importId, path);
+      if (bytes === undefined) return reply.status(404).send();
+      const extension = path.split(".").pop() ?? "";
+      return reply
+        .type(CONTENT_TYPES[extension] ?? "application/octet-stream")
+        .header("cache-control", "public, max-age=31536000, immutable")
+        .send(bytes);
+    },
+  );
 
   return Promise.resolve();
 };

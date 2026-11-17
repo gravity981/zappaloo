@@ -35,6 +35,7 @@ describe("the places migration (CNT-07)", () => {
       "0018_theme_active.sql",
       "0019_theme_waiting.sql",
       "0020_world_packages.sql",
+      "0021_world_format_2.sql",
     ]);
     const apply = (file: string) => {
       sqlite.exec(readFileSync(join(MIGRATIONS_DIR, file), "utf8"));

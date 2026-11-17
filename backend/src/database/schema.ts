@@ -675,11 +675,12 @@ export const worldPackages = sqliteTable(
     name: text("name").notNull(),
     formatVersion: integer("format_version").notNull(),
     startMap: text("start_map").notNull(),
-    tileSize: integer("tile_size").notNull(),
+    tileWidth: integer("tile_width").notNull(),
+    tileHeight: integer("tile_height").notNull(),
     importedAt: integer("imported_at", { mode: "timestamp_ms" }).notNull(),
     /** The ids of the maps as JSON. */
     maps: text("maps").notNull(),
-    /** The avatar definition (`avatar/avatar.json`) as JSON. */
+    /** The figures a guest can choose (`avatar/figures.json`) as JSON. */
     avatar: text("avatar").notNull(),
     /** Whether the package has a door scene of its own. */
     hasDoor: integer("has_door", { mode: "boolean" }).notNull(),

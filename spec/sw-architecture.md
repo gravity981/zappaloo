@@ -236,7 +236,7 @@ Guests use the platform most around a few moments. The features are designed aro
 
 ## 3.1 Top-Down Pixel-Art World
 
-The game world is shown in a classic top-down perspective.
+The game world is shown in an isometric, top-down perspective (2:1 tiles, decided 2026-11-15).
 
 Guests move their personal avatar through a digital world modelled on the actual event venues.
 
@@ -347,10 +347,10 @@ A treasure hunt connects the real venue with the game world:
 | ID | Requirement | Prio |
 |---|---|---|
 | GAME-01 | The game world is rendered in the browser as a top-down pixel-art world using Phaser. | Must |
-| GAME-02 | Avatars move smoothly in all directions and collide with the collision areas of the map; the camera follows the player's avatar. | Must |
+| GAME-02 | Avatars move smoothly in all directions and collide with the collision areas of the map (collision tiles, collision shapes and polygons, tile guides and borders, reworded 2026-11-15); the camera follows the player's avatar. | Must |
 | GAME-03 | The world consists of several maps (areas) that are connected in a logical order via portals. | Must |
 | GAME-04 | The whole world can be explored before the event; by default no area is locked or unlocked automatically according to the real schedule. | Must |
-| GAME-05 | Map objects are defined through the generic types `portal` (leads to another map at a spawn point), `clickable` (an object the player can activate) and `decoration` (no interaction); their behaviour is determined by type and configuration (14.2, decided 2026-11-10). | Must |
+| GAME-05 | Map objects are defined through the generic types `portal` (a trigger area that leads to another map at a spawn point), `clickable` (an object the player can activate) and `decoration` (no interaction); their behaviour is determined by type and configuration (14.2, decided 2026-11-10, reworded 2026-11-15). | Must |
 | GAME-06 | Activating a clickable object runs its action: open a website page as an overlay, show a content item shared with the website, show a dialogue, or start a minigame; a portal leads to another map at a spawn point. | Must |
 | GAME-07 | Controls and display of the game world are suitable for the intended screen sizes (desktop and smartphone). | Must |
 | GAME-08 | The world can contain easter eggs (hidden interactive objects with special content). | Could |
@@ -360,10 +360,11 @@ A treasure hunt connects the real venue with the game world:
 | GAME-12 | Once the platform is open (ACS-10), the user lands in the game world after sign-in; the classic website is reachable with one click from the game; direct links (upload links, links in emails) open their target page directly. | Must |
 | GAME-13 | On the first entry into the world, the guest is guided: create the avatar (also for their accompanying persons), optionally add a profile photo and greeting, answer the RSVP in an overlay if not yet done, then play freely. | Must |
 | GAME-14 | A bar with buttons for Programme, RSVP, Upload and Website is always visible at the top of the game; while the guest's RSVP is open, it shows a badge; there are no further buttons on top of the game. | Must |
-| GAME-15 | Clickable objects sparkle briefly at random intervals, and portals are shown as wobbling arrows, so players see what they can use (decided 2026-11-10). | Must |
-| GAME-16 | Clicking or tapping a clickable object or a portal walks the avatar to the object's approach point; when it arrives, the action runs; on desktop, Enter or Space activates the object the avatar stands in front of. | Must |
+| GAME-15 | Clickable objects sparkle briefly at random intervals, and portals are shown as wobbling arrows, so players see what they can use; the arrow of a portal is the tile object named by its `marker` (decided 2026-11-10, reworded 2026-11-15). | Must |
+| GAME-16 | Clicking or tapping a clickable object walks the avatar to the object's approach point; when it arrives, the action runs. Walking into a portal's trigger area takes the player through, and tapping a portal walks the player into it (reworded 2026-11-15). On desktop, Enter or Space activates the object the avatar stands in front of. | Must |
 | GAME-17 | On the first entry, a short hint ("Tippe auf Dinge, die funkeln") is shown until the player activates the first object. | Should |
 | GAME-18 | Clicking or tapping the player's own avatar opens the profile as an overlay. | Could |
+| GAME-19 | Objects and figures are drawn in depth order: a figure whose feet are behind an occlusion line of a tile object is drawn behind that object, otherwise in front (14.2; added 2026-11-15). | Must |
 | MP-01 | ~~Each map is a separate multiplayer room managed by the server.~~ (withdrawn: no multiplayer, see 3.3) | – |
 | MP-02 | ~~Players on the same map see the avatars and movements of the other players in that room in near real time.~~ (withdrawn: no multiplayer, see 3.3) | – |
 | MP-03 | ~~Passing through a portal moves the player from the current room to the target map's room at the configured target spawn point.~~ (withdrawn: no multiplayer; portals are covered by GAME-06) | – |
@@ -403,7 +404,7 @@ Minigames are a separate part of Zappaloo. They do not work in isolation; they c
 
 Minigames are implemented as separate Phaser scenes.
 
-Minigames ship with the platform: their code and their content (questions, tasks, levels) are part of the platform code and change only with a deployment. Each minigame is registered under a unique `minigameId`. In the game world, a minigame is started through a portal whose `minigameId` property names that minigame.
+Minigames ship with the platform: their code and their content (questions, tasks, levels) are part of the platform code and change only with a deployment. Each minigame is registered under a unique `minigameId`. In the game world, a minigame is started through a clickable object whose `minigameId` property names that minigame.
 
 When a minigame starts:
 1. The current game world is paused.
@@ -817,20 +818,17 @@ In that case the existing account is used. No second account is created.
 
 ## 7.3 Avatar Editor
 
-Every signed-in user can design their own pixel-art avatar.
+Every signed-in user can choose their own pixel-art figure. Each user chooses one figure for themselves and one for each approved companion (3.6, 7.4).
 
-Possible customisations:
-- Skin colour.
-- Hairstyle.
-- Hair colour.
-- Clothing.
-- Clothing colours.
-- Accessories.
-- Predefined templates.
+The editor offers the figures of the active world package (14.4), decided 2026-11-15 to replace the parts of the former editor:
 
-The avatar configuration is stored with the user or their event membership.
+- A grid of the figures, each with its label where it has one.
+- A walking preview of the chosen figure.
+- "Zufällig" (random): picks a figure at random, so that the first entry takes one tap.
 
-Avatars are based on prepared pixel-art graphics. No AI API is required, and avatars are not generated from photos. The graphics of the avatar editor come with the world package, so they match the style of the maps (14.4, decided 2026-11-13).
+A figure is a complete, prepared pixel-art character. There is no skin colour, hairstyle, clothing or template; the figures of the package differ in what they show. The chosen figure is stored with the user or their event membership as `{ "figure": "<id>" }` (AVA-02). If the active world has no such figure, the first figure of the world applies.
+
+Avatars are based on prepared pixel-art graphics. No AI API is required, and avatars are not generated from photos. The figures come with the world package, so they match the style of the maps (14.4, decided 2026-11-13).
 
 ## 7.4 RSVP
 
@@ -907,8 +905,8 @@ Every signed-in guest responds to the invitation. The RSVP gives guests a reason
 | ACC-18 | An admin can block and unblock an active account; a blocked account cannot sign in, its sessions and open links end, it gets no new link and no email, and its data stays and keeps counting. | Must |
 | ACC-19 | An admin can delete an account together with its RSVP, accompanying persons and invitations. | Must |
 | ACC-20 | An account an admin creates stays inactive until its setup link is used; when it gets `vip`, the admin chooses its invited program items in the same form. | Must |
-| AVA-01 | A signed-in user can design a pixel-art avatar in an avatar editor (skin colour, hairstyle, hair colour, clothing, clothing colours, accessories, predefined templates). | Must |
-| AVA-02 | The avatar configuration is stored with the user or their event membership. | Must |
+| AVA-01 | A signed-in user chooses a complete pixel-art figure for their avatar in the avatar editor, from the figures of the active world package; a figure may have a label (reworded 2026-11-15). | Must |
+| AVA-02 | The avatar configuration (`{ "figure": id }`) is stored with the user or their event membership; a figure that the active world no longer has falls back to its first figure (reworded 2026-11-15). | Must |
 | AVA-03 | Avatars are composed from prepared pixel-art assets; no AI API is used. | Must |
 | AVA-04 | The configured avatar is rendered in the game world as the user's own avatar and, for other users, as the user's wandering figure. | Must |
 | RSVP-01 | Every signed-in guest can submit an RSVP for the program items they are invited to: one answer for all of them, or yes or no for each (RSVP-11). | Must |
@@ -1537,11 +1535,11 @@ Maps consist of several layers, for example:
 - Foreground.
 - Collision areas.
 
-Object layers can also be used.
+Object layers can also be used. Maps are **isometric** Tiled maps with 2:1 tiles (decided 2026-11-15, format version 2). Layers may be grouped; the platform reads groups recursively, in the order of the file. A hidden layer is not drawn, but its objects still apply.
 
 They define, for example:
 - Spawn points.
-- Collisions.
+- Collisions and borders.
 - Portals.
 - NPCs.
 - Interaction points.
@@ -1551,13 +1549,26 @@ They define, for example:
 
 ## 14.2 Object Properties
 
-In Tiled, each object gets a `type`, a unique name and its properties. Examples:
+In Tiled, each object gets a `type` (Tiled's "Class"), a unique name where the type needs one, and its properties. Examples:
 
 - Spawn point: `type = spawn`, name e.g. `entrance`
-- Portal to another map: `type = portal`, `targetMap = dinner`, `targetSpawn = entrance`
+- Portal to another map: `type = portal`, `targetMap = dinner`, `targetSpawn = entrance`, optional `marker` (the arrow, see below)
 - Clickable object: `type = clickable`, unique name e.g. `church`, optional `label` (shown in the prompt, e.g. "Programm"), optional `approach` (name of a point object where the avatar stops; default: below the object's bottom edge), optional preset action `action = page | content | dialog | minigame` with `page = programme`, `contentId = npc-pastor` or `minigameId = quiz-01`
 - Seat: `type = seat`, `table = 3` (see 3.6)
 - Wander area: `type = wander`, where guest figures walk around
+- Border: `type = border`, a closed polygon whose outline blocks the guests in both directions; its inside stays walkable (decided 2026-11-15)
+- Collision: `type = collision`, a rectangle or polygon that blocks its inside
+
+**Portals** (decided 2026-11-15, format version 2). A portal is a rectangle or a polygon, the **trigger area**: a guest who walks into it is taken to `targetMap` at `targetSpawn`; a guest who taps it walks into it first. The wobbling arrow is a separate tile object, a `decoration`, which the portal names in its property `marker` (a Tiled object reference to that tile object on the same map). A portal without `targetMap` and `targetSpawn` does nothing yet and is reported as a warning, so a world with one map imports. The target stays in Tiled: the admin area shows it read-only.
+
+**Tile guides** (decided 2026-11-15). A tile of an image-collection tileset may carry guides in its object group, drawn in the tile image's own pixel coordinates and moved, scaled and aligned with each placed tile object:
+
+- a polygon or rectangle named `collision` blocks its inside;
+- a polyline named `occlusion` is the depth line of the object: a figure whose feet are behind the line (above it on screen) is drawn behind the object, otherwise in front (GAME-19). Without a line, the object's bottom edge decides.
+
+Properties on tiles of the tilesets are ignored.
+
+**Map properties.** `name` (1–60 characters) is the name the admin area shows. `cameraZoom` is fixed at 2 for every map (decided 2026-11-15): a value in the map is not read and is reported as a warning. Other map properties are reported as well.
 
 **Maps are not linked to program items** (decided 2026-11-14). The game world and the schedule are different things. The former map property `programItem` is dropped, each guest's figure walks on one map picked at random (3.6, PRES-02), and the programme has no "Go there" (WEB-08 withdrawn).
 
@@ -1565,7 +1576,7 @@ The action of a clickable object (decided 2026-11-14):
 
 - `page`: opens a page as a full overlay above the paused game (GAME-11). `page` names a built-in page (`programme`, `rsvp`, `profile`; later stages add theirs) or a content page as `p/<slug>`.
 - `content`: shows the text of the content page whose slug is `contentId` in a small reading panel, e.g. for a sign or a plaque (CNT-03).
-- `dialog`: shows the dialogue whose id is `contentId`: an NPC name and lines the guest taps through. Dialogues are content items edited in Inhalte (6.2).
+- `dialog`: shows the dialogue whose id is `contentId`: an NPC name and lines the guest taps through. Dialogues are content items, edited in "Erlebniswelt" (14.4).
 - `minigame`: starts the minigame `minigameId` (stage 8).
 
 Objects with `type = protected` are accepted and have no behaviour yet; locked maps and zones come with the first access conditions on the game world (decided 2026-11-14).
@@ -1587,7 +1598,7 @@ The admin dashboard contains a world importer (decided 2026-11-13, replaces the 
 - the maps (Tiled JSON, including portal targets) and their tilesets,
 - the objects placed on the maps,
 - the door scene of the waiting page (10.4, ACS-12),
-- the assets of the avatar editor (7.3).
+- the figures of the avatar editor (7.3).
 
 Dialogues and NPC texts are not in the package. They are content, edited by admins in the admin view "Erlebniswelt" (6.2, 14.4 below). Minigames, albums, treasure hunt items and quiz content are separate too.
 
@@ -1601,113 +1612,121 @@ The importer brings a package into the running platform:
 
 The package is a `tar.gz` with a format version, like the theme package (19.7). Until a world package is imported, the built-in door scene applies, and the door files of stage 3 in the data volume are still read (10.4).
 
-**Layout, format version 1** (draft agreed 2026-11-14, completed in step 5a). The files sit at the root of the archive, without a wrapping folder. The layout, the limits and the rules of this format are declared in `shared/src/packages/world-v1.ts`; the validator checks packages against that declaration, and the Markdown document is generated from it into `dist/formats/` by `npm run schemas`, is build output and is attached to every release (decided 2026-11-14).
+**Layout, format version 2** (decided 2026-11-15; it replaces format version 1, which was agreed on 2026-11-14 and never released). The files sit at the root of the archive, without a wrapping folder. The layout, the limits and the rules of this format are declared in `shared/src/packages/world-v2.ts`; the validator checks packages against that declaration, and the Markdown document is generated from it into `dist/formats/` by `npm run schemas`, is build output and is attached to every release.
 
 ```text
 world.tar.gz
   manifest.json
   maps/
-    <map id>.json            Tiled JSON, one file per map
+    <map id>.json              Tiled JSON, isometric, one file per map
   tilesets/
-    <name>.png               the images of the tilesets
+    <name>.png                 a sheet tileset, or one image per tile of an image collection
   avatar/
-    avatar.json              parts, palettes and templates of the avatar editor
-    <name>.png               the sprite sheets of the parts
-  door/                      optional: the door scene of the waiting page
+    figures.json               the figures a guest can choose (7.3)
+    <figure>/                  one folder per figure, in any sub-folders
+      metadata.json            the PixelLab metadata of the figure, unchanged
+      Idle/rotations/*.png     the standing pose, one per direction
+      Idle/animations/walking/<direction>/*.png   the walk frames
+  door/                        optional: the door scene of the waiting page
     door.json
     door.png
-    door-glimpse.png         optional
+    door-glimpse.png           optional
 ```
 
-**`manifest.json`** names the kind of package, its format version, a name the admin recognises it by, the start map and the tile size of all maps:
+**`manifest.json`** names the kind of package, its format version, a name the admin recognises it by, the start map and the size of the tiles of all maps:
 
 ```json
-{ "kind": "zappaloo-world", "formatVersion": 1, "name": "Sommerfest", "startMap": "kirche", "tileSize": 16 }
+{ "kind": "zappaloo-world", "formatVersion": 2, "name": "Sommerfest", "startMap": "kirche", "tileWidth": 64, "tileHeight": 32 }
 ```
 
 | Field | Rule |
 |---|---|
 | `kind` | `zappaloo-world`. |
-| `formatVersion` | A version the platform reads, today only `1`. As for the theme package (19.7), the version covers the layout and the fields of all JSON files of the package. A change raises it, and the platform keeps reading the versions it lists. |
+| `formatVersion` | A version the platform reads, today only `2`. As for the theme package (19.7), the version covers the layout and the fields of all JSON files of the package. A change raises it, and the platform keeps reading the versions it lists. |
 | `name` | 1–60 characters. |
 | `startMap` | The id of a map in `maps/`. |
-| `tileSize` | 8–64 (pixels, square tiles). Every map and every tileset uses it. 16 is recommended. |
+| `tileWidth`, `tileHeight` | 8–128 pixels each. Every map and every tileset uses them. The prototype uses 64 × 32 (2:1). |
 
-**Maps.** The optional map property `name` (1–60 characters) is the name the admin area shows; without it, the id is shown (decided 2026-11-14, added within format version 1, which is not released yet). A map's id is its file name without `.json`: 1–40 characters of `a–z 0–9 -`. The id is what portals and the admin view "Erlebniswelt" use, so renaming a map file loses its assignments. A map is a Tiled JSON export with these rules:
+**Maps.** The optional map property `name` (1–60 characters) is the name the admin area shows; without it, the id is shown. A map's id is its file name without `.json`: 1–40 characters of `a–z 0–9 -`. The id is what portals and the admin view "Erlebniswelt" use, so renaming a map file loses its assignments. A map is a Tiled JSON export with these rules:
 
-- `orientation` is `orthogonal`, the map is not `infinite`, `tilewidth` and `tileheight` equal `tileSize`. At most 200 × 200 tiles.
-- **Tilesets are embedded** in the map (in Tiled: "Embed tileset", or "Embed tilesets" in the export options). A reference to an external tileset (`source`) is refused, because the game cannot load it. Each tileset is based on one image (no "collection of images"), the image is a PNG in `tilesets/`, named relative to the map (`../tilesets/<name>.png`), and its tiles have the size `tileSize`. Margin and spacing are allowed.
-- **Layers** are tile layers and object layers. Group layers and image layers are refused. Tile data is stored as an array (Tiled's layer format "CSV") or as Base64 without compression; compressed data is refused.
-- **Drawing order:** tile layers are drawn in the order of the file. Tile layers whose name starts with `above` (e.g. `above-roofs`) are drawn over the avatars and figures. At least one tile layer other than `collision` is required.
-- **Collisions:** every tile of the tile layer named `collision` blocks; the layer itself is not drawn. Rectangles with `type = collision` in an object layer block too. A map without either gets a warning.
-- **Objects** carry their type in Tiled's field "Class" (saved as `type`, or as `class` by Tiled 1.9). Each object of the types `spawn`, `portal` and `clickable` has a name that is unique among the objects of the map, 1–40 characters of `a–z 0–9 -`. Properties are Tiled custom properties.
+- `orientation` is `isometric`, the map is not `infinite`, and `tilewidth` and `tileheight` equal `tileWidth` and `tileHeight`. At most 200 × 200 tiles.
+- **Tilesets are embedded** in the map (in Tiled: "Embed tilesets" in the export options). A reference to an external tileset (`source`) is refused, because the game cannot load it.
+  - A **sheet tileset** has one image in `tilesets/`, a whole number of tiles.
+  - An **image-collection tileset** has one PNG per tile in `tilesets/` (its `tiles` list). Its tile ids may have gaps. Its images are not whole tiles; their size is the size declared in the tileset.
+  - Every image is named relative to the map (`../tilesets/<name>.png`), and the margin and spacing of a sheet are allowed.
+- **Layers** are tile layers, object layers and group layers. Group layers are read recursively, in the order of the file. Image layers are refused. Tile data is stored as an array (Tiled's layer format "CSV") or as Base64 without compression; compressed data is refused. A **hidden** layer is not drawn, but its objects still apply.
+- **Tile objects** may be scaled, not rotated or flipped. Their alignment and offset are honoured.
+- **Collisions:** every tile of the tile layer named `collision` blocks; the layer itself is not drawn. Collision objects (14.2) and tile guides named `collision` block too. A border blocks its outline (14.2). A map without any of these gets a warning.
+- **Drawing order:** objects and figures are sorted by depth; the occlusion lines of tiles decide between a figure and an object (14.2, GAME-19).
+- **Objects** carry their type in Tiled's field "Class" (saved as `type`, or as `class` by Tiled 1.9). Each object of the types `spawn`, `portal` and `clickable` has a name that is unique among the spawn points, portals and clickable objects of the map, 1–40 characters of `a–z 0–9 -`. Properties are Tiled custom properties.
 
 | Type | Shape | Properties |
 |---|---|---|
 | `spawn` | Point | – Every map has a spawn point named `start`, where a player enters the map without a portal. |
-| `portal` | Rectangle, or tile object | `targetMap` (a map id in the package), `targetSpawn` (a spawn point of that map), optional `label`, optional `approach`. |
-| `clickable` | Rectangle, or tile object | Optional `label` (1–40 characters), optional `approach` (name of a point object on the same map), optional preset `action` = `page`, `content`, `dialog` or `minigame` with `page`, `contentId` or `minigameId` (14.2). Optional `hidden` (boolean): an easter egg, which does not sparkle (GAME-08). |
-| `decoration` | Any, usually a tile object | – |
+| `portal` | Rectangle or polygon (the trigger area) | `targetMap` and `targetSpawn` (a map id of the package and a spawn point of that map; both or neither), optional `marker` (a tile object of the same map), optional `label`, optional `approach`. Neither target is a warning. |
+| `clickable` | Rectangle, polygon, or tile object | Optional `label` (1–40 characters), optional `approach` (name of a point object on the same map), optional preset `action` = `page`, `content`, `dialog` or `minigame` with `page`, `contentId` or `minigameId` (14.2). Optional `hidden` (boolean): an easter egg, which does not sparkle (GAME-08). |
+| `decoration` | Rectangle, polygon, point or tile object, usually a tile object | – A portal's arrow is a decoration named by the portal's `marker`. |
 | `seat` | Point | `table`: 1–40 characters (3.6, stage 6). |
 | `wander` | Rectangle or polygon | – (3.6, stage 6) |
-| `collision` | Rectangle | – |
+| `border` | Polygon | – The outline blocks, the inside is walkable. |
+| `collision` | Rectangle or polygon | – |
 | `protected` | Rectangle | Accepted, no behaviour yet (14.2). |
 
-A point object without a type (for example an `approach` point) is allowed. Other types are refused.
+A point object without a type (for example an `approach` point) is allowed. Other types are refused; a portal that is a tile object is refused.
 
-**Avatar assets** (7.3). `avatar/avatar.json`:
+**Figures** (decided 2026-11-15, replaces the avatar parts of format version 1). The avatar editor chooses a complete figure; there are no skin colours, hairstyles or clothing parts.
+
+`avatar/figures.json` lists the figures:
 
 ```json
-{
-  "frameWidth": 16,
-  "frameHeight": 24,
-  "palettes": {
-    "skin": ["#f6d7b0", "#e0ac7e", "#a86f4b", "#6b4329"],
-    "hair": ["#2b1d14", "#7a4a26", "#d8b25a", "#b8b8b8"],
-    "outfit": ["#3b5b92", "#8e3b46", "#3f7a4f", "#e7e2d4"]
-  },
-  "parts": {
-    "body": { "palette": "skin", "options": [{ "id": "base", "label": "Standard", "file": "body.png", "detail": "body-detail.png" }] },
-    "outfit": { "palette": "outfit", "options": [{ "id": "suit", "label": "Anzug", "file": "outfit-suit.png" }] },
-    "hair": { "palette": "hair", "optional": true, "options": [{ "id": "short", "label": "Kurz", "file": "hair-short.png" }] },
-    "accessory": { "optional": true, "options": [{ "id": "glasses", "label": "Brille", "file": "acc-glasses.png" }] }
-  },
-  "templates": [
-    { "label": "Festlich", "avatar": { "body": "base", "skin": "#e0ac7e", "outfit": "suit", "outfitColor": "#3b5b92", "hair": "short", "hairColor": "#2b1d14", "accessory": null } }
-  ]
-}
+{ "figures": [
+  { "id": "wedding-guest", "label": "Gast", "metadata": "wedding-guest/metadata.json" },
+  { "id": "male-guest", "metadata": "male-guest/metadata.json" }
+] }
 ```
 
 | Field | Rule |
 |---|---|
-| `frameWidth`, `frameHeight` | 8–64 pixels. |
-| `palettes` | 1–8 palettes; a name is 1–20 characters of `a–z 0–9 -`; each holds 1–16 colours `#rrggbb`. |
-| `parts` | Exactly the keys `body`, `outfit`, `hair`, `accessory`, drawn in this order. Each has 1–24 `options`. `palette` names a palette, so the part is tinted with the chosen colour; without it the part is drawn as it is. `optional: true` adds "Ohne" (not allowed for `body` and `outfit`). |
-| options | `id` 1–40 characters of `a–z 0–9 -`, unique within the part; `label` 1–30 characters; `file` a PNG in `avatar/`; optional `detail`, a PNG drawn untinted over the part (eyes, outlines). |
-| `templates` | 0–12 entries, each with a `label` and a complete avatar whose ids and colours exist. |
+| `figures` | 1 to 50 figures (decided 2026-11-15). |
+| `id` | 1–40 characters of `a–z 0–9 -`, unique. |
+| `label` | Optional, 1–30 characters: the name the editor shows. Without it, the editor shows no name. |
+| `metadata` | The path of the figure's metadata, relative to `avatar/`. |
 
-- **Sprite sheets.** Every part image is exactly 4 × `frameWidth` wide and 4 × `frameHeight` high: four rows for the directions down, left, right, up, four walk frames per row; the first frame of a row is the standing pose. A tinted part is drawn in greyscale, and the colour of the palette multiplies it, so white becomes the chosen colour. Every PNG in `avatar/` is named in `avatar.json`.
-- **The stored avatar** (AVA-02) is `{ body, skin, outfit, outfitColor, hair, hairColor, accessory }`: option ids and colours as `#rrggbb` (`hair` and `accessory` may be `null`). An id or colour that the active world no longer has falls back to the first option or colour of its part, both in the game and in the editor (decided 2026-11-14).
+The **PixelLab metadata** (`metadata.json`) and its frames are included unchanged. Frame paths inside the metadata are relative to the folder of the metadata. The validator reads only the following fields; all other fields are ignored, which is the one exception to the rule that unknown fields are refused:
+
+- the first entry of `states`;
+- its `character.size` (`width`, `height`): the canvas of every frame;
+- `frames.rotations` with `south`, `west`, `east` and `north`: the standing pose of each direction;
+- `frames.animations.walking` with the same four directions, each a list of frames; the four lists have the same number of frames, 1 to 16.
+
+Every listed frame is a PNG of exactly the canvas size, with sides of 8 to 256 pixels, inside the figure's folder. Every PNG and metadata file in `avatar/` is named by a figure.
+
+Game side, not in the package: the standing pose is shown when the figure stands; the walk frames play in the listed order at 8 frames per second; the figure faces the nearest of its four directions on screen. The stored avatar is `{ "figure": "<id>" }` (AVA-02). An id that the active world no longer has falls back to the first figure; companions choose a figure the same way.
+
+**Limits.** At most 3000 files per package (was 500). The other limits stay: 40 MB packed, 100 MB unpacked, 5 MB per JSON file, 8 MB and 4096 × 4096 pixels per PNG.
+
+**Door scene** (unchanged). `door/door.json` and `door/door.png`, with an optional `door/door-glimpse.png`, in the format of 10.4. Without `door/` the built-in scene applies. The door files of the data volume are no longer read once a world is active.
 
 **Door scene.** `door/door.json` and `door/door.png`, with an optional `door/door-glimpse.png`, in the format of 10.4. Without `door/` the built-in scene applies. The door files of the data volume are no longer read once a world is active.
 
 **The validator** checks the whole package before anything changes. **Errors** refuse the package:
 
-- The upload is a gzip-compressed tar archive of at most 40 MB, at most 100 MB unpacked, with at most 500 files.
+- The upload is a gzip-compressed tar archive of at most 40 MB, at most 100 MB unpacked, with at most 3000 files.
 - It contains only regular files and folders, with relative paths inside the layout above. Links, absolute paths, `..` and files the layout does not name (for example Tiled's `.tmx`, `.tsx` or `.tiled-project` files) are refused.
-- Every JSON file is valid JSON of at most 5 MB. `manifest.json` and `avatar.json` have exactly the fields above; an unknown field is refused.
-- Every PNG is a PNG of at most 4096 × 4096 pixels and 8 MB. The image of a tileset is a whole number of tiles wide and high (with its margin and spacing).
-- Every map follows the map rules above: format, layers, embedded tilesets with existing images, the spawn point `start`, unique names, object types and shapes, the properties of each type. `approach` names a point object of the same map. `action` is one of the four values and comes with its property; `page` is `programme`, `rsvp`, `profile` or `p/<slug>`.
-- Every portal points to a map of the package and a spawn point of that map (MAP-08).
+- Every JSON file is valid JSON of at most 5 MB. `manifest.json` and `avatar/figures.json` have exactly the fields above; an unknown field is refused. The PixelLab metadata is checked as described above.
+- Every PNG is a PNG of at most 4096 × 4096 pixels and 8 MB.
+- Every map follows the map rules above: format, layers, embedded tilesets with existing images, tile ids, the spawn point `start`, unique names, object types and shapes, tile guides, the properties of each type. `approach` names a point object of the same map. `action` is one of the four values and comes with its property; `page` is `programme`, `rsvp`, `profile` or `p/<slug>`. `marker` names a tile object of the same map.
+- Every portal with a target points to a map of the package and a spawn point of that map (MAP-08).
 - `startMap` names a map of the package.
-- The avatar assets follow the rules above, with every image at exactly its sheet size.
+- The figures follow the rules above: the list, the metadata, the canvas and every frame, the walk of the same length in all directions, and no file of `avatar/` that no figure names.
 - `door/`, when present, follows 10.4: `door.json` valid, `door.png` present, the sheet a whole number of frames.
 
 **Warnings** do not refuse the package; the importer lists them with the active world:
 
 - A preset action points to a page, content page or dialogue that does not exist (MAP-08).
 - A preset action `minigame`, until minigames exist (stage 8), and later one that points to a missing minigame.
-- A custom property the type does not know (often a typo, e.g. `contentID`).
+- A property the object type does not know (often a typo, e.g. `contentID`), including the descriptive properties of Tiled's objects (`name`, `category`, `symbol`), which the platform does not read. A map property the platform does not read, such as `programItem` or `previewFormat`, and `cameraZoom` (fixed at 2, see above).
+- A portal without a target, which does nothing yet (decided 2026-11-15).
 - A PNG in `tilesets/` that no map uses.
 - A map without collisions.
 
@@ -1717,7 +1736,7 @@ The answer lists every finding with its file, the map object where there is one,
 
 **Import and rollback.** As for the theme package (19.7): the package is read and validated in memory; a valid package is written to a staging folder in `$DATA_DIR/events/event1/world/`, moved to `<import id>/`, and one database transaction makes it the active world and writes its audit entry (`world.import`). The previous world is kept as the one to roll back to (`world.rollback`, after a second click); the world before that is removed. A rollback swaps the active and the previous world. Both entries appear on the card "Zuletzt". Only an admin imports or rolls back. The imported package cannot be downloaded.
 
-**Serving.** `GET /api/world` returns the active world (name, import id as version, start map, tile size, maps, the avatar definition) or `null`. The files are served under `/api/world/<import id>/…` (maps, tileset images, avatar images). The version in the path changes with every import, so a new world loads on the next map entry and the files can be cached for a year (MAP-10). All of it needs sign-in, and for guests an open platform (ACS-07, ACS-10).
+**Serving.** `GET /api/world` returns the active world (name, import id as version, start map, tile width and height, maps, the figures) or `null`. The files are served under `/api/world/<import id>/…` (maps, tileset images, avatar images). The version in the path changes with every import, so a new world loads on the next map entry and the files can be cached for a year (MAP-10). All of it needs sign-in, and for guests an open platform (ACS-07, ACS-10).
 
 **Decisions of the stage 5 plan review (2026-11-14):**
 
@@ -1738,7 +1757,7 @@ A new world is used the next time a player enters a map. Cached graphics are ref
 
 - **`$schema`** is allowed in `manifest.json`, `avatar/avatar.json` and in the theme's `manifest.json` and `theme.json`. It only names the JSON Schema for editors (19.7); it is not a field and does not change the rules. Without it the strict field rule would refuse the very key the editor check needs.
 - **Untyped objects** are points only. An untyped object that is a rectangle, polygon or tile is refused; an untyped point is the approach point of a clickable object.
-- **Parts of the avatar:** `body`, `outfit` and `hair` have a palette, because their colour is stored; `accessory` has none. A template names options and colours of the active package (for `hair` and `accessory` `null` when the part is optional). A sprite sheet that no option names is an error, so the folder holds only what the package uses.
+- **Parts of the avatar** (superseded 2026-11-15 by the figures of format version 2, 14.4): `body`, `outfit` and `hair` have a palette, because their colour is stored; `accessory` has none. A template names options and colours of the active package (for `hair` and `accessory` `null` when the part is optional). A sprite sheet that no option names is an error, so the folder holds only what the package uses.
 - **Door sheet:** `door.png` is exactly `frames × frameWidth` wide and `frameHeight` high.
 - **Map references:** a portal to a map that is in the package but could not be read is not reported as a missing map; its spawn points are unknown and are not checked.
 - **Findings** name the file, the map object where there is one (its name, or its layer), the reason and a code. Errors refuse the package; warnings are an unused property (including a map property such as `programItem`), a map without collisions and a tileset image that no map uses. The warnings that depend on the installation (MAP-08, the presets) come with the import (step 5c).
@@ -1747,14 +1766,26 @@ A new world is used the next time a player enters a map. Cached graphics are ref
 
 **Decisions of step 5c** (2026-11-14, for the project owner to confirm; the layout above did not settle them):
 
-- **Storage:** the table `world_packages` holds the active and the previous world, one row per role per event (unique), with the name, format version, start map, tile size, map ids, avatar definition, door flag and the import's warnings. The files of an import sit in `$DATA_DIR/events/event1/world/<import id>/`, as the package's own layout.
+- **Storage** (columns changed 2026-11-15, migration `0021`: `tile_width` and `tile_height` replace `tile_size`; the column `avatar` holds the figures): the table `world_packages` holds the active and the previous world, one row per role per event (unique), with the name, format version, start map, tile width and height, map ids, avatar definition, door flag and the import's warnings. The files of an import sit in `$DATA_DIR/events/event1/world/<import id>/`, as the package's own layout.
 - **Import:** the package is validated as a whole (MAP-06); a refusal answers `422 world_refused` with every finding, and nothing changes. A valid package is staged, moved into place, and the row change and the audit entry `world.import` are one transaction. The world before the previous one is removed afterwards.
 - **Upload media type:** `application/vnd.zappaloo.world`, the package's bytes as the body, at most 40 MB. The theme's `application/gzip` parser has a 10 MB limit, so the two packages do not share one.
 - **Rollback** (`POST /api/admin/world/rollback`, admins only): swaps the active and the previous world and writes `world.rollback`. Without a previous world it answers `409 no_previous_world`. The rolled-back world keeps its import id, so its files stay reachable.
 - **Warnings at import** (MAP-08), which never refuse: a preset action `page` with `p/<slug>`, `content` or `dialog` whose page or dialogue does not exist (`preset_missing`); every preset `minigame` (`preset_minigame`, minigames come with stage 8). Dialogues are content items of stage 5g, so until then every `dialog` preset is reported. The warnings are stored with the import and listed in the admin status.
-- **Serving:** `GET /api/world` returns the active world (`version` = import id, name, start map, tile size, maps, avatar definition) or `null`. The files are served per folder, `/api/world/<import id>/maps/<file>`, `…/tilesets/<file>` and `…/avatar/<file>`, of the active or the previous world only; the door folder and the manifest are not served. Each answer carries a cache of one year, since a new import has a new id. Sign-in and the closed-platform gate apply as for every `/api` route (ACS-07).
+- **Serving:** `GET /api/world` returns the active world (`version` = import id, name, start map, tile width and height, maps, figures) or `null`. The files are served per folder, `/api/world/<import id>/maps/<file>`, `…/tilesets/<file>` and `…/avatar/<file>`, of the active or the previous world only; the door folder and the manifest are not served. Each answer carries a cache of one year, since a new import has a new id. Sign-in and the closed-platform gate apply as for every `/api` route (ACS-07).
 - **Door scene:** the waiting page takes the door of the active world (`door/`) when the world has one (ACS-12, 10.4); otherwise the event's files in the data volume are read, as before.
 - **Audit:** `world.import` and `world.rollback` appear on the card "Zuletzt".
+
+**Decisions of step 5d.1** (2026-11-15, with the project owner; they replace format version 1):
+
+- **Format version 1 is removed.** The platform reads version 2 only; the format-1 layout, its avatar parts and the field `tileSize` are gone from code, schemas and spec. Production has no world, so no world is kept. The migration `0021_world_format_2` deletes the rows of format-1 worlds from the table `world_packages` and replaces the column `tile_size` by `tile_width` and `tile_height`. The column `avatar` keeps its name and stores the figure list. The folders of removed worlds stay in the data volume of a development or staging installation and can be deleted there.
+- **Figures:** at most 50 per world (decided 2026-11-15), at least one. The sides of a frame are 8 to 256 pixels, and the walk has 1 to 16 frames per direction (proposed in the step; not yet confirmed with the project owner, to review).
+- **`cameraZoom`** is fixed at 2 (decided 2026-11-15). The map property is not read and is reported as a warning.
+- **Tile size:** 8 to 128 pixels for each of width and height (proposed in the step, not yet confirmed with the project owner; the prototype uses 64 × 32).
+- **Portals:** a portal is a rectangle or polygon. Its arrow is a decoration named by `marker`. A portal without a target is a warning, not an error. A portal that is a tile object is refused.
+- **Names:** portals keep their required name, as the assignments of "Erlebniswelt" are keyed by name. The prototype's unnamed arrow is refused.
+- **Serving:** the files of a world are served under `/api/world/<import id>/…` for `maps/`, `tilesets/` and the figures in `avatar/` (the list, the metadata and the frames). The manifest and the door folder are not served.
+- **Tests:** the validator has one test per rule, with a broken package each; the test world (`backend/src/world/build.ts`) has three isometric maps, group layers, a sheet and an image-collection tileset with guides, a polygon portal with its marker, a border, and two figures with generated frames. It passes with no finding.
+- **The prototype** (the world project's prototype package in the local folder `world/`, not in the repository) is refused by design: its manifest has `tileSize`, and its portal is an unnamed tile object. The other findings are warnings: decorations and clickables with descriptive properties (`name`, `category`, `symbol`), the camera zoom and `previewFormat`. These go back to the world project.
 
 ## 14.5 Template Map Set
 
@@ -1762,7 +1793,7 @@ Drawing pixel art is the main effort per event. To keep it low, the platform shi
 
 - The typical objects are already placed: spawn points, portals, clickable objects (with preset actions), tables with seats, and wander areas.
 - Decoration sits on separate layers. An event changes the look by editing only those layers in Tiled, without touching structure, collisions or objects.
-- The templates ship as a world package. In the world importer, a new installation can import this template world instead of its own.
+- The templates ship as a world package (isometric, format version 2). In the world importer, a new installation can import this template world instead of its own.
 - The template art is drawn by the project owner, so it can be reused in any event.
 
 ## 14.6 Requirements
@@ -1770,8 +1801,8 @@ Drawing pixel art is the main effort per event. To keep it low, the platform shi
 | ID | Requirement | Prio |
 |---|---|---|
 | MAP-01 | Maps are drawn in Tiled, exported as JSON and imported at runtime as part of the world package through the admin world importer; Tiled is not part of the running system (reworded 2026-11-13). | Must |
-| MAP-02 | The engine supports tile layers (background, ground, decoration, objects, foreground, collision) and object layers defining spawn points, collisions, portals, clickable objects (buildings, NPCs, signs, items), protected zones, seats and wander areas. | Must |
-| MAP-03 | The engine interprets the object properties `type`, `label`, `approach`, `action`, `contentId`, `targetMap`, `targetSpawn`, `minigameId` and `page` and executes the corresponding behaviour (14.2; the map property `programItem` was dropped on 2026-11-14). | Must |
+| MAP-02 | The engine supports isometric maps with tile layers (background, ground, decoration, objects, foreground, collision), group layers read recursively, and object layers defining spawn points, collisions, borders, portals, clickable objects (buildings, NPCs, signs, items), protected zones, seats and wander areas; image-collection tilesets with per-tile collision and occlusion guides (reworded 2026-11-15). | Must |
+| MAP-03 | The engine interprets the object properties `type`, `label`, `approach`, `action`, `contentId`, `targetMap`, `targetSpawn`, `marker`, `minigameId`, `page` and `table` and executes the corresponding behaviour (14.2; the map property `programItem` was dropped on 2026-11-14; `cameraZoom` is fixed at 2 and not read, reworded 2026-11-15). | Must |
 | MAP-04 | A new or changed world (maps, tilesets, door scene, avatar editor assets) can be imported without a redeployment or code change (reworded 2026-11-13). | Must |
 | MAP-05 | The world importer shows the active world (name, import time, maps, start map) and lets the admin import a new world package; the start map is named in the package (reworded 2026-11-13). | Must |
 | MAP-06 | A world package is validated as a whole (format version, layout, and per map the format, required layers, referenced tilesets, spawn points and portal targets); an invalid package is rejected with its findings and the active world stays unchanged (reworded 2026-11-13). | Must |
@@ -1784,7 +1815,7 @@ Drawing pixel art is the main effort per event. To keep it low, the platform shi
 | MAP-13 | Decoration in the template maps is on separate layers, so the look can be changed in Tiled without touching structure, collisions or objects. | Should |
 | MAP-14 | In the world importer, the admin can import the shipped template world instead of an own world package (reworded 2026-11-13). | Should |
 | MAP-15 | In the admin view "Erlebniswelt", each map lists its clickable objects (Tiled name and label) and its portals; the admin assigns each clickable object's action (page as overlay, content item, dialogue, minigame or none) without re-importing the map; the preset from the Tiled file applies until the admin changes it; portals are shown read-only (decided 2026-11-10). | Must |
-| MAP-16 | The world package is a `tar.gz` with a defined layout and a format version. It holds the whole game world: maps, tilesets, objects, the door scene and the avatar editor assets. Only whole packages are imported, and a new package replaces the whole world. | Must |
+| MAP-16 | The world package is a `tar.gz` with a defined layout and a format version (version 2, decided 2026-11-15). It holds the whole game world: isometric maps, tilesets, objects, the door scene and the figures of the avatar editor (reworded 2026-11-15). Only whole packages are imported, and a new package replaces the whole world. | Must |
 | MAP-17 | The JSON files of the world package (manifest, avatar definition, maps) are described by JSON Schemas per format version, committed in the repository, attached to every release and kept equal to the platform's checks by a test. `zappaloo validate` checks a whole world package outside the platform with the platform's validator (added 2026-11-14). | Should |
 
 ---

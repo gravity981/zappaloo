@@ -1,19 +1,20 @@
-// The world package, format version 1 (sw-architecture.md 14.4). Declarative: the layout, the limits
-// and the rules of the format. The validator checks packages against it, and the document
-// schemas/world-v1.md is generated from it.
+// The world package, format version 2 (sw-architecture.md 14.4). Declarative: the layout, the limits and
+// the rules of the format. The validator checks packages against it, and the document `world-v2.md` is
+// generated from it by `npm run schemas`.
 import { WORLD_LIMITS, WORLD_PNG_NAME_PATTERN } from "../world.ts";
 import type { WorldFindingCode } from "./codes.ts";
 import type { PackageDefinition } from "./definition.ts";
 
 const MB = 1024 * 1024;
 const megabytes = (bytes: number): string => `${String(bytes / MB)} MB`;
+const range = (min: number, max: number): string => `${String(min)} to ${String(max)}`;
 
-export const worldV1: PackageDefinition<WorldFindingCode> = {
+export const worldV2: PackageDefinition<WorldFindingCode> = {
   kind: "zappaloo-world",
-  formatVersion: 1,
+  formatVersion: 2,
   title: "World package",
   summary:
-    "The game world of an event as one `tar.gz` archive: the Tiled maps, their tilesets, the avatar editor's sprites and, optionally, the door scene of the waiting page. The whole world is imported at once; a new package replaces it.",
+    "The game world of an event as one `tar.gz` archive: isometric Tiled maps, their tilesets, the complete figures the guests choose from and, optionally, the door scene of the waiting page. The whole world is imported at once; a new package replaces it.",
   limits: [
     {
       label: "Archive (compressed)",
@@ -51,28 +52,23 @@ export const worldV1: PackageDefinition<WorldFindingCode> = {
       requirement: "MAP-06",
     },
     {
-      label: "Tile size",
-      value: `${String(WORLD_LIMITS.tileSize.min)} to ${String(WORLD_LIMITS.tileSize.max)} pixels`,
+      label: "Tile width and height",
+      value: `${range(WORLD_LIMITS.tileSide.min, WORLD_LIMITS.tileSide.max)} pixels each`,
       requirement: "MAP-06",
     },
     {
-      label: "Avatar frame",
-      value: `${String(WORLD_LIMITS.frameSize.min)} to ${String(WORLD_LIMITS.frameSize.max)} pixels`,
+      label: "Figures",
+      value: `at most ${String(WORLD_LIMITS.figures)}, at least 1`,
       requirement: "MAP-06",
     },
     {
-      label: "Avatar palettes",
-      value: `at most ${String(WORLD_LIMITS.paletteCount)}, each at most ${String(WORLD_LIMITS.paletteColours)} colours`,
+      label: "Figure frame",
+      value: `${range(WORLD_LIMITS.figureFrameSide.min, WORLD_LIMITS.figureFrameSide.max)} pixels a side`,
       requirement: "MAP-06",
     },
     {
-      label: "Options per avatar part",
-      value: `at most ${String(WORLD_LIMITS.partOptions)}`,
-      requirement: "MAP-06",
-    },
-    {
-      label: "Avatar templates",
-      value: `at most ${String(WORLD_LIMITS.templates)}`,
+      label: "Walk frames per direction",
+      value: range(WORLD_LIMITS.walkFrames.min, WORLD_LIMITS.walkFrames.max),
       requirement: "MAP-06",
     },
   ],
@@ -84,7 +80,7 @@ export const worldV1: PackageDefinition<WorldFindingCode> = {
       required: true,
       many: false,
       purpose: "Kind, format version, name, start map and tile size of the world.",
-      schemaFile: "world-manifest.v1.schema.json",
+      schemaFile: "world-manifest.v2.schema.json",
     },
     {
       path: "maps",
@@ -101,8 +97,8 @@ export const worldV1: PackageDefinition<WorldFindingCode> = {
       required: true,
       many: true,
       purpose:
-        "One map in Tiled JSON, orthogonal, with embedded tilesets. The file name without `.json` is the map id.",
-      schemaFile: "world-map.v1.schema.json",
+        "One map in Tiled JSON, isometric, with embedded tilesets. The file name without `.json` is the map id.",
+      schemaFile: "world-map.v2.schema.json",
     },
     {
       path: "tilesets",
@@ -118,7 +114,8 @@ export const worldV1: PackageDefinition<WorldFindingCode> = {
       kind: "png",
       required: false,
       many: true,
-      purpose: "The image of one tileset: a whole number of tiles, the tile size of the world.",
+      purpose:
+        "The image of one sheet tileset, or of one tile of an image-collection tileset: whole tiles of the world's tile size.",
     },
     {
       path: "avatar",
@@ -126,25 +123,44 @@ export const worldV1: PackageDefinition<WorldFindingCode> = {
       kind: "folder",
       required: true,
       many: false,
-      purpose: "The assets of the avatar editor.",
+      purpose: "The figures a guest can choose.",
     },
     {
-      path: "avatar/avatar.json",
-      match: /^avatar\/avatar\.json$/,
+      path: "avatar/figures.json",
+      match: /^avatar\/figures\.json$/,
       kind: "json",
       required: true,
       many: false,
-      purpose: "Palettes, parts, options and templates of the avatar editor.",
-      schemaFile: "world-avatar.v1.schema.json",
+      purpose: "The list of figures: id, optional label and the path of the metadata of each.",
+      schemaFile: "world-figures.v2.schema.json",
     },
     {
-      path: "avatar/{name}.png",
-      match: new RegExp(`^avatar\\/${WORLD_PNG_NAME_PATTERN.source.slice(1, -1)}$`),
+      path: "avatar/{figure}/",
+      match: /^avatar\/.+$/,
+      kind: "folder",
+      required: false,
+      many: true,
+      purpose:
+        "The folder of one figure, with its PixelLab metadata and frames, in any sub-folders.",
+    },
+    {
+      path: "avatar/{figure}/metadata.json",
+      match: /^avatar\/(?:[^/]+\/)+[^/]+\.json$/,
+      kind: "json",
+      required: false,
+      many: true,
+      purpose:
+        "The PixelLab metadata of a figure, unchanged. Only the fields of 14.4 are read; the others are ignored.",
+    },
+    {
+      path: "avatar/{figure}/{frame}.png",
+      match: /^avatar\/(?:[^/]+\/)+[^/]+\.png$/,
       kind: "png",
       required: false,
       many: true,
-      purpose: "A sprite sheet of one part: four directions by four walk frames.",
-      sizeNote: "4 × frame width by 4 × frame height, as set in avatar.json",
+      purpose:
+        "A frame of a figure: the standing pose per direction and the walk frames, named by the metadata.",
+      sizeNote: "the canvas of the figure (`character.size` in its metadata)",
     },
     {
       path: "door",
@@ -260,7 +276,7 @@ export const worldV1: PackageDefinition<WorldFindingCode> = {
       scope: "validator",
       severity: "error",
       requirements: ["MAP-06"],
-      text: "`manifest.json` and `avatar/avatar.json` have exactly the fields of the format version; an unknown field is refused. `$schema` is allowed and names the schema for editors.",
+      text: "`manifest.json` and `avatar/figures.json` have exactly the fields of the format version; an unknown field is refused. `$schema` is allowed and names the schema for editors. The PixelLab metadata is the one exception: its unnamed fields are ignored.",
       codes: ["json_field"],
     },
     {
@@ -307,24 +323,24 @@ export const worldV1: PackageDefinition<WorldFindingCode> = {
       id: "map.format",
       scope: "validator",
       severity: "error",
-      requirements: ["MAP-06"],
-      text: "A map is an orthogonal, finite Tiled map whose tiles have the tile size of the world and whose size is within the limits.",
+      requirements: ["MAP-06", "MAP-02"],
+      text: "A map is a finite isometric Tiled map whose tiles have the tile width and height of the world and whose size is within the limits. Rotated or flipped objects are refused.",
       codes: ["map_format"],
     },
     {
       id: "map.layers",
       scope: "validator",
       severity: "error",
-      requirements: ["MAP-06"],
-      text: "A map has only tile and object layers, uncompressed; tile data is a CSV array or uncompressed Base64. A map has a tile layer besides `collision`, and every layer holds the tiles of the map.",
+      requirements: ["MAP-06", "MAP-02"],
+      text: "A map has tile layers, object layers and group layers (read recursively, in the order of the file); image layers and compressed tile data are refused. A map has a tile layer besides `collision`, and every tile layer holds the tiles of the map.",
       codes: ["map_layer"],
     },
     {
       id: "map.tilesets",
       scope: "validator",
       severity: "error",
-      requirements: ["MAP-06"],
-      text: "Tilesets are embedded, use one image each from `tilesets/`, have the tile size of the world, and their images are whole numbers of tiles. Their tile ids do not overlap.",
+      requirements: ["MAP-06", "MAP-02"],
+      text: "Tilesets are embedded and have the tile width and height of the world. A sheet tileset uses one image from `tilesets/`, a whole number of tiles; an image-collection tileset uses one PNG per tile, each from `tilesets/`, with the size stated in the tileset. The tile ids of the tilesets do not overlap.",
       codes: ["map_tileset"],
     },
     {
@@ -339,16 +355,24 @@ export const worldV1: PackageDefinition<WorldFindingCode> = {
       id: "map.objects",
       scope: "validator",
       severity: "error",
-      requirements: ["MAP-06"],
-      text: "Objects have one of the types of 14.2 and a shape that type allows. Spawn points, portals and clickable objects have a unique name. An untyped object is a point (an approach point). Ellipses and text are refused.",
+      requirements: ["MAP-06", "MAP-02"],
+      text: "Objects have one of the types of 14.2 and a shape that type allows. Spawn points, portals and clickable objects have a unique name. An untyped object is a point (an approach point). Ellipses and text are refused. Tile objects may be scaled but not rotated or flipped.",
       codes: ["map_object"],
+    },
+    {
+      id: "map.guides",
+      scope: "validator",
+      severity: "error",
+      requirements: ["MAP-02"],
+      text: "The guides in the object group of an image-collection tile are a polygon named `collision`, a rectangle named `collision` or a polyline named `occlusion` (at least two points, at most one per tile). Other guides are reported as unknown.",
+      codes: ["map_guide"],
     },
     {
       id: "map.properties",
       scope: "validator",
       severity: "error",
       requirements: ["MAP-06", "MAP-03"],
-      text: "The properties of each object type are present and valid: a portal names a map and a spawn point, a clickable object's action comes with its property (`page`, `contentId` or `minigameId`), a seat has a table. The map property `name`, if given, is the name the admin area shows: 1–60 characters; other map properties are reported as unknown.",
+      text: "The properties of each object type are present and valid: a portal names a map and a spawn point, a clickable object's action comes with its property (`page`, `contentId` or `minigameId`), a seat has a table, `marker` names a tile object of the same map. The map property `name`, if given, is the name the admin area shows: 1–60 characters.",
       codes: ["map_property"],
     },
     {
@@ -356,7 +380,7 @@ export const worldV1: PackageDefinition<WorldFindingCode> = {
       scope: "validator",
       severity: "error",
       requirements: ["MAP-06", "MAP-08"],
-      text: "Every map has a spawn point named `start`; `approach` names a point of the same map; a portal names a map of the package and one of its spawn points; the start map is in the package.",
+      text: "Every map has a spawn point named `start`; `approach` names a point of the same map; a portal with a target names a map of the package and one of its spawn points; the start map is in the package.",
       codes: ["map_reference"],
     },
     {
@@ -364,15 +388,23 @@ export const worldV1: PackageDefinition<WorldFindingCode> = {
       scope: "validator",
       severity: "warning",
       requirements: ["MAP-08"],
-      text: "A map without collision tiles or collision rectangles is reported, because the guests walk through everything.",
+      text: "A map without collision tiles, collision objects, borders or collision guides is reported, because the guests walk through everything.",
       codes: ["map_collision"],
+    },
+    {
+      id: "portal.target",
+      scope: "validator",
+      severity: "warning",
+      requirements: ["MAP-08"],
+      text: "A portal without `targetMap` and `targetSpawn` is reported and does nothing; the package is still accepted, so a world with one map imports.",
+      codes: ["portal_no_target"],
     },
     {
       id: "property.unknown",
       scope: "validator",
       severity: "warning",
       requirements: ["MAP-08"],
-      text: "A property that the object type does not use is reported (often a typo).",
+      text: "A property that the object type does not use is reported (often a typo). Tile properties are ignored. The map property `cameraZoom` is reported: the camera zoom is fixed at 2 and is not read from the map.",
       codes: ["property_unknown"],
     },
     {
@@ -380,55 +412,39 @@ export const worldV1: PackageDefinition<WorldFindingCode> = {
       scope: "validator",
       severity: "warning",
       requirements: ["MAP-08"],
-      text: "A tileset image that no map uses is reported.",
+      text: "A PNG in `tilesets/` that no map uses is reported.",
       codes: ["tileset_unused"],
     },
     {
-      id: "avatar.palettes",
+      id: "figure.list",
       scope: "validator",
       severity: "error",
-      requirements: ["MAP-06"],
-      text: "A part uses a palette that exists. Body, outfit and hair have a palette, because their colour is stored; the accessory has none.",
-      codes: ["avatar_palette"],
+      requirements: ["MAP-16", "AVA-01"],
+      text: "`avatar/figures.json` lists 1 to 50 figures, each with an id that is unique and 1–40 characters of `a–z`, `0–9` and `-`, an optional label of 1–30 characters and the path of its metadata.",
+      codes: ["figure_list"],
     },
     {
-      id: "avatar.parts",
+      id: "figure.metadata",
       scope: "validator",
       severity: "error",
-      requirements: ["MAP-06"],
-      text: "The parts are exactly body, outfit, hair and accessory; body and outfit are not optional.",
-      codes: ["avatar_part"],
+      requirements: ["MAP-16", "AVA-01"],
+      text: "The metadata of a figure is a PixelLab metadata file: its first state names the canvas (`character.size`) and the frames of the four directions for the standing pose and for the walk.",
+      codes: ["figure_metadata"],
     },
     {
-      id: "avatar.options",
+      id: "figure.frames",
       scope: "validator",
       severity: "error",
-      requirements: ["MAP-06"],
-      text: "Option ids are unique within a part.",
-      codes: ["avatar_option"],
+      requirements: ["MAP-16", "AVA-02"],
+      text: "Every frame the metadata lists is a PNG in the figure's folder of exactly the canvas size, with a side of 8 to 256 pixels. The walk has the same number of frames, 1 to 16, in each direction.",
+      codes: ["figure_frame"],
     },
     {
-      id: "avatar.sheets",
+      id: "figure.unreferenced",
       scope: "validator",
       severity: "error",
-      requirements: ["MAP-06"],
-      text: "Every sprite sheet is exactly 4 × frame width by 4 × frame height pixels.",
-      codes: ["avatar_sheet"],
-    },
-    {
-      id: "avatar.templates",
-      scope: "validator",
-      severity: "error",
-      requirements: ["MAP-06"],
-      text: "A template is a complete stored avatar whose option ids and colours exist in the package.",
-      codes: ["avatar_template"],
-    },
-    {
-      id: "avatar.unreferenced",
-      scope: "validator",
-      severity: "error",
-      requirements: ["MAP-06"],
-      text: "Every PNG in `avatar/` is named in `avatar.json`.",
+      requirements: ["MAP-16"],
+      text: "Every PNG and metadata file in `avatar/` is named by a figure, through `figures.json` or its metadata.",
       codes: ["file_unreferenced"],
     },
     {
@@ -459,11 +475,11 @@ export const worldV1: PackageDefinition<WorldFindingCode> = {
   changes: [
     {
       date: "2026-11-14",
-      text: "First version of the format, agreed with the project owner; nothing is released yet.",
+      text: "First draft of the format, agreed with the project owner (format version 1); it was never released.",
     },
     {
-      date: "2026-11-14",
-      text: "The optional map property `name` (1–60 characters) is the name the admin area shows. Added within version 1, before any release.",
+      date: "2026-11-15",
+      text: "Format version 2 replaces version 1: isometric maps, group layers, image-collection tilesets, polygon collisions, borders, occlusion guides and portal markers; complete figures with their PixelLab metadata instead of tinted avatar parts; `tileWidth` and `tileHeight` instead of `tileSize`.",
     },
   ],
 };

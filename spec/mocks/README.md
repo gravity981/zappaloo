@@ -155,3 +155,13 @@ Written into sw-architecture.md 14.2 and 14.4 as well.
 | Game bar in stage 5 | Programm, Rückmeldung, Website. "Hochladen" comes with stage 7 (GAME-14). |
 | First entry in stage 5 | The avatar step, then the RSVP overlay while the RSVP is open. "Sag hallo" comes with stage 6 (GAME-13). |
 | Without a world | Guests land on the website, and the start page has no "Erlebniswelt betreten". |
+
+## UX decisions for step 5d.1 (2026-11-15, world format 2)
+
+| Topic | Decision |
+|---|---|
+| Avatar editor | The guest chooses a complete figure from the active world package (7.3, AVA-01): a grid of the figures with their labels, a walking preview of the chosen one (it bobs between two frames in the mock; the game plays the walk frames), and "Zufällig". There are no skin, hair, clothing or template choices any more. A figure without a label shows no name. |
+| Persons | Each tab (the guest, each approved companion) chooses its own figure. |
+| Admin card "Welt" | The info line shows the format, the tile size as width × height ("Kachel 64 × 32 Pixel"), the number of figures, the import time and the start map (MAP-05). |
+| Refused package | The findings name the file of a figure with its frame, for example `avatar/<figure>/…/south.png: falsches Format (32 × 32 instead of 48 × 48)`. |
+| Import text | "Ein Weltpaket (.tar.gz, Format 2) mit isometrischen Karten, Tilesets, Figuren und optional der Tür der Warteseite." |

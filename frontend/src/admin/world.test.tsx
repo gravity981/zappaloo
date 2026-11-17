@@ -17,10 +17,12 @@ const asAdmin = () => ({ status: 200, body: { user: admin, csrfToken: "csrf-9" }
 const sommerfest = {
   importId: "imp-2",
   name: "Sommerfest",
-  formatVersion: 1,
+  formatVersion: 2,
   importedAt: "2026-11-14T18:04:00.000Z",
   startMap: "kirche",
-  tileSize: 16,
+  tileWidth: 64,
+  tileHeight: 32,
+  figures: 2,
   maps: [
     { id: "garten", name: "Garten", clickable: 2, portals: 2 },
     { id: "kirche", name: "Kirche & Garten", clickable: 4, portals: 1 },
@@ -53,7 +55,11 @@ describe("game world › Welt & Import", () => {
     });
     renderAt("/admin/world");
     expect(await screen.findByText("Aktiv: Sommerfest")).toBeVisible();
-    expect(screen.getByText(/Format 1 · importiert am .* · Startkarte: kirche/)).toBeVisible();
+    expect(
+      screen.getByText(
+        /Format 2 · Kachel 64 × 32 Pixel · 2 Figuren · importiert am .* · Startkarte: kirche/,
+      ),
+    ).toBeVisible();
     const kirche = screen.getByText("Kirche & Garten").closest("tr");
     expect(kirche).not.toBeNull();
     expect(within(kirche as HTMLElement).getByText("4")).toBeVisible();
@@ -104,10 +110,10 @@ describe("game world › Welt & Import", () => {
               detail: "spawn tor not found in map kirche",
             },
             {
-              file: "avatar/hair-long.png",
-              code: "avatar_sheet",
+              file: "avatar/wedding-guest/Idle/rotations/south.png",
+              code: "figure_frame",
               severity: "error",
-              detail: "60 × 96 instead of 64 × 96",
+              detail: "the frame is 32 × 32; the canvas is 48 × 48",
             },
           ],
         },
@@ -122,7 +128,11 @@ describe("game world › Welt & Import", () => {
     expect(
       screen.getByText("maps/linde.json › zum-garten: spawn tor not found in map kirche"),
     ).toBeVisible();
-    expect(screen.getByText("avatar/hair-long.png: 60 × 96 instead of 64 × 96")).toBeVisible();
+    expect(
+      screen.getByText(
+        "avatar/wedding-guest/Idle/rotations/south.png: the frame is 32 × 32; the canvas is 48 × 48",
+      ),
+    ).toBeVisible();
     expect(screen.getByText("Aktiv: Sommerfest")).toBeVisible();
     expect(calls.filter((call) => call.method === "POST")).toHaveLength(1);
   });
