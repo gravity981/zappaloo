@@ -1,5 +1,6 @@
 import react from "@vitejs/plugin-react";
 import { defineConfig } from "vite";
+import { themeEditorServer } from "./src/server/vite-plugin.ts";
 
 export default defineConfig(({ command }) => {
   if (command !== "serve") {
@@ -9,7 +10,7 @@ export default defineConfig(({ command }) => {
     throw new Error("Run the theme editor only in the development environment (APP_ENV=dev)");
   }
   return {
-    plugins: [react()],
+    plugins: [react(), themeEditorServer()],
     // Only this machine: later stories read and write theme packages through this server.
     server: { host: "127.0.0.1", port: 5176, strictPort: true, allowedHosts: [] },
   };

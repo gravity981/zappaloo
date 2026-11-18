@@ -1,0 +1,59 @@
+/* The layout of the editor around the admin styles of the app (frontend/src/app/ui.css). */
+.admin.editor {
+  grid-template-rows: auto 1fr;
+}
+.editor .editor-main {
+  max-width: 760px;
+  width: 100%;
+  margin-inline: auto;
+  padding: 16px 16px 48px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.editor .color-row {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+.editor .color-row input[type="color"] {
+  width: 40px;
+  height: 36px;
+  padding: 2px;
+  border: 1.5px solid var(--a-line);
+  border-radius: 8px;
+  background: #fff;
+  flex: none;
+}
+.editor .color-row .input {
+  width: 108px;
+  min-height: 36px;
+  font-family: ui-monospace, Menlo, monospace;
+}
+.editor .pair-swatch {
+  width: 34px;
+  height: 28px;
+  border-radius: 6px;
+  display: grid;
+  place-items: center;
+  font-weight: 700;
+  border: 1px solid var(--a-line);
+  flex: none;
+}
+.editor .font-slot {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding-top: 10px;
+  border-top: 1px solid var(--a-line);
+}
+.editor .font-file {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+.editor .font-file .input {
+  width: auto;
+  min-height: 32px;
+}

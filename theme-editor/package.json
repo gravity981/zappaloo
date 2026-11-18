@@ -8,8 +8,11 @@
     "typecheck": "tsc -p tsconfig.json"
   },
   "dependencies": {
+    "@zappaloo/shared": "0.0.0",
+    "fontkit": "3.0.0",
     "react": "19.3.1",
-    "react-dom": "19.3.1"
+    "react-dom": "19.3.1",
+    "woff2-encoder": "2.0.0"
   },
   "devDependencies": {
     "@testing-library/dom": "10.4.2",

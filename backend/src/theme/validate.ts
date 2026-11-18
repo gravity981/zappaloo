@@ -4,12 +4,12 @@
 import { z } from "zod";
 import {
   THEME_FORMAT_VERSIONS,
+  themeContrastChecks,
   THEME_LIMITS,
   themeJsonSchema,
   themeManifestSchema,
 } from "@zappaloo/shared";
 import type { ThemeJson, ThemeManifest } from "@zappaloo/shared";
-import { contrastRatio } from "./contrast.ts";
 import { themeV1 } from "@zappaloo/shared";
 import { pngSize } from "../packages/png.ts";
 import { readPackageArchive, TarError } from "../packages/archive.ts";
@@ -76,6 +76,21 @@ function readJson(name: string, files: Map<string, Buffer>, findings: ThemeFindi
     findings.push({ file: name, code: "json_invalid", detail: "not valid JSON" });
     return undefined;
   }
+}
+
+/**
+ * The check of one font file: WOFF2, and at most 2 MB (19.7). The validator runs it on every file of
+ * a package; the theme package editor runs it on a converted font (19.7.1).
+ */
+export function checkFontFile(path: string, bytes: Buffer): ThemeFinding[] {
+  const findings: ThemeFinding[] = [];
+  if (bytes.length > THEME_LIMITS.fontBytes) {
+    findings.push({ file: path, code: "font_too_large", detail: "larger than 2 MB" });
+  }
+  if (bytes.toString("latin1", 0, 4) !== "wOF2") {
+    findings.push({ file: path, code: "font_not_woff2", detail: "not a WOFF2 font" });
+  }
+  return findings;
 }
 
 /** Checks a whole theme package. */
@@ -193,13 +208,7 @@ export function checkThemePackage(archive: Buffer): ThemeCheck {
     });
   }
   for (const path of fontFiles) {
-    const bytes = files.get(path) ?? Buffer.alloc(0);
-    if (bytes.length > THEME_LIMITS.fontBytes) {
-      findings.push({ file: path, code: "font_too_large", detail: "larger than 2 MB" });
-    }
-    if (bytes.toString("latin1", 0, 4) !== "wOF2") {
-      findings.push({ file: path, code: "font_not_woff2", detail: "not a WOFF2 font" });
-    }
+    findings.push(...checkFontFile(path, files.get(path) ?? Buffer.alloc(0)));
     if (theme !== undefined && !referenced.has(path)) {
       findings.push({
         file: path,
@@ -215,28 +224,15 @@ export function checkThemePackage(archive: Buffer): ThemeCheck {
     }
   }
 
-  // Contrast: the text on the background, the text on the surface, the text on the accent, and the
-  // text of the waiting card on its surface and the button text on the button.
+  // Contrast (shared with the theme package editor): the text on the background, the surface and the
+  // accent, and with a waiting card its text on the card and the button text on the button.
   if (theme !== undefined) {
-    const { colors, waiting } = theme;
-    const pairs = [
-      ["text", colors.text, "background", colors.background],
-      ["text", colors.text, "surface", colors.surface],
-      ["onAccent", colors.onAccent, "accent", colors.accent],
-      ...(waiting === undefined
-        ? []
-        : [
-            ["text", waiting.text, "waiting card", waiting.card],
-            ["onButton", waiting.onButton, "waiting button", waiting.button],
-          ]),
-    ] as const;
-    for (const [fgName, fg, bgName, bg] of pairs) {
-      const ratio = contrastRatio(fg, bg);
-      if (ratio < THEME_LIMITS.contrast) {
+    for (const check of themeContrastChecks(theme)) {
+      if (!check.ok) {
         findings.push({
           file: "theme.json",
           code: "contrast",
-          detail: `«${fgName}» on «${bgName}»: ${ratio.toFixed(1)} : 1 (at least 4.5 : 1)`,
+          detail: `«${check.foreground}» on «${check.background}»: ${check.ratio.toFixed(1)} : 1 (at least 4.5 : 1)`,
         });
       }
     }
