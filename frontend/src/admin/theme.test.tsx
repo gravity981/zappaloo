@@ -3,7 +3,7 @@ import { fireEvent, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import { initI18n } from "../i18n/i18n.ts";
 import { resetSiteNameCache } from "../guest/site.ts";
-import { anna, fakeBackend, renderAt, SITE, user } from "../test/backend.tsx";
+import { anna, fakeBackend, hold, renderAt, SITE, user } from "../test/backend.tsx";
 
 beforeAll(async () => {
   await initI18n();
@@ -103,7 +103,7 @@ describe("the card Design", () => {
     user.click(screen.getByRole("button", { name: "Abbrechen" }));
     expect(screen.queryByRole("button", { name: "Ja, Standard-Design verwenden" })).toBeNull();
     user.click(screen.getByRole("button", { name: "Standard-Design verwenden" }));
-    user.click(await screen.findByRole("button", { name: "Ja, Standard-Design verwenden" }));
+    hold(await screen.findByRole("button", { name: "Ja, Standard-Design verwenden" }));
     await waitFor(() => {
       expect(screen.getByText("Es gilt das Standard-Design der Plattform.")).toBeVisible();
     });
@@ -171,7 +171,7 @@ describe("the card Design", () => {
       expect(siteReads()).toBe(1);
     });
     user.click(screen.getByRole("button", { name: "Standard-Design verwenden" }));
-    user.click(await screen.findByRole("button", { name: "Ja, Standard-Design verwenden" }));
+    hold(await screen.findByRole("button", { name: "Ja, Standard-Design verwenden" }));
     await screen.findByText("Es gilt das Standard-Design der Plattform.");
     await waitFor(() => {
       expect(siteReads()).toBe(2);

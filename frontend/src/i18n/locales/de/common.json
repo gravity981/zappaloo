@@ -435,6 +435,7 @@
         "rejected": "abgelehnt"
       }
     },
+    "holdHint": "Halte den Knopf vier Sekunden gedrückt.",
     "dateTime": {
       "placeholder": "TT.MM.JJJJ HH:MM",
       "invalid": "Bitte Datum und Uhrzeit so schreiben: 12.06.2027 18:30"

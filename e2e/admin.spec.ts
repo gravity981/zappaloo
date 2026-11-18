@@ -83,3 +83,44 @@ test("[ROLE-07][ACC-08][ACC-20][ROLE-01][ROLE-06][GRP-01][CFG-05] an admin manag
   await hunt.click();
   await expect(hunt).toHaveAttribute("aria-checked", before ?? "");
 });
+
+test("[CFG-03][ACS-11] Einstellungen puts the rarely changed cards last: design, waiting page texts, privacy notice and footer", async ({
+  page,
+  context,
+}) => {
+  await signInAsAdmin(page, context);
+  await page.goto("/admin/settings");
+  const titles = [
+    de.admin.identity.title,
+    de.admin.waiting.openingTitle,
+    de.admin.rsvpSettings.title,
+    de.admin.settings.features,
+    de.admin.theme.title,
+    de.admin.waiting.textsTitle,
+    de.admin.privacy.title,
+    de.admin.footer.title,
+  ];
+  const tops: number[] = [];
+  for (const title of titles) {
+    const box = await page
+      .locator("section.card")
+      .filter({ has: page.getByText(title, { exact: true }) })
+      .first()
+      .boundingBox();
+    expect(box, title).not.toBeNull();
+    tops.push(box?.y ?? 0);
+  }
+  // Wide screens put the RSVP card and the features side by side: they share a row, and every
+  // card after them lies below both.
+  const [, opening, rsvp, features, ...last] = tops as [
+    number,
+    number,
+    number,
+    number,
+    ...number[],
+  ];
+  expect(opening).toBeGreaterThan(tops[0] ?? 0);
+  expect(rsvp).toBeGreaterThan(opening);
+  for (const top of last) expect(top).toBeGreaterThan(Math.max(rsvp, features));
+  expect([...last].sort((a, b) => a - b)).toEqual(last);
+});

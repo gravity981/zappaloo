@@ -2,7 +2,7 @@
 import { fireEvent, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import { initI18n } from "../i18n/i18n.ts";
-import { anna, fakeBackend, renderAt, user } from "../test/backend.tsx";
+import { anna, fakeBackend, hold, renderAt, user } from "../test/backend.tsx";
 
 beforeAll(async () => {
   await initI18n();
@@ -199,7 +199,7 @@ describe("game world › Welt & Import", () => {
     user.click(screen.getByRole("button", { name: "Abbrechen" }));
     expect(screen.queryByRole("button", { name: "Ja, zurückrollen" })).toBeNull();
     user.click(screen.getByRole("button", { name: "Zurückrollen" }));
-    user.click(await screen.findByRole("button", { name: "Ja, zurückrollen" }));
+    hold(await screen.findByRole("button", { name: "Ja, zurückrollen" }));
     expect(await screen.findByText("Aktiv: Erste Welt")).toBeVisible();
     await waitFor(() => {
       expect(calls.filter((call) => call.method === "POST")).toHaveLength(1);

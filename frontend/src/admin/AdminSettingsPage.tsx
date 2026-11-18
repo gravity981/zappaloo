@@ -15,7 +15,7 @@ import FooterSettingsCard from "./FooterSettingsCard.tsx";
 import PrivacySettingsCard from "./PrivacySettingsCard.tsx";
 import RsvpSettingsCard from "./RsvpSettingsCard.tsx";
 import ThemeSettingsCard from "./ThemeSettingsCard.tsx";
-import WaitingSettingsCards from "./WaitingSettingsCards.tsx";
+import { WaitingOpeningCard, WaitingTextsCard } from "./WaitingSettingsCards.tsx";
 import { Switch } from "./ui.tsx";
 
 export default function AdminSettingsPage() {
@@ -62,10 +62,7 @@ export default function AdminSettingsPage() {
           />
         </section>
       )}
-      {event?.setupComplete && <ThemeSettingsCard />}
-      {event?.setupComplete && <WaitingSettingsCards />}
-      {event?.setupComplete && <PrivacySettingsCard />}
-      {event?.setupComplete && <FooterSettingsCard />}
+      {event?.setupComplete && <WaitingOpeningCard />}
       {event && (
         <div className="grid-2">
           <RsvpSettingsCard />
@@ -88,6 +85,11 @@ export default function AdminSettingsPage() {
           </section>
         </div>
       )}
+      {/* Rarely changed cards come last: the design, the waiting page texts, the privacy notice and the footer. */}
+      {event?.setupComplete && <ThemeSettingsCard />}
+      {event?.setupComplete && <WaitingTextsCard />}
+      {event?.setupComplete && <PrivacySettingsCard />}
+      {event?.setupComplete && <FooterSettingsCard />}
     </>
   );
 }

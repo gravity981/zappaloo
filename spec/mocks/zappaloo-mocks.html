@@ -180,6 +180,10 @@ button { font: inherit; }
 .m-btn.ghost { background: transparent; color: var(--w-ink); border-color: var(--w-ink); }
 .m-btn.soft { background: var(--w-fill); color: var(--w-ink); border-color: var(--w-fill); }
 .m-btn.danger { background: transparent; color: var(--w-badge); border-color: currentColor; }
+/* Confirmation of a risky action: held for four seconds; a darker fill grows across it (the mock shows it at about 40 %). */
+.m-btn.hold { position: relative; overflow: hidden; }
+.m-hold-fill { position: absolute; inset: 0 auto 0 0; width: 40%; background: color-mix(in srgb, var(--w-fill) 55%, black); }
+.m-hold-label { position: relative; color: #fff; }
 .m-btn.sm { min-height: 32px; padding: 0 12px; font-size: 12.5px; border-radius: 8px; }
 .m-btn.block { width: 100%; }
 .m-btn[disabled] { opacity: 0.32; cursor: not-allowed; }
@@ -626,6 +630,7 @@ const field = (label, input, hint = "") => `<label class="m-field"><span>${label
 const inp = (id, val = "", attrs = "") => `<input class="m-input" id="${id}" value="${val}" ${attrs}>`;
 const area = (id, val = "", attrs = "") => `<textarea class="m-input" id="${id}" ${attrs}>${val}</textarea>`;
 const sw = (on = false) => `<button type="button" class="m-switch ${on ? "on" : ""}" data-switch aria-label="Schalter"></button>`;
+const holdBtn = (text) => `<button class="m-btn soft sm hold"><span class="m-hold-fill"></span><span class="m-hold-label">${text}</span></button><span class="m-hint">Halte den Knopf vier Sekunden gedrückt.</span>`;
 const qr = () => `<div class="m-qr"><canvas data-qr width="25" height="25"></canvas></div>`;
 
 const EVENT = { couple: "Lea & Jonas", date: "Sa, 12. Juni 2027" };
@@ -1489,7 +1494,7 @@ add({
 });
 add({
   id: "admin-world", group: "admin", title: "Game world: import & objects", path: "/admin/world", reqs: ["MAP-05", "MAP-06", "MAP-08", "MAP-09", "MAP-15", "MAP-16", "MAP-19", "GAME-05", "GAME-06", "CNT-02", "CNT-03"],
-  variants: [["objects", "Objekte & Portale"], ["dialogs", "Dialoge"], ["dialog", "Dialog bearbeiten"], ["import", "Welt & Import"], ["refused", "Paket abgelehnt"], ["confirm", "Zurückrollen (zweiter Klick)"], ["access-off", "Gästezugang aus"], ["empty", "Noch keine Welt"]],
+  variants: [["objects", "Objekte & Portale"], ["dialogs", "Dialoge"], ["dialog", "Dialog bearbeiten"], ["import", "Welt & Import"], ["refused", "Paket abgelehnt"], ["confirm", "Zurückrollen (Knopf halten)"], ["access-off", "Gästezugang aus"], ["empty", "Noch keine Welt"]],
   shows: ["Tab «Welt & Import»: the active world with its name, format, import time and start map. «Welt importieren» takes a whole world package (.tar.gz, 14.4); a new package replaces the whole world. A refused package lists every finding (in English, as the server gives them) and the active world stays as it was. Warnings do not refuse the package; they stay listed with the active world.", "Maps of the active world, one row each, with their id and the numbers of clickable objects and portals; the start map is marked ★. Maps are not linked to program items (decided 2026-11-14, Q65).", "«Zurückrollen» goes back to the previous world after a second click; it shows which world and when it was imported. Without a previous world the button is missing.", "The guest-access switch is on after the first successful world import. Turning it off hides guest entry points and blocks direct guest navigation and world-serving routes. The active package and admin management remain available. No template world is shipped.", "Tab «Objekte & Portale»: one tab per map. Clickable objects by their Tiled name and label; per object the admin picks the action: page as overlay (including every content page), dialogue, minigame (from stage 8) or none. A preset from the Tiled file is shown and used until changed. A preset that points to something missing is marked. Changes are live at once, without a new import.", "Portals of the map with their target map and spawn point, read-only (set in Tiled). A portal with a missing target cannot be imported (MAP-08), so none is shown here.", "Tab «Dialoge» (decided 2026-11-14, Q63): dialogues belong to the game world and are edited here, not in Inhalte. A dialogue has an id (its contentId in Tiled and in the object actions), the NPC's name and one or more lines in Markdown that the guest taps through. The preview shows the dialogue box as in the game. «Verwendet von» lists the objects whose action shows it. A dialogue in use cannot be deleted; the message names the objects. The id can be changed (Q64).", "Only admins see «Erlebniswelt» for management."],
   qs: [{ n: 63, q: "Where are dialogues edited, and can one be deleted while a game object shows it?", p: "Proposal: in Inhalte; no, like a place in use: the message names the objects (assignments in Erlebniswelt). A preset in a Tiled file that points to a missing dialogue is only a warning (MAP-08)." }, { n: 64, q: "Can the id of a dialogue be changed?", p: "Proposal: yes, with the hint that presets in Tiled files that name the old id then point to nothing; the assignments in Erlebniswelt follow the dialogue." }, { n: 65, q: "Do the program-item links sit with the maps in «Welt & Import» or in the tab of each map?", p: "Mock: in «Welt & Import», one row per map, so all links are seen at once." }],
   render: (v) => {
@@ -1518,7 +1523,7 @@ add({
           <span class="m-hint">Ein Weltpaket (.tar.gz, Format 2) mit isometrischen Karten, Tilesets, Figuren und optional der Tür der Warteseite. Es wird nur als Ganzes importiert.</span></div>`);
       const rows = [["kirche", "Kirche & Garten", true, 6, 2], ["linde", "Landgasthof Linde", false, 4, 1], ["party", "Party-Saal", false, 3, 1]];
       const buttons = v === "confirm"
-        ? `<span class="m-hint">Zurück zu «Sommerfest» vom 10.11.2026, 21:40? Die aktuelle Welt wird dann zur vorherigen.</span><div class="m-row2"><button class="m-btn soft sm">Ja, zurückrollen</button><button class="m-btn ghost sm">Abbrechen</button></div>`
+        ? `<span class="m-hint">Zurück zu «Sommerfest» vom 10.11.2026, 21:40? Die aktuelle Welt wird dann zur vorherigen.</span><div class="m-row2">${holdBtn("Ja, zurückrollen")}<button class="m-btn ghost sm">Abbrechen</button></div>`
         : `<div class="m-row2"><button class="m-btn soft sm">Welt importieren</button><button class="m-btn ghost sm" data-go="admin-world" data-variant="confirm">Zurückrollen</button></div>`;
       const refused = v !== "refused" ? "" : `<div class="m-card flat"><b class="sm">Das Paket wurde abgelehnt</b><span class="m-hint">Die aktive Welt bleibt unverändert. Alle Befunde:</span><ul class="m-list sm"><li>maps/linde.json: Tileset nicht eingebettet (external tileset «innen.tsx»; embed it in Tiled)</li><li>maps/linde.json › zum-garten: Ziel fehlt (spawn «tor» not found in map «kirche»)</li><li>avatar/wedding-guest/Idle/rotations/south.png: falsches Format (32 × 32 instead of 48 × 48)</li></ul></div>`;
       const accessOn = v !== "access-off";
@@ -1544,8 +1549,8 @@ add({
 });
 add({
   id: "admin-settings", group: "admin", title: "Settings & opening", path: "/admin/settings", reqs: ["ACS-10", "ACS-11", "ACS-13", "ACS-14", "PHO-18", "RSVP-04", "PRES-15", "CFG-02", "CFG-03", "SCR-04", "SCR-07", "PHO-14", "THM-01", "THM-03", "THM-05"],
-  variants: [["active", "Design aktiv"], ["default", "Standard-Design"], ["refused", "Paket abgelehnt"], ["confirm", "Zweiter Klick"]],
-  shows: ["One page with sections.", "Design (decided 2026-11-13, stage 4): the active theme with its format and the time of the import. “Design importieren” takes a .tar.gz package as a whole. A refused package lists every finding (the findings are shown in English, as the server gives them) and the active theme stays as it was. “Standard-Design verwenden” asks for a second click (Ja / Abbrechen) before it removes the package. Without a package the card says that the platform’s default applies.", "Opening the platform with an optional “Die Tür ist offen” email (verified addresses only). An optional opening date and, separately, the switch for the countdown (decided 2026-11-11). Once open, the card offers “Wieder schliessen” (no email).", "RSVP deadline, program items (name, one marked as the meal) with their activities underneath (name, start, optional end, place; “Aktivität hinzufügen”; the last activity of a program item cannot be deleted, the program item is deleted instead; a new program item asks for its first activity; epic 5.3), and one menu list.", "Waiting page texts with placeholders (only here, not in Inhalte).", "Privacy notice as Markdown (SEC-09).", "Features. Upload links and screen links (create, QR, revoke, per screen link: show the upload QR now and then).", "Guest profiles: the “Wie kennst du das Paar?” list, in its own section."],
+  variants: [["active", "Design aktiv"], ["default", "Standard-Design"], ["refused", "Paket abgelehnt"], ["confirm", "Knopf halten"]],
+  shows: ["One page with sections. The frequently used cards come first (Veranstaltung, Plattform öffnen, Rückmeldung and Funktionen); the rarely changed ones come last: Design, Warteseite-Texte, Datenschutz and Fusszeile.", "Design (decided 2026-11-13, stage 4): the active theme with its format and the time of the import. “Design importieren” takes a .tar.gz package as a whole. A refused package lists every finding (the findings are shown in English, as the server gives them) and the active theme stays as it was. “Standard-Design verwenden” asks first (Ja / Abbrechen), and “Ja, Standard-Design verwenden” must be held for four seconds, with a darker fill growing across the button, before it removes the package. Without a package the card says that the platform’s default applies.", "Opening the platform with an optional “Die Tür ist offen” email (verified addresses only). An optional opening date and, separately, the switch for the countdown (decided 2026-11-11). Once open, the card offers “Wieder schliessen” (no email).", "RSVP deadline, program items (name, one marked as the meal) with their activities underneath (name, start, optional end, place; “Aktivität hinzufügen”; the last activity of a program item cannot be deleted, the program item is deleted instead; a new program item asks for its first activity; epic 5.3), and one menu list.", "Waiting page texts with placeholders (only here, not in Inhalte).", "Privacy notice as Markdown (SEC-09).", "Features. Upload links and screen links (create, QR, revoke, per screen link: show the upload QR now and then).", "Guest profiles: the “Wie kennst du das Paar?” list, in its own section."],
   qs: [
     { q: "One long settings page, or split into tabs (Öffnung · Rückmeldung · Funktionen · Links)?", p: "Mock: one page with sections. Splitting is easy later." },
     { n: 54, q: "Where are the waiting-page texts edited: Einstellungen or the content editor?", p: "Proposal: Einstellungen only. The content editor has no “Warteseite” page." },
@@ -1555,17 +1560,13 @@ add({
     const dv = v || "active";
     const designTag = dv === "default" ? '<span class="m-tag line">Standard-Design</span>' : '<span class="m-tag ok">Aktiv: Sommerfest</span>';
     const designInfo = dv === "default" ? "Es gilt das Standard-Design der Plattform." : "Format 2 · importiert am 12.11.2026 um 18:04. Das Design gilt für die Website und die Gästeseiten sowie für die Icons der App. Die Verwaltung bleibt neutral.";
-    const designButtons = dv === "confirm" ? '<button class="m-btn soft sm">Ja, Standard-Design verwenden</button><button class="m-btn ghost sm">Abbrechen</button>' : '<button class="m-btn soft sm">Design importieren</button>' + (dv === "default" ? "" : '<button class="m-btn ghost sm">Standard-Design verwenden</button>');
+    const designButtons = dv === "confirm" ? holdBtn("Ja, Standard-Design verwenden") + '<button class="m-btn ghost sm">Abbrechen</button>' : '<button class="m-btn soft sm">Design importieren</button>' + (dv === "default" ? "" : '<button class="m-btn ghost sm">Standard-Design verwenden</button>');
     const designFindings = dv !== "refused" ? "" : '<div class="m-card flat"><b class="sm">Das Paket wurde abgelehnt</b><span class="m-hint">Das aktive Design bleibt unverändert. Alle Befunde:</span><ul class="m-list sm"><li>icons/icon-192.png: falsche Grösse (200 × 200 instead of 192 × 192)</li><li>theme.json: Feld unbekannt oder ungültig (unknown field «shadow»)</li><li>theme.json: Kontrast zu gering («text» on «surface»: 3.1 : 1 (at least 4.5 : 1))</li></ul></div>';
     return admin("admin-settings", `<h1 class="m-h1">Einstellungen</h1>
     <div class="m-card"><b>Veranstaltung</b><span class="m-hint">Name, Zeitzone und Sprache lassen sich jederzeit ändern. Die Zeitzone bestimmt, wie Zeiten angezeigt werden, nicht die gespeicherten Zeiten.</span>
       <div class="m-grid-d2">${field("Name", inp("as-name", "Anna & Ben"))}${field("Zeitzone", inp("as-tz", "Europe/Zurich", 'list="tz-list"'))}</div>
       ${field("Standardsprache", `<select class="m-input" id="as-lang" style="width:auto"><option selected>Deutsch</option></select>`)}
       <button class="m-btn" style="align-self:flex-start">Speichern</button></div>
-    <div class="m-card"><div class="m-row2"><b class="m-h2" style="flex:1">Design</b>${designTag}</div>
-      <span class="m-muted sm">${designInfo}</span>
-      <div class="m-row2">${designButtons}</div>
-      <span class="m-hint">Ein Paket als .tar.gz, höchstens 10 MB. Es wird ganz geprüft; ein fehlerhaftes Paket ändert nichts. «Standard-Design verwenden» braucht einen zweiten Klick.</span>${designFindings}</div>
     <div class="m-card strong"><div class="m-row2"><b class="m-h2" style="flex:1">Plattform öffnen</b><span class="m-tag warn">Geschlossen</span></div>
       <p class="m-muted sm">Bis zur Öffnung sehen Gäste nur die Warteseite und die Rückmeldung. Staff und Admins haben vollen Zugang.</p>
       ${field("Angekündigtes Öffnungsdatum (optional)", inp("as-open", "2027-05-15T18:00", 'type="datetime-local" style="width:auto"'), "Erscheint im Platzhalter {openingDate}.")}
@@ -1587,6 +1588,16 @@ add({
         <span class="m-eyebrow">Menüs (für alle)</span><div class="m-chips">${MENUS.map((p) => `<span class="m-chip">${p}</span>`).join("")}<button class="m-chip">${ic("plus")}</button></div></div>
       <div class="m-card"><b>Funktionen</b>${[["Minigames", 1], ["Schnappschüsse", 1], ["Galerie", 1], ["Gästebuch", 1], ["Schatzsuche", 1], ["Eventscreen", 1], ["Galerie für Gäste freigegeben", 0]].map(([n, o]) => `<div class="m-setrow"><div class="grow"><b class="sm">${n}</b></div>${sw(o)}</div>`).join("")}</div>
     </div>
+    <div class="m-grid-d2">
+      <div class="m-card"><b>Upload-Links</b><div class="m-list">${[["Apéro", "aktiv"], ["Dinner", "aktiv"], ["Allgemein", "abgelaufen"]].map(([n, s]) => `<div class="m-li">${qr()}<div class="grow"><b>${n}</b><span class="m-hint">?location=${n.toLowerCase()}</span></div><span class="m-tag ${s === "aktiv" ? "ok" : "warn"}">${s}</span><button class="m-btn ghost sm">Widerrufen</button></div>`).join("")}</div><button class="m-btn soft sm" style="align-self:flex-start">${ic("plus")} Upload-Link</button></div>
+      <div class="m-card"><b>Eventscreen-Links</b><div class="m-list"><div class="m-li"><div class="grow"><b>Beamer Saal</b><span class="m-hint">Fotowand, Paar-Quiz · Wechsel alle 20 s</span></div><button class="m-btn ghost sm">Widerrufen</button></div></div><button class="m-btn soft sm" style="align-self:flex-start">${ic("plus")} Screen-Link</button>
+        <div class="m-setrow"><div class="grow"><b class="sm">Upload-QR einblenden</b><span class="m-hint">Link «Allgemein» · 15 s alle 2 Min, unten rechts</span></div>${sw(true)}</div></div>
+    </div>
+    <div class="m-card"><b>Gästeprofile</b><span class="m-hint">Auswahl für «Wie kennst du das Paar?» in Profil und Sprechblase.</span><div class="m-chips">${HOW.map((h) => `<span class="m-chip">${h}</span>`).join("")}<button class="m-chip">${ic("plus")}</button></div></div>
+    <div class="m-card"><div class="m-row2"><b class="m-h2" style="flex:1">Design</b>${designTag}</div>
+      <span class="m-muted sm">${designInfo}</span>
+      <div class="m-row2">${designButtons}</div>
+      <span class="m-hint">Ein Paket als .tar.gz, höchstens 10 MB. Es wird ganz geprüft; ein fehlerhaftes Paket ändert nichts. «Standard-Design verwenden» braucht einen zweiten Klick.</span>${designFindings}</div>
     <div class="m-card"><b>Warteseite-Texte</b><span class="m-hint">Platzhalter: {name}, {waitingCount}, {openingDate}</span>
       ${field("Noch nicht geantwortet", area("as-w1", "Psst, {name} … hinter dieser Tür entsteht gerade etwas. Bevor sie aufgeht, verrate uns: Bist du dabei?", 'style="min-height:60px"'))}
       ${field("Zugesagt", area("as-w2", "Danke, {name}, deine Zusage ist angekommen! … für dich und {waitingCount} weitere Gäste.", 'style="min-height:60px"'))}
@@ -1597,13 +1608,7 @@ add({
     <div class="m-card"><b>Fusszeile</b><span class="m-hint">Die erste Zeile unter «Datenschutz · Version» auf jeder Seite, zum Beispiel Copyright und Namen. Der Lizenzhinweis und die Links «Quellcode» und «Lizenz» darunter sind fest.</span>
       ${field("Copyright-Zeile", inp("as-copy", "© 2027 Lea & Jonas", 'maxlength="120"'), "Einfacher Text, höchstens 120 Zeichen. Leer lassen blendet die Zeile aus.")}
       <span class="m-eyebrow">Vorschau</span>${legal()}
-      <div class="m-row2"><button class="m-btn soft sm">Speichern</button><button class="m-btn ghost sm">Zurücksetzen</button></div></div>
-    <div class="m-grid-d2">
-      <div class="m-card"><b>Upload-Links</b><div class="m-list">${[["Apéro", "aktiv"], ["Dinner", "aktiv"], ["Allgemein", "abgelaufen"]].map(([n, s]) => `<div class="m-li">${qr()}<div class="grow"><b>${n}</b><span class="m-hint">?location=${n.toLowerCase()}</span></div><span class="m-tag ${s === "aktiv" ? "ok" : "warn"}">${s}</span><button class="m-btn ghost sm">Widerrufen</button></div>`).join("")}</div><button class="m-btn soft sm" style="align-self:flex-start">${ic("plus")} Upload-Link</button></div>
-      <div class="m-card"><b>Eventscreen-Links</b><div class="m-list"><div class="m-li"><div class="grow"><b>Beamer Saal</b><span class="m-hint">Fotowand, Paar-Quiz · Wechsel alle 20 s</span></div><button class="m-btn ghost sm">Widerrufen</button></div></div><button class="m-btn soft sm" style="align-self:flex-start">${ic("plus")} Screen-Link</button>
-        <div class="m-setrow"><div class="grow"><b class="sm">Upload-QR einblenden</b><span class="m-hint">Link «Allgemein» · 15 s alle 2 Min, unten rechts</span></div>${sw(true)}</div></div>
-    </div>
-    <div class="m-card"><b>Gästeprofile</b><span class="m-hint">Auswahl für «Wie kennst du das Paar?» in Profil und Sprechblase.</span><div class="m-chips">${HOW.map((h) => `<span class="m-chip">${h}</span>`).join("")}<button class="m-chip">${ic("plus")}</button></div></div>`);
+      <div class="m-row2"><button class="m-btn soft sm">Speichern</button><button class="m-btn ghost sm">Zurücksetzen</button></div></div>`);
   },
 });
 add({

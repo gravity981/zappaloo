@@ -11,7 +11,7 @@ import { useSession } from "../app/session.ts";
 import { useEventFormat } from "../rsvp/format.ts";
 import AdminWorldObjects from "./AdminWorldObjects.tsx";
 import { useAdminData, useErrorText } from "./data.ts";
-import { Switch } from "./ui.tsx";
+import { HoldButton, Switch } from "./ui.tsx";
 
 const WORLD_PATH = "/api/admin/world";
 const WORLD_MEDIA_TYPE = "application/vnd.zappaloo.world";
@@ -324,9 +324,10 @@ function WorldSummary({
               time: format.time(previous.importedAt),
             })}
           </span>
-          <button type="button" className="btn soft sm" disabled={busy} onClick={onRollback}>
+          <HoldButton disabled={busy} onConfirm={onRollback}>
             {t("admin.world.rollbackYes")}
-          </button>
+          </HoldButton>
+          <span className="hint">{t("admin.holdHint")}</span>
           <button
             type="button"
             className="btn ghost sm"
