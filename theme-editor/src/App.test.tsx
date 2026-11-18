@@ -126,6 +126,23 @@ describe("theme package editor: fonts (THM-09)", () => {
     expect(screen.getByLabelText("waiting card (#rrggbb)")).toBeTruthy();
   });
 
+  it("[THM-09] a font file can be added while the font is off, and that switches the font on", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(() => Promise.resolve(fontResponse("Lora-Bold.woff2", "Lora", true))),
+    );
+    render(<App />);
+    const body = screen.getByRole("switch", { name: "Body font" });
+    expect(body.getAttribute("aria-checked")).toBe("false");
+    expect(screen.getAllByText("Add font file", { selector: "label" })).toHaveLength(3);
+    fireEvent.change(screen.getByLabelText("Add Body font file"), {
+      target: { files: [new File(["x"], "Lora-Bold.ttf")] },
+    });
+    await screen.findByText("Lora-Bold.woff2");
+    expect(body.getAttribute("aria-checked")).toBe("true");
+    expect(screen.getByLabelText<HTMLInputElement>("Body family").value).toBe("Lora");
+  });
+
   it("[THM-09] a refused font shows the validator's finding and is not added", async () => {
     vi.stubGlobal(
       "fetch",

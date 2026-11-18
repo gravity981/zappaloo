@@ -109,7 +109,7 @@ export function FontsCard(props: { draft: ThemeDraft; onChange: Update }) {
               />
             </div>
             {font === null ? (
-              <span className="hint">{SLOT_HINTS[slot]}</span>
+              <span className="hint">{SLOT_HINTS[slot]} Adding a font file switches it on.</span>
             ) : (
               <>
                 <div className="field">
@@ -177,32 +177,32 @@ export function FontsCard(props: { draft: ThemeDraft; onChange: Update }) {
                     </button>
                   </div>
                 ))}
-                <label
-                  className={`btn soft sm${roomForFiles(draft, slot) === 0 ? " disabled" : ""}`}
-                  style={{ alignSelf: "flex-start" }}
-                >
-                  Add font file
-                  <input
-                    className="visually-hidden"
-                    type="file"
-                    multiple
-                    aria-label={`Add ${title} font file`}
-                    accept=".woff2,.otf,.ttf,font/woff2,font/otf,font/ttf"
-                    disabled={roomForFiles(draft, slot) === 0}
-                    onChange={(event) => {
-                      const files = [...(event.target.files ?? [])];
-                      event.target.value = "";
-                      void addFiles(slot, files);
-                    }}
-                  />
-                </label>
-                {(problems[slot] ?? []).map((message) => (
-                  <p role="alert" className="error" key={message}>
-                    {message}
-                  </p>
-                ))}
               </>
             )}
+            <label
+              className={`btn soft sm${roomForFiles(draft, slot) === 0 ? " disabled" : ""}`}
+              style={{ alignSelf: "flex-start" }}
+            >
+              Add font file
+              <input
+                className="visually-hidden"
+                type="file"
+                multiple
+                aria-label={`Add ${title} font file`}
+                accept=".woff2,.otf,.ttf,font/woff2,font/otf,font/ttf"
+                disabled={roomForFiles(draft, slot) === 0}
+                onChange={(event) => {
+                  const files = [...(event.target.files ?? [])];
+                  event.target.value = "";
+                  void addFiles(slot, files);
+                }}
+              />
+            </label>
+            {(problems[slot] ?? []).map((message) => (
+              <p role="alert" className="error" key={message}>
+                {message}
+              </p>
+            ))}
           </div>
         );
       })}
