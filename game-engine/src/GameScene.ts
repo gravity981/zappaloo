@@ -317,6 +317,9 @@ export class WorldScene extends Phaser.Scene {
       this.#player = sprite;
       this.#createShadow(map, sprite);
       if (this.#world !== undefined) {
+        const options = this.game.registry.get(ENGINE_CONFIG_REGISTRY_KEY) as GameEngineOptions;
+        const parent = this.game.canvas.parentElement;
+        const camera = this.cameras.main;
         this.#crowd = new GuestCrowd(
           this,
           map,
@@ -325,6 +328,27 @@ export class WorldScene extends Phaser.Scene {
           this.#guests,
           CAMERA_ZOOM,
           () => this.#pixelRatio(),
+          parent === null
+            ? undefined
+            : {
+                parent,
+                closeLabel: options.texts?.closeBubble ?? "",
+                defaultGreeting: options.texts?.defaultGreeting,
+                // A point of the map in the game view, in CSS pixels (the camera's zoom includes the pixel ratio).
+                project: (point) => ({
+                  x:
+                    (point.x - camera.midPoint.x) * (camera.zoom / this.#pixelRatio()) +
+                    camera.width / this.#pixelRatio() / 2,
+                  y:
+                    (point.y - camera.midPoint.y) * (camera.zoom / this.#pixelRatio()) +
+                    camera.height / this.#pixelRatio() / 2,
+                }),
+                viewSize: () => ({
+                  width: camera.width / this.#pixelRatio(),
+                  height: camera.height / this.#pixelRatio(),
+                }),
+                photoOf: options.guestPhoto,
+              },
         );
       }
       this.#createMarker(map);
@@ -381,6 +405,8 @@ export class WorldScene extends Phaser.Scene {
       this.#removeShines();
       this.#indicatorLayer?.destroy();
       this.#indicatorLayer = undefined;
+      this.#crowd?.destroy();
+      this.#crowd = undefined;
       this.scale.off(Phaser.Scale.Events.RESIZE, this.#onResize);
       window.removeEventListener("keydown", this.#onKeyDown);
       window.removeEventListener("keyup", this.#onKeyUp);
@@ -679,7 +705,6 @@ export class WorldScene extends Phaser.Scene {
     const isWalkable = (point: Point) =>
       walkable(map.obstacles, playerCollisionEllipse(point, size.width));
     const step = (size.width * SPEED_TILES_PER_SECOND * delta) / 1000;
-    this.#crowd?.update(delta);
 
     // The keys win over a walk to a point. Otherwise the walk heads for its next waypoint, skipping the ones reached.
     let move = keyDirection(this.#keys());
@@ -740,6 +765,8 @@ export class WorldScene extends Phaser.Scene {
     const spritePosition = playerSpritePosition(this.#position, CAMERA_ZOOM, this.#pixelRatio());
     player.setPosition(spritePosition.x, spritePosition.y);
     this.#followPlayer();
+    // The guest figures and their bubbles, with the camera of this frame (PRES-10).
+    this.#crowd?.update(delta, this.#position);
     player.setDepth(figureDepth(this.#position, map.occluders, map.size.width));
     this.#placeShadow(map, player);
     this.#drawOcclusionActor();
@@ -1529,6 +1556,7 @@ export class WorldScene extends Phaser.Scene {
     if (paused) {
       this.scene.pause();
       this.#indicatorLayer?.setHidden(true);
+      this.#crowd?.setBubblesHidden(true);
       keyboard?.resetKeys();
       return;
     }
@@ -1536,6 +1564,7 @@ export class WorldScene extends Phaser.Scene {
     this.#activationBlocked = this.#activateKeys.some((key) => key.isDown);
     this.scene.resume();
     this.#indicatorLayer?.setHidden(false);
+    this.#crowd?.setBubblesHidden(false);
     keyboard?.resetKeys();
   }
 

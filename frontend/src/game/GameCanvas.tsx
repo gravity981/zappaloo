@@ -113,7 +113,16 @@ export default function GameCanvas({
         },
       },
       // The words the engine shows come from the app, in the guest's language.
-      texts: { loading: translate.current("game.mapLoading") },
+      texts: {
+        loading: translate.current("game.mapLoading"),
+        closeBubble: translate.current("game.bubbleClose"),
+        defaultGreeting: translate.current("game.defaultGreeting"),
+      },
+      // The photo of a guest for the speech bubble (PRES-10); the version lets the browser keep it.
+      guestPhoto: (guest) =>
+        guest.photo === null
+          ? undefined
+          : `/api/world/guests/${guest.id}/photo?v=${String(guest.photo)}`,
       transparent: import.meta.env.VITE_TEST_HOOKS === "true",
       preserveDrawingBuffer: import.meta.env.VITE_TEST_HOOKS === "true",
       // The frame diagnostics (GAME-27) exist on the dev server only; a production build drops them.

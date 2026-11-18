@@ -15,7 +15,15 @@ declare global {
               glows: number;
               entries: number;
               view: { x: number; y: number; zoom: number; width: number; height: number };
-              guests: { id: string; name: string; x: number; y: number; moving: boolean }[];
+              guests: {
+                id: string;
+                name: string;
+                x: number;
+                y: number;
+                moving: boolean;
+                bubble: boolean;
+                pinned: boolean;
+              }[];
             }
           | undefined;
         renderStack: () => { type: string; depth: number }[];

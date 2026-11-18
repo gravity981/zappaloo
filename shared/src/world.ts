@@ -567,6 +567,12 @@ export const guestFigureSchema = z.object({
   id: z.string(),
   name: z.string(),
   figure: idSchema,
+  /** What the speech bubble shows (PRES-10): the greeting, the name of the chosen relation option, the free line. */
+  greeting: z.string().nullable(),
+  badge: z.string().nullable(),
+  line: z.string().nullable(),
+  /** The version of the profile photo for its address, or null without a photo. */
+  photo: z.number().int().nullable(),
 });
 export type GuestFigure = z.infer<typeof guestFigureSchema>;
 

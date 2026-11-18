@@ -34,6 +34,14 @@ export interface ProfileUser {
 export const personKey = (companionId: number | null, userId: number): string =>
   companionId === null ? `u${String(userId)}` : `c${String(companionId)}`;
 
+/** What the speech bubble of a guest shows besides the name (PRES-10). */
+export interface ProfileCard {
+  greeting: string | null;
+  badge: string | null;
+  line: string | null;
+  photo: number | null;
+}
+
 export class ProfileService {
   readonly #database: Database;
   readonly #event: EventService;
@@ -112,6 +120,27 @@ export class ProfileService {
       this.#event.audit(actor, "profile.relations", { count: entries.length }, tx);
     });
     return this.relations();
+  }
+
+  /** The speech-bubble data of everyone who has a profile, by person key (`u<id>`, `c<id>`). */
+  cards(): Map<string, ProfileCard> {
+    const options = new Map(this.relations().map((option) => [option.id, option.name]));
+    const rows = this.#database.db
+      .select()
+      .from(profiles)
+      .where(eq(profiles.eventId, this.#event.eventId))
+      .all();
+    return new Map(
+      rows.map((row) => [
+        personKey(row.companionId, row.userId),
+        {
+          greeting: row.greeting,
+          badge: row.relationId === null ? null : (options.get(row.relationId) ?? null),
+          line: row.relationLine,
+          photo: row.photo === null ? null : row.updatedAt.getTime(),
+        },
+      ]),
+    );
   }
 
   #companions(userId: number) {

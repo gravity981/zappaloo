@@ -206,7 +206,11 @@ export default function App() {
         indicateAllObjects: true,
         // It has no guests either: sample figures show the wander areas (PRES-02).
         guests: sampleGuests(loadedPreview.world),
-        texts: { loading: "Loading…" },
+        texts: {
+          loading: "Loading…",
+          closeBubble: "Close speech bubble",
+          defaultGreeting: "Hello 🙂",
+        },
         guides: guides.current,
         view: view.current,
       });

@@ -43,7 +43,7 @@ generated package-format documentation is derived from
   it does not extend below the feet. The same point is used for actor depth
   and portal checks.
 
-**Guest figures** (PRES-01, PRES-02): the host gives the engine `guests` (id, name, figure id). Each guest walks on the map that the hash of its id picks among the maps with a wander area (`guestMapOf`), to random reachable points of the wander areas, at a quarter of the player's speed (`GUEST_SPEED_FACTOR`), and waits 3–8 s between walks. The name tag is drawn above the figure. The preview passes `sampleGuests(world)`.
+**Guest figures** (PRES-01, PRES-02): the host gives the engine `guests` (id, name, figure id). Each guest walks on the map that the hash of its id picks among the maps with a wander area (`guestMapOf`), to random reachable points of the wander areas, at a quarter of the player's speed (`GUEST_SPEED_FACTOR`), and waits 3–8 s between walks. The name tag is drawn above the figure. A guest within 0.8 tile widths of the player stands still, turns to them and opens a speech bubble (HTML over the canvas, like the edge indicators; PRES-10): picture or initials, name, badge, greeting and line (`greeting`, `badge`, `line`, `photo` of the guest, and `guestPhoto` for the picture's address). Of bubbles that would overlap only the nearest figure's is shown; a click or tap pins a bubble, which keeps its figure standing until the cross closes it. The preview passes `sampleGuests(world)`.
 
 The preview's **Collision**, **Border**, **Spawn**, and **Portal** guides
 visualize gameplay geometry. Renderer geometry and package constraints are

@@ -86,6 +86,8 @@ export class Wanderer {
   position: Point;
   direction: Direction = "south";
   moving = false;
+  /** A held figure stands still, as while its speech bubble is open; its wait and walk go on afterwards (PRES-10). */
+  held = false;
   #path: Point[] = [];
   #wait: number;
 
@@ -102,6 +104,7 @@ export class Wanderer {
   /** Advances by `delta` milliseconds; `step` is how far the figure walks in that time, in pixels. */
   update(delta: number, step: number, env: WanderEnvironment): void {
     this.moving = false;
+    if (this.held) return;
     if (this.#path.length === 0) {
       this.#wait -= delta;
       if (this.#wait > 0) return;
@@ -187,7 +190,16 @@ export function sampleGuests(world: LoadedWorld, perMap = 2): GuestFigure[] {
     count.set(map, (count.get(map) ?? 0) + 1);
     const figure = world.figures[guests.length % world.figures.length];
     if (figure === undefined) continue;
-    guests.push({ id, name: `Guest ${String(guests.length + 1)}`, figure: figure.id });
+    guests.push({
+      id,
+      name: `Guest ${String(guests.length + 1)}`,
+      figure: figure.id,
+      // Made-up profile data, so that the preview shows the speech bubbles too (no photo: the initials).
+      greeting: guests.length % 2 === 0 ? "Hi, nice to meet you!" : null,
+      badge: guests.length % 3 === 0 ? "Friends of both" : null,
+      line: guests.length % 2 === 0 ? "Sample guest of the preview" : null,
+      photo: null,
+    });
   }
   return guests;
 }

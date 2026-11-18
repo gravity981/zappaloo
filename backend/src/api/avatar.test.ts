@@ -2,6 +2,7 @@
 // and the roles, the choice, the fallback, and the companions.
 import { afterEach, describe, expect, it } from "vitest";
 import { eq } from "drizzle-orm";
+import sharp from "sharp";
 import type { AvatarResponse, GuestFiguresResponse, Role } from "@zappaloo/shared";
 import {
   companionAttendance,
@@ -252,9 +253,10 @@ describe("the wandering guest figures (PRES-01, PRES-04, AVA-04)", () => {
       { companionId: mia, yes: true },
     ]);
     const seenByAnna = await guests(ctx, anna);
+    const bare = { greeting: null, badge: null, line: null, photo: null };
     expect(seenByAnna.guests).toEqual([
-      { id: `u${String(bertId)}`, name: "bert", figure: "male-guest" },
-      { id: `c${String(mia)}`, name: "Mia", figure: "wedding-guest" },
+      { id: `u${String(bertId)}`, name: "bert", figure: "male-guest", ...bare },
+      { id: `c${String(mia)}`, name: "Mia", figure: "wedding-guest", ...bare },
     ]);
     // Bert's own companion stays in his list; only his own figure is left out.
     expect((await guests(ctx, bert)).guests.map((guest) => guest.name)).toEqual(["anna", "Mia"]);
@@ -299,5 +301,79 @@ describe("the wandering guest figures (PRES-01, PRES-04, AVA-04)", () => {
   it("[PRES-04] the figures are for signed-in users only", async () => {
     const { ctx } = await setup();
     expect((await ctx.app.inject({ url: "/api/world/guests" })).statusCode).toBe(401);
+  });
+
+  /** A 300 × 200 JPEG, as a phone would send it. */
+  const jpeg = () =>
+    sharp({ create: { width: 300, height: 200, channels: 3, background: "#369" } })
+      .jpeg()
+      .toBuffer();
+
+  it("[PRES-10] a guest comes with greeting, relation badge, line and the version of the photo for the speech bubble", async () => {
+    const { ctx } = await setup();
+    const viewer = await userWith(ctx, "viewer", ["vip"]);
+    const bert = await userWith(ctx, "bert", ["vip"]);
+    const bertId = await idOf(ctx, bert);
+    await put(ctx, bert, "me", "male-guest");
+    answer(ctx, [{ userId: bertId, yes: true }]);
+    const relation = (await ctx.app.inject({ url: "/api/profile/people", headers: bert })).json<{
+      relations: { id: number; name: string }[];
+    }>().relations[2];
+    await ctx.app.inject({
+      method: "PUT",
+      url: "/api/profile/people/me",
+      headers: bert,
+      payload: { greeting: "Hallo!", relation: relation?.id, relationLine: "Nachbar" },
+    });
+    await ctx.app.inject({
+      method: "PUT",
+      url: "/api/profile/people/me/photo",
+      headers: { ...bert, "content-type": "image/jpeg" },
+      payload: await jpeg(),
+    });
+    const [guest] = (await guests(ctx, viewer)).guests;
+    expect(guest).toMatchObject({
+      name: "bert",
+      greeting: "Hallo!",
+      badge: relation?.name,
+      line: "Nachbar",
+      photo: expect.any(Number) as number,
+    });
+    // Another guest sees the picture at the guest's own address, with the version in it.
+    const photo = await ctx.app.inject({
+      url: `/api/world/guests/u${String(bertId)}/photo?v=${String(guest?.photo)}`,
+      headers: viewer,
+    });
+    expect(photo.statusCode).toBe(200);
+    expect(photo.headers["content-type"]).toBe("image/webp");
+  });
+
+  it("[PRES-10] the photo of a person who does not attend, or has none, is not served; neither is it to a visitor", async () => {
+    const { ctx } = await setup();
+    const viewer = await userWith(ctx, "viewer", ["vip"]);
+    const bert = await userWith(ctx, "bert", ["vip"]);
+    const bertId = await idOf(ctx, bert);
+    await put(ctx, bert, "me", "male-guest");
+    await ctx.app.inject({
+      method: "PUT",
+      url: "/api/profile/people/me/photo",
+      headers: { ...bert, "content-type": "image/jpeg" },
+      payload: await jpeg(),
+    });
+    const url = `/api/world/guests/u${String(bertId)}/photo`;
+    // Bert has a photo but did not answer the RSVP: he is no guest figure, so his picture is not served.
+    expect((await ctx.app.inject({ url, headers: viewer })).statusCode).toBe(404);
+    answer(ctx, [{ userId: bertId, yes: true }]);
+    expect((await ctx.app.inject({ url, headers: viewer })).statusCode).toBe(200);
+    expect((await ctx.app.inject({ url })).statusCode).toBe(401);
+    // No photo, no picture.
+    const carl = await userWith(ctx, "carl", ["vip"]);
+    const carlId = await idOf(ctx, carl);
+    await put(ctx, carl, "me", "kid");
+    answer(ctx, [{ userId: carlId, yes: true }]);
+    expect(
+      (await ctx.app.inject({ url: `/api/world/guests/u${String(carlId)}/photo`, headers: viewer }))
+        .statusCode,
+    ).toBe(404);
   });
 });

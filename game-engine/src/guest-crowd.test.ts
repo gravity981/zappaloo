@@ -16,10 +16,12 @@ const world = (maps: ParsedMap[], figures = ["a", "b"]) =>
 describe("the guests of a map (PRES-01, PRES-02, PRES-08)", () => {
   const maps = [map("garten", 1), map("saal", 2), map("kirche", 0)];
   const crowd = world(maps);
+  const bare = { greeting: null, badge: null, line: null, photo: null };
   const guests: GuestFigure[] = Array.from({ length: 40 }, (_, i) => ({
     id: `u${String(i)}`,
     name: `G${String(i)}`,
     figure: "a",
+    ...bare,
   }));
 
   it("[PRES-02] only maps with wander areas take guests, and every guest is on exactly one map", () => {
@@ -35,8 +37,8 @@ describe("the guests of a map (PRES-01, PRES-02, PRES-08)", () => {
 
   it("[PRES-01] a guest whose figure the world does not have does not appear", () => {
     const only = guestsOnMap(world([map("garten", 1)]), map("garten", 1), [
-      { id: "u1", name: "x", figure: "gone" },
-      { id: "u2", name: "y", figure: "a" },
+      { id: "u1", name: "x", figure: "gone", ...bare },
+      { id: "u2", name: "y", figure: "a", ...bare },
     ]);
     expect(only.map((guest) => guest.id)).toEqual(["u2"]);
   });

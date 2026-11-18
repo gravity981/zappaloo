@@ -784,7 +784,9 @@
       "paused": "II PAUSIERT",
       "close": "Schliessen",
       "comingSoon": "Das gibt es hier bald."
-    }
+    },
+    "bubbleClose": "Sprechblase schliessen",
+    "defaultGreeting": "Hallo 🙂"
   },
   "avatar": {
     "title": "Wie siehst du aus?",
@@ -1176,6 +1178,7 @@
       "photo_invalid": "Das Foto konnte nicht gelesen werden.",
       "relation_not_found": "Diese Auswahl gibt es nicht mehr.",
       "network_error": "Keine Verbindung. Versuche es noch einmal."
-    }
+    },
+    "defaultGreeting": "Hallo 🙂"
   }
 }

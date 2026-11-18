@@ -140,7 +140,7 @@ export class AvatarService {
    * companion, who answered yes for at least one program item and chose a figure that the active world still has.
    * The signed-in user's own figure is left out (they see their avatar); their companions stay.
    */
-  guests(user: AvatarUser): GuestFigure[] {
+  guests(user: AvatarUser): Omit<GuestFigure, "greeting" | "badge" | "line" | "photo">[] {
     const known = new Set((this.#world.active()?.figures ?? []).map((figure) => figure.id));
     const eventId = this.#event.eventId;
     const { db } = this.#database;
@@ -154,7 +154,7 @@ export class AvatarService {
           .map((row) => row.id),
       ),
     ].filter((id) => id !== user.id);
-    const guests: GuestFigure[] =
+    const guests: Omit<GuestFigure, "greeting" | "badge" | "line" | "photo">[] =
       userIds.length === 0
         ? []
         : db

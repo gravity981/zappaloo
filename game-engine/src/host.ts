@@ -75,6 +75,10 @@ export interface GameHost {
 export interface GameTexts {
   /** Shown over the game while the map behind a portal is built (GAME-30). Without it, the overlay has no text. */
   loading?: string;
+  /** The name of the cross of a pinned speech bubble, for screen readers (PRES-10). */
+  closeBubble?: string;
+  /** The greeting of a guest who wrote none (PRES-10), e.g. "Hallo 🙂". */
+  defaultGreeting?: string;
 }
 
 export interface GameEngineOptions {
@@ -90,6 +94,8 @@ export interface GameEngineOptions {
   indicateAllObjects?: boolean;
   /** The figures of the attending guests that wander the maps (PRES-01); each walks on the map its id picks (PRES-02). */
   guests?: readonly GuestFigure[];
+  /** The address of a guest's photo for the speech bubble; without it the bubble shows the initials. */
+  guestPhoto?: (guest: GuestFigure) => string | undefined;
   /** Shows the development diagnostics overlay (GAME-27); never set in a production build. */
   diagnostics?: boolean;
 }

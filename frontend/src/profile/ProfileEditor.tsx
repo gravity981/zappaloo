@@ -255,7 +255,7 @@ export default function ProfileEditor({
         name={person.name}
         photo={photoAddress(person)}
         badge={relation?.name}
-        greeting={draft.greeting.trim()}
+        greeting={draft.greeting.trim() || t("profileCard.defaultGreeting")}
         line={draft.line.trim()}
       />
     </div>

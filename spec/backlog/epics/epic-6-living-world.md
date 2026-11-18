@@ -67,6 +67,13 @@ Re-verified: GAME-13.
 
 Mock screen: `game`.
 - The speech bubble of a guest figure opens automatically when the player comes close; the figure stops and turns to the player. Several bubbles can be open at once; of bubbles that would overlap, only the nearest figure's is shown (decision 10). A click or tap pins a bubble until it is closed.
+Decided 2026-11-18 (refinement of 6b2):
+
+- **Distance:** a guest figure's bubble opens when the player is within 0.8 tile widths (NPCs: 3, story 6h; changed from 2 to 1.5 and then to 0.8 on 2026-11-18 at the project owner's request) and closes when the player is further than 1.1. A guest who wrote no greeting shows the default "Hallo 🙂", which the host supplies in its language (the engine has no words of its own); the profile's preview shows it too.
+- **Pinned:** a click or tap on a bubble pins it; the figure keeps standing and the bubble stays open, wherever the player walks, until its cross closes it; the figure then strolls on.
+- **Content:** the bubble shows the picture (or the initials), the name, the chosen relation as a badge, the greeting and the free line. `GET /api/world/guests` carries them (greeting, badge, line, version of the photo); the photo is served at `GET /api/world/guests/:key/photo`, signed in and with world access only, for attending guests only.
+- **Drawing:** an HTML layer over the canvas like the edge indicators (crisp text, a real button for the cross), placed above the figure's head and kept inside the view.
+- **Game preview:** its sample guests carry a made-up greeting and badge, no photo.
 Requirements: PRES-10.
 
 ### Story 6c – Seating plan and table finder

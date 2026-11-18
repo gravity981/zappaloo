@@ -530,6 +530,10 @@ test("[PRES-01][PRES-02][PRES-04][PRES-08][AVA-04] the figures of the attending 
     id: `u${String(100 + index)}`,
     name: `Gast ${String(index + 1)}`,
     figure: "wedding-guest",
+    greeting: null,
+    badge: null,
+    line: null,
+    photo: null,
   }));
   await page.route("**/api/world/guests", (route) => route.fulfill({ json: { guests } }));
   await signInAsAdmin(page, context);
@@ -562,4 +566,84 @@ test("[PRES-01][PRES-02][PRES-04][PRES-08][AVA-04] the figures of the attending 
     )
     .toBe(true);
   await page.screenshot({ path: testInfo.outputPath("game-guests.png") });
+});
+
+test("[PRES-10] a guest figure stands still and opens its speech bubble when the player comes close; a click pins it, a cross closes it", async ({
+  page,
+  context,
+}, testInfo) => {
+  test.skip(testInfo.project.name !== "desktop-chromium", "shared settings: one profile only");
+  // One guest with a complete profile (no photo: the initials), so that the map it walks on can be found by its name.
+  const guests = Array.from({ length: 4 }, (_, index) => ({
+    id: `u${String(200 + index)}`,
+    name: `Erika Huber ${String(index + 1)}`,
+    figure: "wedding-guest",
+    // Every second guest wrote no greeting: the bubble then says the default one.
+    greeting: index % 2 === 0 ? "Hi, schön dich kennenzulernen!" : null,
+    badge: "Freunde Braut",
+    line: "WG-Gspänli aus Bern",
+    photo: null,
+  }));
+  await page.route("**/api/world/guests", (route) => route.fulfill({ json: { guests } }));
+  await signInAsAdmin(page, context);
+  await enterGame(page);
+  await expect(page.getByTestId("game-canvas")).toBeVisible({ timeout: 20_000 });
+  // The guests are on the maps with wander areas; the first map that has one is the stage.
+  for (const mapId of ["garten", "saal"]) {
+    await page.evaluate((id) => window.__zappaloo?.game?.selectSpawn(id, "start"), mapId);
+    await page.waitForFunction((id) => window.__zappaloo?.game?.state()?.mapId === id, mapId);
+    if ((await gameState(page)).guests.length > 0) break;
+  }
+  const first = (await gameState(page)).guests[0];
+  if (first === undefined) throw new Error("no guest on the map");
+  const bubble = page.locator(`[data-testid="guest-bubble"][data-guest="${first.id}"]`);
+  await expect(bubble).toHaveCount(0);
+
+  // The player walks to the guest; within 2 tile widths its bubble opens with all that the profile says.
+  await expect(async () => {
+    const now = (await gameState(page)).guests.find((guest) => guest.id === first.id);
+    if (now === undefined) throw new Error("guest gone");
+    const target = await pagePoint(page, { x: now.x, y: now.y });
+    await page.mouse.click(target.x, target.y);
+    await expect(bubble).toBeVisible({ timeout: 3_000 });
+  }).toPass({ timeout: 60_000 });
+  await expect(bubble).toContainText(first.name);
+  await expect(bubble).toContainText(
+    guests.find((guest) => guest.id === first.id)?.greeting ?? de.game.defaultGreeting,
+  );
+  await expect(bubble).toContainText("Freunde Braut");
+  await expect(bubble).toContainText("WG-Gspänli aus Bern");
+  // The figure stands still while its bubble is open.
+  const standing = (await gameState(page)).guests.find((guest) => guest.id === first.id);
+  expect(standing).toMatchObject({ bubble: true, pinned: false });
+  await page.waitForTimeout(1_200);
+  const later = (await gameState(page)).guests.find((guest) => guest.id === first.id);
+  expect({ x: later?.x, y: later?.y, moving: later?.moving }).toEqual({
+    x: standing?.x,
+    y: standing?.y,
+    moving: false,
+  });
+  await page.screenshot({ path: testInfo.outputPath("game-bubble.png") });
+
+  // A click pins the bubble (a cross appears); it stays open when the player walks away.
+  await bubble.click();
+  await expect(bubble).toHaveAttribute("data-pinned", "true");
+  // The player walks away with the arrow keys, in the first direction that leads far enough (the map has edges).
+  const distance = async () => {
+    const state = await gameState(page);
+    return Math.hypot(state.x - (standing?.x ?? 0), state.y - (standing?.y ?? 0));
+  };
+  for (const key of ["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown"]) {
+    if ((await distance()) > 3 * 64) break;
+    await page.keyboard.down(key);
+    await page.waitForTimeout(2_500);
+    await page.keyboard.up(key);
+  }
+  expect(await distance()).toBeGreaterThan(3 * 64);
+  await expect(bubble).toBeVisible();
+  // The cross closes it, and the figure goes on strolling.
+  await bubble.getByRole("button", { name: de.game.bubbleClose }).click();
+  await expect(bubble).toHaveCount(0);
+  const closed = (await gameState(page)).guests.find((guest) => guest.id === first.id);
+  expect(closed).toMatchObject({ bubble: false, pinned: false });
 });

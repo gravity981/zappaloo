@@ -11,6 +11,7 @@ import {
 import type { FastifyPluginAsyncZod } from "fastify-type-provider-zod";
 import { AvatarError } from "../world/avatar.ts";
 import type { AvatarService } from "../world/avatar.ts";
+import type { ProfileService } from "../profile/service.ts";
 import type { WorldService } from "../world/service.ts";
 import { requireUser, signedIn } from "./auth.ts";
 import { worldGuestAccess } from "./world-access.ts";
@@ -20,10 +21,11 @@ const errorBody = z.object({ error: z.object({ code: z.string(), message: z.stri
 
 interface AvatarOptions {
   avatar: AvatarService;
+  profile: ProfileService;
   world: WorldService;
 }
 
-const avatarPlugin: FastifyPluginAsyncZod<AvatarOptions> = (app, { avatar, world }) => {
+const avatarPlugin: FastifyPluginAsyncZod<AvatarOptions> = (app, { avatar, profile, world }) => {
   const access = worldGuestAccess(world);
   app.get(
     "/api/avatar",
@@ -41,7 +43,44 @@ const avatarPlugin: FastifyPluginAsyncZod<AvatarOptions> = (app, { avatar, world
       preHandler: [requireUser, access],
       schema: { querystring: noQuery, response: { 200: guestFiguresResponseSchema } },
     },
-    (request) => ({ guests: avatar.guests(signedIn(request).user) }),
+    (request) => {
+      const cards = profile.cards();
+      return {
+        guests: avatar.guests(signedIn(request).user).map((guest) => ({
+          ...guest,
+          greeting: cards.get(guest.id)?.greeting ?? null,
+          badge: cards.get(guest.id)?.badge ?? null,
+          line: cards.get(guest.id)?.line ?? null,
+          photo: cards.get(guest.id)?.photo ?? null,
+        })),
+      };
+    },
+  );
+
+  // The photo of an attending guest for the speech bubble (PRES-10); the version in the address lets it be cached.
+  app.get(
+    "/api/world/guests/:key/photo",
+    {
+      preHandler: [requireUser, access],
+      schema: {
+        querystring: z.strictObject({ v: z.string().max(20).optional() }),
+        params: z.strictObject({ key: z.string().max(12) }),
+      },
+    },
+    async (request, reply) => {
+      const { key } = request.params;
+      const photo = avatar.guests(signedIn(request).user).some((guest) => guest.id === key)
+        ? profile.photoByKey(key)
+        : undefined;
+      if (photo === undefined) {
+        return await reply.status(404).send({ error: { code: "no_photo", message: "no photo" } });
+      }
+      return await reply
+        .header("content-type", photo.mime)
+        .header("x-content-type-options", "nosniff")
+        .header("cache-control", "private, max-age=31536000, immutable")
+        .send(photo.bytes);
+    },
   );
 
   app.put(
