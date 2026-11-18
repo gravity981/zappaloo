@@ -248,7 +248,7 @@ describe("Einstellungen: Plattform öffnen and Warteseite-Texte", () => {
     );
     if (!card) throw new Error("no card");
     expect(within(card).getByText("Plattform geschlossen")).toBeInTheDocument();
-    user.type(within(card).getByLabelText(/Angekündigtes Öffnungsdatum/), "2027-05-15T18:00");
+    user.type(within(card).getByLabelText(/Angekündigtes Öffnungsdatum/), "15.05.2027 18:00");
     user.click(within(card).getByRole("button", { name: "Datum speichern" }));
     await waitFor(() => {
       expect(calls.some((c) => c.method === "PATCH")).toBe(true);
@@ -278,7 +278,8 @@ describe("Einstellungen: Plattform öffnen and Warteseite-Texte", () => {
     });
     renderAt("/admin/settings");
     const field = await screen.findByLabelText(/Angekündigtes Öffnungsdatum/);
-    expect(field).toHaveValue("2027-05-15T18:00");
+    // Day first, 24-hour format, in the event's time zone.
+    expect(field).toHaveValue("15.05.2027 18:00");
     expect(
       screen.getByRole("switch", { name: "Countdown auf der Warteseite zeigen" }),
     ).toHaveAttribute("aria-checked", "true");

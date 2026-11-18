@@ -10,6 +10,7 @@ import { apiRequest } from "../app/api.ts";
 import { useSession } from "../app/session.ts";
 import { useEventFormat } from "../rsvp/format.ts";
 import { useAdminData, useErrorText } from "./data.ts";
+import { HoldButton } from "./ui.tsx";
 
 /** The German reason of each finding code the validator gives (19.7, THM-03). */
 const FINDING_KEYS = {
@@ -154,14 +155,10 @@ export default function ThemeSettingsCard() {
         {active &&
           (armed ? (
             <>
-              <button
-                type="button"
-                className="btn soft sm"
-                disabled={busy}
-                onClick={() => void resetToDefault()}
-              >
+              <HoldButton disabled={busy} onConfirm={() => void resetToDefault()}>
                 {t("admin.theme.resetConfirm")}
-              </button>
+              </HoldButton>
+              <span className="hint">{t("admin.holdHint")}</span>
               <button
                 type="button"
                 className="btn ghost sm"

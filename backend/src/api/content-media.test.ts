@@ -345,11 +345,14 @@ describe("places (CNT-07)", () => {
       method: "POST",
       url: "/api/admin/rsvp/program-items",
       headers: admin,
-      payload: { name: "Trauung", startsAt: "2027-06-12T12:00:00.000Z", placeId: id },
+      payload: {
+        name: "Trauung",
+        activities: [{ name: "Trauung", startsAt: "2027-06-12T12:00:00.000Z", placeId: id }],
+      },
     });
     expect(item.statusCode).toBe(201);
     const made = bodyOf<ProgramItem>(item);
-    expect(made).toMatchObject({ placeId: id, place: "Kirche Muri" });
+    expect(made.activities[0]).toMatchObject({ placeId: id, place: "Kirche Muri" });
 
     const inUse = await ctx.app.inject({
       method: "DELETE",
@@ -361,7 +364,7 @@ describe("places (CNT-07)", () => {
 
     const released = await ctx.app.inject({
       method: "PATCH",
-      url: `/api/admin/rsvp/program-items/${String(made.id)}`,
+      url: `/api/admin/rsvp/activities/${String(made.activities[0]?.id)}`,
       headers: admin,
       payload: { placeId: null },
     });
@@ -384,7 +387,10 @@ describe("places (CNT-07)", () => {
       method: "POST",
       url: "/api/admin/rsvp/program-items",
       headers: admin,
-      payload: { name: "Apéro", startsAt: "2027-06-12T13:00:00.000Z", placeId: 999 },
+      payload: {
+        name: "Apéro",
+        activities: [{ name: "Apéro", startsAt: "2027-06-12T13:00:00.000Z", placeId: 999 }],
+      },
     });
     expect(unknownItem.statusCode).toBe(404);
     expect(errorCode(unknownItem)).toBe("place_not_found");

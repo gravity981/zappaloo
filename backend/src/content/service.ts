@@ -27,7 +27,7 @@ import {
   contentPlaces,
   contentStart,
   contentTexts,
-  programItems,
+  activities,
 } from "../database/schema.ts";
 import type { Actor, EventService } from "../event/service.ts";
 import { detectImage } from "./images.ts";
@@ -318,7 +318,7 @@ export class ContentService {
     });
   }
 
-  /** Changes a place. Pages and program items show the change at once. */
+  /** Changes a place. Pages and activities show the change at once. */
   updatePlace(id: number, input: PlaceRequest, actor: Actor): ContentPlace {
     return this.#database.db.transaction((tx) => {
       this.#place(tx, id);
@@ -340,14 +340,14 @@ export class ContentService {
     });
   }
 
-  /** Deletes a place that no program item and no page uses, with its map image (the uses are named). */
+  /** Deletes a place that no activity and no page uses, with its map image (the uses are named). */
   async deletePlace(id: number, actor: Actor): Promise<void> {
     const files = this.#database.db.transaction((tx) => {
       this.#place(tx, id);
       const items = tx
         .select({ value: count() })
-        .from(programItems)
-        .where(eq(programItems.placeId, id))
+        .from(activities)
+        .where(eq(activities.placeId, id))
         .get()?.value;
       const pages = tx
         .select({ value: count() })
@@ -357,7 +357,7 @@ export class ContentService {
       if ((items ?? 0) > 0 || (pages ?? 0) > 0) {
         throw new ContentError(
           "place_in_use",
-          `the place is used by ${String(items ?? 0)} program items and ${String(pages ?? 0)} pages`,
+          `the place is used by ${String(items ?? 0)} activities and ${String(pages ?? 0)} pages`,
         );
       }
       // The place refers to its map image, so the place goes first.

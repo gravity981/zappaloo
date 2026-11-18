@@ -19,29 +19,47 @@ const PARTS = [
   {
     id: 1,
     name: "Trauung",
-    startsAt: "2027-06-12T12:00:00.000Z",
-    endsAt: null,
-    placeId: 1,
-    place: "Kirche",
     hasMeal: false,
+    activities: [
+      {
+        id: 1,
+        name: "Trauung",
+        startsAt: "2027-06-12T12:00:00.000Z",
+        endsAt: null,
+        placeId: 1,
+        place: "Kirche",
+      },
+    ],
   },
   {
     id: 2,
     name: "Apéro",
-    startsAt: "2027-06-12T13:30:00.000Z",
-    endsAt: null,
-    placeId: null,
-    place: null,
     hasMeal: false,
+    activities: [
+      {
+        id: 2,
+        name: "Apéro",
+        startsAt: "2027-06-12T13:30:00.000Z",
+        endsAt: null,
+        placeId: null,
+        place: null,
+      },
+    ],
   },
   {
     id: 3,
     name: "Dinner",
-    startsAt: "2027-06-12T16:30:00.000Z",
-    endsAt: null,
-    placeId: 2,
-    place: "Linde",
     hasMeal: true,
+    activities: [
+      {
+        id: 3,
+        name: "Dinner",
+        startsAt: "2027-06-12T16:30:00.000Z",
+        endsAt: null,
+        placeId: 2,
+        place: "Linde",
+      },
+    ],
   },
 ];
 /** A place of Inhalte the program item form can choose (CNT-07). */
@@ -564,22 +582,29 @@ describe("Einstellungen › Rückmeldung", () => {
         body: {
           id: 4,
           name: "Party",
-          startsAt: "2027-06-12T20:00:00.000Z",
-          endsAt: null,
-          placeId: 7,
-          place: "Saal",
           hasMeal: false,
+          activities: [
+            {
+              id: 4,
+              name: "Party",
+              startsAt: "2027-06-12T20:00:00.000Z",
+              endsAt: null,
+              placeId: 7,
+              place: "Saal",
+            },
+          ],
         },
       }),
     });
     renderAt("/admin/settings");
-    expect(await screen.findByText("Dinner")).toBeInTheDocument();
+    expect(await screen.findByRole("button", { name: "Bearbeiten: Dinner" })).toBeInTheDocument();
     expect(screen.getByText("Essen")).toBeInTheDocument();
     user.click(screen.getByRole("button", { name: "Programmpunkt hinzufügen" }));
     const start = await screen.findByLabelText("Beginn");
     const form = within(start.closest("form") as HTMLElement);
     user.type(form.getByLabelText("Name"), "Party");
-    user.type(start, "2027-06-12T22:00");
+    user.type(form.getByLabelText("Name der Aktivität"), "Tanzen");
+    user.type(start, "12.06.2027 22:00");
     user.type(form.getByLabelText("Ort (optional)"), "7");
     user.click(form.getByRole("button", { name: "Speichern" }));
     await waitFor(() => {
@@ -588,10 +613,170 @@ describe("Einstellungen › Rückmeldung", () => {
     // 22:00 in Zurich (summer time) is 20:00 UTC.
     expect(calls.find((c) => c.method === "POST")?.body).toEqual({
       name: "Party",
-      startsAt: "2027-06-12T20:00:00.000Z",
-      endsAt: null,
-      placeId: 7,
       hasMeal: false,
+      activities: [
+        { name: "Tanzen", startsAt: "2027-06-12T20:00:00.000Z", endsAt: null, placeId: 7 },
+      ],
+    });
+  });
+
+  /** Dinner with two activities, Apéro with one. */
+  const withActivities = {
+    ...config,
+    programItems: [
+      { id: 2, name: "Apéro", hasMeal: false, activities: [PARTS[1]?.activities[0]] },
+      {
+        id: 3,
+        name: "Dinner",
+        hasMeal: true,
+        activities: [
+          {
+            id: 31,
+            name: "Essen",
+            startsAt: "2027-06-12T16:30:00.000Z",
+            endsAt: null,
+            placeId: null,
+            place: null,
+          },
+          {
+            id: 32,
+            name: "Paar-Quiz",
+            startsAt: "2027-06-12T18:30:00.000Z",
+            endsAt: null,
+            placeId: null,
+            place: null,
+          },
+        ],
+      },
+    ],
+  };
+  const contentBody = {
+    startMarkdown: "",
+    pages: [],
+    places: [PLACE_SAAL],
+    start: { heroImageId: null, heroAlt: null, countdown: true },
+  };
+
+  it("[RSVP-17] the activities are listed under their program item; the last one of an item cannot be deleted", async () => {
+    fakeBackend({
+      "GET /api/session": () => asAdmin,
+      "GET /api/admin/rsvp/config": () => ({ status: 200, body: withActivities }),
+      "GET /api/content": () => ({ status: 200, body: contentBody }),
+    });
+    renderAt("/admin/settings");
+    expect(await screen.findByText("Paar-Quiz")).toBeInTheDocument();
+    expect(screen.getByText("Essen", { selector: "b" })).toBeInTheDocument();
+    // Apéro has one activity: it stays, and the hint says what to do instead.
+    expect(screen.getByRole("button", { name: "Aktivität löschen: Apéro" })).toBeDisabled();
+    expect(screen.getByText(/Die letzte Aktivität lässt sich nicht löschen/)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Aktivität löschen: Paar-Quiz" })).toBeEnabled();
+  });
+
+  it("[RSVP-17] the admin adds an activity under a program item", async () => {
+    const calls = fakeBackend({
+      "GET /api/session": () => asAdmin,
+      "GET /api/admin/rsvp/config": () => ({ status: 200, body: withActivities }),
+      "GET /api/content": () => ({ status: 200, body: contentBody }),
+      "POST /api/admin/rsvp/program-items/3/activities": () => ({
+        status: 201,
+        body: { id: 33, name: "Dessert", startsAt: "", endsAt: null, placeId: null, place: null },
+      }),
+    });
+    renderAt("/admin/settings");
+    user.click(await screen.findByRole("button", { name: "Aktivität hinzufügen: Dinner" }));
+    const start = await screen.findByLabelText("Beginn");
+    const form = within(start.closest("form") as HTMLElement);
+    user.type(form.getByLabelText("Name der Aktivität"), "Dessert");
+    user.type(start, "12.06.2027 20:00");
+    user.click(form.getByRole("button", { name: "Speichern" }));
+    await waitFor(() => {
+      expect(calls.some((c) => c.method === "POST")).toBe(true);
+    });
+    expect(calls.find((c) => c.method === "POST")?.body).toEqual({
+      name: "Dessert",
+      startsAt: "2027-06-12T18:00:00.000Z",
+      endsAt: null,
+      placeId: null,
+    });
+  });
+
+  it("[RSVP-17] the activities of a program item are listed chronologically, the first one at the top", async () => {
+    // The server answers in the wrong order on purpose: the card does not depend on it.
+    const [first, second] = withActivities.programItems[1]?.activities ?? [];
+    const unsorted = {
+      ...withActivities,
+      programItems: [
+        { ...withActivities.programItems[1], activities: [second, first] },
+        withActivities.programItems[0],
+      ],
+    };
+    fakeBackend({
+      "GET /api/session": () => asAdmin,
+      "GET /api/admin/rsvp/config": () => ({ status: 200, body: unsorted }),
+      "GET /api/content": () => ({ status: 200, body: contentBody }),
+    });
+    renderAt("/admin/settings");
+    await screen.findByText("Paar-Quiz");
+    const names = screen
+      .getAllByRole("button", { name: /^Aktivität bearbeiten: / })
+      .map((button) => button.getAttribute("aria-label"));
+    // Apéro (13:30) comes before Dinner (16:30), and Essen before Paar-Quiz within Dinner.
+    expect(names).toEqual([
+      "Aktivität bearbeiten: Apéro",
+      "Aktivität bearbeiten: Essen",
+      "Aktivität bearbeiten: Paar-Quiz",
+    ]);
+  });
+
+  it("[RSVP-17] date and time of an activity are written day.month.year and in 24-hour format", async () => {
+    fakeBackend({
+      "GET /api/session": () => asAdmin,
+      "GET /api/admin/rsvp/config": () => ({ status: 200, body: withActivities }),
+      "GET /api/content": () => ({ status: 200, body: contentBody }),
+    });
+    renderAt("/admin/settings");
+    // Paar-Quiz starts at 20:30 in Zurich (summer time): shown as one text, day first.
+    user.click(await screen.findByRole("button", { name: "Aktivität bearbeiten: Paar-Quiz" }));
+    const start = await screen.findByLabelText("Beginn");
+    expect(start).toHaveValue("12.06.2027 20:30");
+    expect(start).toHaveAttribute("placeholder", "TT.MM.JJJJ HH:MM");
+    // 13.06. is not 06.13.: a month first, or AM/PM, is not a date here.
+    user.type(start, "06.13.2027 8:30 PM");
+    expect((start as HTMLInputElement).validity.customError).toBe(true);
+    user.type(start, "13.06.2027 20:30");
+    expect((start as HTMLInputElement).validity.customError).toBe(false);
+  });
+
+  it("[RSVP-17] the admin changes and deletes an activity", async () => {
+    const calls = fakeBackend({
+      "GET /api/session": () => asAdmin,
+      "GET /api/admin/rsvp/config": () => ({ status: 200, body: withActivities }),
+      "GET /api/content": () => ({ status: 200, body: contentBody }),
+      "PATCH /api/admin/rsvp/activities/32": () => ({
+        status: 200,
+        body: withActivities.programItems[1]?.activities[1],
+      }),
+      "DELETE /api/admin/rsvp/activities/31": () => ({ status: 204 }),
+    });
+    renderAt("/admin/settings");
+    user.click(await screen.findByRole("button", { name: "Aktivität bearbeiten: Paar-Quiz" }));
+    const name = await screen.findByDisplayValue("Paar-Quiz");
+    user.clear(name);
+    user.type(name, "Quiz");
+    const form = within(name.closest("form") as HTMLElement);
+    user.click(form.getByRole("button", { name: "Speichern" }));
+    await waitFor(() => {
+      expect(calls.some((c) => c.method === "PATCH")).toBe(true);
+    });
+    expect(calls.find((c) => c.method === "PATCH")?.body).toEqual({
+      name: "Quiz",
+      startsAt: "2027-06-12T18:30:00.000Z",
+      endsAt: null,
+      placeId: null,
+    });
+    user.click(await screen.findByRole("button", { name: "Aktivität löschen: Essen" }));
+    await waitFor(() => {
+      expect(calls.some((c) => c.method === "DELETE")).toBe(true);
     });
   });
 
@@ -1049,6 +1234,60 @@ describe("the song wish switch", () => {
   });
 });
 
+describe("activities in the wizard (RSVP-16)", () => {
+  /** Trauung with two activities, then Apéro. */
+  const multi = [
+    {
+      ...PARTS[0],
+      activities: [
+        {
+          id: 11,
+          name: "Eintreffen",
+          startsAt: "2027-06-12T11:30:00.000Z",
+          endsAt: null,
+          placeId: null,
+          place: null,
+        },
+        { ...PARTS[0]?.activities[0], id: 12 },
+      ],
+    },
+    PARTS[1],
+  ];
+
+  it("[RSVP-16] each program item lists its activities with their start times, per program item and in the summary", async () => {
+    fakeBackend({
+      "GET /api/session": () => asGuest,
+      "GET /api/rsvp": () => ({
+        status: 200,
+        body: state({ programItems: multi, answer: answered([1, 2]) }),
+      }),
+    });
+    renderAt("/rsvp");
+    // The summary: a small line below each program item's name (times in the event's time zone).
+    expect(await screen.findByText("Eintreffen 13:30, Trauung 14:00")).toBeInTheDocument();
+    expect(screen.getByText("Apéro 15:30")).toBeInTheDocument();
+    // Step 1, one yes or no per program item: the same lines.
+    user.click(screen.getByRole("button", { name: "Ändern" }));
+    expect(await screen.findByText("Eintreffen 13:30, Trauung 14:00")).toBeInTheDocument();
+    expect(screen.getByText("Apéro 15:30")).toBeInTheDocument();
+  });
+
+  it("[RSVP-16] with one answer for all the program items are listed with their activities", async () => {
+    fakeBackend({
+      "GET /api/session": () => asGuest,
+      "GET /api/rsvp": () => ({
+        status: 200,
+        body: state({ perItem: false, programItems: multi, answer: null }),
+      }),
+    });
+    renderAt("/rsvp");
+    expect(
+      await screen.findByText("Trauung – Eintreffen 13:30, Trauung 14:00"),
+    ).toBeInTheDocument();
+    expect(screen.getByText("Apéro – Apéro 15:30")).toBeInTheDocument();
+  });
+});
+
 describe("one answer per person (RSVP-11, 7.4.2)", () => {
   const approvedMia = {
     id: 7,
@@ -1088,7 +1327,8 @@ describe("one answer per person (RSVP-11, 7.4.2)", () => {
     await screen.findByRole("heading", { name: "Bist du dabei, Erika?" });
     expect(screen.getByText(/Sag uns, ob du kommst/)).toBeInTheDocument();
     // The program items are listed, but nobody is asked per program item.
-    expect(screen.getAllByText("Trauung · Apéro · Dinner")).toHaveLength(2);
+    expect(screen.getAllByText("Trauung – Trauung 14:00")).toHaveLength(2);
+    expect(screen.getAllByText("Dinner – Dinner 18:30")).toHaveLength(2);
     expect(screen.queryByRole("button", { name: "Trauung: Dabei" })).not.toBeInTheDocument();
     const next = screen.getByRole("button", { name: "Weiter" });
     expect(next).toBeDisabled();

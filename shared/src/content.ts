@@ -155,19 +155,22 @@ export const startRequestSchema = z.strictObject({
 });
 export type StartRequest = z.infer<typeof startRequestSchema>;
 
-/** The countdown card (WEB-11): the calendar days to the day of the first program item. */
+/** The countdown card (WEB-11): the calendar days to the day of the first activity of all. */
 export const countdownSchema = z.object({
   days: z.number().int().positive(),
-  /** The day of the first program item, `2027-06-12`, in the event's time zone. */
+  /** The day of the first activity of all, `2027-06-12`, in the event's time zone. */
   date: z.string(),
   placeName: z.string().nullable(),
 });
 export type Countdown = z.infer<typeof countdownSchema>;
 
-/** One entry of the schedule as the website shows it (WEB-07). */
+/** One entry of the schedule as the website shows it: an activity (WEB-07, WEB-12). */
 export const scheduleEntrySchema = z.object({
+  /** The activity's id. */
   id: z.number().int().positive(),
   name: z.string(),
+  /** The program item the activity belongs to. */
+  programItemId: z.number().int().positive(),
   /** ISO date-time. */
   startsAt: z.string(),
   /** ISO date-time, or null when the entry has no end. */
@@ -178,7 +181,7 @@ export type ScheduleEntryView = z.infer<typeof scheduleEntrySchema>;
 
 /**
  * `GET /api/website` (signed in): what the website computes for the start page. On the event day
- * (from the day of the first program item, in the event's time zone) the start page shows "now" and
+ * (from the day of the first activity of all, in the event's time zone) the start page shows "now" and
  * "next" instead of the countdown (WEB-07, WEB-10).
  */
 export const websiteResponseSchema = z.object({
@@ -195,15 +198,19 @@ export type WebsiteResponse = z.infer<typeof websiteResponseSchema>;
 export const entryStatusSchema = z.enum(["past", "now", "upcoming"]);
 
 /**
- * `GET /api/programme` (signed in): the program items the guest is invited to, as a timeline (WEB-09).
+ * `GET /api/programme` (signed in): the activities of the program items the guest is invited to, as a timeline (WEB-09, WEB-12).
  * Outside the event day every entry is "upcoming".
  */
 export const programmeResponseSchema = z.object({
-  /** True when the programme leaves out program items the guest is not invited to (WEB-09). */
-  hidden: z.boolean(),
   eventDay: z.boolean(),
   eventDate: z.string().nullable(),
-  items: z.array(scheduleEntrySchema.extend({ status: entryStatusSchema })),
+  items: z.array(
+    scheduleEntrySchema.extend({
+      status: entryStatusSchema,
+      /** The calendar day of the activity in the event's time zone, `2027-06-12`. */
+      day: z.string(),
+    }),
+  ),
 });
 export type ProgrammeResponse = z.infer<typeof programmeResponseSchema>;
 

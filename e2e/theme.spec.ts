@@ -3,7 +3,7 @@
 import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { expect, test } from "./support.ts";
-import { signInAsAdmin } from "./support.ts";
+import { holdButton, signInAsAdmin } from "./support.ts";
 import {
   buildExample,
   EXAMPLE_COLORS,
@@ -44,13 +44,13 @@ test("[THM-01][THM-04][THM-05] an admin imports the example theme, the website s
     new RegExp(`--a-dark: ${EXAMPLE_COLORS.accent}`),
   );
 
-  // Back to the default: the first click only asks, the second one removes the package.
+  // Back to the default: the first click only asks, the confirmation must be held for four seconds.
   await page.goto("/admin/settings");
   await card.getByRole("button", { name: de.admin.theme.resetButton }).click();
   await expect(
     card.getByRole("button", { name: de.admin.theme.resetButton, exact: true }),
   ).toHaveCount(0);
-  await card.getByRole("button", { name: de.admin.theme.resetConfirm }).click();
+  await holdButton(page, card.getByRole("button", { name: de.admin.theme.resetConfirm }));
   await expect(card.getByText(de.admin.theme.standardInfo)).toBeVisible();
   const back = (await (await page.request.get("/api/site")).json()) as { theme: unknown };
   expect(back.theme).toBeNull();

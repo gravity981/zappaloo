@@ -1,12 +1,15 @@
 // RSVP: program items, menu options, the deadline, the guests' answers and the admin overview
 // (RSVP-01 – RSVP-07, SEC-11; sw-architecture.md 7.4, 7.4.1). Allergies are health data: only
 // the admin overview and the guest's own answer ever return them (SEC-11).
-import { and, asc, eq, inArray } from "drizzle-orm";
+import { and, asc, count, eq, inArray } from "drizzle-orm";
 import { MAX_COMPANIONS, menuOffered, menuRequired, rsvpStatus } from "@zappaloo/shared";
 import type {
   PersonType,
   Companion,
   CompanionRequest,
+  Activity,
+  ActivityRequest,
+  ActivityUpdate,
   ProgramItem,
   ProgramItemRequest,
   ProgramItemUpdate,
@@ -25,6 +28,7 @@ import {
   companionAttendance,
   companions,
   contentPlaces,
+  activities,
   programItems,
   membershipProgramItems,
   membershipRoles,
@@ -43,6 +47,8 @@ import { closesAt } from "./deadline.ts";
 
 export type RsvpErrorCode =
   | "program_item_not_found"
+  | "activity_not_found"
+  | "last_activity"
   | "invalid_time"
   | "place_not_found"
   | "menu_not_found"
@@ -77,16 +83,31 @@ interface CheckedPerson {
 type Tx = Parameters<Parameters<Database["db"]["transaction"]>[0]>[0];
 type Reader = Pick<Database["db"], "select">;
 type ProgramItemRow = typeof programItems.$inferSelect;
+type ActivityRow = typeof activities.$inferSelect;
 
-/** A program item as the API serves it; `names` maps place ids to the places' names (CNT-07). */
-const toProgramItem = (row: ProgramItemRow, names: ReadonlyMap<number, string>): ProgramItem => ({
+/** An activity as the API serves it; `names` maps place ids to the places' names (CNT-07). */
+const toActivity = (row: ActivityRow, names: ReadonlyMap<number, string>): Activity => ({
   id: row.id,
   name: row.name,
   startsAt: row.startsAt.toISOString(),
   endsAt: row.endsAt?.toISOString() ?? null,
   placeId: row.placeId,
   place: row.placeId === null ? null : (names.get(row.placeId) ?? null),
+});
+
+/** A program item as the API serves it, with its activities by start (WEB-12). */
+const toProgramItem = (
+  row: ProgramItemRow,
+  rows: readonly ActivityRow[],
+  names: ReadonlyMap<number, string>,
+): ProgramItem => ({
+  id: row.id,
+  name: row.name,
   hasMeal: row.hasMeal,
+  activities: rows
+    .filter((activity) => activity.programItemId === row.id)
+    .sort((a, b) => a.startsAt.getTime() - b.startsAt.getTime() || a.id - b.id)
+    .map((activity) => toActivity(activity, names)),
 });
 
 /** The program items answered with yes (or with no), sorted. */
@@ -166,13 +187,26 @@ export class RsvpService {
 
   #programItems(reader: Reader = this.#database.db): ProgramItem[] {
     const names = this.#placeNames(reader);
-    return reader
+    const eventId = this.#event.eventId;
+    const rows = reader.select().from(activities).where(eq(activities.eventId, eventId)).all();
+    const items = reader
       .select()
       .from(programItems)
-      .where(eq(programItems.eventId, this.#event.eventId))
-      .orderBy(asc(programItems.startsAt), asc(programItems.id))
+      .where(eq(programItems.eventId, eventId))
+      .orderBy(asc(programItems.id))
       .all()
-      .map((row) => toProgramItem(row, names));
+      .map((row) => toProgramItem(row, rows, names));
+    // A program item's order is the start of its first activity (RSVP-17).
+    const first = (item: ProgramItem): number =>
+      item.activities[0] ? Date.parse(item.activities[0].startsAt) : Number.MAX_SAFE_INTEGER;
+    return items.sort((a, b) => first(a) - first(b) || a.id - b.id);
+  }
+
+  /** One program item with its activities. */
+  #programItemView(tx: Reader, id: number): ProgramItem {
+    const item = this.#programItems(tx).find((candidate) => candidate.id === id);
+    if (!item) throw new RsvpError("program_item_not_found", "no such program item");
+    return item;
   }
 
   /** The names of this event's places by id (CNT-07). */
@@ -358,43 +392,95 @@ export class RsvpService {
       .run();
   }
 
+  #activity(tx: Reader, id: number): ActivityRow {
+    const row = tx
+      .select()
+      .from(activities)
+      .where(and(eq(activities.id, id), eq(activities.eventId, this.#event.eventId)))
+      .get();
+    if (!row) throw new RsvpError("activity_not_found", "no such activity");
+    return row;
+  }
+
+  /** Inserts an activity after checking its times and place (WEB-07, CNT-07). */
+  #insertActivity(tx: Tx, programItemId: number, input: ActivityRequest): ActivityRow {
+    if (input.endsAt && new Date(input.endsAt) <= new Date(input.startsAt)) {
+      throw new RsvpError("invalid_time", "the end must be after the start");
+    }
+    if (input.placeId) this.#requirePlace(tx, input.placeId);
+    return tx
+      .insert(activities)
+      .values({
+        eventId: this.#event.eventId,
+        programItemId,
+        name: input.name,
+        startsAt: new Date(input.startsAt),
+        endsAt: input.endsAt ? new Date(input.endsAt) : null,
+        placeId: input.placeId ?? null,
+        createdAt: this.#now(),
+      })
+      .returning()
+      .get();
+  }
+
+  /** Creates a program item together with its activities, at least one (RSVP-17). */
   createProgramItem(input: ProgramItemRequest, actor: Actor): ProgramItem {
     return this.#database.db.transaction((tx) => {
       if (input.hasMeal) this.#clearMeal(tx);
-      if (input.endsAt && new Date(input.endsAt) <= new Date(input.startsAt)) {
-        throw new RsvpError("invalid_time", "the end must be after the start");
-      }
-      if (input.placeId) this.#requirePlace(tx, input.placeId);
       const row = tx
         .insert(programItems)
         .values({
           eventId: this.#event.eventId,
           name: input.name,
-          startsAt: new Date(input.startsAt),
-          endsAt: input.endsAt ? new Date(input.endsAt) : null,
-          placeId: input.placeId ?? null,
           hasMeal: input.hasMeal ?? false,
           createdAt: this.#now(),
         })
         .returning()
         .get();
+      for (const activity of input.activities) this.#insertActivity(tx, row.id, activity);
       this.#event.audit(actor, "rsvp.program_item.create", { programItemId: row.id }, tx);
-      return toProgramItem(row, this.#placeNames(tx));
+      return this.#programItemView(tx, row.id);
     });
   }
 
   updateProgramItem(id: number, changes: ProgramItemUpdate, actor: Actor): ProgramItem {
     return this.#database.db.transaction((tx) => {
-      const current = this.#programItem(tx, id);
+      this.#programItem(tx, id);
+      if (changes.hasMeal) this.#clearMeal(tx);
+      tx.update(programItems)
+        .set({
+          ...(changes.name === undefined ? {} : { name: changes.name }),
+          ...(changes.hasMeal === undefined ? {} : { hasMeal: changes.hasMeal }),
+        })
+        .where(eq(programItems.id, id))
+        .run();
+      this.#event.audit(actor, "rsvp.program_item.update", { programItemId: id }, tx);
+      return this.#programItemView(tx, id);
+    });
+  }
+
+  /** Adds an activity to a program item (RSVP-17). */
+  createActivity(programItemId: number, input: ActivityRequest, actor: Actor): Activity {
+    return this.#database.db.transaction((tx) => {
+      this.#programItem(tx, programItemId);
+      const row = this.#insertActivity(tx, programItemId, input);
+      this.#event.audit(actor, "rsvp.activity.create", { activityId: row.id, programItemId }, tx);
+      return toActivity(row, this.#placeNames(tx));
+    });
+  }
+
+  updateActivity(id: number, changes: ActivityUpdate, actor: Actor): Activity {
+    return this.#database.db.transaction((tx) => {
+      const current = this.#activity(tx, id);
       const start = changes.startsAt === undefined ? current.startsAt : new Date(changes.startsAt);
       const end =
         changes.endsAt === undefined ? current.endsAt : changes.endsAt && new Date(changes.endsAt);
-      if (end && end <= start)
+      if (end && end <= start) {
         throw new RsvpError("invalid_time", "the end must be after the start");
-      if (changes.hasMeal) this.#clearMeal(tx);
+      }
       if (changes.placeId) this.#requirePlace(tx, changes.placeId);
       const row = tx
-        .update(programItems)
+        .update(activities)
         .set({
           ...(changes.name === undefined ? {} : { name: changes.name }),
           ...(changes.startsAt === undefined ? {} : { startsAt: new Date(changes.startsAt) }),
@@ -402,13 +488,39 @@ export class RsvpService {
             ? {}
             : { endsAt: changes.endsAt ? new Date(changes.endsAt) : null }),
           ...(changes.placeId === undefined ? {} : { placeId: changes.placeId }),
-          ...(changes.hasMeal === undefined ? {} : { hasMeal: changes.hasMeal }),
         })
-        .where(eq(programItems.id, id))
+        .where(eq(activities.id, id))
         .returning()
         .get();
-      this.#event.audit(actor, "rsvp.program_item.update", { programItemId: id }, tx);
-      return toProgramItem(row, this.#placeNames(tx));
+      this.#event.audit(
+        actor,
+        "rsvp.activity.update",
+        { activityId: id, programItemId: row.programItemId },
+        tx,
+      );
+      return toActivity(row, this.#placeNames(tx));
+    });
+  }
+
+  /** The last activity of a program item cannot be deleted; the program item is deleted instead (RSVP-17). */
+  deleteActivity(id: number, actor: Actor): void {
+    this.#database.db.transaction((tx) => {
+      const current = this.#activity(tx, id);
+      const siblings = tx
+        .select({ value: count() })
+        .from(activities)
+        .where(eq(activities.programItemId, current.programItemId))
+        .get()?.value;
+      if ((siblings ?? 0) <= 1) {
+        throw new RsvpError("last_activity", "a program item keeps at least one activity");
+      }
+      tx.delete(activities).where(eq(activities.id, id)).run();
+      this.#event.audit(
+        actor,
+        "rsvp.activity.delete",
+        { activityId: id, programItemId: current.programItemId },
+        tx,
+      );
     });
   }
 
@@ -1309,14 +1421,41 @@ export function seedExampleRsvp(
   actor: Actor,
   placeId: (name: string) => number,
 ): void {
-  const programItems: [string, string, string, boolean][] = [
-    ["Trauung", "2027-06-12T12:00:00.000Z", "Kirche Muri", false],
-    ["Apéro", "2027-06-12T13:30:00.000Z", "Schlossgarten", false],
-    ["Dinner", "2027-06-12T16:30:00.000Z", "Landgasthof Linde", true],
-    ["Party", "2027-06-12T20:00:00.000Z", "Linde, Saal", false],
+  // Program items with their activities: [name, meal, [activity name, start, place, end?][]].
+  const programItems: [string, boolean, [string, string, string, string?][]][] = [
+    [
+      "Trauung",
+      false,
+      [
+        ["Eintreffen", "2027-06-12T11:30:00.000Z", "Kirche Muri"],
+        ["Trauung", "2027-06-12T12:00:00.000Z", "Kirche Muri", "2027-06-12T13:00:00.000Z"],
+      ],
+    ],
+    ["Apéro", false, [["Apéro", "2027-06-12T13:30:00.000Z", "Schlossgarten"]]],
+    [
+      "Dinner",
+      true,
+      [
+        ["Dinner", "2027-06-12T16:30:00.000Z", "Landgasthof Linde"],
+        ["Paar-Quiz", "2027-06-12T18:30:00.000Z", "Linde, Saal"],
+      ],
+    ],
+    ["Party", false, [["Party", "2027-06-12T20:00:00.000Z", "Linde, Saal"]]],
   ];
-  for (const [name, startsAt, place, hasMeal] of programItems) {
-    rsvp.createProgramItem({ name, startsAt, placeId: placeId(place), hasMeal }, actor);
+  for (const [name, hasMeal, items] of programItems) {
+    rsvp.createProgramItem(
+      {
+        name,
+        hasMeal,
+        activities: items.map(([activityName, startsAt, place, endsAt]) => ({
+          name: activityName,
+          startsAt,
+          endsAt: endsAt ?? null,
+          placeId: placeId(place),
+        })),
+      },
+      actor,
+    );
   }
   for (const name of ["Fleisch", "Vegetarisch", "Vegan", "Kindermenü"])
     rsvp.createMenu(name, actor);

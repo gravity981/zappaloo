@@ -36,10 +36,10 @@ describe("the project spec", () => {
     expect(notImplemented.errors).toEqual([]);
   });
 
-  it("plans epics 1 to 10, with 3.5, 3.9, 5.1 and 5.2 inserted", () => {
+  it("plans epics 1 to 10, with 3.5, 3.9 and 5.1 – 5.4 inserted", () => {
     expect(epics.errors).toEqual([]);
     expect(epics.value.map((e) => e.number)).toEqual([
-      1, 2, 3, 3.5, 3.9, 4, 5, 5.1, 5.2, 6, 7, 8, 9, 10,
+      1, 2, 3, 3.5, 3.9, 4, 5, 5.1, 5.2, 5.3, 5.4, 6, 7, 8, 9, 10,
     ]);
   });
 
@@ -64,5 +64,23 @@ describe("the project spec", () => {
         return { number: parseEpics([{ name, markdown }]).value[0]?.number ?? -1, ...header };
       });
     expect(checkEpicStatuses(headers, parseRoadmap(read("backlog/roadmap.md")))).toEqual([]);
+  });
+});
+
+describe("flaky end-to-end tests (test-strategy.md 8.8)", () => {
+  const e2eDir = join(specDir, "../e2e");
+  /** The files of the tests that end their title with `@flaky`, one entry per test. */
+  const tagged = readdirSync(e2eDir)
+    .filter((name) => name.endsWith(".spec.ts"))
+    .flatMap((name) => {
+      const count = (readFileSync(join(e2eDir, name), "utf8").match(/@flaky"/g) ?? []).length;
+      return Array.from({ length: count }, () => `e2e/${name}`);
+    })
+    .sort();
+  const section = read("test-strategy.md").split("### 8.8 Flaky end-to-end tests")[1] ?? "";
+  const listed = [...section.matchAll(/^\| `(e2e\/[^`]+)` \|/gm)].map((match) => match[1]).sort();
+
+  it("[OPS-19] lists every @flaky test, and only those", () => {
+    expect(listed).toEqual(tagged);
   });
 });

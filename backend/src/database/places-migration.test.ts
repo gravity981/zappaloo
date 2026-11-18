@@ -25,7 +25,8 @@ describe("the places migration (CNT-07)", () => {
       .filter((file) => file.endsWith(".sql"))
       .sort();
     const before = files.filter((file) => file < "0013_");
-    const after = files.filter((file) => file >= "0013_");
+    // Later migrations (0024, activities) move the places on; their own test covers them.
+    const after = files.filter((file) => file >= "0013_" && file < "0024_");
     expect(after).toEqual([
       "0013_content_places_and_images.sql",
       "0014_program_item_places.sql",

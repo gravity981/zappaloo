@@ -1,5 +1,5 @@
 // A fake backend for component tests: fetch answers from handlers, plus fixtures and helpers.
-import { fireEvent, render } from "@testing-library/react";
+import { act, fireEvent, render } from "@testing-library/react";
 import { createMemoryRouter, RouterProvider } from "react-router";
 import { vi } from "vitest";
 import { routes } from "../app/routes.tsx";
@@ -109,6 +109,19 @@ export const user = {
     fireEvent.click(element);
   },
 };
+
+/** Holds a `HoldButton` for its four seconds (only the timers are faked, and only meanwhile). */
+export function hold(button: HTMLElement) {
+  vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+  try {
+    fireEvent.pointerDown(button);
+    act(() => {
+      vi.advanceTimersByTime(4000);
+    });
+  } finally {
+    vi.useRealTimers();
+  }
+}
 
 export const anonymous = { status: 200, body: { user: null, csrfToken: null } };
 export const signedIn = { status: 200, body: { user: anna, csrfToken: "csrf-1" } };

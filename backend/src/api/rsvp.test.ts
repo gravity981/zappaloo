@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it } from "vitest";
 import type {
+  Activity,
   ActivityEntry,
   ProgramItem,
   IssuedInvitation,
@@ -105,8 +106,7 @@ async function setup() {
   ] as const) {
     const made = await call<ProgramItem>(root, "POST", "/api/admin/rsvp/program-items", {
       name,
-      startsAt: `2027-06-12T${String(hour)}:00:00.000Z`,
-      placeId: lindeId,
+      activities: [{ name, startsAt: `2027-06-12T${String(hour)}:00:00.000Z`, placeId: lindeId }],
       hasMeal,
     });
     expect(made.status).toBe(201);
@@ -157,15 +157,15 @@ describe("program items, menus and the deadline", () => {
     const after = (await get<{ programItems: ProgramItem[] }>(root, "/api/admin/rsvp/config")).body;
     expect(after.programItems.filter((p) => p.hasMeal).map((p) => p.name)).toEqual(["Apéro"]);
 
-    // Program items are ordered by time, not by creation.
-    await call(root, "PATCH", `/api/admin/rsvp/program-items/${String(apero.id)}`, {
+    // Program items are ordered by the start of their first activity, not by creation (RSVP-17).
+    await call(root, "PATCH", `/api/admin/rsvp/activities/${String(apero.activities[0]?.id)}`, {
       startsAt: "2027-06-12T10:00:00.000Z",
       placeId: null,
     });
     const reordered = (await get<{ programItems: ProgramItem[] }>(root, "/api/admin/rsvp/config"))
       .body;
     expect(reordered.programItems[0]?.name).toBe("Apéro");
-    expect(reordered.programItems[0]?.place).toBeNull();
+    expect(reordered.programItems[0]?.activities[0]?.place).toBeNull();
 
     expect(
       (await call(root, "DELETE", `/api/admin/rsvp/program-items/${String(apero.id)}`)).status,
@@ -180,8 +180,12 @@ describe("program items, menus and the deadline", () => {
 
   it("[RSVP-02][RSVP-03] input is validated and only admins change the configuration", async () => {
     const { ctx, root, call, guest } = await setup();
+    expect((await call(root, "POST", "/api/admin/rsvp/program-items", { name: "" })).status).toBe(
+      400,
+    );
+    // A program item needs at least one activity (RSVP-17).
     expect(
-      (await call(root, "POST", "/api/admin/rsvp/program-items", { name: "", startsAt: "x" }))
+      (await call(root, "POST", "/api/admin/rsvp/program-items", { name: "X", activities: [] }))
         .status,
     ).toBe(400);
     expect((await call(root, "POST", "/api/admin/rsvp/menus", { name: " " })).status).toBe(400);
@@ -193,7 +197,7 @@ describe("program items, menus and the deadline", () => {
       [
         "POST",
         "/api/admin/rsvp/program-items",
-        { name: "X", startsAt: "2027-06-12T10:00:00.000Z" },
+        { name: "X", activities: [{ name: "X", startsAt: "2027-06-12T10:00:00.000Z" }] },
       ],
       ["POST", "/api/admin/rsvp/menus", { name: "X" }],
       ["PUT", "/api/admin/rsvp/deadline", { deadline: null }],
@@ -205,6 +209,69 @@ describe("program items, menus and the deadline", () => {
       (await ctx.app.inject({ url: "/api/admin/rsvp/config", headers: { cookie: anna.cookie } }))
         .statusCode,
     ).toBe(403);
+  });
+
+  it("[RSVP-02] a program item has activities by start; the last one cannot be deleted", async () => {
+    const { ctx, root, call, get, programItems } = await setup();
+    const dinner = must(programItems.find((p) => p.name === "Dinner"));
+    const first = must(dinner.activities[0]);
+
+    // A second activity is ordered by its start, and its place must exist.
+    const quiz = await call<Activity>(
+      root,
+      "POST",
+      `/api/admin/rsvp/program-items/${String(dinner.id)}/activities`,
+      { name: "Paar-Quiz", startsAt: "2027-06-12T20:30:00.000Z", placeId: 999 },
+    );
+    expect(quiz.status).toBe(404);
+    const made = await call<Activity>(
+      root,
+      "POST",
+      `/api/admin/rsvp/program-items/${String(dinner.id)}/activities`,
+      { name: "Paar-Quiz", startsAt: "2027-06-12T20:30:00.000Z" },
+    );
+    expect(made.status).toBe(201);
+    expect(
+      (
+        await call(root, "POST", "/api/admin/rsvp/program-items/999/activities", {
+          name: "X",
+          startsAt: "2027-06-12T10:00:00.000Z",
+        })
+      ).status,
+    ).toBe(404);
+    const config = (await get<{ programItems: ProgramItem[] }>(root, "/api/admin/rsvp/config"))
+      .body;
+    const after = must(config.programItems.find((p) => p.id === dinner.id));
+    expect(after.activities.map((a) => a.name)).toEqual(["Dinner", "Paar-Quiz"]);
+
+    // The end must be after the start.
+    const bad = await call(root, "PATCH", `/api/admin/rsvp/activities/${String(first.id)}`, {
+      endsAt: "2027-06-12T10:00:00.000Z",
+    });
+    expect(bad.status).toBe(400);
+
+    // The last activity stays; deleting the program item removes everything.
+    const quizId = must(made.body).id;
+    expect(
+      (await call(root, "DELETE", `/api/admin/rsvp/activities/${String(first.id)}`)).status,
+    ).toBe(204);
+    const last = await call(root, "DELETE", `/api/admin/rsvp/activities/${String(quizId)}`);
+    expect(last.status).toBe(409);
+    expect((await call(root, "DELETE", "/api/admin/rsvp/activities/999")).status).toBe(404);
+    // Only the changes that happened are audited; the refused change is not.
+    expect(
+      ctx.database.sqlite
+        .prepare("SELECT action FROM audit_log WHERE action LIKE 'rsvp.activity.%' ORDER BY id")
+        .all(),
+    ).toEqual([{ action: "rsvp.activity.create" }, { action: "rsvp.activity.delete" }]);
+    expect(
+      (await call(root, "DELETE", `/api/admin/rsvp/program-items/${String(dinner.id)}`)).status,
+    ).toBe(204);
+    expect(
+      ctx.database.sqlite
+        .prepare("SELECT COUNT(*) AS n FROM activities WHERE program_item_id = ?")
+        .get(dinner.id),
+    ).toEqual({ n: 0 });
   });
 
   it("[RSVP-03] the admin manages one list of menu options", async () => {

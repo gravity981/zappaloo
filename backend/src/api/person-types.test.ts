@@ -82,7 +82,7 @@ async function setup() {
       (
         await call<ProgramItem>(root, "POST", "/api/admin/rsvp/program-items", {
           name,
-          startsAt: `2027-06-12T${String(hour)}:00:00.000Z`,
+          activities: [{ name, startsAt: `2027-06-12T${String(hour)}:00:00.000Z` }],
           hasMeal,
         })
       ).body,

@@ -17,13 +17,29 @@ import {
 import type { WaitingTextKey, WaitingUpdate } from "@zappaloo/shared";
 import { fieldText } from "../app/forms.ts";
 import { useEvent } from "../app/event.ts";
+import { DateTimeField } from "./DateTimeField.tsx";
 import { useAdminCall, useAdminData, useErrorText, useRefreshEvent } from "./data.ts";
 import { Switch } from "./ui.tsx";
 
+/** The form field of the announced opening date (`DateTimeField`). */
+const OPENING_AT = "openingAt";
 const WAITING_PATH = "/api/admin/waiting";
 const PLATFORM_PATH = "/api/admin/platform";
 
-export default function WaitingSettingsCards() {
+const OPENING_PART = "opening";
+const TEXTS_PART = "texts";
+
+/** The card that opens the platform, near the top of Einstellungen. */
+export function WaitingOpeningCard() {
+  return <WaitingSettingsCards part={OPENING_PART} />;
+}
+
+/** The card of the waiting page texts, at the bottom of Einstellungen. */
+export function WaitingTextsCard() {
+  return <WaitingSettingsCards part={TEXTS_PART} />;
+}
+
+function WaitingSettingsCards({ part }: { part: typeof OPENING_PART | typeof TEXTS_PART }) {
   const { t } = useTranslation();
   const call = useAdminCall();
   const errorText = useErrorText();
@@ -99,7 +115,7 @@ export default function WaitingSettingsCards() {
 
   async function saveOpening(form: SubmitEvent<HTMLFormElement>) {
     form.preventDefault();
-    const local = fieldText(new FormData(form.currentTarget), "openingAt");
+    const local = fieldText(new FormData(form.currentTarget), OPENING_AT);
     await change(
       { openingAt: local === "" ? null : localToInstant(local, timeZone).toISOString() },
       "opening",
@@ -124,138 +140,138 @@ export default function WaitingSettingsCards() {
   if (!data) return null;
   return (
     <>
-      <section className="card strong" aria-labelledby="opening-title">
-        <div className="row">
-          <b id="opening-title" className="h2 grow">
-            {t("admin.waiting.openingTitle")}
-          </b>
-          <span className={event?.settings.platformOpen ? "tag ok" : "tag warn"}>
-            {event?.settings.platformOpen ? t("admin.platformOpen") : t("admin.platformClosed")}
-          </span>
-        </div>
-        <p className="muted sm">{t("admin.waiting.openingHint")}</p>
-        {error && (
-          <p role="alert" className="error">
-            {error}
-          </p>
-        )}
-        <form className="stack" onSubmit={(form) => void saveOpening(form)}>
-          <label className="field">
-            <span>{t("admin.waiting.openingAt")}</span>
-            <input
-              className="input auto"
-              name="openingAt"
-              type="datetime-local"
-              key={data.openingAt ?? "none"}
-              defaultValue={data.openingAt ? instantToLocal(data.openingAt, timeZone) : ""}
-            />
-            <span className="hint">{t("admin.waiting.openingAtHint")}</span>
-          </label>
+      {part === OPENING_PART && (
+        <section className="card strong" aria-labelledby="opening-title">
           <div className="row">
-            <button type="submit" className="btn soft sm">
-              {t("admin.waiting.saveOpening")}
-            </button>
-            {saved === "opening" && (
-              <span role="status" className="hint">
-                {t("admin.waiting.saved")}
-              </span>
-            )}
+            <b id="opening-title" className="h2 grow">
+              {t("admin.waiting.openingTitle")}
+            </b>
+            <span className={event?.settings.platformOpen ? "tag ok" : "tag warn"}>
+              {event?.settings.platformOpen ? t("admin.platformOpen") : t("admin.platformClosed")}
+            </span>
           </div>
-        </form>
-        <div className="setrow">
-          <div className="grow">
-            <b className="sm">{t("admin.waiting.countdown")}</b>
-            <span className="hint">{t("admin.waiting.countdownHint")}</span>
-          </div>
-          <Switch
-            checked={data.countdownEnabled}
-            label={t("admin.waiting.countdown")}
-            onChange={switchCountdown}
-          />
-        </div>
-        {platform && !platform.open && (
-          <>
-            <label className="row sm">
-              <input
-                type="checkbox"
-                checked={emailChoice ?? platform.recipientCount > 0}
-                disabled={platform.recipientCount === 0}
-                onChange={(event) => {
-                  setEmailChoice(event.target.checked);
-                }}
-              />
-              {t("admin.waiting.sendEmail", { count: platform.recipientCount })}
-            </label>
-            <button type="button" className="btn" onClick={() => void openPlatform()}>
-              {t("admin.waiting.openNow")}
-            </button>
-          </>
-        )}
-        {platform?.open && (
-          <>
-            <span className="hint">{t("admin.waiting.closeHint")}</span>
-            <button type="button" className="btn ghost" onClick={() => void closePlatform()}>
-              {t("admin.waiting.closeAgain")}
-            </button>
-          </>
-        )}
-        {outcome && (
-          <p role="status" className="hint">
-            {outcome}
-          </p>
-        )}
-      </section>
-
-      <section className="card" aria-labelledby="waiting-texts-title">
-        <b id="waiting-texts-title">{t("admin.waiting.textsTitle")}</b>
-        <span className="hint">
-          {t("admin.waiting.placeholders", {
-            list: WAITING_PLACEHOLDERS.map((name) => `{${name}}`).join(", "),
-          })}
-        </span>
-        <form className="stack" onSubmit={(form) => void saveTexts(form)}>
-          {WAITING_TEXT_KEYS.map((key) => (
-            <div key={key} className="field">
-              <label htmlFor={`waiting-text-${key}`}>
-                <span>{t(`admin.waiting.texts.${key}`)}</span>
-              </label>
-              <textarea
-                id={`waiting-text-${key}`}
-                className="input"
-                maxLength={1000}
-                value={drafts[key] ?? data.texts[key]}
-                onChange={(event) => {
-                  setDrafts({ ...drafts, [key]: event.target.value });
-                }}
-              />
-              {(data.custom[key] ||
-                (drafts[key] ?? data.texts[key]) !== DEFAULT_WAITING_TEXTS[key]) && (
-                <button
-                  type="button"
-                  className="btn ghost sm"
-                  aria-label={`${t("admin.waiting.reset")}: ${t(`admin.waiting.texts.${key}`)}`}
-                  onClick={() => {
-                    setDrafts({ ...drafts, [key]: undefined });
-                    void change({ texts: { [key]: null } }, "texts");
-                  }}
-                >
-                  {t("admin.waiting.reset")}
-                </button>
+          <p className="muted sm">{t("admin.waiting.openingHint")}</p>
+          {error && (
+            <p role="alert" className="error">
+              {error}
+            </p>
+          )}
+          <form className="stack" onSubmit={(form) => void saveOpening(form)}>
+            <DateTimeField
+              name={OPENING_AT}
+              label={t("admin.waiting.openingAt")}
+              hint={t("admin.waiting.openingAtHint")}
+              key={data.openingAt ?? "none"}
+              defaultValue={data.openingAt ? instantToLocal(data.openingAt, timeZone) : undefined}
+            />
+            <div className="row">
+              <button type="submit" className="btn soft sm">
+                {t("admin.waiting.saveOpening")}
+              </button>
+              {saved === "opening" && (
+                <span role="status" className="hint">
+                  {t("admin.waiting.saved")}
+                </span>
               )}
             </div>
-          ))}
-          <div className="row">
-            <button type="submit" className="btn soft sm">
-              {t("admin.waiting.saveTexts")}
-            </button>
-            {saved === "texts" && (
-              <span role="status" className="hint">
-                {t("admin.waiting.saved")}
-              </span>
-            )}
+          </form>
+          <div className="setrow">
+            <div className="grow">
+              <b className="sm">{t("admin.waiting.countdown")}</b>
+              <span className="hint">{t("admin.waiting.countdownHint")}</span>
+            </div>
+            <Switch
+              checked={data.countdownEnabled}
+              label={t("admin.waiting.countdown")}
+              onChange={switchCountdown}
+            />
           </div>
-        </form>
-      </section>
+          {platform && !platform.open && (
+            <>
+              <label className="row sm">
+                <input
+                  type="checkbox"
+                  checked={emailChoice ?? platform.recipientCount > 0}
+                  disabled={platform.recipientCount === 0}
+                  onChange={(event) => {
+                    setEmailChoice(event.target.checked);
+                  }}
+                />
+                {t("admin.waiting.sendEmail", { count: platform.recipientCount })}
+              </label>
+              <button type="button" className="btn" onClick={() => void openPlatform()}>
+                {t("admin.waiting.openNow")}
+              </button>
+            </>
+          )}
+          {platform?.open && (
+            <>
+              <span className="hint">{t("admin.waiting.closeHint")}</span>
+              <button type="button" className="btn ghost" onClick={() => void closePlatform()}>
+                {t("admin.waiting.closeAgain")}
+              </button>
+            </>
+          )}
+          {outcome && (
+            <p role="status" className="hint">
+              {outcome}
+            </p>
+          )}
+        </section>
+      )}
+
+      {part === TEXTS_PART && (
+        <section className="card" aria-labelledby="waiting-texts-title">
+          <b id="waiting-texts-title">{t("admin.waiting.textsTitle")}</b>
+          <span className="hint">
+            {t("admin.waiting.placeholders", {
+              list: WAITING_PLACEHOLDERS.map((name) => `{${name}}`).join(", "),
+            })}
+          </span>
+          <form className="stack" onSubmit={(form) => void saveTexts(form)}>
+            {WAITING_TEXT_KEYS.map((key) => (
+              <div key={key} className="field">
+                <label htmlFor={`waiting-text-${key}`}>
+                  <span>{t(`admin.waiting.texts.${key}`)}</span>
+                </label>
+                <textarea
+                  id={`waiting-text-${key}`}
+                  className="input"
+                  maxLength={1000}
+                  value={drafts[key] ?? data.texts[key]}
+                  onChange={(event) => {
+                    setDrafts({ ...drafts, [key]: event.target.value });
+                  }}
+                />
+                {(data.custom[key] ||
+                  (drafts[key] ?? data.texts[key]) !== DEFAULT_WAITING_TEXTS[key]) && (
+                  <button
+                    type="button"
+                    className="btn ghost sm"
+                    aria-label={`${t("admin.waiting.reset")}: ${t(`admin.waiting.texts.${key}`)}`}
+                    onClick={() => {
+                      setDrafts({ ...drafts, [key]: undefined });
+                      void change({ texts: { [key]: null } }, "texts");
+                    }}
+                  >
+                    {t("admin.waiting.reset")}
+                  </button>
+                )}
+              </div>
+            ))}
+            <div className="row">
+              <button type="submit" className="btn soft sm">
+                {t("admin.waiting.saveTexts")}
+              </button>
+              {saved === "texts" && (
+                <span role="status" className="hint">
+                  {t("admin.waiting.saved")}
+                </span>
+              )}
+            </div>
+          </form>
+        </section>
+      )}
     </>
   );
 }

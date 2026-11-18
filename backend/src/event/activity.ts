@@ -10,6 +10,7 @@ import {
   companions,
   contentPlaces,
   contentTexts,
+  activities,
   programItems,
   invitations,
   menuOptions,
@@ -140,6 +141,17 @@ export class ActivityService {
           .select({ name: contentPlaces.name })
           .from(contentPlaces)
           .where(and(eq(contentPlaces.eventId, this.#event.eventId), eq(contentPlaces.id, placeId)))
+          .get()?.name ?? null
+      );
+    }
+    // An activity is named by its name; a deleted activity is unnamed (WEB-12).
+    const activityId = num(row.details.activityId);
+    if (activityId !== undefined) {
+      return (
+        db
+          .select({ name: activities.name })
+          .from(activities)
+          .where(eq(activities.id, activityId))
           .get()?.name ?? null
       );
     }

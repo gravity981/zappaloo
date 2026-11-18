@@ -11,7 +11,7 @@ import { useSession } from "../app/session.ts";
 import { useEventFormat } from "../rsvp/format.ts";
 import AdminWorldObjects from "./AdminWorldObjects.tsx";
 import { useAdminData, useErrorText } from "./data.ts";
-import { Switch } from "./ui.tsx";
+import { HoldButton, Switch } from "./ui.tsx";
 
 const WORLD_PATH = "/api/admin/world";
 const WORLD_MEDIA_TYPE = "application/vnd.zappaloo.world";
@@ -155,19 +155,6 @@ function WorldCard() {
           </ul>
         </section>
       )}
-      {data.active && data.active.warnings.length > 0 && (
-        <section className="card" aria-labelledby="warnings-title">
-          <b id="warnings-title">
-            {t("admin.world.warningsTitle", { count: data.active.warnings.length })}
-          </b>
-          <p className="hint">{t("admin.world.warningsInfo")}</p>
-          <ul>
-            {data.active.warnings.map((warning, index) => (
-              <li key={index}>{findingText(warning)}</li>
-            ))}
-          </ul>
-        </section>
-      )}
       {data.active && (
         <section className="card tight" aria-labelledby="maps-title">
           <div className="row tight-head">
@@ -207,6 +194,19 @@ function WorldCard() {
               </tbody>
             </table>
           </div>
+        </section>
+      )}
+      {data.active && data.active.warnings.length > 0 && (
+        <section className="card" aria-labelledby="warnings-title">
+          <b id="warnings-title">
+            {t("admin.world.warningsTitle", { count: data.active.warnings.length })}
+          </b>
+          <p className="hint">{t("admin.world.warningsInfo")}</p>
+          <ul>
+            {data.active.warnings.map((warning, index) => (
+              <li key={index}>{findingText(warning)}</li>
+            ))}
+          </ul>
         </section>
       )}
     </>
@@ -324,9 +324,10 @@ function WorldSummary({
               time: format.time(previous.importedAt),
             })}
           </span>
-          <button type="button" className="btn soft sm" disabled={busy} onClick={onRollback}>
+          <HoldButton disabled={busy} onConfirm={onRollback}>
             {t("admin.world.rollbackYes")}
-          </button>
+          </HoldButton>
+          <span className="hint">{t("admin.holdHint")}</span>
           <button
             type="button"
             className="btn ghost sm"

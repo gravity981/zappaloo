@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { buildReport, progressByEpic, renderConsole, renderMarkdown } from "./report.ts";
+import { renderHtml, renderSummaryMarkdown } from "./html.ts";
+import { buildReport, progressByEpic, renderConsole } from "./report.ts";
 import type { ReportInput } from "./report.ts";
 import type { TestCase } from "./results.ts";
 import type { Requirement } from "./spec.ts";
@@ -141,17 +142,56 @@ describe("progressByEpic", () => {
 });
 
 describe("rendering", () => {
-  it("renders the Markdown report with one row per active requirement", () => {
-    const markdown = renderMarkdown(buildReport(input()));
-    expect(markdown).toContain("**Result:** OK");
-    expect(markdown).toContain("| AB-01 | Must | 1 | yes | pass | ✓ vitest: [AB-01] a test |");
-    expect(markdown).toContain("| AB-03 | Should | 2 | not yet | no test |  |");
-    expect(markdown).not.toContain("AB-04");
+  it("[OPS-19] renders the HTML report with a collapsed tree: epic, requirement, tests", () => {
+    const html = renderHtml(buildReport(input()));
+    expect(html).toContain("<!doctype html>");
+    expect(html).toContain('<p class="result ok">OK</p>');
+    expect(html).toContain("Epic 1");
+    expect(html).toContain('<span class="id">AB-01</span>');
+    expect(html).toContain("✓");
+    expect(html).toContain("[AB-01] a test");
+    expect(html).toContain("not yet implemented");
+    // Withdrawn requirements are not in the tree.
+    expect(html).not.toContain("AB-04");
+    // Everything starts collapsed: no details element is open, and the page is self-contained.
+    expect(html).not.toMatch(/<details[^>]*\sopen/);
+    expect(html).not.toMatch(/<link |src="http/);
+    expect(html.match(/<details/g)?.length).toBe(5); // two epics and three requirements
+    expect(html).toContain("Expand all");
+    expect(html).toContain("Collapse all");
   });
 
-  it("shows errors in both outputs", () => {
+  it("[OPS-19] escapes what comes from titles and error texts", () => {
+    const report = buildReport(
+      input({ tests: [test(["AB-01"], "passed", "<script>alert(1)</script> & more")] }),
+    );
+    const html = renderHtml(report);
+    expect(html).toContain("&lt;script&gt;alert(1)&lt;/script&gt; &amp; more");
+    expect(html).not.toContain("<script>alert(1)");
+  });
+
+  it("[OPS-19] lists errors and warnings in their own collapsed nodes", () => {
+    const html = renderHtml(buildReport(input({ tests: [] })));
+    expect(html).toContain('<p class="result failed">FAILED (2 error(s))</p>');
+    expect(html).toContain("<b>Errors (2)</b>");
+  });
+
+  it("[OPS-19] the summary for a GitHub run is short and says where the report is", () => {
+    const summary = renderSummaryMarkdown(buildReport(input()), "requirement-report");
+    expect(summary).toContain("**Result:** OK");
+    expect(summary).toContain("| 1 | One | 2 of 2 | 0 |");
+    expect(summary).toContain("requirements.html");
+    expect(summary).toContain("**requirement-report**");
+    expect(summary).not.toContain("AB-01");
+    // Many problems are cut off with a count.
+    const many = buildReport(
+      input({ inputErrors: Array.from({ length: 25 }, (_, i) => `e${String(i)}`) }),
+    );
+    expect(renderSummaryMarkdown(many, "x")).toContain("… and 15 more");
+  });
+
+  it("shows errors in the console output", () => {
     const report = buildReport(input({ tests: [] }));
-    expect(renderMarkdown(report)).toContain("FAILED (2 error(s))");
     expect(renderConsole(report)).toContain("Result: FAILED");
   });
 });

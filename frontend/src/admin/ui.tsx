@@ -1,5 +1,6 @@
 // Building blocks of the admin area (sw-architecture.md 8.3), after the admin mocks.
 import { useEffect, useId, useRef, useState } from "react";
+import type { KeyboardEvent as ReactKeyboardEvent } from "react";
 import type { ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 
@@ -163,5 +164,78 @@ export function HandOverLink({
         {t("admin.linkHint", { date: new Date(expiresAt).toLocaleString(i18n.language) })}
       </p>
     </div>
+  );
+}
+
+/** How long the confirmation button of a risky action is held (milliseconds). */
+const HOLD_MS = 4000;
+
+/**
+ * The confirmation of a risky action: it runs `onConfirm` only after it has been held for four
+ * seconds, with the mouse, a finger or the Enter or Space key. While it is held a darker fill
+ * grows across the button like a progress bar; letting go or leaving the button starts over. A
+ * plain click does nothing, so the hint next to the button says to hold it.
+ */
+export function HoldButton({
+  onConfirm,
+  children,
+  disabled = false,
+}: {
+  onConfirm: () => void;
+  children: ReactNode;
+  disabled?: boolean;
+}) {
+  const [holding, setHolding] = useState(false);
+  const timer = useRef<ReturnType<typeof setTimeout>>(undefined);
+  const confirm = useRef(onConfirm);
+  useEffect(() => {
+    confirm.current = onConfirm;
+  });
+
+  function start() {
+    if (disabled || timer.current !== undefined) return;
+    setHolding(true);
+    timer.current = setTimeout(() => {
+      timer.current = undefined;
+      setHolding(false);
+      confirm.current();
+    }, HOLD_MS);
+  }
+  function cancel() {
+    clearTimeout(timer.current);
+    timer.current = undefined;
+    setHolding(false);
+  }
+  // A timer must not outlive the button (for example when the card closes while it is held).
+  useEffect(() => cancel, []);
+  const isKey = (event: ReactKeyboardEvent) => event.key === "Enter" || event.key === " ";
+
+  return (
+    <button
+      type="button"
+      className={holding ? "btn soft sm hold holding" : "btn soft sm hold"}
+      disabled={disabled}
+      onPointerDown={start}
+      onPointerUp={cancel}
+      onPointerLeave={cancel}
+      onPointerCancel={cancel}
+      onBlur={cancel}
+      onKeyDown={(event) => {
+        if (isKey(event)) {
+          event.preventDefault();
+          if (!event.repeat) start();
+        }
+      }}
+      onKeyUp={(event) => {
+        if (isKey(event)) cancel();
+      }}
+      // A long press on a phone would open the context menu.
+      onContextMenu={(event) => {
+        event.preventDefault();
+      }}
+    >
+      <span className="hold-fill" aria-hidden="true" />
+      <span className="hold-label">{children}</span>
+    </button>
   );
 }

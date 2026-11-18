@@ -8,6 +8,9 @@ import {
   companionRenameSchema,
   companionRequestSchema,
   deadlineRequestSchema,
+  activityRequestSchema,
+  activitySchema,
+  activityUpdateSchema,
   programItemRequestSchema,
   programItemSchema,
   programItemUpdateSchema,
@@ -39,6 +42,8 @@ const idParams = z.strictObject({ id: z.coerce.number().int().positive() });
 
 const STATUSES: Record<string, number> = {
   program_item_not_found: 404,
+  activity_not_found: 404,
+  last_activity: 409,
   invalid_time: 400,
   place_not_found: 404,
   menu_not_found: 404,
@@ -303,6 +308,63 @@ const rsvpPlugin: FastifyPluginAsyncZod<AuthOptions> = (app, options) => {
         return await reply.send(
           rsvp.updateProgramItem(request.params.id, request.body, actor(request)),
         );
+      } catch (error) {
+        return fail(reply, error);
+      }
+    },
+  );
+
+  app.post(
+    "/api/admin/rsvp/program-items/:id/activities",
+    {
+      ...admin,
+      schema: {
+        querystring: noQuery,
+        params: idParams,
+        body: activityRequestSchema,
+        response: { 201: activitySchema },
+      },
+    },
+    async (request, reply) => {
+      try {
+        return await reply
+          .status(201)
+          .send(rsvp.createActivity(request.params.id, request.body, actor(request)));
+      } catch (error) {
+        return fail(reply, error);
+      }
+    },
+  );
+
+  app.patch(
+    "/api/admin/rsvp/activities/:id",
+    {
+      ...admin,
+      schema: {
+        querystring: noQuery,
+        params: idParams,
+        body: activityUpdateSchema,
+        response: { 200: activitySchema },
+      },
+    },
+    async (request, reply) => {
+      try {
+        return await reply.send(
+          rsvp.updateActivity(request.params.id, request.body, actor(request)),
+        );
+      } catch (error) {
+        return fail(reply, error);
+      }
+    },
+  );
+
+  app.delete(
+    "/api/admin/rsvp/activities/:id",
+    { ...admin, schema: { querystring: noQuery, params: idParams, body: noBody } },
+    async (request, reply) => {
+      try {
+        rsvp.deleteActivity(request.params.id, actor(request));
+        return await reply.status(204).send();
       } catch (error) {
         return fail(reply, error);
       }

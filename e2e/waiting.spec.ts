@@ -74,7 +74,7 @@ test("[ACS-10][ACS-11][ACS-12][ACS-13] a guest of the closed platform sees the d
   await declined.fill(`Schade {name}! Es geht ab {openingDate} los. ${suffix}`);
   await page.getByRole("button", { name: de.admin.waiting.saveTexts }).click();
   await expect(page.getByRole("status").filter({ hasText: de.admin.waiting.saved })).toBeVisible();
-  await page.getByLabel(/Angekündigtes Öffnungsdatum/).fill("2099-05-15T18:00");
+  await page.getByLabel(/Angekündigtes Öffnungsdatum/).fill("15.05.2099 18:00");
   await page.getByRole("button", { name: de.admin.waiting.saveOpening }).click();
   await page.getByRole("switch", { name: de.admin.waiting.countdown }).click();
   await expect(page.getByRole("switch", { name: de.admin.waiting.countdown })).toHaveAttribute(

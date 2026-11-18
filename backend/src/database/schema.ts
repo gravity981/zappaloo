@@ -317,7 +317,10 @@ export const accessReleases = sqliteTable(
 
 // --- RSVP (sw-architecture.md 7.4, 7.4.1) -------------------------------------------------
 
-/** Program items: ceremony, aperitif, dinner, party (RSVP-02). At most one has the meal. */
+/**
+ * Program items: what a guest is invited to and answers for (RSVP-02). At most one has the meal. A
+ * program item has no time or place of its own; its activities do (WEB-12).
+ */
 export const programItems = sqliteTable(
   "program_items",
   {
@@ -326,11 +329,6 @@ export const programItems = sqliteTable(
       .notNull()
       .references(() => events.id),
     name: text("name").notNull(),
-    startsAt: integer("starts_at", { mode: "timestamp_ms" }).notNull(),
-    /** The optional end of the program item (WEB-07); null when it has none. */
-    endsAt: integer("ends_at", { mode: "timestamp_ms" }),
-    /** The place of the program item (CNT-07); an item without a place has none. */
-    placeId: integer("place_id").references((): AnySQLiteColumn => contentPlaces.id),
     hasMeal: integer("has_meal", { mode: "boolean" }).notNull().default(false),
     createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull(),
   },
@@ -339,6 +337,34 @@ export const programItems = sqliteTable(
     uniqueIndex("program_items_meal")
       .on(table.eventId)
       .where(sql`${table.hasMeal} = 1`),
+  ],
+);
+
+/**
+ * Activities: what the programme shows (WEB-12). Each belongs to one program item, which keeps at
+ * least one (RSVP-17); deleting the item deletes them.
+ */
+export const activities = sqliteTable(
+  "activities",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    eventId: text("event_id")
+      .notNull()
+      .references(() => events.id),
+    programItemId: integer("program_item_id")
+      .notNull()
+      .references(() => programItems.id, { onDelete: "cascade" }),
+    name: text("name").notNull(),
+    startsAt: integer("starts_at", { mode: "timestamp_ms" }).notNull(),
+    /** The optional end of the activity (WEB-07); null when it has none. */
+    endsAt: integer("ends_at", { mode: "timestamp_ms" }),
+    /** The place of the activity (CNT-07); an activity without a place has none. */
+    placeId: integer("place_id").references((): AnySQLiteColumn => contentPlaces.id),
+    createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull(),
+  },
+  (table) => [
+    index("activities_event").on(table.eventId),
+    index("activities_program_item").on(table.programItemId),
   ],
 );
 

@@ -1,5 +1,6 @@
 // npm run req-report [-- --spec-dir spec --vitest reports/vitest.json,reports/vitest-deploy.json
-//                       --playwright reports/playwright.json --out reports/requirements.md]
+//                       --playwright reports/playwright.json,reports/playwright-flaky.json
+//                       --out reports/requirements.html]
 //
 // Reads the spec and the JSON test results, prints a summary, writes the full
 // report as Markdown, and exits non-zero on any error (spec/test-strategy.md, 3).
@@ -14,7 +15,8 @@ import {
 } from "node:fs";
 import { dirname, join } from "node:path";
 import { parseArgs } from "node:util";
-import { buildReport, renderConsole, renderMarkdown } from "./report.ts";
+import { renderHtml, renderSummaryMarkdown } from "./html.ts";
+import { buildReport, renderConsole } from "./report.ts";
 import type { TestCase } from "./results.ts";
 import { manualTestCases, parseManualProtocol } from "./manual.ts";
 import { parsePlaywrightResults, parseVitestResults } from "./results.ts";
@@ -25,8 +27,12 @@ const { values: args } = parseArgs({
     "spec-dir": { type: "string", default: "spec" },
     // Comma-separated: the main run and the deployment test (npm run test:deploy)
     vitest: { type: "string", default: "reports/vitest.json,reports/vitest-deploy.json" },
-    playwright: { type: "string", default: "reports/playwright.json" },
-    out: { type: "string", default: "reports/requirements.md" },
+    // Comma-separated: the main run and the run of the flaky tests (npm run test:e2e:flaky)
+    playwright: {
+      type: "string",
+      default: "reports/playwright.json,reports/playwright-flaky.json",
+    },
+    out: { type: "string", default: "reports/requirements.html" },
   },
 });
 
@@ -48,11 +54,16 @@ const results: [string, (json: unknown) => TestCase[]][] = [
   ...args.vitest
     .split(",")
     .map((path): [string, (json: unknown) => TestCase[]] => [path.trim(), parseVitestResults]),
-  [args.playwright, parsePlaywrightResults],
+  ...args.playwright
+    .split(",")
+    .map((path): [string, (json: unknown) => TestCase[]] => [path.trim(), parsePlaywrightResults]),
 ];
 for (const [path, parse] of results) {
   if (!existsSync(path)) {
-    inputErrors.push(`${path}: test results not found (run the tests first)`);
+    // The run of the flaky tests may not have happened; the report then says so as a warning.
+    if (path.endsWith("playwright-flaky.json")) {
+      console.warn(`${path}: not found, the flaky tests did not run (npm run test:e2e:flaky)`);
+    } else inputErrors.push(`${path}: test results not found (run the tests first)`);
     continue;
   }
   try {
@@ -78,11 +89,16 @@ const report = buildReport({
   inputErrors,
 });
 
-const markdown = renderMarkdown(report);
 mkdirSync(dirname(args.out), { recursive: true });
-writeFileSync(args.out, markdown);
-// In GitHub Actions, the full report also appears on the run's summary page.
-if (process.env.GITHUB_STEP_SUMMARY) appendFileSync(process.env.GITHUB_STEP_SUMMARY, markdown);
+writeFileSync(args.out, renderHtml(report));
+// The page of a GitHub Actions run cannot show the HTML page: it gets a short summary that says
+// where to download the report (the artifact of the job).
+if (process.env.GITHUB_STEP_SUMMARY) {
+  appendFileSync(
+    process.env.GITHUB_STEP_SUMMARY,
+    renderSummaryMarkdown(report, "requirement-report"),
+  );
+}
 
 console.log(renderConsole(report));
 console.log(`  Full report: ${args.out}`);

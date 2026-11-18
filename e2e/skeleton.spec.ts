@@ -70,7 +70,7 @@ test("the backend reports health and version", async ({ request }) => {
   expect(version.version).toMatch(/\+dev$/);
 });
 
-test("[CFG-02][CFG-05] the server started with the example event and serves it with its toggles", async ({
+test("[CFG-02][CFG-05] the server started with the example event and serves it with its toggles @flaky", async ({
   page,
   context,
 }) => {

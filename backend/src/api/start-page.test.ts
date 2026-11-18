@@ -36,7 +36,10 @@ async function programItemIn(ctx: TestContext, admin: Headers, days: number) {
     method: "POST",
     url: "/api/admin/rsvp/program-items",
     headers: admin,
-    payload: { name: "Trauung", startsAt: `${day}T10:00:00.000Z` },
+    payload: {
+      name: "Trauung",
+      activities: [{ name: "Trauung", startsAt: `${day}T10:00:00.000Z` }],
+    },
   });
 }
 

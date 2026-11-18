@@ -45,7 +45,7 @@ The decisions behind the mocks, by question number in the prototype's "Questions
 | 18 | Overlay links | Links inside an overlay stay in the overlay. |
 | 19 | Website tabs | Start · Programm · Hochladen · Erinnerungen · Mehr (bottom tab bar on phones, top nav on desktop). |
 | 20 | Start page | Fixed layout. The hosts edit the hero image, the welcome text and the countdown switch. The cards are fixed (RSVP status, countdown, now / next, shortcuts). Changed 2026-11-13, see "Start page" under stage 4. |
-| 21 | Programme | Only the parts the guest is invited to, with one line saying so (WEB-09). |
+| 21 | Programme | Only the program items the guest is invited to (WEB-09); since 2026-11-18 without a line saying that others are left out. |
 | 22 | Content pages | Plain Markdown for every page, FAQ included. |
 | 23 | Table finder | The table and tablemates only, no seat. |
 | 24 | Text limits | Snapshot caption 140 characters, keepsake text 1000 (PHO-15). |
@@ -136,11 +136,11 @@ Written into sw-architecture.md 6.2, 19.1.1 and 19.7 as well. The mock screens a
 | Content editor | Inhalte lists the pages, the start page text and the places. It has no "Programm" entry, because the program items are the schedule and stay in Einstellungen › Rückmeldung (with an optional end time and a place picked from the places). |
 | Images | Uploaded in the editor and placed with the Markdown image syntax (CNT-06). |
 | Places and maps | A place card shows the uploaded map picture, the address and "In Google Maps öffnen". No map is embedded (CNT-07). |
-| Theme | Card "Design" in Einstellungen: the active theme, the import of a theme package, the findings of a refused package and "Standard-Design verwenden" with a second click. No download (THM-01 – THM-06). |
+| Theme | Card "Design" in Einstellungen: the active theme, the import of a theme package, the findings of a refused package and "Standard-Design verwenden" with a second click on a button held for four seconds (see the hold button, 2026-11-18). No download (THM-01 – THM-06). |
 | World | The admin entry "Erlebniswelt" keeps the object actions per map. Its tab "Karten & Import" becomes the world importer for one whole package (stage 5, MAP-16). |
 | Start page (decided 2026-11-13, step 4b) | Fixed layout (sw-architecture.md 5.6). Before the event day: hero image, welcome text, then the countdown card, the RSVP card and the shortcuts ("Programm" and the first three pages visible in "Mehr"). On the event day: "now / next", the feature cards, the shortcuts. No hero image, welcome text, countdown or RSVP card that day (WEB-10). "Erlebniswelt betreten" comes with stage 5. |
 | Hero image | Picked in the editor of the start page ("Bild wählen" from its images or a new upload, "Entfernen", alt text). Shown in full width, uncropped. Without one the welcome text moves up. |
-| Countdown | "Noch 214 Tage", "Noch 1 Tag": calendar days to the day of the first program item, with its date and place. Gone on the event day and without program items. The switch "Countdown auf der Startseite zeigen" (default on) is in the editor of the start page, not in Einstellungen. Its number uses the theme's `display` font, or the heading font without one. It is calm like the website, not pixel style (WEB-11, THM-06; replaces the countdown among the pixel accents of decision 39). |
+| Countdown | "Noch 214 Tage", "Noch 1 Tag": calendar days to the day of the first activity of all program items (the same for every guest), with its date and place. Gone on the event day and without program items. The switch "Countdown auf der Startseite zeigen" (default on) is in the editor of the start page, not in Einstellungen. Its number uses the theme's `display` font, or the heading font without one. It is calm like the website, not pixel style (WEB-11, THM-06; replaces the countdown among the pixel accents of decision 39). |
 
 ## UX decisions for stage 5 (updated 2026-11-17)
 
@@ -148,7 +148,7 @@ Written into sw-architecture.md 14.2 and 14.4 as well.
 
 | Topic | Decision |
 |---|---|
-| World importer | Erlebniswelt › "Welt & Import": the active world (name, format, import time, start map, the previous world), "Welt importieren" for a whole package, the findings of a refused package, warnings listed with the active world, "Zurückrollen" with a second click, and a guest-access switch (MAP-05, MAP-06, MAP-08, MAP-09, MAP-19). Guest access starts enabled on the first successful import. There is no template-world import and no import of single maps. |
+| World importer | Erlebniswelt › "Welt & Import": the active world (name, format, import time, start map, the previous world), "Welt importieren" for a whole package, the findings of a refused package, warnings listed with the active world, "Zurückrollen" with a second click on a button held for four seconds (see the hold button, 2026-11-18), and a guest-access switch (MAP-05, MAP-06, MAP-08, MAP-09, MAP-19). Guest access starts enabled on the first successful import. There is no template-world import and no import of single maps. |
 | Maps and program items | Not linked (Q65): the game world and the schedule are different things. Each guest's figure walks on one map, picked at random. "Hingehen" is removed from the programme and from "now / next" (WEB-08 withdrawn). "Welt & Import" lists the maps; their objects and portals are in the tab "Objekte & Portale" (reworded 2026-11-17). |
 | Objects | Erlebniswelt › "Objekte & Portale": a preset that points to something missing is marked "fehlt". A portal whose given target is missing cannot be imported; a portal without a target is a warning (reworded 2026-11-17). The minigame action is offered from stage 8. |
 | Dialogues | A tab "Dialoge" in Erlebniswelt, not in Inhalte, because dialogues belong to the game world (Q63). A dialogue has an id (its `contentId`), the NPC's name and lines in Markdown, a preview of the dialogue box and "Verwendet von" (CNT-02, CNT-03). A dialogue in use cannot be deleted. Its id can be changed (Q64). |
@@ -184,3 +184,24 @@ Written into sw-architecture.md 19.7.1 as well. The screen `theme-editor` (group
 | Colour assistant (decided 2026-11-18) | Master colour = accent, with «Surprise me». Palette cards, each a complete mapping onto the seven colour keys: Tint, Neutral, Warm paper, Cool, Soft complement, Analogous, High contrast, each with ✓ when all pairs of the validator pass. Picking a card fills the colours (and the waiting card's if on); later edits stay; nothing is recomputed. No dark theme (status colours are for light surfaces). Modelled on mycolor.space (one colour in, many named palettes out), but every palette must fit the theme package's keys (THM-15). |
 | Size adjust (decided 2026-11-18) | Per font, in the card Fonts: slider and number field, 50–200 %, default 100; live in the preview; for fonts whose letters look smaller or larger than the others (THM-16). |
 | Soft buttons and bars (decided 2026-11-18) | In a theme, soft buttons, chips and tags and the bars (website header, game bar, phone tab bar) take a tint of the accent over the surface; the active tab is the surface colour. Derived from the seven colours (about 12 %, lowered until the text on it reaches 4.5 : 1), so the theme format has no new key (THM-17). The mocks stay neutral; the editor's mock shows the effect in a «Website bar» and a soft button. |
+
+## UX decisions for epic 5.3 (2026-11-18, story 5.3a)
+
+Written into the epic file (`spec/backlog/epics/epic-5.3-program-items-activities.md`, decisions 1 – 8); the requirements and sw-architecture.md follow in stories 5.3b – 5.3e. Where these rows say "program item" for what the schedule shows, they replace the older decisions 21, 51 and the stage 4 rows "Content editor" and "Countdown". The screens `programme`, `home`, `rsvp-parts` and `admin-settings` are changed; the project owner confirms them before story 5.3c starts.
+
+| Topic | Decision |
+|---|---|
+| Program item and activity | A program item is what a guest is invited to and answers for: name and meal flag, no time or place. An activity belongs to one program item and has a name, a start, an optional end and a place. The mock's four items: Trauung (Eintreffen, Trauung), Apéro, Dinner (Dinner, Paar-Quiz), Party. |
+| Programm page | One timeline row per activity, by start time, only for the program items the guest is invited to. The line "Du siehst die Programmpunkte, zu denen du eingeladen bist" stays. |
+| Start page | "Now / next" shows activities. The countdown counts to the first activity of all program items, the same for every guest, with its date and place. Every day that has an activity is an event day. |
+| RSVP wizard | Each program item shows its activities in a small line below its name, with start times: "Eintreffen 13:30, Trauung 14:00". Per program item: the activities line below its name. With one answer for all: one line per program item below the yes / no, "Trauung – Eintreffen 13:30, Trauung 14:00". The summary: the same line below each program item's name. |
+| Einstellungen › Rückmeldung | Each program item is a card with its name, the "Essen" tag, "Bearbeiten" and "Löschen"; its activities are listed inside it, each with "Bearbeiten" and "Löschen", then "Aktivität hinzufügen". The last activity of an item has no active "Löschen", and a hint says to delete the program item instead. "Programmpunkt hinzufügen" asks for the first activity at once. |
+
+## UX decisions of 2026-11-18 (Einstellungen)
+
+| Topic | Decision |
+|---|---|
+| Order of the cards | Einstellungen shows the cards that are used often first: Veranstaltung, Plattform öffnen, then Rückmeldung and Funktionen side by side. The rarely changed cards come last: Design, Warteseite-Texte, Datenschutz and Fusszeile. |
+| Erlebniswelt warnings | On "Welt & Import" the warnings of an accepted package come last, below the table of maps. The findings of a refused package stay at the top, because they answer the import. |
+| Programme over several days | The programme has one timeline per calendar day, each under its own heading ("Samstag, 12. Juni 2027"), and rows show the time of day only. Every day with an activity is an event day: the start page shows its event-day layout, and the programme marks past and current activities on every day of the event. An activity without an end does not last into the next day. The line "Du siehst nur die Programmpunkte, zu denen du eingeladen bist." is gone. |
+| Hold button | The confirmation of the design reset ("Ja, Standard-Design verwenden") and of the world rollback ("Ja, zurückrollen") must be held for four seconds, with the mouse, a finger or the Enter or Space key. While it is held a darker fill grows across the button like a progress bar; letting go or leaving the button starts over. A plain click does nothing, and the hint "Halte den Knopf vier Sekunden gedrückt." stands next to it. The first button ("Standard-Design verwenden", "Zurückrollen") still only asks. |

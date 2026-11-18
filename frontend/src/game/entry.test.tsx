@@ -76,7 +76,7 @@ const person = (chosen: boolean) => ({
   chosen,
   figures: [{ id: "a", type: "female" }],
 });
-const programme = { hidden: false, eventDay: false, eventDate: null, items: [] };
+const programme = { eventDay: false, eventDate: null, items: [] };
 const rsvpState = (answered: boolean) => ({
   name: "Anna",
   deadline: null,
@@ -89,11 +89,17 @@ const rsvpState = (answered: boolean) => ({
     {
       id: 1,
       name: "Trauung",
-      startsAt: "2027-06-12T12:00:00.000Z",
-      endsAt: null,
-      placeId: null,
-      place: null,
       hasMeal: false,
+      activities: [
+        {
+          id: 1,
+          name: "Trauung",
+          startsAt: "2027-06-12T12:00:00.000Z",
+          endsAt: null,
+          placeId: null,
+          place: null,
+        },
+      ],
     },
   ],
   menus: [],

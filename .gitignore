@@ -17,4 +17,4 @@ playwright-report/
 .e2e-data-fresh/
 
 /world/
-/world-scratch/
+/world-scratch/playwright-report-flaky/

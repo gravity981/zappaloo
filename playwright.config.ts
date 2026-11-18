@@ -1,6 +1,13 @@
 import { defineConfig, devices } from "@playwright/test";
 
 const isCI = Boolean(process.env.CI);
+/**
+ * Flaky tests carry `@flaky` at the end of their title (spec/test-strategy.md, 8.8). A local run
+ * leaves them out; `npm run test:e2e:flaky` runs only them, with retries, into its own reports. CI
+ * runs all e2e tests in one run.
+ */
+const flakyRun = Boolean(process.env.E2E_FLAKY);
+const FLAKY = /@flaky/;
 const PORT = 4173;
 const PREVIEW_PORT = Number(process.env.ZAPPALOO_GAME_PREVIEW_PORT ?? 5175);
 if (!Number.isInteger(PREVIEW_PORT) || PREVIEW_PORT < 1 || PREVIEW_PORT > 65535) {
@@ -26,11 +33,19 @@ export default defineConfig({
   timeout: 60_000,
   fullyParallel: true,
   forbidOnly: isCI,
-  retries: isCI ? 2 : 0,
+  retries: isCI || flakyRun ? 2 : 0,
+  grep: flakyRun ? FLAKY : undefined,
+  grepInvert: flakyRun || isCI ? undefined : FLAKY,
   reporter: [
     ["list"],
-    ["json", { outputFile: "reports/playwright.json" }],
-    ["html", { outputFolder: "playwright-report", open: "never" }],
+    [
+      "json",
+      { outputFile: flakyRun ? "reports/playwright-flaky.json" : "reports/playwright.json" },
+    ],
+    [
+      "html",
+      { outputFolder: flakyRun ? "playwright-report-flaky" : "playwright-report", open: "never" },
+    ],
   ],
   use: {
     baseURL: `http://localhost:${PORT}`,

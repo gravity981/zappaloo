@@ -302,6 +302,12 @@
       "rsvp_program_item_update_unnamed": "Ein Programmpunkt wurde geändert",
       "rsvp_program_item_delete": "Programmpunkt «{{name}}» gelöscht",
       "rsvp_program_item_delete_unnamed": "Ein Programmpunkt wurde gelöscht",
+      "rsvp_activity_create": "Aktivität «{{name}}» angelegt",
+      "rsvp_activity_create_unnamed": "Eine Aktivität wurde angelegt",
+      "rsvp_activity_update": "Aktivität «{{name}}» geändert",
+      "rsvp_activity_update_unnamed": "Eine Aktivität wurde geändert",
+      "rsvp_activity_delete": "Aktivität «{{name}}» gelöscht",
+      "rsvp_activity_delete_unnamed": "Eine Aktivität wurde gelöscht",
       "rsvp_menu_create": "Menü «{{name}}» angelegt",
       "rsvp_menu_create_unnamed": "Ein Menü wurde angelegt",
       "rsvp_menu_update": "Menü «{{name}}» geändert",
@@ -429,6 +435,11 @@
         "rejected": "abgelehnt"
       }
     },
+    "holdHint": "Halte den Knopf vier Sekunden gedrückt.",
+    "dateTime": {
+      "placeholder": "TT.MM.JJJJ HH:MM",
+      "invalid": "Bitte Datum und Uhrzeit so schreiben: 12.06.2027 18:30"
+    },
     "rsvpSettings": {
       "title": "Rückmeldung",
       "deadline": "Frist (letzter Tag)",
@@ -436,7 +447,7 @@
       "saveDeadline": "Frist festlegen",
       "clearDeadline": "Frist entfernen",
       "programItems": "Programmpunkte",
-      "programItemsHint": "Ein Programmpunkt hat Name, Beginn und Ort. Ein Programmpunkt kann das Essen haben: Nur dafür wird das Menü gefragt.",
+      "programItemsHint": "Ein Programmpunkt ist das, wozu Gäste eingeladen sind und was sie beantworten: Name und Essen, keine Uhrzeit. Seine Aktivitäten zeigt das Programm: Name, Beginn, optionales Ende und ein Ort aus Inhalte. Ein neuer Programmpunkt fragt gleich nach seiner ersten Aktivität. Ein Programmpunkt kann das Essen haben: Nur dafür wird das Menü gefragt.",
       "programItemName": "Name",
       "programItemStart": "Beginn",
       "programItemPlace": "Ort (optional)",
@@ -467,7 +478,13 @@
       "songHint": "Die Rückmeldung fragt nach einem Lieblingslied. Schaltest du es aus, wird nichts gefragt. Bisherige Wünsche bleiben gespeichert.",
       "noPlace": "Kein Ort",
       "placesFirst": "Noch keine Orte: Lege sie zuerst in Inhalte an.",
-      "programItemEnd": "Ende (optional)"
+      "programItemEnd": "Ende (optional)",
+      "activityName": "Name der Aktivität",
+      "firstActivity": "Erste Aktivität",
+      "addActivity": "Aktivität hinzufügen",
+      "editActivity": "Aktivität bearbeiten",
+      "deleteActivity": "Aktivität löschen",
+      "lastActivityHint": "Die letzte Aktivität lässt sich nicht löschen. Lösche stattdessen den Programmpunkt."
     },
     "waiting": {
       "openingTitle": "Plattform öffnen",
@@ -978,7 +995,6 @@
     "deadline": "Du kannst deine Antwort bis {{date}} ändern.",
     "adminMode": "Admin-Modus: Die Frist gilt hier nicht. Jede Änderung steht im Audit-Log.",
     "noProgramItems": "Für dich sind noch keine Programmpunkte festgelegt. Melde dich bei den Gastgebern.",
-    "programItemWhen": "{{time}} · {{place}}",
     "attending": "Dabei",
     "notAttending": "Nicht dabei",
     "openProgramItem": "Noch offen",
@@ -1074,7 +1090,6 @@
     "myProfile": "Mein Profil",
     "adminOnly": "nur für Admins",
     "privacy": "Datenschutz",
-    "invitedOnly": "Du siehst nur die Programmpunkte, zu denen du eingeladen bist.",
     "noProgramme": "Für dich sind noch keine Programmpunkte festgelegt.",
     "now": "Jetzt",
     "next": "Danach",

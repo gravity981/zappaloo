@@ -1,7 +1,7 @@
 import { clientAddress, expect, PASSWORD, signInAsAdmin, stayOnWebsite, test } from "./support.ts";
 import de from "../frontend/src/i18n/locales/de/common.json" with { type: "json" };
 
-test("[RSVP-01][RSVP-02][RSVP-03][RSVP-04][RSVP-05][RSVP-06][RSVP-11][ACC-17][SEC-11][DATA-05] a guest answers the RSVP once for the invited program items; the admin sees it and changes it", async ({
+test("[RSVP-01][RSVP-02][RSVP-03][RSVP-04][RSVP-05][RSVP-06][RSVP-11][ACC-17][SEC-11][DATA-05] a guest answers the RSVP once for the invited program items; the admin sees it and changes it @flaky", async ({
   page,
   context,
   browser,
@@ -57,7 +57,10 @@ test("[RSVP-01][RSVP-02][RSVP-03][RSVP-04][RSVP-05][RSVP-06][RSVP-11][ACC-17][SE
     guest.getByRole("heading", { name: de.rsvp.greeting.replace("{{name}}", name) }),
   ).toBeVisible();
   // One answer for the invited program items (the default, RSVP-11); the party is not among them.
-  await expect(guest.getByText("Trauung · Apéro · Dinner")).toBeVisible();
+  // Each program item lists its activities with their start times (RSVP-16).
+  await expect(guest.getByText("Trauung – Eintreffen 13:30, Trauung 14:00")).toBeVisible();
+  await expect(guest.getByText("Dinner – Dinner 18:30, Paar-Quiz 20:30")).toBeVisible();
+  await expect(guest.getByText("Party – Party 22:00")).toHaveCount(0);
   await expect(guest.getByRole("button", { name: `Trauung: ${de.rsvp.attending}` })).toHaveCount(0);
   await guest.getByRole("button", { name: de.rsvp.yes, exact: true }).click();
   await guest.getByRole("button", { name: de.rsvp.next }).click();

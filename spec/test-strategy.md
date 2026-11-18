@@ -54,6 +54,8 @@ A requirement report script, `npm run req-report`, is built in the first stage. 
 
 CI runs the report after the test jobs and fails the build on a non-zero exit.
 
+The full report is one self-contained HTML page, `reports/requirements.html` (decided 2026-11-18): a result tree (epic → requirement → tests) in which every node starts collapsed, with "Expand all" and "Collapse all", and the errors and warnings in nodes of their own. CI uploads it as the artifact `requirement-report`. The page of a GitHub Actions run cannot show the HTML page, so the run gets a short Markdown summary instead (result, progress per epic, the first problems) that says the full report is in the artifact.
+
 ## 4. Test areas per topic
 
 | Topic | Main level(s) | Notes |
@@ -90,6 +92,9 @@ All active requirements are listed here until their stage is delivered. Shrink t
 | HUNT | HUNT-01 – HUNT-07 | 7 |
 | MG | MG-01 – MG-13 | 13 |
 | WEB | WEB-05, WEB-06 | 2 |
+| RSVP | RSVP-19 – RSVP-24 | 6 |
+| LANG | LANG-03 | 1 |
+| ROLE | ROLE-11 | 1 |
 | SCR | SCR-01, SCR-02, SCR-04, SCR-05, SCR-07 | 5 |
 | CNT | CNT-02, CNT-03, CNT-08 | 3 |
 | ACS | ACS-04 | 1 |
@@ -98,7 +103,7 @@ All active requirements are listed here until their stage is delivered. Shrink t
 | OPS | OPS-13 | 1 |
 | SEC | SEC-04, SEC-06 – SEC-08 | 4 |
 | PERF | PERF-01, PERF-03, PERF-04 | 3 |
-| **Total** | | **87** |
+| **Total** | | **95** |
 
 The stage each requirement belongs to is listed in `sw-architecture.md`, section 28.
 
@@ -222,3 +227,18 @@ Run the complete suite only when:
 ### 8.7 Completion report
 
 At the end of a task, report the tests executed, the tests passed and failed, the tests skipped and why, and the remaining verification risks. Never claim that tests passed that were not executed.
+
+### 8.8 Flaky end-to-end tests (decided 2026-11-18)
+
+A test that fails now and then without a change in the code is **flaky**. It is tracked here and, in a local run, kept apart from the full run, so that a run is not red because of the load of the machine. CI still runs every e2e test.
+
+- **Marking.** A flaky test names itself with `@flaky` at the end of its title: `test("[ABC-01] does something @flaky", …)`. Playwright's `grep` finds it by that text, and the requirement report reads it from the title.
+- **Runs.** Locally, `npm run test:e2e` leaves the flaky tests out, and `npm run test:e2e:flaky` runs only them, with two retries, into `reports/playwright-flaky.json` and `playwright-report-flaky/`. **CI runs all e2e tests in one run** (`CI` set, two retries), flaky ones included, and its result is the verdict.
+- **Requirement report.** It reads `reports/playwright.json` and, when it exists, `reports/playwright-flaky.json`. A flaky test counts like any other test: its results are results. Without the file of the flaky run the report prints a notice. A complete verdict for a requirement needs the full run (`CI=1 npm run test:e2e`) or both local runs.
+- **Tracking.** Every `@flaky` test has a row in the table below, and every row has a test (a test in `scripts/req-report/spec-consistency.test.ts` checks this). A row says since when the test is flaky and what was seen. When the cause is fixed, the tag and the row are removed in the same commit.
+- **New tests.** A new e2e test that fails in a full run without a change in the code is first re-run alone. When it passes alone and fails under load, it gets the tag and a row. The tag is not a place to hide a test that fails for a reason.
+
+| File | Test | Projects seen | Since | Symptom |
+|---|---|---|---|---|
+| `e2e/rsvp.spec.ts` | a guest answers the RSVP once for the invited program items; the admin sees it and changes it | mobile-ios | 2026-11-18 | Timed out on the first attempt, passed on the retry. |
+| `e2e/skeleton.spec.ts` | the server started with the example event and serves it with its toggles | mobile-ios | 2026-11-18 | Saw `platformOpen: true` instead of the fresh state on the first attempt, passed on the retry. Probably another test (the platform opening) running in parallel on the same installation. |

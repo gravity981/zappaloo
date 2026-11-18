@@ -219,6 +219,31 @@
   font-size: 12.5px;
   border-radius: 8px;
 }
+/* The confirmation of a risky action: held for four seconds, a darker fill grows across it. */
+:is(.admin, .guest) .btn.hold {
+  position: relative;
+  overflow: hidden;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+  touch-action: manipulation;
+}
+:is(.admin, .guest) .btn.hold .hold-fill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 0;
+  background: color-mix(in srgb, var(--a-fill) 55%, black);
+}
+:is(.admin, .guest) .btn.hold.holding .hold-fill {
+  width: 100%;
+  transition: width 4s linear;
+}
+:is(.admin, .guest) .btn.hold .hold-label {
+  position: relative;
+}
+:is(.admin, .guest) .btn.hold.holding .hold-label {
+  color: #fff;
+}
 :is(.admin, .guest) .btn[disabled] {
   opacity: 0.4;
   cursor: not-allowed;

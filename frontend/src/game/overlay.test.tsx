@@ -17,17 +17,18 @@ afterEach(() => {
 });
 
 const programme = {
-  hidden: false,
   eventDay: false,
   eventDate: "2027-06-12",
   items: [
     {
       id: 1,
       name: "Trauung",
+      programItemId: 1,
       startsAt: "2027-06-12T10:00:00.000Z",
       endsAt: null,
       placeName: "Kirche Muri",
       status: "upcoming",
+      day: "2027-06-12",
     },
   ],
 };

@@ -74,8 +74,9 @@ Zappaloo is a reusable event platform (first use: a wedding) that combines a bro
 | `npm run format` / `npm run format:check` | Prettier (Markdown is excluded) |
 | `npm run typecheck` | `tsc` for the root (scripts, e2e, configs) and every workspace |
 | `npm test` | Vitest, all workspaces; JSON results in `reports/vitest.json` |
-| `npm run test:e2e` | Playwright (desktop/mobile, Chromium/WebKit) against the backend serving a test build of the frontend (port 4173, data in `.e2e-data/`); JSON results in `reports/playwright.json` |
-| `npm run req-report` | Requirement report from the spec and both JSON results; full report in `reports/requirements.md`; non-zero exit on errors |
+| `npm run test:e2e` | Playwright (desktop/mobile, Chromium/WebKit) against the backend serving a test build of the frontend (port 4173, data in `.e2e-data/`); JSON results in `reports/playwright.json`. Tests marked `@flaky` are left out locally; CI (and `CI=1`) runs all |
+| `npm run test:e2e:flaky` | Only the tests whose title ends with `@flaky`, with two retries; results in `reports/playwright-flaky.json`. The known flaky tests are tracked in `spec/test-strategy.md` 8.8 |
+| `npm run req-report` | Requirement report from the spec and both JSON results; full report as a page with a collapsible result tree in `reports/requirements.html` (CI: artifact `requirement-report`, with a short summary on the run page); non-zero exit on errors |
 | `npm run check` | All of the above in CI order |
 
 - Run the tests before the requirement report; it reads their JSON results.
@@ -89,6 +90,8 @@ Minimize test execution time while keeping sufficient confidence. The full polic
 - **Order:** targeted unit tests, then relevant integration tests, then lint and type checking as appropriate, then broader regression only when the scope or risk justifies it.
 - **When a test fails:** analyze the failure first, decide whether the current changes caused it, fix the cause, and rerun only the failed test and the tests the fix affects, not the unrelated passing ones.
 - **Run the full suite only** when the user asks, when shared infrastructure or cross-cutting functionality changed, when dependencies or configuration with broad impact changed, when targeted tests cannot give enough confidence, or for a release or CI validation. The requirement report needs a complete Vitest and Playwright run, so `npm run req-report` falls under this rule: run it at the end of an epic, not after every story.
+- **Keep the results of a full run.** Vitest and Playwright write their JSON to fixed paths (`reports/vitest.json`, `reports/playwright.json`), so every targeted run replaces the results of the last full run, and the requirement report then shows hundreds of requirements as untested. After a full run, copy both files into the scratchpad (for example `<scratchpad>/full-run/`) **before** running any targeted test, and check that the copy is complete (`numTotalTests` in the Vitest file, `stats` in the Playwright file). Copy them back into `reports/` before `npm run req-report`. A run of the failing tests alone is merged into the saved Playwright file, not written over it.
+- **Flaky e2e tests** (`spec/test-strategy.md` 8.8): when a test fails in a full run, re-run it alone first. A test that passes alone and fails under load gets `@flaky` at the end of its title and a row in the table of 8.8 (a test checks that the two match). Locally the flaky tests run apart (`npm run test:e2e:flaky`); CI runs every e2e test. Remove the tag and the row when the cause is fixed.
 - **Multiple agents:** avoid duplicate runs, reuse another agent's results only for the exact same code state, name one agent for the final verification, and never assume a result stays valid after relevant source changes.
 - **Completion report** (also the summary after each step): the tests executed, passed and failed, the tests skipped and why, and the remaining verification risks. Never claim that unexecuted tests passed.
 

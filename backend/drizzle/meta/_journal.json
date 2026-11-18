@@ -169,6 +169,13 @@
       "when": 1794919470547,
       "tag": "0023_avatar_figure",
       "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "6",
+      "when": 1795002181087,
+      "tag": "0024_program_item_activities",
+      "breakpoints": true
     }
   ]
 }

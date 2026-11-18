@@ -214,7 +214,7 @@ describe("migration 0008_program_items", () => {
     expect(rows("SELECT count(*) AS n FROM membership_program_items")).toEqual([{ n: 1 }]);
     expect(() =>
       database.sqlite.exec(
-        "INSERT INTO program_items (event_id, name, starts_at, has_meal, created_at) VALUES ('event1', 'Zweites Essen', 3, 1, 1);",
+        "INSERT INTO program_items (event_id, name, has_meal, created_at) VALUES ('event1', 'Zweites Essen', 1, 1);",
       ),
     ).toThrow(/UNIQUE/);
     expect(database.sqlite.pragma("foreign_key_check")).toEqual([]);

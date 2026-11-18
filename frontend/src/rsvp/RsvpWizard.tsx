@@ -144,13 +144,11 @@ function WizardForm({
   const admin = mode.kind === "admin";
   const locked = state.closed && !admin;
   const { programItems, menus } = state;
-  const time = (programItem: ProgramItem) =>
-    programItem.place
-      ? t("rsvp.programItemWhen", {
-          time: format.time(programItem.startsAt),
-          place: programItem.place,
-        })
-      : format.time(programItem.startsAt);
+  /** The activities of a program item with their start times: "Name 13:30, Name 14:00" (RSVP-16). */
+  const activities = (programItem: ProgramItem) =>
+    programItem.activities
+      .map((activity) => `${activity.name} ${format.time(activity.startsAt)}`)
+      .join(", ");
 
   const valueOf = (companion: Companion): PersonValue =>
     edits[companion.id] ?? personOf(companion, programItems, state.perItem);
@@ -225,7 +223,7 @@ function WizardForm({
         perItem={state.perItem}
         programItems={programItems}
         menus={menus}
-        time={time}
+        activities={activities}
         frame={(body, footer) => (
           <Frame
             flow={!admin}
@@ -310,7 +308,10 @@ function WizardForm({
               <ul className="list">
                 {programItems.map((programItem) => (
                   <li key={programItem.id} className="li">
-                    <b className="grow">{programItem.name}</b>
+                    <div className="grow">
+                      <b>{programItem.name}</b>
+                      <span className="muted sm">{activities(programItem)}</span>
+                    </div>
                     {summaryAttendance[programItem.id] === true ? (
                       <span className="tag ok">{t("rsvp.attending")}</span>
                     ) : summaryAttendance[programItem.id] === false ? (
@@ -431,7 +432,7 @@ function WizardForm({
               perItem={state.perItem}
               programItems={programItems}
               value={own.attendance}
-              time={time}
+              activities={activities}
               onChange={(attendance) => {
                 setOwn({ ...own, attendance });
               }}
@@ -444,7 +445,7 @@ function WizardForm({
                   name={companion.name}
                   programItems={programItems}
                   value={valueOf(companion).attendance}
-                  time={time}
+                  activities={activities}
                   onChange={(attendance) => {
                     setEdits({ ...edits, [companion.id]: { ...valueOf(companion), attendance } });
                   }}

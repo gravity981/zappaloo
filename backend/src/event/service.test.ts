@@ -196,6 +196,7 @@ describe("data model", () => {
     const tables = all.filter((name) => !PERSON_TABLES.includes(name)).map((name) => ({ name }));
     expect(tables.map((t) => t.name).sort()).toEqual([
       "access_releases",
+      "activities",
       "audit_log",
       "companion_attendance",
       "companions",
