@@ -1,7 +1,7 @@
 import { screen, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import { initI18n } from "../i18n/i18n.ts";
-import { anna, fakeBackend, hold, renderAt, user } from "../test/backend.tsx";
+import { anna, anonymous, fakeBackend, hold, renderAt, user } from "../test/backend.tsx";
 
 beforeAll(async () => {
   await initI18n();
@@ -1963,5 +1963,78 @@ describe("person types (RSVP-13, RSVP-14, RSVP-15)", () => {
     expect(calls.find((c) => c.path.endsWith("/person-type"))?.body).toEqual({
       personType: "child",
     });
+  });
+});
+
+describe("landing on the Anmeldung after redeeming (RSVP-24)", () => {
+  const preview = { status: 200, body: { guestName: "Erika Huber" } };
+
+  /** A new guest registers with the code; the answer of `GET /api/rsvp` decides where they land. */
+  async function registerAs(rsvp: unknown) {
+    let current: { status: number; body: unknown } = anonymous;
+    fakeBackend({
+      "GET /api/session": () => current,
+      "GET /api/invitations/K7QMX4": () => preview,
+      "POST /api/invitations/K7QMX4/register": () => ({ status: 201, body: { user: guest } }),
+      "POST /api/session": () => {
+        current = asGuest;
+        return asGuest;
+      },
+      "GET /api/rsvp": () => ({ status: 200, body: rsvp }),
+    });
+    renderAt("/invite/K7QMX4");
+    user.type(await screen.findByLabelText("Passwort"), "a-long-enough-password");
+    user.click(screen.getByRole("button", { name: "Konto anlegen" }));
+  }
+
+  it("[RSVP-24] a new guest who has not answered lands on the Anmeldung", async () => {
+    await registerAs(state());
+    expect(
+      await screen.findByRole("heading", { name: "Bist du dabei, Erika?" }),
+    ).toBeInTheDocument();
+  });
+
+  it("[RSVP-24] a guest who has answered, or whose deadline has passed, lands on the start", async () => {
+    await registerAs(state({ answer: answered([1, 3]) }));
+    expect(await screen.findByText("Willkommen!")).toBeInTheDocument();
+    expect(
+      screen.queryByRole("heading", { name: "Bist du dabei, Erika?" }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("[RSVP-24] with the deadline over the guest lands on the start", async () => {
+    await registerAs(state({ closed: true }));
+    expect(await screen.findByText("Willkommen!")).toBeInTheDocument();
+  });
+
+  it("[RSVP-24] an existing account that adds the invitation lands on the Anmeldung too", async () => {
+    const helper = { ...anna, roles: ["staff"] };
+    const withVip = { ...helper, roles: ["staff", "vip"] };
+    let current = { status: 200, body: { user: helper, csrfToken: "csrf-1" } };
+    fakeBackend({
+      "GET /api/session": () => current,
+      "GET /api/invitations/K7QMX4": () => preview,
+      "POST /api/invitations/K7QMX4/redeem": () => {
+        current = { status: 200, body: { user: withVip, csrfToken: "csrf-1" } };
+        return { status: 200, body: { user: withVip } };
+      },
+      "GET /api/rsvp": () => ({ status: 200, body: state() }),
+    });
+    renderAt("/invite/K7QMX4");
+    user.click(await screen.findByRole("button", { name: "Zu meinem Konto hinzufügen" }));
+    expect(
+      await screen.findByRole("heading", { name: "Bist du dabei, Erika?" }),
+    ).toBeInTheDocument();
+  });
+
+  it('[RSVP-24] after the summary "Weiter" leads to the start', async () => {
+    fakeBackend({
+      "GET /api/session": () => asGuest,
+      "GET /api/rsvp": () => ({ status: 200, body: state({ answer: answered([1, 3]) }) }),
+    });
+    renderAt("/rsvp");
+    await screen.findByRole("heading", { name: /Danke, Erika/ });
+    user.click(screen.getByRole("button", { name: "Weiter" }));
+    expect(await screen.findByText("Willkommen!")).toBeInTheDocument();
   });
 });

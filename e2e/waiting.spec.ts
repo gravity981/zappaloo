@@ -3,7 +3,7 @@ import de from "../frontend/src/i18n/locales/de/common.json" with { type: "json"
 
 // The waiting-page settings are the event's, shared by all browser profiles: one profile runs
 // this test, the others skip it.
-test("[ACS-10][ACS-11][ACS-12][ACS-13] a guest of the closed platform sees the door scene and a text for their status, can answer the RSVP, and the countdown follows the admin's settings", async ({
+test("[ACS-10][ACS-11][ACS-12][ACS-13][RSVP-24] a guest of the closed platform sees the door scene and a text for their status, can answer the RSVP, and the countdown follows the admin's settings", async ({
   page,
   context,
   browser,
@@ -40,17 +40,26 @@ test("[ACS-10][ACS-11][ACS-12][ACS-13] a guest of the closed platform sees the d
   await guest.getByLabel(de.invite.username).fill(`wg${suffix}`);
   await guest.getByLabel(de.setPassword.password, { exact: true }).fill(PASSWORD);
   await guest.getByRole("button", { name: de.invite.register }).click();
+  // The new guest has not answered: they land on the Anmeldung first, then go on to the door scene (RSVP-24).
+  await expect(guest).toHaveURL(/\/rsvp$/);
+  await guest.goto("/");
   await expect(guest.getByText(new RegExp(`Psst, ${guestName}`))).toBeVisible();
   await expect(guest.getByRole("img", { name: /angelehnte Tür/ })).toBeVisible();
   await expect(guest.getByRole("link", { name: de.nav.game })).toHaveCount(0);
   await expect(guest.getByRole("timer")).toHaveCount(0);
   // The door scene is drawn: the canvas is not blank.
-  const painted = await guest.locator("canvas.door-scene").evaluate((canvas: HTMLCanvasElement) => {
-    const ctx = canvas.getContext("2d");
-    const data = ctx?.getImageData(0, 0, canvas.width, canvas.height).data ?? [];
-    return new Set(Array.from({ length: 200 }, (_, i) => data[(i * 4001) % data.length])).size > 2;
-  });
-  expect(painted).toBe(true);
+  // After a page load the canvas needs a moment to be drawn.
+  await expect
+    .poll(() =>
+      guest.locator("canvas.door-scene").evaluate((canvas: HTMLCanvasElement) => {
+        const ctx = canvas.getContext("2d");
+        const data = ctx?.getImageData(0, 0, canvas.width, canvas.height).data ?? [];
+        return (
+          new Set(Array.from({ length: 200 }, (_, i) => data[(i * 4001) % data.length])).size > 2
+        );
+      }),
+    )
+    .toBe(true);
   await testInfo.attach("waiting-page", {
     body: await guest.screenshot(),
     contentType: "image/png",

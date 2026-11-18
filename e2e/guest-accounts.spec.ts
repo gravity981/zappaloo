@@ -46,7 +46,7 @@ test("[ACC-18][ACC-19][INV-20][INV-21] an admin blocks, unblocks and deletes a g
   await guest.getByLabel(de.invite.username).fill(username);
   await guest.getByLabel(de.setPassword.password, { exact: true }).fill(PASSWORD);
   await guest.getByRole("button", { name: de.invite.register }).click();
-  await expect(guest.getByRole("link", { name: de.waiting.answer })).toBeVisible();
+  await expect(guest).toHaveURL(/\/rsvp$/);
   const signIn = () =>
     guestContext.request.post("/api/session", { data: { username, password: PASSWORD } });
 

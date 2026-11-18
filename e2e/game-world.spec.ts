@@ -368,8 +368,8 @@ test("[GAME-11][GAME-13] on the first entry with an open RSVP, typing into the R
   await guest.getByLabel(de.invite.username).fill(username);
   await guest.getByLabel(de.setPassword.password, { exact: true }).fill(PASSWORD);
   await guest.getByRole("button", { name: de.invite.register }).click();
-  // The guest is signed in on the closed platform, as in the RSVP test: the waiting page links to the answer.
-  await expect(guest.getByRole("link", { name: de.waiting.answer })).toBeVisible();
+  // The guest is signed in on the closed platform and lands on the Anmeldung, as in the RSVP test (RSVP-24).
+  await expect(guest).toHaveURL(/\/rsvp$/);
   // The platform opens for guests now; it is closed again at the end, as the other tests expect it.
   await page.goto("/admin/settings");
   const opening = page.getByRole("region", { name: de.admin.waiting.openingTitle });

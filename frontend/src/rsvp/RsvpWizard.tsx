@@ -302,7 +302,8 @@ function WizardForm({
             )}
             {onFinish && (
               <button type="button" className="btn" onClick={onFinish}>
-                {t("rsvp.finish")}
+                {/* "Weiter" leads a guest to the start, "Fertig" ends the admin's change. */}
+                {t(admin ? "rsvp.finish" : "rsvp.next")}
               </button>
             )}
           </>

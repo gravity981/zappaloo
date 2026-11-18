@@ -5,8 +5,7 @@
 import { lazy, Suspense, useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Navigate, useNavigate } from "react-router";
-import { rsvpStateSchema, rsvpStatus } from "@zappaloo/shared";
-import type { RsvpState } from "@zappaloo/shared";
+import { rsvpStateSchema } from "@zappaloo/shared";
 import AvatarEditor from "../avatar/AvatarEditor.tsx";
 import { apiRequest } from "../app/api.ts";
 import { useFeature } from "../app/event.ts";
@@ -16,6 +15,7 @@ import GameBar from "../game/GameBar.tsx";
 import GameHint from "../game/GameHint.tsx";
 import GameOverlay from "../game/GameOverlay.tsx";
 import type { Overlay } from "../game/GameOverlay.tsx";
+import { rsvpUnanswered } from "../rsvp/landing.ts";
 
 const RSVP_PAGE = "rsvp";
 const PROFILE_PAGE = "profile";
@@ -33,25 +33,13 @@ function useRsvpOpen(enabled: boolean, reload: unknown): boolean | undefined {
       if (cancelled) return;
       const parsed = rsvpStateSchema.safeParse(result.body);
       // A failed request is an answer of "no RSVP to do" here: the guest is not held back by it.
-      setOpen(result.ok && parsed.success ? isOpen(parsed.data) : false);
+      setOpen(result.ok && parsed.success ? rsvpUnanswered(parsed.data) : false);
     });
     return () => {
       cancelled = true;
     };
   }, [enabled, reload]);
   return enabled ? open : undefined;
-}
-
-function isOpen(state: RsvpState): boolean {
-  const answer = state.answer;
-  return (
-    rsvpStatus(
-      answer !== null,
-      state.programItems.map((item) => item.id),
-      answer?.attendingItemIds ?? [],
-      answer?.declinedItemIds ?? [],
-    ) === "none"
-  );
 }
 
 export default function GamePage() {

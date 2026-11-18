@@ -47,7 +47,8 @@ test("[RSVP-08][RSVP-10][RSVP-12][RSVP-13][RSVP-15][SEC-11] a guest adds an acco
   await guest.getByLabel(de.invite.username).fill(username);
   await guest.getByLabel(de.setPassword.password, { exact: true }).fill(PASSWORD);
   await guest.getByRole("button", { name: de.invite.register }).click();
-  await guest.getByRole("link", { name: de.waiting.answer }).click();
+  // A new guest who has not answered lands on the Anmeldung right away (RSVP-24).
+  await expect(guest).toHaveURL(/\/rsvp$/);
   await guest.getByRole("button", { name: de.rsvp.yes, exact: true }).click();
   await guest.getByRole("button", { name: de.rsvp.next }).click();
   await guest.getByRole("button", { name: de.rsvp.next }).click();
