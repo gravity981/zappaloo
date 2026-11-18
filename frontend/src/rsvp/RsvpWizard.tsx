@@ -136,6 +136,7 @@ function WizardForm({
   const [view, setView] = useState<View>(WIZARD);
   const [own, setOwn] = useState<PersonValue>(initial);
   const [songWish, setSongWish] = useState(answer?.songWish ?? "");
+  const [remarks, setRemarks] = useState(answer?.remarks ?? "");
   /** What the guest changed about companions in the steps; the rest is as the server has it. */
   const [edits, setEdits] = useState<Record<number, PersonValue>>({});
   const [error, setError] = useState<string>();
@@ -171,6 +172,8 @@ function WizardForm({
     setSending(true);
     const body: RsvpAnswerRequest = {
       ...answerOf(own, programItems, menus),
+      // Only the main invitee has remarks (RSVP-20), and only while attending something.
+      ...(attendsAny(own) ? { remarks: remarks.trim() === "" ? null : remarks.trim() } : {}),
       ...(state.songEnabled && attendsAny(own)
         ? { songWish: songWish.trim() === "" ? null : songWish.trim() }
         : {}),
@@ -336,6 +339,7 @@ function WizardForm({
                           {[
                             menuName(answer.menuId),
                             answer.allergies ? t("rsvp.allergiesGiven") : undefined,
+                            answer.remarks ? t("rsvp.remarksGiven") : undefined,
                           ]
                             .filter(Boolean)
                             .join(" · ")}
@@ -499,7 +503,13 @@ function WizardForm({
               <b>{state.name}</b>
               <span className="tag">{t("rsvp.you")}</span>
             </div>
-            <MenuFields value={own} onChange={setOwn} programItems={programItems} menus={menus} />
+            <MenuFields
+              value={own}
+              onChange={setOwn}
+              programItems={programItems}
+              menus={menus}
+              remarks={{ value: remarks, onChange: setRemarks }}
+            />
           </div>
         )}
         {attendingCompanions.map((companion) => (

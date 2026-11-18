@@ -718,6 +718,7 @@ export class RsvpService {
       declinedItemIds: programItemIdsOf(attendance, false),
       menuId: row.menuId,
       allergies: row.allergies,
+      remarks: row.remarks,
       songWish: row.songWish,
       answeredAt: row.answeredAt.toISOString(),
     };
@@ -1082,6 +1083,8 @@ export class RsvpService {
       const values = {
         menuId,
         allergies: anyAttending ? (input.allergies ?? null) : null,
+        // Like the allergies, only for a guest who attends something (RSVP-20).
+        remarks: anyAttending ? (input.remarks ?? null) : null,
         // While the song wish is off, nothing is asked and an earlier wish stays as it is.
         ...(this.#songEnabled(tx)
           ? { songWish: anyAttending ? (input.songWish ?? null) : null }
@@ -1103,7 +1106,7 @@ export class RsvpService {
           this.#checkPerson(tx, invited, companion.personType, companionAnswer, companion.menuId),
         );
       }
-      // Ids only: the allergies are health data and stay out of the log (SEC-04, SEC-11).
+      // Ids only: the allergies and remarks stay out of the log (SEC-04, SEC-11).
       this.#event.audit(actor, admin ? "rsvp.admin_answer" : "rsvp.answer", { userId }, tx);
     });
     return this.state(userId);
@@ -1188,6 +1191,7 @@ export class RsvpService {
         menuId: answer?.menuId ?? null,
         songWish: answer?.songWish ?? null,
         allergies: answer?.allergies ?? null,
+        remarks: answer?.remarks ?? null,
         verifiedEmail: verified,
         email: verified ? row.email : null,
       };
@@ -1408,6 +1412,7 @@ export class RsvpService {
       "Menü",
       ...(overview.songEnabled ? ["Songwunsch"] : []),
       "Allergien",
+      "Anmerkungen",
     ];
     const status = { attending: "zugesagt", declined: "abgesagt", none: "ohne Antwort" } as const;
     const lines = overview.guests.flatMap((guest) => [
@@ -1419,6 +1424,7 @@ export class RsvpService {
         menuName(guest.menuId, guest.personType),
         ...(overview.songEnabled ? [guest.songWish ?? ""] : []),
         guest.allergies ?? "",
+        guest.remarks ?? "",
       ],
       // Approved companions follow their guest, marked with an arrow.
       ...overview.companions
@@ -1431,6 +1437,7 @@ export class RsvpService {
           menuName(c.menuId, c.personType),
           ...(overview.songEnabled ? [""] : []),
           c.allergies ?? "",
+          "",
         ]),
     ]);
     return [header, ...lines].map((row) => row.map(csvCell).join(";")).join("\r\n") + "\r\n";

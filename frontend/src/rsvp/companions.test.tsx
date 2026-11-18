@@ -92,6 +92,7 @@ function state(changes: Record<string, unknown> = {}) {
       declinedItemIds: [3],
       menuId: null,
       allergies: null,
+      remarks: null,
       songWish: null,
       answeredAt: "2027-01-01T10:00:00.000Z",
     },
@@ -280,6 +281,7 @@ describe("accompanying persons in the wizard", () => {
       declinedItemIds: [],
       menuId: 1,
       allergies: null,
+      remarks: null,
       songWish: null,
       answeredAt: "2027-01-01T10:00:00.000Z",
     };
@@ -339,6 +341,8 @@ describe("accompanying persons in the wizard", () => {
     // Step 2: a card for each person who attends, here only Noah (Trauung) and Erika.
     expect(await screen.findByRole("heading", { name: "Essen & Allergien" })).toBeInTheDocument();
     user.type(screen.getByLabelText("Allergien oder Unverträglichkeiten (Noah Huber)"), "Laktose");
+    // "Sonstiges/Anmerkungen" is the main invitee's alone, not the companions' (RSVP-20).
+    expect(screen.getAllByLabelText(/Sonstiges\/Anmerkungen/)).toHaveLength(1);
     user.click(screen.getByRole("button", { name: "Weiter" }));
     user.click(await screen.findByRole("button", { name: "Antwort senden" }));
 
@@ -378,6 +382,7 @@ describe("accompanying persons in the wizard", () => {
             declinedItemIds: [1, 3],
             menuId: null,
             allergies: null,
+            remarks: null,
             songWish: null,
             answeredAt: "2027-01-02T10:00:00.000Z",
           },
@@ -502,6 +507,7 @@ describe("Anmeldungen: companion requests", () => {
         attendingItemIds: [1],
         declinedItemIds: [3],
         menuId: null,
+        remarks: null,
         songWish: null,
         allergies: null,
         verifiedEmail: false,
@@ -681,6 +687,7 @@ describe("companion approval off (RSVP-12, 7.4.2)", () => {
           attendingItemIds: [1],
           declinedItemIds: [3],
           menuId: null,
+          remarks: null,
           songWish: null,
           allergies: null,
           verifiedEmail: false,

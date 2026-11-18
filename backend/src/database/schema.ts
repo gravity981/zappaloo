@@ -432,6 +432,8 @@ export const rsvpAnswers = sqliteTable(
     menuId: integer("menu_id").references(() => menuOptions.id, { onDelete: "set null" }),
     /** Health data: only admins read it (SEC-11). */
     allergies: text("allergies"),
+    /** "Sonstiges/Anmerkungen" of the main invitee; protected like the allergies (RSVP-20, SEC-11). */
+    remarks: text("remarks"),
     songWish: text("song_wish"),
     answeredAt: integer("answered_at", { mode: "timestamp_ms" }).notNull(),
   },

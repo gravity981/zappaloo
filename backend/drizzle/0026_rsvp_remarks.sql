@@ -1,0 +1,1 @@
+ALTER TABLE `rsvp_answers` ADD `remarks` text;

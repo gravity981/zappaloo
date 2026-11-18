@@ -94,12 +94,43 @@ const answered = (programItemIds: number[], extra: Record<string, unknown> = {})
   ),
   menuId: null,
   allergies: null,
+  remarks: null,
   songWish: null,
   answeredAt: "2027-01-01T10:00:00.000Z",
   ...extra,
 });
 
 describe("the RSVP wizard", () => {
+  it("[RSVP-20] the main invitee adds Sonstiges/Anmerkungen below the allergies; it is sent and only named in the summary", async () => {
+    const calls = fakeBackend({
+      "GET /api/session": () => asGuest,
+      "GET /api/rsvp": () => ({ status: 200, body: state() }),
+      "PUT /api/rsvp": () => ({
+        status: 200,
+        body: state({ answer: answered([1], { remarks: "Wir kommen mit dem Zug." }) }),
+      }),
+    });
+    renderAt("/rsvp");
+    user.click(await screen.findByRole("button", { name: "Trauung: Dabei" }));
+    user.click(screen.getByRole("button", { name: "Apéro: Nicht dabei" }));
+    user.click(screen.getByRole("button", { name: "Dinner: Nicht dabei" }));
+    user.click(screen.getByRole("button", { name: "Weiter" }));
+    await screen.findByRole("heading", { name: "Essen & Allergien" });
+    const field = screen.getByLabelText("Sonstiges/Anmerkungen (optional)");
+    expect(field).toHaveAttribute("maxlength", "500");
+    expect(screen.getByText("Höchstens 500 Zeichen.")).toBeInTheDocument();
+    user.type(field, "Wir kommen mit dem Zug.");
+    user.click(screen.getByRole("button", { name: "Weiter" }));
+    user.click(await screen.findByRole("button", { name: "Antwort senden" }));
+    await screen.findByRole("heading", { name: /Danke, Erika/ });
+    expect(calls.find((c) => c.method === "PUT")?.body).toMatchObject({
+      remarks: "Wir kommen mit dem Zug.",
+    });
+    // The summary names the remarks without repeating them.
+    expect(screen.getByText(/Anmerkungen angegeben/)).toBeInTheDocument();
+    expect(screen.queryByText(/mit dem Zug/)).not.toBeInTheDocument();
+  });
+
   it("[RSVP-01][RSVP-03][RSVP-06] a guest answers per program item, picks a menu for the meal program item and sends", async () => {
     const calls = fakeBackend({
       "GET /api/session": () => asGuest,
@@ -156,6 +187,7 @@ describe("the RSVP wizard", () => {
       ],
       menuId: 2,
       allergies: "Nüsse",
+      remarks: null,
       songWish: "ABBA",
       companions: [],
     });
@@ -188,6 +220,7 @@ describe("the RSVP wizard", () => {
         { programItemId: 3, attending: false },
       ],
       allergies: null,
+      remarks: null,
       songWish: null,
       companions: [],
     });
@@ -436,6 +469,7 @@ describe("Anmeldungen", () => {
         attendingItemIds: [1, 3],
         declinedItemIds: [2],
         menuId: 2,
+        remarks: null,
         songWish: "ABBA",
         allergies: "Nüsse",
         verifiedEmail: true,
@@ -449,6 +483,7 @@ describe("Anmeldungen", () => {
         attendingItemIds: [],
         declinedItemIds: [1, 2, 3],
         menuId: null,
+        remarks: null,
         songWish: null,
         allergies: null,
         verifiedEmail: false,
@@ -462,6 +497,7 @@ describe("Anmeldungen", () => {
         attendingItemIds: [],
         declinedItemIds: [],
         menuId: null,
+        remarks: null,
         songWish: null,
         allergies: null,
         verifiedEmail: true,
@@ -512,18 +548,19 @@ describe("Anmeldungen", () => {
     expect(within(row).getByText("Trauung, Dinner")).toBeInTheDocument();
     expect(within(row).getByText("Vegetarisch")).toBeInTheDocument();
     expect(within(row).getByText("Nüsse")).toBeInTheDocument();
+    expect(within(table).getByRole("columnheader", { name: /Anmerkungen/ })).toBeInTheDocument();
     expect(within(row).getByRole("link", { name: "Bearbeiten: Erika Huber" })).toHaveAttribute(
       "href",
       "/admin/rsvp/guests/5",
     );
     // The button is the last cell of its row, in a column of its own (UX mock `admin-rsvp`).
     const cells = within(row).getAllByRole("cell");
-    expect(cells).toHaveLength(8);
-    const [first, , , , , , , last] = cells;
+    expect(cells).toHaveLength(9);
+    const [first, , , , , , , , last] = cells;
     if (!first || !last) throw new Error("the row has no first and last cell");
     expect(within(last).getByRole("link")).toHaveTextContent("Bearbeiten");
     expect(within(first).queryByRole("link")).not.toBeInTheDocument();
-    expect(within(table).getAllByRole("columnheader")).toHaveLength(8);
+    expect(within(table).getAllByRole("columnheader")).toHaveLength(9);
     // The column Typ and the totals by type (RSVP-15).
     expect(within(table).getByRole("columnheader", { name: "Typ" })).toBeInTheDocument();
     expect(within(row).getByText("Erwachsen")).toBeInTheDocument();

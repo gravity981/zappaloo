@@ -1,8 +1,8 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "ebf7e681-9ecb-439e-9245-497290de5bd2",
-  "prevId": "04ed64fe-e458-4aad-a1a4-a3149ddb7b51",
+  "id": "bc3190f5-c8c1-45c6-bdd0-d4cb7a338e78",
+  "prevId": "ebf7e681-9ecb-439e-9245-497290de5bd2",
   "tables": {
     "access_releases": {
       "name": "access_releases",
@@ -1930,6 +1930,13 @@
         },
         "allergies": {
           "name": "allergies",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "remarks": {
+          "name": "remarks",
           "type": "text",
           "primaryKey": false,
           "notNull": false,

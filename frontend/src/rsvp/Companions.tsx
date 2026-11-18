@@ -140,11 +140,14 @@ export function MenuFields({
   programItems,
   menus,
   label,
+  remarks,
 }: {
   value: PersonValue;
   onChange: (next: PersonValue) => void;
   programItems: ProgramItem[];
   menus: MenuOption[];
+  /** "Sonstiges/Anmerkungen": only the main invitee's card has it, not the companions' (RSVP-20). */
+  remarks?: { value: string; onChange: (next: string) => void };
   /** Makes the field names unique when a companion is on the page; the guest needs none. */
   label?: string;
 }) {
@@ -192,6 +195,22 @@ export function MenuFields({
           }}
         />
       </label>
+      {remarks && (
+        <>
+          <label className="field">
+            <span>{t("rsvp.remarks")}</span>
+            <textarea
+              className="input"
+              value={remarks.value}
+              maxLength={500}
+              onChange={(event) => {
+                remarks.onChange(event.target.value);
+              }}
+            />
+          </label>
+          <span className="hint">{t("rsvp.remarksHint")}</span>
+        </>
+      )}
       <span className="lock">🔒 {t("rsvp.allergiesLock")}</span>
     </>
   );

@@ -791,6 +791,55 @@ describe("the admin overview", () => {
     expect((await get(root, "/api/admin/activity")).raw.body).not.toContain("GEHEIM-ALLERGIE");
   });
 
+  it("[RSVP-20][SEC-11] the remarks of the main invitee reach only admins and the guest, never the log", async () => {
+    const { ctx, get, call, programItems, guest, root, menus } = await setup();
+    const anna = await guest("anna");
+    const ben = await guest("ben");
+    const answer = {
+      attendance: yes(programItems, "Dinner"),
+      menuId: menus[0]?.id,
+      remarks: "GEHEIME-ANMERKUNG",
+    };
+    const saved = await call<RsvpState>(anna, "PUT", "/api/rsvp", answer);
+    expect(must(saved.body).answer?.remarks).toBe("GEHEIME-ANMERKUNG");
+    // The guest table and the CSV of the admin have it, nobody else does.
+    const overview = (await get<RsvpOverview>(root, "/api/admin/rsvp")).body;
+    expect(overview.guests.find((g) => g.name === "anna")?.remarks).toBe("GEHEIME-ANMERKUNG");
+    expect((await get(root, "/api/admin/rsvp/export")).raw.body).toContain("GEHEIME-ANMERKUNG");
+    expect((await get(ben, "/api/admin/rsvp")).status).toBe(403);
+    expect((await get<RsvpState>(ben, "/api/rsvp")).raw.body).not.toContain("GEHEIME-ANMERKUNG");
+    expect(JSON.stringify(ctx.event.auditEntries())).not.toContain("GEHEIME-ANMERKUNG");
+    expect((await get(root, "/api/admin/activity")).raw.body).not.toContain("GEHEIME-ANMERKUNG");
+  });
+
+  it("[RSVP-20] the remarks are optional, at most 500 characters, and dropped without attendance", async () => {
+    const { call, programItems, guest, menus } = await setup();
+    const anna = await guest("anna");
+    const base = { attendance: yes(programItems, "Dinner"), menuId: menus[0]?.id };
+    const without = await call<RsvpState>(anna, "PUT", "/api/rsvp", base);
+    expect(must(without.body).answer?.remarks).toBeNull();
+    const longest = "x".repeat(500);
+    const full = await call<RsvpState>(anna, "PUT", "/api/rsvp", { ...base, remarks: longest });
+    expect(must(full.body).answer?.remarks).toBe(longest);
+    expect(
+      (await call(anna, "PUT", "/api/rsvp", { ...base, remarks: "x".repeat(501) })).status,
+    ).toBe(400);
+    // Whoever declines everything keeps no remarks, like the allergies.
+    const declined = await call<RsvpState>(anna, "PUT", "/api/rsvp", {
+      attendance: yes(programItems),
+      remarks: "Doch nicht",
+    });
+    expect(must(declined.body).answer?.remarks).toBeNull();
+    // Companions have no remarks.
+    const mia = await call(anna, "POST", "/api/rsvp/companions", {
+      name: "Mia",
+      personType: "adult",
+      attendance: yes(programItems, "Trauung"),
+      remarks: "Nein",
+    });
+    expect(mia.status).toBe(400);
+  });
+
   it("[RSVP-05] exports the guest table as CSV, safe against formulas", async () => {
     const { get, call, programItems, guest, root, menus } = await setup();
     const anna = await guest("anna");
@@ -805,11 +854,13 @@ describe("the admin overview", () => {
     expect(response.headers["content-type"]).toContain("text/csv");
     expect(response.headers["content-disposition"]).toContain("attachment");
     const lines = response.body.trim().split("\r\n");
-    expect(lines[0]).toBe("Name;Typ;Status;Trauung;Apéro;Dinner;Party;Menü;Songwunsch;Allergien");
-    expect(lines[1]).toBe(
-      'anna;Erwachsen;zugesagt;ja;nein;ja;nein;Vegetarisch;"Abba; Dancing ""Queen""";"\'=HYPERLINK(""http://x"")"',
+    expect(lines[0]).toBe(
+      "Name;Typ;Status;Trauung;Apéro;Dinner;Party;Menü;Songwunsch;Allergien;Anmerkungen",
     );
-    expect(lines[2]).toBe("ben;Erwachsen;ohne Antwort;;;;;;;");
+    expect(lines[1]).toBe(
+      'anna;Erwachsen;zugesagt;ja;nein;ja;nein;Vegetarisch;"Abba; Dancing ""Queen""";"\'=HYPERLINK(""http://x"")";',
+    );
+    expect(lines[2]).toBe("ben;Erwachsen;ohne Antwort;;;;;;;;");
   });
 });
 
@@ -1017,7 +1068,7 @@ describe("the song wish switch", () => {
       ["ben", null],
     ]);
     const header = (await get(root, "/api/admin/rsvp/export")).raw.body.split("\r\n")[0];
-    expect(header).toBe("Name;Typ;Status;Trauung;Apéro;Dinner;Party;Menü;Allergien");
+    expect(header).toBe("Name;Typ;Status;Trauung;Apéro;Dinner;Party;Menü;Allergien;Anmerkungen");
 
     // Switched on again, the wish is there and can be changed.
     await call(root, "PUT", "/api/admin/rsvp/song", { enabled: true });

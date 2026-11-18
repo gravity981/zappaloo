@@ -290,6 +290,7 @@ export default function AdminRsvpPage() {
                 <th>{t("admin.rsvp.menu")}</th>
                 {data.songEnabled && <th>{t("admin.rsvp.song")}</th>}
                 <th>🔒 {t("admin.rsvp.allergies")}</th>
+                <th>🔒 {t("admin.rsvp.remarks")}</th>
                 <th>
                   <span className="visually-hidden">{t("admin.rsvp.edit")}</span>
                 </th>
@@ -324,6 +325,7 @@ export default function AdminRsvpPage() {
                     </td>
                     {data.songEnabled && <td>{guest.songWish ?? t("admin.rsvp.none")}</td>}
                     <td>{guest.allergies ?? t("admin.rsvp.none")}</td>
+                    <td>{guest.remarks ?? t("admin.rsvp.none")}</td>
                     <td className="actions">
                       <Link
                         className="btn soft sm"
@@ -364,6 +366,7 @@ export default function AdminRsvpPage() {
                         </td>
                         {data.songEnabled && <td>{t("admin.rsvp.none")}</td>}
                         <td>{c.allergies ?? t("admin.rsvp.none")}</td>
+                        <td>{t("admin.rsvp.none")}</td>
                         <td className="actions">
                           {removing === c.id ? (
                             <span className="row" role="alertdialog" aria-label={c.name}>

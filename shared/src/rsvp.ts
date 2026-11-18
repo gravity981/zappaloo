@@ -16,6 +16,8 @@ export type PersonTypeRequest = z.infer<typeof personTypeRequestSchema>;
 export const programItemNameSchema = z.string().trim().min(1).max(60);
 export const menuNameSchema = z.string().trim().min(1).max(60);
 export const allergiesSchema = z.string().trim().min(1).max(500);
+/** "Sonstiges/Anmerkungen" of the main invitee (RSVP-20): optional, at most 500 characters. */
+export const remarksSchema = z.string().trim().min(1).max(500);
 export const songWishSchema = z.string().trim().min(1).max(200);
 /** A calendar day, `2027-05-01`. */
 export const dateSchema = z.iso.date();
@@ -192,6 +194,8 @@ export const rsvpAnswerRequestSchema = z.strictObject({
   /** Needed for a person who attends the meal program item while menus exist; ignored otherwise. */
   menuId: idSchema.nullable().optional(),
   allergies: allergiesSchema.nullable().optional(),
+  /** Only the main invitee has it, not the companions (RSVP-20). */
+  remarks: remarksSchema.nullable().optional(),
   songWish: songWishSchema.nullable().optional(),
   /** Attendance, menu and allergies of companions (pending or approved), by id (RSVP-09). */
   companions: z
@@ -211,6 +215,7 @@ export const rsvpAnswerSchema = z.object({
   declinedItemIds: z.array(idSchema),
   menuId: idSchema.nullable(),
   allergies: z.string().nullable(),
+  remarks: z.string().nullable(),
   songWish: z.string().nullable(),
   answeredAt: z.string(),
 });
@@ -303,6 +308,8 @@ export const rsvpGuestSchema = z.object({
   menuId: idSchema.nullable(),
   songWish: z.string().nullable(),
   allergies: z.string().nullable(),
+  /** "Sonstiges/Anmerkungen" (RSVP-20); admins only like the allergies. */
+  remarks: z.string().nullable(),
   /** True if a reminder can reach the guest: an active account with a verified email address. */
   verifiedEmail: z.boolean(),
 });
