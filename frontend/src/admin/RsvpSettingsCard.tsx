@@ -15,10 +15,14 @@ import type { Activity, ContentPlace, ProgramItem } from "@zappaloo/shared";
 import { fieldText } from "../app/forms.ts";
 import { useEventFormat } from "../rsvp/format.ts";
 import { useAdminCall, useAdminData, useErrorText } from "./data.ts";
+import { DateTimeField } from "./DateTimeField.tsx";
 import { notifyRsvpChanged } from "./pending.ts";
 import { Switch } from "./ui.tsx";
 
 const PROGRAM_ITEMS_PATH = "/api/admin/rsvp/program-items";
+/** The form fields of an activity's start and end (`DateTimeField`). */
+const STARTS_AT = "startsAt";
+const ENDS_AT = "endsAt";
 const ACTIVITIES_PATH = "/api/admin/rsvp/activities";
 const CONTENT_PATH = "/api/content";
 const SONG_PATH = "/api/admin/rsvp/song";
@@ -36,10 +40,10 @@ interface ActivityBody {
 /** Reads the fields of `ActivityInputs` from a submitted form. */
 function readActivity(form: FormData, timeZone: string): ActivityBody {
   const placeId = fieldText(form, "placeId");
-  const endsAt = fieldText(form, "endsAt");
+  const endsAt = fieldText(form, ENDS_AT);
   return {
     name: fieldText(form, "activityName"),
-    startsAt: localToInstant(fieldText(form, "startsAt"), timeZone).toISOString(),
+    startsAt: localToInstant(fieldText(form, STARTS_AT), timeZone).toISOString(),
     endsAt: endsAt === "" ? null : localToInstant(endsAt, timeZone).toISOString(),
     placeId: placeId === "" ? null : Number(placeId),
   };
@@ -69,25 +73,17 @@ function ActivityInputs({
           defaultValue={activity?.name}
         />
       </label>
-      <label className="field">
-        <span>{t("admin.rsvpSettings.programItemStart")}</span>
-        <input
-          className="input"
-          name="startsAt"
-          type="datetime-local"
-          required
-          defaultValue={activity ? instantToLocal(activity.startsAt, timeZone) : undefined}
-        />
-      </label>
-      <label className="field">
-        <span>{t("admin.rsvpSettings.programItemEnd")}</span>
-        <input
-          className="input"
-          name="endsAt"
-          type="datetime-local"
-          defaultValue={activity?.endsAt ? instantToLocal(activity.endsAt, timeZone) : undefined}
-        />
-      </label>
+      <DateTimeField
+        name={STARTS_AT}
+        label={t("admin.rsvpSettings.programItemStart")}
+        required
+        defaultValue={activity ? instantToLocal(activity.startsAt, timeZone) : undefined}
+      />
+      <DateTimeField
+        name={ENDS_AT}
+        label={t("admin.rsvpSettings.programItemEnd")}
+        defaultValue={activity?.endsAt ? instantToLocal(activity.endsAt, timeZone) : undefined}
+      />
       <label className="field">
         <span>{t("admin.rsvpSettings.programItemPlace")}</span>
         <select className="input" name="placeId" defaultValue={activity?.placeId ?? ""}>
@@ -203,6 +199,21 @@ function ProgramItemForm({
       </div>
     </form>
   );
+}
+
+/** Earlier first; the same start keeps the order of creation (RSVP-17). */
+const byStart = (a: Activity, b: Activity) =>
+  Date.parse(a.startsAt) - Date.parse(b.startsAt) || a.id - b.id;
+
+/** The program items by the start of their first activity, each with its activities by start. */
+function chronological(programItems: ProgramItem[]): ProgramItem[] {
+  const sorted = programItems.map((item) => ({
+    ...item,
+    activities: [...item.activities].sort(byStart),
+  }));
+  const first = (item: ProgramItem) =>
+    item.activities[0] ? Date.parse(item.activities[0].startsAt) : Infinity;
+  return sorted.sort((a, b) => first(a) - first(b) || a.id - b.id);
 }
 
 export default function RsvpSettingsCard() {
@@ -367,7 +378,7 @@ export default function RsvpSettingsCard() {
         <span className="hint">{t("admin.rsvpSettings.noProgramItems")}</span>
       )}
       <ul className="stack">
-        {data.programItems.map((programItem) => (
+        {chronological(data.programItems).map((programItem) => (
           <li key={programItem.id} className="card flat">
             {editing === programItem.id ? (
               <ProgramItemForm

@@ -435,6 +435,10 @@
         "rejected": "abgelehnt"
       }
     },
+    "dateTime": {
+      "placeholder": "TT.MM.JJJJ HH:MM",
+      "invalid": "Bitte Datum und Uhrzeit so schreiben: 12.06.2027 18:30"
+    },
     "rsvpSettings": {
       "title": "Rückmeldung",
       "deadline": "Frist (letzter Tag)",

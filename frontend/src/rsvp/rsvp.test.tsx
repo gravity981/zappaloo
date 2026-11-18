@@ -604,7 +604,7 @@ describe("Einstellungen › Rückmeldung", () => {
     const form = within(start.closest("form") as HTMLElement);
     user.type(form.getByLabelText("Name"), "Party");
     user.type(form.getByLabelText("Name der Aktivität"), "Tanzen");
-    user.type(start, "2027-06-12T22:00");
+    user.type(start, "12.06.2027 22:00");
     user.type(form.getByLabelText("Ort (optional)"), "7");
     user.click(form.getByRole("button", { name: "Speichern" }));
     await waitFor(() => {
@@ -687,7 +687,7 @@ describe("Einstellungen › Rückmeldung", () => {
     const start = await screen.findByLabelText("Beginn");
     const form = within(start.closest("form") as HTMLElement);
     user.type(form.getByLabelText("Name der Aktivität"), "Dessert");
-    user.type(start, "2027-06-12T20:00");
+    user.type(start, "12.06.2027 20:00");
     user.click(form.getByRole("button", { name: "Speichern" }));
     await waitFor(() => {
       expect(calls.some((c) => c.method === "POST")).toBe(true);
@@ -698,6 +698,53 @@ describe("Einstellungen › Rückmeldung", () => {
       endsAt: null,
       placeId: null,
     });
+  });
+
+  it("[RSVP-17] the activities of a program item are listed chronologically, the first one at the top", async () => {
+    // The server answers in the wrong order on purpose: the card does not depend on it.
+    const [first, second] = withActivities.programItems[1]?.activities ?? [];
+    const unsorted = {
+      ...withActivities,
+      programItems: [
+        { ...withActivities.programItems[1], activities: [second, first] },
+        withActivities.programItems[0],
+      ],
+    };
+    fakeBackend({
+      "GET /api/session": () => asAdmin,
+      "GET /api/admin/rsvp/config": () => ({ status: 200, body: unsorted }),
+      "GET /api/content": () => ({ status: 200, body: contentBody }),
+    });
+    renderAt("/admin/settings");
+    await screen.findByText("Paar-Quiz");
+    const names = screen
+      .getAllByRole("button", { name: /^Aktivität bearbeiten: / })
+      .map((button) => button.getAttribute("aria-label"));
+    // Apéro (13:30) comes before Dinner (16:30), and Essen before Paar-Quiz within Dinner.
+    expect(names).toEqual([
+      "Aktivität bearbeiten: Apéro",
+      "Aktivität bearbeiten: Essen",
+      "Aktivität bearbeiten: Paar-Quiz",
+    ]);
+  });
+
+  it("[RSVP-17] date and time of an activity are written day.month.year and in 24-hour format", async () => {
+    fakeBackend({
+      "GET /api/session": () => asAdmin,
+      "GET /api/admin/rsvp/config": () => ({ status: 200, body: withActivities }),
+      "GET /api/content": () => ({ status: 200, body: contentBody }),
+    });
+    renderAt("/admin/settings");
+    // Paar-Quiz starts at 20:30 in Zurich (summer time): shown as one text, day first.
+    user.click(await screen.findByRole("button", { name: "Aktivität bearbeiten: Paar-Quiz" }));
+    const start = await screen.findByLabelText("Beginn");
+    expect(start).toHaveValue("12.06.2027 20:30");
+    expect(start).toHaveAttribute("placeholder", "TT.MM.JJJJ HH:MM");
+    // 13.06. is not 06.13.: a month first, or AM/PM, is not a date here.
+    user.type(start, "06.13.2027 8:30 PM");
+    expect((start as HTMLInputElement).validity.customError).toBe(true);
+    user.type(start, "13.06.2027 20:30");
+    expect((start as HTMLInputElement).validity.customError).toBe(false);
   });
 
   it("[RSVP-17] the admin changes and deletes an activity", async () => {

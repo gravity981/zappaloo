@@ -17,9 +17,12 @@ import {
 import type { WaitingTextKey, WaitingUpdate } from "@zappaloo/shared";
 import { fieldText } from "../app/forms.ts";
 import { useEvent } from "../app/event.ts";
+import { DateTimeField } from "./DateTimeField.tsx";
 import { useAdminCall, useAdminData, useErrorText, useRefreshEvent } from "./data.ts";
 import { Switch } from "./ui.tsx";
 
+/** The form field of the announced opening date (`DateTimeField`). */
+const OPENING_AT = "openingAt";
 const WAITING_PATH = "/api/admin/waiting";
 const PLATFORM_PATH = "/api/admin/platform";
 
@@ -99,7 +102,7 @@ export default function WaitingSettingsCards() {
 
   async function saveOpening(form: SubmitEvent<HTMLFormElement>) {
     form.preventDefault();
-    const local = fieldText(new FormData(form.currentTarget), "openingAt");
+    const local = fieldText(new FormData(form.currentTarget), OPENING_AT);
     await change(
       { openingAt: local === "" ? null : localToInstant(local, timeZone).toISOString() },
       "opening",
@@ -140,17 +143,13 @@ export default function WaitingSettingsCards() {
           </p>
         )}
         <form className="stack" onSubmit={(form) => void saveOpening(form)}>
-          <label className="field">
-            <span>{t("admin.waiting.openingAt")}</span>
-            <input
-              className="input auto"
-              name="openingAt"
-              type="datetime-local"
-              key={data.openingAt ?? "none"}
-              defaultValue={data.openingAt ? instantToLocal(data.openingAt, timeZone) : ""}
-            />
-            <span className="hint">{t("admin.waiting.openingAtHint")}</span>
-          </label>
+          <DateTimeField
+            name={OPENING_AT}
+            label={t("admin.waiting.openingAt")}
+            hint={t("admin.waiting.openingAtHint")}
+            key={data.openingAt ?? "none"}
+            defaultValue={data.openingAt ? instantToLocal(data.openingAt, timeZone) : undefined}
+          />
           <div className="row">
             <button type="submit" className="btn soft sm">
               {t("admin.waiting.saveOpening")}
