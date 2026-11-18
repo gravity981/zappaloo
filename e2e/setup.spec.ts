@@ -1,5 +1,5 @@
 import { expect, test } from "./support.ts";
-import { clientAddress, createAdmin, PASSWORD } from "./support.ts";
+import { clientAddress, createAdmin, holdButton, PASSWORD } from "./support.ts";
 import de from "../frontend/src/i18n/locales/de/common.json" with { type: "json" };
 
 // The installation on port 4174 starts empty (playwright.config.ts) and is set up once, so this
@@ -87,11 +87,11 @@ test("[CFG-02][CFG-06] a fresh installation: the operator creates the admin, the
   // state shows at once, and the admin can close it again.
   const opening = page.getByRole("region", { name: de.admin.waiting.openingTitle });
   await expect(opening.getByRole("checkbox")).toBeDisabled();
-  await opening.getByRole("button", { name: de.admin.waiting.openNow }).click();
+  await holdButton(page, opening.getByRole("button", { name: de.admin.waiting.openNow }));
   await expect(opening.getByText(de.admin.waiting.opened, { exact: true })).toBeVisible();
   await expect(page.locator(".admin-head .tag")).toHaveText(de.admin.platformOpen);
   expect(await platformOpen()).toBe(true);
-  await opening.getByRole("button", { name: de.admin.waiting.closeAgain }).click();
+  await holdButton(page, opening.getByRole("button", { name: de.admin.waiting.closeAgain }));
   await expect(opening.getByText(de.admin.waiting.closed)).toBeVisible();
   expect(await platformOpen()).toBe(false);
 });

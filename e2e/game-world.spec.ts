@@ -10,6 +10,7 @@ import { SPEED_TILES_PER_SECOND } from "../game-engine/src/movement.ts";
 import {
   chooseFirstFigure,
   clientAddress,
+  holdButton,
   PASSWORD,
   signInAsAdmin,
   stayOnWebsite,
@@ -344,7 +345,7 @@ test("[GAME-11][GAME-13] on the first entry with an open RSVP, typing into the R
   // An admin opens the RSVP and invites a guest, as in the RSVP test.
   await signInAsAdmin(page, context);
   await page.goto("/admin/settings");
-  await page.getByLabel(de.admin.rsvpSettings.deadline).fill("2099-12-31");
+  await page.getByLabel(de.admin.rsvpSettings.deadline).fill("31.12.2099");
   await page.getByRole("button", { name: de.admin.rsvpSettings.saveDeadline }).click();
   await expect(
     page.getByRole("status").filter({ hasText: de.admin.rsvpSettings.saved }),
@@ -372,7 +373,7 @@ test("[GAME-11][GAME-13] on the first entry with an open RSVP, typing into the R
   // The platform opens for guests now; it is closed again at the end, as the other tests expect it.
   await page.goto("/admin/settings");
   const opening = page.getByRole("region", { name: de.admin.waiting.openingTitle });
-  await opening.getByRole("button", { name: de.admin.waiting.openNow }).click();
+  await holdButton(page, opening.getByRole("button", { name: de.admin.waiting.openNow }));
   await expect(opening.getByText(de.admin.waiting.opened, { exact: true })).toBeVisible();
   await guest.goto("/game");
   await guest.getByRole("group", { name: de.avatar.kind }).getByRole("button").first().click();
@@ -395,7 +396,7 @@ test("[GAME-11][GAME-13] on the first entry with an open RSVP, typing into the R
   await guestContext.close();
   await page.goto("/admin/settings");
   const closing = page.getByRole("region", { name: de.admin.waiting.openingTitle });
-  await closing.getByRole("button", { name: de.admin.waiting.closeAgain }).click();
+  await holdButton(page, closing.getByRole("button", { name: de.admin.waiting.closeAgain }));
   // The test must not end before the platform is closed: this installation is shared with the tests that follow,
   // which expect it closed, and a request that the end of the test cuts off leaves it open.
   await expect(closing.getByText(de.admin.waiting.closed)).toBeVisible();

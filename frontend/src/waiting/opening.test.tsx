@@ -3,7 +3,7 @@ import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vite
 import { DEFAULT_WAITING_TEXTS } from "@zappaloo/shared";
 import { renderMarkdown } from "../app/markdown.ts";
 import { initI18n } from "../i18n/i18n.ts";
-import { anna, event, fakeBackend, renderAt, user } from "../test/backend.tsx";
+import { anna, event, fakeBackend, hold, renderAt, user } from "../test/backend.tsx";
 
 beforeAll(async () => {
   await initI18n();
@@ -258,7 +258,7 @@ describe("opening and closing the platform (ACS-14)", () => {
       name: "E-Mail «Die Tür ist offen» an alle Gäste mit bestätigter Adresse senden (3)",
     });
     expect(checkbox).toBeChecked();
-    user.click(within(section).getByRole("button", { name: "Jetzt öffnen" }));
+    hold(within(section).getByRole("button", { name: "Jetzt öffnen" }));
 
     expect(
       await within(section).findByText("Die Plattform ist offen. 3 E-Mails wurden gesendet."),
@@ -269,7 +269,7 @@ describe("opening and closing the platform (ACS-14)", () => {
     });
     // The state shows at once: the tag, and "Wieder schliessen" without email.
     expect(within(section).getByText("Plattform offen")).toBeInTheDocument();
-    user.click(await within(section).findByRole("button", { name: "Wieder schliessen" }));
+    hold(await within(section).findByRole("button", { name: "Wieder schliessen" }));
     expect(
       await within(section).findByText("Die Plattform ist wieder geschlossen."),
     ).toBeInTheDocument();
@@ -284,7 +284,7 @@ describe("opening and closing the platform (ACS-14)", () => {
     renderAt("/admin/settings");
     const section = await card();
     user.click(await within(section).findByRole("checkbox"));
-    user.click(within(section).getByRole("button", { name: "Jetzt öffnen" }));
+    hold(within(section).getByRole("button", { name: "Jetzt öffnen" }));
     expect(await within(section).findByText("Die Plattform ist offen.")).toBeInTheDocument();
     expect(calls.find((c) => c.path === "/api/admin/platform/open")?.body).toEqual({
       sendEmail: false,
@@ -298,7 +298,7 @@ describe("opening and closing the platform (ACS-14)", () => {
     const checkbox = await within(section).findByRole("checkbox");
     expect(checkbox).toBeDisabled();
     expect(checkbox).not.toBeChecked();
-    user.click(within(section).getByRole("button", { name: "Jetzt öffnen" }));
+    hold(within(section).getByRole("button", { name: "Jetzt öffnen" }));
     await waitFor(() => {
       expect(calls.some((c) => c.path === "/api/admin/platform/open")).toBe(true);
     });
@@ -311,7 +311,7 @@ describe("opening and closing the platform (ACS-14)", () => {
     platformBackend(3, { sent: 2, failed: 1 });
     renderAt("/admin/settings");
     const section = await card();
-    user.click(await within(section).findByRole("button", { name: "Jetzt öffnen" }));
+    hold(await within(section).findByRole("button", { name: "Jetzt öffnen" }));
     expect(
       await within(section).findByText(
         "Die Plattform ist offen. 2 E-Mails wurden gesendet. 1 E-Mail konnte nicht gesendet werden.",
@@ -333,7 +333,7 @@ describe("opening and closing the platform (ACS-14)", () => {
     });
     renderAt("/admin/settings");
     const section = await card();
-    user.click(await within(section).findByRole("button", { name: "Jetzt öffnen" }));
+    hold(await within(section).findByRole("button", { name: "Jetzt öffnen" }));
     expect(await within(section).findByRole("alert")).toHaveTextContent(
       "Auf diesem Server können keine E-Mails verschickt werden.",
     );

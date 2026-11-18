@@ -19,7 +19,7 @@ import { fieldText } from "../app/forms.ts";
 import { useEvent } from "../app/event.ts";
 import { DateTimeField } from "./DateTimeField.tsx";
 import { useAdminCall, useAdminData, useErrorText, useRefreshEvent } from "./data.ts";
-import { Switch } from "./ui.tsx";
+import { HoldButton, Switch } from "./ui.tsx";
 
 /** The form field of the announced opening date (`DateTimeField`). */
 const OPENING_AT = "openingAt";
@@ -199,17 +199,17 @@ function WaitingSettingsCards({ part }: { part: typeof OPENING_PART | typeof TEX
                 />
                 {t("admin.waiting.sendEmail", { count: platform.recipientCount })}
               </label>
-              <button type="button" className="btn" onClick={() => void openPlatform()}>
+              <HoldButton className="btn" onConfirm={() => void openPlatform()}>
                 {t("admin.waiting.openNow")}
-              </button>
+              </HoldButton>
             </>
           )}
           {platform?.open && (
             <>
               <span className="hint">{t("admin.waiting.closeHint")}</span>
-              <button type="button" className="btn ghost" onClick={() => void closePlatform()}>
+              <HoldButton className="btn ghost" onConfirm={() => void closePlatform()}>
                 {t("admin.waiting.closeAgain")}
-              </button>
+              </HoldButton>
             </>
           )}
           {outcome && (

@@ -630,7 +630,7 @@ const field = (label, input, hint = "") => `<label class="m-field"><span>${label
 const inp = (id, val = "", attrs = "") => `<input class="m-input" id="${id}" value="${val}" ${attrs}>`;
 const area = (id, val = "", attrs = "") => `<textarea class="m-input" id="${id}" ${attrs}>${val}</textarea>`;
 const sw = (on = false) => `<button type="button" class="m-switch ${on ? "on" : ""}" data-switch aria-label="Schalter"></button>`;
-const holdBtn = (text) => `<button class="m-btn soft sm hold"><span class="m-hold-fill"></span><span class="m-hold-label">${text}</span></button><span class="m-hint">Halte den Knopf vier Sekunden gedrückt.</span>`;
+const holdBtn = (text, cls = "m-btn soft sm") => `<button class="${cls} hold"><span class="m-hold-fill"></span><span class="m-hold-label">${text}</span></button>`;
 const qr = () => `<div class="m-qr"><canvas data-qr width="25" height="25"></canvas></div>`;
 
 const EVENT = { couple: "Lea & Jonas", date: "Sa, 12. Juni 2027" };
@@ -1579,8 +1579,8 @@ add({
       ${field("Angekündigtes Öffnungsdatum (optional)", inp("as-open", "2027-05-15T18:00", 'type="datetime-local" style="width:auto"'), "Erscheint im Platzhalter {openingDate}.")}
       <div class="m-setrow"><div class="grow"><b class="sm">Countdown auf der Warteseite zeigen</b><span class="m-hint">Zählt bis zum Öffnungsdatum und verschwindet bei null.</span></div>${sw(false)}</div>
       <label class="m-row2 sm"><input type="checkbox" id="as-mail" checked> E-Mail «Die Tür ist offen» an alle Gäste mit bestätigter Adresse senden (71)</label>
-      <button class="m-btn" style="align-self:flex-start">Jetzt öffnen</button>
-      <span class="m-hint">Ist die Plattform offen, steht hier «Wieder schliessen» (ohne E-Mail).</span></div>
+      ${holdBtn("Jetzt öffnen", "m-btn")}
+      <span class="m-hint">Ist die Plattform offen, steht hier «Wieder schliessen» (ohne E-Mail). Beide Knöpfe müssen gehalten werden.</span></div>
     <div class="m-grid-d2">
       <div class="m-card"><b>Anmeldung</b>${field("Frist", inp("as-dl", "2027-05-01", 'type="date" style="width:auto"'))}
         <div class="m-setrow"><div class="grow"><b class="sm">Songwunsch fragen</b><span class="m-hint">Die Anmeldung fragt nach einem Lieblingslied (decided 2026-11-11).</span></div>${sw(true)}</div>

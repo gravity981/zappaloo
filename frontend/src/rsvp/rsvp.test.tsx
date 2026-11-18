@@ -1,7 +1,7 @@
 import { screen, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import { initI18n } from "../i18n/i18n.ts";
-import { anna, fakeBackend, renderAt, user } from "../test/backend.tsx";
+import { anna, fakeBackend, hold, renderAt, user } from "../test/backend.tsx";
 
 beforeAll(async () => {
   await initI18n();
@@ -957,7 +957,7 @@ describe("Einstellungen › Anmeldung", () => {
       expect(calls.filter((c) => c.method === "PUT")).toHaveLength(1);
     });
     expect(calls.find((c) => c.method === "PUT")?.body).toEqual({ deadline: "2027-05-15" });
-    user.click(screen.getByRole("button", { name: "Frist entfernen" }));
+    hold(screen.getByRole("button", { name: "Frist entfernen" }));
     await waitFor(() => {
       expect(calls.filter((c) => c.method === "PUT")).toHaveLength(2);
     });

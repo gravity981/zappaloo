@@ -17,7 +17,7 @@ test("[ACS-10][ACS-11][ACS-12][ACS-13] a guest of the closed platform sees the d
   // The admin starts from the default texts and no countdown, and invites a guest.
   await signInAsAdmin(page, context);
   await page.goto("/admin/settings");
-  await page.getByLabel(de.admin.rsvpSettings.deadline).fill("2099-12-31");
+  await page.getByLabel(de.admin.rsvpSettings.deadline).fill("31.12.2099");
   await page.getByRole("button", { name: de.admin.rsvpSettings.saveDeadline }).click();
   await expect(
     page.getByRole("status").filter({ hasText: de.admin.rsvpSettings.saved }),

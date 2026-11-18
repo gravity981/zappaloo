@@ -20,7 +20,7 @@ test("[RSVP-08][RSVP-10][RSVP-12][RSVP-13][RSVP-15][SEC-11] a guest adds an acco
   // The admin keeps the RSVP open and invites a guest to the ceremony only.
   await signInAsAdmin(page, context);
   await page.goto("/admin/settings");
-  await page.getByLabel(de.admin.rsvpSettings.deadline).fill("2099-12-31");
+  await page.getByLabel(de.admin.rsvpSettings.deadline).fill("31.12.2099");
   await page.getByRole("button", { name: de.admin.rsvpSettings.saveDeadline }).click();
   await expect(
     page.getByRole("status").filter({ hasText: de.admin.rsvpSettings.saved }),

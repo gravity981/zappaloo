@@ -444,7 +444,6 @@
         "rejected": "abgelehnt"
       }
     },
-    "holdHint": "Halte den Knopf vier Sekunden gedrückt.",
     "date": {
       "placeholder": "TT.MM.JJJJ",
       "invalid": "Bitte das Datum so schreiben: 12.06.2027"

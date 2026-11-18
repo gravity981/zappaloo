@@ -19,12 +19,13 @@ import { useAdminCall, useAdminData, useErrorText } from "./data.ts";
 import { DateField } from "./DateField.tsx";
 import { DateTimeField } from "./DateTimeField.tsx";
 import { notifyRsvpChanged } from "./pending.ts";
-import { Switch } from "./ui.tsx";
+import { HoldButton, Switch } from "./ui.tsx";
 
 const PROGRAM_ITEMS_PATH = "/api/admin/rsvp/program-items";
 /** The form fields of an activity's start and end (`DateTimeField`). */
 /** The form field of the deadline. */
 const DEADLINE = "deadline";
+const DEADLINE_PATH = "/api/admin/rsvp/deadline";
 const STARTS_AT = "startsAt";
 const ENDS_AT = "endsAt";
 const ACTIVITIES_PATH = "/api/admin/rsvp/activities";
@@ -275,7 +276,7 @@ export default function RsvpSettingsCard() {
   async function saveDeadline(event: SubmitEvent<HTMLFormElement>) {
     event.preventDefault();
     const date = fieldText(new FormData(event.currentTarget), DEADLINE);
-    if (await run("PUT", "/api/admin/rsvp/deadline", { deadline: date === "" ? null : date })) {
+    if (await run("PUT", DEADLINE_PATH, { deadline: date === "" ? null : date })) {
       setSaved(true);
     }
   }
@@ -427,13 +428,14 @@ export default function RsvpSettingsCard() {
             {t("admin.rsvpSettings.saveDeadline")}
           </button>
           {data.deadline && (
-            <button
-              type="button"
-              className="btn ghost sm"
-              onClick={() => void run("PUT", "/api/admin/rsvp/deadline", { deadline: null })}
-            >
-              {t("admin.rsvpSettings.clearDeadline")}
-            </button>
+            <>
+              <HoldButton
+                className="btn ghost sm"
+                onConfirm={() => void run("PUT", DEADLINE_PATH, { deadline: null })}
+              >
+                {t("admin.rsvpSettings.clearDeadline")}
+              </HoldButton>
+            </>
           )}
           {saved && (
             <span role="status" className="hint">

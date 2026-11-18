@@ -16,7 +16,7 @@ test("[RSVP-01][RSVP-02][RSVP-03][RSVP-04][RSVP-05][RSVP-06][RSVP-11][ACC-17][SE
   // The admin opens the RSVP until far in the future (the example deadline is in 2027).
   await signInAsAdmin(page, context);
   await page.goto("/admin/settings");
-  await page.getByLabel(de.admin.rsvpSettings.deadline).fill("2099-12-31");
+  await page.getByLabel(de.admin.rsvpSettings.deadline).fill("31.12.2099");
   await page.getByRole("button", { name: de.admin.rsvpSettings.saveDeadline }).click();
   await expect(
     page.getByRole("status").filter({ hasText: de.admin.rsvpSettings.saved }),

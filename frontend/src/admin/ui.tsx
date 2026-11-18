@@ -180,10 +180,13 @@ export function HoldButton({
   onConfirm,
   children,
   disabled = false,
+  className = "btn soft sm",
 }: {
   onConfirm: () => void;
   children: ReactNode;
   disabled?: boolean;
+  /** The look of the button: `btn soft sm` by default, `btn` or `btn ghost` for the main actions. */
+  className?: string;
 }) {
   const [holding, setHolding] = useState(false);
   const timer = useRef<ReturnType<typeof setTimeout>>(undefined);
@@ -213,7 +216,7 @@ export function HoldButton({
   return (
     <button
       type="button"
-      className={holding ? "btn soft sm hold holding" : "btn soft sm hold"}
+      className={holding ? `${className} hold holding` : `${className} hold`}
       disabled={disabled}
       onPointerDown={start}
       onPointerUp={cancel}
