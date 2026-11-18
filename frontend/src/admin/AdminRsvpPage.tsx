@@ -13,7 +13,7 @@ import {
 import type { PersonType, RsvpStatus } from "@zappaloo/shared";
 import { useAdminCall, useAdminData, useErrorText } from "./data.ts";
 import { notifyRsvpChanged } from "./pending.ts";
-import { ShortForms } from "./ui.tsx";
+import { HoldButton, ShortForms } from "./ui.tsx";
 
 /** The filter chips: all guests, or one status. */
 const FILTERS: (RsvpStatus | undefined)[] = [undefined, "attending", "declined", "none"];
@@ -184,17 +184,14 @@ export default function AdminRsvpPage() {
     <>
       <div className="sethead">
         <h1 className="h1 grow">{t("admin.rsvp.title")}</h1>
-        <a className="btn soft sm" href="/api/admin/rsvp/export" download>
-          {t("admin.rsvp.csv")}
-        </a>
-        <button
-          type="button"
+        {/* Mails every guest without an answer: it needs a long press. */}
+        <HoldButton
           className="btn sm"
           disabled={data.reminderCount === 0 || busy === "remind"}
-          onClick={() => void remind()}
+          onConfirm={() => void remind()}
         >
           {t("admin.rsvp.remind", { count: data.reminderCount })}
-        </button>
+        </HoldButton>
       </div>
       {message && (
         <p role={message.ok ? "status" : "alert"} className={message.ok ? "hint" : "error"}>
@@ -438,6 +435,11 @@ export default function AdminRsvpPage() {
           </table>
         </div>
         <span className="hint tight-foot">{t("admin.rsvp.hint")}</span>
+        <div className="row tight-foot">
+          <a className="btn soft sm" href="/api/admin/rsvp/export" download>
+            {t("admin.rsvp.csv")}
+          </a>
+        </div>
       </section>
     </>
   );

@@ -677,7 +677,7 @@ describe("Anmeldungen", () => {
       "POST /api/admin/rsvp/remind": () => ({ status: 200, body: { sent: 1 } }),
     });
     renderAt("/admin/rsvp");
-    user.click(await screen.findByRole("button", { name: "Erinnern (1)" }));
+    hold(await screen.findByRole("button", { name: "Erinnern (1)" }));
     expect(await screen.findByText("Erinnerung an 1 Gast gesendet.")).toBeInTheDocument();
     expect(calls.find((c) => c.method === "POST")?.csrf).toBe("csrf-9");
   });
