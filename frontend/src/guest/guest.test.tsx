@@ -292,6 +292,7 @@ describe("the RSVP in the flow frame (UX mock rsvp-parts)", () => {
       {
         id: 1,
         name: "Trauung",
+        shortCode: null,
         hasMeal: false,
         activities: [
           {

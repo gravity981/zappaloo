@@ -329,6 +329,8 @@ export const programItems = sqliteTable(
       .notNull()
       .references(() => events.id),
     name: text("name").notNull(),
+    /** The Kürzel of the tables (RSVP-23); null: the first letter of the name. */
+    shortCode: text("short_code"),
     hasMeal: integer("has_meal", { mode: "boolean" }).notNull().default(false),
     createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull(),
   },
@@ -377,6 +379,8 @@ export const menuOptions = sqliteTable(
       .notNull()
       .references(() => events.id),
     name: text("name").notNull(),
+    /** The Kürzel of the tables (RSVP-23); null: the first letter of the name. */
+    shortCode: text("short_code"),
     /** The children's list; every menu that existed before epic 5.4 is an adults' menu. */
     forChildren: integer("for_children", { mode: "boolean" }).notNull().default(false),
     createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull(),

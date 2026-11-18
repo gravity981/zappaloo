@@ -92,7 +92,7 @@ All active requirements are listed here until their stage is delivered. Shrink t
 | HUNT | HUNT-01 – HUNT-07 | 7 |
 | MG | MG-01 – MG-13 | 13 |
 | WEB | WEB-05, WEB-06 | 2 |
-| RSVP | RSVP-22 – RSVP-24 | 3 |
+| RSVP | RSVP-24 | 1 |
 | LANG | LANG-03 | 1 |
 | ROLE | ROLE-11 | 1 |
 | SCR | SCR-01, SCR-02, SCR-04, SCR-05, SCR-07 | 5 |

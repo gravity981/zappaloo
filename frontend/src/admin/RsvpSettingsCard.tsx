@@ -10,17 +10,21 @@ import {
   instantToLocal,
   localToInstant,
   rsvpConfigSchema,
+  shortCodeOf,
 } from "@zappaloo/shared";
 import type { Activity, ContentPlace, ProgramItem } from "@zappaloo/shared";
 import { fieldText } from "../app/forms.ts";
 import { useEventFormat } from "../rsvp/format.ts";
 import { useAdminCall, useAdminData, useErrorText } from "./data.ts";
+import { DateField } from "./DateField.tsx";
 import { DateTimeField } from "./DateTimeField.tsx";
 import { notifyRsvpChanged } from "./pending.ts";
 import { Switch } from "./ui.tsx";
 
 const PROGRAM_ITEMS_PATH = "/api/admin/rsvp/program-items";
 /** The form fields of an activity's start and end (`DateTimeField`). */
+/** The form field of the deadline. */
+const DEADLINE = "deadline";
 const STARTS_AT = "startsAt";
 const ENDS_AT = "endsAt";
 const ACTIVITIES_PATH = "/api/admin/rsvp/activities";
@@ -153,7 +157,7 @@ function ProgramItemForm({
   places: ContentPlace[];
   timeZone: string;
   onSubmit: (
-    item: { name: string; hasMeal: boolean },
+    item: { name: string; shortCode: string | null; hasMeal: boolean },
     firstActivity: ActivityBody | undefined,
   ) => Promise<void>;
   onCancel: () => void;
@@ -163,7 +167,11 @@ function ProgramItemForm({
     event.preventDefault();
     const form = new FormData(event.currentTarget);
     void onSubmit(
-      { name: fieldText(form, "name"), hasMeal: form.get("hasMeal") !== null },
+      {
+        name: fieldText(form, "name"),
+        shortCode: fieldText(form, "shortCode") === "" ? null : fieldText(form, "shortCode"),
+        hasMeal: form.get("hasMeal") !== null,
+      },
       programItem ? undefined : readActivity(form, timeZone),
     );
   }
@@ -177,6 +185,16 @@ function ProgramItemForm({
           required
           maxLength={60}
           defaultValue={programItem?.name}
+        />
+      </label>
+      <label className="field">
+        <span>{t("admin.rsvpSettings.shortCode")}</span>
+        <input
+          className="input short"
+          name="shortCode"
+          maxLength={2}
+          defaultValue={programItem?.shortCode ?? ""}
+          placeholder={programItem ? shortCodeOf(programItem) : undefined}
         />
       </label>
       <label className="row sm">
@@ -235,7 +253,7 @@ export default function RsvpSettingsCard() {
   const [confirmDelete, setConfirmDelete] = useState<number>();
   const [menuName, setMenuName] = useState("");
   const [childMenuName, setChildMenuName] = useState("");
-  const [renaming, setRenaming] = useState<{ id: number; name: string }>();
+  const [renaming, setRenaming] = useState<{ id: number; name: string; shortCode: string }>();
   /** Switching the approval off asks first while requests wait: they are approved with it. */
   const [confirmApprovalOff, setConfirmApprovalOff] = useState(false);
 
@@ -256,7 +274,7 @@ export default function RsvpSettingsCard() {
 
   async function saveDeadline(event: SubmitEvent<HTMLFormElement>) {
     event.preventDefault();
-    const date = fieldText(new FormData(event.currentTarget), "deadline");
+    const date = fieldText(new FormData(event.currentTarget), DEADLINE);
     if (await run("PUT", "/api/admin/rsvp/deadline", { deadline: date === "" ? null : date })) {
       setSaved(true);
     }
@@ -291,6 +309,8 @@ export default function RsvpSettingsCard() {
                     event.preventDefault();
                     void run("PATCH", `/api/admin/rsvp/menus/${String(menu.id)}`, {
                       name: renaming.name,
+                      shortCode:
+                        renaming.shortCode.trim() === "" ? null : renaming.shortCode.trim(),
                     }).then((ok) => {
                       if (ok) setRenaming(undefined);
                     });
@@ -303,7 +323,17 @@ export default function RsvpSettingsCard() {
                     maxLength={60}
                     required
                     onChange={(event) => {
-                      setRenaming({ id: menu.id, name: event.target.value });
+                      setRenaming({ ...renaming, name: event.target.value });
+                    }}
+                  />
+                  <input
+                    className="input short"
+                    aria-label={t("admin.rsvpSettings.shortCode")}
+                    value={renaming.shortCode}
+                    placeholder={shortCodeOf({ name: renaming.name, shortCode: null })}
+                    maxLength={2}
+                    onChange={(event) => {
+                      setRenaming({ ...renaming, shortCode: event.target.value });
                     }}
                   />
                   <button type="submit" className="btn sm">
@@ -312,13 +342,24 @@ export default function RsvpSettingsCard() {
                 </form>
               ) : (
                 <>
-                  <span className="grow">{menu.name}</span>
+                  <span className="grow">
+                    <span className="row">
+                      {menu.name}
+                      <span className="tag line" title={t("admin.rsvpSettings.shortCode")}>
+                        {shortCodeOf(menu)}
+                      </span>
+                    </span>
+                  </span>
                   <button
                     type="button"
                     className="btn soft sm"
                     aria-label={`${t("admin.rsvpSettings.edit")}: ${menu.name}`}
                     onClick={() => {
-                      setRenaming({ id: menu.id, name: menu.name });
+                      setRenaming({
+                        id: menu.id,
+                        name: menu.name,
+                        shortCode: menu.shortCode ?? "",
+                      });
                     }}
                   >
                     {t("admin.rsvpSettings.edit")}
@@ -374,17 +415,13 @@ export default function RsvpSettingsCard() {
       )}
 
       <form className="stack" onSubmit={(event) => void saveDeadline(event)}>
-        <label className="field">
-          <span>{t("admin.rsvpSettings.deadline")}</span>
-          <input
-            className="input auto"
-            name="deadline"
-            type="date"
-            key={data.deadline ?? "none"}
-            defaultValue={data.deadline ?? ""}
-          />
-          <span className="hint">{t("admin.rsvpSettings.deadlineHint")}</span>
-        </label>
+        <DateField
+          name={DEADLINE}
+          key={data.deadline ?? "none"}
+          label={t("admin.rsvpSettings.deadline")}
+          hint={t("admin.rsvpSettings.deadlineHint")}
+          defaultValue={data.deadline ?? ""}
+        />
         <div className="row">
           <button type="submit" className="btn soft sm">
             {t("admin.rsvpSettings.saveDeadline")}
@@ -505,7 +542,10 @@ export default function RsvpSettingsCard() {
             ) : (
               <div className="row">
                 <b className="grow">
-                  {programItem.name}
+                  {programItem.name}{" "}
+                  <span className="tag line" title={t("admin.rsvpSettings.shortCode")}>
+                    {shortCodeOf(programItem)}
+                  </span>
                   {programItem.hasMeal && (
                     <span className="tag ok">{t("admin.rsvpSettings.mealTag")}</span>
                   )}

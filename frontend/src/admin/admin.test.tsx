@@ -174,7 +174,7 @@ describe("invitations", () => {
     });
     renderAt("/admin/invitations");
     user.type(await screen.findByLabelText("Gäste (ein Name pro Zeile)"), "Anna Muster\n\nBen");
-    user.type(screen.getByLabelText("Ablaufdatum (optional)"), "2027-05-01");
+    user.type(screen.getByLabelText("Ablaufdatum (optional)"), "01.05.2027");
     user.click(screen.getByRole("button", { name: "2 Einladungen erstellen" }));
 
     expect(
@@ -703,6 +703,7 @@ describe("accounts, roles and groups", () => {
             {
               id: 1,
               name: "Trauung",
+              shortCode: null,
               hasMeal: false,
               activities: [
                 {
@@ -718,6 +719,7 @@ describe("accounts, roles and groups", () => {
             {
               id: 2,
               name: "Dinner",
+              shortCode: null,
               hasMeal: true,
               activities: [
                 {

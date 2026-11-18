@@ -398,7 +398,14 @@ const rsvpPlugin: FastifyPluginAsyncZod<AuthOptions> = (app, options) => {
     async (request, reply) =>
       reply
         .status(201)
-        .send(rsvp.createMenu(request.body.name, actor(request), request.body.forChildren)),
+        .send(
+          rsvp.createMenu(
+            request.body.name,
+            actor(request),
+            request.body.forChildren,
+            request.body.shortCode,
+          ),
+        ),
   );
 
   app.patch(
@@ -415,7 +422,12 @@ const rsvpPlugin: FastifyPluginAsyncZod<AuthOptions> = (app, options) => {
     async (request, reply) => {
       try {
         return await reply.send(
-          rsvp.renameMenu(request.params.id, request.body.name, actor(request)),
+          rsvp.renameMenu(
+            request.params.id,
+            request.body.name,
+            actor(request),
+            request.body.shortCode,
+          ),
         );
       } catch (error) {
         return fail(reply, error);

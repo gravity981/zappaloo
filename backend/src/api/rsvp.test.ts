@@ -6,6 +6,7 @@ import type {
   IssuedInvitation,
   MenuOption,
   Role,
+  RsvpConfig,
   RsvpOverview,
   RsvpState,
 } from "@zappaloo/shared";
@@ -861,6 +862,77 @@ describe("the admin overview", () => {
       'anna;Erwachsen;zugesagt;ja;nein;ja;nein;Vegetarisch;"Abba; Dancing ""Queen""";"\'=HYPERLINK(""http://x"")";',
     );
     expect(lines[2]).toBe("ben;Erwachsen;ohne Antwort;;;;;;;;");
+  });
+});
+
+describe("short forms and the email column (RSVP-22, RSVP-23)", () => {
+  it("[RSVP-23] program items and menus have an optional Kürzel of one or two characters", async () => {
+    const { root, call, get, programItems, menus } = await setup();
+    const trauung = must(programItems[0]);
+    const menu = must(menus[0]);
+    // Without a Kürzel the API says null: the tables use the first letter.
+    expect(trauung.shortCode).toBeNull();
+    expect(menu.shortCode).toBeNull();
+    const set = await call<ProgramItem>(
+      root,
+      "PATCH",
+      `/api/admin/rsvp/program-items/${String(trauung.id)}`,
+      { shortCode: "Tr" },
+    );
+    expect(must(set.body).shortCode).toBe("Tr");
+    const renamed = await call<MenuOption>(
+      root,
+      "PATCH",
+      `/api/admin/rsvp/menus/${String(menu.id)}`,
+      {
+        name: menu.name,
+        shortCode: "Fl",
+      },
+    );
+    expect(must(renamed.body).shortCode).toBe("Fl");
+    const config = (await get<RsvpConfig>(root, "/api/admin/rsvp/config")).body;
+    expect(config.programItems.find((p) => p.id === trauung.id)?.shortCode).toBe("Tr");
+    expect(config.menus.find((m) => m.id === menu.id)?.shortCode).toBe("Fl");
+    // Longer than two characters is refused, null goes back to the first letter.
+    for (const shortCode of ["Abc", ""]) {
+      const bad = await call(root, "PATCH", `/api/admin/rsvp/program-items/${String(trauung.id)}`, {
+        shortCode,
+      });
+      expect(bad.status, shortCode).toBe(400);
+    }
+    const cleared = await call<ProgramItem>(
+      root,
+      "PATCH",
+      `/api/admin/rsvp/program-items/${String(trauung.id)}`,
+      { shortCode: null },
+    );
+    expect(must(cleared.body).shortCode).toBeNull();
+    // A new menu can come with one.
+    const created = await call<MenuOption>(root, "POST", "/api/admin/rsvp/menus", {
+      name: "Vegan",
+      shortCode: "Vg",
+    });
+    expect(must(created.body).shortCode).toBe("Vg");
+  });
+
+  it("[RSVP-22] the guest table says whether the email address is confirmed, open or missing", async () => {
+    const { ctx, root, get, guest } = await setup();
+    const anna = await guest("anna");
+    const ben = await guest("ben");
+    await guest("cleo");
+    const setEmail = (userId: number, email: string, status: string) =>
+      ctx.database.sqlite
+        .prepare("UPDATE users SET email = ?, email_status = ? WHERE id = ?")
+        .run(email, status, userId);
+    setEmail(anna.id, "anna@example.ch", "verified");
+    setEmail(ben.id, "ben@example.ch", "unverified");
+    const overview = (await get<RsvpOverview>(root, "/api/admin/rsvp")).body;
+    const state = (name: string) => overview.guests.find((g) => g.name === name)?.emailState;
+    expect(state("anna")).toBe("verified");
+    expect(state("ben")).toBe("open");
+    expect(state("cleo")).toBe("none");
+    // The address itself stays out of the table.
+    expect(JSON.stringify(overview)).not.toContain("ben@example.ch");
   });
 });
 

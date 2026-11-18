@@ -15,6 +15,13 @@ export type PersonTypeRequest = z.infer<typeof personTypeRequestSchema>;
 
 export const programItemNameSchema = z.string().trim().min(1).max(60);
 export const menuNameSchema = z.string().trim().min(1).max(60);
+/** The Kürzel of a program item or a menu (RSVP-23): 1 – 2 characters. */
+export const shortCodeSchema = z.string().trim().min(1).max(2);
+
+/** What a table shows for a program item or a menu: its Kürzel, by default the first letter (RSVP-23). */
+export function shortCodeOf(entry: { name: string; shortCode: string | null }): string {
+  return entry.shortCode ?? entry.name.trim().charAt(0).toUpperCase();
+}
 export const allergiesSchema = z.string().trim().min(1).max(500);
 /** "Sonstiges/Anmerkungen" of the main invitee (RSVP-20): optional, at most 500 characters. */
 export const remarksSchema = z.string().trim().min(1).max(500);
@@ -46,6 +53,8 @@ export type Activity = z.infer<typeof activitySchema>;
 export const programItemSchema = z.object({
   id: idSchema,
   name: z.string(),
+  /** The Kürzel the tables show (RSVP-23); null: the first letter of the name, see `shortCodeOf`. */
+  shortCode: z.string().nullable(),
   /** The program item that has the meal: the menu is asked only for persons attending it. */
   hasMeal: z.boolean(),
   activities: z.array(activitySchema),
@@ -57,6 +66,8 @@ export const menuOptionSchema = z.object({
   id: idSchema,
   name: z.string(),
   forChildren: z.boolean(),
+  /** The Kürzel the tables show (RSVP-23); null: the first letter of the name, see `shortCodeOf`. */
+  shortCode: z.string().nullable(),
 });
 export type MenuOption = z.infer<typeof menuOptionSchema>;
 
@@ -86,6 +97,7 @@ export type ActivityUpdate = z.infer<typeof activityUpdateSchema>;
  */
 export const programItemRequestSchema = z.strictObject({
   name: programItemNameSchema,
+  shortCode: shortCodeSchema.nullable().optional(),
   hasMeal: z.boolean().optional(),
   /** The activities; at least the first one (RSVP-17). */
   activities: z.array(activityRequestSchema).min(1).max(50),
@@ -94,6 +106,7 @@ export type ProgramItemRequest = z.infer<typeof programItemRequestSchema>;
 export const programItemUpdateSchema = z
   .strictObject({
     name: programItemNameSchema.optional(),
+    shortCode: shortCodeSchema.nullable().optional(),
     hasMeal: z.boolean().optional(),
   })
   .refine((value) => Object.keys(value).length > 0, { message: "name at least one value" });
@@ -102,12 +115,16 @@ export type ProgramItemUpdate = z.infer<typeof programItemUpdateSchema>;
 /** `POST /api/admin/rsvp/menus`: a menu of the adults' list (the default) or of the children's list. */
 export const menuCreateSchema = z.strictObject({
   name: menuNameSchema,
+  shortCode: shortCodeSchema.nullable().optional(),
   forChildren: z.boolean().optional(),
 });
 export type MenuCreate = z.infer<typeof menuCreateSchema>;
 
-/** `PATCH /api/admin/rsvp/menus/:id`: a menu stays in its list, only the name changes. */
-export const menuRequestSchema = z.strictObject({ name: menuNameSchema });
+/** `PATCH /api/admin/rsvp/menus/:id`: a menu stays in its list; the name and the Kürzel change. */
+export const menuRequestSchema = z.strictObject({
+  name: menuNameSchema,
+  shortCode: shortCodeSchema.nullable().optional(),
+});
 export type MenuRequest = z.infer<typeof menuRequestSchema>;
 
 /** `PUT /api/admin/rsvp/deadline`: the last day guests can change the RSVP; null removes it. */
@@ -312,6 +329,8 @@ export const rsvpGuestSchema = z.object({
   remarks: z.string().nullable(),
   /** True if a reminder can reach the guest: an active account with a verified email address. */
   verifiedEmail: z.boolean(),
+  /** The email address: confirmed, not confirmed yet ("offen") or none (RSVP-22). */
+  emailState: z.enum(["verified", "open", "none"]),
 });
 export type RsvpGuest = z.infer<typeof rsvpGuestSchema>;
 

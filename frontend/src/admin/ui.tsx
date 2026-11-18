@@ -1,5 +1,5 @@
 // Building blocks of the admin area (sw-architecture.md 8.3), after the admin mocks.
-import { useEffect, useId, useRef, useState } from "react";
+import { Fragment, useEffect, useId, useRef, useState } from "react";
 import type { KeyboardEvent as ReactKeyboardEvent } from "react";
 import type { ReactNode } from "react";
 import { useTranslation } from "react-i18next";
@@ -238,4 +238,20 @@ export function HoldButton({
       <span className="hold-label">{children}</span>
     </button>
   );
+}
+
+/**
+ * The short forms of a table cell (RSVP-23): one Kürzel per entry, the full name in the tooltip and
+ * for screen readers. Without entries the cell shows a dash.
+ */
+export function ShortForms({ entries }: { entries: { code: string; name: string }[] }) {
+  if (entries.length === 0) return "–";
+  return entries.map((entry, index) => (
+    <Fragment key={`${entry.code}-${String(index)}`}>
+      {index > 0 && " "}
+      <abbr title={entry.name} aria-label={entry.name}>
+        {entry.code}
+      </abbr>
+    </Fragment>
+  ));
 }

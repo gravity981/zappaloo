@@ -103,6 +103,7 @@ const toProgramItem = (
 ): ProgramItem => ({
   id: row.id,
   name: row.name,
+  shortCode: row.shortCode,
   hasMeal: row.hasMeal,
   activities: rows
     .filter((activity) => activity.programItemId === row.id)
@@ -233,7 +234,12 @@ export class RsvpService {
 
   #menus(reader: Reader = this.#database.db): MenuOption[] {
     return reader
-      .select({ id: menuOptions.id, name: menuOptions.name, forChildren: menuOptions.forChildren })
+      .select({
+        id: menuOptions.id,
+        name: menuOptions.name,
+        shortCode: menuOptions.shortCode,
+        forChildren: menuOptions.forChildren,
+      })
       .from(menuOptions)
       .where(eq(menuOptions.eventId, this.#event.eventId))
       .orderBy(asc(menuOptions.id))
@@ -432,6 +438,7 @@ export class RsvpService {
         .values({
           eventId: this.#event.eventId,
           name: input.name,
+          shortCode: input.shortCode ?? null,
           hasMeal: input.hasMeal ?? false,
           createdAt: this.#now(),
         })
@@ -450,6 +457,7 @@ export class RsvpService {
       tx.update(programItems)
         .set({
           ...(changes.name === undefined ? {} : { name: changes.name }),
+          ...(changes.shortCode === undefined ? {} : { shortCode: changes.shortCode }),
           ...(changes.hasMeal === undefined ? {} : { hasMeal: changes.hasMeal }),
         })
         .where(eq(programItems.id, id))
@@ -549,14 +557,26 @@ export class RsvpService {
     });
   }
 
-  createMenu(name: string, actor: Actor, forChildren = false): MenuOption {
+  createMenu(
+    name: string,
+    actor: Actor,
+    forChildren = false,
+    shortCode: string | null = null,
+  ): MenuOption {
     return this.#database.db.transaction((tx) => {
       const row = tx
         .insert(menuOptions)
-        .values({ eventId: this.#event.eventId, name, forChildren, createdAt: this.#now() })
+        .values({
+          eventId: this.#event.eventId,
+          name,
+          shortCode,
+          forChildren,
+          createdAt: this.#now(),
+        })
         .returning({
           id: menuOptions.id,
           name: menuOptions.name,
+          shortCode: menuOptions.shortCode,
           forChildren: menuOptions.forChildren,
         })
         .get();
@@ -574,16 +594,17 @@ export class RsvpService {
     if (!row) throw new RsvpError("menu_not_found", "no such menu option");
   }
 
-  renameMenu(id: number, name: string, actor: Actor): MenuOption {
+  renameMenu(id: number, name: string, actor: Actor, shortCode?: string | null): MenuOption {
     return this.#database.db.transaction((tx) => {
       this.#menu(tx, id);
       const row = tx
         .update(menuOptions)
-        .set({ name })
+        .set({ name, ...(shortCode === undefined ? {} : { shortCode }) })
         .where(eq(menuOptions.id, id))
         .returning({
           id: menuOptions.id,
           name: menuOptions.name,
+          shortCode: menuOptions.shortCode,
           forChildren: menuOptions.forChildren,
         })
         .get();
@@ -1193,6 +1214,8 @@ export class RsvpService {
         allergies: answer?.allergies ?? null,
         remarks: answer?.remarks ?? null,
         verifiedEmail: verified,
+        emailState:
+          row.email === null ? "none" : row.emailStatus === "verified" ? "verified" : "open",
         email: verified ? row.email : null,
       };
     });

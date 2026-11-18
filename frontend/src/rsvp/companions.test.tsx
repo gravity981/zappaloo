@@ -24,6 +24,7 @@ const PARTS = [
   {
     id: 1,
     name: "Trauung",
+    shortCode: null,
     hasMeal: false,
     activities: [
       {
@@ -39,6 +40,7 @@ const PARTS = [
   {
     id: 3,
     name: "Dinner",
+    shortCode: null,
     hasMeal: true,
     activities: [
       {
@@ -53,8 +55,8 @@ const PARTS = [
   },
 ];
 const MENUS = [
-  { id: 1, name: "Fleisch", forChildren: false },
-  { id: 4, name: "Kindermenü", forChildren: true },
+  { id: 1, name: "Fleisch", forChildren: false, shortCode: null },
+  { id: 4, name: "Kindermenü", forChildren: true, shortCode: null },
 ];
 
 const companion = (changes: Record<string, unknown> = {}) => {
@@ -541,6 +543,7 @@ describe("Anmeldungen: companion requests", () => {
         songWish: null,
         allergies: null,
         verifiedEmail: false,
+        emailState: "none",
       },
     ],
     companions: [
@@ -722,6 +725,7 @@ describe("companion approval off (RSVP-12, 7.4.2)", () => {
           songWish: null,
           allergies: null,
           verifiedEmail: false,
+          emailState: "none",
         },
       ],
       companions: [

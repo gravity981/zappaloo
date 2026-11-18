@@ -89,6 +89,7 @@ const rsvpState = (answered: boolean) => ({
     {
       id: 1,
       name: "Trauung",
+      shortCode: null,
       hasMeal: false,
       activities: [
         {

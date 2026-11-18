@@ -79,9 +79,9 @@ test("[RSVP-08][RSVP-10][RSVP-12][RSVP-13][RSVP-15][SEC-11] a guest adds an acco
   await page.goto("/admin/rsvp");
   await expect(page.getByRole("region", { name: /Begleitpersonen-Anfragen/ })).toHaveCount(0);
   const row = page.getByRole("row", { name: new RegExp(mia) });
-  await expect(row).toContainText("Trauung");
+  await expect(row.getByTitle("Trauung")).toBeVisible();
   await expect(row).toContainText("Erdnüsse");
-  await expect(row).toContainText(de.personTypes.child);
+  await expect(row.getByTitle(de.personTypes.child)).toBeVisible();
   const csv = await page.request.get("/api/admin/rsvp/export");
   expect(await csv.text()).toContain(`↳ ${mia};${de.personTypes.child};bestätigt;ja;;;;;;Erdnüsse`);
   expect((await guest.request.get("/api/admin/rsvp")).status()).toBe(403);

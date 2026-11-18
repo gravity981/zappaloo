@@ -4,10 +4,16 @@
 import { Fragment, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Link } from "react-router";
-import { PERSON_TYPES, remindResponseSchema, rsvpOverviewSchema } from "@zappaloo/shared";
+import {
+  PERSON_TYPES,
+  remindResponseSchema,
+  rsvpOverviewSchema,
+  shortCodeOf,
+} from "@zappaloo/shared";
 import type { PersonType, RsvpStatus } from "@zappaloo/shared";
 import { useAdminCall, useAdminData, useErrorText } from "./data.ts";
 import { notifyRsvpChanged } from "./pending.ts";
+import { ShortForms } from "./ui.tsx";
 
 /** The filter chips: all guests, or one status. */
 const FILTERS: (RsvpStatus | undefined)[] = [undefined, "attending", "declined", "none"];
@@ -133,6 +139,28 @@ export default function AdminRsvpPage() {
       ? [{ key: "adult-menu", label: t("admin.rsvp.adultMenu"), count: keptByChildren }]
       : []),
   ];
+  // The tables show short forms, the full names are in the tooltip (RSVP-23).
+  const typeForm = (personType: PersonType) => (
+    <abbr title={t(`personTypes.${personType}`)} aria-label={t(`personTypes.${personType}`)}>
+      {t(`personTypesShort.${personType}`)}
+    </abbr>
+  );
+  const programItemForms = (ids: number[]) =>
+    data.programItems
+      .filter((programItem) => ids.includes(programItem.id))
+      .map((programItem) => ({ code: shortCodeOf(programItem), name: programItem.name }));
+  const menuCell = (menuId: number | null, personType: PersonType, attending: number[]) => {
+    if (!meal || !attending.includes(meal.id)) return "–";
+    const menu = data.menus.find((m) => m.id === menuId);
+    if (!menu) return t("admin.rsvp.noChoice");
+    const kept = personType === "child" && !menu.forChildren;
+    return (
+      <>
+        <ShortForms entries={[{ code: shortCodeOf(menu), name: menuName(menuId, personType) }]} />
+        {kept && "*"}
+      </>
+    );
+  };
   const count = (status: RsvpStatus | undefined) =>
     status === undefined
       ? data.guests.length
@@ -286,6 +314,7 @@ export default function AdminRsvpPage() {
                 <th>{t("admin.rsvp.name")}</th>
                 <th>{t("admin.rsvp.type")}</th>
                 <th>{t("admin.rsvp.status")}</th>
+                <th>{t("admin.rsvp.email")}</th>
                 <th>{t("admin.rsvp.programItems")}</th>
                 <th>{t("admin.rsvp.menu")}</th>
                 {data.songEnabled && <th>{t("admin.rsvp.song")}</th>}
@@ -299,7 +328,7 @@ export default function AdminRsvpPage() {
             <tbody>
               {shown.length === 0 && (
                 <tr>
-                  <td colSpan={data.songEnabled ? 8 : 7}>{t("admin.rsvp.noGuests")}</td>
+                  <td colSpan={data.songEnabled ? 10 : 9}>{t("admin.rsvp.noGuests")}</td>
                 </tr>
               )}
               {shown.map((guest) => (
@@ -308,21 +337,25 @@ export default function AdminRsvpPage() {
                     <td>
                       <b>{guest.name}</b>
                     </td>
-                    <td className="sm">{t(`personTypes.${guest.personType}`)}</td>
+                    <td className="sm">{typeForm(guest.personType)}</td>
                     <td>
                       <span className={STATUS_TAG[guest.status]}>
                         {t(`admin.rsvp.statuses.${guest.status}`)}
                       </span>
                     </td>
                     <td>
-                      {guest.attendingItemIds.map(programItemName).join(", ") ||
-                        t("admin.rsvp.none")}
+                      {guest.emailState === "none" ? (
+                        "–"
+                      ) : (
+                        <span className={guest.emailState === "verified" ? "tag ok" : "tag warn"}>
+                          {t(`admin.rsvp.emailStates.${guest.emailState}`)}
+                        </span>
+                      )}
                     </td>
                     <td>
-                      {meal && guest.attendingItemIds.includes(meal.id)
-                        ? menuName(guest.menuId, guest.personType)
-                        : t("admin.rsvp.none")}
+                      <ShortForms entries={programItemForms(guest.attendingItemIds)} />
                     </td>
+                    <td>{menuCell(guest.menuId, guest.personType, guest.attendingItemIds)}</td>
                     {data.songEnabled && <td>{guest.songWish ?? t("admin.rsvp.none")}</td>}
                     <td>{guest.allergies ?? t("admin.rsvp.none")}</td>
                     <td>{guest.remarks ?? t("admin.rsvp.none")}</td>
@@ -347,7 +380,7 @@ export default function AdminRsvpPage() {
                             {t("admin.rsvp.companionOf", { name: guest.name })}
                           </span>
                         </td>
-                        <td className="sm">{t(`personTypes.${c.personType}`)}</td>
+                        <td className="sm">{typeForm(c.personType)}</td>
                         <td>
                           {data.companionApproval && (
                             <span className="tag ok">
@@ -355,15 +388,11 @@ export default function AdminRsvpPage() {
                             </span>
                           )}
                         </td>
+                        <td>–</td>
                         <td>
-                          {c.attendingItemIds.map(programItemName).join(", ") ||
-                            t("admin.rsvp.none")}
+                          <ShortForms entries={programItemForms(c.attendingItemIds)} />
                         </td>
-                        <td>
-                          {meal && c.attendingItemIds.includes(meal.id)
-                            ? menuName(c.menuId, c.personType)
-                            : t("admin.rsvp.none")}
-                        </td>
+                        <td>{menuCell(c.menuId, c.personType, c.attendingItemIds)}</td>
                         {data.songEnabled && <td>{t("admin.rsvp.none")}</td>}
                         <td>{c.allergies ?? t("admin.rsvp.none")}</td>
                         <td>{t("admin.rsvp.none")}</td>

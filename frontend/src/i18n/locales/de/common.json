@@ -433,6 +433,11 @@
       "approve": "Annehmen",
       "reject": "Ablehnen",
       "companionOf": "von {{name}}",
+      "email": "E-Mail",
+      "emailStates": {
+        "verified": "bestätigt",
+        "open": "offen"
+      },
       "companionStatus": {
         "pending": "beantragt",
         "approved": "bestätigt",
@@ -440,6 +445,10 @@
       }
     },
     "holdHint": "Halte den Knopf vier Sekunden gedrückt.",
+    "date": {
+      "placeholder": "TT.MM.JJJJ",
+      "invalid": "Bitte das Datum so schreiben: 12.06.2027"
+    },
     "dateTime": {
       "placeholder": "TT.MM.JJJJ HH:MM",
       "invalid": "Bitte Datum und Uhrzeit so schreiben: 12.06.2027 18:30"
@@ -471,6 +480,7 @@
       "childMenusHint": "Kinder wählen aus dieser Liste.",
       "menuName": "Bezeichnung des Menüs",
       "childMenuName": "Bezeichnung des Kindermenüs",
+      "shortCode": "Kürzel",
       "addChildMenu": "Kindermenü hinzufügen",
       "noChildMenus": "Noch keine Kindermenüs.",
       "addMenu": "Menü hinzufügen",
