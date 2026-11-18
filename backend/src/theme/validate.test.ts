@@ -4,7 +4,7 @@ import { checkThemePackage } from "./validate.ts";
 import { buildThemeArchive, encodePng, validThemeFiles, VALID_COLORS } from "./build.ts";
 
 const COLORS = VALID_COLORS;
-const MANIFEST = { kind: "zappaloo-theme", formatVersion: 1, name: "Sommerfest" };
+const MANIFEST = { kind: "zappaloo-theme", formatVersion: 2, name: "Sommerfest" };
 
 /** A package that passes every rule. */
 const validFiles = (overrides: Record<string, Buffer> = {}) => validThemeFiles(overrides);
@@ -200,11 +200,26 @@ describe("the theme package validator (THM-03)", () => {
     ]);
   });
 
-  it("[THM-02] refuses a format version the platform does not read", () => {
-    const result = checkThemePackage(
-      archive({ "manifest.json": Buffer.from(JSON.stringify({ ...MANIFEST, formatVersion: 2 })) }),
-    );
-    expect(codes(result)).toEqual(["format_version"]);
+  it("[THM-02] refuses a format version the platform does not read: the removed version 1 and a newer one", () => {
+    for (const formatVersion of [1, 3]) {
+      const result = checkThemePackage(
+        archive({
+          "manifest.json": Buffer.from(JSON.stringify({ ...MANIFEST, formatVersion })),
+        }),
+      );
+      expect(codes(result), String(formatVersion)).toEqual(["format_version"]);
+      if (!result.ok)
+        expect(result.findings[0]?.detail).toContain(`format version ${String(formatVersion)}`);
+    }
+  });
+
+  it("[THM-02][THM-16] a package of version 1, as released up to v2.0.0, is no longer read, even when it is otherwise right", () => {
+    const v1 = archive({
+      "manifest.json": Buffer.from(
+        JSON.stringify({ kind: "zappaloo-theme", formatVersion: 1, name: "Sommerfest" }),
+      ),
+    });
+    expect(codes(checkThemePackage(v1))).toEqual(["format_version"]);
   });
 
   it("[THM-03] refuses an unknown field or a wrong kind in manifest.json", () => {

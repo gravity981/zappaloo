@@ -1635,7 +1635,7 @@ The importer brings a package into the running platform:
 - It reports clickable objects whose preset action points to a missing page or minigame as warnings. The import is still allowed, because these are created in the admin area.
 - It keeps the previous world package and allows a rollback to it.
 
-The package is a `tar.gz` with a format version, like the theme package (19.7). Until a world package is imported, the built-in door scene applies, and the door files of stage 3 in the data volume are still read (10.4).
+The package is a `tar.gz` with a format version, like the theme package (19.7). As for the theme package, the format is not kept backwards compatible for the time being (decided 2026-11-18, 19.7). Until a world package is imported, the built-in door scene applies, and the door files of stage 3 in the data volume are still read (10.4).
 
 **Layout, format version 2** (decided 2026-11-15; it replaces format version 1, which was agreed on 2026-11-14 and was never released as a format of its own). Release 1.3.0 still contained the format-1 world: an installation that imported a format-1 world loses it with migration `0021` and imports the world again. The files sit at the root of the archive, without a wrapping folder. The layout, the limits and the rules of this format are declared in `shared/src/packages/world-v2.ts`; the validator checks packages against that declaration, and the Markdown document is generated from it into `dist/formats/` by `npm run schemas`, is build output and is attached to every release.
 
@@ -1667,7 +1667,7 @@ world.tar.gz
 | Field | Rule |
 |---|---|
 | `kind` | `zappaloo-world`. |
-| `formatVersion` | A version the platform reads, today only `2`. As for the theme package (19.7), the version covers the layout and the fields of all JSON files of the package. A change raises it, and the platform keeps reading the versions it lists. |
+| `formatVersion` | A version the platform reads, today only `2`. As for the theme package (19.7), the version covers the layout and the fields of all JSON files of the package. A change raises it; for the time being the platform reads the newest version only (19.7). |
 | `name` | 1–60 characters. |
 | `startMap` | The id of a map in `maps/`. |
 | `tileWidth`, `tileHeight` | 8–128 pixels each. Every map and every tileset uses them. The prototype uses 64 × 32 (2:1). |
@@ -2298,7 +2298,7 @@ The look of an event outside the game world comes as one file, the theme package
 
 **What the theme changes.** The website and the guest pages (login, invitation, RSVP, profile, the card on the waiting page), the app icons and the colours of the web app manifest. The admin area keeps the platform's neutral look. The status colours (ok, warning, badge) stay the platform's.
 
-**Layout, format version 1.** The files sit at the root of the archive, without a wrapping folder.
+**Layout, format version 2.** The files sit at the root of the archive, without a wrapping folder.
 
 ```text
 theme.tar.gz
@@ -2316,12 +2316,12 @@ theme.tar.gz
 **`manifest.json`** names the kind of package, its format version and a name the admin recognises it by:
 
 ```json
-{ "kind": "zappaloo-theme", "formatVersion": 1, "name": "Sommerfest" }
+{ "kind": "zappaloo-theme", "formatVersion": 2, "name": "Sommerfest" }
 ```
 
-The format version covers the layout of the package and the fields of `theme.json` together. The layout, the limits and the rules of this format are declared in `shared/src/packages/theme-v1.ts`; the Markdown document is generated from that declaration into `dist/formats/` by `npm run schemas`, is build output and is attached to every release (decided 2026-11-14). The platform lists the format versions it reads, today only `1`. A package with another version is refused. A change of the layout or of a field raises the version, and the platform keeps reading the older versions it lists.
+The format version covers the layout of the package and the fields of `theme.json` together. The layout, the limits and the rules of this format are declared in `shared/src/packages/theme-v2.ts`; the Markdown document is generated from that declaration into `dist/formats/` by `npm run schemas`, is build output and is attached to every release (decided 2026-11-14). The platform lists the format versions it reads, today only `2` (the version 1 of v1.2.0 to v2.0.0 is removed). A package with another version is refused. A change of the layout or of a field raises the version; see «Compatibility of the formats» below for what happens to the older versions.
 
-**`theme.json`**, format version 1:
+**`theme.json`**, format version 2:
 
 ```json
 {
@@ -2372,13 +2372,16 @@ The format version covers the layout of the package and the fields of `theme.jso
 - Every font file is a WOFF2 file of at most 2 MB. There are at most 8 font files. Every font file is named in `theme.json`, and every file named there exists.
 - `text` on `background`, `text` on `surface` and `onAccent` on `accent` each reach a contrast of 4.5 : 1, so a theme cannot make the pages unreadable. When `waiting` is given, `text` on `card` and `onButton` on `button` reach 4.5 : 1 too.
 
-The `waiting` entry and the `sizeAdjust` field were added to format version 1 before any package was released (the theme is not in a release yet); no package exists that they would change. The project owner confirmed this exception on 2026-11-13 for `waiting` and on 2026-11-18 for `sizeAdjust`. From the first release on, a new field raises the version as described above.
+**Compatibility of the formats (decided 2026-11-18).** Format version 1 of the theme package (v1.2.0 to v2.0.0, with the `waiting` entry and the `display` font added to it on 2026-11-13) is replaced by **format version 2**, which adds `sizeAdjust` (THM-16) to the fonts. A new field breaks the contract, because the platform refuses fields it does not know: a platform of v2.0.0 or older refuses a package of version 2, and a platform of this version refuses a package of version 1. The project owner decided on 2026-11-18 that, for the time being, the theme and the world package formats have **no requirement to stay backwards compatible**, so the platform reads the newest format version only and removes the older one, as it did for the world package (14.4). The same rule applies to every change of a package contract:
+- A change of the contract of the theme or the world package that also needs a change of the platform is a potential **major version break**; it is one when the platform code was already released with the older contract (23.1: incompatible theme file format). A release that contains such a change is a MAJOR version: here 3.0.0.
+- The format version is raised, the old definition and its JSON Schemas are removed, and the example package, the editor and the tests move to the new version. A theme that is already imported stays active (its colours and fonts are stored in the database) until the admin imports a package of the new version.
+- Whoever makes packages for an older platform keeps the version of the packages that this platform reads; the format documents and JSON Schemas of each release say which that is.
 
 The answer to a refused package lists every finding with its file and reason.
 
 **Checking a package outside the platform** (decided 2026-11-14, built in step 5b). Theme and world packages are made in other projects, so their makers can check a package before an admin imports it:
 
-- **JSON Schemas** (draft 2020-12) describe the JSON files of each format version: `theme-manifest.v1.schema.json` and `theme.v1.schema.json` for the theme package; `world-manifest.v1.schema.json`, `world-avatar.v1.schema.json` and `world-map.v1.schema.json` (the subset of Tiled JSON that 14.4 accepts) for the world package. They are generated from the platform's own schemas, committed in `schemas/`, and a test fails when a committed file differs from what the platform checks. Every release has them attached as single files, so a project pins the version it targets. A JSON file can name its schema in `$schema` for checks in the editor. A schema checks one JSON file. It does not check the archive, images, fonts, contrast or references between files.
+- **JSON Schemas** (draft 2020-12) describe the JSON files of each format version: `theme-manifest.v2.schema.json` and `theme.v2.schema.json` for the theme package; `world-manifest.v1.schema.json`, `world-avatar.v1.schema.json` and `world-map.v1.schema.json` (the subset of Tiled JSON that 14.4 accepts) for the world package. They are generated from the platform's own schemas, committed in `schemas/`, and a test fails when a committed file differs from what the platform checks. Every release has them attached as single files, so a project pins the version it targets. A JSON file can name its schema in `$schema` for checks in the editor. A schema checks one JSON file. It does not check the archive, images, fonts, contrast or references between files.
 - **`zappaloo validate <file>`** (23.8) runs the platform's whole validator on a package and prints every finding: errors, which refuse the package, and warnings. It tells theme and world packages apart by `manifest.json`. It needs no installation and no data, so it runs from the published image. The warnings that depend on an installation's data (presets that point to a missing page, dialogue or minigame, MAP-08) are only reported at import.
 
 **Import.** Only a whole package is imported. It replaces icons, colours and fonts together. Nothing can be imported or changed on its own. The package is read and validated in memory; nothing is written before it passes. A valid package is written to a staging folder in `$DATA_DIR/events/event1/theme/`, which is then moved to `<import id>/`. One database transaction makes it the active theme and writes its audit entry. The folder of the former theme is removed after that commit; if the removal fails, the folder stays behind and the import still counts as done. If any step before the commit fails, the new files are removed and the active theme stays as it was.
@@ -2404,7 +2407,7 @@ The answer to a refused package lists every finding with its file and reason.
 | THM-13 | An existing theme package can be opened in the editor and changed (added 2026-11-18). | Should |
 | THM-14 | The work in the editor survives a reload of the page (added 2026-11-18). | Could |
 | THM-15 | From one master colour, the accent, the editor suggests complete palettes for the seven colours of `theme.json` (and, when switched on, the four colours of the waiting card). Each suggestion keeps the master colour as the accent and reaches the validator's contrast in every pair; picking one fills the colours, and later edits stay (added 2026-11-18). | Should |
-| THM-16 | A font of the theme can be scaled with `sizeAdjust` (50–200 %, default 100): the field is part of format version 1, the validator checks it, the app applies it as `size-adjust` of the font's `@font-face` rules, and the editor sets it with a live preview (added 2026-11-18). | Should |
+| THM-16 | A font of the theme can be scaled with `sizeAdjust` (50–200 %, default 100): the field is part of format version 2, the validator checks it, the app applies it as `size-adjust` of the font's `@font-face` rules, and the editor sets it with a live preview (added 2026-11-18). | Should |
 
 ## 19.7.1 Theme Package Editor (decided 2026-11-18, epic 5.2)
 

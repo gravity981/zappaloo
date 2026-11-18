@@ -10,7 +10,7 @@ import {
   themeManifestSchema,
 } from "@zappaloo/shared";
 import type { ThemeJson, ThemeManifest } from "@zappaloo/shared";
-import { themeV1 } from "@zappaloo/shared";
+import { themeV2 } from "@zappaloo/shared";
 import { pngSize } from "../packages/png.ts";
 import { readPackageArchive, TarError } from "../packages/archive.ts";
 
@@ -36,7 +36,7 @@ export type ThemeCheck =
   { ok: true; package: ThemePackage } | { ok: false; findings: ThemeFinding[] };
 
 /** The icons of the layout (19.7), from the package definition: the required ones, then the optional ones. */
-const ICONS = themeV1.layout.filter((entry) => entry.kind === "png" && entry.size !== undefined);
+const ICONS = themeV2.layout.filter((entry) => entry.kind === "png" && entry.size !== undefined);
 const REQUIRED_ICONS: [string, number][] = ICONS.filter((entry) => entry.required).map((entry) => [
   entry.path,
   entry.size?.width ?? 0,
@@ -47,13 +47,13 @@ const OPTIONAL_ICONS: [string, number][] = ICONS.filter((entry) => !entry.requir
 ]);
 
 /** The folders of the layout (19.7), from the package definition. */
-const FOLDERS = themeV1.layout
+const FOLDERS = themeV2.layout
   .filter((entry) => entry.kind === "folder")
   .map((entry) => entry.path);
 
 /** The files of the layout (19.7): an entry of the definition matches the path. */
 function inLayout(path: string): boolean {
-  return themeV1.layout.some((entry) => entry.match.test(path));
+  return themeV2.layout.some((entry) => entry.match.test(path));
 }
 
 /** The fields of a zod issue as a path with its message, for the findings. */

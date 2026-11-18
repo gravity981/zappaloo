@@ -3,8 +3,15 @@
 // guest pages read the same shapes.
 import { z } from "zod";
 
+/**
+ * The format version of the theme package (THM-02). Version 2 (2026-11-18) adds `sizeAdjust` and
+ * replaces version 1, which the platform no longer reads: the formats are not kept backwards
+ * compatible for the time being (19.7).
+ */
+export const THEME_FORMAT_VERSION = 2;
+
 /** The format versions the platform reads (THM-02). */
-export const THEME_FORMAT_VERSIONS = [1] as const;
+export const THEME_FORMAT_VERSIONS = [THEME_FORMAT_VERSION] as const;
 
 export const THEME_KIND = "zappaloo-theme";
 
@@ -37,7 +44,7 @@ export type ThemeColorKey = (typeof THEME_COLOR_KEYS)[number];
 export const themeManifestSchema = z.strictObject({
   $schema: z.string().optional(),
   kind: z.literal(THEME_KIND),
-  formatVersion: z.literal(1),
+  formatVersion: z.literal(THEME_FORMAT_VERSION),
   name: z.string().trim().min(1).max(60),
 });
 export type ThemeManifest = z.infer<typeof themeManifestSchema>;

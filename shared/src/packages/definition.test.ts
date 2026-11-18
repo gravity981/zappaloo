@@ -5,7 +5,7 @@ import {
   PACKAGE_DEFINITIONS,
   THEME_FINDING_CODES,
   WORLD_FINDING_CODES,
-  themeV1,
+  themeV2,
   worldV2,
 } from "./index.ts";
 import type { PackageDefinition } from "./definition.ts";
@@ -23,22 +23,22 @@ describe("the package definitions (THM-02, MAP-16, MAP-17)", () => {
   });
 
   it("[MAP-17][THM-07] every theme finding code belongs to exactly one rule of the theme definition", () => {
-    const codes = ruleCodes(themeV1);
+    const codes = ruleCodes(themeV2);
     expect([...new Set(codes)].length).toBe(codes.length);
     expect([...codes].sort()).toEqual([...THEME_FINDING_CODES].sort());
   });
 
   it("[THM-02][MAP-16] each definition names the kind and the format version the platform reads", () => {
     expect(worldV2.kind).toBe(WORLD_KIND);
-    expect(themeV1.kind).toBe(THEME_KIND);
+    expect(themeV2.kind).toBe(THEME_KIND);
     expect(WORLD_FORMAT_VERSIONS).toContain(worldV2.formatVersion);
-    expect(THEME_FORMAT_VERSIONS).toContain(themeV1.formatVersion);
+    expect(THEME_FORMAT_VERSIONS).toContain(themeV2.formatVersion);
     expect(Object.keys(PACKAGE_DEFINITIONS.world)).toEqual([String(worldV2.formatVersion)]);
-    expect(Object.keys(PACKAGE_DEFINITIONS.theme)).toEqual([String(themeV1.formatVersion)]);
+    expect(Object.keys(PACKAGE_DEFINITIONS.theme)).toEqual([String(themeV2.formatVersion)]);
   });
 
   it("[MAP-17][THM-07] rule ids are unique, and every rule names at least one requirement that has the spec's form", () => {
-    for (const definition of [worldV2, themeV1]) {
+    for (const definition of [worldV2, themeV2]) {
       const ids = definition.rules.map((rule) => rule.id);
       expect(new Set(ids).size).toBe(ids.length);
       for (const rule of definition.rules) {
@@ -87,13 +87,13 @@ describe("the package definitions (THM-02, MAP-16, MAP-17)", () => {
       ["icons/other.png", false],
     ] as const;
     for (const [path, expected] of themePaths) {
-      const matched = themeV1.layout.some((entry) => entry.match.test(path));
+      const matched = themeV2.layout.some((entry) => entry.match.test(path));
       expect(matched, path).toBe(expected);
     }
   });
 
   it("[MAP-16] every rendered document names every rule and every layout entry", () => {
-    for (const definition of [worldV2, themeV1]) {
+    for (const definition of [worldV2, themeV2]) {
       const text = renderPackageDocument(definition);
       for (const rule of definition.rules) expect(text, rule.id).toContain(`\`${rule.id}\``);
       for (const entry of definition.layout) expect(text, entry.path).toContain(entry.path);

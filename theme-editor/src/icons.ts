@@ -1,7 +1,7 @@
 // The app icons of the theme package (sw-architecture.md 19.7 and 19.7.1, THM-10): four PNGs made in
 // the browser from one square image, or replaced by a PNG of their own. The names and sizes come
 // from the package definition, so the editor cannot drift from the validator.
-import { themeV1 } from "@zappaloo/shared";
+import { themeV2 } from "@zappaloo/shared";
 
 export interface IconSpec {
   /** The path in the package, `icons/icon-192.png`. */
@@ -13,7 +13,7 @@ export interface IconSpec {
   maskable: boolean;
 }
 
-export const ICONS: readonly IconSpec[] = themeV1.layout.flatMap((entry) =>
+export const ICONS: readonly IconSpec[] = themeV2.layout.flatMap((entry) =>
   entry.kind === "png" && entry.size !== undefined
     ? [
         {

@@ -41,7 +41,7 @@ describe("the theme of the event (THM-01, THM-03, THM-04, THM-05)", () => {
     expect(imported.statusCode).toBe(200);
     expect(bodyOf<ThemeStatus>(imported).active?.name).toBe("Sommerfest");
     const status = await ctx.app.inject({ url: "/api/admin/theme", headers: admin });
-    expect(bodyOf<ThemeStatus>(status).active?.formatVersion).toBe(1);
+    expect(bodyOf<ThemeStatus>(status).active?.formatVersion).toBe(2);
     // The package lies in its own folder, as a whole.
     const [folder] = themeFolders(ctx);
     expect(
@@ -78,16 +78,18 @@ describe("the theme of the event (THM-01, THM-03, THM-04, THM-05)", () => {
     context = await createTestApp();
     const ctx = context;
     const admin = await signIn(ctx, "boss", ["admin"]);
-    const newer = validThemeFiles({
-      "manifest.json": Buffer.from(
-        JSON.stringify({ kind: "zappaloo-theme", formatVersion: 2, name: "Neu" }),
-      ),
-    });
-    const refused = await upload(ctx, admin, buildThemeArchive(newer));
-    expect(refused.statusCode).toBe(422);
-    expect(bodyOf<{ findings: { code: string }[] }>(refused).findings.map((f) => f.code)).toEqual([
-      "format_version",
-    ]);
+    for (const formatVersion of [1, 3]) {
+      const other = validThemeFiles({
+        "manifest.json": Buffer.from(
+          JSON.stringify({ kind: "zappaloo-theme", formatVersion, name: "Other" }),
+        ),
+      });
+      const refused = await upload(ctx, admin, buildThemeArchive(other));
+      expect(refused.statusCode, String(formatVersion)).toBe(422);
+      expect(bodyOf<{ findings: { code: string }[] }>(refused).findings.map((f) => f.code)).toEqual(
+        ["format_version"],
+      );
+    }
   });
 
   it("[THM-03] an archive that is not gzip is refused before anything is written", async () => {

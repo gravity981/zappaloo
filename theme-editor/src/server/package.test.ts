@@ -5,7 +5,8 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { afterAll, describe, expect, it } from "vitest";
-import { encodePng } from "../../../backend/src/theme/build.ts";
+import { buildThemeArchive, encodePng } from "../../../backend/src/theme/build.ts";
+import { readPackageArchive } from "../../../backend/src/packages/archive.ts";
 import { suggestPalettes } from "../palette.ts";
 import { findingCard, slugOf } from "../transfer.ts";
 import type { PackageData } from "../transfer.ts";
@@ -222,6 +223,30 @@ describe("theme package export and open (THM-12, THM-13)", () => {
       expect(built.findings).toContainEqual(
         expect.objectContaining({ file: "icons/icon-512.png", code: "file_missing" }),
       );
+    }
+  });
+
+  it("[THM-13][THM-02] a package of format version 1, from before size adjust, is refused with the format finding", async () => {
+    const theme = await fullTheme();
+    const built = buildPackage(theme);
+    if (!built.ok) throw new Error("not built");
+    // the same package, but with the manifest of version 1
+    const files = Object.fromEntries(
+      readPackageArchive(built.archive, { unpackedBytes: 20 * 1024 * 1024 })
+        .filter((entry) => entry.kind === "file")
+        .map((entry) => [entry.path, entry.data]),
+    );
+    const v1 = buildThemeArchive({
+      ...files,
+      "manifest.json": Buffer.from(
+        JSON.stringify({ kind: "zappaloo-theme", formatVersion: 1, name: "Old" }),
+      ),
+    });
+    const opened = openPackage(v1);
+    expect(opened.ok).toBe(false);
+    if (!opened.ok) {
+      expect(opened.findings.map((finding) => finding.code)).toEqual(["format_version"]);
+      expect(findingCard(opened.findings[0] ?? { file: "", code: "", detail: "" })).toBe("Name");
     }
   });
 

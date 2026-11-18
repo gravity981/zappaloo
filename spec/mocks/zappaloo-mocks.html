@@ -1552,7 +1552,7 @@ add({
   render: (v) => {
     const dv = v || "active";
     const designTag = dv === "default" ? '<span class="m-tag line">Standard-Design</span>' : '<span class="m-tag ok">Aktiv: Sommerfest</span>';
-    const designInfo = dv === "default" ? "Es gilt das Standard-Design der Plattform." : "Format 1 · importiert am 12.11.2026 um 18:04. Das Design gilt für die Website und die Gästeseiten sowie für die Icons der App. Die Verwaltung bleibt neutral.";
+    const designInfo = dv === "default" ? "Es gilt das Standard-Design der Plattform." : "Format 2 · importiert am 12.11.2026 um 18:04. Das Design gilt für die Website und die Gästeseiten sowie für die Icons der App. Die Verwaltung bleibt neutral.";
     const designButtons = dv === "confirm" ? '<button class="m-btn soft sm">Ja, Standard-Design verwenden</button><button class="m-btn ghost sm">Abbrechen</button>' : '<button class="m-btn soft sm">Design importieren</button>' + (dv === "default" ? "" : '<button class="m-btn ghost sm">Standard-Design verwenden</button>');
     const designFindings = dv !== "refused" ? "" : '<div class="m-card flat"><b class="sm">Das Paket wurde abgelehnt</b><span class="m-hint">Das aktive Design bleibt unverändert. Alle Befunde:</span><ul class="m-list sm"><li>icons/icon-192.png: falsche Grösse (200 × 200 instead of 192 × 192)</li><li>theme.json: Feld unbekannt oder ungültig (unknown field «shadow»)</li><li>theme.json: Kontrast zu gering («text» on «surface»: 3.1 : 1 (at least 4.5 : 1))</li></ul></div>';
     return admin("admin-settings", `<h1 class="m-h1">Einstellungen</h1>

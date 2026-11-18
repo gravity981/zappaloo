@@ -11,7 +11,7 @@
 Added 2026-11-18. Today a theme package (sw-architecture.md 19.7) is written by hand: `theme.json`, `manifest.json`, four PNG icons of exact sizes and the font files, packed into a `tar.gz`, then checked with `zappaloo validate`. This epic adds a standalone, web-based editor in the development environment, started like the game preview, where every part of a theme is defined, previewed with the app's own stylesheets, and exported as a valid theme package with a given name. Numbered 5.2 so that it is built before the Opening (the event's theme is needed then) and the later epics keep their numbers.
 
 **Current state (2026-11-18):**
-- The format is declared in `shared/src/packages/theme-v1.ts` and `shared/src/theme.ts` (zod schemas, `THEME_LIMITS`, the colour and waiting keys). The validator is `backend/src/theme/validate.ts`; `backend/src/theme/build.ts` packs an archive and encodes PNGs (used by `scripts/build-example-theme.ts`).
+- The format is declared in `shared/src/packages/theme-v1.ts` (theme-v2.ts since story 5.2j) and `shared/src/theme.ts` (zod schemas, `THEME_LIMITS`, the colour and waiting keys). The validator is `backend/src/theme/validate.ts`; `backend/src/theme/build.ts` packs an archive and encodes PNGs (used by `scripts/build-example-theme.ts`).
 - The app applies a theme with `themeStyle()` and `fontFaceRules()` (`frontend/src/app/themeStyle.ts`) on the wrapper `ThemeScope`; the guest pages and the admin area share `frontend/src/app/ui.css` (the admin area follows the neutral style of the mocks).
 - The game preview (`game-preview/`, MAP-18) shows how a development-only tool is set up: its own workspace, a Vite server on `127.0.0.1` that refuses to start without `APP_ENV=dev` and cannot be built, and a Vite plugin for the parts that need Node.
 
@@ -38,7 +38,7 @@ Added 2026-11-18. Today a theme package (sw-architecture.md 19.7) is written by 
 **Findings of the first try with the editor (2026-11-18, story 5.2g) and decisions with the project owner:**
 - **Preview scroll** (bug): on a wide screen the preview was cut off at the bottom and its column did not scroll. Fixed (story 5.2h).
 - **Colour assistant:** the owner wants to pick one master colour and get matching colours for the seven keys, "something similar" to mycolor.space (a tool with one hex input and about 25 named palettes of 3–7 colours). Decided: the master colour is the accent; the suggestions are palette cards to pick from (not one live suggestion); each card is a complete mapping onto the colour keys of the theme package. The palette styles are in sw-architecture.md 19.7.1 (THM-15).
-- **Font size override:** imported fonts draw their letters in different sizes. Decided: an optional `sizeAdjust` per font in percent (50–200) that becomes `size-adjust` of the font's `@font-face`. It is a field of the theme format, added to format version 1 under the exception for an unreleased format (confirmed by the owner 2026-11-18, 19.7); the validator, the JSON Schemas, `GET /api/site`, `fontFaceRules()` and the editor change with it (THM-16).
+- **Font size override:** imported fonts draw their letters in different sizes. Decided: an optional `sizeAdjust` per font in percent (50–200) that becomes `size-adjust` of the font's `@font-face`. It breaks the contract of the theme format, which v1.2.0 to v2.0.0 already released, so it is **theme format version 2** (decided by the owner 2026-11-18): the platform reads version 2 only, version 1 is removed, and the release that contains it is a major version (3.0.0, 19.7). The owner's rule: the formats have no requirement to be backwards compatible at the moment, and a change of a package contract that needs a change of the platform is a potential major version break, and one if the platform code was already released. The validator, the JSON Schemas, `GET /api/site`, `fontFaceRules()`, the example package and the editor change with it (THM-16).
 - Both go into epic 5.2.
 
 ## Stories
@@ -100,10 +100,10 @@ Mock screens: `theme-editor`.
 - The palettes (Tint, Neutral, Warm paper, Cool, Soft complement, Analogous, High contrast) are made by a pure function in the editor from the master colour, in a perceptual colour space, and every card is checked with the contrast function of `shared`. Tests: every palette for many master colours (dark, light, grey, saturated) reaches the contrast of the validator, keeps the accent and sets `onAccent` to black or white.
 Requirements: THM-15.
 
-### Story 5.2j – Size adjust for fonts
+### Story 5.2j – Size adjust for fonts (theme format version 2)
 
 Mock screens: `theme-editor`.
-- `sizeAdjust` in the format (`shared/src/packages/theme-v1.ts`, `shared/src/theme.ts`), the validator, the JSON Schemas and the format document (`npm run schemas`), `GET /api/site`, `fontFaceRules()` of the app and the editor (slider and number field per font, live in the preview, written by the export and read by «Open»).
+- `sizeAdjust` in the format (`shared/src/packages/theme-v2.ts`, `shared/src/theme.ts`), the validator, the JSON Schemas and the format document (`npm run schemas`), `GET /api/site`, `fontFaceRules()` of the app and the editor (slider and number field per font, live in the preview, written by the export and read by «Open»).
 - A test exports a theme with `sizeAdjust`, validates it with `zappaloo validate` and opens it again; the app test checks the `size-adjust` rule.
 Requirements: THM-16. Re-verified: THM-01, THM-02, THM-03, THM-06, THM-07.
 

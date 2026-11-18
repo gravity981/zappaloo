@@ -20,7 +20,7 @@ export function ruleIdsOf(definition: PackageDefinition<string>): Map<string, st
 }
 
 const RULE_IDS: Record<PackageKind, Map<string, string>> = {
-  theme: ruleIdsOf(PACKAGE_DEFINITIONS.theme[1]),
+  theme: ruleIdsOf(PACKAGE_DEFINITIONS.theme[2]),
   world: ruleIdsOf(PACKAGE_DEFINITIONS.world[2]),
 };
 

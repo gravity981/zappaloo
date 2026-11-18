@@ -15,7 +15,7 @@ const admin = { ...anna, id: 9, username: "lea", displayName: "Lea", roles: ["ad
 const asAdmin = () => ({ status: 200, body: { user: admin, csrfToken: "csrf-9" } });
 const sommerfest = {
   name: "Sommerfest",
-  formatVersion: 1,
+  formatVersion: 2,
   importedAt: "2026-11-12T17:04:00.000Z",
 };
 
@@ -34,7 +34,7 @@ describe("the card Design", () => {
     });
     renderAt("/admin/settings");
     expect(await screen.findByText("Aktiv: Sommerfest")).toBeInTheDocument();
-    expect(screen.getByText(/Format 1 · importiert am/)).toBeInTheDocument();
+    expect(screen.getByText(/Format 2 · importiert am/)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Standard-Design verwenden" })).toBeInTheDocument();
   });
 

@@ -1,16 +1,16 @@
-// The theme package, format version 1 (sw-architecture.md 19.7). Declarative: the layout, the limits and
-// the rules of the format. The validator checks packages against it, and the document schemas/theme-v1.md
+// The theme package, format version 2 (sw-architecture.md 19.7). Declarative: the layout, the limits and
+// the rules of the format. The validator checks packages against it, and the document schemas/theme-v2.md
 // is generated from it.
-import { SIZE_ADJUST, THEME_LIMITS } from "../theme.ts";
+import { SIZE_ADJUST, THEME_FORMAT_VERSION, THEME_LIMITS } from "../theme.ts";
 import type { ThemeFindingCode } from "./codes.ts";
 import type { PackageDefinition } from "./definition.ts";
 
 const MB = 1024 * 1024;
 const megabytes = (bytes: number): string => `${String(bytes / MB)} MB`;
 
-export const themeV1: PackageDefinition<ThemeFindingCode> = {
+export const themeV2: PackageDefinition<ThemeFindingCode> = {
   kind: "zappaloo-theme",
-  formatVersion: 1,
+  formatVersion: THEME_FORMAT_VERSION,
   title: "Theme package",
   summary:
     "The look of an event outside the game world as one `tar.gz` archive: the app icons, the colours and the fonts. It is imported as a whole and replaces the icons, colours and fonts together.",
@@ -54,7 +54,7 @@ export const themeV1: PackageDefinition<ThemeFindingCode> = {
       required: true,
       many: false,
       purpose: "Kind, format version and name of the theme.",
-      schemaFile: "theme-manifest.v1.schema.json",
+      schemaFile: "theme-manifest.v2.schema.json",
     },
     {
       path: "theme.json",
@@ -63,7 +63,7 @@ export const themeV1: PackageDefinition<ThemeFindingCode> = {
       required: true,
       many: false,
       purpose: "The colours, the waiting card's colours and the fonts.",
-      schemaFile: "theme.v1.schema.json",
+      schemaFile: "theme.v2.schema.json",
     },
     {
       path: "icons",
@@ -275,7 +275,7 @@ export const themeV1: PackageDefinition<ThemeFindingCode> = {
     },
     {
       date: "2026-11-18",
-      text: "Optional `sizeAdjust` of a font (50 to 200 percent) within version 1 before any package was released (THM-16, 19.7).",
+      text: "Format version 2: optional `sizeAdjust` of a font (50 to 200 percent, THM-16). Incompatible with version 1: a platform of version 2.0.0 or older refuses a package of version 2, and the platform reads version 2 only. Version 1 (v1.2.0 to v2.0.0) is removed; the formats are not kept backwards compatible for the time being (decided 2026-11-18, 19.7).",
     },
   ],
 };

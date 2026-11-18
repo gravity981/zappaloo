@@ -8,6 +8,7 @@
 import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { THEME_FORMAT_VERSION } from "../shared/src/theme.ts";
 import { buildThemeArchive, encodePng } from "../backend/src/theme/build.ts";
 
 export const EXAMPLE_FILE = "zappaloo-theme-example.tar.gz";
@@ -36,7 +37,7 @@ export function exampleFiles(): Record<string, Buffer> {
   const green: [number, number, number] = [0x2f, 0x6b, 0x4f];
   return {
     "manifest.json": Buffer.from(
-      `${JSON.stringify({ kind: "zappaloo-theme", formatVersion: 1, name: EXAMPLE_NAME }, null, 2)}\n`,
+      `${JSON.stringify({ kind: "zappaloo-theme", formatVersion: THEME_FORMAT_VERSION, name: EXAMPLE_NAME }, null, 2)}\n`,
     ),
     "theme.json": Buffer.from(
       `${JSON.stringify({ colors: EXAMPLE_COLORS, waiting: EXAMPLE_WAITING }, null, 2)}\n`,

@@ -1,6 +1,7 @@
 // Builds a theme package from the editor's data and opens one again, with the platform's own code
 // (19.7.1, THM-12, THM-13): `backend/src/theme/build.ts` writes the archive and `validate.ts` checks
 // it. A package the validator refuses is not built, and one it refuses is not opened.
+import { THEME_FORMAT_VERSION } from "@zappaloo/shared";
 import { buildThemeArchive } from "../../../backend/src/theme/build.ts";
 import { checkThemePackage } from "../../../backend/src/theme/validate.ts";
 import type { ThemeFinding } from "../../../backend/src/theme/validate.ts";
@@ -24,7 +25,7 @@ const bytes = (base64: string) => Buffer.from(base64, "base64");
 export function buildPackage(data: PackageData): BuildResult {
   const files: Record<string, Buffer> = {
     "manifest.json": Buffer.from(
-      `${JSON.stringify({ kind: "zappaloo-theme", formatVersion: 1, name: data.name }, null, 2)}\n`,
+      `${JSON.stringify({ kind: "zappaloo-theme", formatVersion: THEME_FORMAT_VERSION, name: data.name }, null, 2)}\n`,
     ),
   };
   const fonts: Record<string, { family: string; sizeAdjust?: number; files: unknown[] }> = {};
