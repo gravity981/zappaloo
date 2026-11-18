@@ -28,6 +28,7 @@ const PAGES = [
   { to: "/admin", label: "admin.nav.home", end: true },
   { to: "/admin/invitations", label: "admin.nav.invitations", end: false },
   { to: "/admin/rsvp", label: "admin.nav.rsvp", end: false },
+  { to: "/admin/seating", label: "admin.nav.seating", end: false },
   { to: "/admin/users", label: "admin.nav.users", end: false },
   { to: "/admin/content", label: "admin.nav.content", end: false },
   { to: "/admin/world", label: "admin.nav.world", end: false },

@@ -18,6 +18,7 @@ import MorePage from "../pages/MorePage.tsx";
 import NotFoundPage from "../pages/NotFoundPage.tsx";
 import ProfilePage from "../pages/ProfilePage.tsx";
 import ProgrammePage from "../pages/ProgrammePage.tsx";
+import SeatingPage from "../pages/SeatingPage.tsx";
 import RsvpPage from "../pages/RsvpPage.tsx";
 
 /** What the overlay shows: the action of the activated object and its label. */
@@ -53,6 +54,7 @@ function OverlayRoutes({
   return useRoutes([
     { index: true, element: <CloseOnHome onClose={onClose} /> },
     { path: "programme", element: <ProgrammePage /> },
+    { path: "seating", element: <SeatingPage /> },
     { path: "p/:slug", element: <ContentPage /> },
     { path: "mehr", element: <MorePage /> },
     { path: "profile", element: <ProfilePage /> },

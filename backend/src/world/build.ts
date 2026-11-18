@@ -499,6 +499,9 @@ function maps(): Record<string, unknown> {
         ]),
         point(3, "platz-1", "seat", 80, 80, [property("table", "1")]),
         point(4, "platz-2", "seat", 96, 80, [property("table", 3)]),
+        // Table 1 has three places, table 3 one (the seating plan's capacity, PRES-05).
+        point(90, "platz-3", "seat", 112, 80, [property("table", "1")]),
+        point(91, "platz-4", "seat", 128, 80, [property("table", "1")]),
         object(5, "tanzflaeche", "wander", { x: 64, y: 64, width: 96, height: 64 }),
         object(6, "sprecher", "clickable", { x: 240, y: 96, width: 16, height: 16 }, [
           property("action", "content"),

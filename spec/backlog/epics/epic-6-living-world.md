@@ -78,8 +78,12 @@ Requirements: PRES-10.
 
 ### Story 6c – Seating plan and table finder
 
-**Tiled world project:** seats (`type = seat`, `table`) at the tables.
-Tables and seats, default seats for accompanying persons, admin override, table finder with tablemates, visibility date.
+**Tiled world project:** seats (`type = seat`, `table`) at the tables, and clickable objects (e.g. the tables) with `action = page`, `page = seating`.
+Mock screens: `admin-seating`, `seating`, `game-table`. Decided 2026-11-18 (refinement of 6c), simplified by the project owner: no seat placement and no wayfinding in the game.
+- **Tables:** the `table` values of the seat objects of the active world; a table has as many places as it has seat objects (the seats have no position in the game). The server refuses more persons than places (`409 table_full`). A table that a new world package no longer has leaves its persons unassigned.
+- **Seating plan** (Sitzplan, new admin page): persons who attend (guests and approved companions) are placed on tables by drag and drop, or by tapping a person and then a table for touch screens; a companion follows the guest's table until the admin places them elsewhere; the date from which guests see the plan is set on the page (without a date the plan stays hidden).
+- **Table finder:** the page `seating` ("Wo sitze ich?"): the guest's table (name, map, places) and the tablemates with photo, greeting and badge, no seat. It is a built-in page like `programme`, `rsvp` and `profile`: clickable objects can open it (Tiled preset or the admin's assignment) and the website has `/seating` under Mehr. Before the visibility date it shows a notice with the date.
+- The photos of tablemates are served at `GET /api/seating/photo/:key`, only for the viewer's own tablemates.
 Requirements: PRES-05, PRES-06, PRES-07, PRES-12.
 
 ### Story 6d – Dialogues

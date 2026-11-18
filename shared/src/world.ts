@@ -49,7 +49,7 @@ export const WORLD_PNG_NAME_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._-]{0,80}\.png$/;
 export const WORLD_FILE_SEGMENT = /^[A-Za-z0-9][A-Za-z0-9._-]*$/;
 
 /** The pages a clickable object can open as a built-in overlay (14.2). */
-export const WORLD_BUILTIN_PAGES = ["programme", "rsvp", "profile"] as const;
+export const WORLD_BUILTIN_PAGES = ["programme", "rsvp", "profile", "seating"] as const;
 
 /** The object types of the map (14.2, 14.4). An untyped point (an `approach` point) is allowed too. */
 export const WORLD_OBJECT_TYPES = [

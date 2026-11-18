@@ -32,6 +32,12 @@ export default function MorePage() {
               </li>
             ))}
           <li className="li li-row">
+            <Link className="li-main" to="/seating">
+              <b>{t("seating.title")}</b>
+            </Link>
+            <span className="chevron">›</span>
+          </li>
+          <li className="li li-row">
             <Link className="li-main" to="/profile">
               <b>{t("website.myProfile")}</b>
             </Link>

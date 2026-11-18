@@ -579,6 +579,33 @@ export const profiles = sqliteTable(
   ],
 );
 
+// --- Seating plan (sw-architecture.md 3.6; PRES-05 – PRES-07, PRES-12) ----------------------
+
+/**
+ * The table of a person the admin placed (PRES-05): a guest (`u<user id>`) or an approved companion
+ * (`c<companion id>`). The table is the `table` value of the seat objects of the world, so it is a name, not a row. A
+ * companion without a row follows the guest's table (PRES-07).
+ */
+export const seatingAssignments = sqliteTable(
+  "seating_assignments",
+  {
+    eventId: text("event_id")
+      .notNull()
+      .references(() => events.id),
+    personKey: text("person_key").notNull(),
+    tableName: text("table_name").notNull(),
+  },
+  (table) => [primaryKey({ columns: [table.eventId, table.personKey] })],
+);
+
+/** When guests see the seating plan (PRES-06); without a row, or with no date, it stays hidden. */
+export const seatingConfig = sqliteTable("seating_config", {
+  eventId: text("event_id")
+    .primaryKey()
+    .references(() => events.id),
+  visibleFrom: integer("visible_from", { mode: "timestamp_ms" }),
+});
+
 // --- Waiting page (sw-architecture.md 10.4; ACS-11, ACS-13) -------------------------------
 
 /** The waiting page's settings: opening date, countdown switch and the admin's own texts. */

@@ -22,6 +22,8 @@ export interface MapObjects {
   name?: string;
   clickables: MapClickable[];
   portals: MapPortal[];
+  /** The `table` value of each seat object, one entry per seat (PRES-05). */
+  seats: string[];
 }
 
 function text(value: unknown): string | undefined {
@@ -31,7 +33,7 @@ function text(value: unknown): string | undefined {
 /** The objects of one map; a map that does not parse has none (the validator reported it). */
 export function mapObjects(id: string, bytes: Buffer): MapObjects {
   const parsed = tiledMapSchema.safeParse(JSON.parse(bytes.toString("utf8")) as unknown);
-  const result: MapObjects = { id, clickables: [], portals: [] };
+  const result: MapObjects = { id, clickables: [], portals: [], seats: [] };
   if (!parsed.success) return result;
   const name = text(parsed.data.properties?.find((property) => property.name === "name")?.value);
   if (name !== undefined) result.name = name;
@@ -50,6 +52,11 @@ export function mapObjects(id: string, bytes: Buffer): MapObjects {
           hidden: property("hidden") === true,
           ...(preset === undefined ? {} : { preset }),
         });
+      } else if (type === "seat") {
+        // The table is a number or a text in Tiled; the plan knows it as a text.
+        const table = property("table");
+        const value = typeof table === "number" ? String(table) : text(table);
+        if (value !== undefined && value !== "") result.seats.push(value);
       } else if (type === "portal" && object.name !== undefined) {
         const targetMap = text(property("targetMap"));
         const targetSpawn = text(property("targetSpawn"));

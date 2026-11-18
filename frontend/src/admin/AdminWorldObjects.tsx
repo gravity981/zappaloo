@@ -72,6 +72,7 @@ export default function AdminWorldObjects() {
   /** The name of a page: the built-in ones by their navigation names, a content page by its title. */
   const pageName = (page: string): string => {
     if (page === "programme") return t("nav.programme");
+    if (page === "seating") return t("seating.title");
     if (page === "rsvp") return t("nav.rsvp");
     if (page === "profile") return t("nav.profile");
     const slug = page.startsWith("p/") ? page.slice(2) : page;

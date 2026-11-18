@@ -647,3 +647,20 @@ test("[PRES-10] a guest figure stands still and opens its speech bubble when the
   const closed = (await gameState(page)).guests.find((guest) => guest.id === first.id);
   expect(closed).toMatchObject({ bubble: false, pinned: false });
 });
+
+test("[PRES-05][PRES-06] the seating plan shows the tables of the imported world with their places, and the guest's table finder tells that no plan is visible yet", async ({
+  page,
+  context,
+}, testInfo) => {
+  test.skip(testInfo.project.name !== "desktop-chromium", "shared settings: one profile only");
+  await signInAsAdmin(page, context);
+  // The test world has two tables: table 1 with three seats, table 3 with one.
+  await page.goto("/admin/seating");
+  await expect(page.getByRole("heading", { name: de.admin.seating.title })).toBeVisible();
+  await expect(page.getByTestId("table-1")).toContainText("0 / 3");
+  await expect(page.getByTestId("table-3")).toContainText("0 / 1");
+  // Without a date the plan is hidden from guests; the table finder says so (the admin sees it like a guest).
+  await page.goto("/seating");
+  await expect(page.getByTestId("seating-hidden")).toBeVisible();
+  await expect(page.getByText(de.seating.secretTitle)).toBeVisible();
+});

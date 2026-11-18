@@ -1181,7 +1181,7 @@ add({
 });
 add({
   id: "game-table", group: "game", title: "Table finder (game)", path: "/game + overlay", reqs: ["PRES-05", "PRES-06", "PRES-07", "PRES-12"],
-  shows: ["Opened by clicking the restaurant (Linde) in the world.", "Same content as the website's “Wo sitze ich?”, in the overlay: the table only, no seat.", "“Zeig mir den Weg” takes the player to their table on the banquet map."],
+  shows: ["Opened by clicking the restaurant (Linde) in the world.", "Same content as the website's “Wo sitze ich?”, in the overlay: the table only, no seat.", "No wayfinding and no seat placement in the game (decided 2026-11-18, story 6c): any clickable object, e.g. a table, can open this page."],
   qs: [],
   render: () => gameShell("done", sheet("Wo sitze ich?", seatingBody(true))),
 });
@@ -1197,7 +1197,7 @@ function seatingBody(compact) {
     return `<div class="seat ${cls}" style="left:${84 + R * Math.cos(a)}px;top:${84 + R * Math.sin(a)}px">${lbl}</div>`;
   }).join("");
   void seatHtml;
-  return `<div class="m-card strong" style="align-items:center;text-align:center"><span class="m-eyebrow">Dein Tisch</span><h2 class="m-h1" style="font-size:26px">Edelweiss</h2><span class="m-muted sm">Dinner · Landgasthof Linde, Saal · 8 Plätze</span><button class="m-btn soft sm" data-go="game">${ic("pin")} ${compact ? "Zeig mir den Weg" : "In der Erlebniswelt zeigen"}</button></div>
+  return `<div class="m-card strong" style="align-items:center;text-align:center"><span class="m-eyebrow">Dein Tisch</span><h2 class="m-h1" style="font-size:26px">Edelweiss</h2><span class="m-muted sm">Dinner · Landgasthof Linde, Saal · 8 Plätze</span></div>
     <b>An deinem Tisch</b><div class="m-list">${mates.map(([n, b, g]) => `<div class="m-li"><div class="m-av">${n.split(" ").map((s) => s[0]).join("")}</div><div class="grow"><b>${n}</b>${g ? `<span class="sm">${g}</span>` : ""}</div><span class="m-tag">${b}</span></div>`).join("")}</div>`;
 }
 add({
@@ -1260,8 +1260,8 @@ add({
 add({
   id: "seating", group: "web", title: "Where do I sit?", path: "/seating", reqs: ["PRES-05", "PRES-06", "PRES-07", "PRES-12", "PRES-15"],
   variants: [["visible", "Visible"], ["hidden", "Not yet visible"]],
-  shows: ["Table name and tablemates with photo, greeting and badge. Only the table, no seat (the server still places everyone on a seat for the game world).", "Before release: a friendly notice with the date."],
-  qs: [{ q: "Show the guest's exact seat, or only the table?", p: "Mock: the seat sketch shows seats, since seats exist as map objects anyway. Could be just the table." }],
+  shows: ["Table name and tablemates with photo, greeting and badge. Only the table, no seat (a table has as many places as the world has seat objects; seats have no position).", "Before release: a friendly notice with the date."],
+  qs: [{ q: "Show the guest's exact seat, or only the table?", p: "Decided: only the table. Seats have no position in the game; a table has as many places as seat objects (story 6c)." }],
   render: (v) => site("more", v === "hidden"
     ? `<h1 class="m-h1">Wo sitze ich?</h1><div class="m-card m-empty"><div class="m-av lg">${ic("seat")}</div><b class="m-h2">Noch ein Geheimnis</b><p class="m-muted">Der Sitzplan wird am Festtag hier sichtbar.</p></div>`
     : `<h1 class="m-h1">Wo sitze ich?</h1><div class="m-grid-d2"><div class="m-stack">${seatingBody(false)}</div></div>`),
@@ -1450,7 +1450,7 @@ add({
 });
 add({
   id: "admin-seating", group: "admin", title: "Seating plan", path: "/admin/seating", reqs: ["PRES-05", "PRES-06", "PRES-07"],
-  shows: ["Tables (from the map's seat objects) with assigned guests. Unassigned guests to drag onto tables.", "Companions follow their VIP by default.", "When the plan becomes visible to guests."],
+  shows: ["Tables (from the map's seat objects, each with as many places as seat objects) with assigned guests. Unassigned guests to drag onto tables, or tap a person and then «Hierher» on touch screens. A table refuses more persons than places.", "Companions follow their VIP by default.", "When the plan becomes visible to guests."],
   qs: [{ q: "Is drag-and-drop enough, or do you also want an auto-fill (e.g. by group)?", p: "Mock: drag-and-drop only." }],
   render: () => admin("admin-seating", `<div class="m-sethead"><h1 class="m-h1 grow">Sitzplan</h1></div>
     <div class="m-card flat" style="flex-direction:row;flex-wrap:wrap;align-items:center;gap:12px"><b class="sm">Für Gäste sichtbar ab</b>${inp("as-vis", "12.06.2027 00:00", 'placeholder="TT.MM.JJJJ HH:MM" inputmode="numeric" style="width:11em"')}</div>
