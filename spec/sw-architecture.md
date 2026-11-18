@@ -623,9 +623,9 @@ The screen is opened through a read-only screen link created by the admin. The l
 
 On the event day, guests mostly want to know: what is happening now, and what comes next?
 
-- The program items are the schedule (decided 2026-11-13). There is no second list. A program item has a name, a start time, an optional end time, a place (6.2). The admin edits them in Einstellungen, where the RSVP already uses them (7.4.1).
+- The activities of the program items are the schedule (changed 2026-11-18, epic 5.3, 7.4.3; until then the program items were). There is no second list. An activity has a name, a start time, an optional end time and a place (6.2), and belongs to one program item. The admin edits them in Einstellungen under their program item, where the RSVP uses the program items (7.4.1).
 - On the event day, the website start page shows the current and the next entry, in the event's timezone, in a card at the top of its event-day layout (5.6). The game world shows no "now / next" (decided 2026-11-10).
-- The programme shows a guest only the program items they are invited to, with one line saying so.
+- The programme shows a guest only the activities of the program items they are invited to, with one line saying so.
 - Changes to the schedule by the admin are visible immediately, e.g. when dinner starts later.
 
 ## 5.6 Start Page (decided 2026-11-13, stage 4)
@@ -634,11 +634,11 @@ The start page has a fixed layout. The hosts edit its content, not its arrangeme
 
 - **Before the event day:** the hero image (optional), the welcome text, the countdown card, the RSVP card and the shortcuts. On a wide screen the hero image and the welcome text form the left column and the cards the right one.
 - **Hero image.** One of the start page's images (6.2), picked in the editor ("Bild wählen" from its images or a new upload, "Entfernen") with an alt text. It is shown in full width at its own aspect ratio and is not cropped, so a drawn title is not cut off. Without a hero image the welcome text moves up.
-- **Countdown card.** It counts the calendar days in the event's time zone from today to the day of the first program item: "Noch 214 Tage", "Noch 1 Tag". Its second line shows the date of that day and the place of the first program item. It disappears when the event day starts, and there is no card without program items. The switch "Countdown auf der Startseite zeigen" in the editor of the start page (default on) hides it. It is separate from the countdown of the waiting page (ACS-13).
+- **Countdown card.** It counts the calendar days in the event's time zone from today to the day of the first activity of the program items the guest is invited to (changed 2026-11-18, epic 5.3): "Noch 214 Tage", "Noch 1 Tag". Its second line shows the date of that day and the place of that activity. It disappears when the event day starts, and there is no card without activities. The switch "Countdown auf der Startseite zeigen" in the editor of the start page (default on) hides it. It is separate from the countdown of the waiting page (ACS-13).
 - **Countdown font.** The number uses the theme's `display` font (19.7). Without one it uses the heading font. The card is calm like the rest of the website and does not take the pixel style of the game world.
 - **RSVP card.** The guest's answer with its status and "Ansehen oder ändern".
 - **Shortcuts.** At most four buttons: "Programm" and the first three pages visible in "Mehr", in the admin's order. They are not picked separately.
-- **On the event day** (from the start of the day of the first program item, in the event's time zone): "now / next" on top (5.5, WEB-07), then the cards of the features that exist (seat, snapshot upload, quiz, each with its stage), then the shortcuts. The hero image, the welcome text, the countdown and the RSVP card are not shown. The welcome text and the pages stay reachable through "Mehr".
+- **On the event day** (from the start of the day of the first activity of all, in the event's time zone): "now / next" on top (5.5, WEB-07), then the cards of the features that exist (seat, snapshot upload, quiz, each with its stage), then the shortcuts. The hero image, the welcome text, the countdown and the RSVP card are not shown. The welcome text and the pages stay reachable through "Mehr".
 - **"Erlebniswelt betreten"** below the welcome text comes with the game world (stage 5, GAME-12).
 
 ## 5.7 Requirements
@@ -651,11 +651,12 @@ The start page has a fixed layout. The hosts edit its content, not its arrangeme
 | WEB-04 | The website renders and is usable on smartphones, tablets and desktop computers. | Must |
 | WEB-05 | The website offers highscore and minigame overview pages. | Should |
 | WEB-06 | The website gives access to contribution upload, the gallery and the keepsake page (see PHO). | Must |
-| WEB-07 | The program items are the schedule (name, start time, optional end time, place; reworded 2026-11-13, optional map removed 2026-11-17); on the event day, the website start page shows the current and the next entry in the event's timezone, and schedule changes are visible immediately; the game world shows no "now / next" (decided 2026-11-10). Added 2026-11-13: the "now" and "next" entries, and the "now" marker in the programme, are shown only to a guest who accepted, i.e. whose RSVP status is "attending" (7.4.1); the other guests see the programme without the "now" marker and no "now / next" card. Open points: see the report of epic 4 (backlog/epics/epic-4-content-website.md). | Should |
+| WEB-07 | The activities of the program items are the schedule (name, start time, optional end time, place; reworded 2026-11-13, optional map removed 2026-11-17, activities instead of program items 2026-11-18); on the event day, the website start page shows the current and the next entry in the event's timezone, and schedule changes are visible immediately; the game world shows no "now / next" (decided 2026-11-10). Added 2026-11-13: the "now" and "next" entries, and the "now" marker in the programme, are shown only to a guest who accepted, i.e. whose RSVP status is "attending" (7.4.1); the other guests see the programme without the "now" marker and no "now / next" card. Open points: see the report of epic 4 (backlog/epics/epic-4-content-website.md). | Should |
 | WEB-08 | ~~A schedule entry with a map offers "Go there", which opens that map in the game.~~ (withdrawn 2026-11-14: the game world and the program items are not linked, 14.2) | – |
-| WEB-09 | The programme shows a guest only the program items they are invited to. When it leaves items out, one line says so (changed 2026-11-14: the line is shown only when items are hidden, as in the mock variant "invited to Apéro only"). | Should |
+| WEB-09 | The programme shows a guest only the activities of the program items they are invited to (reworded 2026-11-18). When it leaves items out, one line says so (changed 2026-11-14: the line is shown only when items are hidden, as in the mock variant "invited to Apéro only"). | Should |
 | WEB-10 | The start page has a fixed layout (5.6). Before the event day it shows an optional hero image, the welcome text, the countdown card, the RSVP card and shortcuts. On the event day it shows "now / next" (to guests who accepted, WEB-07), the cards of the existing features and the shortcuts. The hosts pick the hero image (uncropped, with an alt text) and edit the welcome text in Inhalte (added 2026-11-13). | Must |
-| WEB-11 | Before the event day the start page shows a countdown card with the calendar days to the day of the first program item, in the event's time zone, and the date and place of that item. It disappears on the event day and without program items. A switch in the editor of the start page (default on) hides it (added 2026-11-13). | Should |
+| WEB-11 | Before the event day the start page shows a countdown card with the calendar days to the day of the first activity of the program items the guest is invited to, in the event's time zone, and the date and place of that activity (reworded 2026-11-18). It disappears on the event day and without program items. A switch in the editor of the start page (default on) hides it (added 2026-11-13). | Should |
+| WEB-12 | A program item has one or more activities (name, start time, optional end time, place). The programme, "now / next", the "now" marker and the countdown show activities, not program items (added 2026-11-18, epic 5.3). | Must |
 | LANG-01 | All UI strings are externalised through an i18n framework; German is the default and initially only UI language. | Must |
 | LANG-02 | Every content item (pages, dialogues, NPC texts, information objects) is stored with a language key; initially only German (`de`) is maintained. | Must |
 | SCR-01 | A full-screen event screen rotates between the active panels (photo wall, minigame leaderboards, treasure hunt ranking) without user interaction; the admin chooses the panels and the rotation interval. | Must |
@@ -875,7 +876,7 @@ Every signed-in guest responds to the invitation. The RSVP gives guests a reason
 
 ### 7.4.1 RSVP Details (decided 2026-11-11)
 
-- **Program items** are created in stage 3, in Einstellungen › Rückmeldung: name, time, place, and whether the program item has the meal. At most one program item is the meal item (e.g. Dinner). The programme (stage 4) builds on these program items.
+- **Program items** are created in stage 3, in Einstellungen › Rückmeldung: name, time, place, and whether the program item has the meal (*changed 2026-11-18, 7.4.3: time and place moved to the activities of a program item*). At most one program item is the meal item (e.g. Dinner). The programme (stage 4) builds on these program items.
 - **Invited program items:** an invitation states its program items (set per batch when creating invitations, changed afterwards in the account panel only, UX decision 31 changed 2026-11-12). An account that gets `vip` from an admin (9.4) has no invitation; its account panel shows "Eingeladen zu" chips, and such an account starts invited to all program items. *Changed 2026-11-12 (7.1.2): "Konto anlegen" requires the program items in the form.*
 - **Menu:** one list of menu options for everyone, the children's menu included. The menu is asked only for persons who attend the meal item; persons who don't attend it have no menu choice.
 - **Form:** a three-step wizard: attendance → food and allergies (one card per attending person) → accompanying persons and song wish; declining every program item skips to the summary. The summary page confirms the answer; there is no confirmation email. After the deadline the summary is read-only with a hint to contact the hosts.
@@ -908,6 +909,17 @@ Every signed-in guest responds to the invitation. The RSVP gives guests a reason
 - **The menu of a child is optional** (RSVP-14, decided 2026-11-12). An adult who attends the meal item must choose a menu. For a child the menu is offered and may stay open. A second click on the chosen menu leaves it open again. Allergies are asked for both (`menuOffered` and `menuRequired` in `shared/src/rsvp.ts`). There is no type baby.
 - **Types in the overview** (RSVP-15). Rückmeldungen shows the totals split by type, e.g. "42 ja (37 Erwachsene, 5 Kinder)". With one answer for everyone (RSVP-11 off) the overview is a single bar without a program item name and the card is titled "Übersicht", so the text has more room. This bar counts persons, because guests are invited to different program items and no single program item has everyone (decided 2026-11-12, review of stage 3.9): yes for whoever attends at least one program item, no for whoever declined every program item they are invited to (`personTotals` in `GET /api/admin/rsvp`). One person of a type is worded in the singular ("1 erwachsene Person", "1 Kind"). With "Pro Programmpunkt zusagen" on there is one bar per program item. The guest table and the CSV have a column "Typ" right after "Name" (labels Erwachsen, Kind). The allergies column header is only "Allergien" with the lock. A child who left the menu open is not counted in the menu totals.
 - **Phones.** The guest tables of Rückmeldungen and Konten & Rollen scroll inside their own box. The page itself never moves sideways on a swipe (finding of the pilot on iOS and Android).
+
+### 7.4.3 Program Items and Activities (decided 2026-11-18, epic 5.3)
+
+A program item is what a guest is invited to and answers the RSVP for. Its **activities** are what the programme shows. Invitations can be set up finely without asking an answer for every entry of the schedule: "Fest" can hold Apéro, Dinner and Party with one answer.
+
+- **Program item:** name, meal flag (7.4.1), invitations and answers. It has no time or place of its own. It has at least one activity, and it is ordered by the start of its first activity (in the wizard, the overview, the CSV and the account panel).
+- **Activity:** name, start time, optional end time, place (6.2). It belongs to exactly one program item; there are no activities outside a program item.
+- **Who sees what:** a guest sees the activities of the program items they are invited to (WEB-09). "Now / next" and the "now" marker are shown to a guest who accepted (WEB-07), from the activities of their invited program items. The countdown counts to the first activity of the guest's invited program items (5.6). The event day starts with the day of the first activity of all.
+- **RSVP wizard:** each program item lists its activities in a small line below its name ("Fest – Apéro 16:00, Dinner 18:30, Party 22:00"), in one answer for all (RSVP-11) and per program item, and in the summary.
+- **Admin:** Einstellungen › Rückmeldung shows each program item with its activities below it and "Aktivität hinzufügen". Creating a program item asks for its first activity. The last activity of a program item cannot be deleted; the program item is deleted instead (which removes its answers, 7.4.1). Audited as `rsvp.activity.create|update|delete`.
+- **Migration:** every existing program item keeps its name, meal flag, invitations and answers, and gets one activity with its former name, time and place. Nobody answers again; the programme looks the same until the admin splits items.
 
 ## 7.5 Requirements
 
@@ -952,6 +964,9 @@ Every signed-in guest responds to the invitation. The RSVP gives guests a reason
 | RSVP-13 | Every person on the guest list (guest with an account, accompanying person) is an adult or a child. The admin sets the type of guests (default adult), and the VIP chooses it for each accompanying person. | Must |
 | RSVP-14 | An adult must choose a menu where one is offered. For a child the menu is optional. | Must |
 | RSVP-15 | The RSVP overview splits the totals per program item by person type, and the guest table and the CSV export show the type. | Must |
+| RSVP-16 | In the RSVP wizard and its summary, each program item lists its activities with their start times (added 2026-11-18, epic 5.3). | Should |
+| RSVP-17 | The admin edits the activities of a program item under it in Einstellungen › Rückmeldung. A program item has no time or place of its own, is ordered by its first activity and keeps at least one activity (added 2026-11-18, epic 5.3). | Must |
+| RSVP-18 | When activities are introduced, every existing program item keeps its invitations and answers and gets one activity with its former name, time and place; nobody answers again (added 2026-11-18, epic 5.3). | Must |
 
 ---
 
