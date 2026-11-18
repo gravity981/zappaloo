@@ -659,6 +659,7 @@ The start page has a fixed layout. The hosts edit its content, not its arrangeme
 | WEB-12 | A program item has one or more activities (name, start time, optional end time, place). The programme, "now / next", the "now" marker and the countdown show activities, not program items (added 2026-11-18, epic 5.3). | Must |
 | LANG-01 | All UI strings are externalised through an i18n framework; German is the default and initially only UI language. | Must |
 | LANG-02 | Every content item (pages, dialogues, NPC texts, information objects) is stored with a language key; initially only German (`de`) is maintained. | Must |
+| LANG-03 | The RSVP is called "Anmeldung" in the interface, the emails and the default texts; signing in and out is "Einloggen" / "Ausloggen", so that no word means two things. Texts an admin has edited are not changed (added 2026-11-18, epic 5.4). | Must |
 | SCR-01 | A full-screen event screen rotates between the active panels (photo wall, minigame leaderboards, treasure hunt ranking) without user interaction; the admin chooses the panels and the rotation interval. | Must |
 | SCR-02 | The photo wall shows an approved snapshot (with its caption, if any) within a configurable time after approval (default 10 seconds) and otherwise a slideshow of recent approved snapshots; keepsakes are not shown on the wall. | Must |
 | SCR-03 | ~~The admin sets whether photos appear on the photo wall immediately after upload or only after approval.~~ (withdrawn: everything on the screen is moderated, see MOD-01) | – |
@@ -921,6 +922,16 @@ A program item is what a guest is invited to and answers the RSVP for. Its **act
 - **Admin:** Einstellungen › Rückmeldung shows each program item with its activities below it and "Aktivität hinzufügen". Creating a program item asks for its first activity. The last activity of a program item cannot be deleted; the program item is deleted instead (which removes its answers, 7.4.1). Audited as `rsvp.activity.create|update|delete`.
 - **Migration:** every existing program item keeps its name, meal flag, invitations and answers, and gets one activity with its former name, time and place. Nobody answers again; the programme looks the same until the admin splits items.
 
+### 7.4.4 Children's Menus and RSVP Improvements (decided 2026-11-18, epic 5.4)
+
+- **Two menu lists** (RSVP-19): "Menüs" for adults and "Kindermenüs" in Einstellungen. Each person chooses from the list of their type; the menu is required while that list has entries, and a person whose list is empty is not asked. The update keeps every menu in the adults' list; the admin creates the children's list. A child who chose an adults' menu keeps it until it is chosen again, and the overview marks it "Erwachsenenmenü". Totals and the CSV are per list.
+- **"Sonstiges/Anmerkungen"** (RSVP-20): one optional field of at most 500 characters for the main invitee, next to the allergies; protected like them (SEC-11).
+- **"+Begleitung" and "+Kind"** (RSVP-21) open the same form for an accompanying person with the type preselected.
+- **Anmeldungen table** (RSVP-22, RSVP-23): a column "E-Mail" next to the status, in its tag style; the type (E, K), the program items and the menu as short forms with the full names in the tooltip. Program items and menus have an optional "Kürzel" (1–2 characters, default the first letter), used by the invitation list too.
+- **Konten & Rollen** (ROLE-11): the roles as read-only letters (V, S, A), changed in the account's panel; the capabilities as letters (I Inhalte, M Moderation).
+- **Landing after redeeming** (RSVP-24): an unanswered guest goes to `/rsvp` while the RSVP is open, closed platform or not; "Weiter" after the summary goes to `/`. The guided first entry of the game skips its RSVP step for a guest who has answered (GAME-13).
+- **Words** (LANG-03): "Anmeldung" replaces "Rückmeldung" in everything guests and admins read; sign-in becomes "Einloggen" / "Ausloggen". Code names stay. Texts an admin has edited are not changed. *Until epic 5.4 is built, the rest of this spec still says "Rückmeldung"; the rename of the spec's wording follows in story 5.4b.*
+
 ## 7.5 Requirements
 
 | ID | Requirement | Prio |
@@ -962,11 +973,17 @@ A program item is what a guest is invited to and answers the RSVP for. Its **act
 | RSVP-11 | The admin chooses in Einstellungen whether guests answer the RSVP once for all their invited program items (the default) or yes or no per program item; answers are stored per program item either way (decided 2026-11-12, 7.4.2). | Must |
 | RSVP-12 | The admin chooses in Einstellungen whether accompanying persons need approval (off by default); without approval an added person counts right away, and switching approval off approves pending requests. | Must |
 | RSVP-13 | Every person on the guest list (guest with an account, accompanying person) is an adult or a child. The admin sets the type of guests (default adult), and the VIP chooses it for each accompanying person. | Must |
-| RSVP-14 | An adult must choose a menu where one is offered. For a child the menu is optional. | Must |
+| RSVP-14 | An adult must choose a menu where one is offered. ~~For a child the menu is optional.~~ A child must choose from the children's menus where one is offered (reworded 2026-11-18, epic 5.4, RSVP-19). | Must |
 | RSVP-15 | The RSVP overview splits the totals per program item by person type, and the guest table and the CSV export show the type. | Must |
 | RSVP-16 | In the RSVP wizard and its summary, each program item lists its activities with their start times (added 2026-11-18, epic 5.3). | Should |
 | RSVP-17 | The admin edits the activities of a program item under it in Einstellungen › Rückmeldung. A program item has no time or place of its own, is ordered by its first activity and keeps at least one activity (added 2026-11-18, epic 5.3). | Must |
 | RSVP-18 | When activities are introduced, every existing program item keeps its invitations and answers and gets one activity with its former name, time and place; nobody answers again (added 2026-11-18, epic 5.3). | Must |
+| RSVP-19 | The admin keeps two menu lists, one for adults and one for children. An adult chooses from the adults' list and a child from the children's list only; each list's menu is required while the list has entries, and a person whose list is empty is not asked (added 2026-11-18, epic 5.4). | Must |
+| RSVP-20 | The main invitee can add "Sonstiges/Anmerkungen" next to the allergies (optional, at most 500 characters); like the allergies it is shown only to the guest and to admins, in the guest table and the CSV, never in the audit log (SEC-11) (added 2026-11-18, epic 5.4). | Should |
+| RSVP-21 | The guest adds an accompanying person with "+Begleitung" or "+Kind"; both open the same form, with the person type preselected and changeable (added 2026-11-18, epic 5.4). | Should |
+| RSVP-22 | The guest table of Anmeldungen shows next to the status whether the guest's email address is verified ("bestätigt", "offen", or "–" without an address and for accompanying persons) (added 2026-11-18, epic 5.4). | Should |
+| RSVP-23 | The guest table of Anmeldungen shows the type, the program items and the menu as short forms with the full names in a tooltip. Program items and menus have an optional short code of 1–2 characters (default: the first letter), which the invitation list uses too (added 2026-11-18, epic 5.4). | Should |
+| RSVP-24 | After redeeming an invitation, a guest who has not answered the RSVP lands on it while it is open, whether the platform is closed or open; after the summary the guest continues to the start (waiting page, game or website) (added 2026-11-18, epic 5.4). | Must |
 
 ---
 
@@ -1075,6 +1092,7 @@ Besides event administration there could be a separate platform administration t
 | ROLE-08 | `admin` does not imply `vip` or `staff`; an admin without those roles has no access to VIP or staff areas. | Must |
 | ROLE-09 | Revoking one role leaves all other roles of the user unchanged; a user whose VIP is revoked loses access to guest functions. | Must |
 | ROLE-10 | ~~A separate platform administrator, distinct from the event `admin` role, can manage all events and installations.~~ (withdrawn: out of scope, see section 30) | – |
+| ROLE-11 | The account table shows the roles and the capabilities as one letter each (V, S, A; I, M) with the full names in a tooltip; roles are changed in the account's panel, not in the table (added 2026-11-18, epic 5.4). | Should |
 
 ---
 
@@ -2838,7 +2856,7 @@ Measures already covered elsewhere (password hashing ACC-06, sessions ACC-05, HT
 | SEC-08 | On the shutdown date, all personal data (accounts, profile photos and greetings, accompanying persons, RSVPs, seating plan, contributions, minigame results, treasure hunt finds, audit logs) is deleted automatically. | Must |
 | SEC-09 | A privacy notice is reachable from every page, also without sign-in. | Must |
 | SEC-10 | The whole site is excluded from search engine indexing (`robots.txt` disallowing all, and an `X-Robots-Tag: noindex` header on every response). | Must |
-| SEC-11 | Allergies and dietary requirements are visible only to admins (not to staff or other guests), are named in the privacy notice, and are deleted at shutdown. | Must |
+| SEC-11 | Allergies and dietary requirements, and the RSVP's "Sonstiges/Anmerkungen" (RSVP-20, added 2026-11-18), are visible only to admins (not to staff or other guests), are named in the privacy notice, and are deleted at shutdown. | Must |
 
 The privacy policy and legal review are an organisational precondition for production use, not a software requirement; they are tracked in [test-strategy.md](test-strategy.md) under "Release checklist".
 

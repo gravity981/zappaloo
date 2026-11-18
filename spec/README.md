@@ -57,13 +57,13 @@ Status values: **specified** (requirements written, not implemented) · **in pro
 | HUNT | Treasure hunt | 3.7 | 7 | 8 | specified |
 | MG | Minigames, results, highscores | 4 | 13 | 8 | specified |
 | WEB | Classic website | 5 | 12 | 4, 5, 5.3, 7, 8 | specified |
-| LANG | Language and i18n | 5.3 | 2 | 1, 4 | in progress |
+| LANG | Language and i18n | 5.3 | 3 | 1, 4, 5.4 | in progress |
 | SCR | Event screen (photo wall, live rankings) | 5.4 | 5 (2 withdrawn) | 7, 8 | specified |
 | CNT | Shared content base, Markdown editing, images, places | 6 | 8 | 4, 5, 7 | in progress |
 | ACC | User accounts, account states, authentication, email | 7, 23.8 | 19 (1 withdrawn) | 2, 3, 3.9 | in progress |
 | AVA | Avatars | 7.3 | 4 | 5, 6 | in progress |
-| RSVP | RSVP, program items and their activities, accompanying persons, person types | 7.4 | 18 | 3, 3.9, 5.3 | in progress |
-| ROLE | Roles (vip, staff, admin) and staff capabilities | 8 | 8 (2 withdrawn) | 2 | implemented |
+| RSVP | RSVP, program items and their activities, accompanying persons, person types | 7.4 | 24 | 3, 3.9, 5.3, 5.4 | in progress |
+| ROLE | Roles (vip, staff, admin) and staff capabilities | 8 | 9 (2 withdrawn) | 2, 5.4 | in progress |
 | INV | VIP invitations | 9 | 16 (6 withdrawn) | 2, 3.9 | in progress |
 | ACS | Sign-in, opening the platform, waiting page, upload links, access control | 10, 11 | 10 (4 withdrawn) | 2, 3, 7 | in progress |
 | GRP | Guest groups | 12 | 2 | 2 | implemented |
@@ -80,7 +80,7 @@ Status values: **specified** (requirements written, not implemented) · **in pro
 | PWA | Installable app (manifest, icons, home screen) | 19.5 | 5 | 3.5 | implemented |
 | LIC | Copyright and license notice in the footer | 19.6 | 3 | 3.5 | implemented |
 | THM | Theme package (app icons, colours, fonts) and its editor | 19.7 | 17 | 4, 5.2 | implemented |
-| | **Total** | | **284** (321 IDs, 37 withdrawn) | | |
+| | **Total** | | **292** (329 IDs, 37 withdrawn) | | |
 
 Sections with no requirement table describe architecture and technology choices: 15 (stack), 16 (frontend), 17 (backend), 26 (project structure), 27 (decision summary), 28 (stages) and 29 (principles). Section 30 lists what is out of scope for the first version.
 
