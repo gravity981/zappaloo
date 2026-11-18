@@ -1,5 +1,6 @@
 // npm run req-report [-- --spec-dir spec --vitest reports/vitest.json,reports/vitest-deploy.json
-//                       --playwright reports/playwright.json --out reports/requirements.md]
+//                       --playwright reports/playwright.json,reports/playwright-flaky.json
+//                       --out reports/requirements.md]
 //
 // Reads the spec and the JSON test results, prints a summary, writes the full
 // report as Markdown, and exits non-zero on any error (spec/test-strategy.md, 3).
@@ -25,7 +26,11 @@ const { values: args } = parseArgs({
     "spec-dir": { type: "string", default: "spec" },
     // Comma-separated: the main run and the deployment test (npm run test:deploy)
     vitest: { type: "string", default: "reports/vitest.json,reports/vitest-deploy.json" },
-    playwright: { type: "string", default: "reports/playwright.json" },
+    // Comma-separated: the main run and the run of the flaky tests (npm run test:e2e:flaky)
+    playwright: {
+      type: "string",
+      default: "reports/playwright.json,reports/playwright-flaky.json",
+    },
     out: { type: "string", default: "reports/requirements.md" },
   },
 });
@@ -48,11 +53,16 @@ const results: [string, (json: unknown) => TestCase[]][] = [
   ...args.vitest
     .split(",")
     .map((path): [string, (json: unknown) => TestCase[]] => [path.trim(), parseVitestResults]),
-  [args.playwright, parsePlaywrightResults],
+  ...args.playwright
+    .split(",")
+    .map((path): [string, (json: unknown) => TestCase[]] => [path.trim(), parsePlaywrightResults]),
 ];
 for (const [path, parse] of results) {
   if (!existsSync(path)) {
-    inputErrors.push(`${path}: test results not found (run the tests first)`);
+    // The run of the flaky tests may not have happened; the report then says so as a warning.
+    if (path.endsWith("playwright-flaky.json")) {
+      console.warn(`${path}: not found, the flaky tests did not run (npm run test:e2e:flaky)`);
+    } else inputErrors.push(`${path}: test results not found (run the tests first)`);
     continue;
   }
   try {

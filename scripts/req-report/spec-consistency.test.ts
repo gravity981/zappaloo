@@ -66,3 +66,21 @@ describe("the project spec", () => {
     expect(checkEpicStatuses(headers, parseRoadmap(read("backlog/roadmap.md")))).toEqual([]);
   });
 });
+
+describe("flaky end-to-end tests (test-strategy.md 8.8)", () => {
+  const e2eDir = join(specDir, "../e2e");
+  /** The files of the tests that end their title with `@flaky`, one entry per test. */
+  const tagged = readdirSync(e2eDir)
+    .filter((name) => name.endsWith(".spec.ts"))
+    .flatMap((name) => {
+      const count = (readFileSync(join(e2eDir, name), "utf8").match(/@flaky"/g) ?? []).length;
+      return Array.from({ length: count }, () => `e2e/${name}`);
+    })
+    .sort();
+  const section = read("test-strategy.md").split("### 8.8 Flaky end-to-end tests")[1] ?? "";
+  const listed = [...section.matchAll(/^\| `(e2e\/[^`]+)` \|/gm)].map((match) => match[1]).sort();
+
+  it("[OPS-19] lists every @flaky test, and only those", () => {
+    expect(listed).toEqual(tagged);
+  });
+});

@@ -1,9 +1,19 @@
 // Helpers shared by the end-to-end tests.
 import { execFileSync } from "node:child_process";
 import { test as base } from "@playwright/test";
-import type { BrowserContext, Page } from "@playwright/test";
+import type { BrowserContext, Locator, Page } from "@playwright/test";
 
 export const PASSWORD = "correct-horse-battery";
+
+/** Presses a hold button (the confirmation of a risky action) for its four seconds, with the mouse. */
+export async function holdButton(page: Page, button: Locator): Promise<void> {
+  const box = await button.boundingBox();
+  if (!box) throw new Error("the hold button is not visible");
+  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+  await page.mouse.down();
+  await page.waitForTimeout(4300);
+  await page.mouse.up();
+}
 
 /** A client address of its own for a test: the rate limits count per address. */
 export function clientAddress(): string {

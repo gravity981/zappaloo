@@ -1,7 +1,7 @@
 import { clientAddress, expect, PASSWORD, signInAsAdmin, stayOnWebsite, test } from "./support.ts";
 import de from "../frontend/src/i18n/locales/de/common.json" with { type: "json" };
 
-test("[RSVP-01][RSVP-02][RSVP-03][RSVP-04][RSVP-05][RSVP-06][RSVP-11][ACC-17][SEC-11][DATA-05] a guest answers the RSVP once for the invited program items; the admin sees it and changes it", async ({
+test("[RSVP-01][RSVP-02][RSVP-03][RSVP-04][RSVP-05][RSVP-06][RSVP-11][ACC-17][SEC-11][DATA-05] a guest answers the RSVP once for the invited program items; the admin sees it and changes it @flaky", async ({
   page,
   context,
   browser,
