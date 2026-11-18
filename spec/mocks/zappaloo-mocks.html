@@ -946,7 +946,7 @@ add({
 add({
   id: "rsvp-parts", group: "access", title: "RSVP 1 · Attendance", path: "/rsvp", reqs: ["RSVP-01", "RSVP-02", "RSVP-04", "RSVP-11"],
   variants: [["one", "One answer (default)"], ["per", "Per program item"]],
-  shows: ["One answer (RSVP-11, decided 2026-11-12, the default): “Ja” / “Nein” once per person, with the program items the invitation covers listed below it. A program item added later takes the answer. With the switch “Pro Programmpunkt zusagen” on (variant), yes/no per program item as before.", "Only the program items this invitation covers. Each lists its activities with their start times in a small line below its name, in both variants (epic 5.3).", "Approved companions get their own yes/no block below the guest's (step 3b, decided 2026-11-11).", "Deadline shown up front.", "Declining every part skips straight to the summary.", "Opened by an admin from Rückmeldungen, the same wizard runs in admin mode, also after the deadline."],
+  shows: ["One answer (RSVP-11, decided 2026-11-12, the default): “Ja” / “Nein” once per person, with the program items the invitation covers listed below it. A program item added later takes the answer. With the switch “Pro Programmpunkt zusagen” on (variant), yes/no per program item as before.", "Only the program items this invitation covers. Each lists its activities with their start times in a small line below its name, in both variants: with one answer for all the list below the yes / no reads “Name – activities”, one line per program item (epic 5.3).", "Approved companions get their own yes/no block below the guest's (step 3b, decided 2026-11-11).", "Deadline shown up front.", "Declining every part skips straight to the summary.", "Opened by an admin from Rückmeldungen, the same wizard runs in admin mode, also after the deadline."],
   qs: [
     { q: "RSVP as a three-step wizard (attendance → food → companions & song), or one long page?", p: "Mock: wizard, because it feels light on a phone and reuses well inside the game overlay." },
     { q: "Add a shortcut like “Ich bin überall dabei”?", p: "Mock: not shown. Could be a link above the program items." },
@@ -960,9 +960,9 @@ add({
     <h1 class="m-h1">Bist du dabei, Erika?</h1>
     <p class="m-muted">Sag uns, ob du kommst. Du bist zu allen vier Programmpunkten eingeladen. Du kannst deine Antwort bis <b>1. Mai 2027</b> ändern.</p>
     <div class="m-card"><div class="m-row2"><b class="grow" style="flex:1">Erika Huber</b><span class="m-tag">Du</span></div>${seg(["Ja", "Nein"], 0)}
-      <span class="m-hint">Trauung · Apéro · Dinner · Party</span></div>
+      ${PROGRAM_ITEMS.map(([n, acts]) => `<span class="m-hint">${n} – ${acts.map((a) => `${a[1]} ${a[0]}`).join(", ")}</span>`).join("")}</div>
     <div class="m-card"><b>Mia Huber</b>${seg(["Ja", "Nein"], 0)}
-      <span class="m-hint">Trauung · Apéro · Dinner · Party</span></div>`, `<button class="m-btn" data-go="rsvp-people">Weiter</button>`),
+      ${PROGRAM_ITEMS.map(([n, acts]) => `<span class="m-hint">${n} – ${acts.map((a) => `${a[1]} ${a[0]}`).join(", ")}</span>`).join("")}</div>`, `<button class="m-btn" data-go="rsvp-people">Weiter</button>`),
 });
 add({
   id: "rsvp-people", group: "access", title: "RSVP 2 · Food & allergies", path: "/rsvp", reqs: ["RSVP-03", "SEC-11"],
@@ -1032,7 +1032,7 @@ add({
     <div class="m-check" style="align-self:center">${ic("check")}</div>
     <h1 class="m-h1" style="text-align:center">Danke, Erika! Deine Antwort ist angekommen.</h1>
     <div class="m-card"><div class="m-list">
-      ${PROGRAM_ITEMS.map(([n], i) => `<div class="m-li"><div class="grow"><b>${n}</b></div>${i < 3 ? '<span class="m-tag ok">Dabei</span>' : '<span class="m-tag">Nicht dabei</span>'}</div>`).join("")}
+      ${PROGRAM_ITEMS.map(([n, acts], i) => `<div class="m-li"><div class="grow"><b>${n}</b><span class="m-muted sm">${acts.map((a) => `${a[1]} ${a[0]}`).join(", ")}</span></div>${i < 3 ? '<span class="m-tag ok">Dabei</span>' : '<span class="m-tag">Nicht dabei</span>'}</div>`).join("")}
     </div></div>
     <div class="m-card"><div class="m-list">
       <div class="m-li"><div class="grow"><b>Erika Huber</b><span class="m-muted sm">Vegetarisch · Allergien angegeben</span></div></div>

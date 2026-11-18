@@ -1187,6 +1187,60 @@ describe("the song wish switch", () => {
   });
 });
 
+describe("activities in the wizard (RSVP-16)", () => {
+  /** Trauung with two activities, then Apéro. */
+  const multi = [
+    {
+      ...PARTS[0],
+      activities: [
+        {
+          id: 11,
+          name: "Eintreffen",
+          startsAt: "2027-06-12T11:30:00.000Z",
+          endsAt: null,
+          placeId: null,
+          place: null,
+        },
+        { ...PARTS[0]?.activities[0], id: 12 },
+      ],
+    },
+    PARTS[1],
+  ];
+
+  it("[RSVP-16] each program item lists its activities with their start times, per program item and in the summary", async () => {
+    fakeBackend({
+      "GET /api/session": () => asGuest,
+      "GET /api/rsvp": () => ({
+        status: 200,
+        body: state({ programItems: multi, answer: answered([1, 2]) }),
+      }),
+    });
+    renderAt("/rsvp");
+    // The summary: a small line below each program item's name (times in the event's time zone).
+    expect(await screen.findByText("Eintreffen 13:30, Trauung 14:00")).toBeInTheDocument();
+    expect(screen.getByText("Apéro 15:30")).toBeInTheDocument();
+    // Step 1, one yes or no per program item: the same lines.
+    user.click(screen.getByRole("button", { name: "Ändern" }));
+    expect(await screen.findByText("Eintreffen 13:30, Trauung 14:00")).toBeInTheDocument();
+    expect(screen.getByText("Apéro 15:30")).toBeInTheDocument();
+  });
+
+  it("[RSVP-16] with one answer for all the program items are listed with their activities", async () => {
+    fakeBackend({
+      "GET /api/session": () => asGuest,
+      "GET /api/rsvp": () => ({
+        status: 200,
+        body: state({ perItem: false, programItems: multi, answer: null }),
+      }),
+    });
+    renderAt("/rsvp");
+    expect(
+      await screen.findByText("Trauung – Eintreffen 13:30, Trauung 14:00"),
+    ).toBeInTheDocument();
+    expect(screen.getByText("Apéro – Apéro 15:30")).toBeInTheDocument();
+  });
+});
+
 describe("one answer per person (RSVP-11, 7.4.2)", () => {
   const approvedMia = {
     id: 7,
@@ -1226,7 +1280,8 @@ describe("one answer per person (RSVP-11, 7.4.2)", () => {
     await screen.findByRole("heading", { name: "Bist du dabei, Erika?" });
     expect(screen.getByText(/Sag uns, ob du kommst/)).toBeInTheDocument();
     // The program items are listed, but nobody is asked per program item.
-    expect(screen.getAllByText("Trauung · Apéro · Dinner")).toHaveLength(2);
+    expect(screen.getAllByText("Trauung – Trauung 14:00")).toHaveLength(2);
+    expect(screen.getAllByText("Dinner – Dinner 18:30")).toHaveLength(2);
     expect(screen.queryByRole("button", { name: "Trauung: Dabei" })).not.toBeInTheDocument();
     const next = screen.getByRole("button", { name: "Weiter" });
     expect(next).toBeDisabled();

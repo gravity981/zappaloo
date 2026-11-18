@@ -990,7 +990,6 @@
     "deadline": "Du kannst deine Antwort bis {{date}} ändern.",
     "adminMode": "Admin-Modus: Die Frist gilt hier nicht. Jede Änderung steht im Audit-Log.",
     "noProgramItems": "Für dich sind noch keine Programmpunkte festgelegt. Melde dich bei den Gastgebern.",
-    "programItemWhen": "{{time}} · {{place}}",
     "attending": "Dabei",
     "notAttending": "Nicht dabei",
     "openProgramItem": "Noch offen",

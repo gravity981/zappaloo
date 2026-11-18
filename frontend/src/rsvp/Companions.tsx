@@ -24,12 +24,13 @@ export function ProgramItemsBlock({
   programItems,
   value,
   onChange,
-  time,
+  activities,
 }: {
   programItems: ProgramItem[];
   value: Record<number, boolean>;
   onChange: (next: Record<number, boolean>) => void;
-  time: (programItem: ProgramItem) => string;
+  /** The activities of a program item with their start times, one line (RSVP-16). */
+  activities: (programItem: ProgramItem) => string;
 }) {
   const { t } = useTranslation();
   return (
@@ -42,7 +43,7 @@ export function ProgramItemsBlock({
           aria-label={programItem.name}
         >
           <div className="grow">
-            <b>{programItem.name}</b> <span className="muted sm">{time(programItem)}</span>
+            <b>{programItem.name}</b> <span className="muted sm">{activities(programItem)}</span>
           </div>
           <div className="chips">
             {[true, false].map((yes) => (
@@ -75,14 +76,15 @@ export function AttendanceBlock({
   programItems,
   value,
   onChange,
-  time,
+  activities,
   perItem,
   name,
 }: {
   programItems: ProgramItem[];
   value: Record<number, boolean>;
   onChange: (next: Record<number, boolean>) => void;
-  time: (programItem: ProgramItem) => string;
+  /** The activities of a program item with their start times, one line (RSVP-16). */
+  activities: (programItem: ProgramItem) => string;
   perItem: boolean;
   name?: string;
 }) {
@@ -93,7 +95,7 @@ export function AttendanceBlock({
         programItems={programItems}
         value={value}
         onChange={onChange}
-        time={time}
+        activities={activities}
       />
     );
   }
@@ -122,9 +124,11 @@ export function AttendanceBlock({
           );
         })}
       </div>
-      <span className="hint">
-        {programItems.map((programItem) => programItem.name).join(" · ")}
-      </span>
+      {programItems.map((programItem) => (
+        <span key={programItem.id} className="hint">
+          {programItem.name} – {activities(programItem)}
+        </span>
+      ))}
     </div>
   );
 }
@@ -203,7 +207,7 @@ export function CompanionForm({
   perItem,
   programItems,
   menus,
-  time,
+  activities,
   frame,
   onSaved,
   onCancel,
@@ -214,7 +218,8 @@ export function CompanionForm({
   frame: (body: ReactNode, footer: ReactNode) => ReactNode;
   programItems: ProgramItem[];
   menus: MenuOption[];
-  time: (programItem: ProgramItem) => string;
+  /** The activities of a program item with their start times, one line (RSVP-16). */
+  activities: (programItem: ProgramItem) => string;
   onSaved: (state: RsvpState) => void;
   onCancel: () => void;
 }) {
@@ -308,7 +313,7 @@ export function CompanionForm({
         {...(name.trim() === "" ? {} : { name: name.trim() })}
         programItems={programItems}
         value={value.attendance}
-        time={time}
+        activities={activities}
         onChange={(attendance) => {
           setValue({ ...value, attendance });
         }}
