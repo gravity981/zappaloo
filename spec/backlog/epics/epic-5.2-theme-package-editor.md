@@ -35,6 +35,12 @@ Added 2026-11-18. Today a theme package (sw-architecture.md 19.7) is written by 
 - **Open** (THM-13): an existing theme package can be opened; it is validated and its fields, icons and fonts are filled in. A refused package shows its findings and is not opened.
 - **Draft** (THM-14): the work is kept in the browser (IndexedDB) and survives a reload; "New theme" starts from the platform's default colours.
 
+**Findings of the first try with the editor (2026-11-18, story 5.2g) and decisions with the project owner:**
+- **Preview scroll** (bug): on a wide screen the preview was cut off at the bottom and its column did not scroll. Fixed (story 5.2h).
+- **Colour assistant:** the owner wants to pick one master colour and get matching colours for the seven keys, "something similar" to mycolor.space (a tool with one hex input and about 25 named palettes of 3–7 colours). Decided: the master colour is the accent; the suggestions are palette cards to pick from (not one live suggestion); each card is a complete mapping onto the colour keys of the theme package. The palette styles are in sw-architecture.md 19.7.1 (THM-15).
+- **Font size override:** imported fonts draw their letters in different sizes. Decided: an optional `sizeAdjust` per font in percent (50–200) that becomes `size-adjust` of the font's `@font-face`. It is a field of the theme format, added to format version 1 under the exception for an unreleased format (confirmed by the owner 2026-11-18, 19.7); the validator, the JSON Schemas, `GET /api/site`, `fontFaceRules()` and the editor change with it (THM-16).
+- Both go into epic 5.2.
+
 ## Stories
 
 ### Story 5.2a – Spec and mock
@@ -81,6 +87,25 @@ Requirements: THM-12, THM-13, THM-14.
 - Epic report.
 Requirements: none new.
 Re-verified: THM-01, THM-03.
+
+### Story 5.2h – Preview scrolls on a wide screen
+
+- The preview column keeps the full height of its content and scrolls inside the window (it was squeezed to the height of the window and cut off). Done 2026-11-18.
+Requirements: THM-11 (unchanged).
+
+### Story 5.2i – Colour assistant
+
+Mock screens: `theme-editor`.
+- The mock gets the master colour and the palette cards in the card Colours; the project owner confirms it before the code is written.
+- The palettes (Tint, Neutral, Warm paper, Cool, Soft complement, Analogous, High contrast) are made by a pure function in the editor from the master colour, in a perceptual colour space, and every card is checked with the contrast function of `shared`. Tests: every palette for many master colours (dark, light, grey, saturated) reaches the contrast of the validator, keeps the accent and sets `onAccent` to black or white.
+Requirements: THM-15.
+
+### Story 5.2j – Size adjust for fonts
+
+Mock screens: `theme-editor`.
+- `sizeAdjust` in the format (`shared/src/packages/theme-v1.ts`, `shared/src/theme.ts`), the validator, the JSON Schemas and the format document (`npm run schemas`), `GET /api/site`, `fontFaceRules()` of the app and the editor (slider and number field per font, live in the preview, written by the export and read by «Open»).
+- A test exports a theme with `sizeAdjust`, validates it with `zappaloo validate` and opens it again; the app test checks the `size-adjust` rule.
+Requirements: THM-16. Re-verified: THM-01, THM-02, THM-03, THM-06, THM-07.
 
 ## Report
 

@@ -210,11 +210,8 @@
   .editor .editor-main[data-pane] .editor-preview {
     display: flex;
   }
+  /* The preview is part of the page: the window has the only scrollbar. */
   .editor .editor-preview {
-    position: sticky;
-    top: 16px;
-    max-height: calc(100vh - 32px);
-    overflow: auto;
     flex-direction: column;
   }
 }
