@@ -38,6 +38,14 @@ export interface TileImage {
   trigger?: Point[];
   /** The occlusion polyline of the tile, in the image's pixels. */
   occlusion?: Point[];
+  /** The frames of the tile's animation (format version 3), each with its picture's texture key; the first frame is the tile itself. */
+  animation?: TileAnimationFrame[];
+}
+
+/** One frame of a tile animation: the texture of its picture and how long it stays, in milliseconds. */
+export interface TileAnimationFrame {
+  key: string;
+  duration: number;
 }
 
 /** One drawn tile: its image and where it goes, the top-left corner in the map's pixel space. */
@@ -178,6 +186,7 @@ function tileSources(tilesets: TiledTileset[]): TileSource[] {
             collision: collisionOf(tile),
             trigger: triggerOf(tile),
             occlusion: occlusionOf(tile),
+            ...animationOf(tile, byGid, set.firstgid),
           };
         },
       });
@@ -220,6 +229,20 @@ function tileSources(tilesets: TiledTileset[]): TileSource[] {
     });
   }
   return sources.sort((a, b) => a.firstgid - b.firstgid);
+}
+
+/** The animation of a collection tile as frames with texture keys; frames without a picture are left out. */
+function animationOf(
+  tile: TiledTile,
+  byGid: ReadonlyMap<number, TiledTile>,
+  firstgid: number,
+): { animation: TileAnimationFrame[] } | undefined {
+  const frames: TileAnimationFrame[] = [];
+  for (const frame of tile.animation ?? []) {
+    const image = byGid.get(firstgid + frame.tileid)?.image;
+    if (image !== undefined) frames.push({ key: tilesetImageKey(image), duration: frame.duration });
+  }
+  return frames.length > 1 ? { animation: frames } : undefined;
 }
 
 /** The collision polygons of a collection tile: guides named `collision`, polygons or rectangles. */

@@ -113,7 +113,8 @@ Requirements: MAP-20, GAME-31, GAME-32, GAME-33, GAME-34.
 ### Story 6f – Animated tile objects
 
 **Tiled world project:** the animation of the fountain (and other animated props) in its image-collection tileset.
-- The validator reads tile animations of image-collection tiles (frames in the same tileset, durations); the engine plays them on tile objects.
+- The validator reads tile animations of image-collection tiles in format version 3 (frames are tiles of the same tileset, each with a duration); the engine plays them on tile objects, in step for all objects on a map. Format version 2 keeps refusing them.
+- **Decided 2026-11-18 (with the project owner):** every frame has the size of the animated tile's own picture (an error otherwise), so the object does not jump and its guides stay valid; with `prefers-reduced-motion` the object stands on its first frame; the guides, sparkles and glow follow the first frame. A tile animation is 1 to 32 frames of 20 to 10 000 ms each.
 Requirements: GAME-35.
 
 ### Story 6g – NPCs in the world

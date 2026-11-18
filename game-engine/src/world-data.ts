@@ -129,7 +129,11 @@ export function prepareWorld(source: WorldSource): LoadedWorld {
   const images = new Map<string, string>();
   const keys = new Set<string>();
   for (const map of maps.values()) {
-    for (const draw of [...map.ground, ...map.objects]) keys.add(draw.image.key);
+    for (const draw of [...map.ground, ...map.objects]) {
+      keys.add(draw.image.key);
+      // The pictures of the frames of a tile animation (GAME-35).
+      for (const frame of draw.image.animation ?? []) keys.add(frame.key);
+    }
   }
   for (const figure of figures) {
     for (const key of Object.values(figure.standing)) keys.add(key);

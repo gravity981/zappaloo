@@ -34,6 +34,9 @@ export const WORLD_LIMITS = {
   walkFrames: { min: 1, max: 16 },
   /** The flying frames of one direction of the bird (format version 3). */
   flyFrames: { min: 1, max: 16 },
+  /** The frames of a tile animation and the duration of one frame in milliseconds (format version 3). */
+  tileAnimationFrames: { min: 1, max: 32 },
+  tileAnimationDuration: { min: 20, max: 10_000 },
   /** Length of the names: the id of a map, an object, a figure; the label of a figure. */
   idLength: 40,
   labelLength: 30,

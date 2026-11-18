@@ -699,6 +699,9 @@ test("[CNT-02][CNT-03][GAME-06] the admin writes the dialogue of an NPC in Erleb
   if (pastor === undefined) throw new Error("the test world has no pastor");
   const box = page.getByTestId("dialogue-box");
   await expect(async () => {
+    // A tap on the open box goes on to the next line, so the pastor is tapped only while the box is closed (the walk
+    // to him can take longer than one attempt on a busy machine).
+    if (await box.isVisible()) return;
     const target = await pagePoint(page, { x: pastor.x, y: pastor.y });
     await page.mouse.click(target.x, target.y);
     await expect(box).toBeVisible({ timeout: 4_000 });
@@ -783,4 +786,37 @@ test("[GAME-32] now and then a flock of the world's bird flies through the view"
       intervals: [500],
     })
     .toBe(0);
+});
+
+test("[GAME-35][MAP-20] the fountain of the garden plays its animation, and with reduced motion it stands on its first frame", async ({
+  page,
+  context,
+}, testInfo) => {
+  test.skip(testInfo.project.name !== "desktop-chromium", "shared settings: one profile only");
+  await signInAsAdmin(page, context);
+  await enterGame(page);
+  await expect(page.getByTestId("game-canvas")).toBeVisible({ timeout: 20_000 });
+  // The church has no animated object; the garden has the fountain, which cycles through its three pictures.
+  expect((await gameState(page)).tileAnimation.objects).toBe(0);
+  await page.evaluate(() => window.__zappaloo?.game?.selectSpawn("garten", "start"));
+  await page.waitForFunction(() => window.__zappaloo?.game?.state()?.mapId === "garten");
+  expect((await gameState(page)).tileAnimation.objects).toBe(1);
+  const seen = new Set<number>();
+  await expect
+    .poll(
+      async () => {
+        for (const frame of (await gameState(page)).tileAnimation.frames) seen.add(frame);
+        return seen.size;
+      },
+      { timeout: 10_000, intervals: [50] },
+    )
+    .toBe(3);
+  await page.screenshot({ path: testInfo.outputPath("game-fountain.png") });
+
+  // A device that asks for reduced motion: the fountain is not animated and stands on its first picture.
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await page.goto("/game");
+  await expect(page.getByTestId("game-canvas")).toBeVisible({ timeout: 20_000 });
+  await page.waitForFunction(() => window.__zappaloo?.game?.state()?.mapId === "garten");
+  expect((await gameState(page)).tileAnimation).toEqual({ objects: 0, frames: [] });
 });

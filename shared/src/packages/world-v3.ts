@@ -27,6 +27,9 @@ const CHANGED: Record<string, Partial<RuleDefinition<WorldFindingCode>>> = {
   "map.properties": {
     text: "The properties of each object type are present and valid: a portal is a tile object whose tile has a `trigger` polygon or rectangle and names a map and a spawn point (both or neither), a clickable object's action comes with its property (`page`, `contentId` or `minigameId`). The map property `name`, if given, is the name the admin area shows: 1–60 characters. The map properties `clouds`, `birds` and `fog`, if given, are booleans: an effect is on unless it is set to `false` (an indoor map turns them off).",
   },
+  "map.tileset": {
+    text: "Tilesets are embedded. A sheet tileset has the tile width and height of the world and uses one image from `tilesets/`, a whole number of tiles; an image-collection tileset uses one PNG per tile, each from `tilesets/`, of any size, with the size stated in the tileset (the objects of a map, such as buildings or signs, are image collections). The tile ids do not overlap. Non-zero tile offsets are refused. A tileset used by tile objects must use bottom alignment. The animation of an image-collection tile is checked by `map.animation`.",
+  },
   "figure.unreferenced": {
     text: "Every PNG and metadata file in `avatar/` is named by a figure, through `figures.json` or its metadata; every PNG in `ambient/` is named by the metadata of the bird.",
   },
@@ -48,6 +51,17 @@ const BIRD_RULES: RuleDefinition<WorldFindingCode>[] = [
     requirements: ["MAP-20", "GAME-32"],
     text: `Every frame the bird's metadata lists is a PNG in \`ambient/bird/\` of exactly the canvas size, with a side of ${range(WORLD_LIMITS.figureFrameSide.min, WORLD_LIMITS.figureFrameSide.max)} pixels, named as the frames of a figure; each direction of the animation has the same number of frames, ${range(WORLD_LIMITS.flyFrames.min, WORLD_LIMITS.flyFrames.max)}. The frames are played at 8 frames per second.`,
     codes: ["bird_frame"],
+  },
+];
+
+const ANIMATION_RULES: RuleDefinition<WorldFindingCode>[] = [
+  {
+    id: "map.animation",
+    scope: "validator",
+    severity: "error",
+    requirements: ["MAP-20", "GAME-35"],
+    text: `The animation of an image-collection tile has ${range(WORLD_LIMITS.tileAnimationFrames.min, WORLD_LIMITS.tileAnimationFrames.max)} frames, each the id of a tile of the same tileset with a picture of exactly the size of the animated tile's own picture, and a duration of ${range(WORLD_LIMITS.tileAnimationDuration.min, WORLD_LIMITS.tileAnimationDuration.max)} milliseconds. The animation of a sheet tile is ignored.`,
+    codes: ["map_animation"],
   },
 ];
 
@@ -103,7 +117,11 @@ export const worldV3: PackageDefinition<WorldFindingCode> = {
     },
   ],
   layout: [...worldV2.layout.map(forV3), ...AMBIENT_LAYOUT],
-  rules: [...worldV2.rules.map((rule) => ({ ...rule, ...CHANGED[rule.id] })), ...BIRD_RULES],
+  rules: [
+    ...worldV2.rules.map((rule) => ({ ...rule, ...CHANGED[rule.id] })),
+    ...BIRD_RULES,
+    ...ANIMATION_RULES,
+  ],
   changes: [
     ...worldV2.changes,
     {

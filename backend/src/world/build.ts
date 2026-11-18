@@ -237,17 +237,32 @@ function sheet(firstgid: number, name: string, columns: number, rows: number) {
   };
 }
 
+/** How long a frame of the fountain shows in the test world, in milliseconds. */
+export const FOUNTAIN_FRAME_MS = 150;
+
 /**
  * The image-collection tileset `gebaeude`: one PNG per tile, with gaps in the tile ids. Tile 0 is a house
- * with a collision polygon, tile 3 a sign with a collision rectangle only.
+ * with a collision polygon, tile 3 a sign with a collision rectangle only. In format version 3, tile 6 is a fountain
+ * that plays the pictures of the tiles 6, 7 and 8 (GAME-35).
  */
-function collection(firstgid: number) {
+function collection(firstgid: number, version: TestWorldVersion) {
+  const fountain = (id: number, animation = false) => ({
+    id,
+    image: `../tilesets/gebaeude-brunnen-${String(id - 5)}.png`,
+    imagewidth: 32,
+    imageheight: 32,
+    ...(animation
+      ? {
+          animation: [6, 7, 8].map((tileid) => ({ tileid, duration: FOUNTAIN_FRAME_MS })),
+        }
+      : {}),
+  });
   return {
     firstgid,
     name: "gebaeude",
     objectalignment: "bottom",
     columns: 0,
-    tilecount: 2,
+    tilecount: version >= 3 ? 5 : 2,
     tilewidth: TILE_WIDTH,
     tileheight: TILE_HEIGHT,
     tiles: [
@@ -291,6 +306,7 @@ function collection(firstgid: number) {
           objects: [{ id: 1, name: "collision", x: 4, y: 40, width: 24, height: 8 }],
         },
       },
+      ...(version >= 3 ? [fountain(6, true), fountain(7), fountain(8)] : []),
     ],
   };
 }
@@ -346,7 +362,7 @@ function maps(version: TestWorldVersion): Record<string, unknown> {
       sheet(1, "boden", 4, 4),
       sheet(17, "dekor", 4, 2),
       sheet(25, "objekte", 3, 1),
-      collection(30),
+      collection(30, version),
       portals(),
     ],
     [
@@ -445,7 +461,7 @@ function maps(version: TestWorldVersion): Record<string, unknown> {
   const garten = tiledMap(
     14,
     10,
-    [sheet(1, "boden", 4, 4), sheet(17, "dekor", 4, 2), portals()],
+    [sheet(1, "boden", 4, 4), sheet(17, "dekor", 4, 2), collection(30, version), portals()],
     [
       tiledLayer(
         1,
@@ -487,6 +503,10 @@ function maps(version: TestWorldVersion): Record<string, unknown> {
           property("label", "Bank"),
         ]),
         tileObject(7, "", "decoration", { x: 96, y: 160, width: 64, height: 32 }, 17),
+        // The fountain plays its animation (format version 3 only, GAME-35).
+        ...(version >= 3
+          ? [tileObject(8, "", "decoration", { x: 224, y: 160, width: 32, height: 32 }, 36)]
+          : []),
       ]),
     ],
     [property("name", "Garten")],
@@ -674,6 +694,13 @@ export function testWorldFiles(version: TestWorldVersion = 3): Record<string, Bu
     "tilesets/gebaeude-haus.png": encodePng(128, 96, [0xb0, 0x6a, 0x4a]),
     "tilesets/gebaeude-schild.png": encodePng(32, 48, [0xf2, 0xd3, 0x8a]),
     "tilesets/portal.png": encodePng(64, 32, [0xe0, 0x4a, 0x9c]),
+    ...(version >= 3
+      ? {
+          "tilesets/gebaeude-brunnen-1.png": encodePng(32, 32, [0x4a, 0x90, 0xd9]),
+          "tilesets/gebaeude-brunnen-2.png": encodePng(32, 32, [0x7f, 0xb8, 0xee]),
+          "tilesets/gebaeude-brunnen-3.png": encodePng(32, 32, [0xb4, 0xd8, 0xf7]),
+        }
+      : {}),
     "avatar/figures.json": json({
       figures: [
         {

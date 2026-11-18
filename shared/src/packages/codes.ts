@@ -42,6 +42,8 @@ export const WORLD_FINDING_CODES = [
   // The bird of format version 3
   "bird_metadata",
   "bird_frame",
+  // The tile animations of format version 3
+  "map_animation",
   // Warnings of the package
   "property_unknown",
   "map_collision",

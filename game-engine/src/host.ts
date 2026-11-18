@@ -50,6 +50,8 @@ export interface GameState {
   guests: GuestState[];
   /** The effects of the map: whether it has fog, how many cloud shadows and how many birds are there (test hook, GAME-31 – GAME-34). */
   atmosphere: { fog: boolean; clouds: number; birds: number };
+  /** The animated tile objects of this map and the frame each shows now (test hook, GAME-35). */
+  tileAnimation: { objects: number; frames: number[] };
 }
 
 export type GameStateReader = () => GameState;

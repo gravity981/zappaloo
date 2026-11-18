@@ -25,6 +25,7 @@ declare global {
                 pinned: boolean;
               }[];
               atmosphere: { fog: boolean; clouds: number; birds: number };
+              tileAnimation: { objects: number; frames: number[] };
             }
           | undefined;
         renderStack: () => { type: string; depth: number }[];

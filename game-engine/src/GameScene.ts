@@ -7,6 +7,7 @@ import { walkable, cellOf, playerCollisionEllipse } from "./collision.ts";
 import { walkFrameIndex } from "./figures.ts";
 import { Atmosphere } from "./atmosphere.ts";
 import { atmospherePlan, prefersReducedMotion } from "./atmosphere-plan.ts";
+import { TileAnimations, type AnimatedPicture } from "./tile-animation.ts";
 import { GuestCrowd } from "./guest-crowd.ts";
 import type { GuestFigure } from "@zappaloo/shared";
 import { figureDepth, figureOcclusionSegment, occlusionSegmentRelation } from "./draw-order.ts";
@@ -207,6 +208,7 @@ export class WorldScene extends Phaser.Scene {
   #crowd: GuestCrowd | undefined;
   /** The fog, the cloud shadows and the birds of the map (GAME-31 – GAME-34). */
   #atmosphere: Atmosphere | undefined;
+  #tileAnimations: TileAnimations | undefined;
   #guests: readonly GuestFigure[] = [];
   /** The edge indicators over the canvas and the objects they may point to (GAME-26). */
   #indicatorLayer: EdgeIndicatorLayer | undefined;
@@ -272,6 +274,7 @@ export class WorldScene extends Phaser.Scene {
     this.#shadow = undefined;
     this.#crowd = undefined;
     this.#atmosphere = undefined;
+    this.#tileAnimations = undefined;
     this.#guests = options.guests ?? [];
     this.#indicatorLayer?.destroy();
     this.#indicatorLayer = undefined;
@@ -302,6 +305,7 @@ export class WorldScene extends Phaser.Scene {
     // ratio (the window moves to another screen) changes the zoom itself.
     this.scale.on(Phaser.Scale.Events.RESIZE, this.#onResize);
     this.#drawMap(map);
+    this.#tileAnimations = this.#animateObjects(map);
     // The guides lie above every layer, the foreground ones included (MAP-18).
     this.#guideGraphics = this.add.graphics().setDepth(2_000_000);
     this.#occlusionGraphics = this.add.graphics().setDepth(2_000_001);
@@ -398,6 +402,10 @@ export class WorldScene extends Phaser.Scene {
         glows: this.#glows.size,
         guests: this.#crowd?.states ?? [],
         atmosphere: this.#atmosphere?.state ?? { fog: false, clouds: 0, birds: 0 },
+        tileAnimation: {
+          objects: this.#tileAnimations?.count ?? 0,
+          frames: [...(this.#tileAnimations?.shown ?? [])],
+        },
         entries: (this.game.registry.get(ENTRIES_REGISTRY_KEY) as number | undefined) ?? 0,
         view: {
           // In CSS pixels, whatever the pixel ratio of the canvas is.
@@ -784,6 +792,7 @@ export class WorldScene extends Phaser.Scene {
     // The guest figures and their bubbles, with the camera of this frame (PRES-10).
     this.#crowd?.update(delta, this.#position);
     this.#atmosphere?.update(delta);
+    this.#tileAnimations?.update(delta);
     player.setDepth(figureDepth(this.#position, map.occluders, map.size.width));
     this.#placeShadow(map, player);
     this.#drawOcclusionActor();
@@ -820,6 +829,19 @@ export class WorldScene extends Phaser.Scene {
         if (draw.objectId !== undefined) this.#objectSprites.set(draw.objectId, picture);
       }
     }
+  }
+
+  /** The tile objects with an animation play it (GAME-35); with reduced motion they stay on their first frame. */
+  #animateObjects(map: ParsedMap): TileAnimations {
+    const pictures: AnimatedPicture[] = [];
+    for (const draw of map.objects) {
+      const frames = draw.image.animation;
+      const picture =
+        draw.objectId === undefined ? undefined : this.#objectSprites.get(draw.objectId);
+      if (frames === undefined || picture === undefined) continue;
+      pictures.push({ frames, show: (key) => void picture.setTexture(key) });
+    }
+    return new TileAnimations(pictures, prefersReducedMotion());
   }
 
   /** Use Phaser's native isometric renderer for sheet and image-collection tile layers. */

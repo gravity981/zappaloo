@@ -474,8 +474,8 @@ describe("the maps: format and layers (MAP-02, MAP-06)", () => {
     expectRefused(files, "map_object");
   });
 
-  it("[MAP-06][GAME-20] refuses animated tiles", () => {
-    const files = edit(world(), "maps/kirche.json", (m) => {
+  it("[MAP-06][GAME-20] format version 2 refuses animated tiles", () => {
+    const files = edit(testWorldFiles(2), "maps/kirche.json", (m) => {
       tileAt(tilesetNamed(m, "gebaeude"), 0).animation = [
         {
           tileid: 0,
@@ -1506,5 +1506,71 @@ describe("format version 3: the bird and the map switches (MAP-20, GAME-32, GAME
     });
     expectRefused(seat, "map_object");
     expectAccepted(testWorldFiles(2));
+  });
+});
+
+describe("format version 3: tile animations (MAP-20, GAME-35)", () => {
+  /** The animated tile of the test world's collection `gebaeude`: the fountain, tile 6 (third in the list). */
+  const FOUNTAIN = 2;
+  const changeFountain = (change: (tile: Json) => void, path = "maps/kirche.json"): Files =>
+    edit(world(), path, (m) => {
+      change(tileAt(tilesetNamed(m, "gebaeude"), FOUNTAIN));
+    });
+
+  it("[GAME-35][MAP-20] accepts the fountain: an image-collection tile with frames of the same tileset", () => {
+    const map = read(world(), "maps/garten.json");
+    const fountain = tileAt(tilesetNamed(map, "gebaeude"), FOUNTAIN);
+    expect((fountain.animation as Json[]).map((frame) => frame.tileid)).toEqual([6, 7, 8]);
+    expectAccepted(world());
+  });
+
+  it("[GAME-35][MAP-20] refuses an animation without frames or with more than 32", () => {
+    const none = changeFountain((tile) => {
+      tile.animation = [];
+    });
+    expectRefused(none, "map_animation");
+    const many = changeFountain((tile) => {
+      tile.animation = Array.from({ length: 33 }, () => ({ tileid: 6, duration: 100 }));
+    });
+    expectRefused(many, "map_animation");
+  });
+
+  it("[GAME-35][MAP-20] refuses a frame that is no tile with a picture of the tileset", () => {
+    const files = changeFountain((tile) => {
+      tile.animation = [
+        { tileid: 6, duration: 100 },
+        { tileid: 99, duration: 100 },
+      ];
+    });
+    const findings = expectRefused(files, "map_animation");
+    expect(findings.some((finding) => finding.detail.includes("99"))).toBe(true);
+  });
+
+  it("[GAME-35][MAP-20] refuses a frame whose picture has another size than the tile's", () => {
+    const files = edit(world(), "maps/kirche.json", (m) => {
+      tileAt(tilesetNamed(m, "gebaeude"), 3).imageheight = 16;
+    });
+    files["tilesets/gebaeude-brunnen-2.png"] = encodePng(32, 16, [0x7f, 0xb8, 0xee]);
+    const findings = expectRefused(files, "map_animation");
+    expect(findings.some((finding) => finding.detail.includes("32 x 16"))).toBe(true);
+  });
+
+  it("[GAME-35][MAP-20] refuses a frame shorter than 20 or longer than 10 000 milliseconds", () => {
+    for (const duration of [10, 10_001]) {
+      const files = changeFountain((tile) => {
+        tile.animation = [
+          { tileid: 6, duration },
+          { tileid: 7, duration: 100 },
+        ];
+      });
+      expectRefused(files, "map_animation");
+    }
+  });
+
+  it("[GAME-35][MAP-20] ignores the animation of a sheet tile, like the other data of a sheet tile", () => {
+    const files = edit(world(), "maps/garten.json", (m) => {
+      tilesetNamed(m, "boden").tiles = [{ id: 0, animation: [{ tileid: 1, duration: 100 }] }];
+    });
+    expectAccepted(files);
   });
 });

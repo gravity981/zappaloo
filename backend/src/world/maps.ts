@@ -415,7 +415,9 @@ export function checkMap(id: string, bytes: Buffer, context: MapContext): MapRes
         }
         continue;
       }
-      if (tile.animation !== undefined && tile.animation.length > 0) {
+      if (tile.animation !== undefined && (context.formatVersion ?? 2) >= 3) {
+        checkTileAnimation(tile, tileset, file, findings);
+      } else if (tile.animation !== undefined && tile.animation.length > 0) {
         findings.push(
           errorFinding(
             file,
@@ -759,6 +761,77 @@ interface TileGuides {
   blocks: boolean;
   /** A `trigger` guide: the tile is a portal, and the polygon is its trigger area. */
   trigger: boolean;
+}
+
+/** The size a tile of an image-collection tileset declares for its picture. */
+function tileImageSize(tile: TiledTile, tileset: TiledTileset): { width: number; height: number } {
+  return {
+    width: tile.imagewidth ?? tileset.tilewidth,
+    height: tile.imageheight ?? tileset.tileheight,
+  };
+}
+
+/**
+ * The animation of an image-collection tile (format version 3, GAME-35): 1 to 32 frames, each a tile of the same
+ * tileset with a picture of the animated tile's own size, and a duration per frame.
+ */
+function checkTileAnimation(
+  tile: TiledTile,
+  tileset: TiledTileset,
+  file: string,
+  findings: WorldFinding[],
+): void {
+  const frames = tile.animation ?? [];
+  const where = `${tileset.name} tile ${String(tile.id)}`;
+  const { tileAnimationFrames: count, tileAnimationDuration: duration } = WORLD_LIMITS;
+  if (frames.length < count.min || frames.length > count.max) {
+    findings.push(
+      errorFinding(
+        file,
+        "map_animation",
+        `a tile animation has ${String(count.min)} to ${String(count.max)} frames, not ${String(frames.length)}`,
+        where,
+      ),
+    );
+    return;
+  }
+  const own = tileImageSize(tile, tileset);
+  const byId = new Map((tileset.tiles ?? []).map((item) => [item.id, item]));
+  for (const frame of frames) {
+    if (frame.duration < duration.min || frame.duration > duration.max) {
+      findings.push(
+        errorFinding(
+          file,
+          "map_animation",
+          `a frame lasts ${String(duration.min)} to ${String(duration.max)} milliseconds, not ${String(frame.duration)}`,
+          where,
+        ),
+      );
+    }
+    const target = byId.get(frame.tileid);
+    if (target?.image === undefined) {
+      findings.push(
+        errorFinding(
+          file,
+          "map_animation",
+          `the frame ${String(frame.tileid)} is no tile with a picture of the tileset`,
+          where,
+        ),
+      );
+      continue;
+    }
+    const size = tileImageSize(target, tileset);
+    if (size.width !== own.width || size.height !== own.height) {
+      findings.push(
+        errorFinding(
+          file,
+          "map_animation",
+          `the frame ${String(frame.tileid)} is ${String(size.width)} x ${String(size.height)} pixels, the tile ${String(own.width)} x ${String(own.height)}`,
+          where,
+        ),
+      );
+    }
+  }
 }
 
 function checkTileGuides(
