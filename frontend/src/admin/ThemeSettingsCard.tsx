@@ -5,6 +5,7 @@ import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { themeRefusalSchema, themeStatusSchema } from "@zappaloo/shared";
 import type { ThemeFinding } from "@zappaloo/shared";
+import { refreshSite } from "../guest/site.ts";
 import { apiRequest } from "../app/api.ts";
 import { useSession } from "../app/session.ts";
 import { useEventFormat } from "../rsvp/format.ts";
@@ -69,6 +70,8 @@ export default function ThemeSettingsCard() {
     if (result.ok) {
       setSaved(t("admin.theme.imported"));
       reload();
+      // The website and the guest pages carry the theme from `GET /api/site`: read it again now.
+      void refreshSite();
       return;
     }
     const refusal = themeRefusalSchema.safeParse(result.body);
@@ -90,6 +93,7 @@ export default function ThemeSettingsCard() {
     if (result.ok) {
       setSaved(t("admin.theme.reset"));
       reload();
+      void refreshSite();
     } else {
       setError(errorText(result.errorCode));
     }
