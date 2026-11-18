@@ -630,7 +630,7 @@ const field = (label, input, hint = "") => `<label class="m-field"><span>${label
 const inp = (id, val = "", attrs = "") => `<input class="m-input" id="${id}" value="${val}" ${attrs}>`;
 const area = (id, val = "", attrs = "") => `<textarea class="m-input" id="${id}" ${attrs}>${val}</textarea>`;
 const sw = (on = false) => `<button type="button" class="m-switch ${on ? "on" : ""}" data-switch aria-label="Schalter"></button>`;
-const holdBtn = (text) => `<button class="m-btn soft sm hold"><span class="m-hold-fill"></span><span class="m-hold-label">${text}</span></button><span class="m-hint">Halte den Knopf vier Sekunden gedrückt.</span>`;
+const holdBtn = (text, cls = "m-btn soft sm") => `<button class="${cls} hold"><span class="m-hold-fill"></span><span class="m-hold-label">${text}</span></button>`;
 const qr = () => `<div class="m-qr"><canvas data-qr width="25" height="25"></canvas></div>`;
 
 const EVENT = { couple: "Lea & Jonas", date: "Sa, 12. Juni 2027" };
@@ -643,7 +643,12 @@ const PROGRAM_ITEMS = [
   ["Party", [["22:00", "Party", "Linde, Saal"]]],
 ];
 const ACTIVITIES = PROGRAM_ITEMS.flatMap(([item, acts]) => acts.map(([t, n, pl, e]) => ({ item, t, n, pl, e }))).sort((a, b) => a.t.localeCompare(b.t));
-const MENUS = ["Fleisch", "Vegetarisch", "Vegan", "Kindermenü"]; // one list for everyone, asked for the meal program item only (Q51)
+const MENUS = ["Fleisch", "Vegetarisch", "Vegan"]; // the adults' list, asked for the meal program item only (Q51)
+const KID_MENUS = ["Kindermenü", "Pasta"]; // the children's list (epic 5.4, RSVP-19)
+// Kürzel (RSVP-23): optional, 1 – 2 characters, default the first letter; table cells show them, the tooltip the full name
+const CODES = { Trauung: "T", Apéro: "A", Dinner: "D", Party: "P", Fleisch: "F", Vegetarisch: "Vt", Vegan: "Vg", Kindermenü: "K", Pasta: "Pa", Erwachsen: "E", Kind: "K" };
+const sf = (name) => `<abbr title="${name}" style="text-decoration:none;cursor:help">${CODES[name] || name}</abbr>`;
+const sfs = (names) => (names.length ? names.map(sf).join(" ") : "–");
 const HOW = ["Familie Braut", "Familie Bräutigam", "Freunde Braut", "Freunde Bräutigam", "Freunde beider", "Arbeit"];
 
 /* ---------- shells ---------- */
@@ -676,7 +681,7 @@ function flow(title, step, total, body, foot, closeTo = "waiting") {
     ${foot ? `<div class="m-flowfoot"><div class="m-flowfoot-in">${foot}</div></div>` : ""}
   </div>`;
 }
-const ANAV = [["admin-home", "Übersicht"], ["admin-invitations", "Einladungen"], ["admin-users", "Konten & Rollen"], ["admin-rsvp", "Rückmeldungen", 3], ["admin-seating", "Sitzplan"], ["admin-content", "Inhalte"], ["admin-world", "Erlebniswelt"], ["moderation", "Moderation", 12], ["admin-settings", "Einstellungen"]];
+const ANAV = [["admin-home", "Übersicht"], ["admin-invitations", "Einladungen"], ["admin-users", "Konten & Rollen"], ["admin-rsvp", "Anmeldungen", 3], ["admin-seating", "Sitzplan"], ["admin-content", "Inhalte"], ["admin-world", "Erlebniswelt"], ["moderation", "Moderation", 12], ["admin-settings", "Einstellungen"]];
 function admin(active, body) {
   return `<div class="m-admin">
     <header class="m-ahead"><b>Verwaltung</b><span class="m-tag">Plattform geschlossen</span><a data-go="home">Zur Website</a></header>
@@ -756,12 +761,12 @@ add({
     <div class="m-field"><span>Einladungscode</span><div class="m-otp" data-otp>${["K", "7", "Q", "M", "", ""].map((c, i) => `<input class="m-input" value="${c}" maxlength="1" inputmode="text" autocomplete="${i ? "off" : "one-time-code"}" autocapitalize="characters" aria-label="Zeichen ${i + 1} von 6">`).join("")}</div><small class="m-hint">6 Zeichen. Einfügen füllt alle Felder auf einmal.</small></div>
     <button class="m-btn block" data-go="invite-register">Weiter</button>
     <p class="m-hint">Tipp: Scanne den QR-Code auf der Karte – dann ist der Code schon ausgefüllt.</p>
-    <hr class="m-hr"><p class="sm">Schon ein Konto? <a data-go="login">Anmelden</a></p>`),
+    <hr class="m-hr"><p class="sm">Schon ein Konto? <a data-go="login">Einloggen</a></p>`),
 });
 add({
   id: "invite-register", group: "access", title: "Redeem & create account", path: "/invite/K7QMX4", reqs: ["INV-07", "INV-03", "INV-04", "INV-06", "ACC-01", "ACC-07", "ACC-09"],
   variants: [["ok", "Valid code"], ["merge", "Signed in, no vip"], ["redeemed", "Already redeemed"], ["expired", "Expired / revoked"]],
-  shows: ["Registering activates the account that was created with the invitation (ACC-17, decided 2026-11-12): the guest was on the guest list already, now username, password and the optional email are set.", "Signed in to an account without vip (variant): “Diese Einladung für «Gastname» zu deinem Konto «Benutzername» hinzufügen?” with “Nicht du? Abmelden”. Confirming merges the invited person's entry (program items, RSVP, companions, groups) into the signed-in account.", "Guest name from the invitation greets the guest and pre-fills the display name.", "Username (login, unchangeable, suggested from the guest name), password (≥ 10 chars), optional email (for news and password reset, verified later in the profile).", "Signed-in user without vip: same screen shows only “Einladung einlösen” (ACC-07).", "Error states for redeemed / expired / revoked / replaced codes."],
+  shows: ["Landing (RSVP-24, decided 2026-11-18, epic 5.4): “Konto anlegen” and “Zu meinem Konto hinzufügen” lead a guest who has not answered yet straight to the Anmeldung (/rsvp) while it is open, whether the platform is closed or open; “Weiter” after the summary goes to the start (waiting page, game or website). A guest who has answered, or whose deadline is over, goes to the start as before.", "Registering activates the account that was created with the invitation (ACC-17, decided 2026-11-12): the guest was on the guest list already, now username, password and the optional email are set.", "Signed in to an account without vip (variant): “Diese Einladung für «Gastname» zu deinem Konto «Benutzername» hinzufügen?” with “Nicht du? Ausloggen”. Confirming merges the invited person's entry (program items, RSVP, companions, groups) into the signed-in account.", "Guest name from the invitation greets the guest and pre-fills the display name.", "Username (login, unchangeable, suggested from the guest name), password (≥ 10 chars), optional email (for news and password reset, verified later in the profile).", "Signed-in user without vip: same screen shows only “Einladung einlösen” (ACC-07).", "Error states for redeemed / expired / revoked / replaced codes."],
   qs: [
     { q: "Offer the (optional) email field already at registration?", p: "Mock: yes, optional, with the hint that it only serves “Passwort vergessen” and is verified later in the profile." },
     { q: "Suggest a username from the guest name (erika.huber)?", p: "Mock: pre-filled suggestion, editable." },
@@ -772,26 +777,26 @@ add({
         ? ["Diese Einladung wurde schon eingelöst.", "Wenn du das warst: melde dich einfach an. Sonst melde dich bei Lea & Jonas – sie schicken dir eine neue Karte."]
         : ["Diese Einladung ist nicht mehr gültig.", "Der Code ist abgelaufen oder wurde ersetzt. Melde dich bei Lea & Jonas, dann bekommst du einen neuen."];
       return bare(`<div class="m-card flat" style="align-items:center;text-align:center;gap:12px;padding:28px 18px"><div class="m-av lg">${ic("mail")}</div><h1 class="m-h1" style="font-size:20px">${t[0]}</h1><p class="m-muted">${t[1]}</p></div>
-        <button class="m-btn block" data-go="login">Anmelden</button><button class="m-btn ghost block" data-go="invite-code">Anderen Code eingeben</button>`);
+        <button class="m-btn block" data-go="login">Einloggen</button><button class="m-btn ghost block" data-go="invite-code">Anderen Code eingeben</button>`);
     }
     if (v === "merge") {
       return bare(`
         <div class="m-card flat" style="flex-direction:row;align-items:center;gap:12px"><div class="m-av">${ic("mail")}</div><div class="m-stack" style="gap:0"><span class="m-eyebrow">Persönliche Einladung</span><b>Erika Huber</b></div><span class="m-tag line" style="margin-left:auto;font-family:ui-monospace,monospace">K7QMX4</span></div>
         <h1 class="m-h1">Schön, dass du da bist, Erika!</h1>
         <p class="m-muted">Diese Einladung für «Erika Huber» zu deinem Konto «helper» hinzufügen?</p>
-        <button class="m-btn block" data-go="waiting">Zu meinem Konto hinzufügen</button>
-        <p class="sm">Nicht du? <a data-go="login">Abmelden</a></p>`);
+        <button class="m-btn block" data-go="rsvp-parts">Zu meinem Konto hinzufügen</button>
+        <p class="sm">Nicht du? <a data-go="login">Ausloggen</a></p>`);
     }
     return bare(`
       <div class="m-card flat" style="flex-direction:row;align-items:center;gap:12px"><div class="m-av">${ic("mail")}</div><div class="m-stack" style="gap:0"><span class="m-eyebrow">Persönliche Einladung</span><b>Erika Huber</b></div><span class="m-tag line" style="margin-left:auto;font-family:ui-monospace,monospace">K7QMX4</span></div>
       <h1 class="m-h1">Schön, dass du da bist, Erika!</h1>
       <p class="m-muted">Lege dein Konto an. Damit kommst du auch später wieder hinein.</p>
       ${field("Anzeigename", inp("reg-display", "Erika Huber", 'type="text" name="display-name" autocomplete="name"'), "So sehen dich die anderen Gäste.")}
-      ${field("Benutzername", inp("reg-user", "erika.huber", 'type="text" name="username" autocomplete="username" autocapitalize="none" spellcheck="false"'), "Zum Anmelden. Lässt sich später nicht ändern.")}
+      ${field("Benutzername", inp("reg-user", "erika.huber", 'type="text" name="username" autocomplete="username" autocapitalize="none" spellcheck="false"'), "Zum Einloggen. Lässt sich später nicht ändern.")}
       ${field("Passwort", inp("reg-pw", "", 'type="password" name="new-password" autocomplete="new-password" placeholder="Mindestens 10 Zeichen"'), "Mindestens 10 Zeichen.")}
       ${field("E-Mail (optional)", inp("reg-mail", "", 'type="email" name="email" autocomplete="email" placeholder="du@beispiel.ch"'), "Für Nachrichten zum Fest und «Passwort vergessen». Bestätigen kannst du sie später im Profil.")}
-      <button class="m-btn block" data-go="waiting">Konto anlegen</button>
-      <hr class="m-hr"><p class="sm">Du hast schon ein Konto? <a data-go="login">Anmelden und Einladung einlösen</a></p>`);
+      <button class="m-btn block" data-go="rsvp-parts">Konto anlegen</button>
+      <hr class="m-hr"><p class="sm">Du hast schon ein Konto? <a data-go="login">Einloggen und Einladung einlösen</a></p>`);
   },
 });
 add({
@@ -803,10 +808,10 @@ add({
     { n: 45, q: "Is the email also required for accounts an admin creates (e.g. a grandparent without email)?", p: "Proposal: required when redeeming an invitation, optional when an admin creates the account." },
   ],
   render: () => bare(`
-    <h1 class="m-h1">Anmelden</h1>
+    <h1 class="m-h1">Einloggen</h1>
     ${field("Benutzername oder E-Mail", inp("li-user", "erika.huber", 'type="text" name="username" autocomplete="username" autocapitalize="none" spellcheck="false"'), "E-Mail nur, wenn du sie im Profil bestätigt hast.")}
     ${field("Passwort", inp("li-pw", "", 'type="password" name="password" autocomplete="current-password" placeholder="Passwort"'))}
-    <button class="m-btn block" data-go="waiting">Anmelden</button>
+    <button class="m-btn block" data-go="waiting">Einloggen</button>
     <a class="sm" data-go="forgot">Passwort vergessen?</a>
     <hr class="m-hr">
     <div class="m-card flat"><b>Noch kein Konto?</b><span class="m-muted sm">Du brauchst deine Einladungskarte.</span><button class="m-btn ghost sm" data-go="invite-code" style="align-self:flex-start">Einladung einlösen</button></div>
@@ -822,13 +827,13 @@ add({
     <h1 class="m-h1" style="text-align:center">Schau in dein Postfach</h1>
     <p class="m-muted" style="text-align:center">Wenn zu diesem Konto eine bestätigte E-Mail-Adresse gehört, ist ein Link unterwegs. Er gilt 24 Stunden.</p>
     <div class="m-card flat sm"><b>Keine E-Mail bekommen?</b>Dann ist keine bestätigte Adresse hinterlegt. Frag Lea & Jonas – sie können dir einen Link zum Zurücksetzen geben.</div>
-    <button class="m-btn ghost block" data-go="login">Zurück zur Anmeldung</button>` : `
+    <button class="m-btn ghost block" data-go="login">Zurück zum Einloggen</button>` : `
     <h1 class="m-h1">Passwort vergessen</h1>
     <p class="m-muted">Wir schicken dir einen Link, mit dem du ein neues Passwort setzt.</p>
     ${field("Benutzername oder E-Mail", inp("fp-id", "erika.huber"))}
     <button class="m-btn block" data-go="forgot" data-variant="sent">Link anfordern</button>
     <p class="m-hint">Klappt nur mit einer bestätigten E-Mail-Adresse.</p>
-    <a class="sm" data-go="login">Zurück zur Anmeldung</a>`),
+    <a class="sm" data-go="login">Zurück zum Einloggen</a>`),
 });
 add({
   id: "set-password", group: "access", title: "Set password (setup / reset link)", path: "/set-password/<token>", reqs: ["ACC-14", "ACC-15", "ACC-10", "ACC-03", "ACC-08"],
@@ -839,15 +844,15 @@ add({
     if (v === "done") return bare(`
       <div class="m-check" style="align-self:center">${ic("check")}</div>
       <h1 class="m-h1" style="text-align:center">Passwort gespeichert</h1>
-      <p class="m-muted" style="text-align:center">Du kannst dich jetzt anmelden. Auf anderen Geräten musst du dich neu anmelden.</p>
-      <button class="m-btn block" data-go="login">Zur Anmeldung</button>`);
+      <p class="m-muted" style="text-align:center">Du kannst dich jetzt einloggen. Auf anderen Geräten musst du dich neu einloggen.</p>
+      <button class="m-btn block" data-go="login">Zum Einloggen</button>`);
     if (v === "invalid") return bare(`
       <div class="m-card flat" style="align-items:center;text-align:center;gap:12px;padding:28px 18px"><div class="m-av lg">${ic("mail")}</div><h1 class="m-h1" style="font-size:20px">Dieser Link ist nicht mehr gültig.</h1><p class="m-muted">Er ist abgelaufen oder wurde schon benutzt. Melde dich bei den Gastgebern, dann bekommst du einen neuen.</p></div>
-      <button class="m-btn block" data-go="login">Zur Anmeldung</button>`);
+      <button class="m-btn block" data-go="login">Zum Einloggen</button>`);
     const reset = v === "reset";
     return bare(`
       <h1 class="m-h1">${reset ? "Neues Passwort festlegen" : "Willkommen! Lege dein Passwort fest"}</h1>
-      <p class="m-muted">${reset ? "Mit dem neuen Passwort meldest du dich ab jetzt an." : "Damit meldest du dich ab jetzt an. Dein Benutzername: erika.huber"}</p>
+      <p class="m-muted">${reset ? "Mit dem neuen Passwort loggst du dich ab jetzt ein." : "Damit loggst du dich ab jetzt ein. Dein Benutzername: erika.huber"}</p>
       ${field("Passwort", `<div class="m-row2"><input class="m-input" id="sp-pw" type="password" autocomplete="new-password" placeholder="Mindestens 10 Zeichen" style="flex:1"><button class="m-btn ghost sm">Anzeigen</button></div>`, "Mindestens 10 Zeichen. Nicht gleich wie dein Benutzername.")}
       <button class="m-btn block" data-go="set-password" data-variant="done">Passwort speichern</button>`);
   },
@@ -861,7 +866,7 @@ add({
     if (v === "done") return bare(`
       <div class="m-check" style="align-self:center">${ic("check")}</div>
       <h1 class="m-h1" style="text-align:center">Adresse bestätigt</h1>
-      <p class="m-muted" style="text-align:center">Danke! Mit dieser Adresse kannst du dich anmelden und dein Passwort per E-Mail zurücksetzen.</p>
+      <p class="m-muted" style="text-align:center">Danke! Mit dieser Adresse kannst du dich einloggen und dein Passwort per E-Mail zurücksetzen.</p>
       <button class="m-btn block" data-go="profile">Zum Profil</button>`);
     if (v === "invalid" || v === "taken") return bare(`
       <div class="m-card flat" style="align-items:center;text-align:center;gap:12px;padding:28px 18px"><div class="m-av lg">${ic("mail")}</div><h1 class="m-h1" style="font-size:20px">${v === "taken" ? "Diese Adresse ist schon vergeben." : "Dieser Link ist nicht mehr gültig."}</h1><p class="m-muted">${v === "taken" ? "Sie ist bei einem anderen Konto bestätigt. Trage im Profil eine andere Adresse ein." : "Er ist abgelaufen, wurde schon benutzt oder die Adresse hat sich geändert. Fordere im Profil einen neuen Link an."}</p></div>
@@ -891,7 +896,7 @@ add({
       <p>Diese Seite gehört zum Fest von ${EVENT.couple}. Wir speichern nur, was wir dafür brauchen.</p>
       <h2>Was wir speichern</h2>
       <ul><li>Dein Konto: Benutzername, Anzeigename, Passwort (nur verschlüsselt) und deine E-Mail-Adresse, falls du sie angibst.</li>
-      <li>Deine Rückmeldung: Teilnahme, Menü, Songwunsch und deine Begleitpersonen.</li>
+      <li>Deine Anmeldung: Teilnahme, Menü, Songwunsch und deine Begleitpersonen.</li>
       <li>Allergien und Unverträglichkeiten. Das sind Gesundheitsdaten: Nur das Organisationsteam sieht sie.</li></ul>
       <h2>Löschen</h2>
       <p>Du kannst dein Konto jederzeit im Profil löschen. Nach dem Fest löschen wir alle Daten.</p>
@@ -922,10 +927,10 @@ add({
 add({
   id: "waiting", group: "access", title: "Waiting page", path: "/ (platform closed)", reqs: ["ACS-10", "ACS-11", "ACS-12", "ACS-13"],
   variants: [["open", "RSVP open"], ["yes", "Attending"], ["no", "Declined"], ["app", "Install hint"]],
-  shows: ["Install hint (variant “Install hint”, step 3.5c, proposed 2026-11-11): a slim strip under the top bar, only in a mobile browser and never in the installed app. “So geht's” opens the install screen, × hides it on this device.", "Full-screen door scene (placeholder pixel art): tap the door gap for a bigger glimpse.", "Top bar: the event name, Profil and Abmelden. A Datenschutz link under the button.", "Text by RSVP status with {name}, {waitingCount}, {openingDate}.", "Countdown only when the admin switched it on in Einstellungen (separate from the opening date). It disappears at zero, the text stays (ACS-13, decided 2026-11-11).", "Button: “Rückmeldung geben” or “Rückmeldung ändern”."],
+  shows: ["Install hint (variant “Install hint”, step 3.5c, proposed 2026-11-11): a slim strip under the top bar, only in a mobile browser and never in the installed app. “So geht's” opens the install screen, × hides it on this device.", "Full-screen door scene (placeholder pixel art): tap the door gap for a bigger glimpse.", "Top bar: the event name, Profil and Ausloggen. A Datenschutz link under the button.", "Text by RSVP status with {name}, {waitingCount}, {openingDate}.", "Countdown only when the admin switched it on in Einstellungen (separate from the opening date). It disappears at zero, the text stays (ACS-13, decided 2026-11-11).", "Button: “Jetzt anmelden” or “Anmeldung ändern”. A guest who has not answered yet does not see this page first: right after redeeming the invitation they land on the Anmeldung (RSVP-24, epic 5.4)."],
   qs: [
     { n: 49, q: "Should the countdown be optional, independent of the opening date?", p: "Proposal: a switch “Countdown auf der Warteseite zeigen” next to the opening date, default off. The countdown disappears at zero." },
-    { q: "What else is reachable from the waiting page?", p: "Mock: a small top-right menu with Profil and Abmelden. No website, no gallery." },
+    { q: "What else is reachable from the waiting page?", p: "Mock: a small top-right menu with Profil and Ausloggen. No website, no gallery." },
     { q: "Show a teaser of the programme or the date/venue on the waiting page?", p: "Mock: no, only the date in the header, so the page stays a teaser." },
   ],
   render: (v) => {
@@ -937,12 +942,12 @@ add({
     }[v];
     return `<div class="m-wait" data-door>
       <canvas></canvas>
-      <div class="m-wait-top"><b>${EVENT.couple}</b><span class="m-row2"><button data-go="profile">Profil</button><button data-go="login">Abmelden</button></span></div>
+      <div class="m-wait-top"><b>${EVENT.couple}</b><span class="m-row2"><button data-go="profile">Profil</button><button data-go="login">Ausloggen</button></span></div>
       ${v === "app" ? `<div class="m-wait-hint"><span>Zappaloo als App auf dem Startbildschirm? <a data-go="install">So geht's</a></span><button aria-label="Ausblenden">${ic("x")}</button></div>` : ""}
       <div class="m-wait-card">
         <div class="m-count" data-countdown><div><b>12</b><small>Tage</small></div><div><b>04</b><small>Std</small></div><div><b>31</b><small>Min</small></div><div><b>09</b><small>Sek</small></div></div>
         <p>${txt}</p>
-        <button class="m-btn block" data-go="${v === "open" || v === "app" ? "rsvp-parts" : "rsvp-done"}">${v === "open" || v === "app" ? "Rückmeldung geben" : "Rückmeldung ändern"}</button>
+        <button class="m-btn block" data-go="${v === "open" || v === "app" ? "rsvp-parts" : "rsvp-done"}">${v === "open" || v === "app" ? "Jetzt anmelden" : "Anmeldung ändern"}</button>
         <a class="sm" style="text-align:center;opacity:.75" data-go="privacy">Datenschutz</a>
       </div>
     </div>`;
@@ -951,17 +956,17 @@ add({
 add({
   id: "rsvp-parts", group: "access", title: "RSVP 1 · Attendance", path: "/rsvp", reqs: ["RSVP-01", "RSVP-02", "RSVP-04", "RSVP-11"],
   variants: [["one", "One answer (default)"], ["per", "Per program item"]],
-  shows: ["One answer (RSVP-11, decided 2026-11-12, the default): “Ja” / “Nein” once per person, with the program items the invitation covers listed below it. A program item added later takes the answer. With the switch “Pro Programmpunkt zusagen” on (variant), yes/no per program item as before.", "Only the program items this invitation covers. Each lists its activities with their start times in a small line below its name, in both variants: with one answer for all the list below the yes / no reads “Name – activities”, one line per program item (epic 5.3).", "Approved companions get their own yes/no block below the guest's (step 3b, decided 2026-11-11).", "Deadline shown up front.", "Declining every part skips straight to the summary.", "Opened by an admin from Rückmeldungen, the same wizard runs in admin mode, also after the deadline."],
+  shows: ["One answer (RSVP-11, decided 2026-11-12, the default): “Ja” / “Nein” once per person, with the program items the invitation covers listed below it. A program item added later takes the answer. With the switch “Pro Programmpunkt zusagen” on (variant), yes/no per program item as before.", "Only the program items this invitation covers. Each lists its activities with their start times in a small line below its name, in both variants: with one answer for all the list below the yes / no reads “Name – activities”, one line per program item (epic 5.3).", "Approved companions get their own yes/no block below the guest's (step 3b, decided 2026-11-11).", "Deadline shown up front.", "Declining every part skips straight to the summary.", "Opened by an admin from Anmeldungen, the same wizard runs in admin mode, also after the deadline."],
   qs: [
     { q: "RSVP as a three-step wizard (attendance → food → companions & song), or one long page?", p: "Mock: wizard, because it feels light on a phone and reuses well inside the game overlay." },
     { q: "Add a shortcut like “Ich bin überall dabei”?", p: "Mock: not shown. Could be a link above the program items." },
   ],
-  render: (v) => v === "per" ? flow("Rückmeldung", 1, 3, `
+  render: (v) => v === "per" ? flow("Anmeldung", 1, 3, `
     <h1 class="m-h1">Bist du dabei, Erika?</h1>
     <p class="m-muted">Sag uns für jeden Programmpunkt, ob du kommst. Du kannst deine Antwort bis <b>1. Mai 2027</b> ändern.</p>
     ${partsBlock([0, 0, 0, -1])}
     <b class="sm">Mia Huber</b>
-    ${partsBlock([0, 0, 0, -1])}`, `<button class="m-btn" data-go="rsvp-people">Weiter</button>`) : flow("Rückmeldung", 1, 3, `
+    ${partsBlock([0, 0, 0, -1])}`, `<button class="m-btn" data-go="rsvp-people">Weiter</button>`) : flow("Anmeldung", 1, 3, `
     <h1 class="m-h1">Bist du dabei, Erika?</h1>
     <p class="m-muted">Sag uns, ob du kommst. Du bist zu allen vier Programmpunkten eingeladen. Du kannst deine Antwort bis <b>1. Mai 2027</b> ändern.</p>
     <div class="m-card"><div class="m-row2"><b class="grow" style="flex:1">Erika Huber</b><span class="m-tag">Du</span></div>${seg(["Ja", "Nein"], 0)}
@@ -970,82 +975,83 @@ add({
       ${PROGRAM_ITEMS.map(([n, acts]) => `<span class="m-hint">${n} – ${acts.map((a) => `${a[1]} ${a[0]}`).join(", ")}</span>`).join("")}</div>`, `<button class="m-btn" data-go="rsvp-people">Weiter</button>`),
 });
 add({
-  id: "rsvp-people", group: "access", title: "RSVP 2 · Food & allergies", path: "/rsvp", reqs: ["RSVP-03", "SEC-11"],
-  shows: ["One card per attending person: the guest plus companions (pending and approved).", "Menu choice from one admin-defined list, asked only for persons who attend the meal program item (here Dinner). Without it the card shows allergies only. For a child the menu is optional (RSVP-14, decided 2026-11-12): the card offers it, the guest can go on without choosing.", "Allergies marked as visible only to the organisers (health data)."],
+  id: "rsvp-people", group: "access", title: "RSVP 2 · Food & allergies", path: "/rsvp", reqs: ["RSVP-03", "RSVP-14", "RSVP-19", "RSVP-20", "SEC-11"],
+  shows: ["One card per attending person: the guest plus companions (pending and approved).", "Menu choice from the list of the person's type (RSVP-19, decided 2026-11-18, epic 5.4): adults choose from “Menüs”, children from “Kindermenüs” only. Asked only for persons who attend the meal program item (here Dinner), and required while the person's list has entries; a person whose list is empty is not asked. The child's menu is no longer optional (RSVP-14 changed).", "“Sonstiges/Anmerkungen” (RSVP-20): one optional field of at most 500 characters on the main invitee's card, below the allergies, not on the companions' cards. Protected like the allergies: the lock line, the guest's own wizard and admins only.", "Allergies marked as visible only to the organisers (health data)."],
   qs: [
     { q: "How should the privacy note on allergies be worded? “Organisationsteam” or “nur Lea & Jonas”?", p: "Mock: “Sieht nur das Organisationsteam” (admins see it, a technical admin may not be the couple)." },
-    { n: 51, q: "Is the menu tied to one program item, and is there one menu list for everyone?", p: "Proposal: the admin marks the meal program item. The menu is asked only for persons attending it. One list, children's menu included." },
+    { n: 51, q: "Is the menu tied to one program item, and is there one menu list for everyone?", p: "Decided 2026-11-18 (epic 5.4): the admin marks the meal program item; the menu is asked only for persons attending it. Two lists: adults and children." },
   ],
-  render: () => flow("Rückmeldung", 2, 3, `
+  render: () => flow("Anmeldung", 2, 3, `
     <h1 class="m-h1">Essen & Allergien</h1>
     <div class="m-card"><div class="m-row2"><b>Erika Huber</b><span class="m-tag">Du</span></div>
       ${field("Menü (Dinner)", chips(MENUS, [1]))}
       ${field("Allergien oder Unverträglichkeiten", area("rp-all-1", "Nüsse", 'placeholder="z. B. Nüsse, laktosefrei" style="min-height:60px"'))}
+      ${field("Sonstiges/Anmerkungen (optional)", area("rp-rem-1", "Wir kommen mit dem Zug und bleiben über Nacht.", 'maxlength="500" style="min-height:60px"'), "Höchstens 500 Zeichen.")}
       <div class="m-lock">${ic("lock")} Sieht nur das Organisationsteam.</div></div>
     <div class="m-card"><div class="m-row2"><b>Mia Huber</b><span class="m-tag warn">Begleitperson</span></div>
-      ${field("Menü (Dinner)", chips(MENUS, [3]))}
+      ${field("Menü (Dinner)", chips(KID_MENUS, [0]))}
       ${field("Allergien oder Unverträglichkeiten", area("rp-all-2", "", 'placeholder="keine" style="min-height:60px"'))}
       <div class="m-lock">${ic("lock")} Sieht nur das Organisationsteam.</div></div>`,
     `<button class="m-btn ghost" data-go="rsvp-parts">Zurück</button><button class="m-btn" data-go="rsvp-companion">Weiter</button>`),
 });
 add({
-  id: "rsvp-companion", group: "access", title: "RSVP 3 · Companions & song", path: "/rsvp", reqs: ["RSVP-08", "RSVP-09", "RSVP-10", "RSVP-12", "RSVP-06"],
-  variants: [["list", "Added (no approval)"], ["pending", "With approval"], ["form", "Add companion"]],
-  shows: ["The form asks for the person type with chips (Erwachsen, Kind) right under the name field, before the optional note and without a title. There is no default: the button stays off until one is chosen (RSVP-13). Only the admin changes it afterwards. Companion approval is a setting (RSVP-12, decided 2026-11-12). Off (the default): “Begleitperson hinzufügen” adds the person at once, they count right away, there is no status tag, and the guest removes them with “Entfernen” until the deadline. On (variant): as before with “Wartet auf Bestätigung”, “Bearbeiten” and “Zurückziehen”. The texts say “hinzufügen”, not “beantragen”.", "Existing companions with their request status (pending / approved / rejected).", "Pending: “Bearbeiten” and “Zurückziehen”. Rejected (decided 2026-11-11): stays visible with “Entfernen”. In admin mode (RSVP-04) an approved person can be renamed. Requests, edits and withdrawals are for the guest only. At most 10 persons per guest. Approved: attendance, menu and allergies are changed in steps 1 and 2 until the deadline, without a new approval. The name only by the admin (decided 2026-11-11).", "Request form: name, attendance for the guest's own program items, menu (meal program item only) and allergies. Avatar comes later.", "Optional song wish."],
+  id: "rsvp-companion", group: "access", title: "RSVP 3 · Companions & song", path: "/rsvp", reqs: ["RSVP-08", "RSVP-09", "RSVP-10", "RSVP-12", "RSVP-06", "RSVP-13", "RSVP-21"],
+  variants: [["list", "Added (no approval)"], ["pending", "With approval"], ["form", "+Kind form"], ["form-adult", "+Begleitung form"]],
+  shows: ["Two buttons, “+Begleitung” and “+Kind” (RSVP-21, decided 2026-11-18, epic 5.4), replace the one button. Both open the same form; they only preselect the person type, which stays changeable with the chips right under the name field (before the optional note, no title). The menu field follows the chosen type (adults' or children's list, RSVP-19). Only the admin changes the type after the person is added (RSVP-13). Companion approval is a setting (RSVP-12, decided 2026-11-12). Off (the default): “Begleitperson hinzufügen” adds the person at once, they count right away, there is no status tag, and the guest removes them with “Entfernen” until the deadline. On (variant): as before with “Wartet auf Bestätigung”, “Bearbeiten” and “Zurückziehen”. The texts say “hinzufügen”, not “beantragen”.", "Existing companions with their request status (pending / approved / rejected).", "Pending: “Bearbeiten” and “Zurückziehen”. Rejected (decided 2026-11-11): stays visible with “Entfernen”. In admin mode (RSVP-04) an approved person can be renamed. Requests, edits and withdrawals are for the guest only. At most 10 persons per guest. Approved: attendance, menu and allergies are changed in steps 1 and 2 until the deadline, without a new approval. The name only by the admin (decided 2026-11-11).", "Request form: name, attendance for the guest's own program items, menu (meal program item only) and allergies. Avatar comes later.", "Optional song wish."],
   qs: [
     { n: 52, q: "After approval, can the VIP still change a companion's attendance, menu and allergies?", p: "Proposal: yes, in the wizard like their own, until the deadline, without a new approval." },
     { q: "Can a guest edit or withdraw a companion request while it is still pending?", p: "Mock: yes, “Bearbeiten” and “Zurückziehen” on pending requests." },
     { q: "Should the guest give a reason, e.g. “Kind, 6 Jahre”?", p: "Mock: optional note field for the admin." },
   ],
-  render: (v) => v === "form" ? flow("Begleitperson hinzufügen", 0, 0, `
+  render: (v) => v === "form" || v === "form-adult" ? flow("Begleitperson hinzufügen", 0, 0, `
     <p class="m-muted">Für Personen ohne eigenes Konto, z. B. Kinder. Du verwaltest ihre Angaben. Ihre Figur wählst du, sobald die Erlebniswelt offen ist.</p>
     ${field("Name", inp("cp-name", "Mia Huber"))}
-    ${chips(["Erwachsen", "Kind"], [1])}
+    ${chips(["Erwachsen", "Kind"], [v === "form" ? 1 : 0])}
     ${field("Notiz fürs Brautpaar (optional)", inp("cp-note", "Meine Tochter, 6 Jahre"))}
     <b class="sm">Teilnahme</b>
     ${partsBlock([0, 0, 0, 1])}
-    ${field("Menü (Dinner)", chips(MENUS, [3]))}
+    ${field("Menü (Dinner)", chips(v === "form" ? KID_MENUS : MENUS, [0]))}
     ${field("Allergien oder Unverträglichkeiten", area("cp-all", "", 'style="min-height:60px"'))}
     <div class="m-lock">${ic("lock")} Sieht nur das Organisationsteam.</div>`,
     `<button class="m-btn ghost" data-go="rsvp-companion" data-variant="list">Abbrechen</button><button class="m-btn" data-go="rsvp-companion" data-variant="list">Hinzufügen</button>`, "rsvp-companion")
-  : v === "list" ? flow("Rückmeldung", 3, 3, `
+  : v === "list" ? flow("Anmeldung", 3, 3, `
     <h1 class="m-h1">Begleitpersonen & Musik</h1>
     <div class="m-card"><b>Begleitpersonen</b>
       <div class="m-list"><div class="m-li"><div class="m-av">MH</div><div class="grow"><b>Mia Huber</b><span class="m-muted sm">Trauung, Apéro, Dinner · Kindermenü</span></div><button class="m-btn ghost sm">Entfernen</button></div>
       <div class="m-li"><div class="m-av">NH</div><div class="grow"><b>Noah Huber</b><span class="m-muted sm">Apéro, Dinner · Kindermenü</span></div><button class="m-btn ghost sm">Entfernen</button></div></div>
-      <button class="m-btn ghost sm" style="align-self:flex-start" data-go="rsvp-companion" data-variant="form">${ic("plus")} Begleitperson hinzufügen</button>
+      <div class="m-row2"><button class="m-btn ghost sm" data-go="rsvp-companion" data-variant="form-adult">${ic("plus")} Begleitung</button><button class="m-btn ghost sm" data-go="rsvp-companion" data-variant="form">${ic("plus")} Kind</button></div>
 </div>
     <div class="m-card">${field("Songwunsch (optional)", inp("rp-song0", "ABBA – Dancing Queen"))}</div>`,
     `<button class="m-btn ghost" data-go="rsvp-people">Zurück</button><button class="m-btn" data-go="rsvp-done">Antwort senden</button>`)
-  : flow("Rückmeldung", 3, 3, `
+  : flow("Anmeldung", 3, 3, `
     <h1 class="m-h1">Begleitpersonen & Musik</h1>
     <div class="m-card"><b>Begleitpersonen</b>
       <div class="m-list"><div class="m-li"><div class="m-av">MH</div><div class="grow"><b>Mia Huber</b><span class="m-muted sm">Trauung, Apéro, Dinner · Kindermenü</span></div><span class="m-tag warn">Wartet auf Bestätigung</span></div></div>
       <div class="m-row2"><button class="m-btn soft sm" data-go="rsvp-companion" data-variant="form">Bearbeiten</button><button class="m-btn ghost sm">Zurückziehen</button></div>
       <div class="m-list"><div class="m-li"><div class="m-av">NH</div><div class="grow"><b>Noah Huber</b><span class="m-muted sm">Apéro, Dinner · Kindermenü</span></div><span class="m-tag ok">Bestätigt</span></div></div>
-      <button class="m-btn ghost sm" style="align-self:flex-start" data-go="rsvp-companion" data-variant="form">${ic("plus")} Begleitperson hinzufügen</button>
+      <div class="m-row2"><button class="m-btn ghost sm" data-go="rsvp-companion" data-variant="form-adult">${ic("plus")} Begleitung</button><button class="m-btn ghost sm" data-go="rsvp-companion" data-variant="form">${ic("plus")} Kind</button></div>
 </div>
     <div class="m-card">${field("Songwunsch (optional)", inp("rp-song", "ABBA – Dancing Queen"))}</div>`,
     `<button class="m-btn ghost" data-go="rsvp-people">Zurück</button><button class="m-btn" data-go="rsvp-done">Antwort senden</button>`),
 });
 add({
-  id: "rsvp-done", group: "access", title: "RSVP summary", path: "/rsvp", reqs: ["RSVP-01", "RSVP-03", "RSVP-04"],
+  id: "rsvp-done", group: "access", title: "RSVP summary", path: "/rsvp", reqs: ["RSVP-01", "RSVP-03", "RSVP-04", "RSVP-24"],
   variants: [["before", "Before deadline"], ["after", "After deadline"]],
-  shows: ["Confirmation and a summary of the answer.", "Editable until the deadline. Afterwards read-only with a hint to contact the hosts."],
+  shows: ["Confirmation and a summary of the answer. “Weiter” leads to the start: the waiting page, the game or the website (RSVP-24, epic 5.4).", "Editable until the deadline. Afterwards read-only with a hint to contact the hosts."],
   qs: [{ q: "Send a confirmation email with the summary (for verified addresses)?", p: "Not in the spec. Mock: no email, only this page." }],
-  render: (v) => flow("Rückmeldung", 0, 0, `
+  render: (v) => flow("Anmeldung", 0, 0, `
     <div class="m-check" style="align-self:center">${ic("check")}</div>
     <h1 class="m-h1" style="text-align:center">Danke, Erika! Deine Antwort ist angekommen.</h1>
     <div class="m-card"><div class="m-list">
       ${PROGRAM_ITEMS.map(([n, acts], i) => `<div class="m-li"><div class="grow"><b>${n}</b><span class="m-muted sm">${acts.map((a) => `${a[1]} ${a[0]}`).join(", ")}</span></div>${i < 3 ? '<span class="m-tag ok">Dabei</span>' : '<span class="m-tag">Nicht dabei</span>'}</div>`).join("")}
     </div></div>
     <div class="m-card"><div class="m-list">
-      <div class="m-li"><div class="grow"><b>Erika Huber</b><span class="m-muted sm">Vegetarisch · Allergien angegeben</span></div></div>
+      <div class="m-li"><div class="grow"><b>Erika Huber</b><span class="m-muted sm">Vegetarisch · Allergien und Anmerkungen angegeben</span></div></div>
       <div class="m-li"><div class="grow"><b>Mia Huber</b><span class="m-muted sm">Kindermenü</span></div><span class="m-tag warn">beantragt</span></div>
       <div class="m-li"><div class="grow"><b>Songwunsch</b><span class="m-muted sm">ABBA – Dancing Queen</span></div></div>
     </div></div>
     ${v === "after" ? `<div class="m-card flat sm">${ic("lock")} Die Frist ist vorbei. Für Änderungen melde dich bei Lea & Jonas.</div>` : `<p class="m-muted sm" style="text-align:center">Änderbar bis 1. Mai 2027.</p>`}`,
-    v === "after" ? `<button class="m-btn" data-go="waiting" data-variant="yes">Fertig</button>` : `<button class="m-btn ghost" data-go="rsvp-parts">Ändern</button><button class="m-btn" data-go="waiting" data-variant="yes">Fertig</button>`),
+    v === "after" ? `<button class="m-btn" data-go="waiting" data-variant="yes">Weiter</button>` : `<button class="m-btn ghost" data-go="rsvp-parts">Ändern</button><button class="m-btn" data-go="waiting" data-variant="yes">Weiter</button>`),
 });
 add({
   id: "install", group: "access", title: "Add to home screen", path: "/install (from the waiting page and the profile)", reqs: ["PWA-05"],
@@ -1057,7 +1063,7 @@ add({
   render: (v) => {
     const tile = `<div class="m-install-tile"><i>Z</i><div class="m-stack" style="gap:2px"><b>${EVENT.couple}</b><span class="m-hint">Startbildschirm-Symbol des Events</span></div></div>`;
     const intro = "<p>Öffne die Seite wie eine App: mit eigenem Symbol auf dem Startbildschirm und ohne Browserleiste.</p>";
-    const note = `<div class="m-card"><b>Hinweis</b><span class="m-hint">Beim ersten Öffnen der App meldest du dich einmal neu an: ${v === "ios" ? "iOS speichert die Anmeldung der App getrennt vom Browser" : "dein Gerät kann die Anmeldung der App getrennt vom Browser speichern"}.</span></div>`;
+    const note = `<div class="m-card"><b>Hinweis</b><span class="m-hint">Beim ersten Öffnen der App loggst du dich einmal neu ein: ${v === "ios" ? "iOS speichert das Einloggen der App getrennt vom Browser" : "dein Gerät kann das Einloggen der App getrennt vom Browser speichern"}.</span></div>`;
     if (v === "ios") {
       return flow("Als App installieren", 0, 0, `${tile}${intro}
         <div class="m-card"><b>So geht's in Safari</b><ol class="m-steps">
@@ -1109,8 +1115,8 @@ add({
           <div class="m-li link"><div class="grow"><b>Passwort ändern</b></div>${ic("next")}</div>
           <div class="m-li link"><div class="grow"><b>Meine Beiträge</b><span class="m-hint">4 Schnappschüsse, 1 Andenken</span></div>${ic("next")}</div>
         </div>
-        <div class="m-row2"><button class="m-btn ghost sm" data-go="login">Abmelden</button><button class="m-btn danger sm">Konto löschen</button></div>
-        <span class="m-hint">Beim Löschen verschwindet dein Login (Benutzername, Passwort, E-Mail, Sitzungen). Deine Rückmeldung mit Begleitpersonen und Allergien bleibt für die Organisation bei den Gastgebern. Wenn du sie auch gelöscht haben willst, schreib ihnen. Nach dem Fest löschen wir alle persönlichen Daten.</span></div>
+        <div class="m-row2"><button class="m-btn ghost sm" data-go="login">Ausloggen</button><button class="m-btn danger sm">Konto löschen</button></div>
+        <span class="m-hint">Beim Löschen verschwindet dein Login (Benutzername, Passwort, E-Mail, Sitzungen). Deine Anmeldung mit Begleitpersonen und Allergien bleibt für die Organisation bei den Gastgebern. Wenn du sie auch gelöscht haben willst, schreib ihnen. Nach dem Fest löschen wir alle persönlichen Daten.</span></div>
       </div>
     </div>`, { hideWorld: v === "world-off" }),
 });
@@ -1147,13 +1153,13 @@ add({
 add({
   id: "game", group: "game", title: "Game world", path: "/game", reqs: ["GAME-02", "GAME-05", "GAME-06", "GAME-09", "GAME-10", "GAME-12", "GAME-14", "GAME-15", "GAME-16", "GAME-17", "GAME-18", "GAME-22", "GAME-23", "GAME-24", "GAME-25", "GAME-26", "PRES-01", "PRES-02", "PRES-10"],
   variants: [["rsvp", "RSVP open (badge)"], ["done", "RSVP answered"], ["edges", "Objects out of view (indicators)"]],
-  shows: ["Live demo: tap/click to walk (arrow keys on desktop). Walk near a guest and their speech bubble opens. Click it to pin.", "Bar at the top: the event's name and Website (leaves the game). Programm, Rückmeldung and Hochladen are objects of the world: the church, the mailbox (with its «!» while the RSVP is open) and the photo booth (changed 2026-11-17). No buttons at the bottom, no event-day banner.", "Clickable objects sparkle now and then at random. Tap one: the avatar walks there, stops in front of it, and its action runs. Each map's objects come from its Tiled file. The admin assigns their actions (see Admin › Erlebniswelt).", "Example assignments: Kirche → Programm · Linde → Wo sitze ich? · Post → Rückmeldung · Fotobox → Hochladen · Torte → Minispiel Tortenturm · own figure → Profil.", "Portal: the floating arrow “Dinner” leads to another scene: a grey veil with «Wird geladen …» covers the game while the map is built, and every map is entered with a white flash that fades out (GAME-30; here the game restarts).", "Desktop: walk up to an object and press Enter (or Space).", "Hint “Tippe auf Dinge, die funkeln” at the first entry.", "Wander area outlined for the review only, not in the real game.", "Target marker (GAME-24): every walk started by a tap shows a thick pulsing ring in the glow's light colour with a dark outline, flat on the ground, until the avatar arrives, is blocked, or the arrow keys take over. A tap on a blocked spot (a house, the edge) moves the marker to the nearest reachable spot within 3 tiles (GAME-23); farther away, nothing happens. The ring is drawn above the ground and below objects and figures.", "Glow (GAME-29): every clickable object glows softly along its edges all the time, in the colour of its sparkles, like the portal's arrow in its warm colour. Object glow (GAME-25): while the avatar walks to a clickable object or a portal, it pulses with a soft light glow along its edges until its action runs or the avatar arrives.", "State «Objects out of view» (GAME-26): the Fotobox, the Torte and the Dinner portal lie outside the view. Each shows an indicator on the edge of the view, 12 px inside it and below the bar, on the line from the avatar to the object: a sparkle for an object, an arrow for a portal, with a small pointer towards it. Beside the icon sits a label, black text on a white pill, on the side with more room (so it stays inside the view): the name of the connected page for an object, the name of the map it leads to for a portal (several portals on a map are told apart that way); a long name is cut off with an ellipsis. Touch area at least 44 × 44 px, label included (a tap on the label counts); at most 6 indicators, the nearest first; of two whose icon or label would overlap only the nearer is shown; hidden while an overlay is open. Easter eggs and objects without an action get none. Tapping an indicator does the same as tapping the object (here the avatar walks towards the edge, the real game scrolls with it). The mock's world is one screen, so the out-of-view objects are simply left out of the picture in this state."],
+  shows: ["Live demo: tap/click to walk (arrow keys on desktop). Walk near a guest and their speech bubble opens. Click it to pin.", "Bar at the top: the event's name and Website (leaves the game). Programm, Anmeldung and Hochladen are objects of the world: the church, the mailbox (with its «!» while the RSVP is open) and the photo booth (changed 2026-11-17). No buttons at the bottom, no event-day banner.", "Clickable objects sparkle now and then at random. Tap one: the avatar walks there, stops in front of it, and its action runs. Each map's objects come from its Tiled file. The admin assigns their actions (see Admin › Erlebniswelt).", "Example assignments: Kirche → Programm · Linde → Wo sitze ich? · Post → Anmeldung · Fotobox → Hochladen · Torte → Minispiel Tortenturm · own figure → Profil.", "Portal: the floating arrow “Dinner” leads to another scene: a grey veil with «Wird geladen …» covers the game while the map is built, and every map is entered with a white flash that fades out (GAME-30; here the game restarts).", "Desktop: walk up to an object and press Enter (or Space).", "Hint “Tippe auf Dinge, die funkeln” at the first entry.", "Wander area outlined for the review only, not in the real game.", "Target marker (GAME-24): every walk started by a tap shows a thick pulsing ring in the glow's light colour with a dark outline, flat on the ground, until the avatar arrives, is blocked, or the arrow keys take over. A tap on a blocked spot (a house, the edge) moves the marker to the nearest reachable spot within 3 tiles (GAME-23); farther away, nothing happens. The ring is drawn above the ground and below objects and figures.", "Glow (GAME-29): every clickable object glows softly along its edges all the time, in the colour of its sparkles, like the portal's arrow in its warm colour. Object glow (GAME-25): while the avatar walks to a clickable object or a portal, it pulses with a soft light glow along its edges until its action runs or the avatar arrives.", "State «Objects out of view» (GAME-26): the Fotobox, the Torte and the Dinner portal lie outside the view. Each shows an indicator on the edge of the view, 12 px inside it and below the bar, on the line from the avatar to the object: a sparkle for an object, an arrow for a portal, with a small pointer towards it. Beside the icon sits a label, black text on a white pill, on the side with more room (so it stays inside the view): the name of the connected page for an object, the name of the map it leads to for a portal (several portals on a map are told apart that way); a long name is cut off with an ellipsis. Touch area at least 44 × 44 px, label included (a tap on the label counts); at most 6 indicators, the nearest first; of two whose icon or label would overlap only the nearer is shown; hidden while an overlay is open. Easter eggs and objects without an action get none. Tapping an indicator does the same as tapping the object (here the avatar walks towards the edge, the real game scrolls with it). The mock's world is one screen, so the out-of-view objects are simply left out of the picture in this state."],
   qs: [
-    { q: "Does “Website” leave the game (full website), or open the website as an overlay too?", p: "Mock: leaves the game. The website header has “Erlebniswelt” to come back. Programm, Rückmeldung and Hochladen open as overlays." },
+    { q: "Does “Website” leave the game (full website), or open the website as an overlay too?", p: "Mock: leaves the game. The website header has “Erlebniswelt” to come back. Programm, Anmeldung and Hochladen open as overlays." },
     { q: "Where do profile and table finder live in the game, since the bar has only four buttons?", p: "Mock: two small round buttons bottom-left (Profil, Wo sitze ich?)." },
-    { n: 40, q: "Which world objects open the RSVP, the upload, the website and the profile?", p: "Proposal as drawn: mailbox “Post” → Rückmeldung (with a red “!” while open), photo booth → Hochladen, signpost “Website” → website, tapping your own figure → Profil." },
+    { n: 40, q: "Which world objects open the RSVP, the upload, the website and the profile?", p: "Proposal as drawn: mailbox “Post” → Anmeldung (with a red “!” while open), photo booth → Hochladen, signpost “Website” → website, tapping your own figure → Profil." },
     { n: 41, q: "On the event day, where does “now / next” (WEB-07) show without the Programm button?", p: "Proposal: a slim “Jetzt: Apéro” banner at the top of the screen, only on the event day. Tapping it opens the programme." },
-    { n: 42, q: "Must every map carry these objects, or only the map where they fit (church on the ceremony map, restaurant on the dinner map)?", p: "Proposal: Programm, Rückmeldung, Hochladen and Website objects on every map (the map check warns if one is missing). The table finder on the map with the seats." },
+    { n: 42, q: "Must every map carry these objects, or only the map where they fit (church on the ceremony map, restaurant on the dinner map)?", p: "Proposal: Programm, Anmeldung, Hochladen and Website objects on every map (the map check warns if one is missing). The table finder on the map with the seats." },
     { n: 69, q: "Do the target marker, the glow and the edge indicators look right? (epic 5.1, GAME-24 – GAME-26)", p: "Proposal as drawn: a thick pulsing ring in the glow's light colour with a dark outline at the target, a soft light glow on the object or portal being approached, and round dark indicators at the edge with a sparkle (object) or an arrow (portal). The mock is not to scale: in the game the ring is 0.4 tile widths wide with the tile's 2 : 1 ratio." },
     { n: 43, q: "How does a newcomer learn that things are clickable?", p: "Proposal: the sparkle, plus a hint at the first entry (“Tippe auf Dinge, die funkeln”) until the first object is opened." },
   ],
@@ -1161,13 +1167,13 @@ add({
 });
 add({
   id: "game-overlay", group: "game", title: "Page overlay over game", path: "/game + overlay", reqs: ["GAME-06", "GAME-11", "GAME-14", "PHO-02", "MG-01"],
-  variants: [["programme", "Programm"], ["rsvp", "Rückmeldung"], ["upload", "Hochladen"], ["minigame", "Minigame (Torte)"]],
+  variants: [["programme", "Programm"], ["rsvp", "Anmeldung"], ["upload", "Hochladen"], ["minigame", "Minigame (Torte)"]],
   shows: ["Opened from the bar at the top or by clicking an object in the world (Kirche, Post, Fotobox, Torte). The game pauses. A bottom sheet (phone) or centred panel (desktop) shows the page.", "Links inside the overlay stay in the overlay. Only “Website” leaves the game.", "Closing returns to the same spot."],
   qs: [{ q: "Within an overlay, do links to other pages stay in the overlay?", p: "Mock: yes, the overlay navigates. Only “Website” leaves the game." }],
   render: (v) => {
     let body;
     if (v === "minigame") return gameShell("done", sheet("Tortenturm", `${ph("Minispiel-Titelbild", "16/9")}<p class="m-muted">Staple die Torte so hoch wie möglich. Deine Bestleistung: 14 Stockwerke · Rang 5.</p><button class="m-btn block">${ic("play")} Spielen</button><p class="m-hint">Startet im Vollbild. Die Erlebniswelt ist pausiert und geht danach an derselben Stelle weiter.</p>`));
-    if (v === "rsvp") return gameShell("rsvp", sheet("Rückmeldung", `<p class="m-muted">Bist du dabei? Bis 1. Mai 2027 änderbar.</p>${partsBlock([0, 0, -1, -1])}<button class="m-btn block" data-go="rsvp-people">Weiter</button>`));
+    if (v === "rsvp") return gameShell("rsvp", sheet("Anmeldung", `<p class="m-muted">Bist du dabei? Bis 1. Mai 2027 änderbar.</p>${partsBlock([0, 0, -1, -1])}<button class="m-btn block" data-go="rsvp-people">Weiter</button>`));
     else if (v === "upload") body = sheet("Hochladen", composer("signed"));
     else body = sheet("Programm", `${timeline(true)}<div class="m-card flat" style="flex-direction:row;align-items:center" data-go="game-table"><div class="grow" style="flex:1"><b>Dein Tisch: Edelweiss</b><br><span class="m-muted sm">mit Lukas, Sara und 5 weiteren</span></div>${ic("next")}</div>`);
     return gameShell("done", body);
@@ -1216,7 +1222,7 @@ add({
         ${v === "world-off" ? "" : `<button class="m-btn" data-go="game" style="align-self:flex-start">${ic("play")} Erlebniswelt betreten</button>`}</div>
       <div class="m-stack">
         <div class="m-card strong"><span class="m-eyebrow">Noch</span><b style="font:600 30px/1.1 var(--f-display)">214 Tage</b><span class="m-muted sm">${EVENT.date} · Kirche Muri</span></div>
-        <div class="m-card"><div class="m-row2"><b>Deine Rückmeldung</b><span class="m-tag ok">Dabei</span></div><span class="m-muted sm">Trauung, Apéro, Dinner · Mia beantragt</span><a class="sm" data-go="rsvp-done">Ansehen oder ändern</a></div>
+        <div class="m-card"><div class="m-row2"><b>Deine Anmeldung</b><span class="m-tag ok">Dabei</span></div><span class="m-muted sm">Trauung, Apéro, Dinner · Mia beantragt</span><a class="sm" data-go="rsvp-done">Ansehen oder ändern</a></div>
         <div class="m-grid2">${[["Programm", "programme"], ["Anreise", "info"], ["Unterkunft", "info"], ["FAQ", "info"]].map(([l, g]) => `<button class="m-btn soft" data-go="${g}">${l}</button>`).join("")}</div>
       </div>
     </div>`),
@@ -1248,7 +1254,7 @@ add({
     const rows = [["Das Fest", "info"], ["Orte", "info"], ["Anreise & Parkieren", "info"], ["Unterkunft", "info"], ["FAQ", "info"], ["Kontakt", "info"], ["Wo sitze ich?", "seating"], ["Spiele & Ranglisten", "highscores"], ["Mein Profil", "profile"]];
     return site("more", `<h1 class="m-h1">Mehr</h1><div class="m-card" style="padding:4px 16px"><div class="m-list">${rows.map(([l, g]) => `<div class="m-li link" data-go="${g}"><div class="grow"><b>${l}</b></div>${ic("next")}</div>`).join("")}</div></div>
       <div class="m-card" style="padding:4px 16px"><div class="m-list"><div class="m-li link" data-go="admin-home"><div class="grow"><b>Verwaltung</b><span class="m-hint">nur für Admins</span></div>${ic("next")}</div><div class="m-li link" data-go="moderation"><div class="grow"><b>Moderation</b><span class="m-hint">12 offen</span></div>${ic("next")}</div></div></div>
-      <div class="m-row2"><a class="sm m-muted" data-go="privacy">Datenschutz</a><a class="sm m-muted" data-go="login">Abmelden</a></div>${legal()}`);
+      <div class="m-row2"><a class="sm m-muted" data-go="privacy">Datenschutz</a><a class="sm m-muted" data-go="login">Ausloggen</a></div>${legal()}`);
   },
 });
 add({
@@ -1344,7 +1350,7 @@ add({
   render: () => admin("admin-home", `<h1 class="m-h1">Übersicht</h1>
     <div class="m-kpis">
       <div class="m-kpi alert"><span class="m-eyebrow">Plattform</span><b>Geschlossen</b><button class="m-btn sm" data-go="admin-settings">Öffnen …</button></div>
-      <div class="m-kpi"><span class="m-eyebrow">Rückmeldungen</span><b>84 / 120</b><span class="m-hint">36 ohne Antwort</span></div>
+      <div class="m-kpi"><span class="m-eyebrow">Anmeldungen</span><b>84 / 120</b><span class="m-hint">36 ohne Antwort</span></div>
       <div class="m-kpi"><span class="m-eyebrow">Moderation</span><b>12 offen</b><a class="sm" data-go="moderation">Prüfen</a></div>
       <div class="m-kpi"><span class="m-eyebrow">Begleitpersonen</span><b>3 Anfragen</b><a class="sm" data-go="admin-rsvp">Entscheiden</a></div>
     </div>
@@ -1358,9 +1364,9 @@ add({
         <div class="m-li"><div class="grow">«Schnappschuss-Uploads» geändert</div><span class="m-hint">gestern</span></div></div></div></div>`),
 });
 add({
-  id: "admin-invitations", group: "admin", title: "Invitations", path: "/admin/invitations", reqs: ["INV-01", "INV-04", "INV-05", "INV-06", "INV-14", "RSVP-02"],
+  id: "admin-invitations", group: "admin", title: "Invitations", path: "/admin/invitations", reqs: ["INV-01", "INV-04", "INV-05", "INV-06", "INV-14", "RSVP-02", "RSVP-23"],
   variants: [["list", "List"], ["revoke", "Revoke asks"], ["created", "Just created → print"]],
-  shows: ["Every invitation has its inactive account from the start (ACC-17): the guest is on the guest list and in Rückmeldungen as “ohne Antwort” before the card is redeemed. The program items of a row are those of the guest's account, the same list as in Konten & Rollen.", "The person type (decided 2026-11-12, RSVP-13): chips “Erwachsen” and “Kind” per batch (default Erwachsen). The list shows it as one letter (E, K) like the program items, and it cannot be changed there. The admin changes it in the account panel. The guest neither sees nor changes it.", "“Aufräumen (n)” deletes the revoked and replaced invitations after a second click (INV-21). Redeemed, active and expired ones stay.", "Revoking the last open code of a guest who never registered removes the guest with their entries (INV-20, decided 2026-11-12): the button asks “Widerrufen und Gast entfernen” (variant) with a second click.", "Batch creation: one guest per line, invited program items, optional expiry.", "Codes are visible only right after creation, so the print view comes immediately.", "List with status filter, regenerate (replace) and revoke."],
+  shows: ["Every invitation has its inactive account from the start (ACC-17): the guest is on the guest list and in Anmeldungen as “ohne Antwort” before the card is redeemed. The program items of a row are those of the guest's account, the same list as in Konten & Rollen.", "The letters of the program items are the “Kürzel” of Einstellungen (RSVP-23, epic 5.4), the same codes as in the Anmeldungen table.", "The person type (decided 2026-11-12, RSVP-13): chips “Erwachsen” and “Kind” per batch (default Erwachsen). The list shows it as one letter (E, K) like the program items, and it cannot be changed there. The admin changes it in the account panel. The guest neither sees nor changes it.", "“Aufräumen (n)” deletes the revoked and replaced invitations after a second click (INV-21). Redeemed, active and expired ones stay.", "Revoking the last open code of a guest who never registered removes the guest with their entries (INV-20, decided 2026-11-12): the button asks “Widerrufen und Gast entfernen” (variant) with a second click.", "Batch creation: one guest per line, invited program items, optional expiry.", "Codes are visible only right after creation, so the print view comes immediately.", "List with status filter, regenerate (replace) and revoke."],
   qs: [{ q: "Set invited program items per batch only, or also edit them per invitation afterwards?", p: "Decided 2026-11-12: per batch at creation. The list shows read-only letters. Changed in the account panel." }],
   render: (v) => admin("admin-invitations", v === "created" ? `
     <div class="m-sethead"><div class="grow"><h1 class="m-h1">3 Einladungen erstellt</h1><span class="m-muted sm">Die Codes sind nur jetzt sichtbar. Drucke die Karten, bevor du die Seite verlässt.</span></div><button class="m-btn">Karten drucken</button></div>
@@ -1378,23 +1384,23 @@ add({
     </tbody></table></div><div class="m-row2" style="padding:8px 6px 0"><button class="m-btn soft sm">Aufräumen (3)</button></div><span class="m-hint" style="padding:0 6px 8px">Aufräumen löscht widerrufene und ersetzte Einladungen. Eingelöste bleiben.</span></div>`),
 });
 add({
-  id: "admin-users", group: "admin", title: "Accounts, roles & groups", path: "/admin/users", reqs: ["ACC-08", "ACC-10", "ACC-18", "ACC-19", "ACC-20", "ROLE-01", "ROLE-06", "ROLE-09", "INV-11", "GRP-01", "PRES-14"],
+  id: "admin-users", group: "admin", title: "Accounts, roles & groups", path: "/admin/users", reqs: ["ACC-08", "ACC-10", "ACC-18", "ACC-19", "ACC-20", "ROLE-01", "ROLE-06", "ROLE-09", "ROLE-11", "INV-11", "GRP-01", "PRES-14"],
   variants: [["list", "List"], ["account", "Active account"], ["inactive", "Inactive account"], ["blocked", "Blocked account"], ["create", "New account"], ["group", "Group panel"]],
-  shows: ["Stage 3.9e (decided 2026-11-12, 7.1.2): the table has Benutzername (empty while inactive) | Name | Status (aktiv / inaktiv / gesperrt) | Rollen | Fähigkeiten, filter chips with counts and a search over name and username. It scrolls inside its own box on phones.", "Panels per state: inactive (state, “Zur Einladung”, roles locked, groups, “Eingeladen zu”, no password section; an inactive account an admin created has no invitation: free roles and “Neuen Einrichtungslink erstellen” instead), active (as before plus “Konto sperren” with a second click), blocked (“Entsperren”, no reset link). Every panel ends with “Konto löschen” with a second click (ACC-19).", "The panel shows the person type of a guest (Erwachsen, Kind). A new guest starts as Erwachsen.", "“Konto anlegen”: ticking vip shows the program item chips (none selected, at least one required, ACC-20). The account is inactive until its setup link is used.","Accounts with role toggles (vip / staff / admin) and their capabilities. Guest groups beside the table.", "“…” opens the account panel (decided 2026-11-10): roles, staff capabilities (only with staff), groups as chips, and a reset link to hand over, shown once with copy and expiry.", "“Konto anlegen” opens a panel. The setup link is shown once afterwards.", "A group opens its panel: rename, members (add, remove), delete with a second click.", "The panel is a side sheet on desktop and full screen on phones. Removing profile data (PRES-14) joins the account panel in stage 6."],
+  shows: ["Epic 5.4 (ROLE-11, decided 2026-11-18): the column Rollen is read only and shows one letter per role (V vip, S staff, A admin), Fähigkeiten one letter per capability (I Inhalte, M Moderation); the full names are in the tooltip and for screen readers. Roles are changed in the account's panel, not in the table.", "Stage 3.9e (decided 2026-11-12, 7.1.2): the table has Benutzername (empty while inactive) | Name | Status (aktiv / inaktiv / gesperrt) | Rollen | Fähigkeiten, filter chips with counts and a search over name and username. It scrolls inside its own box on phones.", "Panels per state: inactive (state, “Zur Einladung”, roles locked, groups, “Eingeladen zu”, no password section; an inactive account an admin created has no invitation: free roles and “Neuen Einrichtungslink erstellen” instead), active (as before plus “Konto sperren” with a second click), blocked (“Entsperren”, no reset link). Every panel ends with “Konto löschen” with a second click (ACC-19).", "The panel shows the person type of a guest (Erwachsen, Kind). A new guest starts as Erwachsen.", "“Konto anlegen”: ticking vip shows the program item chips (none selected, at least one required, ACC-20). The account is inactive until its setup link is used.","Accounts with role toggles (vip / staff / admin) and their capabilities. Guest groups beside the table.", "“…” opens the account panel (decided 2026-11-10): roles, staff capabilities (only with staff), groups as chips, and a reset link to hand over, shown once with copy and expiry.", "“Konto anlegen” opens a panel. The setup link is shown once afterwards.", "A group opens its panel: rename, members (add, remove), delete with a second click.", "The panel is a side sheet on desktop and full screen on phones. Removing profile data (PRES-14) joins the account panel in stage 6."],
   qs: [{ n: 53, q: "An account that gets vip from an admin has no invitation, so no invited program items. How does it get them?", p: "Decided: “Eingeladen zu” chips in the account panel. A new account is invited to all program items, without chips when it is created (2026-11-11)." }],
   render: (v) => {
     const panel = (title, body) => `<div style="position:absolute;inset:0;z-index:8;background:rgba(18,18,18,.45);display:flex;justify-content:flex-end"><div style="background:var(--w-bg);width:100%;max-width:440px;height:100%;overflow:auto;display:flex;flex-direction:column"><div class="m-sheethead"><b>${title}</b><button class="m-iconbtn" data-go="admin-users" data-variant="list" aria-label="Schliessen">${ic("x")}</button></div><div class="m-sheetbody">${body}</div></div></div>`;
     const chipsOn = (items, on, dis = false) => `<div class="m-chips">${items.map((x, i) => `<button class="m-chip ${on[i] ? "on" : ""}" ${dis ? 'disabled style="opacity:.4"' : ""}>${x}</button>`).join("")}</div>`;
     const link = (label, url) => `<div class="m-card flat"><b class="sm">${label}</b><div class="m-row2"><input class="m-input" style="flex:1 1 200px;font:12.5px ui-monospace,monospace" readonly value="${url}"><button class="m-btn ghost sm">Kopieren</button></div><span class="m-hint">Gültig bis 12.11.2026, 18:00, einmal verwendbar. Der Link wird nur jetzt angezeigt.</span></div>`;
     let over = "";
-    const dangerZone = (extra = "") => `${extra}<div class="m-row2"><button class="m-btn danger sm">Konto löschen</button></div><span class="m-hint">Löschen braucht einen zweiten Klick («Endgültig löschen») und entfernt das Konto mit Rückmeldung, Begleitpersonen und allen Einladungen.</span>`;
+    const dangerZone = (extra = "") => `${extra}<div class="m-row2"><button class="m-btn danger sm">Konto löschen</button></div><span class="m-hint">Löschen braucht einen zweiten Klick («Endgültig löschen») und entfernt das Konto mit Anmeldung, Begleitpersonen und allen Einladungen.</span>`;
     if (v === "inactive") over = panel("Lukas Meier", `<span class="m-tag">inaktiv</span><span class="m-hint">Noch nicht angemeldet. Die Einladung wurde nicht eingelöst.</span><a data-go="admin-invitations">Zur Einladung</a>
       <b>Typ</b>${chipsOn(["Erwachsen", "Kind"], [1, 0])}
       <b>Rollen</b>${chipsOn(["vip", "staff", "admin"], [1, 0, 0], true)}<span class="m-hint">Die Rollen sind gesperrt, bis sich die Person angemeldet hat.</span>
       <b>Gästegruppen</b>${chipsOn(["Trauzeugen", "Familie", "Kinder"], [0, 1, 0])}
       <b>Eingeladen zu</b>${chipsOn(PROGRAM_ITEMS.map((p) => p[0]), [1, 1, 1, 0])}<span class="m-hint">Dieselbe Liste wie unter Einladungen.</span>
       ${dangerZone()}`);
-    if (v === "blocked") over = panel("Peter Graf", `<span class="m-tag bad">gesperrt</span><span class="m-hint">peter.graf · Anmelden geht nicht, Sitzungen und offene Links sind beendet. Rückmeldung und Gruppen bleiben.</span>
+    if (v === "blocked") over = panel("Peter Graf", `<span class="m-tag bad">gesperrt</span><span class="m-hint">peter.graf · Einloggen geht nicht, Sitzungen und offene Links sind beendet. Anmeldung und Gruppen bleiben.</span>
       <b>Typ</b>${chipsOn(["Erwachsen", "Kind"], [1, 0])}
       <b>Rollen</b>${chipsOn(["vip", "staff", "admin"], [1, 0, 0])}
       <b>Gästegruppen</b>${chipsOn(["Trauzeugen", "Familie", "Kinder"], [0, 0, 0])}
@@ -1402,13 +1408,13 @@ add({
       ${dangerZone()}`);
     if (v === "account") over = panel("Erika Huber", `<span class="m-tag ok">aktiv</span> <span class="m-hint">erika.huber · erika@example.ch (bestätigt)</span>
       <b>Typ</b>${chipsOn(["Erwachsen", "Kind"], [1, 0])}
-      <b>Rollen</b>${chipsOn(["vip", "staff", "admin"], [1, 0, 0])}<span class="m-hint">vip per Einladungscode</span><span class="m-hint">vip entziehen braucht einen zweiten Klick («vip entziehen»): die Rückmeldung mit Allergien und die Begleitpersonen werden gelöscht.</span>
+      <b>Rollen</b>${chipsOn(["vip", "staff", "admin"], [1, 0, 0])}<span class="m-hint">vip per Einladungscode</span><span class="m-hint">vip entziehen braucht einen zweiten Klick («vip entziehen»): die Anmeldung mit Allergien und die Begleitpersonen werden gelöscht.</span>
       <b>Fähigkeiten</b>${chipsOn(["Inhalte", "Moderation"], [0, 0], true)}<span class="m-hint">Fähigkeiten gibt es nur mit der Rolle staff.</span>
       <b>Gästegruppen</b>${chipsOn(["Trauzeugen", "Familie", "Kinder"], [0, 1, 0])}
       <b>Eingeladen zu</b>${chipsOn(PROGRAM_ITEMS.map((p) => p[0]), [1, 1, 1, 0])}<span class="m-hint">Dieselbe Liste wie unter Einladungen.</span>
       <b>Passwort</b><span class="m-hint">Für Gäste ohne bestätigte E-Mail-Adresse: Erstelle einen Link und gib ihn weiter. Damit setzt die Person ein neues Passwort.</span>
       ${link("Link zum Zurücksetzen", "https://zappaloo.ch/set-password/q8Zr…")}
-      <button class="m-btn soft sm" style="align-self:flex-start">Konto sperren</button><span class="m-hint">Sperren braucht einen zweiten Klick («Endgültig sperren»). Die Person kann sich dann nicht mehr anmelden. Rückmeldung und Gruppen bleiben.</span>
+      <button class="m-btn soft sm" style="align-self:flex-start">Konto sperren</button><span class="m-hint">Sperren braucht einen zweiten Klick («Endgültig sperren»). Die Person kann sich dann nicht mehr einloggen. Anmeldung und Gruppen bleiben.</span>
       ${dangerZone()}`);
     if (v === "create") over = panel("Konto anlegen", `${field("Benutzername", inp("au-user", "oma.erika"))}<span class="m-hint">3–32 Zeichen: a–z, 0–9, Punkt, Unterstrich, Bindestrich. Lässt sich nicht mehr ändern.</span>
       ${field("Anzeigename (optional)", inp("au-name", "Oma Erika"))}<b class="sm">Rollen</b>${chipsOn(["vip", "staff", "admin"], [1, 0, 0])}
@@ -1421,24 +1427,25 @@ add({
       <button class="m-btn danger sm" style="align-self:flex-start">Gruppe löschen</button><span class="m-hint">Löschen braucht einen zweiten Klick («Endgültig löschen»). Die Konten bleiben.</span>`);
     return admin("admin-users", `<div class="m-sethead"><h1 class="m-h1 grow">Konten & Rollen</h1><button class="m-btn sm" data-go="admin-users" data-variant="create">${ic("plus")} Konto anlegen</button></div>
     <div class="m-grid-d2"><div class="m-card" style="padding:4px 8px"><div class="m-row2" style="padding:8px 6px 0">${chips(["Alle 126", "Aktiv 88", "Inaktiv 36", "Gesperrt 2"], [0])}<input class="m-input" style="flex:1 1 160px" placeholder="Suche nach Name oder Benutzername" aria-label="Suche"></div><div class="m-scroll"><table class="m-table"><thead><tr><th>Benutzername</th><th>Name</th><th>Status</th><th>Rollen</th><th>Fähigkeiten</th><th></th></tr></thead><tbody>
-      ${[["Erika Huber", "erika.huber", [1, 0, 0], "", "aktiv", "ok"], ["Lea Muster", "lea", [1, 0, 1], "", "aktiv", "ok"], ["Ben (Technik)", "ben", [0, 1, 1], "Inhalte, Moderation", "aktiv", "ok"], ["Lukas Meier", "", [1, 0, 0], "", "inaktiv", ""], ["Peter Graf", "peter.graf", [1, 0, 0], "", "gesperrt", "bad"]].map(([n, u, r, c, st, sc]) => `<tr><td class="sm">${u || "–"}</td><td>${n}</td><td><span class="m-tag ${sc}">${st}</span></td><td><div class="m-chips" data-multi style="gap:4px">${["vip", "staff", "admin"].map((x, i) => `<button class="m-chip ${r[i] ? "on" : ""}" style="min-height:26px;padding:0 9px;font-size:12px">${x}</button>`).join("")}</div></td><td class="sm m-muted">${c || "–"}</td><td><button class="m-btn soft sm" data-go="admin-users" data-variant="${st === "inaktiv" ? "inactive" : st === "gesperrt" ? "blocked" : "account"}">…</button></td></tr>`).join("")}
+      ${[["Erika Huber", "erika.huber", [1, 0, 0], "", "aktiv", "ok"], ["Lea Muster", "lea", [1, 0, 1], "", "aktiv", "ok"], ["Ben (Technik)", "ben", [0, 1, 1], "Inhalte, Moderation", "aktiv", "ok"], ["Lukas Meier", "", [1, 0, 0], "", "inaktiv", ""], ["Peter Graf", "peter.graf", [1, 0, 0], "", "gesperrt", "bad"]].map(([n, u, r, c, st, sc]) => `<tr><td class="sm">${u || "–"}</td><td>${n}</td><td><span class="m-tag ${sc}">${st}</span></td><td>${r.some(Boolean) ? ["vip", "staff", "admin"].filter((x, i) => r[i]).map((x) => `<abbr title="${x}" style="text-decoration:none;cursor:help"><b>${x[0].toUpperCase()}</b></abbr>`).join(" ") : "–"}</td><td class="sm m-muted">${c ? c.split(", ").map((x) => `<abbr title="${x}" style="text-decoration:none;cursor:help"><b>${x[0]}</b></abbr>`).join(" ") : "–"}</td><td><button class="m-btn soft sm" data-go="admin-users" data-variant="${st === "inaktiv" ? "inactive" : st === "gesperrt" ? "blocked" : "account"}">…</button></td></tr>`).join("")}
     </tbody></table></div></div>
     <div class="m-card"><div class="m-row2"><b class="grow" style="flex:1">Gästegruppen</b><button class="m-btn soft sm">${ic("plus")} Neu</button></div><div class="m-list">${[["Trauzeugen", 4], ["Familie", 22], ["Kinder", 6]].map(([g, n]) => `<div class="m-li link" data-go="admin-users" data-variant="group"><div class="grow"><b>${g}</b></div><span class="m-hint">${n} Personen</span></div>`).join("")}</div></div></div>${over}`);
   },
 });
 add({
-  id: "admin-rsvp", group: "admin", title: "RSVP overview", path: "/admin/rsvp", reqs: ["RSVP-05", "RSVP-07", "RSVP-09", "RSVP-12", "SEC-11"],
+  id: "admin-rsvp", group: "admin", title: "RSVP overview", path: "/admin/rsvp", reqs: ["RSVP-05", "RSVP-07", "RSVP-09", "RSVP-12", "RSVP-19", "RSVP-20", "RSVP-22", "RSVP-23", "SEC-11"],
   variants: [["off", "One answer, no approval (default)"], ["on", "Approval on"], ["per", "Per program item"]],
-  shows: ["Approval off (RSVP-12): no card with requests, no badge in the navigation and no tile “Begleitpersonen” in Übersicht. The admin removes an accompanying person in the guest table with “Entfernen” and a second click, also after the deadline. Approval on (variant): the card with the requests as before.","With one answer for everyone (the default) the overview is a single bar without a name and the card is titled “Übersicht”, so the text has more space. With a switch “Pro Programmpunkt zusagen” on (variant), one bar per program item. The totals are split by person type: “78 ja (69 Erwachsene, 9 Kinder)” (RSVP-15). The guest table and the CSV have a column “Typ”. A child who left the menu open is not counted in the menus.", "Totals per program item and the menus of the meal program item.", "Guest table (decided 2026-11-11): name, status, program items, menu, song wish, and allergies as a column only admins see. Status filter. A row opens the RSVP wizard in admin mode, also after the deadline (RSVP-04).", "A guest whose invitation is not redeemed yet is in the table as “ohne Antwort” (ACC-17). Bearbeiten answers for them, e.g. by phone. Reminders reach only guests with a verified address.", "CSV export. “Erinnern (n)” mails guests without an answer who have a verified address.", "Companion requests to approve or reject. Approved companions appear in the table under their VIP."],
+  shows: ["Epic 5.4 (decided 2026-11-18): the column “E-Mail” next to the status in the same tag style: “bestätigt”, “offen” (address not verified) or “–” (no address, and for accompanying persons; RSVP-22). The columns Typ (E, K), Programmpunkte and Menü show one short form per entry, the full name in the tooltip and for screen readers (RSVP-23); the codes are the “Kürzel” of Einstellungen, the same as in the invitation list. The menu totals are per list: Erwachsene and Kinder; a child's choice from the adults' list is marked “Erwachsenenmenü” (* in the table). “Anmerkungen” (RSVP-20) is a second admin-only column next to the allergies; the CSV has both.", "Approval off (RSVP-12): no card with requests, no badge in the navigation and no tile “Begleitpersonen” in Übersicht. The admin removes an accompanying person in the guest table with “Entfernen” and a second click, also after the deadline. Approval on (variant): the card with the requests as before.","With one answer for everyone (the default) the overview is a single bar without a name and the card is titled “Übersicht”, so the text has more space. With a switch “Pro Programmpunkt zusagen” on (variant), one bar per program item. The totals are split by person type: “78 ja (69 Erwachsene, 9 Kinder)” (RSVP-15). The guest table and the CSV have a column “Typ”. A child who left the menu open is not counted in the menus.", "Totals per program item and the menus of the meal program item.", "Guest table (decided 2026-11-11): name, status, program items, menu, song wish, and allergies as a column only admins see. Status filter. A row opens the RSVP wizard in admin mode, also after the deadline (RSVP-04).", "A guest whose invitation is not redeemed yet is in the table as “ohne Antwort” (ACC-17). Bearbeiten answers for them, e.g. by phone. Reminders reach only guests with a verified address.", "CSV export: the button sits at the bottom of the guest table (changed 2026-11-18). “Erinnern (n)” mails guests without an answer who have a verified address and has to be held like the other confirmations.", "Companion requests to approve or reject. Approved companions appear in the table under their VIP."],
   qs: [{ n: 50, q: "How does an admin change a guest's RSVP after the deadline (RSVP-04)?", p: "Decided: the allergies card becomes a guest table with an admin-only allergy column. A row opens the RSVP wizard in admin mode." }],
-  render: (v) => admin("admin-rsvp", `<div class="m-sethead"><h1 class="m-h1 grow">Rückmeldungen</h1><button class="m-btn soft sm">${ic("dl")} CSV</button><button class="m-btn sm">${ic("mail")} Erinnern (31)</button></div>
+  render: (v) => admin("admin-rsvp", `<div class="m-sethead"><h1 class="m-h1 grow">Anmeldungen</h1>${holdBtn(`${ic("mail")} Erinnern (31)`, "m-btn sm")}</div>
     ${v !== "on" ? "" : `<div class="m-card strong"><b>Begleitpersonen-Anfragen (3)</b><div class="m-list">${[["Mia Huber", "von Erika Huber · «Meine Tochter, 6 Jahre»"], ["Noah Brunner", "von Familie Brunner"], ["Hans Graf", "von Peter Graf · «Mein Vater, ohne Handy»"]].map(([n, b]) => `<div class="m-li"><div class="grow"><b>${n}</b><span class="m-hint">${b}</span></div><button class="m-btn ghost sm">Ablehnen</button><button class="m-btn sm">Annehmen</button></div>`).join("")}</div></div>`}
     <div class="m-grid-d2"><div class="m-card"><b>${v === "per" ? "Pro Programmpunkt" : "Übersicht"}</b><div class="m-bars">${(v === "per" ? [["Trauung", 72, 6], ["Apéro", 96, 4], ["Dinner", 68, 8], ["Party", 74, 10]] : [["", 78, 6]]).map(([n, y, no]) => `<div class="m-bar-row" ${n ? "" : 'style="grid-template-columns:1fr auto"'}>${n ? `<span>${n}</span>` : ""}<div class="track"><i style="width:${y / 1.2}%;background:var(--w-dark)"></i><i style="width:${no / 1.2}%;background:var(--w-line)"></i></div><span class="num sm">${y} ja (${Math.round(y * 0.88)} Erwachsene, ${y - Math.round(y * 0.88)} Kinder) · ${no} nein</span></div>`).join("")}</div></div>
-    <div class="m-card"><b>Menüs (Dinner)</b><div class="m-bars">${[["Fleisch", 38], ["Vegetarisch", 22], ["Vegan", 3], ["Kinder", 5]].map(([n, c]) => `<div class="m-bar-row"><span>${n}</span><div class="track"><i style="width:${c * 2.4}%;background:var(--w-dark)"></i></div><span class="num sm">${c}</span></div>`).join("")}</div></div></div>
+    <div class="m-card"><b>Menüs (Dinner)</b><span class="m-eyebrow">Erwachsene</span><div class="m-bars">${[["Fleisch", 38], ["Vegetarisch", 22], ["Vegan", 3]].map(([n, c]) => `<div class="m-bar-row"><span>${n}</span><div class="track"><i style="width:${c * 2.4}%;background:var(--w-dark)"></i></div><span class="num sm">${c}</span></div>`).join("")}</div>
+      <span class="m-eyebrow">Kinder</span><div class="m-bars">${[["Kindermenü", 4], ["Pasta", 1], ["Erwachsenenmenü", 1]].map(([n, c]) => `<div class="m-bar-row"><span>${n}</span><div class="track"><i style="width:${c * 2.4}%;background:var(--w-dark)"></i></div><span class="num sm">${c}</span></div>`).join("")}</div></div></div>
     <div class="m-card" style="padding:4px 8px"><div class="m-row2" style="padding:8px 6px 0"><b class="grow" style="flex:1">Gäste</b>${chips(["Alle 120", "Zugesagt 78", "Abgesagt 6", "Ohne Antwort 36"], [0])}</div>
-      <div class="m-scroll"><table class="m-table"><thead><tr><th>Name</th><th>Typ</th><th>Status</th><th>Programmpunkte</th><th>Menü</th><th>Songwunsch</th><th><span class="m-lock">${ic("lock")} Allergien</span></th><th></th></tr></thead><tbody>
-      ${[["Erika Huber", "ok", "zugesagt", "T A D", "Vegetarisch", "ABBA – Dancing Queen", "Nüsse", "Erwachsen"], ["↳ Noah Huber", "ok", "bestätigt", "A D", "Kindermenü", "–", "–", "Kind"], ["Tom Brunner", "ok", "zugesagt", "A D P", "Fleisch", "–", "Laktose", "Erwachsen"], ["Nina Roth", "ok", "zugesagt", "T A", "–", "Queen – Don't Stop Me Now", "Zöliakie (glutenfrei)", "Erwachsen"], ["Peter Graf", "bad", "abgesagt", "–", "–", "–", "–", "Erwachsen"], ["Lukas Meier", "", "ohne Antwort", "–", "–", "–", "–", "Erwachsen"]].map(([n, c, s, p, m, song, a, ty]) => `<tr><td><b>${n}</b></td><td class="sm">${ty}</td><td><span class="m-tag ${c}">${s}</span></td><td class="m-muted">${p}</td><td>${m}</td><td class="sm">${song}</td><td class="sm">${a}</td><td style="text-align:right">${n.startsWith("↳") ? `<button class="m-btn danger sm">Entfernen</button>` : `<button class="m-btn soft sm" data-go="rsvp-parts">Bearbeiten</button>`}</td></tr>`).join("")}
-      </tbody></table></div><span class="m-hint" style="padding:0 6px 8px">Bearbeiten öffnet die Rückmeldung im Admin-Modus, auch nach der Frist. Jede Änderung steht im Audit-Log.</span></div>`),
+      <div class="m-scroll"><table class="m-table"><thead><tr><th>Name</th><th>Typ</th><th>Status</th><th>E-Mail</th><th>Programmpunkte</th><th>Menü</th><th>Songwunsch</th><th><span class="m-lock">${ic("lock")} Allergien</span></th><th><span class="m-lock">${ic("lock")} Anmerkungen</span></th><th></th></tr></thead><tbody>
+      ${[["Erika Huber", "ok", "zugesagt", "ok", ["Trauung", "Apéro", "Dinner"], ["Vegetarisch"], "ABBA – Dancing Queen", "Nüsse", "Kommen mit dem Zug", "Erwachsen"], ["↳ Noah Huber", "ok", "bestätigt", "", ["Apéro", "Dinner"], ["Kindermenü"], "–", "–", "–", "Kind"], ["↳ Mia Huber", "ok", "bestätigt", "", ["Apéro", "Dinner"], ["Vegan", "Erwachsenenmenü"], "–", "–", "–", "Kind"], ["Tom Brunner", "ok", "zugesagt", "warn", ["Apéro", "Dinner", "Party"], ["Fleisch"], "–", "Laktose", "–", "Erwachsen"], ["Nina Roth", "ok", "zugesagt", "", ["Trauung", "Apéro"], [], "Queen – Don't Stop Me Now", "Zöliakie (glutenfrei)", "–", "Erwachsen"], ["Peter Graf", "bad", "abgesagt", "", [], [], "–", "–", "–", "Erwachsen"], ["Lukas Meier", "", "ohne Antwort", "ok", [], [], "–", "–", "–", "Erwachsen"]].map(([n, c, s, em, p, m, song, a, rem, ty]) => `<tr><td><b>${n}</b></td><td class="sm">${sf(ty)}</td><td><span class="m-tag ${c}">${s}</span></td><td>${n.startsWith("↳") ? "–" : em === "ok" ? '<span class="m-tag ok">bestätigt</span>' : em === "warn" ? '<span class="m-tag warn">offen</span>' : "–"}</td><td class="m-muted">${sfs(p)}</td><td>${m.length ? `${sf(m[0])}${m[1] ? ' <abbr title="Erwachsenenmenü: von einem Kind aus der Liste der Erwachsenen gewählt" style="text-decoration:none;cursor:help">*</abbr>' : ""}` : "–"}</td><td class="sm">${song}</td><td class="sm">${a}</td><td class="sm">${rem}</td><td style="text-align:right">${n.startsWith("↳") ? `<button class="m-btn danger sm">Entfernen</button>` : `<button class="m-btn soft sm" data-go="rsvp-parts">Bearbeiten</button>`}</td></tr>`).join("")}
+      </tbody></table></div><span class="m-hint" style="padding:0 6px 8px">Typ, Programmpunkte und Menü stehen als Kürzel (Einstellungen › Anmeldung); der volle Name steht im Tooltip. * Erwachsenenmenü: ein Kind hat noch ein Menü der Erwachsenen-Liste. Bearbeiten öffnet die Anmeldung im Admin-Modus, auch nach der Frist. Jede Änderung steht im Audit-Log.</span><div class="m-row2" style="padding:0 6px 8px"><button class="m-btn soft sm">${ic("dl")} CSV</button></div></div>`),
 });
 add({
   id: "admin-seating", group: "admin", title: "Seating plan", path: "/admin/seating", reqs: ["PRES-05", "PRES-06", "PRES-07"],
@@ -1499,7 +1506,7 @@ add({
   qs: [{ n: 63, q: "Where are dialogues edited, and can one be deleted while a game object shows it?", p: "Proposal: in Inhalte; no, like a place in use: the message names the objects (assignments in Erlebniswelt). A preset in a Tiled file that points to a missing dialogue is only a warning (MAP-08)." }, { n: 64, q: "Can the id of a dialogue be changed?", p: "Proposal: yes, with the hint that presets in Tiled files that name the old id then point to nothing; the assignments in Erlebniswelt follow the dialogue." }, { n: 65, q: "Do the program-item links sit with the maps in «Welt & Import» or in the tab of each map?", p: "Mock: in «Welt & Import», one row per map, so all links are seen at once." }],
   render: (v) => {
     const scenes = ["Kirche & Garten ★", "Landgasthof Linde", "Party-Saal"];
-    const acts = ["Seite: Programm", "Seite: Rückmeldung", "Seite: Profil", "Seite: Hochladen", "Seite: Wo sitze ich?", "Seite: Anreise & Parkieren", "Seite: Geschichte der Kirche", "Dialog: Pfarrer", "Minispiel: Tortenturm", "– keine –"];
+    const acts = ["Seite: Programm", "Seite: Anmeldung", "Seite: Profil", "Seite: Hochladen", "Seite: Wo sitze ich?", "Seite: Anreise & Parkieren", "Seite: Geschichte der Kirche", "Dialog: Pfarrer", "Minispiel: Tortenturm", "– keine –"];
     const sel = (on, id) => `<select class="m-input" id="${id}" style="min-height:36px;width:auto;max-width:100%">${acts.map((a) => `<option ${a === on ? "selected" : ""}>${a}</option>`).join("")}</select>`;
     const tabs = (on) => `<div class="m-subtabs">${[["objects", "Objekte & Portale"], ["dialogs", "Dialoge"], ["import", "Welt & Import"]].map(([k, l]) => `<button ${on === k ? 'class="on"' : `data-go="admin-world" data-variant="${k}"`}>${l}</button>`).join("")}</div>`;
     const head = (on) => `<div class="m-sethead"><h1 class="m-h1 grow">Erlebniswelt</h1></div>${tabs(on)}`;
@@ -1518,7 +1525,7 @@ add({
       const head = `<div class="m-sethead"><h1 class="m-h1 grow">Erlebniswelt</h1></div>${tabs("import")}`;
       if (v === "empty") return admin("admin-world", `${head}
         <div class="m-card"><div class="m-row2"><b class="m-h2" style="flex:1">Welt</b><span class="m-tag line">Keine Welt</span></div>
-          <span class="m-muted sm">Es ist noch keine Erlebniswelt importiert. Bis dahin landen Gäste nach der Anmeldung auf der Website, und die Warteseite zeigt die eingebaute Tür.</span>
+          <span class="m-muted sm">Es ist noch keine Erlebniswelt importiert. Bis dahin landen Gäste nach dem Einloggen auf der Website, und die Warteseite zeigt die eingebaute Tür.</span>
           <div class="m-row2"><button class="m-btn soft sm">Welt importieren</button></div>
           <span class="m-hint">Ein Weltpaket (.tar.gz, Format 2) mit isometrischen Karten, Tilesets, Figuren und optional der Tür der Warteseite. Es wird nur als Ganzes importiert.</span></div>`);
       const rows = [["kirche", "Kirche & Garten", true, 6, 2], ["linde", "Landgasthof Linde", false, 4, 1], ["party", "Party-Saal", false, 3, 1]];
@@ -1538,7 +1545,7 @@ add({
         </tbody></table></div></div>
         <div class="m-card flat sm"><b>1 Warnung</b>maps/kirche.json › infotafel: Vorgabe zeigt auf die Seite «p/geschichte», die es nicht gibt. Die Vorgabe wirkt erst, wenn die Seite existiert, oder wird in «Objekte & Portale» geändert.</div>`);
     }
-    const rows = [["kirche", "Kirche", "Seite: Programm", "Seite: Programm"], ["linde", "Landgasthof Linde", "Seite: Anreise & Parkieren", ""], ["post", "Briefkasten", "Seite: Rückmeldung", "Seite: Rückmeldung"], ["pfarrer", "Pfarrer (NPC)", "Dialog: Pfarrer", "Dialog: Pfarrer"], ["glocke", "Glocke (Easter Egg)", "Seite: Geschichte der Kirche", ""], ["infotafel", "Infotafel", "– keine –", "Seite: p/geschichte"]];
+    const rows = [["kirche", "Kirche", "Seite: Programm", "Seite: Programm"], ["linde", "Landgasthof Linde", "Seite: Anreise & Parkieren", ""], ["post", "Briefkasten", "Seite: Anmeldung", "Seite: Anmeldung"], ["pfarrer", "Pfarrer (NPC)", "Dialog: Pfarrer", "Dialog: Pfarrer"], ["glocke", "Glocke (Easter Egg)", "Seite: Geschichte der Kirche", ""], ["infotafel", "Infotafel", "– keine –", "Seite: p/geschichte"]];
     return admin("admin-world", `<div class="m-sethead"><h1 class="m-h1 grow">Erlebniswelt</h1></div>${tabs("objects")}
       ${chips(scenes, [0])}
       <div class="m-card" style="padding:4px 8px"><div class="m-row2" style="padding:10px 8px 0"><b class="grow" style="flex:1">Anklickbare Objekte (${rows.length})</b><span class="m-hint">aus der Tiled-Datei · Änderungen sind sofort live</span></div><div class="m-scroll"><table class="m-table"><thead><tr><th>Objekt</th><th>Aktion</th><th>Vorgabe aus Tiled</th></tr></thead><tbody>
@@ -1548,11 +1555,11 @@ add({
   },
 });
 add({
-  id: "admin-settings", group: "admin", title: "Settings & opening", path: "/admin/settings", reqs: ["ACS-10", "ACS-11", "ACS-13", "ACS-14", "PHO-18", "RSVP-04", "PRES-15", "CFG-02", "CFG-03", "SCR-04", "SCR-07", "PHO-14", "THM-01", "THM-03", "THM-05"],
+  id: "admin-settings", group: "admin", title: "Settings & opening", path: "/admin/settings", reqs: ["ACS-10", "ACS-11", "ACS-13", "ACS-14", "PHO-18", "RSVP-04", "RSVP-19", "RSVP-23", "PRES-15", "CFG-02", "CFG-03", "SCR-04", "SCR-07", "PHO-14", "THM-01", "THM-03", "THM-05"],
   variants: [["active", "Design aktiv"], ["default", "Standard-Design"], ["refused", "Paket abgelehnt"], ["confirm", "Knopf halten"]],
-  shows: ["One page with sections. The frequently used cards come first (Veranstaltung, Plattform öffnen, Rückmeldung and Funktionen); the rarely changed ones come last: Design, Warteseite-Texte, Datenschutz and Fusszeile.", "Design (decided 2026-11-13, stage 4): the active theme with its format and the time of the import. “Design importieren” takes a .tar.gz package as a whole. A refused package lists every finding (the findings are shown in English, as the server gives them) and the active theme stays as it was. “Standard-Design verwenden” asks first (Ja / Abbrechen), and “Ja, Standard-Design verwenden” must be held for four seconds, with a darker fill growing across the button, before it removes the package. Without a package the card says that the platform’s default applies.", "Opening the platform with an optional “Die Tür ist offen” email (verified addresses only). An optional opening date and, separately, the switch for the countdown (decided 2026-11-11). Once open, the card offers “Wieder schliessen” (no email).", "RSVP deadline, program items (name, one marked as the meal) with their activities underneath (name, start, optional end, place; “Aktivität hinzufügen”; the last activity of a program item cannot be deleted, the program item is deleted instead; a new program item asks for its first activity; epic 5.3), and one menu list.", "Waiting page texts with placeholders (only here, not in Inhalte).", "Privacy notice as Markdown (SEC-09).", "Features. Upload links and screen links (create, QR, revoke, per screen link: show the upload QR now and then).", "Guest profiles: the “Wie kennst du das Paar?” list, in its own section."],
+  shows: ["One page with sections. The frequently used cards come first (Veranstaltung, Plattform öffnen, Anmeldung and Funktionen); the rarely changed ones come last: Design, Warteseite-Texte, Datenschutz and Fusszeile.", "Design (decided 2026-11-13, stage 4): the active theme with its format and the time of the import. “Design importieren” takes a .tar.gz package as a whole. A refused package lists every finding (the findings are shown in English, as the server gives them) and the active theme stays as it was. “Standard-Design verwenden” asks first (Ja / Abbrechen), and “Ja, Standard-Design verwenden” must be held for four seconds, with a darker fill growing across the button, before it removes the package. Without a package the card says that the platform’s default applies.", "Opening the platform with an optional “Die Tür ist offen” email (verified addresses only). An optional opening date and, separately, the switch for the countdown (decided 2026-11-11). Once open, the card offers “Wieder schliessen” (no email).", "RSVP deadline, program items (name, one marked as the meal) with their activities underneath (name, start, optional end, place; “Aktivität hinzufügen”; the last activity of a program item cannot be deleted, the program item is deleted instead; a new program item asks for its first activity; epic 5.3), and one menu list.", "Waiting page texts with placeholders (only here, not in Inhalte).", "Privacy notice as Markdown (SEC-09).", "Features. Upload links and screen links (create, QR, revoke, per screen link: show the upload QR now and then).", "Guest profiles: the “Wie kennst du das Paar?” list, in its own section."],
   qs: [
-    { q: "One long settings page, or split into tabs (Öffnung · Rückmeldung · Funktionen · Links)?", p: "Mock: one page with sections. Splitting is easy later." },
+    { q: "One long settings page, or split into tabs (Öffnung · Anmeldung · Funktionen · Links)?", p: "Mock: one page with sections. Splitting is easy later." },
     { n: 54, q: "Where are the waiting-page texts edited: Einstellungen or the content editor?", p: "Proposal: Einstellungen only. The content editor has no “Warteseite” page." },
     { n: 56, q: "When the countdown reaches zero before the platform opens, and after opening: what happens?", p: "Proposal: the countdown disappears at zero (the text stays). The admin can close the platform again, without an email." },
   ],
@@ -1568,24 +1575,30 @@ add({
       ${field("Standardsprache", `<select class="m-input" id="as-lang" style="width:auto"><option selected>Deutsch</option></select>`)}
       <button class="m-btn" style="align-self:flex-start">Speichern</button></div>
     <div class="m-card strong"><div class="m-row2"><b class="m-h2" style="flex:1">Plattform öffnen</b><span class="m-tag warn">Geschlossen</span></div>
-      <p class="m-muted sm">Bis zur Öffnung sehen Gäste nur die Warteseite und die Rückmeldung. Staff und Admins haben vollen Zugang.</p>
+      <p class="m-muted sm">Bis zur Öffnung sehen Gäste nur die Warteseite und die Anmeldung. Staff und Admins haben vollen Zugang.</p>
       ${field("Angekündigtes Öffnungsdatum (optional)", inp("as-open", "2027-05-15T18:00", 'type="datetime-local" style="width:auto"'), "Erscheint im Platzhalter {openingDate}.")}
       <div class="m-setrow"><div class="grow"><b class="sm">Countdown auf der Warteseite zeigen</b><span class="m-hint">Zählt bis zum Öffnungsdatum und verschwindet bei null.</span></div>${sw(false)}</div>
       <label class="m-row2 sm"><input type="checkbox" id="as-mail" checked> E-Mail «Die Tür ist offen» an alle Gäste mit bestätigter Adresse senden (71)</label>
-      <button class="m-btn" style="align-self:flex-start">Jetzt öffnen</button>
-      <span class="m-hint">Ist die Plattform offen, steht hier «Wieder schliessen» (ohne E-Mail).</span></div>
+      ${holdBtn("Jetzt öffnen", "m-btn")}
+      <span class="m-hint">Ist die Plattform offen, steht hier «Wieder schliessen» (ohne E-Mail). Beide Knöpfe müssen gehalten werden.</span></div>
     <div class="m-grid-d2">
-      <div class="m-card"><b>Rückmeldung</b>${field("Frist", inp("as-dl", "2027-05-01", 'type="date" style="width:auto"'))}
-        <div class="m-setrow"><div class="grow"><b class="sm">Songwunsch fragen</b><span class="m-hint">Die Rückmeldung fragt nach einem Lieblingslied (decided 2026-11-11).</span></div>${sw(true)}</div>
+      <div class="m-card"><b>Anmeldung</b>${field("Frist", inp("as-dl", "2027-05-01", 'type="date" style="width:auto"'))}
+        <div class="m-setrow"><div class="grow"><b class="sm">Songwunsch fragen</b><span class="m-hint">Die Anmeldung fragt nach einem Lieblingslied (decided 2026-11-11).</span></div>${sw(true)}</div>
         <div class="m-setrow"><div class="grow"><b class="sm">Pro Programmpunkt zusagen</b><span class="m-hint">Aus: Gäste antworten einmal für alle ihre Programmpunkte. Ein: Ja oder Nein pro Programmpunkt.</span></div>${sw(false)}</div>
         <div class="m-setrow"><div class="grow"><b class="sm">Begleitpersonen bestätigen</b><span class="m-hint">Aus: Eine hinzugefügte Begleitperson zählt sofort. Ein: Du bestätigst jede Anfrage.</span></div>${sw(false)}</div>
         <span class="m-eyebrow">Programmpunkte</span>
-        <div class="m-stack">${PROGRAM_ITEMS.map((p) => `<div class="m-card flat"><div class="m-row2"><b class="grow" style="flex:1">${p[0]}${p[0] === "Dinner" ? ' <span class="m-tag ok">Essen</span>' : ""}</b><button class="m-btn soft sm">Bearbeiten</button><button class="m-btn ghost sm">Löschen</button></div>
+        <div class="m-stack">${PROGRAM_ITEMS.map((p) => `<div class="m-card flat"><div class="m-row2"><b class="grow" style="flex:1">${p[0]}${p[0] === "Dinner" ? ' <span class="m-tag ok">Essen</span>' : ""} <span class="m-tag line" title="Kürzel">${CODES[p[0]]}</span></b><button class="m-btn soft sm">Bearbeiten</button><button class="m-btn ghost sm">Löschen</button></div>
           <div class="m-list">${p[1].map((a) => `<div class="m-li"><div class="grow"><b class="sm">${a[1]}</b><span class="m-hint">12.06.2027 ${a[0]}${a[3] ? "–" + a[3] : ""} · ${a[2]}</span></div><button class="m-btn soft sm">Bearbeiten</button><button class="m-btn ghost sm"${p[1].length === 1 ? " disabled" : ""}>Löschen</button></div>`).join("")}</div>
           <button class="m-btn ghost sm" style="align-self:flex-start">${ic("plus")} Aktivität hinzufügen</button>${p[1].length === 1 ? '<span class="m-hint">Die letzte Aktivität lässt sich nicht löschen. Lösche stattdessen den Programmpunkt.</span>' : ""}</div>`).join("")}</div>
         <button class="m-btn ghost sm" style="align-self:flex-start">${ic("plus")} Programmpunkt hinzufügen</button>
         <span class="m-hint">Ein Programmpunkt ist das, wozu Gäste eingeladen sind und was sie beantworten: Name und Essen, keine Uhrzeit. Seine Aktivitäten zeigt das Programm: Name, Beginn, optionales Ende und ein Ort aus der Liste der Orte in Inhalte (kein Freitext). Ein neuer Programmpunkt fragt gleich nach seiner ersten Aktivität. Ein Programmpunkt kann das Essen haben: Nur dafür wird das Menü gefragt.</span>
-        <span class="m-eyebrow">Menüs (für alle)</span><div class="m-chips">${MENUS.map((p) => `<span class="m-chip">${p}</span>`).join("")}<button class="m-chip">${ic("plus")}</button></div></div>
+        <span class="m-eyebrow">Menüs</span>
+        <div class="m-list">${MENUS.map((p) => `<div class="m-li"><div class="grow"><b class="sm">${p}</b></div><span class="m-hint">Kürzel</span>${inp("mk-" + p, CODES[p], 'maxlength="2" style="width:56px" aria-label="Kürzel"')}<button class="m-btn ghost sm">Löschen</button></div>`).join("")}</div>
+        <button class="m-btn ghost sm" style="align-self:flex-start">${ic("plus")} Menü hinzufügen</button>
+        <span class="m-eyebrow">Kindermenüs</span>
+        <div class="m-list">${KID_MENUS.map((p) => `<div class="m-li"><div class="grow"><b class="sm">${p}</b></div><span class="m-hint">Kürzel</span>${inp("mk-" + p, CODES[p], 'maxlength="2" style="width:56px" aria-label="Kürzel"')}<button class="m-btn ghost sm">Löschen</button></div>`).join("")}</div>
+        <button class="m-btn ghost sm" style="align-self:flex-start">${ic("plus")} Kindermenü hinzufügen</button>
+        <span class="m-hint">Erwachsene wählen aus «Menüs», Kinder aus «Kindermenüs». Gefragt wird nur beim Programmpunkt mit dem Essen.</span></div>
       <div class="m-card"><b>Funktionen</b>${[["Minigames", 1], ["Schnappschüsse", 1], ["Galerie", 1], ["Gästebuch", 1], ["Schatzsuche", 1], ["Eventscreen", 1], ["Galerie für Gäste freigegeben", 0]].map(([n, o]) => `<div class="m-setrow"><div class="grow"><b class="sm">${n}</b></div>${sw(o)}</div>`).join("")}</div>
     </div>
     <div class="m-grid-d2">
@@ -1617,9 +1630,9 @@ add({
   shows: ["A fresh installation: the operator created the first admin with the CLI. The admin signs in and sees only the setup form.", "Name, time zone and default language. Saving completes the setup and opens the normal admin area.", "Everyone else who signs in meanwhile sees a neutral “not set up yet” page, with the way to sign out."],
   qs: [{ n: 48, q: "What does the admin see during the setup: only the form, or the whole admin area?", p: "Mock: only the form, with a short explanation. The navigation appears once the setup is saved, so nothing can be opened before the event has a name." }],
   render: (v) => v === "guest"
-    ? `<div class="m-page" style="padding:48px 20px;max-width:520px;margin:auto;display:flex;flex-direction:column;gap:14px;text-align:center"><h1 class="m-h1">Noch nicht eingerichtet</h1><p class="m-muted">Diese Seite wird gerade vorbereitet. Schau bald wieder vorbei.</p><button class="m-btn ghost" data-go="login" style="align-self:center">Abmelden</button></div>`
+    ? `<div class="m-page" style="padding:48px 20px;max-width:520px;margin:auto;display:flex;flex-direction:column;gap:14px;text-align:center"><h1 class="m-h1">Noch nicht eingerichtet</h1><p class="m-muted">Diese Seite wird gerade vorbereitet. Schau bald wieder vorbei.</p><button class="m-btn ghost" data-go="login" style="align-self:center">Ausloggen</button></div>`
     : `<div class="m-admin">
-    <header class="m-ahead"><b>Verwaltung</b><span class="m-tag warn">Noch nicht eingerichtet</span><a data-go="login">Abmelden</a></header>
+    <header class="m-ahead"><b>Verwaltung</b><span class="m-tag warn">Noch nicht eingerichtet</span><a data-go="login">Ausloggen</a></header>
     <div class="m-amain"><h1 class="m-h1">Veranstaltung einrichten</h1>
       <div class="m-card strong"><p class="m-muted sm">Zuerst bekommt die Veranstaltung einen Namen. Danach geht die Verwaltung auf. Inhalte und Erlebniswelt kommen später in ihren eigenen Bereichen.</p>
         ${field("Name", inp("su-name", "", 'placeholder="z. B. Anna & Ben"'))}
@@ -1746,7 +1759,7 @@ add({
       <span class="m-eyebrow">Form</span>
       <div class="te-pv"><label class="te-lbl">Name<input class="te-in" value="Erika Huber"></label><label class="te-lbl">Allergien<input class="te-in" placeholder="optional"></label><div class="m-row2"><button class="te-btn">Speichern</button><button class="te-btn soft">Mehr erfahren</button><button class="te-btn ghost">Abbrechen</button></div></div>
       <span class="m-eyebrow">Waiting card</span>
-      <div class="te-wait" style="${empty ? `--w-card:${C.surface};--w-text:${C.text};--w-b:${C.accent};--w-on:${C.onAccent}` : `--w-card:${W.card};--w-text:${W.text};--w-b:${W.button};--w-on:${W.onButton}`}"><p>Psst, Erika … hinter dieser Tür entsteht gerade etwas. Bist du dabei?</p><button>Rückmeldung geben</button></div>
+      <div class="te-wait" style="${empty ? `--w-card:${C.surface};--w-text:${C.text};--w-b:${C.accent};--w-on:${C.onAccent}` : `--w-card:${W.card};--w-text:${W.text};--w-b:${W.button};--w-on:${W.onButton}`}"><p>Psst, Erika … hinter dieser Tür entsteht gerade etwas. Bist du dabei?</p><button>Anmeldung geben</button></div>
       <span class="m-eyebrow">App icon</span>
       <div class="te-home"><div class="te-app"><i style="background:${C.accent}">${ic("home")}</i><small>Sommerfest</small></div><div class="te-app"><i class="round" style="background:${C.accent}">${ic("home")}</i><small>maskable, circle</small></div><div class="te-app"><i class="sq" style="background:${C.accent}">${ic("home")}</i><small>maskable, rounded</small></div></div>
     </div>`;
@@ -1766,7 +1779,7 @@ const DECIDED = {
   2: "Yes, offered at registration but optional (revised with Q45: grandparents without email). It serves news and “Passwort vergessen”, verified later in the profile.",
   3: "Yes, suggest it from the guest name (editable).",
   4: "Yes, sign in with username or email address.",
-  5: "As in the mock: Profil and Abmelden only.",
+  5: "As in the mock: Profil and Ausloggen only.",
   6: "No teaser.",
   7: "Three-step wizard.",
   8: "Not needed.",
@@ -1802,7 +1815,7 @@ const DECIDED = {
   38: "The mock style is fine. For the website the theme means colours and fonts. The pixel style of the game UI is decided later.",
   39: "Calm website. Pixel accents only in game-related places.",
   40: "Clickable objects come from the event's Tiled world files (several scenes, connected by portals shown as floating arrows). A defined interface describes clickable objects and portals. In an admin view each scene lists its clickable objects, and the admin assigns each one to an overlay or a minigame.",
-  41: "Keep the bar at the top (Programm, Rückmeldung, Hochladen, Website — one click back to the website). Only the bottom buttons go. No event-day “now / next” in the game world.",
+  41: "Keep the bar at the top (Programm, Anmeldung, Hochladen, Website — one click back to the website). Only the bottom buttons go. No event-day “now / next” in the game world.",
   42: "Each map has its own clickable objects, assigned individually (see Q40).",
   43: "The sparkle plus a hint at the first entry.",
   44: "Sign-in by email only with a verified address. A verified address belongs to one account only.",
@@ -1948,7 +1961,7 @@ function mountGame(root, isDesktop) {
   const OBJ = [
     { label: "Programm", hit: [ch.x, ch.y - 40, ch.w, ch.h + 40], front: [doorX, ch.y + ch.h + 18], go: ["game-overlay", "programme"] },
     { label: "Wo sitze ich?", hit: [rest.x, rest.y - 26, rest.w, rest.h + 26], front: [restDoorX, rest.y - 16], go: ["game-table"] },
-    { label: "Rückmeldung", hit: [mailbox.x - 16, mailbox.y - 40, 32, 46], front: [mailbox.x, mailbox.y + 18], go: ["game-overlay", "rsvp"] },
+    { label: "Anmeldung", hit: [mailbox.x - 16, mailbox.y - 40, 32, 46], front: [mailbox.x, mailbox.y + 18], go: ["game-overlay", "rsvp"] },
     { label: "Hochladen", hit: [booth.x - 20, booth.y - 48, 40, 54], front: [booth.x + 30, booth.y + 4], go: ["game-overlay", "upload"] },
     { label: "Tortenturm (Minispiel)", hit: [cake[0] - 20, cake[1] - 22, 40, 36], front: [cake[0], cake[1] + 26], go: ["game-overlay", "minigame"] },
     { label: "Zum Dinner", hit: [portal.x - 26, portal.y - 24, 52, 34], front: [portal.x, portal.y - 6], portal: "Landgasthof Linde · Dinner", go: [] },
@@ -2544,7 +2557,7 @@ function renderDoc(id) {
       <div class="flows">${GROUPS.map(([g, l]) => `<div class="flow"><h3>${l}</h3><div class="chain">${S.filter((s) => s.group === g).map((s, i) => `${i ? "<span>→</span>" : ""}<a href="#${s.id}">${s.title}</a>`).join("")}</div></div>`).join("")}</div>
       <h2>Key flows to try</h2>
       <div class="flows">
-        <div class="flow"><h3>Invitation card to RSVP</h3><p>QR code on the card, account, waiting page, three RSVP steps, back to the waiting page.</p><div class="chain"><a href="#invite-register">Start</a></div></div>
+        <div class="flow"><h3>Invitation card to RSVP</h3><p>QR code on the card, account, three RSVP steps, then the waiting page (epic 5.4: the guest lands on the Anmeldung right after redeeming).</p><div class="chain"><a href="#invite-register">Start</a></div></div>
         <div class="flow"><h3>First entry into the world</h3><p>Avatar (with companion), say hello, then walk around and meet guests.</p><div class="chain"><a href="#onboard-avatar">Start</a></div></div>
         <div class="flow"><h3>QR upload at the party</h3><p>Scan, photo and text, snapshot or keepsake, confirmation; then moderation and the event screen.</p><div class="chain"><a href="#upload">Start</a><span>·</span><a href="#moderation">Moderation</a><span>·</span><a href="#event-screen">Screen</a></div></div>
       </div></div>`;

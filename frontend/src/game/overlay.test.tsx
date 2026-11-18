@@ -184,7 +184,7 @@ describe("a page above the game (GAME-11)", () => {
     });
     const onLeave = vi.fn();
     renderOverlay({ action: { kind: "page", page: "profile" } }, vi.fn(), onLeave);
-    user.click(await screen.findByRole("button", { name: "Abmelden" }));
+    user.click(await screen.findByRole("button", { name: "Ausloggen" }));
     await vi.waitFor(() => {
       expect(onLeave).toHaveBeenCalledWith("/login");
     });

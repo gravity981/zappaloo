@@ -327,7 +327,6 @@ function WorldSummary({
           <HoldButton disabled={busy} onConfirm={onRollback}>
             {t("admin.world.rollbackYes")}
           </HoldButton>
-          <span className="hint">{t("admin.holdHint")}</span>
           <button
             type="button"
             className="btn ghost sm"

@@ -166,7 +166,7 @@ rm -f backups/*                                      # the pre-deploy backups an
 `deploy.sh` finds no running app, skips the pre-deploy backup, creates a new empty data volume and starts the stack. Caddy's volumes stay, so the Let's Encrypt certificate is kept; `secrets/` and `.env` stay too (the session secret only signs cookies, and there are no sessions left). Then:
 
 1. Create the first admin again with `docker compose exec app zappaloo create-admin <username> --vip` and complete the event setup in the admin area.
-2. Check that the installation is empty: Konten & Rollen shows only the admin, Einladungen and Rückmeldungen are empty, the platform is closed.
+2. Check that the installation is empty: Konten & Rollen shows only the admin, Einladungen and Anmeldungen are empty, the platform is closed.
 3. Delete pilot copies outside the host as well: off-site backups of the pilot, exported CSV files, mails you forwarded. Ask the pilot guests to delete the test mails.
 4. Create the real invitations and print the cards.
 

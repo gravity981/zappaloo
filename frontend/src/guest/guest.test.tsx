@@ -122,7 +122,7 @@ describe("the pages without sign-in", () => {
     user.click(screen.getByRole("button", { name: "Link anfordern" }));
     expect(await screen.findByText(/Er gilt 24 Stunden/)).toBeInTheDocument();
     expect(screen.getByText("Keine E-Mail bekommen?")).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Zurück zur Anmeldung" })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: "Zurück zum Einloggen" })).toHaveAttribute(
       "href",
       "/login",
     );
@@ -268,7 +268,7 @@ describe("the registration form (UX mock invite-register)", () => {
       });
       renderAt("/invite/ABC234");
       expect(await screen.findByRole("alert"), code).toHaveTextContent(title);
-      expect(screen.getByRole("link", { name: "Anmelden" })).toHaveAttribute("href", "/login");
+      expect(screen.getByRole("link", { name: "Einloggen" })).toHaveAttribute("href", "/login");
       expect(screen.getByRole("link", { name: "Anderen Code eingeben" })).toHaveAttribute(
         "href",
         "/invite",
@@ -292,6 +292,7 @@ describe("the RSVP in the flow frame (UX mock rsvp-parts)", () => {
       {
         id: 1,
         name: "Trauung",
+        shortCode: null,
         hasMeal: false,
         activities: [
           {
@@ -357,7 +358,7 @@ describe("confirming the email address (UX mock verify-email)", () => {
     user.click(screen.getByRole("button", { name: "Adresse bestätigen" }));
     expect(await screen.findByRole("heading", { name: "Adresse bestätigt" })).toBeInTheDocument();
     expect(
-      screen.getByText(/dich anmelden und dein Passwort per E-Mail zurücksetzen/),
+      screen.getByText(/dich einloggen und dein Passwort per E-Mail zurücksetzen/),
     ).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Zum Profil" })).toHaveAttribute("href", "/profile");
   });

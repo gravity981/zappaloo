@@ -16,6 +16,7 @@ import {
   programItemUpdateSchema,
   invitedProgramItemsRequestSchema,
   menuOptionSchema,
+  menuCreateSchema,
   menuRequestSchema,
   remindResponseSchema,
   rsvpAnswerRequestSchema,
@@ -226,7 +227,7 @@ const rsvpPlugin: FastifyPluginAsyncZod<AuthOptions> = (app, options) => {
     },
   );
 
-  // --- Einstellungen › Rückmeldung --------------------------------------------------------
+  // --- Einstellungen › Anmeldung --------------------------------------------------------
   app.get(
     "/api/admin/rsvp/config",
     { ...admin, schema: { querystring: noQuery, response: { 200: rsvpConfigSchema } } },
@@ -390,12 +391,21 @@ const rsvpPlugin: FastifyPluginAsyncZod<AuthOptions> = (app, options) => {
       ...admin,
       schema: {
         querystring: noQuery,
-        body: menuRequestSchema,
+        body: menuCreateSchema,
         response: { 201: menuOptionSchema },
       },
     },
     async (request, reply) =>
-      reply.status(201).send(rsvp.createMenu(request.body.name, actor(request))),
+      reply
+        .status(201)
+        .send(
+          rsvp.createMenu(
+            request.body.name,
+            actor(request),
+            request.body.forChildren,
+            request.body.shortCode,
+          ),
+        ),
   );
 
   app.patch(
@@ -412,7 +422,12 @@ const rsvpPlugin: FastifyPluginAsyncZod<AuthOptions> = (app, options) => {
     async (request, reply) => {
       try {
         return await reply.send(
-          rsvp.renameMenu(request.params.id, request.body.name, actor(request)),
+          rsvp.renameMenu(
+            request.params.id,
+            request.body.name,
+            actor(request),
+            request.body.shortCode,
+          ),
         );
       } catch (error) {
         return fail(reply, error);
@@ -459,7 +474,7 @@ const rsvpPlugin: FastifyPluginAsyncZod<AuthOptions> = (app, options) => {
     },
   );
 
-  // --- Rückmeldungen ----------------------------------------------------------------------
+  // --- Anmeldungen ----------------------------------------------------------------------
   app.get(
     "/api/admin/rsvp",
     { ...adminFeature, schema: { querystring: noQuery, response: { 200: rsvpOverviewSchema } } },
@@ -479,7 +494,7 @@ const rsvpPlugin: FastifyPluginAsyncZod<AuthOptions> = (app, options) => {
     (_request, reply) =>
       reply
         .type("text/csv; charset=utf-8")
-        .header("content-disposition", 'attachment; filename="rueckmeldungen.csv"')
+        .header("content-disposition", 'attachment; filename="anmeldungen.csv"')
         .send(rsvp.csv()),
   );
 

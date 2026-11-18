@@ -1,7 +1,7 @@
 import { screen, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import { initI18n } from "../i18n/i18n.ts";
-import { anna, fakeBackend, renderAt, user } from "../test/backend.tsx";
+import { anna, anonymous, fakeBackend, hold, renderAt, user } from "../test/backend.tsx";
 
 beforeAll(async () => {
   await initI18n();
@@ -9,6 +9,12 @@ beforeAll(async () => {
 afterEach(() => {
   vi.unstubAllGlobals();
 });
+
+/** The value, which the test expects to exist. */
+function must<T>(value: T | null | undefined): T {
+  if (value === null || value === undefined) throw new Error("expected a value");
+  return value;
+}
 
 const guest = { ...anna, displayName: "Erika" };
 const asGuest = { status: 200, body: { user: guest, csrfToken: "csrf-1" } };
@@ -19,6 +25,7 @@ const PARTS = [
   {
     id: 1,
     name: "Trauung",
+    shortCode: null,
     hasMeal: false,
     activities: [
       {
@@ -34,6 +41,7 @@ const PARTS = [
   {
     id: 2,
     name: "Apéro",
+    shortCode: null,
     hasMeal: false,
     activities: [
       {
@@ -49,6 +57,7 @@ const PARTS = [
   {
     id: 3,
     name: "Dinner",
+    shortCode: null,
     hasMeal: true,
     activities: [
       {
@@ -65,8 +74,9 @@ const PARTS = [
 /** A place of Inhalte the program item form can choose (CNT-07). */
 const PLACE_SAAL = { id: 7, name: "Saal", address: null, mapsUrl: null, mapImageId: null };
 const MENUS = [
-  { id: 1, name: "Fleisch" },
-  { id: 2, name: "Vegetarisch" },
+  { id: 1, name: "Fleisch", forChildren: false, shortCode: null },
+  { id: 2, name: "Vegetarisch", forChildren: false, shortCode: null },
+  { id: 3, name: "Kindermenü", forChildren: true, shortCode: null },
 ];
 
 /** What `GET /api/rsvp` answers. */
@@ -93,12 +103,43 @@ const answered = (programItemIds: number[], extra: Record<string, unknown> = {})
   ),
   menuId: null,
   allergies: null,
+  remarks: null,
   songWish: null,
   answeredAt: "2027-01-01T10:00:00.000Z",
   ...extra,
 });
 
 describe("the RSVP wizard", () => {
+  it("[RSVP-20] the main invitee adds Sonstiges/Anmerkungen below the allergies; it is sent and only named in the summary", async () => {
+    const calls = fakeBackend({
+      "GET /api/session": () => asGuest,
+      "GET /api/rsvp": () => ({ status: 200, body: state() }),
+      "PUT /api/rsvp": () => ({
+        status: 200,
+        body: state({ answer: answered([1], { remarks: "Wir kommen mit dem Zug." }) }),
+      }),
+    });
+    renderAt("/rsvp");
+    user.click(await screen.findByRole("button", { name: "Trauung: Dabei" }));
+    user.click(screen.getByRole("button", { name: "Apéro: Nicht dabei" }));
+    user.click(screen.getByRole("button", { name: "Dinner: Nicht dabei" }));
+    user.click(screen.getByRole("button", { name: "Weiter" }));
+    await screen.findByRole("heading", { name: "Essen & Allergien" });
+    const field = screen.getByLabelText("Sonstiges/Anmerkungen (optional)");
+    expect(field).toHaveAttribute("maxlength", "500");
+    expect(screen.getByText("Höchstens 500 Zeichen.")).toBeInTheDocument();
+    user.type(field, "Wir kommen mit dem Zug.");
+    user.click(screen.getByRole("button", { name: "Weiter" }));
+    user.click(await screen.findByRole("button", { name: "Antwort senden" }));
+    await screen.findByRole("heading", { name: /Danke, Erika/ });
+    expect(calls.find((c) => c.method === "PUT")?.body).toMatchObject({
+      remarks: "Wir kommen mit dem Zug.",
+    });
+    // The summary names the remarks without repeating them.
+    expect(screen.getByText(/Anmerkungen angegeben/)).toBeInTheDocument();
+    expect(screen.queryByText(/mit dem Zug/)).not.toBeInTheDocument();
+  });
+
   it("[RSVP-01][RSVP-03][RSVP-06] a guest answers per program item, picks a menu for the meal program item and sends", async () => {
     const calls = fakeBackend({
       "GET /api/session": () => asGuest,
@@ -155,6 +196,7 @@ describe("the RSVP wizard", () => {
       ],
       menuId: 2,
       allergies: "Nüsse",
+      remarks: null,
       songWish: "ABBA",
       companions: [],
     });
@@ -187,6 +229,7 @@ describe("the RSVP wizard", () => {
         { programItemId: 3, attending: false },
       ],
       allergies: null,
+      remarks: null,
       songWish: null,
       companions: [],
     });
@@ -312,7 +355,7 @@ describe("the RSVP wizard", () => {
     }
     user.click(screen.getByRole("button", { name: "Antwort senden" }));
     expect(await screen.findByRole("alert")).toHaveTextContent(
-      "Die Frist für die Rückmeldung ist vorbei.",
+      "Die Frist für die Anmeldung ist vorbei.",
     );
     expect(screen.getByRole("button", { name: "Trauung: Nicht dabei" })).toBeInTheDocument();
   });
@@ -358,7 +401,7 @@ describe("the RSVP wizard", () => {
     expect(
       await screen.findByText("Diese Funktion ist für diesen Anlass ausgeschaltet."),
     ).toBeInTheDocument();
-    expect(screen.queryByRole("link", { name: "Rückmeldung" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "Anmeldung" })).not.toBeInTheDocument();
   });
 
   it("[RSVP-01] guests find the RSVP in the menu; others are sent away", async () => {
@@ -406,7 +449,7 @@ describe("the wizard in admin mode", () => {
   });
 });
 
-describe("Rückmeldungen", () => {
+describe("Anmeldungen", () => {
   const overview = {
     deadline: "2027-05-01",
     songEnabled: true,
@@ -422,8 +465,8 @@ describe("Rückmeldungen", () => {
     ],
     personTotals: { yes: 2, no: 1, yesByType: { adult: 2, child: 0 } },
     menuTotals: [
-      { menuId: 1, count: 1 },
-      { menuId: 2, count: 1 },
+      { menuId: 1, count: 1, childCount: 0 },
+      { menuId: 2, count: 1, childCount: 0 },
     ],
     guests: [
       {
@@ -435,9 +478,11 @@ describe("Rückmeldungen", () => {
         attendingItemIds: [1, 3],
         declinedItemIds: [2],
         menuId: 2,
+        remarks: null,
         songWish: "ABBA",
         allergies: "Nüsse",
         verifiedEmail: true,
+        emailState: "verified",
       },
       {
         userId: 6,
@@ -448,9 +493,11 @@ describe("Rückmeldungen", () => {
         attendingItemIds: [],
         declinedItemIds: [1, 2, 3],
         menuId: null,
+        remarks: null,
         songWish: null,
         allergies: null,
         verifiedEmail: false,
+        emailState: "none",
       },
       {
         userId: 7,
@@ -461,9 +508,11 @@ describe("Rückmeldungen", () => {
         attendingItemIds: [],
         declinedItemIds: [],
         menuId: null,
+        remarks: null,
         songWish: null,
         allergies: null,
         verifiedEmail: true,
+        emailState: "verified",
       },
     ],
     companions: [],
@@ -473,36 +522,127 @@ describe("Rückmeldungen", () => {
     reminderCount: 1,
   };
 
+  it("[RSVP-22] the table shows next to the status whether the email address is confirmed, open or missing", async () => {
+    fakeBackend({
+      "GET /api/session": () => asAdmin,
+      "GET /api/admin/rsvp": () => ({
+        status: 200,
+        body: {
+          ...overview,
+          guests: overview.guests.map((g, i) => ({
+            ...g,
+            emailState: (["verified", "open", "none"] as const)[i],
+          })),
+          companions: [
+            {
+              id: 3,
+              hostUserId: 5,
+              hostName: "Erika Huber",
+              name: "Mia Huber",
+              note: null,
+              status: "approved",
+              personType: "child",
+              attendingItemIds: [1],
+              declinedItemIds: [],
+              menuId: null,
+              allergies: null,
+            },
+          ],
+        },
+      }),
+    });
+    renderAt("/admin/rsvp");
+    const table = await screen.findByRole("table");
+    expect(within(table).getByRole("columnheader", { name: "E-Mail" })).toBeInTheDocument();
+    const mail = (name: RegExp) => {
+      const row = within(table)
+        .getAllByRole("row")
+        .find((r) => name.test(r.querySelector("b")?.textContent ?? ""));
+      return within(must(row)).getAllByRole("cell")[3];
+    };
+    expect(within(must(mail(/Erika Huber/))).getByText("bestätigt")).toHaveClass("tag", "ok");
+    expect(within(must(mail(/Peter Graf/))).getByText("offen")).toHaveClass("tag", "warn");
+    expect(must(mail(/Lukas Meier/))).toHaveTextContent("–");
+    // An accompanying person has no address of their own.
+    expect(must(mail(/Mia Huber/))).toHaveTextContent("–");
+  });
+
+  it("[RSVP-23] a Kürzel of a program item or a menu replaces its first letter in the tables", async () => {
+    fakeBackend({
+      "GET /api/session": () => asAdmin,
+      "GET /api/admin/rsvp": () => ({
+        status: 200,
+        body: {
+          ...overview,
+          programItems: PARTS.map((p) => (p.id === 1 ? { ...p, shortCode: "Tr" } : p)),
+          menus: MENUS.map((m) => (m.id === 2 ? { ...m, shortCode: "Vt" } : m)),
+        },
+      }),
+    });
+    renderAt("/admin/rsvp");
+    const row = within(await screen.findByRole("table")).getByRole("row", { name: /Erika Huber/ });
+    expect(within(row).getByText("Tr")).toHaveAttribute("title", "Trauung");
+    expect(within(row).getByText("Vt")).toHaveAttribute("title", "Vegetarisch");
+    expect(within(row).queryByText("T")).not.toBeInTheDocument();
+  });
+
+  it("[RSVP-19] the menu totals are kept per list, and a child's adults' menu counts as Erwachsenenmenü", async () => {
+    fakeBackend({
+      "GET /api/session": () => asAdmin,
+      "GET /api/admin/rsvp": () => ({
+        status: 200,
+        body: {
+          ...overview,
+          menuTotals: [
+            { menuId: 1, count: 3, childCount: 1 },
+            { menuId: 3, count: 2, childCount: 2 },
+          ],
+        },
+      }),
+    });
+    renderAt("/admin/rsvp");
+    const card = (await screen.findByText("Menüs (Dinner)")).closest("section");
+    if (!card) throw new Error("no menu card");
+    const rows = Array.from(card.querySelectorAll(".bar-row")).map((row) => row.textContent);
+    expect(rows).toEqual(["Fleisch2", "Kindermenü2", "Erwachsenenmenü1"]);
+    expect(within(card).getByText("Erwachsene")).toBeInTheDocument();
+    expect(within(card).getByText("Kinder")).toBeInTheDocument();
+  });
+
   it("[RSVP-05][SEC-11] shows totals per program item and menu and the guest table with the admin-only allergy column", async () => {
     fakeBackend({
       "GET /api/session": () => asAdmin,
       "GET /api/admin/rsvp": () => ({ status: 200, body: overview }),
     });
     renderAt("/admin/rsvp");
-    expect(await screen.findByRole("heading", { name: "Rückmeldungen" })).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "Anmeldungen" })).toBeInTheDocument();
     expect(await screen.findAllByText("2 ja (2 Erwachsene) · 1 nein")).toHaveLength(2);
     expect(screen.getByText("Menüs (Dinner)")).toBeInTheDocument();
     const table = screen.getByRole("table");
     expect(within(table).getByRole("columnheader", { name: /Allergien/ })).toBeInTheDocument();
     const row = within(table).getByRole("row", { name: /Erika Huber/ });
-    expect(within(row).getByText("Trauung, Dinner")).toBeInTheDocument();
-    expect(within(row).getByText("Vegetarisch")).toBeInTheDocument();
+    // Program items, menu and type are short forms with the full name as the tooltip (RSVP-23).
+    expect(within(row).getByText("T")).toHaveAttribute("title", "Trauung");
+    expect(within(row).getByText("D")).toHaveAttribute("title", "Dinner");
+    expect(within(row).getByText("V")).toHaveAttribute("title", "Vegetarisch");
+    expect(within(row).getByText("E")).toHaveAttribute("title", "Erwachsen");
     expect(within(row).getByText("Nüsse")).toBeInTheDocument();
+    expect(within(table).getByRole("columnheader", { name: /Anmerkungen/ })).toBeInTheDocument();
     expect(within(row).getByRole("link", { name: "Bearbeiten: Erika Huber" })).toHaveAttribute(
       "href",
       "/admin/rsvp/guests/5",
     );
     // The button is the last cell of its row, in a column of its own (UX mock `admin-rsvp`).
     const cells = within(row).getAllByRole("cell");
-    expect(cells).toHaveLength(8);
-    const [first, , , , , , , last] = cells;
+    expect(cells).toHaveLength(10);
+    const [first, , , , , , , , , last] = cells;
     if (!first || !last) throw new Error("the row has no first and last cell");
     expect(within(last).getByRole("link")).toHaveTextContent("Bearbeiten");
     expect(within(first).queryByRole("link")).not.toBeInTheDocument();
-    expect(within(table).getAllByRole("columnheader")).toHaveLength(8);
+    expect(within(table).getAllByRole("columnheader")).toHaveLength(10);
     // The column Typ and the totals by type (RSVP-15).
     expect(within(table).getByRole("columnheader", { name: "Typ" })).toBeInTheDocument();
-    expect(within(row).getByText("Erwachsen")).toBeInTheDocument();
+    expect(within(row).getByText("E")).toHaveAttribute("title", "Erwachsen");
     // The lock and the title alone, no "nur Admins" (decided 2026-11-12).
     expect(within(table).getByRole("columnheader", { name: /^🔒 Allergien$/ })).toBeInTheDocument();
     // The title row and the note keep their distance from the card's border.
@@ -537,7 +677,7 @@ describe("Rückmeldungen", () => {
       "POST /api/admin/rsvp/remind": () => ({ status: 200, body: { sent: 1 } }),
     });
     renderAt("/admin/rsvp");
-    user.click(await screen.findByRole("button", { name: "Erinnern (1)" }));
+    hold(await screen.findByRole("button", { name: "Erinnern (1)" }));
     expect(await screen.findByText("Erinnerung an 1 Gast gesendet.")).toBeInTheDocument();
     expect(calls.find((c) => c.method === "POST")?.csrf).toBe("csrf-9");
   });
@@ -552,7 +692,7 @@ describe("Rückmeldungen", () => {
   });
 });
 
-describe("Einstellungen › Rückmeldung", () => {
+describe("Einstellungen › Anmeldung", () => {
   const config = {
     deadline: "2027-05-01",
     songEnabled: true,
@@ -582,6 +722,7 @@ describe("Einstellungen › Rückmeldung", () => {
         body: {
           id: 4,
           name: "Party",
+          shortCode: null,
           hasMeal: false,
           activities: [
             {
@@ -613,6 +754,7 @@ describe("Einstellungen › Rückmeldung", () => {
     // 22:00 in Zurich (summer time) is 20:00 UTC.
     expect(calls.find((c) => c.method === "POST")?.body).toEqual({
       name: "Party",
+      shortCode: null,
       hasMeal: false,
       activities: [
         { name: "Tanzen", startsAt: "2027-06-12T20:00:00.000Z", endsAt: null, placeId: 7 },
@@ -624,10 +766,17 @@ describe("Einstellungen › Rückmeldung", () => {
   const withActivities = {
     ...config,
     programItems: [
-      { id: 2, name: "Apéro", hasMeal: false, activities: [PARTS[1]?.activities[0]] },
+      {
+        id: 2,
+        name: "Apéro",
+        shortCode: null,
+        hasMeal: false,
+        activities: [PARTS[1]?.activities[0]],
+      },
       {
         id: 3,
         name: "Dinner",
+        shortCode: null,
         hasMeal: true,
         activities: [
           {
@@ -802,24 +951,98 @@ describe("Einstellungen › Rückmeldung", () => {
       "PUT /api/admin/rsvp/deadline": () => ({ status: 204 }),
     });
     renderAt("/admin/settings");
-    user.type(await screen.findByLabelText(/Frist \(letzter Tag\)/), "2027-05-15");
+    user.type(await screen.findByLabelText(/Frist \(letzter Tag\)/), "15.05.2027");
     user.click(screen.getByRole("button", { name: "Frist festlegen" }));
     await waitFor(() => {
       expect(calls.filter((c) => c.method === "PUT")).toHaveLength(1);
     });
     expect(calls.find((c) => c.method === "PUT")?.body).toEqual({ deadline: "2027-05-15" });
-    user.click(screen.getByRole("button", { name: "Frist entfernen" }));
+    hold(screen.getByRole("button", { name: "Frist entfernen" }));
     await waitFor(() => {
       expect(calls.filter((c) => c.method === "PUT")).toHaveLength(2);
     });
     expect(calls.filter((c) => c.method === "PUT")[1]?.body).toEqual({ deadline: null });
   });
 
+  it("[RSVP-04] the deadline is written day.month.year and a date that does not exist is refused", async () => {
+    const calls = fakeBackend({
+      "GET /api/session": () => asAdmin,
+      "GET /api/admin/rsvp/config": () => ({
+        status: 200,
+        body: { ...config, deadline: "2027-05-01" },
+      }),
+      "PUT /api/admin/rsvp/deadline": () => ({ status: 200, body: config }),
+    });
+    renderAt("/admin/settings");
+    // The date as set, day first, whatever the browser's locale.
+    const field = await screen.findByLabelText(/Frist \(letzter Tag\)/);
+    expect(field).toHaveValue("01.05.2027");
+    expect(field).toHaveAttribute("placeholder", "TT.MM.JJJJ");
+    user.clear(field);
+    user.type(field, "31.04.2027");
+    expect(field).toBeInvalid();
+    user.click(screen.getByRole("button", { name: "Frist festlegen" }));
+    expect(calls.some((c) => c.method === "PUT")).toBe(false);
+    user.clear(field);
+    user.type(field, "30.04.2027");
+    expect(field).toBeValid();
+    user.click(screen.getByRole("button", { name: "Frist festlegen" }));
+    await waitFor(() => {
+      expect(calls.some((c) => c.method === "PUT")).toBe(true);
+    });
+    expect(calls.find((c) => c.method === "PUT")?.body).toEqual({ deadline: "2027-04-30" });
+  });
+
+  it("[RSVP-23] the admin sets the Kürzel of a program item and of a menu; the default is the first letter", async () => {
+    const calls = fakeBackend({
+      "GET /api/session": () => asAdmin,
+      "GET /api/admin/rsvp/config": () => ({ status: 200, body: config }),
+      "PATCH /api/admin/rsvp/program-items/1": () => ({ status: 200, body: PARTS[0] }),
+      "PATCH /api/admin/rsvp/menus/1": () => ({ status: 200, body: MENUS[0] }),
+    });
+    renderAt("/admin/settings");
+    // The cards show the Kürzel next to the name: by default the first letter.
+    const item = await screen.findByRole("button", { name: "Bearbeiten: Trauung" });
+    expect(item.closest(".card")?.querySelector(".tag.line")).toHaveTextContent("T");
+    user.click(item);
+    const code = await screen.findByLabelText("Kürzel");
+    expect(code).toHaveAttribute("maxlength", "2");
+    expect(code).toHaveAttribute("placeholder", "T");
+    user.type(code, "Tr");
+    user.click(
+      within(code.closest("form") as HTMLElement).getByRole("button", { name: "Speichern" }),
+    );
+    await waitFor(() => {
+      expect(calls.some((c) => c.path === "/api/admin/rsvp/program-items/1")).toBe(true);
+    });
+    expect(calls.find((c) => c.path === "/api/admin/rsvp/program-items/1")?.body).toMatchObject({
+      shortCode: "Tr",
+    });
+
+    user.click(await screen.findByRole("button", { name: "Bearbeiten: Fleisch" }));
+    const menuCode = await screen.findByLabelText("Kürzel");
+    expect(menuCode).toHaveAttribute("placeholder", "F");
+    user.type(menuCode, "Fl");
+    user.click(
+      within(menuCode.closest("form") as HTMLElement).getByRole("button", { name: "Speichern" }),
+    );
+    await waitFor(() => {
+      expect(calls.some((c) => c.path === "/api/admin/rsvp/menus/1")).toBe(true);
+    });
+    expect(calls.find((c) => c.path === "/api/admin/rsvp/menus/1")?.body).toEqual({
+      name: "Fleisch",
+      shortCode: "Fl",
+    });
+  });
+
   it("[RSVP-03] the admin adds a menu option to the one list", async () => {
     const calls = fakeBackend({
       "GET /api/session": () => asAdmin,
       "GET /api/admin/rsvp/config": () => ({ status: 200, body: config }),
-      "POST /api/admin/rsvp/menus": () => ({ status: 201, body: { id: 3, name: "Vegan" } }),
+      "POST /api/admin/rsvp/menus": () => ({
+        status: 201,
+        body: { id: 3, name: "Vegan", forChildren: false, shortCode: null },
+      }),
     });
     renderAt("/admin/settings");
     const add = await screen.findByRole("button", { name: "Menü hinzufügen" });
@@ -829,7 +1052,44 @@ describe("Einstellungen › Rückmeldung", () => {
     await waitFor(() => {
       expect(calls.some((c) => c.method === "POST")).toBe(true);
     });
-    expect(calls.find((c) => c.method === "POST")?.body).toEqual({ name: "Vegan" });
+    expect(calls.find((c) => c.method === "POST")?.body).toEqual({
+      name: "Vegan",
+      forChildren: false,
+    });
+  });
+
+  it("[RSVP-19] the admin keeps a second list of children's menus", async () => {
+    const calls = fakeBackend({
+      "GET /api/session": () => asAdmin,
+      "GET /api/admin/rsvp/config": () => ({
+        status: 200,
+        body: {
+          ...config,
+          menus: [
+            { id: 1, name: "Fleisch", forChildren: false, shortCode: null },
+            { id: 3, name: "Kindermenü", forChildren: true, shortCode: null },
+          ],
+        },
+      }),
+      "POST /api/admin/rsvp/menus": () => ({
+        status: 201,
+        body: { id: 4, name: "Pasta", forChildren: true, shortCode: null },
+      }),
+    });
+    renderAt("/admin/settings");
+    expect(await screen.findByText("Kindermenüs", { selector: "b" })).toBeInTheDocument();
+    // Each menu stands in its own list.
+    expect(screen.getByText("Kindermenü", { selector: "li span" })).toBeInTheDocument();
+    const add = await screen.findByRole("button", { name: "Kindermenü hinzufügen" });
+    user.type(screen.getByLabelText("Bezeichnung des Kindermenüs"), "Pasta");
+    user.click(add);
+    await waitFor(() => {
+      expect(calls.some((c) => c.method === "POST")).toBe(true);
+    });
+    expect(calls.find((c) => c.method === "POST")?.body).toEqual({
+      name: "Pasta",
+      forChildren: true,
+    });
   });
 });
 
@@ -899,7 +1159,7 @@ describe("invited program items", () => {
       }),
     });
     renderAt("/admin/invitations");
-    // Trauung and Dinner: T D, with the names as the title. Apéro is not invited.
+    // Trauung and Dinner: T D (their Kürzel), with the names as the title. Apéro is not invited.
     const letters = await screen.findByText("T D");
     expect(screen.getAllByRole("columnheader").map((th) => th.textContent)).toEqual([
       "Gast",
@@ -1043,7 +1303,9 @@ describe("revoking vip (7.4.1, decided 2026-11-11)", () => {
       "PUT /api/admin/users/1/roles": () => ({ status: 200, body: anna }),
     });
     renderAt("/admin/users");
-    user.click(await screen.findByRole("button", { name: "vip für Oma" }));
+    user.click(await screen.findByRole("button", { name: "Konto Oma bearbeiten" }));
+    const panel = await screen.findByRole("dialog");
+    user.click(within(panel).getByRole("button", { name: "vip" }));
     const confirm = await screen.findByRole("alertdialog");
     expect(confirm).toHaveTextContent(/Oma verliert die Rolle vip/);
     expect(calls.some((c) => c.method === "PUT")).toBe(false);
@@ -1052,7 +1314,7 @@ describe("revoking vip (7.4.1, decided 2026-11-11)", () => {
     await waitFor(() => {
       expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument();
     });
-    user.click(screen.getByRole("button", { name: "vip für Oma" }));
+    user.click(within(panel).getByRole("button", { name: "vip" }));
     user.click(await screen.findByRole("button", { name: "vip entziehen" }));
     await waitFor(() => {
       expect(calls.find((c) => c.method === "PUT")?.body).toEqual({ roles: ["staff"] });
@@ -1119,7 +1381,7 @@ describe("Übersicht", () => {
     if (!card) throw new Error("the card has no section");
     const items = await within(card).findAllByRole("listitem");
     expect(items.map((item) => item.textContent)).toEqual([
-      expect.stringMatching(/^Erika Huber hat die Rückmeldung abgegeben/),
+      expect.stringMatching(/^Erika Huber hat die Anmeldung abgegeben/),
       expect.stringMatching(/^12 Einladungen erstellt/),
       expect.stringMatching(/^«Schnappschuss-Uploads» geändert/),
       expect.stringMatching(/^Erinnerung an 31 Gäste gesendet/),
@@ -1524,8 +1786,8 @@ describe("person types (RSVP-13, RSVP-14, RSVP-15)", () => {
     // One of a type is worded in the singular.
     expect(screen.getByText("2 ja (1 erwachsene Person, 1 Kind) · 0 nein")).toBeInTheDocument();
     expect(screen.getByText("0 ja · 4 nein")).toBeInTheDocument();
-    // The note of an empty guest table spans all eight columns.
-    expect(screen.getByText("Noch keine Gäste.").closest("td")).toHaveAttribute("colspan", "8");
+    // The note of an empty guest table spans all ten columns.
+    expect(screen.getByText("Noch keine Gäste.").closest("td")).toHaveAttribute("colspan", "10");
     expect(screen.getByText("Pro Programmpunkt")).toBeInTheDocument();
   });
 
@@ -1557,7 +1819,7 @@ describe("person types (RSVP-13, RSVP-14, RSVP-15)", () => {
     expect(screen.queryByText("Trauung", { selector: ".bar-row span" })).not.toBeInTheDocument();
   });
 
-  it("[RSVP-14] a child is offered the menu, but may go on without choosing one", async () => {
+  it("[RSVP-14][RSVP-19] a child chooses from the children's menus and must choose one", async () => {
     fakeBackend({
       "GET /api/session": () => asGuest,
       "GET /api/rsvp": () => ({
@@ -1570,15 +1832,12 @@ describe("person types (RSVP-13, RSVP-14, RSVP-15)", () => {
     await screen.findByRole("heading", { name: "Bist du dabei, Erika?" });
     user.click(screen.getByRole("button", { name: "Weiter" }));
     await screen.findByRole("heading", { name: "Essen & Allergien" });
-    // The menu is there, but nothing is missing without it.
     expect(screen.getByText("Menü (Dinner)")).toBeInTheDocument();
+    // Only the children's list, and the child cannot go on without a choice.
+    expect(screen.queryByRole("button", { name: "Fleisch" })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Weiter" })).toBeDisabled();
+    user.click(screen.getByRole("button", { name: "Kindermenü" }));
     expect(screen.getByRole("button", { name: "Weiter" })).toBeEnabled();
-    // A menu chosen by mistake is left open again with a second click.
-    const chip = screen.getByRole("button", { name: "Fleisch" });
-    user.click(chip);
-    expect(chip).toHaveAttribute("aria-pressed", "true");
-    user.click(chip);
-    expect(chip).toHaveAttribute("aria-pressed", "false");
   });
 
   it("[RSVP-14] an adult must choose the menu before going on", async () => {
@@ -1704,5 +1963,78 @@ describe("person types (RSVP-13, RSVP-14, RSVP-15)", () => {
     expect(calls.find((c) => c.path.endsWith("/person-type"))?.body).toEqual({
       personType: "child",
     });
+  });
+});
+
+describe("landing on the Anmeldung after redeeming (RSVP-24)", () => {
+  const preview = { status: 200, body: { guestName: "Erika Huber" } };
+
+  /** A new guest registers with the code; the answer of `GET /api/rsvp` decides where they land. */
+  async function registerAs(rsvp: unknown) {
+    let current: { status: number; body: unknown } = anonymous;
+    fakeBackend({
+      "GET /api/session": () => current,
+      "GET /api/invitations/K7QMX4": () => preview,
+      "POST /api/invitations/K7QMX4/register": () => ({ status: 201, body: { user: guest } }),
+      "POST /api/session": () => {
+        current = asGuest;
+        return asGuest;
+      },
+      "GET /api/rsvp": () => ({ status: 200, body: rsvp }),
+    });
+    renderAt("/invite/K7QMX4");
+    user.type(await screen.findByLabelText("Passwort"), "a-long-enough-password");
+    user.click(screen.getByRole("button", { name: "Konto anlegen" }));
+  }
+
+  it("[RSVP-24] a new guest who has not answered lands on the Anmeldung", async () => {
+    await registerAs(state());
+    expect(
+      await screen.findByRole("heading", { name: "Bist du dabei, Erika?" }),
+    ).toBeInTheDocument();
+  });
+
+  it("[RSVP-24] a guest who has answered, or whose deadline has passed, lands on the start", async () => {
+    await registerAs(state({ answer: answered([1, 3]) }));
+    expect(await screen.findByText("Willkommen!")).toBeInTheDocument();
+    expect(
+      screen.queryByRole("heading", { name: "Bist du dabei, Erika?" }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("[RSVP-24] with the deadline over the guest lands on the start", async () => {
+    await registerAs(state({ closed: true }));
+    expect(await screen.findByText("Willkommen!")).toBeInTheDocument();
+  });
+
+  it("[RSVP-24] an existing account that adds the invitation lands on the Anmeldung too", async () => {
+    const helper = { ...anna, roles: ["staff"] };
+    const withVip = { ...helper, roles: ["staff", "vip"] };
+    let current = { status: 200, body: { user: helper, csrfToken: "csrf-1" } };
+    fakeBackend({
+      "GET /api/session": () => current,
+      "GET /api/invitations/K7QMX4": () => preview,
+      "POST /api/invitations/K7QMX4/redeem": () => {
+        current = { status: 200, body: { user: withVip, csrfToken: "csrf-1" } };
+        return { status: 200, body: { user: withVip } };
+      },
+      "GET /api/rsvp": () => ({ status: 200, body: state() }),
+    });
+    renderAt("/invite/K7QMX4");
+    user.click(await screen.findByRole("button", { name: "Zu meinem Konto hinzufügen" }));
+    expect(
+      await screen.findByRole("heading", { name: "Bist du dabei, Erika?" }),
+    ).toBeInTheDocument();
+  });
+
+  it('[RSVP-24] after the summary "Weiter" leads to the start', async () => {
+    fakeBackend({
+      "GET /api/session": () => asGuest,
+      "GET /api/rsvp": () => ({ status: 200, body: state({ answer: answered([1, 3]) }) }),
+    });
+    renderAt("/rsvp");
+    await screen.findByRole("heading", { name: /Danke, Erika/ });
+    user.click(screen.getByRole("button", { name: "Weiter" }));
+    expect(await screen.findByText("Willkommen!")).toBeInTheDocument();
   });
 });

@@ -122,7 +122,7 @@ describe("the notice under the footer", () => {
   it("[LIC-01] shows nothing, and breaks nothing, if the texts cannot be read", async () => {
     fakeBackend({ "GET /api/session": () => anonymous });
     renderAt("/login");
-    expect(await screen.findByRole("heading", { name: "Anmelden" })).toBeVisible();
+    expect(await screen.findByRole("heading", { name: "Einloggen" })).toBeVisible();
     expect(screen.queryByRole("link", { name: "Quellcode" })).not.toBeInTheDocument();
   });
 });

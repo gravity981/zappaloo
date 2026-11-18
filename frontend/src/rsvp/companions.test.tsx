@@ -24,6 +24,7 @@ const PARTS = [
   {
     id: 1,
     name: "Trauung",
+    shortCode: null,
     hasMeal: false,
     activities: [
       {
@@ -39,6 +40,7 @@ const PARTS = [
   {
     id: 3,
     name: "Dinner",
+    shortCode: null,
     hasMeal: true,
     activities: [
       {
@@ -53,8 +55,8 @@ const PARTS = [
   },
 ];
 const MENUS = [
-  { id: 1, name: "Fleisch" },
-  { id: 4, name: "Kindermenü" },
+  { id: 1, name: "Fleisch", forChildren: false, shortCode: null },
+  { id: 4, name: "Kindermenü", forChildren: true, shortCode: null },
 ];
 
 const companion = (changes: Record<string, unknown> = {}) => {
@@ -92,6 +94,7 @@ function state(changes: Record<string, unknown> = {}) {
       declinedItemIds: [3],
       menuId: null,
       allergies: null,
+      remarks: null,
       songWish: null,
       answeredAt: "2027-01-01T10:00:00.000Z",
     },
@@ -150,6 +153,34 @@ describe("accompanying persons in the wizard", () => {
     ).not.toBeInTheDocument();
   });
 
+  it("[RSVP-21] both buttons open the same form and preselect the type, which stays changeable", async () => {
+    fakeBackend({
+      "GET /api/session": () => asGuest,
+      "GET /api/rsvp": () => ({ status: 200, body: state() }),
+    });
+    renderAt("/rsvp");
+    await toStepThree();
+    user.click(screen.getByRole("button", { name: "+ Begleitung" }));
+    expect(await screen.findByText("Begleitperson hinzufügen", { selector: "b" })).toBeVisible();
+    const adult = screen.getByRole("button", { name: "Erwachsen" });
+    const child = screen.getByRole("button", { name: "Kind" });
+    expect(adult).toHaveAttribute("aria-pressed", "true");
+    expect(child).toHaveAttribute("aria-pressed", "false");
+    user.click(child);
+    expect(child).toHaveAttribute("aria-pressed", "true");
+    expect(adult).toHaveAttribute("aria-pressed", "false");
+    user.click(screen.getByRole("button", { name: "Abbrechen" }));
+
+    // The other button opens the same form with the child preselected.
+    user.click(await screen.findByRole("button", { name: "+ Kind" }));
+    expect(await screen.findByText("Begleitperson hinzufügen", { selector: "b" })).toBeVisible();
+    expect(screen.getByRole("button", { name: "Kind" })).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByRole("button", { name: "Erwachsen" })).toHaveAttribute(
+      "aria-pressed",
+      "false",
+    );
+  });
+
   it("[RSVP-08] the guest requests a person: name, note, attendance, menu and allergies", async () => {
     const calls = fakeBackend({
       "GET /api/session": () => asGuest,
@@ -161,7 +192,9 @@ describe("accompanying persons in the wizard", () => {
     });
     renderAt("/rsvp");
     await toStepThree();
-    user.click(screen.getByRole("button", { name: "+ Begleitperson hinzufügen" }));
+    // Two buttons instead of one: "+Begleitung" and "+Kind" open the same form (RSVP-21).
+    expect(screen.getByRole("button", { name: "+ Begleitung" })).toBeInTheDocument();
+    user.click(screen.getByRole("button", { name: "+ Kind" }));
 
     // The form has the title of the flow frame.
     expect(
@@ -186,10 +219,11 @@ describe("accompanying persons in the wizard", () => {
     user.click(screen.getByRole("button", { name: "Dinner: Dabei" }));
     // The meal program item needs a menu.
     expect(submit).toBeDisabled();
-    user.click(screen.getByRole("button", { name: "Mia Huber: Kindermenü" }));
-    // The type has no default: the guest must choose it (RSVP-13).
+    // "+Kind" preselected the type; the menu list follows it (RSVP-19, RSVP-21).
+    expect(screen.getByRole("button", { name: "Kind" })).toHaveAttribute("aria-pressed", "true");
     expect(submit).toBeDisabled();
-    user.click(screen.getByRole("button", { name: "Kind" }));
+    expect(screen.queryByRole("button", { name: "Mia Huber: Fleisch" })).not.toBeInTheDocument();
+    user.click(screen.getByRole("button", { name: "Mia Huber: Kindermenü" }));
     expect(submit).toBeEnabled();
     user.click(submit);
 
@@ -262,7 +296,7 @@ describe("accompanying persons in the wizard", () => {
     user.click(screen.getByRole("button", { name: "Weiter" }));
     user.click(await screen.findByRole("button", { name: "Fleisch" }));
     user.click(screen.getByRole("button", { name: "Weiter" }));
-    user.click(await screen.findByRole("button", { name: "+ Begleitperson hinzufügen" }));
+    user.click(await screen.findByRole("button", { name: "+ Begleitung" }));
     user.click(await screen.findByRole("button", { name: "Abbrechen" }));
     // Back at step 3 with the song field of an attending guest; going back keeps the menu.
     await screen.findByRole("heading", { name: "Begleitpersonen & Musik" });
@@ -279,6 +313,7 @@ describe("accompanying persons in the wizard", () => {
       declinedItemIds: [],
       menuId: 1,
       allergies: null,
+      remarks: null,
       songWish: null,
       answeredAt: "2027-01-01T10:00:00.000Z",
     };
@@ -338,6 +373,8 @@ describe("accompanying persons in the wizard", () => {
     // Step 2: a card for each person who attends, here only Noah (Trauung) and Erika.
     expect(await screen.findByRole("heading", { name: "Essen & Allergien" })).toBeInTheDocument();
     user.type(screen.getByLabelText("Allergien oder Unverträglichkeiten (Noah Huber)"), "Laktose");
+    // "Sonstiges/Anmerkungen" is the main invitee's alone, not the companions' (RSVP-20).
+    expect(screen.getAllByLabelText(/Sonstiges\/Anmerkungen/)).toHaveLength(1);
     user.click(screen.getByRole("button", { name: "Weiter" }));
     user.click(await screen.findByRole("button", { name: "Antwort senden" }));
 
@@ -377,6 +414,7 @@ describe("accompanying persons in the wizard", () => {
             declinedItemIds: [1, 3],
             menuId: null,
             allergies: null,
+            remarks: null,
             songWish: null,
             answeredAt: "2027-01-02T10:00:00.000Z",
           },
@@ -459,7 +497,7 @@ describe("accompanying persons in the wizard", () => {
     user.click(must(next[0]));
     await screen.findByRole("heading", { name: "Begleitpersonen & Musik" });
     expect(
-      screen.queryByRole("button", { name: /Begleitperson hinzufügen/ }),
+      screen.queryByRole("button", { name: /^\+ (Begleitung|Kind)$/ }),
     ).not.toBeInTheDocument();
     expect(
       screen.queryByRole("button", { name: "Zurückziehen: Mia Huber" }),
@@ -479,7 +517,7 @@ describe("accompanying persons in the wizard", () => {
   });
 });
 
-describe("Rückmeldungen: companion requests", () => {
+describe("Anmeldungen: companion requests", () => {
   const overview = (changes: Record<string, unknown> = {}) => ({
     deadline: null,
     songEnabled: true,
@@ -501,9 +539,11 @@ describe("Rückmeldungen: companion requests", () => {
         attendingItemIds: [1],
         declinedItemIds: [3],
         menuId: null,
+        remarks: null,
         songWish: null,
         allergies: null,
         verifiedEmail: false,
+        emailState: "none",
       },
     ],
     companions: [
@@ -618,7 +658,8 @@ describe("companion approval off (RSVP-12, 7.4.2)", () => {
     expect(within(row).queryByText("Bestätigt")).not.toBeInTheDocument();
     expect(within(row).queryByText("Wartet auf Bestätigung")).not.toBeInTheDocument();
     // The texts say "hinzufügen", never "beantragen".
-    expect(screen.getByRole("button", { name: "+ Begleitperson hinzufügen" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "+ Begleitung" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "+ Kind" })).toBeInTheDocument();
     user.click(within(row).getByRole("button", { name: "Entfernen: Mia Huber" }));
     await waitFor(() => {
       expect(screen.queryByText("Mia Huber")).not.toBeInTheDocument();
@@ -657,7 +698,7 @@ describe("companion approval off (RSVP-12, 7.4.2)", () => {
     expect(screen.queryByRole("button", { name: /Entfernen/ })).not.toBeInTheDocument();
   });
 
-  it("[RSVP-12] Rückmeldungen has no requests card, no badge and no tile; the admin removes a person with a second click", async () => {
+  it("[RSVP-12] Anmeldungen has no requests card, no badge and no tile; the admin removes a person with a second click", async () => {
     const overviewOff = {
       deadline: null,
       songEnabled: true,
@@ -680,9 +721,11 @@ describe("companion approval off (RSVP-12, 7.4.2)", () => {
           attendingItemIds: [1],
           declinedItemIds: [3],
           menuId: null,
+          remarks: null,
           songWish: null,
           allergies: null,
           verifiedEmail: false,
+          emailState: "none",
         },
       ],
       companions: [
@@ -757,7 +800,7 @@ describe("companion approval off (RSVP-12, 7.4.2)", () => {
       "GET /api/admin/activity": () => ({ status: 200, body: { entries: [] } }),
     });
     renderAt("/admin");
-    expect(await screen.findByText("Rückmeldungen")).toBeInTheDocument();
+    expect(await screen.findByText("Anmeldungen")).toBeInTheDocument();
     await waitFor(() => {
       expect(screen.getByText("0 / 0")).toBeInTheDocument();
     });

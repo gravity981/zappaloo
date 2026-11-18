@@ -59,3 +59,23 @@ describe("i18n", () => {
     expect(screen.getByRole("link", { name: de.notFound.backHome })).toHaveAttribute("href", "/");
   });
 });
+
+describe("words (LANG-03)", () => {
+  /** Every string of the German message file, with its key. */
+  function strings(node: unknown, path = ""): [string, string][] {
+    if (typeof node === "string") return [[path, node]];
+    if (node && typeof node === "object") {
+      return Object.entries(node).flatMap(([k, v]) => strings(v, path ? `${path}.${k}` : k));
+    }
+    return [];
+  }
+
+  it('[LANG-03] the RSVP is "Anmeldung" and signing in is "Einloggen" / "Ausloggen" in every German text', () => {
+    const old =
+      /Rückmeld|Abmelden|Anmelden|dich (neu |wieder |einmal neu |ab jetzt )?an(melden)?\b|angemeldet/;
+    const found = strings(de).filter(([, text]) => old.test(text));
+    expect(found).toEqual([]);
+    expect(de.login.title).toBe("Einloggen");
+    expect(de.nav.logout).toBe("Ausloggen");
+  });
+});

@@ -190,8 +190,8 @@ describe("the content page and Mehr (WEB-02, WEB-05, CNT-07)", () => {
     expect(screen.queryByRole("link", { name: "FAQ" })).not.toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Mein Profil" })).toHaveAttribute("href", "/profile");
     expect(screen.queryByRole("link", { name: /Verwaltung/ })).not.toBeInTheDocument();
-    // Datenschutz is in the footer, Abmelden in the profile: neither is on this page.
-    expect(screen.queryByRole("button", { name: "Abmelden" })).not.toBeInTheDocument();
+    // Datenschutz is in the footer, Ausloggen in the profile: neither is on this page.
+    expect(screen.queryByRole("button", { name: "Ausloggen" })).not.toBeInTheDocument();
   });
 
   it("[WEB-02] an admin sees Verwaltung and Inhalte in Mehr", async () => {

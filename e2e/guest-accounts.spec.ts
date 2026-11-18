@@ -46,7 +46,7 @@ test("[ACC-18][ACC-19][INV-20][INV-21] an admin blocks, unblocks and deletes a g
   await guest.getByLabel(de.invite.username).fill(username);
   await guest.getByLabel(de.setPassword.password, { exact: true }).fill(PASSWORD);
   await guest.getByRole("button", { name: de.invite.register }).click();
-  await expect(guest.getByRole("link", { name: de.waiting.answer })).toBeVisible();
+  await expect(guest).toHaveURL(/\/rsvp$/);
   const signIn = () =>
     guestContext.request.post("/api/session", { data: { username, password: PASSWORD } });
 
@@ -123,10 +123,9 @@ test("[ACC-07][INV-07] a signed-in account without vip adds an invitation to its
 
   // The account is the guest now: it has vip, the code is redeemed and no second account is left.
   await page.goto("/admin/users");
-  await expect(page.getByRole("button", { name: `vip für ${username}` })).toHaveAttribute(
-    "aria-pressed",
-    "true",
-  );
+  await expect(
+    page.getByRole("row", { name: new RegExp(username) }).getByTitle(de.admin.roles.vip),
+  ).toBeVisible();
   await expect(page.getByRole("row", { name: new RegExp(guestName) })).toHaveCount(0);
   await page.goto("/admin/invitations");
   await expect(page.getByRole("row", { name: new RegExp(guestName) })).toContainText(

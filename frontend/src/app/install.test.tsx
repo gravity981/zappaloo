@@ -138,7 +138,7 @@ describe("the install page", () => {
     expect(screen.getByText("Teilen")).toBeVisible();
     expect(screen.getByText("Zum Home-Bildschirm")).toBeVisible();
     expect(screen.getByText("Hinzufügen")).toBeVisible();
-    expect(screen.getByText(/meldest du dich einmal neu an: iOS speichert/)).toBeVisible();
+    expect(screen.getByText(/loggst du dich einmal neu ein: iOS speichert/)).toBeVisible();
     expect(screen.queryByRole("button", { name: "Installieren" })).not.toBeInTheDocument();
   });
 

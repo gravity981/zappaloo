@@ -279,6 +279,11 @@
   width: auto;
   max-width: 100%;
 }
+/* The Kürzel field: one or two characters (RSVP-23). */
+:is(.admin, .guest) .input.short {
+  width: 4.5em;
+  flex: none;
+}
 :is(.admin, .guest) textarea.input {
   min-height: 96px;
   padding: 10px 12px;
@@ -480,6 +485,21 @@
 }
 :is(.admin, .guest) .li .grow {
   flex: 1 1 11rem;
+}
+/* An inline edit form in a list row: the fields and buttons side by side, not stacked like the text. */
+:is(.admin, .guest) .li .grow.row {
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+:is(.admin, .guest) .li .grow.row > .btn {
+  align-self: center;
+}
+:is(.admin, .guest) .li .grow.row .input:not(.short) {
+  width: auto;
+  flex: 1 1 8rem;
+  min-width: 0;
 }
 :is(.admin, .guest) .list {
   display: flex;

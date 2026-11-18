@@ -6,6 +6,7 @@ import type {
   IssuedInvitation,
   MenuOption,
   Role,
+  RsvpConfig,
   RsvpOverview,
   RsvpState,
 } from "@zappaloo/shared";
@@ -748,7 +749,7 @@ describe("the admin overview", () => {
     expect(total("Apéro")).toMatchObject({ yes: 2, no: 0 });
     expect(total("Dinner")).toMatchObject({ yes: 1, no: 1 });
     expect(total("Party")).toMatchObject({ yes: 0, no: 1 }); // only anna was invited, and said no
-    expect(overview.menuTotals).toEqual([{ menuId: menus[0]?.id, count: 1 }]);
+    expect(overview.menuTotals).toEqual([{ menuId: menus[0]?.id, count: 1, childCount: 0 }]);
     expect(overview.guests.map((g) => [g.name, g.status])).toEqual([
       ["anna", "attending"],
       ["ben", "attending"],
@@ -791,6 +792,55 @@ describe("the admin overview", () => {
     expect((await get(root, "/api/admin/activity")).raw.body).not.toContain("GEHEIM-ALLERGIE");
   });
 
+  it("[RSVP-20][SEC-11] the remarks of the main invitee reach only admins and the guest, never the log", async () => {
+    const { ctx, get, call, programItems, guest, root, menus } = await setup();
+    const anna = await guest("anna");
+    const ben = await guest("ben");
+    const answer = {
+      attendance: yes(programItems, "Dinner"),
+      menuId: menus[0]?.id,
+      remarks: "GEHEIME-ANMERKUNG",
+    };
+    const saved = await call<RsvpState>(anna, "PUT", "/api/rsvp", answer);
+    expect(must(saved.body).answer?.remarks).toBe("GEHEIME-ANMERKUNG");
+    // The guest table and the CSV of the admin have it, nobody else does.
+    const overview = (await get<RsvpOverview>(root, "/api/admin/rsvp")).body;
+    expect(overview.guests.find((g) => g.name === "anna")?.remarks).toBe("GEHEIME-ANMERKUNG");
+    expect((await get(root, "/api/admin/rsvp/export")).raw.body).toContain("GEHEIME-ANMERKUNG");
+    expect((await get(ben, "/api/admin/rsvp")).status).toBe(403);
+    expect((await get<RsvpState>(ben, "/api/rsvp")).raw.body).not.toContain("GEHEIME-ANMERKUNG");
+    expect(JSON.stringify(ctx.event.auditEntries())).not.toContain("GEHEIME-ANMERKUNG");
+    expect((await get(root, "/api/admin/activity")).raw.body).not.toContain("GEHEIME-ANMERKUNG");
+  });
+
+  it("[RSVP-20] the remarks are optional, at most 500 characters, and dropped without attendance", async () => {
+    const { call, programItems, guest, menus } = await setup();
+    const anna = await guest("anna");
+    const base = { attendance: yes(programItems, "Dinner"), menuId: menus[0]?.id };
+    const without = await call<RsvpState>(anna, "PUT", "/api/rsvp", base);
+    expect(must(without.body).answer?.remarks).toBeNull();
+    const longest = "x".repeat(500);
+    const full = await call<RsvpState>(anna, "PUT", "/api/rsvp", { ...base, remarks: longest });
+    expect(must(full.body).answer?.remarks).toBe(longest);
+    expect(
+      (await call(anna, "PUT", "/api/rsvp", { ...base, remarks: "x".repeat(501) })).status,
+    ).toBe(400);
+    // Whoever declines everything keeps no remarks, like the allergies.
+    const declined = await call<RsvpState>(anna, "PUT", "/api/rsvp", {
+      attendance: yes(programItems),
+      remarks: "Doch nicht",
+    });
+    expect(must(declined.body).answer?.remarks).toBeNull();
+    // Companions have no remarks.
+    const mia = await call(anna, "POST", "/api/rsvp/companions", {
+      name: "Mia",
+      personType: "adult",
+      attendance: yes(programItems, "Trauung"),
+      remarks: "Nein",
+    });
+    expect(mia.status).toBe(400);
+  });
+
   it("[RSVP-05] exports the guest table as CSV, safe against formulas", async () => {
     const { get, call, programItems, guest, root, menus } = await setup();
     const anna = await guest("anna");
@@ -805,11 +855,84 @@ describe("the admin overview", () => {
     expect(response.headers["content-type"]).toContain("text/csv");
     expect(response.headers["content-disposition"]).toContain("attachment");
     const lines = response.body.trim().split("\r\n");
-    expect(lines[0]).toBe("Name;Typ;Status;Trauung;Apéro;Dinner;Party;Menü;Songwunsch;Allergien");
-    expect(lines[1]).toBe(
-      'anna;Erwachsen;zugesagt;ja;nein;ja;nein;Vegetarisch;"Abba; Dancing ""Queen""";"\'=HYPERLINK(""http://x"")"',
+    expect(lines[0]).toBe(
+      "Name;Typ;Status;Trauung;Apéro;Dinner;Party;Menü;Songwunsch;Allergien;Anmerkungen",
     );
-    expect(lines[2]).toBe("ben;Erwachsen;ohne Antwort;;;;;;;");
+    expect(lines[1]).toBe(
+      'anna;Erwachsen;zugesagt;ja;nein;ja;nein;Vegetarisch;"Abba; Dancing ""Queen""";"\'=HYPERLINK(""http://x"")";',
+    );
+    expect(lines[2]).toBe("ben;Erwachsen;ohne Antwort;;;;;;;;");
+  });
+});
+
+describe("short forms and the email column (RSVP-22, RSVP-23)", () => {
+  it("[RSVP-23] program items and menus have an optional Kürzel of one or two characters", async () => {
+    const { root, call, get, programItems, menus } = await setup();
+    const trauung = must(programItems[0]);
+    const menu = must(menus[0]);
+    // Without a Kürzel the API says null: the tables use the first letter.
+    expect(trauung.shortCode).toBeNull();
+    expect(menu.shortCode).toBeNull();
+    const set = await call<ProgramItem>(
+      root,
+      "PATCH",
+      `/api/admin/rsvp/program-items/${String(trauung.id)}`,
+      { shortCode: "Tr" },
+    );
+    expect(must(set.body).shortCode).toBe("Tr");
+    const renamed = await call<MenuOption>(
+      root,
+      "PATCH",
+      `/api/admin/rsvp/menus/${String(menu.id)}`,
+      {
+        name: menu.name,
+        shortCode: "Fl",
+      },
+    );
+    expect(must(renamed.body).shortCode).toBe("Fl");
+    const config = (await get<RsvpConfig>(root, "/api/admin/rsvp/config")).body;
+    expect(config.programItems.find((p) => p.id === trauung.id)?.shortCode).toBe("Tr");
+    expect(config.menus.find((m) => m.id === menu.id)?.shortCode).toBe("Fl");
+    // Longer than two characters is refused, null goes back to the first letter.
+    for (const shortCode of ["Abc", ""]) {
+      const bad = await call(root, "PATCH", `/api/admin/rsvp/program-items/${String(trauung.id)}`, {
+        shortCode,
+      });
+      expect(bad.status, shortCode).toBe(400);
+    }
+    const cleared = await call<ProgramItem>(
+      root,
+      "PATCH",
+      `/api/admin/rsvp/program-items/${String(trauung.id)}`,
+      { shortCode: null },
+    );
+    expect(must(cleared.body).shortCode).toBeNull();
+    // A new menu can come with one.
+    const created = await call<MenuOption>(root, "POST", "/api/admin/rsvp/menus", {
+      name: "Vegan",
+      shortCode: "Vg",
+    });
+    expect(must(created.body).shortCode).toBe("Vg");
+  });
+
+  it("[RSVP-22] the guest table says whether the email address is confirmed, open or missing", async () => {
+    const { ctx, root, get, guest } = await setup();
+    const anna = await guest("anna");
+    const ben = await guest("ben");
+    await guest("cleo");
+    const setEmail = (userId: number, email: string, status: string) =>
+      ctx.database.sqlite
+        .prepare("UPDATE users SET email = ?, email_status = ? WHERE id = ?")
+        .run(email, status, userId);
+    setEmail(anna.id, "anna@example.ch", "verified");
+    setEmail(ben.id, "ben@example.ch", "unverified");
+    const overview = (await get<RsvpOverview>(root, "/api/admin/rsvp")).body;
+    const state = (name: string) => overview.guests.find((g) => g.name === name)?.emailState;
+    expect(state("anna")).toBe("verified");
+    expect(state("ben")).toBe("open");
+    expect(state("cleo")).toBe("none");
+    // The address itself stays out of the table.
+    expect(JSON.stringify(overview)).not.toContain("ben@example.ch");
   });
 });
 
@@ -1017,7 +1140,7 @@ describe("the song wish switch", () => {
       ["ben", null],
     ]);
     const header = (await get(root, "/api/admin/rsvp/export")).raw.body.split("\r\n")[0];
-    expect(header).toBe("Name;Typ;Status;Trauung;Apéro;Dinner;Party;Menü;Allergien");
+    expect(header).toBe("Name;Typ;Status;Trauung;Apéro;Dinner;Party;Menü;Allergien;Anmerkungen");
 
     // Switched on again, the wish is there and can be changed.
     await call(root, "PUT", "/api/admin/rsvp/song", { enabled: true });

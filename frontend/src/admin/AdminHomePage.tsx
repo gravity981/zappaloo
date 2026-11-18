@@ -16,7 +16,7 @@ const UPLOADS = [
   { setting: "keepsakeUploadsOpen", feature: "keepsakes", label: "admin.home.keepsakes" },
 ] as const;
 
-/** The tile "Rückmeldungen x / y" with the number of guests who have not answered (RSVP-05). */
+/** The tile "Anmeldungen x / y" with the number of guests who have not answered (RSVP-05). */
 function RsvpKpi() {
   const { t } = useTranslation();
   const { data } = useAdminData("/api/admin/rsvp", rsvpOverviewSchema);

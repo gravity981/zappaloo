@@ -30,7 +30,7 @@ The decisions behind the mocks, by question number in the prototype's "Questions
 | 2, 45 | Email at registration | Offered, optional (some guests, e.g. grandparents, have none); verified later in the profile. |
 | 3 | Username | Suggested from the guest name, editable. |
 | 4, 44 | Sign-in | Username or verified email address (ACC-16). |
-| 5, 6 | Waiting page | Only Profil and Abmelden besides the RSVP; no programme or venue teaser. |
+| 5, 6 | Waiting page | Only Profil and Ausloggen besides the RSVP; no programme or venue teaser. |
 | 7, 8 | RSVP form | Three-step wizard (attendance → food → companions and song); no "I'm in for everything" shortcut. |
 | 9 | Allergy note | "Sieht nur das Organisationsteam" with a lock icon on every person card, companions included. |
 | 10, 11 | Companion requests | Pending requests can be edited or withdrawn; optional note for the admin (RSVP-10). |
@@ -38,7 +38,7 @@ The decisions behind the mocks, by question number in the prototype's "Questions
 | 13 | Own contributions | "Meine Beiträge" in the profile (ACC-12). |
 | 14, 47 | Own figure | Always shown, no switch (PRES-04). |
 | 15 | Avatar step | Cannot be skipped; "Zufällig" makes it one tap. |
-| 16, 41 | Game bar | Bar at the top: the event's name and "Website", which leaves the game (changed 2026-11-17: Programm, Rückmeldung and Hochladen are objects of the world, not buttons). No buttons at the bottom, no event-day "now / next" in the game (GAME-14, WEB-07). |
+| 16, 41 | Game bar | Bar at the top: the event's name and "Website", which leaves the game (changed 2026-11-17: Programm, Anmeldung and Hochladen are objects of the world, not buttons). No buttons at the bottom, no event-day "now / next" in the game (GAME-14, WEB-07). |
 | 17, 40, 42 | World objects | Clickable objects come from the event's Tiled maps; each map has its own. They sparkle along their edges at random, and a shine passes over them now and then; tapping one walks the avatar there and runs its action. Portals between scenes are floating arrows. The admin assigns each object's action per map in "Erlebniswelt" (GAME-05, GAME-06, GAME-15, GAME-16, MAP-15). |
 | 40 | Own avatar | Tapping it opens the profile (GAME-18). |
 | 43 | Discoverability | The sparkle plus a hint at the first entry, "Tippe auf Dinge, die funkeln" (GAME-17). |
@@ -81,7 +81,7 @@ The decisions behind the mocks, by question number in the prototype's "Questions
 | Topic | Decision |
 |---|---|
 | Setup form (48) | On a fresh installation an admin sees only the setup form in the admin area: name, time zone (a text field with a list of IANA names) and default language (Deutsch only for now). Saving completes the setup and opens the normal admin area; no navigation before. The mock's "Event setup" screen shows it (CFG-02). |
-| Not set up yet | Everyone else who signs in sees a neutral "Noch nicht eingerichtet" page with Abmelden. |
+| Not set up yet | Everyone else who signs in sees a neutral "Noch nicht eingerichtet" page with Ausloggen. |
 | Change later | Einstellungen has a card "Veranstaltung" at the top with the same three fields and Speichern (CFG-06). |
 
 ## UX decisions for stage 3 (2026-11-11, plan review)
@@ -91,7 +91,7 @@ Written into sw-architecture.md 7.4.1, 10.4 and 24 as well.
 | Q | Topic | Decision |
 |---|---|---|
 | 49 | Countdown | Optional: a switch "Countdown auf der Warteseite zeigen" in the card "Plattform öffnen", separate from the opening date (which `{openingDate}` shows), default off. The countdown disappears at zero; the text stays (ACS-13). |
-| 50 | Admin changes an RSVP | The allergies card in Rückmeldungen becomes a guest table (name, status, parts, menu, song wish, allergies as a column only admins see, status filter). "Bearbeiten" opens the RSVP wizard in admin mode, also after the deadline (RSVP-04). |
+| 50 | Admin changes an RSVP | The allergies card in Anmeldungen becomes a guest table (name, status, parts, menu, song wish, allergies as a column only admins see, status filter). "Bearbeiten" opens the RSVP wizard in admin mode, also after the deadline (RSVP-04). |
 | 51 | Menu | Tied to the meal program item, which the admin marks among the program items (name, time, place); asked only for persons attending it. One menu list for everyone, children's menu included. |
 | 52 | Approved companions | Their VIP changes attendance, menu and allergies in the wizard until the deadline, without a new approval; the name only the admin. Pending requests: edit or withdraw (Q10). |
 | 53 | Invited parts without an invitation (superseded 2026-11-12, see stage 3.9) | "Eingeladen zu" chips in the account panel for vip accounts without an invitation; a new account is invited to all parts, and "Konto anlegen" has no chips (decided 2026-11-11: the parts are changed in the account panel afterwards). With an invitation, its parts apply (changed under Einladungen). Revoking vip needs a second click ("vip entziehen"), because the guest's RSVP with allergies and companions is deleted with it. |
@@ -114,13 +114,13 @@ Written into sw-architecture.md 7.1.2, 7.4.2 and 8.3 as well. The screens are dr
 | One answer | With "Pro Programmpunkt zusagen" off (the default), step 1 of the RSVP asks each person once ("Ja" / "Nein") and lists their program items. |
 | Quiet pages | The RSVP step with companions and songs has no instructions around the list and the song field. The settings switches have one short sentence. Filter chips, buttons and their hint belong in the card of the table they act on (Einladungen like Konten & Rollen). |
 | Plain sentences | Texts use short, full sentences and no semicolons. |
-| Adding companions | "Begleitperson hinzufügen" instead of "beantragen". With "Begleitpersonen bestätigen" off (the default) an added person has no status tag and counts right away. The person type is chosen with chips, no default. With approval off the guest removes an added person until the deadline. The admin removes one from the guest table in Rückmeldungen (second click). |
-| Person type | Chips "Erwachsen" and "Kind" per batch when creating invitations, in the account panel and in the companion form (right under the name, no title). The invitation list shows one letter (E, K) and cannot change it. For a child the menu in step 2 is optional. Rückmeldungen shows the totals by type and a column "Typ". |
+| Adding companions | "Begleitperson hinzufügen" instead of "beantragen". With "Begleitpersonen bestätigen" off (the default) an added person has no status tag and counts right away. The person type is chosen with chips (changed 2026-11-18, epic 5.4: preselected by the button "+Begleitung" or "+Kind", changeable). With approval off the guest removes an added person until the deadline. The admin removes one from the guest table in Anmeldungen (second click). |
+| Person type | Chips "Erwachsen" and "Kind" per batch when creating invitations, in the account panel and in the companion form (right under the name, no title). The invitation list shows one letter (E, K) and cannot change it. For a child the menu in step 2 comes from the children's list (changed 2026-11-18, epic 5.4). Anmeldungen shows the totals by type and a column "Typ". |
 | Konten & Rollen | Columns Benutzername (empty while inactive) · Name (current display name) · Status (aktiv / inaktiv / gesperrt) · Rollen · Fähigkeiten. Filter chips with counts and a search. No invitation information in the table. |
 | Account panel | Inactive with an invitation: state, "Zur Einladung", person type, roles locked, groups, "Eingeladen zu", no password section, "Konto löschen". Inactive and created by an admin: free roles and "Neuen Einrichtungslink erstellen" instead (decided 2026-11-12). Active: as before plus person type, "Konto sperren" and "Konto löschen". Blocked: "Entsperren", no reset link. "Eingeladen zu" appears for every account with vip. |
 | Konto anlegen | Ticking vip shows the program item chips, none selected. At least one is required (replaces 53). |
 | Einladungen | "Aufräumen (n)" deletes revoked and replaced invitations after a second click. Revoking the last open invitation of a never-activated guest asks "Widerrufen und Gast entfernen". "Löschen" (INV-22, 2026-11-13) sits in the actions column on a redeemed invitation whose account is gone, after a second click "Endgültig löschen". |
-| Redeeming while signed in | "Diese Einladung für «Gastname» zu deinem Konto «Benutzername» hinzufügen?" with "Nicht du? Abmelden". |
+| Redeeming while signed in | "Diese Einladung für «Gastname» zu deinem Konto «Benutzername» hinzufügen?" with "Nicht du? Ausloggen". |
 | Deleting the own account | The confirmation says that the RSVP with companions and allergies stays with the hosts until after the event. |
 | Phones | Wide admin tables scroll inside their own box. The page never moves sideways. |
 | Footer | "Datenschutz · Version x.y.z" with a middle dot, as in 19.6. |
@@ -133,7 +133,7 @@ Written into sw-architecture.md 6.2, 19.1.1 and 19.7 as well. The mock screens a
 |---|---|
 | Website tabs (replaces 19 for now) | The navigation shows only what exists. Stage 4 has Start, Programm and Mehr. Hochladen and Erinnerungen come with stage 7. The start page cards for seating, quiz and the game world come with their stages. |
 | Pages | A fresh installation has no pages. The hosts create them in Inhalte. Pages carry no access conditions in stage 4. |
-| Content editor | Inhalte lists the pages, the start page text and the places. It has no "Programm" entry, because the program items are the schedule and stay in Einstellungen › Rückmeldung (with an optional end time and a place picked from the places). |
+| Content editor | Inhalte lists the pages, the start page text and the places. It has no "Programm" entry, because the program items are the schedule and stay in Einstellungen › Anmeldung (with an optional end time and a place picked from the places). |
 | Images | Uploaded in the editor and placed with the Markdown image syntax (CNT-06). |
 | Places and maps | A place card shows the uploaded map picture, the address and "In Google Maps öffnen". No map is embedded (CNT-07). |
 | Theme | Card "Design" in Einstellungen: the active theme, the import of a theme package, the findings of a refused package and "Standard-Design verwenden" with a second click on a button held for four seconds (see the hold button, 2026-11-18). No download (THM-01 – THM-06). |
@@ -153,7 +153,7 @@ Written into sw-architecture.md 14.2 and 14.4 as well.
 | Objects | Erlebniswelt › "Objekte & Portale": a preset that points to something missing is marked "fehlt". A portal whose given target is missing cannot be imported; a portal without a target is a warning (reworded 2026-11-17). The minigame action is offered from stage 8. |
 | Dialogues | A tab "Dialoge" in Erlebniswelt, not in Inhalte, because dialogues belong to the game world (Q63). A dialogue has an id (its `contentId`), the NPC's name and lines in Markdown, a preview of the dialogue box and "Verwendet von" (CNT-02, CNT-03). A dialogue in use cannot be deleted. Its id can be changed (Q64). |
 | Who uses Erlebniswelt | Only admins manage the world: import, rollback, guest access, object actions and dialogues. Disabling guest access hides guest entry points and blocks direct guest navigation while leaving the active package and admin management available. |
-| Game bar in stage 5 | Programm, Rückmeldung, Website; since 2026-11-17 only the event's name and Website (GAME-14). |
+| Game bar in stage 5 | Programm, Anmeldung, Website; since 2026-11-17 only the event's name and Website (GAME-14). |
 | First entry in stage 5 | The avatar step, then the RSVP overlay while the RSVP is open. "Sag hallo" comes with stage 6 (GAME-13). |
 | Without a world or with guest access disabled | Guests land on the website, and no guest navigation to the Erlebniswelt is shown. |
 
@@ -195,13 +195,30 @@ Written into the epic file (`spec/backlog/epics/epic-5.3-program-items-activitie
 | Programm page | One timeline row per activity, by start time, only for the program items the guest is invited to. The line "Du siehst die Programmpunkte, zu denen du eingeladen bist" stays. |
 | Start page | "Now / next" shows activities. The countdown counts to the first activity of all program items, the same for every guest, with its date and place. Every day that has an activity is an event day. |
 | RSVP wizard | Each program item shows its activities in a small line below its name, with start times: "Eintreffen 13:30, Trauung 14:00". Per program item: the activities line below its name. With one answer for all: one line per program item below the yes / no, "Trauung – Eintreffen 13:30, Trauung 14:00". The summary: the same line below each program item's name. |
-| Einstellungen › Rückmeldung | Each program item is a card with its name, the "Essen" tag, "Bearbeiten" and "Löschen"; its activities are listed inside it, each with "Bearbeiten" and "Löschen", then "Aktivität hinzufügen". The last activity of an item has no active "Löschen", and a hint says to delete the program item instead. "Programmpunkt hinzufügen" asks for the first activity at once. |
+| Einstellungen › Anmeldung | Each program item is a card with its name, the "Essen" tag, "Bearbeiten" and "Löschen"; its activities are listed inside it, each with "Bearbeiten" and "Löschen", then "Aktivität hinzufügen". The last activity of an item has no active "Löschen", and a hint says to delete the program item instead. "Programmpunkt hinzufügen" asks for the first activity at once. |
 
 ## UX decisions of 2026-11-18 (Einstellungen)
 
 | Topic | Decision |
 |---|---|
-| Order of the cards | Einstellungen shows the cards that are used often first: Veranstaltung, Plattform öffnen, then Rückmeldung and Funktionen side by side. The rarely changed cards come last: Design, Warteseite-Texte, Datenschutz and Fusszeile. |
+| Order of the cards | Einstellungen shows the cards that are used often first: Veranstaltung, Plattform öffnen, then Anmeldung and Funktionen side by side. The rarely changed cards come last: Design, Warteseite-Texte, Datenschutz and Fusszeile. |
 | Erlebniswelt warnings | On "Welt & Import" the warnings of an accepted package come last, below the table of maps. The findings of a refused package stay at the top, because they answer the import. |
 | Programme over several days | The programme has one timeline per calendar day, each under its own heading ("Samstag, 12. Juni 2027"), and rows show the time of day only. Every day with an activity is an event day: the start page shows its event-day layout, and the programme marks past and current activities on every day of the event. An activity without an end does not last into the next day. The line "Du siehst nur die Programmpunkte, zu denen du eingeladen bist." is gone. |
-| Hold button | The confirmation of the design reset ("Ja, Standard-Design verwenden") and of the world rollback ("Ja, zurückrollen") must be held for four seconds, with the mouse, a finger or the Enter or Space key. While it is held a darker fill grows across the button like a progress bar; letting go or leaving the button starts over. A plain click does nothing, and the hint "Halte den Knopf vier Sekunden gedrückt." stands next to it. The first button ("Standard-Design verwenden", "Zurückrollen") still only asks. |
+| Hold button | The confirmation of the design reset ("Ja, Standard-Design verwenden") and of the world rollback ("Ja, zurückrollen") must be held for four seconds, with the mouse, a finger or the Enter or Space key. While it is held a darker fill grows across the button like a progress bar; letting go or leaving the button starts over. A plain click does nothing, and no instruction stands next to the button (changed 2026-11-18). The same holds for "Jetzt öffnen" and "Wieder schliessen" of the platform and for "Frist entfernen" and "Erinnern" of the RSVP. The first button ("Standard-Design verwenden", "Zurückrollen") still only asks. |
+
+## UX decisions for epic 5.4 (2026-11-18, story 5.4a)
+
+Written into sw-architecture.md 7.4.4. The screens are drawn into the mock: `rsvp-people`, `rsvp-companion`, `rsvp-done`, `admin-rsvp`, `admin-users`, `admin-settings`, `admin-invitations`, `invite-register`, `waiting`. The project owner confirms them before story 5.4c starts.
+
+| Topic | Decision |
+|---|---|
+| Menu lists | Einstellungen › Anmeldung has "Menüs" (adults) and "Kindermenüs", each with "Menü hinzufügen" / "Kindermenü hinzufügen", a Kürzel field and "Löschen" per entry. A child's menu in the wizard comes from the children's list and is required while it has entries; without children's menus a child is not asked. |
+| Kept choices | A child who chose an adults' menu keeps it. The Anmeldungen table marks it "*", the menu totals list it as "Erwachsenenmenü" under Kinder. |
+| Menu totals | Anmeldungen shows the menu totals in two groups, Erwachsene and Kinder. |
+| Sonstiges/Anmerkungen | One optional text field (500 characters) on the main invitee's card in step 2, below the allergies, with the lock line "Sieht nur das Organisationsteam". Not on the companions' cards. The guest table has it as a second admin-only column next to the allergies. |
+| +Begleitung / +Kind | Two small buttons side by side replace "Begleitperson hinzufügen". Both open the same form; the person type chip is preselected (Erwachsen or Kind) and changeable, and the menu field follows it. |
+| E-Mail column | Next to the status, same tag style: "bestätigt" (green), "offen" (yellow), "–" (no address, and accompanying persons). |
+| Short forms | Typ (E, K), Programmpunkte and Menü in Anmeldungen show one code per entry, full name in the tooltip (`abbr`). The codes are the "Kürzel" of program items and menus in Einstellungen (1–2 characters, default the first letter; shown as an outlined tag on a program item), and the invitation list uses them too. |
+| Roles and capabilities | In Konten & Rollen the columns Rollen and Fähigkeiten are read only letters (V, S, A; I, M) with the full name in the tooltip. Roles are changed in the account's panel. |
+| Landing | "Konto anlegen" (and "Zu meinem Konto hinzufügen") lead an unanswered guest to the Anmeldung; its "Weiter" (was "Fertig") leads to the start. The waiting page button reads "Jetzt anmelden" / "Anmeldung ändern". |
+| Words | "Anmeldung" replaces "Rückmeldung" in all screens; signing in is "Einloggen" / "Ausloggen" (login, waiting page, profile, admin header, texts). |

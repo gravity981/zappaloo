@@ -5,6 +5,7 @@ import type {
   MenuOption,
   ProgramItem,
   Role,
+  RsvpConfig,
   RsvpOverview,
   RsvpState,
 } from "@zappaloo/shared";
@@ -90,7 +91,10 @@ async function setup() {
   }
   const menus: MenuOption[] = [];
   for (const name of ["Fleisch", "Kindermenü"]) {
-    menus.push((await call<MenuOption>(root, "POST", "/api/admin/rsvp/menus", { name })).body);
+    const forChildren = name === "Kindermenü";
+    menus.push(
+      (await call<MenuOption>(root, "POST", "/api/admin/rsvp/menus", { name, forChildren })).body,
+    );
   }
   const guest = async (username: string) => {
     const who = await makeUser(ctx, username, ["vip"]);
@@ -102,6 +106,12 @@ async function setup() {
   const all = (...yes: string[]) =>
     items.map((i) => ({ programItemId: i.id, attending: yes.includes(i.name) }));
   return { ctx, root, call, items, menus, guest, all };
+}
+
+/** The value, which a test of a created thing expects to exist. */
+function must<T>(value: T | undefined): T {
+  if (value === undefined) throw new Error("expected a value");
+  return value;
 }
 
 const code = (body: unknown) => (body as { error: { code: string } }).error.code;
@@ -207,78 +217,110 @@ describe("person types of guests (RSVP-13)", () => {
   });
 });
 
-describe("the menu of a child is optional (RSVP-14)", () => {
-  it("[RSVP-14] an adult must choose the menu, a child may leave it open or choose one", async () => {
+describe("the menus of adults and children (RSVP-14, RSVP-19)", () => {
+  it("[RSVP-14][RSVP-19] everyone must choose from the list of their type", async () => {
     const { root, call, guest, all, menus } = await setup();
+    const [adultMenu, childMenu] = [must(menus[0]), must(menus[1])];
     const erika = await guest("erika");
     const needed = await call(erika, "PUT", "/api/rsvp", { attendance: all("Trauung", "Dinner") });
-    expect(needed.status).toBe(400);
     expect(code(needed.body)).toBe("menu_required");
+    // An adult cannot take a menu of the children's list.
+    const wrong = await call(erika, "PUT", "/api/rsvp", {
+      attendance: all("Dinner"),
+      menuId: childMenu.id,
+    });
+    expect(code(wrong.body)).toBe("invalid_menu");
+    const chosen = await call<RsvpState>(erika, "PUT", "/api/rsvp", {
+      attendance: all("Dinner"),
+      menuId: adultMenu.id,
+    });
+    expect(chosen.body.answer?.menuId).toBe(adultMenu.id);
 
     await call(root, "PUT", `/api/admin/users/${String(erika.id)}/person-type`, {
       personType: "child",
     });
-    expect((await call<RsvpState>(erika, "GET", "/api/rsvp")).body.personType).toBe("child");
-    // Without a menu: allowed, allergies are kept.
-    const open = await call<RsvpState>(erika, "PUT", "/api/rsvp", {
-      attendance: all("Trauung", "Dinner"),
-      allergies: "Nüsse",
-    });
-    expect(open.status).toBe(200);
-    expect(open.body.answer).toMatchObject({ menuId: null, allergies: "Nüsse" });
-    // With a menu: stored, and an unknown one is refused.
-    const chosen = await call<RsvpState>(erika, "PUT", "/api/rsvp", {
-      attendance: all("Trauung", "Dinner"),
-      menuId: menus[1]?.id,
-    });
-    expect(chosen.body.answer?.menuId).toBe(menus[1]?.id);
-    const unknown = await call(erika, "PUT", "/api/rsvp", {
+    const state = (await call<RsvpState>(erika, "GET", "/api/rsvp")).body;
+    expect(state.personType).toBe("child");
+    expect(state.menus.map((m) => [m.name, m.forChildren])).toEqual([
+      ["Fleisch", false],
+      ["Kindermenü", true],
+    ]);
+    // A child must choose too, from the children's list only.
+    const none = await call(erika, "PUT", "/api/rsvp", { attendance: all("Dinner") });
+    expect(code(none.body)).toBe("menu_required");
+    const kid = await call<RsvpState>(erika, "PUT", "/api/rsvp", {
       attendance: all("Dinner"),
-      menuId: 9999,
+      menuId: childMenu.id,
     });
-    expect(code(unknown.body)).toBe("invalid_menu");
+    expect(kid.body.answer?.menuId).toBe(childMenu.id);
+    // The adults' menu was chosen before: it is not accepted again once the child has another one.
+    const back = await call(erika, "PUT", "/api/rsvp", {
+      attendance: all("Dinner"),
+      menuId: adultMenu.id,
+    });
+    expect(code(back.body)).toBe("invalid_menu");
 
-    // The same for an accompanying child, while an accompanying adult must choose.
-    const mia = await call<RsvpState>(erika, "POST", "/api/rsvp/companions", {
+    // The same for accompanying persons.
+    const mia = await call(erika, "POST", "/api/rsvp/companions", {
       name: "Mia",
       personType: "child",
       attendance: all("Dinner"),
     });
-    expect(mia.status).toBe(201);
-    expect(mia.body.companions[0]).toMatchObject({ menuId: null });
-    const adultGuest = await call(erika, "POST", "/api/rsvp/companions", {
-      name: "Ben",
-      personType: "adult",
+    expect(code(mia.body)).toBe("menu_required");
+    const miaKid = await call(erika, "POST", "/api/rsvp/companions", {
+      name: "Mia",
+      personType: "child",
       attendance: all("Dinner"),
+      menuId: childMenu.id,
     });
-    expect(code(adultGuest.body)).toBe("menu_required");
+    expect(miaKid.status).toBe(201);
+    const miaAdult = await call(erika, "POST", "/api/rsvp/companions", {
+      name: "Mia",
+      personType: "child",
+      attendance: all("Dinner"),
+      menuId: adultMenu.id,
+    });
+    expect(code(miaAdult.body)).toBe("invalid_menu");
   });
 
-  it("[RSVP-14] a child without a menu choice is not counted in the menus", async () => {
-    const { root, call, guest, all, menus } = await setup();
+  it("[RSVP-19] without children's menus a child is not asked", async () => {
+    const { root, call, guest, all } = await setup();
     const erika = await guest("erika");
-    await call(erika, "PUT", "/api/rsvp", { attendance: all("Dinner"), menuId: menus[0]?.id });
-    await call<RsvpState>(erika, "POST", "/api/rsvp/companions", {
-      name: "Noah",
+    await call(root, "PUT", `/api/admin/users/${String(erika.id)}/person-type`, {
       personType: "child",
-      attendance: all("Dinner"),
     });
-    await call<RsvpState>(erika, "POST", "/api/rsvp/companions", {
-      name: "Mia",
+    const config = (await call<RsvpConfig>(root, "GET", "/api/admin/rsvp/config")).body;
+    for (const menu of config.menus.filter((m) => m.forChildren)) {
+      await call(root, "DELETE", `/api/admin/rsvp/menus/${String(menu.id)}`);
+    }
+    const answered = await call<RsvpState>(erika, "PUT", "/api/rsvp", {
+      attendance: all("Dinner"),
+      allergies: "Nüsse",
+    });
+    expect(answered.status).toBe(200);
+    expect(answered.body.answer).toMatchObject({ menuId: null, allergies: "Nüsse" });
+  });
+
+  it("[RSVP-19] a child keeps an adults' menu until it is chosen again; the totals count it apart", async () => {
+    const { root, call, guest, all, menus } = await setup();
+    const [adultMenu, childMenu] = [must(menus[0]), must(menus[1])];
+    const erika = await guest("erika");
+    await call(erika, "PUT", "/api/rsvp", { attendance: all("Dinner"), menuId: adultMenu.id });
+    // The admin changes the type: the choice stays, it is now an adults' menu of a child.
+    await call(root, "PUT", `/api/admin/users/${String(erika.id)}/person-type`, {
       personType: "child",
-      attendance: all("Dinner"),
-      menuId: menus[1]?.id,
     });
-    const overview = (await call<RsvpOverview>(root, "GET", "/api/admin/rsvp")).body;
-    // Erika and Mia chose, Noah left it open. All three attend the meal.
-    expect(overview.menuTotals.map((t) => [t.menuId, t.count]).sort()).toEqual(
-      [
-        [menus[0]?.id, 1],
-        [menus[1]?.id, 1],
-      ].sort(),
-    );
-    const dinner = overview.totals.find((t) => t.yes === 3);
-    expect(dinner?.yesByType).toEqual({ adult: 1, child: 2 });
+    const kept = await call<RsvpState>(erika, "PUT", "/api/rsvp", {
+      attendance: all("Dinner"),
+      menuId: adultMenu.id,
+    });
+    expect(kept.body.answer?.menuId).toBe(adultMenu.id);
+    const before = (await call<RsvpOverview>(root, "GET", "/api/admin/rsvp")).body;
+    expect(before.menuTotals).toEqual([{ menuId: adultMenu.id, count: 1, childCount: 1 }]);
+
+    await call(erika, "PUT", "/api/rsvp", { attendance: all("Dinner"), menuId: childMenu.id });
+    const after = (await call<RsvpOverview>(root, "GET", "/api/admin/rsvp")).body;
+    expect(after.menuTotals).toEqual([{ menuId: childMenu.id, count: 1, childCount: 1 }]);
   });
 });
 

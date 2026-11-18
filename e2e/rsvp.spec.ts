@@ -16,7 +16,7 @@ test("[RSVP-01][RSVP-02][RSVP-03][RSVP-04][RSVP-05][RSVP-06][RSVP-11][ACC-17][SE
   // The admin opens the RSVP until far in the future (the example deadline is in 2027).
   await signInAsAdmin(page, context);
   await page.goto("/admin/settings");
-  await page.getByLabel(de.admin.rsvpSettings.deadline).fill("2099-12-31");
+  await page.getByLabel(de.admin.rsvpSettings.deadline).fill("31.12.2099");
   await page.getByRole("button", { name: de.admin.rsvpSettings.saveDeadline }).click();
   await expect(
     page.getByRole("status").filter({ hasText: de.admin.rsvpSettings.saved }),
@@ -51,7 +51,8 @@ test("[RSVP-01][RSVP-02][RSVP-03][RSVP-04][RSVP-05][RSVP-06][RSVP-11][ACC-17][SE
   await guest.getByLabel(de.invite.username).fill(username);
   await guest.getByLabel(de.setPassword.password, { exact: true }).fill(PASSWORD);
   await guest.getByRole("button", { name: de.invite.register }).click();
-  await guest.getByRole("link", { name: de.waiting.answer }).click();
+  // A new guest who has not answered lands on the Anmeldung right away (RSVP-24).
+  await expect(guest).toHaveURL(/\/rsvp$/);
 
   await expect(
     guest.getByRole("heading", { name: de.rsvp.greeting.replace("{{name}}", name) }),
@@ -83,8 +84,10 @@ test("[RSVP-01][RSVP-02][RSVP-03][RSVP-04][RSVP-05][RSVP-06][RSVP-11][ACC-17][SE
   // The admin sees the answer with the allergies, and the guest counts as answered.
   await page.goto("/admin/rsvp");
   const row = page.getByRole("row", { name: new RegExp(name) });
-  await expect(row).toContainText("Trauung, Apéro, Dinner");
-  await expect(row).toContainText("Vegetarisch");
+  // Program items and menu are short forms with the full name as the tooltip (RSVP-23).
+  for (const title of ["Trauung", "Apéro", "Dinner", "Vegetarisch"]) {
+    await expect(row.getByTitle(title)).toBeVisible();
+  }
   await expect(row).toContainText("Nüsse");
   await expect(page.getByRole("link", { name: "CSV" })).toHaveAttribute(
     "href",
@@ -113,7 +116,7 @@ test("[RSVP-01][RSVP-02][RSVP-03][RSVP-04][RSVP-05][RSVP-06][RSVP-11][ACC-17][SE
   // The card "Zuletzt" tells about it.
   await page.goto("/admin");
   await expect(page.getByRole("region", { name: de.admin.home.activity })).toContainText(
-    /Rückmeldung|Admin-Modus/,
+    /Anmeldung|Admin-Modus/,
   );
   await guestContext.close();
 });

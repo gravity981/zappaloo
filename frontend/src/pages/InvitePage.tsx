@@ -18,6 +18,7 @@ import OtpInput from "../guest/OtpInput.tsx";
 import PasswordField from "../guest/PasswordField.tsx";
 import { BareShell } from "../guest/Shells.tsx";
 import { suggestUsername } from "../guest/username.ts";
+import { pathAfterRedeeming } from "../rsvp/landing.ts";
 
 type Preview = "loading" | { guestName: string } | { error: string };
 
@@ -146,9 +147,15 @@ function Redeem({ code }: { code: string }) {
       return;
     }
     const failed = await session.login(username, password);
+    if (failed) {
+      setBusy(false);
+      setError(failed);
+      return;
+    }
+    // The new guest answers right away (RSVP-24).
+    const path = await pathAfterRedeeming();
     setBusy(false);
-    if (failed) setError(failed);
-    else void navigate("/", { replace: true });
+    void navigate(path, { replace: true });
   }
 
   async function redeem() {
@@ -156,12 +163,15 @@ function Redeem({ code }: { code: string }) {
     const result = await apiRequest("POST", `/api/invitations/${encodeURIComponent(code)}/redeem`, {
       csrfToken: session.csrfToken,
     });
-    setBusy(false);
     const parsed = redeemResponseSchema.safeParse(result.body);
     if (result.ok && parsed.success) {
       session.setUser(parsed.data.user);
-      void navigate("/", { replace: true });
+      // An existing account that has not answered yet lands on the Anmeldung too (RSVP-24).
+      const path = await pathAfterRedeeming();
+      setBusy(false);
+      void navigate(path, { replace: true });
     } else {
+      setBusy(false);
       setError(result.errorCode ?? "unknown");
     }
   }

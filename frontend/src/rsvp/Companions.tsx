@@ -4,7 +4,7 @@
 import { useState } from "react";
 import type { ReactNode } from "react";
 import { useTranslation } from "react-i18next";
-import { MAX_COMPANIONS, PERSON_TYPES, rsvpStateSchema } from "@zappaloo/shared";
+import { MAX_COMPANIONS, menusFor, PERSON_TYPES, rsvpStateSchema } from "@zappaloo/shared";
 import type {
   Companion,
   CompanionRequest,
@@ -140,11 +140,14 @@ export function MenuFields({
   programItems,
   menus,
   label,
+  remarks,
 }: {
   value: PersonValue;
   onChange: (next: PersonValue) => void;
   programItems: ProgramItem[];
   menus: MenuOption[];
+  /** "Sonstiges/Anmerkungen": only the main invitee's card has it, not the companions' (RSVP-20). */
+  remarks?: { value: string; onChange: (next: string) => void };
   /** Makes the field names unique when a companion is on the page; the guest needs none. */
   label?: string;
 }) {
@@ -161,7 +164,7 @@ export function MenuFields({
         >
           <span>{t("rsvp.menu", { programItem: meal.name })}</span>
           <div className="chips">
-            {menus.map((menu) => (
+            {menusFor(menus, value.personType).map((menu) => (
               <button
                 key={menu.id}
                 type="button"
@@ -169,9 +172,7 @@ export function MenuFields({
                 aria-pressed={value.menuId === menu.id}
                 aria-label={prefixed(menu.name)}
                 onClick={() => {
-                  // A child's menu is optional (RSVP-14): a second click leaves it open again.
-                  const clear = value.personType === "child" && value.menuId === menu.id;
-                  onChange({ ...value, menuId: clear ? null : menu.id });
+                  onChange({ ...value, menuId: menu.id });
                 }}
               >
                 {menu.name}
@@ -194,6 +195,22 @@ export function MenuFields({
           }}
         />
       </label>
+      {remarks && (
+        <>
+          <label className="field">
+            <span>{t("rsvp.remarks")}</span>
+            <textarea
+              className="input"
+              value={remarks.value}
+              maxLength={500}
+              onChange={(event) => {
+                remarks.onChange(event.target.value);
+              }}
+            />
+          </label>
+          <span className="hint">{t("rsvp.remarksHint")}</span>
+        </>
+      )}
       <span className="lock">🔒 {t("rsvp.allergiesLock")}</span>
     </>
   );
@@ -204,6 +221,7 @@ const STATUS_TAG = { pending: "tag warn", approved: "tag ok", rejected: "tag bad
 /** The request form of a new person, or the change of a pending one (RSVP-08, RSVP-10). */
 export function CompanionForm({
   companion,
+  initialType,
   perItem,
   programItems,
   menus,
@@ -213,6 +231,8 @@ export function CompanionForm({
   onCancel,
 }: {
   companion?: Companion;
+  /** The type that "+Begleitung" or "+Kind" preselected; the guest can still change it (RSVP-21). */
+  initialType?: PersonType;
   perItem: boolean;
   /** Puts the form's body and its action buttons into the page frame. */
   frame: (body: ReactNode, footer: ReactNode) => ReactNode;
@@ -228,8 +248,8 @@ export function CompanionForm({
   const errorText = useErrorText();
   const [name, setName] = useState(companion?.name ?? "");
   const [note, setNote] = useState(companion?.note ?? "");
-  /** The guest must choose the type, there is no default (RSVP-13). */
-  const [type, setType] = useState<PersonType | undefined>(companion?.personType);
+  /** The buttons "+Begleitung" and "+Kind" preselect the type; the guest can change it (RSVP-13, RSVP-21). */
+  const [type, setType] = useState<PersonType | undefined>(companion?.personType ?? initialType);
   const [answer, setAnswer] = useState<Omit<PersonValue, "personType">>(
     companion
       ? personOf(companion, programItems, perItem)
@@ -372,7 +392,8 @@ export function CompanionsCard({
   admin: boolean;
   locked: boolean;
   onEdit: (companion: Companion) => void;
-  onNew: () => void;
+  /** "+Begleitung" opens the form with an adult, "+Kind" with a child (RSVP-21). */
+  onNew: (personType: PersonType) => void;
   onChanged: (state: RsvpState) => void;
   /** Loads the state again (after the admin renamed someone). */
   onRefresh: () => void;
@@ -540,9 +561,20 @@ export function CompanionsCard({
         ))}
       </ul>
       {!admin && !locked && open < MAX_COMPANIONS && (
-        <button type="button" className="btn ghost sm" onClick={onNew}>
-          + {t("rsvp.companions.new")}
-        </button>
+        <div className="row">
+          {PERSON_TYPES.map((personType) => (
+            <button
+              key={personType}
+              type="button"
+              className="btn ghost sm"
+              onClick={() => {
+                onNew(personType);
+              }}
+            >
+              + {t(`rsvp.companions.new.${personType}`)}
+            </button>
+          ))}
+        </div>
       )}
       {!admin && !locked && open >= MAX_COMPANIONS && (
         <span className="hint">{t("rsvp.companions.limit", { count: MAX_COMPANIONS })}</span>

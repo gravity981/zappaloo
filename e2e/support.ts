@@ -7,6 +7,8 @@ export const PASSWORD = "correct-horse-battery";
 
 /** Presses a hold button (the confirmation of a risky action) for its four seconds, with the mouse. */
 export async function holdButton(page: Page, button: Locator): Promise<void> {
+  // The mouse works in the viewport: a button below the fold has to be scrolled to first.
+  await button.scrollIntoViewIfNeeded();
   const box = await button.boundingBox();
   if (!box) throw new Error("the hold button is not visible");
   await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);

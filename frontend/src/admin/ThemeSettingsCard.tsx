@@ -158,7 +158,6 @@ export default function ThemeSettingsCard() {
               <HoldButton disabled={busy} onConfirm={() => void resetToDefault()}>
                 {t("admin.theme.resetConfirm")}
               </HoldButton>
-              <span className="hint">{t("admin.holdHint")}</span>
               <button
                 type="button"
                 className="btn ghost sm"

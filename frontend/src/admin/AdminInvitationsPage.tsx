@@ -12,10 +12,12 @@ import {
   issuedInvitationSchema,
   PERSON_TYPES,
   rsvpConfigSchema,
+  shortCodeOf,
 } from "@zappaloo/shared";
 import type { InvitationStatus, IssuedInvitation, PersonType } from "@zappaloo/shared";
 import { fieldText } from "../app/forms.ts";
 import QrCode from "../app/QrCode.tsx";
+import { DateField } from "./DateField.tsx";
 import { useAdminCall, useAdminData, useErrorText } from "./data.ts";
 import { ToggleChip } from "./ui.tsx";
 
@@ -28,6 +30,9 @@ const STATUS_TAG: Record<InvitationStatus, string> = {
 };
 
 /** The guest names of the text field, one per line. */
+/** The form field of the expiry date of the invitations. */
+const EXPIRES_AT = "expiresAt";
+
 function guestNames(text: string): string[] {
   return text
     .split("\n")
@@ -100,7 +105,7 @@ export default function AdminInvitationsPage() {
   async function create(event: SubmitEvent<HTMLFormElement>) {
     event.preventDefault();
     const form = new FormData(event.currentTarget);
-    const expires = fieldText(form, "expiresAt");
+    const expires = fieldText(form, EXPIRES_AT);
     const result = await call("POST", "/api/admin/invitations", {
       guests: guestNames(names).map((name) => ({ name })),
       ...(programItems.length > 0 ? { programItemIds: batchProgramItems } : {}),
@@ -253,10 +258,7 @@ export default function AdminInvitationsPage() {
             ))}
           </div>
         </div>
-        <label className="field">
-          <span>{t("admin.invitations.expiresAt")}</span>
-          <input className="input auto" name="expiresAt" type="date" />
-        </label>
+        <DateField name={EXPIRES_AT} label={t("admin.invitations.expiresAt")} />
         <button
           type="submit"
           className="btn"
@@ -336,7 +338,7 @@ export default function AdminInvitationsPage() {
                         .join(", ")}`}
                     >
                       {invited(invitation)
-                        .map((programItem) => programItem.name.charAt(0).toUpperCase())
+                        .map((programItem) => shortCodeOf(programItem))
                         .join(" ") || "–"}
                     </abbr>
                   </td>

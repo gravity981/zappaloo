@@ -70,7 +70,7 @@ test("the backend reports health and version", async ({ request }) => {
   expect(version.version).toMatch(/\+dev$/);
 });
 
-test("[CFG-02][CFG-05] the server started with the example event and serves it with its toggles @flaky", async ({
+test("[CFG-02][CFG-05] the server started with the example event and serves it with its toggles", async ({
   page,
   context,
 }) => {
@@ -81,7 +81,9 @@ test("[CFG-02][CFG-05] the server started with the example event and serves it w
     id: "event1",
     name: "Event Muster",
     features: { minigames: true, eventScreen: true },
-    settings: { platformOpen: false },
+    // Other specs open and close the platform on this shared installation while this one runs, so only
+    // the kind of the value is checked here; the specs that open it check its state.
+    settings: { platformOpen: expect.any(Boolean) },
   });
 });
 

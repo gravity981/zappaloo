@@ -29,7 +29,7 @@ describe("signing in", () => {
     renderAt("/login");
     user.type(await screen.findByLabelText("Benutzername oder E-Mail"), "anna");
     user.type(screen.getByLabelText("Passwort"), "correct-horse-battery");
-    user.click(screen.getByRole("button", { name: "Anmelden" }));
+    user.click(screen.getByRole("button", { name: "Einloggen" }));
 
     expect(await screen.findByRole("link", { name: "Profil" })).toBeInTheDocument();
     expect(calls.find((c) => c.method === "POST")?.body).toEqual({
@@ -37,10 +37,10 @@ describe("signing in", () => {
       password: "correct-horse-battery",
     });
 
-    // Abmelden is on the profile page.
+    // Ausloggen is on the profile page.
     user.click(await screen.findByRole("link", { name: "Profil" }));
-    user.click(screen.getByRole("button", { name: "Abmelden" }));
-    expect(await screen.findByRole("heading", { name: "Anmelden" })).toBeInTheDocument();
+    user.click(screen.getByRole("button", { name: "Ausloggen" }));
+    expect(await screen.findByRole("heading", { name: "Einloggen" })).toBeInTheDocument();
     // Logging out sends the session's CSRF token (SEC-01).
     expect(calls.find((c) => c.method === "DELETE")?.csrf).toBe("csrf-1");
   });
@@ -59,13 +59,13 @@ describe("signing in", () => {
     renderAt("/login");
     user.type(await screen.findByLabelText("Benutzername oder E-Mail"), "anna");
     user.type(screen.getByLabelText("Passwort"), "wrong-password");
-    user.click(screen.getByRole("button", { name: "Anmelden" }));
+    user.click(screen.getByRole("button", { name: "Einloggen" }));
     expect(await screen.findByRole("alert")).toHaveTextContent(
       "Benutzername oder Passwort stimmt nicht.",
     );
 
     status = 429;
-    user.click(screen.getByRole("button", { name: "Anmelden" }));
+    user.click(screen.getByRole("button", { name: "Einloggen" }));
     await waitFor(() => {
       expect(screen.getByRole("alert")).toHaveTextContent("Zu viele Versuche");
     });
@@ -93,7 +93,7 @@ describe("setting a password with a link", () => {
       await screen.findByRole("heading", { name: "Willkommen! Lege dein Passwort fest" }),
     ).toBeInTheDocument();
     expect(
-      screen.getByText("Damit meldest du dich ab jetzt an. Dein Benutzername: erika.huber"),
+      screen.getByText("Damit loggst du dich ab jetzt ein. Dein Benutzername: erika.huber"),
     ).toBeInTheDocument();
     // One password field with an eye button, no repeated field (UX decision 57).
     expect(screen.queryByLabelText("Passwort wiederholen")).not.toBeInTheDocument();
@@ -106,7 +106,7 @@ describe("setting a password with a link", () => {
     expect(
       await screen.findByRole("heading", { name: "Passwort gespeichert" }),
     ).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Zur Anmeldung" })).toHaveAttribute("href", "/login");
+    expect(screen.getByRole("link", { name: "Zum Einloggen" })).toHaveAttribute("href", "/login");
     expect(calls.find((c) => c.path === "/api/password/set")?.body).toEqual({
       token: "the-token-from-the-link",
       newPassword: "a-long-enough-password",
@@ -123,7 +123,7 @@ describe("setting a password with a link", () => {
       await screen.findByRole("heading", { name: "Neues Passwort festlegen" }),
     ).toBeInTheDocument();
     expect(
-      screen.getByText("Mit dem neuen Passwort meldest du dich ab jetzt an."),
+      screen.getByText("Mit dem neuen Passwort loggst du dich ab jetzt ein."),
     ).toBeInTheDocument();
     expect(screen.queryByText(/Dein Benutzername/)).not.toBeInTheDocument();
   });
@@ -142,7 +142,7 @@ describe("setting a password with a link", () => {
     );
     expect(screen.getByText(/Melde dich bei den Gastgebern/)).toBeInTheDocument();
     expect(screen.queryByLabelText("Passwort")).not.toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Zur Anmeldung" })).toHaveAttribute("href", "/login");
+    expect(screen.getByRole("link", { name: "Zum Einloggen" })).toHaveAttribute("href", "/login");
     expect(calls.some((c) => c.method === "POST")).toBe(false);
   });
 
@@ -223,7 +223,7 @@ describe("profile", () => {
   it("[ACC-04] a visitor without a session is sent to the login page", async () => {
     fakeBackend({ "GET /api/session": () => anonymous });
     renderAt("/profile");
-    expect(await screen.findByRole("heading", { name: "Anmelden" })).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "Einloggen" })).toBeInTheDocument();
   });
 });
 
@@ -323,7 +323,7 @@ describe("email and account self-service", () => {
     expect(field).toHaveAccessibleDescription("E-Mail nur, wenn du sie im Profil bestätigt hast.");
     user.type(field, "anna@example.ch");
     user.type(screen.getByLabelText("Passwort"), "correct-horse-battery");
-    user.click(screen.getByRole("button", { name: "Anmelden" }));
+    user.click(screen.getByRole("button", { name: "Einloggen" }));
     await waitFor(() => {
       expect(calls.some((c) => c.method === "POST")).toBe(true);
     });
@@ -345,7 +345,7 @@ describe("email and account self-service", () => {
     });
     renderAt("/profile");
     expect(
-      await screen.findByText("Die Adresse ist bestätigt. Du kannst dich damit auch anmelden."),
+      await screen.findByText("Die Adresse ist bestätigt. Du kannst dich damit auch einloggen."),
     ).toBeInTheDocument();
   });
 
@@ -363,7 +363,7 @@ describe("email and account self-service", () => {
     user.click(await screen.findByRole("button", { name: "Konto löschen" }));
     user.type(await screen.findByLabelText("Passwort"), "pw-pw-pw-pw-pw");
     user.click(screen.getByRole("button", { name: "Konto endgültig löschen" }));
-    expect(await screen.findByRole("heading", { name: "Anmelden" })).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "Einloggen" })).toBeInTheDocument();
     expect(calls.find((c) => c.method === "DELETE" && c.path === "/api/profile")).toMatchObject({
       csrf: "csrf-1",
       body: { password: "pw-pw-pw-pw-pw" },
@@ -380,7 +380,7 @@ describe("email and account self-service", () => {
     renderAt("/profile");
     user.click(await screen.findByRole("button", { name: "Konto löschen" }));
     expect(
-      await screen.findByText(/Deine Rückmeldung \(mit Begleitpersonen und Allergien\) bleibt/),
+      await screen.findByText(/Deine Anmeldung \(mit Begleitpersonen und Allergien\) bleibt/),
     ).toBeInTheDocument();
     expect(screen.queryByText(/mit allen Daten unwiderruflich gelöscht/)).not.toBeInTheDocument();
   });
@@ -420,7 +420,7 @@ describe("invitations", () => {
     });
     renderAt("/invite/K7QMX4");
     expect(await screen.findByText(/zu deinem Konto «anna» hinzufügen\?/)).toBeInTheDocument();
-    user.click(screen.getByRole("button", { name: "Abmelden" }));
+    user.click(screen.getByRole("button", { name: "Ausloggen" }));
     // Signed out, the same page offers the registration of the invited person.
     expect(await screen.findByRole("button", { name: "Konto anlegen" })).toBeInTheDocument();
     expect(calls.some((c) => c.method === "DELETE" && c.path === "/api/session")).toBe(true);
@@ -535,10 +535,10 @@ describe("sign-in is required (ACS-09)", () => {
       },
     });
     renderAt("/profile");
-    expect(await screen.findByRole("heading", { name: "Anmelden" })).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "Einloggen" })).toBeInTheDocument();
     user.type(screen.getByLabelText("Benutzername oder E-Mail"), "anna");
     user.type(screen.getByLabelText("Passwort"), "correct-horse-battery");
-    user.click(screen.getByRole("button", { name: "Anmelden" }));
+    user.click(screen.getByRole("button", { name: "Einloggen" }));
     // The visitor wanted the profile and lands there.
     expect(await screen.findByRole("heading", { name: "Mein Profil" })).toBeInTheDocument();
     // The event is only asked for once there is a session.
@@ -553,7 +553,7 @@ describe("sign-in is required (ACS-09)", () => {
       const { unmount } = render(
         <RouterProvider router={createMemoryRouter(routes, { initialEntries: [path] })} />,
       );
-      expect(await screen.findByRole("heading", { name: "Anmelden" }), path).toBeInTheDocument();
+      expect(await screen.findByRole("heading", { name: "Einloggen" }), path).toBeInTheDocument();
       expect(
         calls.some((c) => c.path === "/api/event"),
         path,
@@ -564,7 +564,7 @@ describe("sign-in is required (ACS-09)", () => {
 
   it("[ACS-09] login, password reset, verification and invitation pages work without a session", async () => {
     const pages: [string, string][] = [
-      ["/login", "Anmelden"],
+      ["/login", "Einloggen"],
       ["/forgot-password", "Passwort vergessen"],
 
       ["/invite", "Einladung einlösen"],
@@ -609,7 +609,7 @@ describe("ended sessions and lost connections", () => {
     renderAt("/profile");
     user.click(await screen.findByRole("button", { name: "Speichern" }));
     expect(await screen.findByLabelText("Benutzername oder E-Mail")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Anmelden" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Einloggen" })).toBeInTheDocument();
   });
 
   it("[ACC-01] a lost connection is shown, and the form can be sent again", async () => {
@@ -624,7 +624,7 @@ describe("ended sessions and lost connections", () => {
     renderAt("/login");
     user.type(await screen.findByLabelText("Benutzername oder E-Mail"), "anna");
     user.type(screen.getByLabelText("Passwort"), "correct-horse-battery");
-    const submit = screen.getByRole("button", { name: "Anmelden" });
+    const submit = screen.getByRole("button", { name: "Einloggen" });
     user.click(submit);
     expect(await screen.findByRole("alert")).toHaveTextContent("Keine Verbindung zum Server");
     expect(submit).toBeEnabled();

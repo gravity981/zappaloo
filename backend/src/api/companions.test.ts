@@ -410,8 +410,8 @@ describe("approval", () => {
     expect(total("Apéro")).toMatchObject({ yes: 0, no: 2 });
     expect(overview.menuTotals).toEqual(
       expect.arrayContaining([
-        { menuId: menus[0]?.id, count: 1 },
-        { menuId: menus[1]?.id, count: 1 },
+        { menuId: menus[0]?.id, count: 1, childCount: 0 },
+        { menuId: menus[1]?.id, count: 1, childCount: 0 },
       ]),
     );
     expect(overview.pendingCount).toBe(1);
@@ -425,7 +425,7 @@ describe("approval", () => {
 
     const lines = (await get(root, "/api/admin/rsvp/export")).text.trim().split("\r\n");
     expect(lines).toHaveLength(3);
-    expect(lines[2]).toBe("↳ Mia;Erwachsen;bestätigt;ja;nein;ja;nein;Kindermenü;;Laktose");
+    expect(lines[2]).toBe("↳ Mia;Erwachsen;bestätigt;ja;nein;ja;nein;Kindermenü;;Laktose;");
   });
 
   it("[RSVP-09] the guest changes an approved person's attendance, menu and allergies in the RSVP, without a new approval", async () => {

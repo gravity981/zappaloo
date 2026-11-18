@@ -1,5 +1,5 @@
 // "Mehr" (sw-architecture.md 5.6, WEB-02; UX mock `more`): the visible pages in the order the admin
-// set, the profile, and Verwaltung and Inhalte for those who may use them. Datenschutz and Abmelden
+// set, the profile, and Verwaltung and Inhalte for those who may use them. Datenschutz and Ausloggen
 // are in the footer and the profile. Entries of later stages appear with their stages.
 import { useTranslation } from "react-i18next";
 import { Link } from "react-router";

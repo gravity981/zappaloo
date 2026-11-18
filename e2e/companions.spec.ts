@@ -20,7 +20,7 @@ test("[RSVP-08][RSVP-10][RSVP-12][RSVP-13][RSVP-15][SEC-11] a guest adds an acco
   // The admin keeps the RSVP open and invites a guest to the ceremony only.
   await signInAsAdmin(page, context);
   await page.goto("/admin/settings");
-  await page.getByLabel(de.admin.rsvpSettings.deadline).fill("2099-12-31");
+  await page.getByLabel(de.admin.rsvpSettings.deadline).fill("31.12.2099");
   await page.getByRole("button", { name: de.admin.rsvpSettings.saveDeadline }).click();
   await expect(
     page.getByRole("status").filter({ hasText: de.admin.rsvpSettings.saved }),
@@ -47,19 +47,22 @@ test("[RSVP-08][RSVP-10][RSVP-12][RSVP-13][RSVP-15][SEC-11] a guest adds an acco
   await guest.getByLabel(de.invite.username).fill(username);
   await guest.getByLabel(de.setPassword.password, { exact: true }).fill(PASSWORD);
   await guest.getByRole("button", { name: de.invite.register }).click();
-  await guest.getByRole("link", { name: de.waiting.answer }).click();
+  // A new guest who has not answered lands on the Anmeldung right away (RSVP-24).
+  await expect(guest).toHaveURL(/\/rsvp$/);
   await guest.getByRole("button", { name: de.rsvp.yes, exact: true }).click();
   await guest.getByRole("button", { name: de.rsvp.next }).click();
   await guest.getByRole("button", { name: de.rsvp.next }).click();
 
   // Step 3: "hinzufügen", with the person's own answer; the person counts at once.
-  await guest.getByRole("button", { name: new RegExp(de.rsvp.companions.new) }).click();
+  await guest.getByRole("button", { name: `+ ${de.rsvp.companions.new.child}` }).click();
   await guest.getByLabel(de.rsvp.companions.name).fill(mia);
   await guest.getByLabel(de.rsvp.companions.note).fill("Meine Tochter, 6 Jahre");
   const add = guest.getByRole("button", { name: de.rsvp.companions.add });
   await expect(add).toBeDisabled();
-  // The type has no default: the button stays off until the guest chooses it (RSVP-13).
-  await guest.getByRole("button", { name: de.personTypes.child, exact: true }).click();
+  // "+Kind" preselected the type (RSVP-21); it stays changeable.
+  await expect(
+    guest.getByRole("button", { name: de.personTypes.child, exact: true }),
+  ).toHaveAttribute("aria-pressed", "true");
   await guest.getByRole("button", { name: `${mia}: ${de.rsvp.yes}`, exact: true }).click();
   await guest.getByLabel(new RegExp(`${de.rsvp.allergies} \\(${mia}\\)`)).fill("Erdnüsse");
   await add.click();
@@ -77,9 +80,9 @@ test("[RSVP-08][RSVP-10][RSVP-12][RSVP-13][RSVP-15][SEC-11] a guest adds an acco
   await page.goto("/admin/rsvp");
   await expect(page.getByRole("region", { name: /Begleitpersonen-Anfragen/ })).toHaveCount(0);
   const row = page.getByRole("row", { name: new RegExp(mia) });
-  await expect(row).toContainText("Trauung");
+  await expect(row.getByTitle("Trauung")).toBeVisible();
   await expect(row).toContainText("Erdnüsse");
-  await expect(row).toContainText(de.personTypes.child);
+  await expect(row.getByTitle(de.personTypes.child)).toBeVisible();
   const csv = await page.request.get("/api/admin/rsvp/export");
   expect(await csv.text()).toContain(`↳ ${mia};${de.personTypes.child};bestätigt;ja;;;;;;Erdnüsse`);
   expect((await guest.request.get("/api/admin/rsvp")).status()).toBe(403);

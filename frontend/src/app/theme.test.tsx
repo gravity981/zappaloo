@@ -233,7 +233,7 @@ describe("the theme on the pages (sw-architecture.md 19.7)", () => {
       "GET /api/site": () => ({ status: 200, body: SITE }),
     });
     renderAt("/login");
-    expect(await screen.findByRole("heading", { name: "Anmelden" })).toBeVisible();
+    expect(await screen.findByRole("heading", { name: "Einloggen" })).toBeVisible();
     expect(themed().style.getPropertyValue("--a-dark")).toBe("");
     expect(themed().querySelector("style")).toBeNull();
   });

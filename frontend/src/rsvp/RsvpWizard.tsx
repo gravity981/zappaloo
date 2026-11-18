@@ -8,7 +8,13 @@ import { useState } from "react";
 import type { ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import { rsvpStateSchema, rsvpStatus } from "@zappaloo/shared";
-import type { Companion, ProgramItem, RsvpAnswerRequest, RsvpState } from "@zappaloo/shared";
+import type {
+  Companion,
+  PersonType,
+  ProgramItem,
+  RsvpAnswerRequest,
+  RsvpState,
+} from "@zappaloo/shared";
 import { apiRequest } from "../app/api.ts";
 import { useSession } from "../app/session.ts";
 import { useAdminData, useErrorText } from "../admin/data.ts";
@@ -21,7 +27,7 @@ import { useEventFormat } from "./format.ts";
 type Mode = { kind: "guest" } | { kind: "admin"; userId: number };
 type Step = 1 | 2 | 3 | "summary";
 /** The wizard, or the form of a companion request (a new one, or a pending one to change). */
-type View = { kind: "wizard" } | { kind: "form"; companion?: Companion };
+type View = { kind: "wizard" } | { kind: "form"; companion?: Companion; personType?: PersonType };
 
 const TOTAL_STEPS = 3;
 const WIZARD: View = { kind: "wizard" };
@@ -136,6 +142,7 @@ function WizardForm({
   const [view, setView] = useState<View>(WIZARD);
   const [own, setOwn] = useState<PersonValue>(initial);
   const [songWish, setSongWish] = useState(answer?.songWish ?? "");
+  const [remarks, setRemarks] = useState(answer?.remarks ?? "");
   /** What the guest changed about companions in the steps; the rest is as the server has it. */
   const [edits, setEdits] = useState<Record<number, PersonValue>>({});
   const [error, setError] = useState<string>();
@@ -171,6 +178,8 @@ function WizardForm({
     setSending(true);
     const body: RsvpAnswerRequest = {
       ...answerOf(own, programItems, menus),
+      // Only the main invitee has remarks (RSVP-20), and only while attending something.
+      ...(attendsAny(own) ? { remarks: remarks.trim() === "" ? null : remarks.trim() } : {}),
       ...(state.songEnabled && attendsAny(own)
         ? { songWish: songWish.trim() === "" ? null : songWish.trim() }
         : {}),
@@ -193,9 +202,13 @@ function WizardForm({
     }
   }
 
-  /** Opens the companion form: a new request, or the change of a pending one. */
-  function openForm(companion?: Companion) {
-    setView(companion ? { kind: "form", companion } : { kind: "form" });
+  /** Opens the companion form: a new person with the type preselected, or the change of a pending one. */
+  function openForm(companion?: Companion, personType?: PersonType) {
+    setView(
+      companion
+        ? { kind: "form", companion }
+        : { kind: "form", ...(personType ? { personType } : {}) },
+    );
   }
 
   /** In admin mode the page says so (no frame, so no progress bar either). */
@@ -220,6 +233,7 @@ function WizardForm({
     return (
       <CompanionForm
         key={view.companion?.id ?? "new"}
+        {...(view.personType ? { initialType: view.personType } : {})}
         perItem={state.perItem}
         programItems={programItems}
         menus={menus}
@@ -288,7 +302,8 @@ function WizardForm({
             )}
             {onFinish && (
               <button type="button" className="btn" onClick={onFinish}>
-                {t("rsvp.finish")}
+                {/* "Weiter" leads a guest to the start, "Fertig" ends the admin's change. */}
+                {t(admin ? "rsvp.finish" : "rsvp.next")}
               </button>
             )}
           </>
@@ -336,6 +351,7 @@ function WizardForm({
                           {[
                             menuName(answer.menuId),
                             answer.allergies ? t("rsvp.allergiesGiven") : undefined,
+                            answer.remarks ? t("rsvp.remarksGiven") : undefined,
                           ]
                             .filter(Boolean)
                             .join(" · ")}
@@ -499,7 +515,13 @@ function WizardForm({
               <b>{state.name}</b>
               <span className="tag">{t("rsvp.you")}</span>
             </div>
-            <MenuFields value={own} onChange={setOwn} programItems={programItems} menus={menus} />
+            <MenuFields
+              value={own}
+              onChange={setOwn}
+              programItems={programItems}
+              menus={menus}
+              remarks={{ value: remarks, onChange: setRemarks }}
+            />
           </div>
         )}
         {attendingCompanions.map((companion) => (
@@ -562,8 +584,8 @@ function WizardForm({
         admin={admin}
         locked={locked}
         onEdit={openForm}
-        onNew={() => {
-          openForm();
+        onNew={(personType) => {
+          openForm(undefined, personType);
         }}
         onChanged={onSaved}
         onRefresh={onRefresh}

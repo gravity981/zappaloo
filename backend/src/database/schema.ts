@@ -329,6 +329,8 @@ export const programItems = sqliteTable(
       .notNull()
       .references(() => events.id),
     name: text("name").notNull(),
+    /** The Kürzel of the tables (RSVP-23); null: the first letter of the name. */
+    shortCode: text("short_code"),
     hasMeal: integer("has_meal", { mode: "boolean" }).notNull().default(false),
     createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull(),
   },
@@ -368,7 +370,7 @@ export const activities = sqliteTable(
   ],
 );
 
-/** The one list of menu options for everyone (RSVP-03). */
+/** The menu options: one list for adults and one for children (RSVP-03, RSVP-19). */
 export const menuOptions = sqliteTable(
   "menu_options",
   {
@@ -377,6 +379,10 @@ export const menuOptions = sqliteTable(
       .notNull()
       .references(() => events.id),
     name: text("name").notNull(),
+    /** The Kürzel of the tables (RSVP-23); null: the first letter of the name. */
+    shortCode: text("short_code"),
+    /** The children's list; every menu that existed before epic 5.4 is an adults' menu. */
+    forChildren: integer("for_children", { mode: "boolean" }).notNull().default(false),
     createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull(),
   },
   (table) => [index("menu_options_event").on(table.eventId)],
@@ -430,6 +436,8 @@ export const rsvpAnswers = sqliteTable(
     menuId: integer("menu_id").references(() => menuOptions.id, { onDelete: "set null" }),
     /** Health data: only admins read it (SEC-11). */
     allergies: text("allergies"),
+    /** "Sonstiges/Anmerkungen" of the main invitee; protected like the allergies (RSVP-20, SEC-11). */
+    remarks: text("remarks"),
     songWish: text("song_wish"),
     answeredAt: integer("answered_at", { mode: "timestamp_ms" }).notNull(),
   },

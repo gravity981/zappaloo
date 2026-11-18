@@ -1,8 +1,8 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "04ed64fe-e458-4aad-a1a4-a3149ddb7b51",
-  "prevId": "71422443-b627-4352-a191-5fb59bc364f4",
+  "id": "64c314fd-3686-4bdf-9854-e3f4bd16e4c6",
+  "prevId": "bc3190f5-c8c1-45c6-bdd0-d4cb7a338e78",
   "tables": {
     "access_releases": {
       "name": "access_releases",
@@ -1670,6 +1670,21 @@
           "notNull": true,
           "autoincrement": false
         },
+        "short_code": {
+          "name": "short_code",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "for_children": {
+          "name": "for_children",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": false
+        },
         "created_at": {
           "name": "created_at",
           "type": "integer",
@@ -1852,6 +1867,13 @@
           "notNull": true,
           "autoincrement": false
         },
+        "short_code": {
+          "name": "short_code",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
         "has_meal": {
           "name": "has_meal",
           "type": "integer",
@@ -1922,6 +1944,13 @@
         },
         "allergies": {
           "name": "allergies",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "remarks": {
+          "name": "remarks",
           "type": "text",
           "primaryKey": false,
           "notNull": false,
