@@ -70,6 +70,15 @@ export function Preview(props: { draft: ThemeDraft }) {
     <div className="themed preview" style={themeStyle(theme)} aria-label="Preview">
       <style>{fontFaceRules(theme)}</style>
       <div className="guest preview-body">
+        <span className="eyebrow">Website bar</span>
+        <div className="guest-site-head preview-site-bar" aria-label="Website bar">
+          <b>{name}</b>
+          <nav>
+            <a className="active">Start</a>
+            <a>Programm</a>
+            <a>Mehr</a>
+          </nav>
+        </div>
         <span className="eyebrow">Start page</span>
         <section className="preview-block start-main" aria-label="Start page">
           <div className="preview-hero" aria-hidden="true">
@@ -101,6 +110,9 @@ export function Preview(props: { draft: ThemeDraft }) {
           <div className="row">
             <button type="button" className="btn">
               Speichern
+            </button>
+            <button type="button" className="btn soft">
+              Mehr erfahren
             </button>
             <button type="button" className="btn ghost">
               Abbrechen

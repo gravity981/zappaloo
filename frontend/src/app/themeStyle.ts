@@ -1,7 +1,36 @@
 // The custom properties and font faces of the event's theme (sw-architecture.md 19.7, THM-06): what
 // the wrapper of the website and the guest pages sets, computed from `GET /api/site`.
 import type { CSSProperties } from "react";
+import { contrastRatio, fromOklch, THEME_LIMITS, toOklch } from "@zappaloo/shared";
 import type { SiteTheme, ThemeColorKey } from "@zappaloo/shared";
+
+/**
+ * The fill that the theme gives to soft buttons, chips, tags and the bars (19.7, THM-17). The theme has
+ * no colour of its own for it, so it is derived: the hue of the accent, a moderate chroma, and a
+ * lightness a little off the surface (darker for dark text, lighter for light text). A plain mix of
+ * the accent with the surface would only darken it to a grey. The step is lowered until the text on
+ * the fill still reaches the contrast of the validator, and is 0 (the surface) at the end.
+ */
+export function themeFill(colors: SiteTheme["colors"]): string {
+  const accent = toOklch(colors.accent);
+  const surface = toOklch(colors.surface);
+  const direction = toOklch(colors.text).l <= surface.l ? -1 : 1;
+  const chroma = Math.min(accent.c * FILL_CHROMA_SHARE, FILL_CHROMA_MAX);
+  for (let step = FILL_STEP; step > 0.005; step -= 0.01) {
+    const fill = fromOklch({
+      l: Math.min(1, Math.max(0, surface.l + direction * step)),
+      c: chroma,
+      h: accent.h,
+    });
+    if (contrastRatio(colors.text, fill) >= THEME_LIMITS.contrast) return fill;
+  }
+  return colors.surface;
+}
+
+/** How far the fill's lightness lies off the surface's, at most; the share and cap of the accent's chroma. */
+const FILL_STEP = 0.08;
+const FILL_CHROMA_SHARE = 0.4;
+const FILL_CHROMA_MAX = 0.07;
 
 /** The token each theme colour sets (ui.css). Status colours stay the platform's (19.7). */
 const COLOR_TOKENS: Record<ThemeColorKey, string> = {
@@ -40,6 +69,12 @@ export function themeStyle(theme: SiteTheme | null): CSSProperties {
     style["--w-button"] = theme.waiting.button;
     style["--w-on-button"] = theme.waiting.onButton;
   }
+  // THM-17: soft buttons, chips and tags take the tint of the accent; the bars of the website and the
+  // game take it too, with the surface for the active tab so that it stands out from the bar.
+  const fill = themeFill(theme.colors);
+  style["--a-fill"] = fill;
+  style["--a-bar"] = fill;
+  style["--a-bar-pill"] = theme.colors.surface;
   return style;
 }
 

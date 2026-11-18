@@ -45,6 +45,8 @@ Added 2026-11-18. Today a theme package (sw-architecture.md 19.7) is written by 
 - **Page titles without the heading font:** the title of a content page and of «Mehr» was a plain `<h1>` and did not use the heading font, while the Markdown headings below it did (so the first line of a page was not in the heading font and the next one was). Markdown headings below level 2 had no style at all. Fixed (story 5.2k).
 - **The content preview in the admin area did not apply the theme:** it showed the platform's neutral look. Decided: a preview of guest content shows the guest's view, with the theme and the page title (story 5.2l).
 
+- **Buttons and bars stayed grey and white:** soft buttons (start page shortcuts, «In Google Maps öffnen», the profile) used a grey fill that the theme never sets, and the bars of the website and the game used the surface colour (nearly white). Decided with the owner: soft buttons and the bars take a tint of the accent over the surface, derived from the existing colours (no new theme key, no format change); the phone's tab bar matches the bars (story 5.2m, THM-17).
+
 ## Stories
 
 ### Story 5.2a – Spec and mock
@@ -120,6 +122,12 @@ Requirements: THM-06 (unchanged). Re-verified: WEB-02.
 
 - The Markdown preview of the content editor is wrapped like the website (`ThemedPreview`: the colours and font faces of `GET /api/site`) and shows the page's title above the text; the Startseite's preview shows the text only. The theme is read again after an import (5.2 fix), so the preview follows it.
 Requirements: CNT-05, THM-01 (unchanged).
+
+### Story 5.2m – Soft buttons and bars take the theme's tint
+
+Mock screens: `theme-editor` (the preview shows a «Website bar» and a soft button).
+- `themeStyle()` sets `--a-fill`, `--a-bar` and `--a-bar-pill` from the accent and the surface; `ui.css` uses them for soft buttons, chips, tags and the bars. The editor's preview shows them.
+Requirements: THM-17.
 
 ## Report
 

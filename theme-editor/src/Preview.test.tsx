@@ -171,6 +171,27 @@ describe("theme package editor: preview (THM-11)", () => {
     expect(themed().querySelector("style")?.textContent).not.toContain("size-adjust");
   });
 
+  it("[THM-17] the preview shows the website bar and a soft button with the accent's tint", () => {
+    const draft = newDraft();
+    draft.colors.accent = "#7a3b2e";
+    draft.colors.surface = "#fffdf8";
+    render(<Preview draft={draft} />);
+    const fill = themed().style.getPropertyValue("--a-fill");
+    // 12 % of the accent over the surface: between the two, closer to the surface
+    expect(fill).toMatch(/^#[0-9a-f]{6}$/);
+    expect(fill).not.toBe("#fffdf8");
+    expect(fill).not.toBe("#7a3b2e");
+    expect(themed().style.getPropertyValue("--a-bar")).toBe(fill);
+    expect(themed().style.getPropertyValue("--a-bar-pill")).toBe("#fffdf8");
+    const bar = screen.getByLabelText("Website bar");
+    expect(bar.classList.contains("guest-site-head")).toBe(true);
+    expect(within(bar).getByText("Start").classList.contains("active")).toBe(true);
+    const soft = within(screen.getByLabelText("Form")).getByRole("button", {
+      name: "Mehr erfahren",
+    });
+    expect(soft.classList.contains("soft")).toBe(true);
+  });
+
   it("[THM-11] shows the app icon and the maskable icon in a circle and a rounded square", () => {
     const draft = newDraft();
     draft.icons.files = {
@@ -195,7 +216,8 @@ describe("theme package editor: layout (THM-11)", () => {
     fireEvent.change(screen.getByLabelText("Name of the theme package"), {
       target: { value: "Winterfest" },
     });
-    expect(screen.getByText("Winterfest")).toBeTruthy();
+    // the name is on the website bar and under the app icon
+    expect(screen.getAllByText("Winterfest").length).toBeGreaterThanOrEqual(2);
   });
 
   it("[THM-11] rearranges for a narrow screen into the tabs Edit and Preview", () => {

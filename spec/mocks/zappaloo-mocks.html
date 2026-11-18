@@ -551,6 +551,11 @@ select.m-input { appearance: auto; }
 .te-in { min-height: 40px; border: 1.5px solid var(--s-line); background: var(--s-surface); color: var(--s-text); border-radius: 10px; padding: 0 12px; font: inherit; }
 .te-btn { min-height: 40px; padding: 0 16px; border-radius: 10px; border: 1.5px solid var(--s-accent); background: var(--s-accent); color: var(--s-on); font: 600 14px var(--s-body); }
 .te-btn.ghost { background: transparent; color: var(--s-accent); }
+.te-btn.soft { background: var(--s-fill); border-color: var(--s-fill); color: var(--s-text); }
+.te-bar2 { background: var(--s-fill); border: 1px solid var(--s-line); border-radius: 12px; padding: 10px 14px; display: flex; gap: 6px; align-items: center; color: var(--s-muted); }
+.te-bar2 b { color: var(--s-text); font-family: var(--s-head); margin-right: 10px; }
+.te-bar2 span { padding: 5px 10px; border-radius: 999px; font-size: 13px; }
+.te-bar2 span.on { background: var(--s-surface); color: var(--s-text); font-weight: 700; }
 .te-wait { background: var(--w-card); color: var(--w-text); border-radius: 14px; padding: 16px; display: flex; flex-direction: column; gap: 10px; }
 .te-wait button { min-height: 40px; border-radius: 10px; border: 0; background: var(--w-b); color: var(--w-on); font-weight: 700; }
 .te-home { background: #3a4a5c; border-radius: 18px; padding: 16px; display: flex; gap: 18px; justify-content: space-around; }
@@ -1667,6 +1672,7 @@ add({
     "Card Fonts (THM-09): body, heading and display, each off or a family name with 1–4 files. Each font has «Size adjust» (THM-16, proposed 2026-11-18): a slider and a number field, 50–200 %, default 100, shown live in the preview; it scales this font only (CSS size-adjust), for fonts that draw their letters smaller or larger than the others (the mock's body font is at 108 %). A file row has the file name, weight, style and «Remove». «Add font file» takes WOFF2, OTF or TTF; OTF and TTF are converted to WOFF2 by the editor (the row says «converted from OTF»). Family, weight and style are suggested from the file. A counter «5 of 8 files» and the 2 MB limit after conversion.",
     "Card Icons (THM-10): one square image of at least 512 px; the editor makes the four icons from it, shows each at its size and builds the maskable icon with the content inside the central 80 % on a chosen background colour (shown with the safe-zone circle). «Replace» on each icon takes its own PNG of the exact size; a wrong size is refused on the spot.",
     "Card Export: the name, «Export» and, when the validator refuses the package, the findings with the field each belongs to (state «Export refused»). Nothing is downloaded then.",
+    "Soft buttons, chips and the bars (THM-17, decided 2026-11-18): the theme has no colour for them, so they take a derived tint of the accent over the surface (about 12 %, lowered until the text on it reaches 4.5 : 1). The preview shows it in the «Website bar» (website header, game bar and phone tab bar look the same way; the active tab is the surface colour) and in the soft button «Mehr erfahren».",
     "Preview (THM-11): sample elements built with the app's own stylesheets and theme code, not the real pages: the start page (hero, welcome text, countdown card in the display font), a content page with Markdown headings and text, a form with fields and a primary and a secondary button, the waiting card, and the icons on a phone home screen with the maskable icon in a circle and in a rounded square. They follow every change at once. The mock draws them with the sample colours of the screen.",
     "Empty draft: the platform's default colours, no fonts, no icons («Choose an image»); the preview shows the platform's default look, and Export says what is missing.",
   ],
@@ -1722,15 +1728,19 @@ add({
       <div class="m-card"><div class="m-row2"><b class="m-h2" style="flex:1">Fonts</b><span class="m-tag line">${empty ? 0 : 4} of 8 files</span></div><span class="m-hint">WOFF2, OTF or TTF, at most 2 MB each after conversion. OTF and TTF are converted to WOFF2 here.</span>${fonts}</div>
       <div class="m-card"><b class="m-h2">Icons</b>${icons}</div>
       <div class="m-card strong"><b class="m-h2">Export</b><span class="m-hint">The package is built and checked with the platform's own code.</span><div class="m-row2"><button class="m-btn" ${empty ? "" : ""}>${ic("play")} Export</button>${empty ? '<span class="m-hint">Missing: a name and the three required icons.</span>' : ""}</div>${findings}</div>`;
-    const sampleVars = `--s-bg:${C.background};--s-surface:${C.surface};--s-text:${C.text};--s-muted:${C.muted};--s-line:${C.line};--s-accent:${C.accent};--s-on:${C.onAccent};--s-head:${empty ? "inherit" : "'Playfair Display', Georgia, serif"};--s-body:${empty ? "inherit" : "'Lora', Georgia, serif"};--s-disp:${empty ? "inherit" : "'Cormorant', Georgia, serif"}`;
+    const mix = (a, b, p) => "#" + [1, 3, 5].map((i) => Math.round(parseInt(a.slice(i, i + 2), 16) * p + parseInt(b.slice(i, i + 2), 16) * (1 - p)).toString(16).padStart(2, "0")).join("");
+    const fill = mix(C.accent, C.surface, 0.12);
+    const sampleVars = `--s-fill:${fill};--s-bg:${C.background};--s-surface:${C.surface};--s-text:${C.text};--s-muted:${C.muted};--s-line:${C.line};--s-accent:${C.accent};--s-on:${C.onAccent};--s-head:${empty ? "inherit" : "'Playfair Display', Georgia, serif"};--s-body:${empty ? "inherit" : "'Lora', Georgia, serif"};--s-disp:${empty ? "inherit" : "'Cormorant', Georgia, serif"}`;
     const preview = `<div class="te-sample" style="${sampleVars}">
+      <span class="m-eyebrow">Website bar</span>
+      <div class="te-bar2"><b>${name}</b><span class="on">Start</span><span>Programm</span><span>Mehr</span></div>
       <span class="m-eyebrow">Start page</span>
       <div class="te-pv"><div class="te-pv-hero">hero image</div><h3>Wir heiraten!</h3><p>Wir freuen uns riesig, diesen Tag mit euch zu feiern.</p>
         <div class="te-pv-card"><span class="te-eb">Noch</span><b class="te-disp">214 Tage</b><span class="te-mu">Sa, 12. Juni 2027 · Kirche Muri</span></div></div>
       <span class="m-eyebrow">Content page (Markdown)</span>
       <div class="te-pv"><h3>Anreise</h3><p>Mit dem Zug bis <b>Muri</b>, dann zehn Minuten zu Fuss.</p><h4>Parkplätze</h4><ul><li>beim Schloss</li><li>an der Kirche</li></ul><p class="te-mu">Stand: Mai 2027 · <a>Karte öffnen</a></p></div>
       <span class="m-eyebrow">Form</span>
-      <div class="te-pv"><label class="te-lbl">Name<input class="te-in" value="Erika Huber"></label><label class="te-lbl">Allergien<input class="te-in" placeholder="optional"></label><div class="m-row2"><button class="te-btn">Speichern</button><button class="te-btn ghost">Abbrechen</button></div></div>
+      <div class="te-pv"><label class="te-lbl">Name<input class="te-in" value="Erika Huber"></label><label class="te-lbl">Allergien<input class="te-in" placeholder="optional"></label><div class="m-row2"><button class="te-btn">Speichern</button><button class="te-btn soft">Mehr erfahren</button><button class="te-btn ghost">Abbrechen</button></div></div>
       <span class="m-eyebrow">Waiting card</span>
       <div class="te-wait" style="${empty ? `--w-card:${C.surface};--w-text:${C.text};--w-b:${C.accent};--w-on:${C.onAccent}` : `--w-card:${W.card};--w-text:${W.text};--w-b:${W.button};--w-on:${W.onButton}`}"><p>Psst, Erika … hinter dieser Tür entsteht gerade etwas. Bist du dabei?</p><button>Rückmeldung geben</button></div>
       <span class="m-eyebrow">App icon</span>

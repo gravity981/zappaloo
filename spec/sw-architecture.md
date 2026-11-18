@@ -2297,7 +2297,7 @@ The notice comes with the public `GET /api/site` (`name`, `copyright` or `null`,
 
 The look of an event outside the game world comes as one file, the theme package. An admin imports it in Einstellungen (card "Design"). It holds the app icons, the colours and the fonts. The pixel style of the game world comes with the world package (14.4).
 
-**What the theme changes.** The website and the guest pages (login, invitation, RSVP, profile, the card on the waiting page), the app icons and the colours of the web app manifest. The admin area keeps the platform's neutral look, except for the previews of guest content in it (the Markdown preview of the content editor), which show the guest's view with the theme (decided 2026-11-18). The status colours (ok, warning, badge) stay the platform's.
+**What the theme changes.** The website and the guest pages (login, invitation, RSVP, profile, the card on the waiting page), the app icons and the colours of the web app manifest. Soft buttons, chips, tags and the bars (the header of the website and of the game and the tab bar of a phone) take a tint of the accent over the surface, because the theme has no colour of its own for them (THM-17, decided 2026-11-18). The admin area keeps the platform's neutral look, except for the previews of guest content in it (the Markdown preview of the content editor), which show the guest's view with the theme (decided 2026-11-18). The status colours (ok, warning, badge) stay the platform's.
 
 **Layout, format version 2.** The files sit at the root of the archive, without a wrapping folder.
 
@@ -2409,6 +2409,7 @@ The answer to a refused package lists every finding with its file and reason.
 | THM-14 | The work in the editor survives a reload of the page (added 2026-11-18). | Could |
 | THM-15 | From one master colour, the accent, the editor suggests complete palettes for the seven colours of `theme.json` (and, when switched on, the four colours of the waiting card). Each suggestion keeps the master colour as the accent and reaches the validator's contrast in every pair; picking one fills the colours, and later edits stay (added 2026-11-18). | Should |
 | THM-16 | A font of the theme can be scaled with `sizeAdjust` (50–200 %, default 100): the field is part of format version 2, the validator checks it, the app applies it as `size-adjust` of the font's `@font-face` rules, and the editor sets it with a live preview (added 2026-11-18). | Should |
+| THM-17 | The soft buttons (the «normal» buttons), chips and tags, and the bars of the website, the game and the phone's tab bar take their colour from the theme: a tint of the accent over the surface (about 12 %, lowered until the text on it reaches the contrast of the validator). The theme format gets no new colour for it; without a theme the platform's grey and white stay (added 2026-11-18). | Should |
 
 ## 19.7.1 Theme Package Editor (decided 2026-11-18, epic 5.2)
 

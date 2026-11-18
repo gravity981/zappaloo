@@ -14,5 +14,6 @@ export * from "./waiting.ts";
 export * from "./platform.ts";
 export * from "./theme.ts";
 export * from "./contrast.ts";
+export * from "./color.ts";
 export * from "./world.ts";
 export * from "./packages/index.ts";
