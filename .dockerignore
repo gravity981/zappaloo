@@ -11,6 +11,8 @@
 /world-scratch/
 /game-preview/*
 !/game-preview/package.json
+/theme-editor/*
+!/theme-editor/package.json
 .e2e-data
 reports
 coverage
