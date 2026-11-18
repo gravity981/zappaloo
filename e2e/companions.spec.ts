@@ -53,13 +53,15 @@ test("[RSVP-08][RSVP-10][RSVP-12][RSVP-13][RSVP-15][SEC-11] a guest adds an acco
   await guest.getByRole("button", { name: de.rsvp.next }).click();
 
   // Step 3: "hinzufügen", with the person's own answer; the person counts at once.
-  await guest.getByRole("button", { name: new RegExp(de.rsvp.companions.new) }).click();
+  await guest.getByRole("button", { name: `+ ${de.rsvp.companions.new.child}` }).click();
   await guest.getByLabel(de.rsvp.companions.name).fill(mia);
   await guest.getByLabel(de.rsvp.companions.note).fill("Meine Tochter, 6 Jahre");
   const add = guest.getByRole("button", { name: de.rsvp.companions.add });
   await expect(add).toBeDisabled();
-  // The type has no default: the button stays off until the guest chooses it (RSVP-13).
-  await guest.getByRole("button", { name: de.personTypes.child, exact: true }).click();
+  // "+Kind" preselected the type (RSVP-21); it stays changeable.
+  await expect(
+    guest.getByRole("button", { name: de.personTypes.child, exact: true }),
+  ).toHaveAttribute("aria-pressed", "true");
   await guest.getByRole("button", { name: `${mia}: ${de.rsvp.yes}`, exact: true }).click();
   await guest.getByLabel(new RegExp(`${de.rsvp.allergies} \\(${mia}\\)`)).fill("Erdnüsse");
   await add.click();

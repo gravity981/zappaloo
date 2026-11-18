@@ -8,7 +8,13 @@ import { useState } from "react";
 import type { ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import { rsvpStateSchema, rsvpStatus } from "@zappaloo/shared";
-import type { Companion, ProgramItem, RsvpAnswerRequest, RsvpState } from "@zappaloo/shared";
+import type {
+  Companion,
+  PersonType,
+  ProgramItem,
+  RsvpAnswerRequest,
+  RsvpState,
+} from "@zappaloo/shared";
 import { apiRequest } from "../app/api.ts";
 import { useSession } from "../app/session.ts";
 import { useAdminData, useErrorText } from "../admin/data.ts";
@@ -21,7 +27,7 @@ import { useEventFormat } from "./format.ts";
 type Mode = { kind: "guest" } | { kind: "admin"; userId: number };
 type Step = 1 | 2 | 3 | "summary";
 /** The wizard, or the form of a companion request (a new one, or a pending one to change). */
-type View = { kind: "wizard" } | { kind: "form"; companion?: Companion };
+type View = { kind: "wizard" } | { kind: "form"; companion?: Companion; personType?: PersonType };
 
 const TOTAL_STEPS = 3;
 const WIZARD: View = { kind: "wizard" };
@@ -196,9 +202,13 @@ function WizardForm({
     }
   }
 
-  /** Opens the companion form: a new request, or the change of a pending one. */
-  function openForm(companion?: Companion) {
-    setView(companion ? { kind: "form", companion } : { kind: "form" });
+  /** Opens the companion form: a new person with the type preselected, or the change of a pending one. */
+  function openForm(companion?: Companion, personType?: PersonType) {
+    setView(
+      companion
+        ? { kind: "form", companion }
+        : { kind: "form", ...(personType ? { personType } : {}) },
+    );
   }
 
   /** In admin mode the page says so (no frame, so no progress bar either). */
@@ -223,6 +233,7 @@ function WizardForm({
     return (
       <CompanionForm
         key={view.companion?.id ?? "new"}
+        {...(view.personType ? { initialType: view.personType } : {})}
         perItem={state.perItem}
         programItems={programItems}
         menus={menus}
@@ -572,8 +583,8 @@ function WizardForm({
         admin={admin}
         locked={locked}
         onEdit={openForm}
-        onNew={() => {
-          openForm();
+        onNew={(personType) => {
+          openForm(undefined, personType);
         }}
         onChanged={onSaved}
         onRefresh={onRefresh}

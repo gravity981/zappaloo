@@ -1047,7 +1047,10 @@
       "cancel": "Abbrechen",
       "save": "Speichern",
       "add": "Hinzufügen",
-      "new": "Begleitperson hinzufügen",
+      "new": {
+        "adult": "Begleitung",
+        "child": "Kind"
+      },
       "edit": "Bearbeiten",
       "withdraw": "Zurückziehen",
       "remove": "Entfernen",
