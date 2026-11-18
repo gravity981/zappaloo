@@ -53,8 +53,8 @@ const PARTS = [
   },
 ];
 const MENUS = [
-  { id: 1, name: "Fleisch" },
-  { id: 4, name: "Kindermenü" },
+  { id: 1, name: "Fleisch", forChildren: false },
+  { id: 4, name: "Kindermenü", forChildren: true },
 ];
 
 const companion = (changes: Record<string, unknown> = {}) => {
@@ -186,10 +186,11 @@ describe("accompanying persons in the wizard", () => {
     user.click(screen.getByRole("button", { name: "Dinner: Dabei" }));
     // The meal program item needs a menu.
     expect(submit).toBeDisabled();
-    user.click(screen.getByRole("button", { name: "Mia Huber: Kindermenü" }));
-    // The type has no default: the guest must choose it (RSVP-13).
-    expect(submit).toBeDisabled();
+    // The type has no default: the guest must choose it (RSVP-13); the menu list follows it (RSVP-19).
     user.click(screen.getByRole("button", { name: "Kind" }));
+    expect(submit).toBeDisabled();
+    expect(screen.queryByRole("button", { name: "Mia Huber: Fleisch" })).not.toBeInTheDocument();
+    user.click(screen.getByRole("button", { name: "Mia Huber: Kindermenü" }));
     expect(submit).toBeEnabled();
     user.click(submit);
 

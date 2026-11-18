@@ -2,7 +2,7 @@
 // (RSVP-01 – RSVP-07, SEC-11; sw-architecture.md 7.4, 7.4.1). Allergies are health data: only
 // the admin overview and the guest's own answer ever return them (SEC-11).
 import { and, asc, count, eq, inArray } from "drizzle-orm";
-import { MAX_COMPANIONS, menuOffered, menuRequired, rsvpStatus } from "@zappaloo/shared";
+import { MAX_COMPANIONS, menuOffered, menuRequired, menusFor, rsvpStatus } from "@zappaloo/shared";
 import type {
   PersonType,
   Companion,
@@ -233,7 +233,7 @@ export class RsvpService {
 
   #menus(reader: Reader = this.#database.db): MenuOption[] {
     return reader
-      .select({ id: menuOptions.id, name: menuOptions.name })
+      .select({ id: menuOptions.id, name: menuOptions.name, forChildren: menuOptions.forChildren })
       .from(menuOptions)
       .where(eq(menuOptions.eventId, this.#event.eventId))
       .orderBy(asc(menuOptions.id))
@@ -549,14 +549,18 @@ export class RsvpService {
     });
   }
 
-  createMenu(name: string, actor: Actor): MenuOption {
+  createMenu(name: string, actor: Actor, forChildren = false): MenuOption {
     return this.#database.db.transaction((tx) => {
       const row = tx
         .insert(menuOptions)
-        .values({ eventId: this.#event.eventId, name, createdAt: this.#now() })
-        .returning({ id: menuOptions.id, name: menuOptions.name })
+        .values({ eventId: this.#event.eventId, name, forChildren, createdAt: this.#now() })
+        .returning({
+          id: menuOptions.id,
+          name: menuOptions.name,
+          forChildren: menuOptions.forChildren,
+        })
         .get();
-      this.#event.audit(actor, "rsvp.menu.create", { menuId: row.id }, tx);
+      this.#event.audit(actor, "rsvp.menu.create", { menuId: row.id, forChildren }, tx);
       return row;
     });
   }
@@ -577,7 +581,11 @@ export class RsvpService {
         .update(menuOptions)
         .set({ name })
         .where(eq(menuOptions.id, id))
-        .returning({ id: menuOptions.id, name: menuOptions.name })
+        .returning({
+          id: menuOptions.id,
+          name: menuOptions.name,
+          forChildren: menuOptions.forChildren,
+        })
         .get();
       this.#event.audit(actor, "rsvp.menu.update", { menuId: id }, tx);
       return row;
@@ -751,7 +759,9 @@ export class RsvpService {
   /**
    * Checks the answer of one person against the invited program items and the meal rules, the same for
    * a guest and for a companion: yes or no for every invited program item, a menu for a person who
-   * attends the meal program item while menus exist, allergies only for someone who attends.
+   * attends the meal program item while the person's menu list has entries (RSVP-19), allergies only for
+   * someone who attends. `currentMenuId` is the menu the person has now: a child keeps an adults' menu
+   * chosen before the children's list existed as long as it is sent back unchanged.
    */
   #checkPerson(
     tx: Reader,
@@ -762,6 +772,7 @@ export class RsvpService {
       menuId?: number | null | undefined;
       allergies?: string | null | undefined;
     },
+    currentMenuId: number | null = null,
   ): CheckedPerson {
     const given = input.attendance.map((a) => a.programItemId);
     if (
@@ -782,17 +793,19 @@ export class RsvpService {
       );
     }
     const attending = input.attendance.filter((a) => a.attending).map((a) => a.programItemId);
-    const menus = this.#menus(tx);
+    const allMenus = this.#menus(tx);
+    const menus = menusFor(allMenus, personType);
     let menuId: number | null = null;
     const programItems = this.#programItems(tx);
     if (menuOffered(programItems, menus.length, attending)) {
       if (input.menuId === undefined || input.menuId === null) {
-        // An adult must choose, a child may leave it open (RSVP-14).
-        if (menuRequired(programItems, menus.length, attending, personType)) {
+        // Adults and children must choose from their own list (RSVP-14, RSVP-19).
+        if (menuRequired(programItems, menus.length, attending)) {
           throw new RsvpError("menu_required", "choose a menu");
         }
       } else {
-        if (!menus.some((menu) => menu.id === input.menuId)) {
+        const kept = input.menuId === currentMenuId && allMenus.some((m) => m.id === input.menuId);
+        if (!kept && !menus.some((menu) => menu.id === input.menuId)) {
           throw new RsvpError("invalid_menu", "no such menu option");
         }
         menuId = input.menuId;
@@ -934,6 +947,7 @@ export class RsvpService {
         this.invitedProgramItemIds(userId, tx),
         input.personType,
         input,
+        row.menuId,
       );
       tx.update(companions)
         .set({ name: input.name, note: input.note ?? null, personType: input.personType })
@@ -1049,7 +1063,13 @@ export class RsvpService {
         throw new RsvpError("rsvp_closed", "the deadline for the RSVP has passed");
       }
       const invited = this.invitedProgramItemIds(userId, tx);
-      const person = this.#checkPerson(tx, invited, this.#personTypeOf(tx, userId), input);
+      const person = this.#checkPerson(
+        tx,
+        invited,
+        this.#personTypeOf(tx, userId),
+        input,
+        this.#answer(tx, userId)?.menuId ?? null,
+      );
       const { menuId } = person;
       const anyAttending = person.attending.length > 0;
       const eventId = this.#event.eventId;
@@ -1080,7 +1100,7 @@ export class RsvpService {
         this.#saveCompanionAnswer(
           tx,
           companion.id,
-          this.#checkPerson(tx, invited, companion.personType, companionAnswer),
+          this.#checkPerson(tx, invited, companion.personType, companionAnswer, companion.menuId),
         );
       }
       // Ids only: the allergies are health data and stay out of the log (SEC-04, SEC-11).
@@ -1242,21 +1262,28 @@ export class RsvpService {
       },
     };
     const meal = config.programItems.find((programItem) => programItem.hasMeal);
-    const counts = new Map<number | null, number>();
+    const counts = new Map<number | null, { count: number; childCount: number }>();
     if (meal) {
       // A child who left the menu open is not counted in the menus (RSVP-14).
       for (const person of people.filter(
         (p) =>
           p.attendingItemIds.includes(meal.id) && !(p.personType === "child" && p.menuId === null),
       )) {
-        counts.set(person.menuId, (counts.get(person.menuId) ?? 0) + 1);
+        const entry = counts.get(person.menuId) ?? { count: 0, childCount: 0 };
+        entry.count += 1;
+        if (person.personType === "child") entry.childCount += 1;
+        counts.set(person.menuId, entry);
       }
     }
     return {
       ...config,
       totals,
       personTotals,
-      menuTotals: [...counts].map(([menuId, count]) => ({ menuId, count })),
+      menuTotals: [...counts].map(([menuId, { count, childCount }]) => ({
+        menuId,
+        count,
+        childCount,
+      })),
       guests: guests.map(withoutEmail),
       companions: everyone,
       pendingCount: everyone.filter((c) => c.status === "pending").length,
@@ -1365,8 +1392,14 @@ export class RsvpService {
   /** The guest table as CSV for the hosts (RSVP-05); contains allergies, so admins only. */
   csv(): string {
     const overview = this.overview();
-    const menuName = (id: number | null) =>
-      id === null ? "" : (overview.menus.find((m) => m.id === id)?.name ?? "");
+    // A child who still has a menu of the adults' list is marked (RSVP-19).
+    const menuName = (id: number | null, personType: PersonType) => {
+      const menu = id === null ? undefined : overview.menus.find((m) => m.id === id);
+      if (!menu) return "";
+      return personType === "child" && !menu.forChildren
+        ? `${menu.name} (Erwachsenenmenü)`
+        : menu.name;
+    };
     const header = [
       "Name",
       "Typ",
@@ -1383,7 +1416,7 @@ export class RsvpService {
         PERSON_TYPE_LABELS[guest.personType],
         status[guest.status],
         ...overview.programItems.map((programItem) => programItemCell(guest, programItem.id)),
-        menuName(guest.menuId),
+        menuName(guest.menuId, guest.personType),
         ...(overview.songEnabled ? [guest.songWish ?? ""] : []),
         guest.allergies ?? "",
       ],
@@ -1395,7 +1428,7 @@ export class RsvpService {
           PERSON_TYPE_LABELS[c.personType],
           "bestätigt",
           ...overview.programItems.map((programItem) => programItemCell(c, programItem.id)),
-          menuName(c.menuId),
+          menuName(c.menuId, c.personType),
           ...(overview.songEnabled ? [""] : []),
           c.allergies ?? "",
         ]),
@@ -1457,7 +1490,7 @@ export function seedExampleRsvp(
       actor,
     );
   }
-  for (const name of ["Fleisch", "Vegetarisch", "Vegan", "Kindermenü"])
-    rsvp.createMenu(name, actor);
+  for (const name of ["Fleisch", "Vegetarisch", "Vegan"]) rsvp.createMenu(name, actor);
+  for (const name of ["Kindermenü", "Pasta"]) rsvp.createMenu(name, actor, true);
   rsvp.setDeadline("2027-05-01", actor);
 }

@@ -1,0 +1,1 @@
+ALTER TABLE `menu_options` ADD `for_children` integer DEFAULT false NOT NULL;

@@ -368,7 +368,7 @@ export const activities = sqliteTable(
   ],
 );
 
-/** The one list of menu options for everyone (RSVP-03). */
+/** The menu options: one list for adults and one for children (RSVP-03, RSVP-19). */
 export const menuOptions = sqliteTable(
   "menu_options",
   {
@@ -377,6 +377,8 @@ export const menuOptions = sqliteTable(
       .notNull()
       .references(() => events.id),
     name: text("name").notNull(),
+    /** The children's list; every menu that existed before epic 5.4 is an adults' menu. */
+    forChildren: integer("for_children", { mode: "boolean" }).notNull().default(false),
     createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull(),
   },
   (table) => [index("menu_options_event").on(table.eventId)],

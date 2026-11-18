@@ -50,7 +50,12 @@ export const programItemSchema = z.object({
 });
 export type ProgramItem = z.infer<typeof programItemSchema>;
 
-export const menuOptionSchema = z.object({ id: idSchema, name: z.string() });
+/** A menu option; `forChildren` puts it in the children's list (RSVP-19). */
+export const menuOptionSchema = z.object({
+  id: idSchema,
+  name: z.string(),
+  forChildren: z.boolean(),
+});
 export type MenuOption = z.infer<typeof menuOptionSchema>;
 
 export const activityNameSchema = z.string().trim().min(1).max(60);
@@ -92,6 +97,14 @@ export const programItemUpdateSchema = z
   .refine((value) => Object.keys(value).length > 0, { message: "name at least one value" });
 export type ProgramItemUpdate = z.infer<typeof programItemUpdateSchema>;
 
+/** `POST /api/admin/rsvp/menus`: a menu of the adults' list (the default) or of the children's list. */
+export const menuCreateSchema = z.strictObject({
+  name: menuNameSchema,
+  forChildren: z.boolean().optional(),
+});
+export type MenuCreate = z.infer<typeof menuCreateSchema>;
+
+/** `PATCH /api/admin/rsvp/menus/:id`: a menu stays in its list, only the name changes. */
 export const menuRequestSchema = z.strictObject({ name: menuNameSchema });
 export type MenuRequest = z.infer<typeof menuRequestSchema>;
 
@@ -247,7 +260,18 @@ export function rsvpStatus(
   return invitedProgramItemIds.every((id) => declinedItemIds.includes(id)) ? "declined" : "none";
 }
 
-/** A person attending the program item with the meal is offered a menu, as long as menus exist (RSVP-03). */
+/** The menus a person chooses from: the children's list for a child, the adults' list for everyone else (RSVP-19). */
+export function menusFor<T extends { forChildren: boolean }>(
+  menus: readonly T[],
+  personType: PersonType,
+): T[] {
+  return menus.filter((menu) => menu.forChildren === (personType === "child"));
+}
+
+/**
+ * A person attending the program item with the meal is offered a menu, as long as the person's list
+ * has entries (RSVP-03, RSVP-19); `menuCount` is the size of that list.
+ */
 export function menuOffered(
   programItems: readonly Pick<ProgramItem, "id" | "hasMeal">[],
   menuCount: number,
@@ -257,14 +281,13 @@ export function menuOffered(
   return meal !== undefined && menuCount > 0 && attendingItemIds.includes(meal.id);
 }
 
-/** An adult must choose the menu that is offered. For a child it is optional (RSVP-14). */
+/** A person must choose the menu that is offered, adult or child (RSVP-14, RSVP-19). */
 export function menuRequired(
   programItems: readonly Pick<ProgramItem, "id" | "hasMeal">[],
   menuCount: number,
   attendingItemIds: readonly number[],
-  personType: PersonType = "adult",
 ): boolean {
-  return personType !== "child" && menuOffered(programItems, menuCount, attendingItemIds);
+  return menuOffered(programItems, menuCount, attendingItemIds);
 }
 
 /** One row of the guest table (RSVP-04, RSVP-05); `allergies` is for admins only (SEC-11). */
@@ -326,7 +349,14 @@ export const rsvpOverviewSchema = z.object({
     yesByType: z.object({ adult: z.number().int(), child: z.number().int() }),
   }),
   /** Menu choices of the persons attending the meal program item; menuId null = no choice made. */
-  menuTotals: z.array(z.object({ menuId: idSchema.nullable(), count: z.number().int() })),
+  menuTotals: z.array(
+    z.object({
+      menuId: idSchema.nullable(),
+      count: z.number().int(),
+      /** How many of them are children; of an adults' menu these are "Erwachsenenmenü" choices (RSVP-19). */
+      childCount: z.number().int(),
+    }),
+  ),
   guests: z.array(rsvpGuestSchema),
   /** Every companion request; approved ones count in totals, menus and the table (RSVP-09). */
   companions: z.array(rsvpCompanionSchema),

@@ -748,7 +748,7 @@ describe("the admin overview", () => {
     expect(total("Apéro")).toMatchObject({ yes: 2, no: 0 });
     expect(total("Dinner")).toMatchObject({ yes: 1, no: 1 });
     expect(total("Party")).toMatchObject({ yes: 0, no: 1 }); // only anna was invited, and said no
-    expect(overview.menuTotals).toEqual([{ menuId: menus[0]?.id, count: 1 }]);
+    expect(overview.menuTotals).toEqual([{ menuId: menus[0]?.id, count: 1, childCount: 0 }]);
     expect(overview.guests.map((g) => [g.name, g.status])).toEqual([
       ["anna", "attending"],
       ["ben", "attending"],

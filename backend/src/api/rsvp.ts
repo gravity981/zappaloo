@@ -16,6 +16,7 @@ import {
   programItemUpdateSchema,
   invitedProgramItemsRequestSchema,
   menuOptionSchema,
+  menuCreateSchema,
   menuRequestSchema,
   remindResponseSchema,
   rsvpAnswerRequestSchema,
@@ -390,12 +391,14 @@ const rsvpPlugin: FastifyPluginAsyncZod<AuthOptions> = (app, options) => {
       ...admin,
       schema: {
         querystring: noQuery,
-        body: menuRequestSchema,
+        body: menuCreateSchema,
         response: { 201: menuOptionSchema },
       },
     },
     async (request, reply) =>
-      reply.status(201).send(rsvp.createMenu(request.body.name, actor(request))),
+      reply
+        .status(201)
+        .send(rsvp.createMenu(request.body.name, actor(request), request.body.forChildren)),
   );
 
   app.patch(

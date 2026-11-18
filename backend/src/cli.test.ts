@@ -532,11 +532,14 @@ describe("event setup commands", () => {
         "Party",
       ]);
       expect(config.programItems.filter((p) => p.hasMeal).map((p) => p.name)).toEqual(["Dinner"]);
-      expect(config.menus.map((m) => m.name)).toEqual([
+      expect(config.menus.filter((m) => !m.forChildren).map((m) => m.name)).toEqual([
         "Fleisch",
         "Vegetarisch",
         "Vegan",
+      ]);
+      expect(config.menus.filter((m) => m.forChildren).map((m) => m.name)).toEqual([
         "Kindermenü",
+        "Pasta",
       ]);
       expect(config.deadline).toBe("2027-05-01");
     } finally {

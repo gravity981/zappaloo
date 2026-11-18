@@ -94,10 +94,45 @@ export default function AdminRsvpPage() {
   const meal = data.programItems.find((programItem) => programItem.hasMeal);
   const programItemName = (id: number) =>
     data.programItems.find((programItem) => programItem.id === id)?.name ?? "";
-  const menuName = (id: number | null) =>
-    id === null
-      ? t("admin.rsvp.noChoice")
-      : (data.menus.find((menu) => menu.id === id)?.name ?? "");
+  // A child who still has a menu of the adults' list is marked "Erwachsenenmenü" (RSVP-19).
+  const menuName = (id: number | null, personType: PersonType) => {
+    if (id === null) return t("admin.rsvp.noChoice");
+    const menu = data.menus.find((m) => m.id === id);
+    if (!menu) return "";
+    return personType === "child" && !menu.forChildren
+      ? `${menu.name} (${t("admin.rsvp.adultMenu")})`
+      : menu.name;
+  };
+  // The menu totals per list: adults on the adults' list, children on the children's list, and the
+  // children who kept an adults' menu as one row of their own.
+  const isChildMenu = (id: number | null) =>
+    data.menus.find((m) => m.id === id)?.forChildren === true;
+  const adultRows = data.menuTotals
+    .filter((total) => !isChildMenu(total.menuId))
+    .map((total) => ({
+      key: total.menuId ?? "none",
+      label:
+        total.menuId === null
+          ? t("admin.rsvp.noChoice")
+          : (data.menus.find((m) => m.id === total.menuId)?.name ?? ""),
+      count: total.count - total.childCount,
+    }))
+    .filter((row) => row.count > 0);
+  const keptByChildren = data.menuTotals
+    .filter((total) => !isChildMenu(total.menuId))
+    .reduce((sum, total) => sum + total.childCount, 0);
+  const childRows = [
+    ...data.menuTotals
+      .filter((total) => isChildMenu(total.menuId))
+      .map((total) => ({
+        key: total.menuId ?? "none",
+        label: data.menus.find((m) => m.id === total.menuId)?.name ?? "",
+        count: total.count,
+      })),
+    ...(keptByChildren > 0
+      ? [{ key: "adult-menu", label: t("admin.rsvp.adultMenu"), count: keptByChildren }]
+      : []),
+  ];
   const count = (status: RsvpStatus | undefined) =>
     status === undefined
       ? data.guests.length
@@ -111,7 +146,11 @@ export default function AdminRsvpPage() {
       ? [{ programItemId: 0, ...data.personTotals }]
       : [];
   const widest = Math.max(1, ...bars.map((total) => total.yes + total.no));
-  const menuWidest = Math.max(1, ...data.menuTotals.map((total) => total.count));
+  const menuWidest = Math.max(
+    1,
+    ...adultRows.map((r) => r.count),
+    ...childRows.map((r) => r.count),
+  );
 
   return (
     <>
@@ -198,13 +237,21 @@ export default function AdminRsvpPage() {
             {meal ? t("admin.rsvp.menus", { programItem: meal.name }) : t("admin.rsvp.menusNoMeal")}
           </b>
           {!meal && <span className="hint">{t("admin.rsvp.noMealProgramItem")}</span>}
-          {data.menuTotals.map((total) => (
-            <div key={total.menuId ?? "none"} className="bar-row">
-              <span>{menuName(total.menuId)}</span>
-              <div className="track" aria-hidden="true">
-                <i style={{ width: `${String((total.count / menuWidest) * 100)}%` }} />
-              </div>
-              <span className="sm">{total.count}</span>
+          {[
+            { title: t("admin.rsvp.menusAdults"), rows: adultRows },
+            { title: t("admin.rsvp.menusChildren"), rows: childRows },
+          ].map(({ title, rows }) => (
+            <div key={title} className="stack">
+              <span className="eyebrow">{title}</span>
+              {rows.map((row) => (
+                <div key={row.key} className="bar-row">
+                  <span>{row.label}</span>
+                  <div className="track" aria-hidden="true">
+                    <i style={{ width: `${String((row.count / menuWidest) * 100)}%` }} />
+                  </div>
+                  <span className="sm">{row.count}</span>
+                </div>
+              ))}
             </div>
           ))}
         </section>
@@ -272,7 +319,7 @@ export default function AdminRsvpPage() {
                     </td>
                     <td>
                       {meal && guest.attendingItemIds.includes(meal.id)
-                        ? menuName(guest.menuId)
+                        ? menuName(guest.menuId, guest.personType)
                         : t("admin.rsvp.none")}
                     </td>
                     {data.songEnabled && <td>{guest.songWish ?? t("admin.rsvp.none")}</td>}
@@ -312,7 +359,7 @@ export default function AdminRsvpPage() {
                         </td>
                         <td>
                           {meal && c.attendingItemIds.includes(meal.id)
-                            ? menuName(c.menuId)
+                            ? menuName(c.menuId, c.personType)
                             : t("admin.rsvp.none")}
                         </td>
                         {data.songEnabled && <td>{t("admin.rsvp.none")}</td>}

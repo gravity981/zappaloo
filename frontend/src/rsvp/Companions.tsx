@@ -4,7 +4,7 @@
 import { useState } from "react";
 import type { ReactNode } from "react";
 import { useTranslation } from "react-i18next";
-import { MAX_COMPANIONS, PERSON_TYPES, rsvpStateSchema } from "@zappaloo/shared";
+import { MAX_COMPANIONS, menusFor, PERSON_TYPES, rsvpStateSchema } from "@zappaloo/shared";
 import type {
   Companion,
   CompanionRequest,
@@ -161,7 +161,7 @@ export function MenuFields({
         >
           <span>{t("rsvp.menu", { programItem: meal.name })}</span>
           <div className="chips">
-            {menus.map((menu) => (
+            {menusFor(menus, value.personType).map((menu) => (
               <button
                 key={menu.id}
                 type="button"
@@ -169,9 +169,7 @@ export function MenuFields({
                 aria-pressed={value.menuId === menu.id}
                 aria-label={prefixed(menu.name)}
                 onClick={() => {
-                  // A child's menu is optional (RSVP-14): a second click leaves it open again.
-                  const clear = value.personType === "child" && value.menuId === menu.id;
-                  onChange({ ...value, menuId: clear ? null : menu.id });
+                  onChange({ ...value, menuId: menu.id });
                 }}
               >
                 {menu.name}

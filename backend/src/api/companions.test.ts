@@ -410,8 +410,8 @@ describe("approval", () => {
     expect(total("Apéro")).toMatchObject({ yes: 0, no: 2 });
     expect(overview.menuTotals).toEqual(
       expect.arrayContaining([
-        { menuId: menus[0]?.id, count: 1 },
-        { menuId: menus[1]?.id, count: 1 },
+        { menuId: menus[0]?.id, count: 1, childCount: 0 },
+        { menuId: menus[1]?.id, count: 1, childCount: 0 },
       ]),
     );
     expect(overview.pendingCount).toBe(1);

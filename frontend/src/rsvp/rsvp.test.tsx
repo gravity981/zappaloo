@@ -65,8 +65,9 @@ const PARTS = [
 /** A place of Inhalte the program item form can choose (CNT-07). */
 const PLACE_SAAL = { id: 7, name: "Saal", address: null, mapsUrl: null, mapImageId: null };
 const MENUS = [
-  { id: 1, name: "Fleisch" },
-  { id: 2, name: "Vegetarisch" },
+  { id: 1, name: "Fleisch", forChildren: false },
+  { id: 2, name: "Vegetarisch", forChildren: false },
+  { id: 3, name: "Kindermenü", forChildren: true },
 ];
 
 /** What `GET /api/rsvp` answers. */
@@ -422,8 +423,8 @@ describe("Anmeldungen", () => {
     ],
     personTotals: { yes: 2, no: 1, yesByType: { adult: 2, child: 0 } },
     menuTotals: [
-      { menuId: 1, count: 1 },
-      { menuId: 2, count: 1 },
+      { menuId: 1, count: 1, childCount: 0 },
+      { menuId: 2, count: 1, childCount: 0 },
     ],
     guests: [
       {
@@ -472,6 +473,29 @@ describe("Anmeldungen", () => {
     total: 3,
     reminderCount: 1,
   };
+
+  it("[RSVP-19] the menu totals are kept per list, and a child's adults' menu counts as Erwachsenenmenü", async () => {
+    fakeBackend({
+      "GET /api/session": () => asAdmin,
+      "GET /api/admin/rsvp": () => ({
+        status: 200,
+        body: {
+          ...overview,
+          menuTotals: [
+            { menuId: 1, count: 3, childCount: 1 },
+            { menuId: 3, count: 2, childCount: 2 },
+          ],
+        },
+      }),
+    });
+    renderAt("/admin/rsvp");
+    const card = (await screen.findByText("Menüs (Dinner)")).closest("section");
+    if (!card) throw new Error("no menu card");
+    const rows = Array.from(card.querySelectorAll(".bar-row")).map((row) => row.textContent);
+    expect(rows).toEqual(["Fleisch2", "Kindermenü2", "Erwachsenenmenü1"]);
+    expect(within(card).getByText("Erwachsene")).toBeInTheDocument();
+    expect(within(card).getByText("Kinder")).toBeInTheDocument();
+  });
 
   it("[RSVP-05][SEC-11] shows totals per program item and menu and the guest table with the admin-only allergy column", async () => {
     fakeBackend({
@@ -819,7 +843,10 @@ describe("Einstellungen › Anmeldung", () => {
     const calls = fakeBackend({
       "GET /api/session": () => asAdmin,
       "GET /api/admin/rsvp/config": () => ({ status: 200, body: config }),
-      "POST /api/admin/rsvp/menus": () => ({ status: 201, body: { id: 3, name: "Vegan" } }),
+      "POST /api/admin/rsvp/menus": () => ({
+        status: 201,
+        body: { id: 3, name: "Vegan", forChildren: false },
+      }),
     });
     renderAt("/admin/settings");
     const add = await screen.findByRole("button", { name: "Menü hinzufügen" });
@@ -829,7 +856,44 @@ describe("Einstellungen › Anmeldung", () => {
     await waitFor(() => {
       expect(calls.some((c) => c.method === "POST")).toBe(true);
     });
-    expect(calls.find((c) => c.method === "POST")?.body).toEqual({ name: "Vegan" });
+    expect(calls.find((c) => c.method === "POST")?.body).toEqual({
+      name: "Vegan",
+      forChildren: false,
+    });
+  });
+
+  it("[RSVP-19] the admin keeps a second list of children's menus", async () => {
+    const calls = fakeBackend({
+      "GET /api/session": () => asAdmin,
+      "GET /api/admin/rsvp/config": () => ({
+        status: 200,
+        body: {
+          ...config,
+          menus: [
+            { id: 1, name: "Fleisch", forChildren: false },
+            { id: 3, name: "Kindermenü", forChildren: true },
+          ],
+        },
+      }),
+      "POST /api/admin/rsvp/menus": () => ({
+        status: 201,
+        body: { id: 4, name: "Pasta", forChildren: true },
+      }),
+    });
+    renderAt("/admin/settings");
+    expect(await screen.findByText("Kindermenüs", { selector: "b" })).toBeInTheDocument();
+    // Each menu stands in its own list.
+    expect(screen.getByText("Kindermenü", { selector: "li span" })).toBeInTheDocument();
+    const add = await screen.findByRole("button", { name: "Kindermenü hinzufügen" });
+    user.type(screen.getByLabelText("Bezeichnung des Kindermenüs"), "Pasta");
+    user.click(add);
+    await waitFor(() => {
+      expect(calls.some((c) => c.method === "POST")).toBe(true);
+    });
+    expect(calls.find((c) => c.method === "POST")?.body).toEqual({
+      name: "Pasta",
+      forChildren: true,
+    });
   });
 });
 
@@ -1557,7 +1621,7 @@ describe("person types (RSVP-13, RSVP-14, RSVP-15)", () => {
     expect(screen.queryByText("Trauung", { selector: ".bar-row span" })).not.toBeInTheDocument();
   });
 
-  it("[RSVP-14] a child is offered the menu, but may go on without choosing one", async () => {
+  it("[RSVP-14][RSVP-19] a child chooses from the children's menus and must choose one", async () => {
     fakeBackend({
       "GET /api/session": () => asGuest,
       "GET /api/rsvp": () => ({
@@ -1570,15 +1634,12 @@ describe("person types (RSVP-13, RSVP-14, RSVP-15)", () => {
     await screen.findByRole("heading", { name: "Bist du dabei, Erika?" });
     user.click(screen.getByRole("button", { name: "Weiter" }));
     await screen.findByRole("heading", { name: "Essen & Allergien" });
-    // The menu is there, but nothing is missing without it.
     expect(screen.getByText("Menü (Dinner)")).toBeInTheDocument();
+    // Only the children's list, and the child cannot go on without a choice.
+    expect(screen.queryByRole("button", { name: "Fleisch" })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Weiter" })).toBeDisabled();
+    user.click(screen.getByRole("button", { name: "Kindermenü" }));
     expect(screen.getByRole("button", { name: "Weiter" })).toBeEnabled();
-    // A menu chosen by mistake is left open again with a second click.
-    const chip = screen.getByRole("button", { name: "Fleisch" });
-    user.click(chip);
-    expect(chip).toHaveAttribute("aria-pressed", "true");
-    user.click(chip);
-    expect(chip).toHaveAttribute("aria-pressed", "false");
   });
 
   it("[RSVP-14] an adult must choose the menu before going on", async () => {
