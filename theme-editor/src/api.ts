@@ -1,4 +1,6 @@
+import { fromBase64 } from "./base64.ts";
 import type { DraftFontFile } from "./model.ts";
+import type { PackageData, PackageFinding } from "./transfer.ts";
 
 export interface FontFinding {
   file: string;
@@ -18,13 +20,6 @@ export class FontError extends Error {
 export interface ConvertedFont {
   file: Omit<DraftFontFile, "id" | "weight" | "style">;
   suggestion: { family: string; weight: number; style: "normal" | "italic" };
-}
-
-function fromBase64(text: string): Uint8Array {
-  const binary = atob(text);
-  const bytes = new Uint8Array(binary.length);
-  for (let i = 0; i < binary.length; i += 1) bytes[i] = binary.charCodeAt(i);
-  return bytes;
 }
 
 /** Sends a WOFF2, OTF or TTF file to the development server and gets WOFF2 back (THM-09). */
@@ -59,4 +54,50 @@ export async function convertFont(file: File): Promise<ConvertedFont> {
     },
     suggestion: body.suggestion,
   };
+}
+
+const API = "/__theme-editor/api";
+
+export type ExportResult =
+  | { ok: true; fileName: string; blob: Blob }
+  | { ok: false; findings: PackageFinding[]; message: string };
+
+export type OpenResult =
+  { ok: true; data: PackageData } | { ok: false; findings: PackageFinding[]; message: string };
+
+async function failure(
+  response: Response,
+): Promise<{ findings: PackageFinding[]; message: string }> {
+  try {
+    const body = (await response.json()) as { findings?: PackageFinding[]; message?: string };
+    return {
+      findings: body.findings ?? [],
+      message: body.message ?? "The server refused the request",
+    };
+  } catch {
+    return { findings: [], message: "The development server did not answer" };
+  }
+}
+
+/** Builds the package on the development server with the platform's code, and returns the archive (THM-12). */
+export async function exportPackage(data: PackageData): Promise<ExportResult> {
+  const response = await fetch(`${API}/export`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
+  if (!response.ok) return { ok: false, ...(await failure(response)) };
+  return {
+    ok: true,
+    fileName: response.headers.get("X-File-Name") ?? "theme.tar.gz",
+    blob: await response.blob(),
+  };
+}
+
+/** Sends a package to the development server, which validates it and reads it back (THM-13). */
+export async function openPackage(file: File): Promise<OpenResult> {
+  const response = await fetch(`${API}/open`, { method: "POST", body: await file.arrayBuffer() });
+  if (!response.ok) return { ok: false, ...(await failure(response)) };
+  const body = (await response.json()) as { data: PackageData };
+  return { ok: true, data: body.data };
 }

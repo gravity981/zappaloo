@@ -2,6 +2,8 @@ import type { IncomingMessage, ServerResponse } from "node:http";
 import type { Plugin } from "vite";
 import { THEME_LIMITS } from "@zappaloo/shared";
 import { FontRefused, prepareFont } from "./font.ts";
+import { buildPackage, openPackage } from "./package.ts";
+import type { PackageData } from "../transfer.ts";
 
 /** An uploaded font before conversion may be larger than the 2 MB it must have after it. */
 const UPLOAD_LIMIT = 16 * THEME_LIMITS.fontBytes;
@@ -44,6 +46,14 @@ export function themeEditorServer(): Plugin {
           void convertFont(request, response, url.searchParams.get("name") ?? "font");
           return;
         }
+        if (request.method === "POST" && url.pathname === "/export") {
+          void exportTheme(request, response);
+          return;
+        }
+        if (request.method === "POST" && url.pathname === "/open") {
+          void openTheme(request, response);
+          return;
+        }
         next();
       });
     },
@@ -75,5 +85,60 @@ async function convertFont(
       return;
     }
     sendJson(response, 500, { message: "The font could not be read", findings: [] });
+  }
+}
+
+/** A package with its fonts and icons is at most 8 fonts of 2 MB and four icons, as base64 in JSON. */
+const EXPORT_LIMIT = 64 * 1024 * 1024;
+
+async function exportTheme(request: IncomingMessage, response: ServerResponse): Promise<void> {
+  try {
+    const body = await readBody(request, EXPORT_LIMIT);
+    if (body === undefined) {
+      sendJson(response, 413, { message: "The theme is too large", findings: [] });
+      return;
+    }
+    const built = buildPackage(JSON.parse(body.toString("utf8")) as PackageData);
+    if (!built.ok) {
+      sendJson(response, 422, {
+        message: "The validator refuses the package",
+        findings: built.findings,
+      });
+      return;
+    }
+    response.writeHead(200, {
+      "Cache-Control": "no-store",
+      "Content-Type": "application/gzip",
+      "Content-Disposition": `attachment; filename="${built.fileName}"`,
+      "X-File-Name": built.fileName,
+      "X-Content-Type-Options": "nosniff",
+    });
+    response.end(built.archive);
+  } catch {
+    sendJson(response, 400, { message: "The theme could not be exported", findings: [] });
+  }
+}
+
+async function openTheme(request: IncomingMessage, response: ServerResponse): Promise<void> {
+  try {
+    const body = await readBody(request, THEME_LIMITS.archiveBytes);
+    if (body === undefined) {
+      sendJson(response, 422, {
+        message: "The package is larger than 10 MB",
+        findings: [{ file: "(archive)", code: "archive_too_large", detail: "larger than 10 MB" }],
+      });
+      return;
+    }
+    const opened = openPackage(body);
+    if (!opened.ok) {
+      sendJson(response, 422, {
+        message: "The validator refuses the package",
+        findings: opened.findings,
+      });
+      return;
+    }
+    sendJson(response, 200, { data: opened.data });
+  } catch {
+    sendJson(response, 400, { message: "The package could not be opened", findings: [] });
   }
 }

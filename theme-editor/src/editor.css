@@ -218,3 +218,35 @@
     flex-direction: column;
   }
 }
+
+/* Open, new, export and the findings of the validator. */
+.editor .editor-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  padding: 10px 16px;
+  background: var(--a-card);
+  border-bottom: 1px solid var(--a-line);
+}
+.editor .editor-actions .hint {
+  text-align: right;
+}
+.editor .editor-report {
+  margin: 12px 16px 0;
+  padding: 12px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.editor .editor-report.card {
+  margin: 12px 16px 0;
+}
+@media (min-width: 900px) {
+  .editor .editor-actions {
+    padding-inline: 28px;
+  }
+  .editor .editor-report {
+    margin-inline: 28px;
+  }
+}

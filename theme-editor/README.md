@@ -15,6 +15,12 @@ cannot be built for production (`vite build` fails). Its source is not copied
 into the production image (only `package.json`, so that `npm ci` knows the
 workspace), and the frontend does not import it (THM-08).
 
+It exports a theme package through the development server, which builds the archive
+with `backend/src/theme/build.ts` and checks it with the platform's validator (a package
+the validator refuses is not downloaded; its findings are listed with the card they belong
+to), opens an existing package (validated, then filled in) and keeps the work in the
+browser's IndexedDB, so a reload does not lose it.
+
 The editor is built story by story; see
 [epic 5.2](../spec/backlog/epics/epic-5.2-theme-package-editor.md). The screen
 is in the UX mocks (`theme-editor`).
