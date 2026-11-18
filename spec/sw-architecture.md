@@ -2395,6 +2395,13 @@ The answer to a refused package lists every finding with its file and reason.
 | THM-05 | The admin can return to the platform's default theme. Imports and the return are audited. | Must |
 | THM-06 | `theme.json` can name a third font, `display`, used for the countdown on the start page. Without it the heading font is used (added 2026-11-13). | Should |
 | THM-07 | The JSON files of the theme package are described by JSON Schemas per format version, committed in the repository, attached to every release and kept equal to the platform's checks by a test. `zappaloo validate` checks a whole theme package outside the platform with the platform's validator (added 2026-11-14). | Should |
+| THM-08 | A development-only theme package editor runs in the development environment like the game preview (`APP_ENV=dev`, reachable from this machine only). It is absent from production bundles and images (added 2026-11-18, epic 5.2). | Must |
+| THM-09 | In the theme package editor every part of a theme package of the current format version is defined: the name, the seven colours, the optional waiting card colours and the optional body, heading and display fonts with their font files (WOFF2, or OTF and TTF, which the editor converts to WOFF2). The contrast rules of the validator are shown live while the colours are chosen (added 2026-11-18). | Must |
+| THM-10 | The editor makes the app icons from one uploaded square image of at least 512 px: it scales it to the four icon sizes and builds the maskable icon with its content inside the central 80 % on a chosen background colour. Each icon can be replaced by an upload of its own (added 2026-11-18). | Must |
+| THM-11 | Preview elements in the editor show the theme as the app will show it, with the app's own stylesheets and theme code: the start page with the countdown, a content page, a form with buttons, the waiting card and the app icons on a home screen. They follow every change at once, and the editor rearranges its layout on a narrow screen (added 2026-11-18). | Must |
+| THM-12 | The editor exports the theme package with a given name. The package is built and checked with the platform's own code; a package the validator would refuse is not exported, and its findings are shown (added 2026-11-18). | Must |
+| THM-13 | An existing theme package can be opened in the editor and changed (added 2026-11-18). | Should |
+| THM-14 | The work in the editor survives a reload of the page (added 2026-11-18). | Could |
 
 ---
 
