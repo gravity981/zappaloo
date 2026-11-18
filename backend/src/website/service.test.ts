@@ -196,3 +196,61 @@ describe("the website and the programme (WEB-07, WEB-09, WEB-10)", () => {
     expect(ended.json<{ endsAt: string }>().endsAt).toBe("2027-06-12T13:00:00.000Z");
   });
 });
+
+describe("activities on the website (WEB-12)", () => {
+  /** Adds an activity to a program item and returns its id. */
+  async function addActivity(
+    ctx: TestContext,
+    admin: Record<string, string>,
+    programItemId: number,
+    name: string,
+    startsAt: string,
+  ): Promise<number> {
+    const made = await ctx.app.inject({
+      method: "POST",
+      url: `/api/admin/rsvp/program-items/${String(programItemId)}/activities`,
+      headers: admin,
+      payload: { name, startsAt },
+    });
+    expect(made.statusCode).toBe(201);
+    return made.json<{ id: number }>().id;
+  }
+
+  it("[WEB-12][WEB-09] the programme has one row per activity of the invited program items, by start", async () => {
+    const { ctx, admin, trauung, apero, website } = await setup();
+    await addActivity(ctx, admin, apero.id, "Ständli", "2027-06-12T12:30:00.000Z");
+    const anna = await guest(ctx, admin, "anna", [apero.id]);
+    const ben = await guest(ctx, admin, "ben", [trauung.id, apero.id]);
+    const names = (userId: number) =>
+      website.programme(userId, DAY_BEFORE).items.map((item) => item.name);
+    expect(names(anna)).toEqual(["Apéro", "Ständli"]);
+    expect(names(ben)).toEqual(["Trauung", "Apéro", "Ständli"]);
+    expect(website.programme(anna, DAY_BEFORE).hidden).toBe(true);
+    expect(website.programme(ben, DAY_BEFORE).hidden).toBe(false);
+    const rows = website.programme(ben, DAY_BEFORE).items;
+    expect(rows.map((row) => row.programItemId)).toEqual([trauung.id, apero.id, apero.id]);
+  });
+
+  it("[WEB-12][WEB-11] every guest sees the same countdown, to the first activity of all", async () => {
+    const { ctx, admin, trauung, apero, website } = await setup();
+    const anna = await guest(ctx, admin, "anna", [apero.id]);
+    const ben = await guest(ctx, admin, "ben", [trauung.id]);
+    const forAnna = website.website(anna, DAY_BEFORE);
+    // Anna is not invited to the Trauung, the first activity, and still counts down to it.
+    expect(forAnna.countdown).toEqual(website.website(ben, DAY_BEFORE).countdown);
+    expect(forAnna.countdown?.days).toBe(1);
+    expect(forAnna.eventDate).toBe("2027-06-12");
+  });
+
+  it("[WEB-12][WEB-07] now and next come from the activities of the guest's own program items", async () => {
+    const { ctx, admin, apero, website } = await setup();
+    const anna = await guest(ctx, admin, "anna", [apero.id]);
+    answer(ctx, anna, [apero.id], [apero.id]);
+    // The Trauung is on, but Anna is not invited to it: nothing is now, her Apéro is next.
+    const body = website.website(anna, DURING_TRAUUNG);
+    expect(body.now).toBeNull();
+    expect(body.next?.name).toBe("Apéro");
+    const programme = website.programme(anna, DURING_TRAUUNG);
+    expect(programme.items.map((item) => item.status)).toEqual(["upcoming"]);
+  });
+});

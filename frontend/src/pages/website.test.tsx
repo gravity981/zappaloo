@@ -290,6 +290,32 @@ describe("the schedule (WEB-07, WEB-09, WEB-10)", () => {
     expect(screen.queryByRole("button", { name: "Hingehen" })).not.toBeInTheDocument();
   });
 
+  it("[WEB-12] the programme lists the activities of one program item as separate rows, by time", async () => {
+    // Dinner (program item 3) holds two activities; the programme shows both.
+    const quiz = {
+      id: 4,
+      name: "Paar-Quiz",
+      programItemId: 3,
+      startsAt: "2027-06-12T16:30:00.000Z",
+      endsAt: null,
+      placeName: null,
+      status: "upcoming",
+    };
+    fakeBackend({
+      "GET /api/session": () => signedIn,
+      "GET /api/programme": () => ({
+        status: 200,
+        body: { ...programme, items: [...programme.items, quiz] },
+      }),
+    });
+    renderAt("/programme");
+    expect(await screen.findByText("Paar-Quiz")).toBeInTheDocument();
+    const rows = screen.getAllByRole("listitem").map((row) => row.textContent);
+    expect(rows).toHaveLength(4);
+    expect(rows[2]).toContain("Dinner");
+    expect(rows[3]).toContain("Paar-Quiz");
+  });
+
   it("[WEB-09] without hidden items the programme has no line about invitations", async () => {
     fakeBackend({
       "GET /api/session": () => signedIn,

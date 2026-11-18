@@ -89,7 +89,7 @@ All active requirements are listed here until their stage is delivered. Shrink t
 | PRES | PRES-01, PRES-02, PRES-04 – PRES-06, PRES-08 – PRES-10, PRES-12 – PRES-15 | 12 |
 | HUNT | HUNT-01 – HUNT-07 | 7 |
 | MG | MG-01 – MG-13 | 13 |
-| WEB | WEB-05, WEB-06, WEB-12 | 3 |
+| WEB | WEB-05, WEB-06 | 2 |
 | RSVP | RSVP-16, RSVP-19 – RSVP-24 | 7 |
 | LANG | LANG-03 | 1 |
 | ROLE | ROLE-11 | 1 |

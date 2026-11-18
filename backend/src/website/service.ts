@@ -51,8 +51,9 @@ export class WebsiteService {
   }
 
   /**
-   * `GET /api/website`: the countdown, the event day, and "now" and "next" on the event day. The "now"
-   * and "next" entries are shown only to a guest who accepted, i.e. attends a program item (WEB-07).
+   * `GET /api/website`: the countdown, the event day, and "now" and "next" on the event day. The
+   * countdown and the event day are the same for every guest (WEB-11); "now" and "next" are the
+   * activities of the guest's program items, shown only to a guest who accepted (WEB-07, WEB-12).
    */
   website(userId: number, now: Date = new Date()): WebsiteResponse {
     const { db } = this.#database;
@@ -70,7 +71,10 @@ export class WebsiteService {
       .get();
     const eventDay = isEventDay(first?.startsAt, now, timeZone);
     const accepted = this.#rsvp.guestStatus(userId) === "attending";
-    const nowNext = eventDay && accepted ? nowNextAt(entries, now) : { now: null, next: null };
+    // "Now / next" come from the activities of the guest's own program items (7.4.3).
+    const invited = new Set(this.#rsvp.invitedProgramItemIds(userId));
+    const mine = entries.filter((entry) => invited.has(entry.programItemId));
+    const nowNext = eventDay && accepted ? nowNextAt(mine, now) : { now: null, next: null };
     return {
       countdown: countdownAt({
         first: first && { startsAt: first.startsAt, placeName: first.placeName },
@@ -95,18 +99,17 @@ export class WebsiteService {
     const hidden = entries.some((entry) => !invited.has(entry.programItemId));
     // Only a guest who accepted is told which entry is now (WEB-07); the others see past and upcoming.
     const accepted = this.#rsvp.guestStatus(userId) === "attending";
-    const current = eventDay && accepted ? nowNextAt(entries, now).now : null;
+    const visible = entries.filter((entry) => invited.has(entry.programItemId));
+    const current = eventDay && accepted ? nowNextAt(visible, now).now : null;
     return {
       hidden,
       eventDay,
       eventDate:
         timeZone !== null && entries[0] ? calendarDay(entries[0].startsAt, timeZone) : null,
-      items: entries
-        .filter((entry) => invited.has(entry.programItemId))
-        .map((entry) => ({
-          ...view(entry),
-          status: eventDay ? statusAt(entry, current, now) : "upcoming",
-        })),
+      items: visible.map((entry) => ({
+        ...view(entry),
+        status: eventDay ? statusAt(entry, current, now) : "upcoming",
+      })),
     };
   }
 }

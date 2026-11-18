@@ -1,6 +1,6 @@
-// "Programm" (sw-architecture.md 5.5, WEB-07, WEB-09; UX mock `programme`): the program items the
-// guest is invited to, as a timeline, with one line that says so. On the event day the entries that
-// are over are greyed out and the current one is marked. "Hingehen" comes with step 5d.
+// "Programm" (sw-architecture.md 5.5, WEB-07, WEB-09; UX mock `programme`): the activities of the
+// program items the guest is invited to (WEB-12), as a timeline, with one line that says so. On the
+// event day the activities that are over are greyed out and the current one is marked. "Hingehen" comes with step 5d.
 import { useTranslation } from "react-i18next";
 import { programmeResponseSchema } from "@zappaloo/shared";
 import { useApiData } from "../app/useApi.ts";
