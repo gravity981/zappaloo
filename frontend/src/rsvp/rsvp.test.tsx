@@ -597,12 +597,13 @@ describe("Einstellungen › Rückmeldung", () => {
       }),
     });
     renderAt("/admin/settings");
-    expect(await screen.findByText("Dinner")).toBeInTheDocument();
+    expect(await screen.findByRole("button", { name: "Bearbeiten: Dinner" })).toBeInTheDocument();
     expect(screen.getByText("Essen")).toBeInTheDocument();
     user.click(screen.getByRole("button", { name: "Programmpunkt hinzufügen" }));
     const start = await screen.findByLabelText("Beginn");
     const form = within(start.closest("form") as HTMLElement);
     user.type(form.getByLabelText("Name"), "Party");
+    user.type(form.getByLabelText("Name der Aktivität"), "Tanzen");
     user.type(start, "2027-06-12T22:00");
     user.type(form.getByLabelText("Ort (optional)"), "7");
     user.click(form.getByRole("button", { name: "Speichern" }));
@@ -614,8 +615,121 @@ describe("Einstellungen › Rückmeldung", () => {
       name: "Party",
       hasMeal: false,
       activities: [
-        { name: "Party", startsAt: "2027-06-12T20:00:00.000Z", endsAt: null, placeId: 7 },
+        { name: "Tanzen", startsAt: "2027-06-12T20:00:00.000Z", endsAt: null, placeId: 7 },
       ],
+    });
+  });
+
+  /** Dinner with two activities, Apéro with one. */
+  const withActivities = {
+    ...config,
+    programItems: [
+      { id: 2, name: "Apéro", hasMeal: false, activities: [PARTS[1]?.activities[0]] },
+      {
+        id: 3,
+        name: "Dinner",
+        hasMeal: true,
+        activities: [
+          {
+            id: 31,
+            name: "Essen",
+            startsAt: "2027-06-12T16:30:00.000Z",
+            endsAt: null,
+            placeId: null,
+            place: null,
+          },
+          {
+            id: 32,
+            name: "Paar-Quiz",
+            startsAt: "2027-06-12T18:30:00.000Z",
+            endsAt: null,
+            placeId: null,
+            place: null,
+          },
+        ],
+      },
+    ],
+  };
+  const contentBody = {
+    startMarkdown: "",
+    pages: [],
+    places: [PLACE_SAAL],
+    start: { heroImageId: null, heroAlt: null, countdown: true },
+  };
+
+  it("[RSVP-17] the activities are listed under their program item; the last one of an item cannot be deleted", async () => {
+    fakeBackend({
+      "GET /api/session": () => asAdmin,
+      "GET /api/admin/rsvp/config": () => ({ status: 200, body: withActivities }),
+      "GET /api/content": () => ({ status: 200, body: contentBody }),
+    });
+    renderAt("/admin/settings");
+    expect(await screen.findByText("Paar-Quiz")).toBeInTheDocument();
+    expect(screen.getByText("Essen", { selector: "b" })).toBeInTheDocument();
+    // Apéro has one activity: it stays, and the hint says what to do instead.
+    expect(screen.getByRole("button", { name: "Aktivität löschen: Apéro" })).toBeDisabled();
+    expect(screen.getByText(/Die letzte Aktivität lässt sich nicht löschen/)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Aktivität löschen: Paar-Quiz" })).toBeEnabled();
+  });
+
+  it("[RSVP-17] the admin adds an activity under a program item", async () => {
+    const calls = fakeBackend({
+      "GET /api/session": () => asAdmin,
+      "GET /api/admin/rsvp/config": () => ({ status: 200, body: withActivities }),
+      "GET /api/content": () => ({ status: 200, body: contentBody }),
+      "POST /api/admin/rsvp/program-items/3/activities": () => ({
+        status: 201,
+        body: { id: 33, name: "Dessert", startsAt: "", endsAt: null, placeId: null, place: null },
+      }),
+    });
+    renderAt("/admin/settings");
+    user.click(await screen.findByRole("button", { name: "Aktivität hinzufügen: Dinner" }));
+    const start = await screen.findByLabelText("Beginn");
+    const form = within(start.closest("form") as HTMLElement);
+    user.type(form.getByLabelText("Name der Aktivität"), "Dessert");
+    user.type(start, "2027-06-12T20:00");
+    user.click(form.getByRole("button", { name: "Speichern" }));
+    await waitFor(() => {
+      expect(calls.some((c) => c.method === "POST")).toBe(true);
+    });
+    expect(calls.find((c) => c.method === "POST")?.body).toEqual({
+      name: "Dessert",
+      startsAt: "2027-06-12T18:00:00.000Z",
+      endsAt: null,
+      placeId: null,
+    });
+  });
+
+  it("[RSVP-17] the admin changes and deletes an activity", async () => {
+    const calls = fakeBackend({
+      "GET /api/session": () => asAdmin,
+      "GET /api/admin/rsvp/config": () => ({ status: 200, body: withActivities }),
+      "GET /api/content": () => ({ status: 200, body: contentBody }),
+      "PATCH /api/admin/rsvp/activities/32": () => ({
+        status: 200,
+        body: withActivities.programItems[1]?.activities[1],
+      }),
+      "DELETE /api/admin/rsvp/activities/31": () => ({ status: 204 }),
+    });
+    renderAt("/admin/settings");
+    user.click(await screen.findByRole("button", { name: "Aktivität bearbeiten: Paar-Quiz" }));
+    const name = await screen.findByDisplayValue("Paar-Quiz");
+    user.clear(name);
+    user.type(name, "Quiz");
+    const form = within(name.closest("form") as HTMLElement);
+    user.click(form.getByRole("button", { name: "Speichern" }));
+    await waitFor(() => {
+      expect(calls.some((c) => c.method === "PATCH")).toBe(true);
+    });
+    expect(calls.find((c) => c.method === "PATCH")?.body).toEqual({
+      name: "Quiz",
+      startsAt: "2027-06-12T18:30:00.000Z",
+      endsAt: null,
+      placeId: null,
+    });
+    user.click(await screen.findByRole("button", { name: "Aktivität löschen: Essen" }));
+    await waitFor(() => {
+      expect(calls.some((c) => c.method === "DELETE")).toBe(true);
     });
   });
 

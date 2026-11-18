@@ -1,6 +1,6 @@
-// Einstellungen › Rückmeldung (RSVP-02, RSVP-03, RSVP-04; sw-architecture.md 7.4.1): the
-// deadline, the program items (name, start, place from Inhalte, which one has the meal) and the one
-// list of menu options.
+// Einstellungen › Rückmeldung (RSVP-02, RSVP-03, RSVP-04, RSVP-17; sw-architecture.md 7.4.1,
+// 7.4.3): the deadline, the program items (name, which one has the meal) with their activities
+// (name, start, end, place from Inhalte) under each, and the one list of menu options.
 import { useState } from "react";
 import type { SubmitEvent } from "react";
 import { useTranslation } from "react-i18next";
@@ -11,7 +11,7 @@ import {
   localToInstant,
   rsvpConfigSchema,
 } from "@zappaloo/shared";
-import type { ContentPlace, ProgramItem } from "@zappaloo/shared";
+import type { Activity, ContentPlace, ProgramItem } from "@zappaloo/shared";
 import { fieldText } from "../app/forms.ts";
 import { useEventFormat } from "../rsvp/format.ts";
 import { useAdminCall, useAdminData, useErrorText } from "./data.ts";
@@ -19,21 +19,133 @@ import { notifyRsvpChanged } from "./pending.ts";
 import { Switch } from "./ui.tsx";
 
 const PROGRAM_ITEMS_PATH = "/api/admin/rsvp/program-items";
+const ACTIVITIES_PATH = "/api/admin/rsvp/activities";
 const CONTENT_PATH = "/api/content";
 const SONG_PATH = "/api/admin/rsvp/song";
 const PER_ITEM_PATH = "/api/admin/rsvp/per-item";
 const APPROVAL_PATH = "/api/admin/rsvp/companion-approval";
 
-/** The when and where of an activity as the form reads them. */
-interface ActivityFields {
+/** An activity as the form sends it (the request of RSVP-17). */
+interface ActivityBody {
+  name: string;
   startsAt: string;
   endsAt: string | null;
   placeId: number | null;
 }
 
-// Until the activities have their own place in this card (story 5.3c), the form edits the program
-// item's name and meal and the start, end and place of its first activity.
-/** The form of one program item; `programItem` undefined is a new one. */
+/** Reads the fields of `ActivityInputs` from a submitted form. */
+function readActivity(form: FormData, timeZone: string): ActivityBody {
+  const placeId = fieldText(form, "placeId");
+  const endsAt = fieldText(form, "endsAt");
+  return {
+    name: fieldText(form, "activityName"),
+    startsAt: localToInstant(fieldText(form, "startsAt"), timeZone).toISOString(),
+    endsAt: endsAt === "" ? null : localToInstant(endsAt, timeZone).toISOString(),
+    placeId: placeId === "" ? null : Number(placeId),
+  };
+}
+
+/** The fields of an activity: name, start, optional end and a place from Inhalte (CNT-07). */
+function ActivityInputs({
+  activity,
+  places,
+  timeZone,
+}: {
+  activity?: Activity;
+  /** The places of Inhalte the activity can refer to. */
+  places: ContentPlace[];
+  timeZone: string;
+}) {
+  const { t } = useTranslation();
+  return (
+    <div className="inline-form">
+      <label className="field">
+        <span>{t("admin.rsvpSettings.activityName")}</span>
+        <input
+          className="input"
+          name="activityName"
+          required
+          maxLength={60}
+          defaultValue={activity?.name}
+        />
+      </label>
+      <label className="field">
+        <span>{t("admin.rsvpSettings.programItemStart")}</span>
+        <input
+          className="input"
+          name="startsAt"
+          type="datetime-local"
+          required
+          defaultValue={activity ? instantToLocal(activity.startsAt, timeZone) : undefined}
+        />
+      </label>
+      <label className="field">
+        <span>{t("admin.rsvpSettings.programItemEnd")}</span>
+        <input
+          className="input"
+          name="endsAt"
+          type="datetime-local"
+          defaultValue={activity?.endsAt ? instantToLocal(activity.endsAt, timeZone) : undefined}
+        />
+      </label>
+      <label className="field">
+        <span>{t("admin.rsvpSettings.programItemPlace")}</span>
+        <select className="input" name="placeId" defaultValue={activity?.placeId ?? ""}>
+          <option value="">{t("admin.rsvpSettings.noPlace")}</option>
+          {places.map((place) => (
+            <option key={place.id} value={place.id}>
+              {place.name}
+            </option>
+          ))}
+        </select>
+        {places.length === 0 && (
+          <small className="hint">
+            <Link to="/admin/content">{t("admin.rsvpSettings.placesFirst")}</Link>
+          </small>
+        )}
+      </label>
+    </div>
+  );
+}
+
+/** The form of one activity; `activity` undefined is a new one (RSVP-17). */
+function ActivityForm({
+  activity,
+  places,
+  timeZone,
+  onSubmit,
+  onCancel,
+}: {
+  activity?: Activity;
+  places: ContentPlace[];
+  timeZone: string;
+  onSubmit: (body: ActivityBody) => Promise<void>;
+  onCancel: () => void;
+}) {
+  const { t } = useTranslation();
+  function submit(event: SubmitEvent<HTMLFormElement>) {
+    event.preventDefault();
+    void onSubmit(readActivity(new FormData(event.currentTarget), timeZone));
+  }
+  return (
+    <form className="stack" onSubmit={submit}>
+      <ActivityInputs activity={activity} places={places} timeZone={timeZone} />
+      <div className="row">
+        <button type="submit" className="btn sm">
+          {t("admin.rsvpSettings.save")}
+        </button>
+        <button type="button" className="btn ghost sm" onClick={onCancel}>
+          {t("admin.rsvpSettings.cancel")}
+        </button>
+      </div>
+    </form>
+  );
+}
+
+/**
+ * The form of one program item: its name and the meal. A new program item asks for its first
+ * activity too (RSVP-17); the activities of an existing one are edited under it.
+ */
 function ProgramItemForm({
   programItem,
   places,
@@ -42,81 +154,45 @@ function ProgramItemForm({
   onCancel,
 }: {
   programItem?: ProgramItem;
-  /** The places of Inhalte (CNT-07) the item can refer to. */
   places: ContentPlace[];
   timeZone: string;
-  onSubmit: (item: { name: string; hasMeal: boolean }, activity: ActivityFields) => Promise<void>;
+  onSubmit: (
+    item: { name: string; hasMeal: boolean },
+    firstActivity: ActivityBody | undefined,
+  ) => Promise<void>;
   onCancel: () => void;
 }) {
   const { t } = useTranslation();
-  const first = programItem?.activities[0];
   function submit(event: SubmitEvent<HTMLFormElement>) {
     event.preventDefault();
     const form = new FormData(event.currentTarget);
-    const placeId = fieldText(form, "placeId");
-    const endsAtValue = fieldText(form, "endsAt");
     void onSubmit(
       { name: fieldText(form, "name"), hasMeal: form.get("hasMeal") !== null },
-      {
-        startsAt: localToInstant(fieldText(form, "startsAt"), timeZone).toISOString(),
-        endsAt: endsAtValue === "" ? null : localToInstant(endsAtValue, timeZone).toISOString(),
-        placeId: placeId === "" ? null : Number(placeId),
-      },
+      programItem ? undefined : readActivity(form, timeZone),
     );
   }
   return (
     <form className="card flat" onSubmit={submit}>
-      <div className="inline-form">
-        <label className="field">
-          <span>{t("admin.rsvpSettings.programItemName")}</span>
-          <input
-            className="input"
-            name="name"
-            required
-            maxLength={60}
-            defaultValue={programItem?.name}
-          />
-        </label>
-        <label className="field">
-          <span>{t("admin.rsvpSettings.programItemStart")}</span>
-          <input
-            className="input"
-            name="startsAt"
-            type="datetime-local"
-            required
-            defaultValue={first ? instantToLocal(first.startsAt, timeZone) : undefined}
-          />
-        </label>
-        <label className="field">
-          <span>{t("admin.rsvpSettings.programItemEnd")}</span>
-          <input
-            className="input"
-            name="endsAt"
-            type="datetime-local"
-            defaultValue={first?.endsAt ? instantToLocal(first.endsAt, timeZone) : undefined}
-          />
-        </label>
-        <label className="field">
-          <span>{t("admin.rsvpSettings.programItemPlace")}</span>
-          <select className="input" name="placeId" defaultValue={first?.placeId ?? ""}>
-            <option value="">{t("admin.rsvpSettings.noPlace")}</option>
-            {places.map((place) => (
-              <option key={place.id} value={place.id}>
-                {place.name}
-              </option>
-            ))}
-          </select>
-          {places.length === 0 && (
-            <small className="hint">
-              <Link to="/admin/content">{t("admin.rsvpSettings.placesFirst")}</Link>
-            </small>
-          )}
-        </label>
-      </div>
+      <label className="field">
+        <span>{t("admin.rsvpSettings.programItemName")}</span>
+        <input
+          className="input"
+          name="name"
+          required
+          maxLength={60}
+          defaultValue={programItem?.name}
+        />
+      </label>
       <label className="row sm">
         <input type="checkbox" name="hasMeal" defaultChecked={programItem?.hasMeal ?? false} />
         {t("admin.rsvpSettings.programItemMeal")}
       </label>
+      {!programItem && (
+        <>
+          <span className="hint">{t("admin.rsvpSettings.firstActivity")}</span>
+          <ActivityInputs places={places} timeZone={timeZone} />
+        </>
+      )}
       <div className="row">
         <button type="submit" className="btn sm">
           {t("admin.rsvpSettings.save")}
@@ -136,10 +212,15 @@ export default function RsvpSettingsCard() {
   const format = useEventFormat();
   const { data, reload } = useAdminData("/api/admin/rsvp/config", rsvpConfigSchema);
   const { data: content } = useAdminData(CONTENT_PATH, contentResponseSchema);
+  const places = content?.places ?? [];
   const [error, setError] = useState<string>();
   const [saved, setSaved] = useState(false);
   /** The program item being edited, "new" for the add form, or undefined. */
   const [editing, setEditing] = useState<number | "new">();
+  /** The activity being edited, or the program item that gets a new one. */
+  const [activityEdit, setActivityEdit] = useState<
+    { kind: "edit"; id: number } | { kind: "add"; programItemId: number }
+  >();
   const [confirmDelete, setConfirmDelete] = useState<number>();
   const [menuName, setMenuName] = useState("");
   const [renaming, setRenaming] = useState<{ id: number; name: string }>();
@@ -285,106 +366,177 @@ export default function RsvpSettingsCard() {
       {data.programItems.length === 0 && (
         <span className="hint">{t("admin.rsvpSettings.noProgramItems")}</span>
       )}
-      <ul className="list">
-        {data.programItems.map((programItem) =>
-          editing === programItem.id ? (
-            <li key={programItem.id}>
+      <ul className="stack">
+        {data.programItems.map((programItem) => (
+          <li key={programItem.id} className="card flat">
+            {editing === programItem.id ? (
               <ProgramItemForm
                 programItem={programItem}
-                places={content?.places ?? []}
+                places={places}
                 timeZone={format.timeZone}
                 onCancel={() => {
                   setEditing(undefined);
                 }}
-                onSubmit={async (item, activity) => {
-                  const first = programItem.activities[0];
+                onSubmit={async (item) => {
                   if (
-                    (await run(
+                    await run(
                       "PATCH",
                       `/api/admin/rsvp/program-items/${String(programItem.id)}`,
                       item,
-                    )) &&
-                    (!first ||
-                      (await run(
-                        "PATCH",
-                        `/api/admin/rsvp/activities/${String(first.id)}`,
-                        activity,
-                      )))
+                    )
                   ) {
                     setEditing(undefined);
                   }
                 }}
               />
-            </li>
-          ) : (
-            <li key={programItem.id} className="li">
-              <div className="grow">
-                <b>{programItem.name}</b>
-                {programItem.hasMeal && (
-                  <span className="tag ok">{t("admin.rsvpSettings.mealTag")}</span>
+            ) : (
+              <div className="row">
+                <b className="grow">
+                  {programItem.name}
+                  {programItem.hasMeal && (
+                    <span className="tag ok">{t("admin.rsvpSettings.mealTag")}</span>
+                  )}
+                </b>
+                <button
+                  type="button"
+                  className="btn soft sm"
+                  aria-label={`${t("admin.rsvpSettings.edit")}: ${programItem.name}`}
+                  onClick={() => {
+                    setEditing(programItem.id);
+                  }}
+                >
+                  {t("admin.rsvpSettings.edit")}
+                </button>
+                {confirmDelete === programItem.id ? (
+                  <button
+                    type="button"
+                    className="btn danger sm"
+                    aria-label={`${t("admin.rsvpSettings.confirmDelete")} ${programItem.name}`}
+                    onClick={() => {
+                      setConfirmDelete(undefined);
+                      void run("DELETE", `/api/admin/rsvp/program-items/${String(programItem.id)}`);
+                    }}
+                  >
+                    {t("admin.rsvpSettings.confirmDelete")}
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    className="btn ghost sm"
+                    aria-label={`${t("admin.rsvpSettings.delete")}: ${programItem.name}`}
+                    onClick={() => {
+                      setConfirmDelete(programItem.id);
+                    }}
+                  >
+                    {t("admin.rsvpSettings.delete")}
+                  </button>
                 )}
-                {programItem.activities.map((activity) => (
-                  <span key={activity.id} className="hint">
-                    {format.date(activity.startsAt)} {format.time(activity.startsAt)}
-                    {activity.endsAt !== null && `–${format.time(activity.endsAt)}`}
-                    {activity.place && ` · ${activity.place}`}
-                  </span>
-                ))}
               </div>
+            )}
+            <ul className="list">
+              {programItem.activities.map((activity) =>
+                activityEdit?.kind === "edit" && activityEdit.id === activity.id ? (
+                  <li key={activity.id}>
+                    <ActivityForm
+                      activity={activity}
+                      places={places}
+                      timeZone={format.timeZone}
+                      onCancel={() => {
+                        setActivityEdit(undefined);
+                      }}
+                      onSubmit={async (body) => {
+                        if (await run("PATCH", `${ACTIVITIES_PATH}/${String(activity.id)}`, body)) {
+                          setActivityEdit(undefined);
+                        }
+                      }}
+                    />
+                  </li>
+                ) : (
+                  <li key={activity.id} className="li">
+                    <div className="grow">
+                      <b className="sm">{activity.name}</b>
+                      <span className="hint">
+                        {format.date(activity.startsAt)} {format.time(activity.startsAt)}
+                        {activity.endsAt !== null && `–${format.time(activity.endsAt)}`}
+                        {activity.place && ` · ${activity.place}`}
+                      </span>
+                    </div>
+                    <button
+                      type="button"
+                      className="btn soft sm"
+                      aria-label={`${t("admin.rsvpSettings.editActivity")}: ${activity.name}`}
+                      onClick={() => {
+                        setActivityEdit({ kind: "edit", id: activity.id });
+                      }}
+                    >
+                      {t("admin.rsvpSettings.edit")}
+                    </button>
+                    <button
+                      type="button"
+                      className="btn ghost sm"
+                      disabled={programItem.activities.length === 1}
+                      aria-label={`${t("admin.rsvpSettings.deleteActivity")}: ${activity.name}`}
+                      onClick={() => {
+                        void run("DELETE", `${ACTIVITIES_PATH}/${String(activity.id)}`);
+                      }}
+                    >
+                      {t("admin.rsvpSettings.delete")}
+                    </button>
+                  </li>
+                ),
+              )}
+            </ul>
+            {activityEdit?.kind === "add" && activityEdit.programItemId === programItem.id ? (
+              <ActivityForm
+                places={places}
+                timeZone={format.timeZone}
+                onCancel={() => {
+                  setActivityEdit(undefined);
+                }}
+                onSubmit={async (body) => {
+                  if (
+                    await run(
+                      "POST",
+                      `${PROGRAM_ITEMS_PATH}/${String(programItem.id)}/activities`,
+                      body,
+                    )
+                  ) {
+                    setActivityEdit(undefined);
+                  }
+                }}
+              />
+            ) : (
               <button
                 type="button"
-                className="btn soft sm"
-                aria-label={`${t("admin.rsvpSettings.edit")}: ${programItem.name}`}
+                className="btn ghost sm"
+                aria-label={`${t("admin.rsvpSettings.addActivity")}: ${programItem.name}`}
                 onClick={() => {
-                  setEditing(programItem.id);
+                  setActivityEdit({ kind: "add", programItemId: programItem.id });
                 }}
               >
-                {t("admin.rsvpSettings.edit")}
+                {t("admin.rsvpSettings.addActivity")}
               </button>
-              {confirmDelete === programItem.id ? (
-                <button
-                  type="button"
-                  className="btn danger sm"
-                  aria-label={`${t("admin.rsvpSettings.confirmDelete")} ${programItem.name}`}
-                  onClick={() => {
-                    setConfirmDelete(undefined);
-                    void run("DELETE", `/api/admin/rsvp/program-items/${String(programItem.id)}`);
-                  }}
-                >
-                  {t("admin.rsvpSettings.confirmDelete")}
-                </button>
-              ) : (
-                <button
-                  type="button"
-                  className="btn ghost sm"
-                  aria-label={`${t("admin.rsvpSettings.delete")}: ${programItem.name}`}
-                  onClick={() => {
-                    setConfirmDelete(programItem.id);
-                  }}
-                >
-                  {t("admin.rsvpSettings.delete")}
-                </button>
-              )}
-            </li>
-          ),
-        )}
+            )}
+            {programItem.activities.length === 1 && (
+              <span className="hint">{t("admin.rsvpSettings.lastActivityHint")}</span>
+            )}
+          </li>
+        ))}
       </ul>
       {confirmDelete !== undefined && (
         <span className="hint">{t("admin.rsvpSettings.deleteHint")}</span>
       )}
       {editing === "new" ? (
         <ProgramItemForm
-          places={content?.places ?? []}
+          places={places}
           timeZone={format.timeZone}
           onCancel={() => {
             setEditing(undefined);
           }}
-          onSubmit={async (item, activity) => {
+          onSubmit={async (item, firstActivity) => {
             if (
-              await run("POST", PROGRAM_ITEMS_PATH, {
-                ...item,
-                activities: [{ name: item.name, ...activity }],
-              })
+              firstActivity &&
+              (await run("POST", PROGRAM_ITEMS_PATH, { ...item, activities: [firstActivity] }))
             ) {
               setEditing(undefined);
             }

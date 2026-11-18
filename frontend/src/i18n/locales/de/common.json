@@ -442,7 +442,7 @@
       "saveDeadline": "Frist festlegen",
       "clearDeadline": "Frist entfernen",
       "programItems": "Programmpunkte",
-      "programItemsHint": "Ein Programmpunkt hat Name, Beginn und Ort. Ein Programmpunkt kann das Essen haben: Nur dafür wird das Menü gefragt.",
+      "programItemsHint": "Ein Programmpunkt ist das, wozu Gäste eingeladen sind und was sie beantworten: Name und Essen, keine Uhrzeit. Seine Aktivitäten zeigt das Programm: Name, Beginn, optionales Ende und ein Ort aus Inhalte. Ein neuer Programmpunkt fragt gleich nach seiner ersten Aktivität. Ein Programmpunkt kann das Essen haben: Nur dafür wird das Menü gefragt.",
       "programItemName": "Name",
       "programItemStart": "Beginn",
       "programItemPlace": "Ort (optional)",
@@ -473,7 +473,13 @@
       "songHint": "Die Rückmeldung fragt nach einem Lieblingslied. Schaltest du es aus, wird nichts gefragt. Bisherige Wünsche bleiben gespeichert.",
       "noPlace": "Kein Ort",
       "placesFirst": "Noch keine Orte: Lege sie zuerst in Inhalte an.",
-      "programItemEnd": "Ende (optional)"
+      "programItemEnd": "Ende (optional)",
+      "activityName": "Name der Aktivität",
+      "firstActivity": "Erste Aktivität",
+      "addActivity": "Aktivität hinzufügen",
+      "editActivity": "Aktivität bearbeiten",
+      "deleteActivity": "Aktivität löschen",
+      "lastActivityHint": "Die letzte Aktivität lässt sich nicht löschen. Lösche stattdessen den Programmpunkt."
     },
     "waiting": {
       "openingTitle": "Plattform öffnen",
