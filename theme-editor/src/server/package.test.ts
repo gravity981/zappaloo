@@ -5,6 +5,7 @@ import os from "node:os";
 import path from "node:path";
 import { afterAll, describe, expect, it } from "vitest";
 import { encodePng } from "../../../backend/src/theme/build.ts";
+import { suggestPalettes } from "../palette.ts";
 import { findingCard, slugOf } from "../transfer.ts";
 import type { PackageData } from "../transfer.ts";
 import { prepareFont } from "./font.ts";
@@ -145,6 +146,22 @@ describe("theme package export and open (THM-12, THM-13)", () => {
       expect.stringMatching(/«text» on «background»: \d\.\d : 1/),
       expect.stringMatching(/«text» on «surface»/),
     ]);
+  });
+
+  it("[THM-15] every suggested palette makes a package that the platform's validator accepts", async () => {
+    const theme = await fullTheme();
+    let built = 0;
+    for (const master of ["#7a3b2e", "#2f6b4f", "#ffd27a", "#1d3557", "#808080", "#000000"]) {
+      for (const palette of suggestPalettes(master)) {
+        const result = buildPackage({ ...theme, colors: palette.colors, waiting: palette.waiting });
+        expect(
+          result.ok,
+          `${palette.name} of ${master}: ${JSON.stringify(!result.ok && result.findings)}`,
+        ).toBe(true);
+        built += 1;
+      }
+    }
+    expect(built).toBe(42);
   });
 
   it("[THM-12] a missing icon is a finding, not a package", async () => {
