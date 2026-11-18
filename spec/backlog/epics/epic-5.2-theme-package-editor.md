@@ -96,7 +96,7 @@ Re-verified: THM-01, THM-03.
 
 ### Story 5.2h – Preview scrolls on a wide screen
 
-- The preview column keeps the full height of its content and scrolls inside the window (it was squeezed to the height of the window and cut off). Done 2026-11-18.
+- The preview column keeps the full height of its content and scrolls inside the window (it was squeezed to the height of the window and cut off). Done 2026-11-18. Changed the same day at the owner's request: on a wide screen the window does not scroll and the two columns scroll on their own under the fixed header and buttons; the hidden file inputs are positioned inside the columns so that they do not stretch the page.
 Requirements: THM-11 (unchanged).
 
 ### Story 5.2i – Colour assistant

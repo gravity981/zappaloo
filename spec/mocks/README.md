@@ -175,7 +175,7 @@ Written into sw-architecture.md 19.7.1 as well. The screen `theme-editor` (group
 | Topic | Decision |
 |---|---|
 | Tool, not product | Development only (THM-08). English texts, admin styles of the mocks. The screen has no guest chrome and no link into the app. |
-| Wide screen | Controls in cards on the left (Name, Colours, Contrast check, Waiting card, Fonts, Icons, Export), preview as a scrolling column on the right. |
+| Wide screen | Controls in cards on the left (Name, Colours, Contrast check, Waiting card, Fonts, Icons, Export), preview on the right. In the editor the two columns scroll on their own under a fixed header (changed 2026-11-18; the mock shows the whole screen as one page). |
 | Narrow screen | Tabs «Edit» and «Preview» instead of one long column, so the preview is one tap away and not below a long list of controls. Proposed; the project owner confirms the mock before story 5.2c. |
 | Header | «Open package…», «New theme» (second click), «Export», and the line «Draft saved in this browser». |
 | Contrast check | Its own card with the five pairs of the validator, ratio and ✓ / ✗, live. A failing pair does not block «Export»; the validator's refusal is shown in the card Export. |

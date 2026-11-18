@@ -1,5 +1,15 @@
 /* The layout of the editor around the admin styles of the app (frontend/src/app/ui.css). */
+body {
+  margin: 0;
+}
 /* The admin shell reserves a column for a navigation on wide screens; the editor has none. */
+/* position: the hidden file inputs inside the cards are absolutely positioned; they must stay inside
+   the editor and its columns, or they stretch the page and make the window scroll. */
+.admin.editor,
+.editor .editor-edit,
+.editor .editor-preview {
+  position: relative;
+}
 .admin.editor {
   grid-template-columns: minmax(0, 1fr);
   grid-template-rows: auto auto 1fr;
@@ -205,20 +215,42 @@
   .editor .editor-bar {
     display: none;
   }
+  /* The window does not scroll: the header, the buttons and the findings stay, and the two columns
+     below them scroll on their own. */
+  .admin.editor {
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    height: 100dvh;
+    overflow: hidden;
+  }
   .editor .editor-main {
+    flex: 1;
+    min-height: 0;
     display: grid;
     grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    grid-template-rows: minmax(0, 1fr);
     gap: 16px;
-    align-items: start;
-    padding: 20px 28px 48px;
+    padding: 20px 28px 0;
   }
   .editor .editor-main[data-pane] .editor-edit,
   .editor .editor-main[data-pane] .editor-preview {
     display: flex;
   }
-  /* The preview is part of the page: the window has the only scrollbar. */
+  .editor .editor-edit,
+  .editor .editor-preview {
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    /* room under the last card, and between the content and the scrollbar */
+    padding: 0 8px 48px 0;
+  }
   .editor .editor-preview {
     flex-direction: column;
+  }
+  /* the preview keeps its full height: it is the column that scrolls, not the preview's own frame */
+  .editor .editor-preview > .preview {
+    flex: none;
   }
 }
 
