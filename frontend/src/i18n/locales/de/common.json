@@ -189,7 +189,6 @@
       "roles": "Rollen",
       "capabilities": "Fähigkeiten",
       "actions": "Aktionen",
-      "roleOf": "{{role}} für {{name}}",
       "edit": "Konto {{name}} bearbeiten",
       "lastAdmin": "Es braucht immer mindestens eine Admin-Person. Ernenne zuerst jemand anderen.",
       "emailStatus": {

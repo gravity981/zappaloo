@@ -123,10 +123,9 @@ test("[ACC-07][INV-07] a signed-in account without vip adds an invitation to its
 
   // The account is the guest now: it has vip, the code is redeemed and no second account is left.
   await page.goto("/admin/users");
-  await expect(page.getByRole("button", { name: `vip für ${username}` })).toHaveAttribute(
-    "aria-pressed",
-    "true",
-  );
+  await expect(
+    page.getByRole("row", { name: new RegExp(username) }).getByTitle(de.admin.roles.vip),
+  ).toBeVisible();
   await expect(page.getByRole("row", { name: new RegExp(guestName) })).toHaveCount(0);
   await page.goto("/admin/invitations");
   await expect(page.getByRole("row", { name: new RegExp(guestName) })).toContainText(

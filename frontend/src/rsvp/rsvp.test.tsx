@@ -1303,7 +1303,9 @@ describe("revoking vip (7.4.1, decided 2026-11-11)", () => {
       "PUT /api/admin/users/1/roles": () => ({ status: 200, body: anna }),
     });
     renderAt("/admin/users");
-    user.click(await screen.findByRole("button", { name: "vip für Oma" }));
+    user.click(await screen.findByRole("button", { name: "Konto Oma bearbeiten" }));
+    const panel = await screen.findByRole("dialog");
+    user.click(within(panel).getByRole("button", { name: "vip" }));
     const confirm = await screen.findByRole("alertdialog");
     expect(confirm).toHaveTextContent(/Oma verliert die Rolle vip/);
     expect(calls.some((c) => c.method === "PUT")).toBe(false);
@@ -1312,7 +1314,7 @@ describe("revoking vip (7.4.1, decided 2026-11-11)", () => {
     await waitFor(() => {
       expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument();
     });
-    user.click(screen.getByRole("button", { name: "vip für Oma" }));
+    user.click(within(panel).getByRole("button", { name: "vip" }));
     user.click(await screen.findByRole("button", { name: "vip entziehen" }));
     await waitFor(() => {
       expect(calls.find((c) => c.method === "PUT")?.body).toEqual({ roles: ["staff"] });

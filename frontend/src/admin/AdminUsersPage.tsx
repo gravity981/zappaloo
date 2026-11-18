@@ -5,10 +5,9 @@ import { useCallback, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { adminUserListSchema, groupListSchema, groupSchema, ROLES } from "@zappaloo/shared";
 import type { UserStatus } from "@zappaloo/shared";
-import { AccountPanel, CreateAccountPanel, GroupPanel, RevokeVipConfirm } from "./UsersPanels.tsx";
+import { AccountPanel, CreateAccountPanel, GroupPanel } from "./UsersPanels.tsx";
 import { useAdminCall, useAdminData, useErrorText } from "./data.ts";
-import { ToggleChip } from "./ui.tsx";
-import { rolesLocked, useToggleRole } from "./users.ts";
+import { ShortForms } from "./ui.tsx";
 
 /** The tag of a state in the table. */
 const STATUS_TAG: Record<UserStatus, string> = {
@@ -46,7 +45,6 @@ export default function AdminUsersPage() {
     },
     [reload],
   );
-  const { toggleRole, revoking, confirmRevoke, cancelRevoke } = useToggleRole(changed);
   const close = useCallback(() => {
     setOpen(undefined);
   }, []);
@@ -96,13 +94,6 @@ export default function AdminUsersPage() {
         <p role="alert" className="error">
           {error}
         </p>
-      )}
-      {revoking && (
-        <RevokeVipConfirm
-          user={revoking}
-          onConfirm={() => void confirmRevoke()}
-          onCancel={cancelRevoke}
-        />
       )}
       <div className="grid-2">
         <div className="card tight">
@@ -158,29 +149,22 @@ export default function AdminUsersPage() {
                         {t(`admin.users.status.${user.status}`)}
                       </span>
                     </td>
+                    {/* One letter per role and capability, read only (ROLE-11): roles are changed in the panel. */}
                     <td>
-                      <div className="chips">
-                        {ROLES.map((role) => (
-                          <ToggleChip
-                            key={role}
-                            small
-                            pressed={user.roles.includes(role)}
-                            label={t("admin.users.roleOf", {
-                              role: t(`admin.roles.${role}`),
-                              name: user.displayName,
-                            })}
-                            disabled={rolesLocked(user)}
-                            onToggle={() => void toggleRole(user, role)}
-                          >
-                            {t(`admin.roles.${role}`)}
-                          </ToggleChip>
-                        ))}
-                      </div>
+                      <ShortForms
+                        entries={ROLES.filter((role) => user.roles.includes(role)).map((role) => ({
+                          code: role.charAt(0).toUpperCase(),
+                          name: t(`admin.roles.${role}`),
+                        }))}
+                      />
                     </td>
                     <td className="sm muted">
-                      {user.capabilities.length === 0
-                        ? "–"
-                        : user.capabilities.map((c) => t(`admin.capabilities.${c}`)).join(", ")}
+                      <ShortForms
+                        entries={user.capabilities.map((c) => ({
+                          code: t(`admin.capabilities.${c}`).charAt(0).toUpperCase(),
+                          name: t(`admin.capabilities.${c}`),
+                        }))}
+                      />
                     </td>
                     <td className="actions">
                       <button

@@ -94,7 +94,6 @@ All active requirements are listed here until their stage is delivered. Shrink t
 | WEB | WEB-05, WEB-06 | 2 |
 | RSVP | RSVP-24 | 1 |
 | LANG | LANG-03 | 1 |
-| ROLE | ROLE-11 | 1 |
 | SCR | SCR-01, SCR-02, SCR-04, SCR-05, SCR-07 | 5 |
 | CNT | CNT-02, CNT-03, CNT-08 | 3 |
 | ACS | ACS-04 | 1 |

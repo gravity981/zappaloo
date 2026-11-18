@@ -420,10 +420,11 @@ describe("accounts, roles and groups", () => {
     const row = (await screen.findByText("Ben Offen")).closest("tr");
     expect(row).not.toBeNull();
     expect(within(row as HTMLElement).getByText("inaktiv")).toBeInTheDocument();
-    // No username yet, and the roles are locked until the guest registers.
-    expect(
-      within(row as HTMLElement).getByRole("button", { name: "vip für Ben Offen" }),
-    ).toBeDisabled();
+    // No username yet, and the roles are locked until the guest registers: in the panel.
+    expect(within(row as HTMLElement).getByText("V")).toHaveAttribute("title", "vip");
+    user.click(screen.getByRole("button", { name: "Konto Ben Offen bearbeiten" }));
+    const panel = await screen.findByRole("dialog");
+    expect(within(panel).getByRole("button", { name: "vip" })).toBeDisabled();
   });
 
   it("[ACC-17][ACC-18][ACC-20] the panel of an inactive account says so; only one an admin created gets a new setup link, a blocked one gets no link", async () => {
@@ -604,7 +605,40 @@ describe("accounts, roles and groups", () => {
     });
   });
 
-  it("[ROLE-01][ROLE-09] a role chip switches one role and keeps the others", async () => {
+  it("[ROLE-11] the table shows the roles and capabilities as letters with the full name as the tooltip, and no chips", async () => {
+    fakeBackend({
+      "GET /api/session": () => asAdmin,
+      "GET /api/admin/users": () => ({
+        status: 200,
+        body: {
+          users: [
+            account({ roles: ["vip"], capabilities: [] }),
+            account({
+              id: 3,
+              username: "ben",
+              displayName: "Ben Technik",
+              roles: ["staff", "admin"],
+              capabilities: ["editWebsiteContent", "moderateContributions"],
+            }),
+          ],
+        },
+      }),
+      "GET /api/admin/groups": () => ({ status: 200, body: { groups: [] } }),
+    });
+    renderAt("/admin/users");
+    const ben = (await screen.findByText("Ben Technik")).closest("tr") as HTMLElement;
+    expect(within(ben).getByText("S")).toHaveAttribute("title", "staff");
+    expect(within(ben).getByText("A")).toHaveAttribute("title", "admin");
+    expect(within(ben).getByText("I")).toHaveAttribute("title", "Inhalte");
+    expect(within(ben).getByText("M")).toHaveAttribute("title", "Moderation");
+    // Read only: only the account's panel changes roles.
+    expect(within(ben).queryByRole("button", { name: /staff|admin/ })).not.toBeInTheDocument();
+    const anna = (await screen.findByText("Anna")).closest("tr") as HTMLElement;
+    expect(within(anna).getByText("V")).toHaveAttribute("title", "vip");
+    expect(within(anna).getAllByText("–")).toHaveLength(1);
+  });
+
+  it("[ROLE-01][ROLE-09] a role chip in the panel switches one role and keeps the others", async () => {
     const calls = fakeBackend({
       "GET /api/session": () => asAdmin,
       "GET /api/admin/users": () => ({ status: 200, body: { users: [account()] } }),
@@ -612,9 +646,11 @@ describe("accounts, roles and groups", () => {
       "PUT /api/admin/users/1/roles": () => ({ status: 200, body: anna }),
     });
     renderAt("/admin/users");
-    const staff = await screen.findByRole("button", { name: "staff für Anna" });
+    user.click(await screen.findByRole("button", { name: /^Konto .* bearbeiten$/ }));
+    const panel = await screen.findByRole("dialog");
+    const staff = within(panel).getByRole("button", { name: "staff" });
     expect(staff).toHaveAttribute("aria-pressed", "false");
-    expect(screen.getByRole("button", { name: "vip für Anna" })).toHaveAttribute(
+    expect(within(panel).getByRole("button", { name: "vip" })).toHaveAttribute(
       "aria-pressed",
       "true",
     );
@@ -641,8 +677,10 @@ describe("accounts, roles and groups", () => {
       }),
     });
     renderAt("/admin/users");
-    user.click(await screen.findByRole("button", { name: "admin für Lea" }));
-    expect(await screen.findByRole("alert")).toHaveTextContent(
+    user.click(await screen.findByRole("button", { name: /^Konto .* bearbeiten$/ }));
+    const panel = await screen.findByRole("dialog");
+    user.click(within(panel).getByRole("button", { name: "admin" }));
+    expect(await within(panel).findByRole("alert")).toHaveTextContent(
       "Es braucht immer mindestens eine Admin-Person.",
     );
   });

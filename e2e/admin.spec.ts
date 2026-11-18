@@ -36,18 +36,20 @@ test("[ROLE-07][ACC-08][ACC-20][ROLE-01][ROLE-06][GRP-01][CFG-05] an admin manag
   const row = page.getByRole("row", { name: new RegExp(username) });
   await expect(row).toContainText(de.admin.users.status.inactive);
 
-  // Roles in the table: staff joins vip, vip stays.
-  const staff = page.getByRole("button", { name: `staff für ${name}` });
+  // Roles in the account panel: staff joins vip, vip stays. The table shows them as letters.
+  await page.getByRole("button", { name: `Konto ${name} bearbeiten` }).click();
+  const panel = page.getByRole("dialog", { name });
+  const staff = panel.getByRole("button", { name: de.admin.roles.staff });
   await staff.click();
   await expect(staff).toHaveAttribute("aria-pressed", "true");
-  await expect(page.getByRole("button", { name: `vip für ${name}` })).toHaveAttribute(
+  await expect(panel.getByRole("button", { name: de.admin.roles.vip })).toHaveAttribute(
     "aria-pressed",
     "true",
   );
+  await expect(row.getByTitle(de.admin.roles.staff)).toBeVisible();
+  await expect(row.getByTitle(de.admin.roles.vip)).toBeVisible();
 
-  // Capabilities of the staff member, in the account panel.
-  await page.getByRole("button", { name: `Konto ${name} bearbeiten` }).click();
-  const panel = page.getByRole("dialog", { name });
+  // Capabilities of the staff member, in the same panel.
   const moderation = panel.getByRole("button", {
     name: de.admin.capabilities.moderateContributions,
   });
