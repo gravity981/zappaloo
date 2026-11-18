@@ -747,7 +747,7 @@ describe("an account per invitation (ACC-17, INV-20; 7.1.2)", () => {
       ctx.auth.rsvp.createProgramItem(
         {
           name,
-          activity: { name, startsAt: `2027-06-12T${String(12 + i * 4)}:00:00.000Z` },
+          activities: [{ name, startsAt: `2027-06-12T${String(12 + i * 4)}:00:00.000Z` }],
           hasMeal: i === 1,
         },
         "cli",

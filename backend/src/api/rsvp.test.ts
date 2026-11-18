@@ -106,7 +106,7 @@ async function setup() {
   ] as const) {
     const made = await call<ProgramItem>(root, "POST", "/api/admin/rsvp/program-items", {
       name,
-      activity: { name, startsAt: `2027-06-12T${String(hour)}:00:00.000Z`, placeId: lindeId },
+      activities: [{ name, startsAt: `2027-06-12T${String(hour)}:00:00.000Z`, placeId: lindeId }],
       hasMeal,
     });
     expect(made.status).toBe(201);
@@ -183,6 +183,11 @@ describe("program items, menus and the deadline", () => {
     expect((await call(root, "POST", "/api/admin/rsvp/program-items", { name: "" })).status).toBe(
       400,
     );
+    // A program item needs at least one activity (RSVP-17).
+    expect(
+      (await call(root, "POST", "/api/admin/rsvp/program-items", { name: "X", activities: [] }))
+        .status,
+    ).toBe(400);
     expect((await call(root, "POST", "/api/admin/rsvp/menus", { name: " " })).status).toBe(400);
     expect(
       (await call(root, "PUT", "/api/admin/rsvp/deadline", { deadline: "1. Mai" })).status,
@@ -192,7 +197,7 @@ describe("program items, menus and the deadline", () => {
       [
         "POST",
         "/api/admin/rsvp/program-items",
-        { name: "X", activity: { name: "X", startsAt: "2027-06-12T10:00:00.000Z" } },
+        { name: "X", activities: [{ name: "X", startsAt: "2027-06-12T10:00:00.000Z" }] },
       ],
       ["POST", "/api/admin/rsvp/menus", { name: "X" }],
       ["PUT", "/api/admin/rsvp/deadline", { deadline: null }],

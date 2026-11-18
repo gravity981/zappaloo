@@ -347,7 +347,7 @@ describe("places (CNT-07)", () => {
       headers: admin,
       payload: {
         name: "Trauung",
-        activity: { name: "Trauung", startsAt: "2027-06-12T12:00:00.000Z", placeId: id },
+        activities: [{ name: "Trauung", startsAt: "2027-06-12T12:00:00.000Z", placeId: id }],
       },
     });
     expect(item.statusCode).toBe(201);
@@ -389,7 +389,7 @@ describe("places (CNT-07)", () => {
       headers: admin,
       payload: {
         name: "Apéro",
-        activity: { name: "Apéro", startsAt: "2027-06-12T13:00:00.000Z", placeId: 999 },
+        activities: [{ name: "Apéro", startsAt: "2027-06-12T13:00:00.000Z", placeId: 999 }],
       },
     });
     expect(unknownItem.statusCode).toBe(404);

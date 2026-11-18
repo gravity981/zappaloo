@@ -74,13 +74,14 @@ export const activityUpdateSchema = z
 export type ActivityUpdate = z.infer<typeof activityUpdateSchema>;
 
 /**
- * `POST /api/admin/rsvp/program-items`: a program item with its first activity (RSVP-17).
+ * `POST /api/admin/rsvp/program-items`: a program item with its activities, at least one (RSVP-17).
  * `PATCH`: a change names what changes; the activities have their own routes.
  */
 export const programItemRequestSchema = z.strictObject({
   name: programItemNameSchema,
   hasMeal: z.boolean().optional(),
-  activity: activityRequestSchema,
+  /** The activities; at least the first one (RSVP-17). */
+  activities: z.array(activityRequestSchema).min(1).max(50),
 });
 export type ProgramItemRequest = z.infer<typeof programItemRequestSchema>;
 export const programItemUpdateSchema = z

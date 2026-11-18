@@ -25,18 +25,23 @@ async function setup() {
     headers: admin,
     payload: {
       name: "Trauung",
-      activity: {
-        name: "Trauung",
-        startsAt: "2027-06-12T10:00:00.000Z",
-        endsAt: "2027-06-12T10:45:00.000Z",
-      },
+      activities: [
+        {
+          name: "Trauung",
+          startsAt: "2027-06-12T10:00:00.000Z",
+          endsAt: "2027-06-12T10:45:00.000Z",
+        },
+      ],
     },
   });
   const apero = await ctx.app.inject({
     method: "POST",
     url: "/api/admin/rsvp/program-items",
     headers: admin,
-    payload: { name: "Apéro", activity: { name: "Apéro", startsAt: "2027-06-12T11:30:00.000Z" } },
+    payload: {
+      name: "Apéro",
+      activities: [{ name: "Apéro", startsAt: "2027-06-12T11:30:00.000Z" }],
+    },
   });
   // Yes or no per program item (RSVP-11), so a guest can attend one item and decline the other.
   ctx.auth.rsvp.setPerItem(true, "test");
@@ -164,11 +169,13 @@ describe("the website and the programme (WEB-07, WEB-09, WEB-10)", () => {
       headers: admin,
       payload: {
         name: "Party",
-        activity: {
-          name: "Party",
-          startsAt: "2027-06-12T20:00:00.000Z",
-          endsAt: "2027-06-12T19:00:00.000Z",
-        },
+        activities: [
+          {
+            name: "Party",
+            startsAt: "2027-06-12T20:00:00.000Z",
+            endsAt: "2027-06-12T19:00:00.000Z",
+          },
+        ],
       },
     });
     expect(wrong.statusCode).toBe(400);

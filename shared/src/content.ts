@@ -155,10 +155,10 @@ export const startRequestSchema = z.strictObject({
 });
 export type StartRequest = z.infer<typeof startRequestSchema>;
 
-/** The countdown card (WEB-11): the calendar days to the day of the first program item. */
+/** The countdown card (WEB-11): the calendar days to the day of the first activity of all. */
 export const countdownSchema = z.object({
   days: z.number().int().positive(),
-  /** The day of the first activity of the guest's program items, `2027-06-12`, in the event's time zone. */
+  /** The day of the first activity of all, `2027-06-12`, in the event's time zone. */
   date: z.string(),
   placeName: z.string().nullable(),
 });

@@ -423,7 +423,7 @@ export class RsvpService {
       .get();
   }
 
-  /** Creates a program item together with its first activity (RSVP-17). */
+  /** Creates a program item together with its activities, at least one (RSVP-17). */
   createProgramItem(input: ProgramItemRequest, actor: Actor): ProgramItem {
     return this.#database.db.transaction((tx) => {
       if (input.hasMeal) this.#clearMeal(tx);
@@ -437,7 +437,7 @@ export class RsvpService {
         })
         .returning()
         .get();
-      this.#insertActivity(tx, row.id, input.activity);
+      for (const activity of input.activities) this.#insertActivity(tx, row.id, activity);
       this.#event.audit(actor, "rsvp.program_item.create", { programItemId: row.id }, tx);
       return this.#programItemView(tx, row.id);
     });
@@ -1443,29 +1443,19 @@ export function seedExampleRsvp(
     ["Party", false, [["Party", "2027-06-12T20:00:00.000Z", "Linde, Saal"]]],
   ];
   for (const [name, hasMeal, items] of programItems) {
-    const [head, ...more] = items;
-    if (!head) continue;
-    const [firstName, startsAt, place, endsAt] = head;
-    const created = rsvp.createProgramItem(
+    rsvp.createProgramItem(
       {
         name,
         hasMeal,
-        activity: { name: firstName, startsAt, endsAt: endsAt ?? null, placeId: placeId(place) },
+        activities: items.map(([activityName, startsAt, place, endsAt]) => ({
+          name: activityName,
+          startsAt,
+          endsAt: endsAt ?? null,
+          placeId: placeId(place),
+        })),
       },
       actor,
     );
-    for (const [activityName, start, activityPlace, end] of more) {
-      rsvp.createActivity(
-        created.id,
-        {
-          name: activityName,
-          startsAt: start,
-          endsAt: end ?? null,
-          placeId: placeId(activityPlace),
-        },
-        actor,
-      );
-    }
   }
   for (const name of ["Fleisch", "Vegetarisch", "Vegan", "Kindermenü"])
     rsvp.createMenu(name, actor);

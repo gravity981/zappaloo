@@ -233,7 +233,7 @@ describe("the waiting page (ACS-11)", () => {
         s.ctx.auth.rsvp.createProgramItem(
           {
             name,
-            activity: { name, startsAt: `2027-06-12T${String(hour)}:00:00.000Z` },
+            activities: [{ name, startsAt: `2027-06-12T${String(hour)}:00:00.000Z` }],
             hasMeal: false,
           },
           "cli",

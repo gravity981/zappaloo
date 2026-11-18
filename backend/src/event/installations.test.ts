@@ -74,7 +74,7 @@ async function shape(context: TestContext, shaped: Shape): Promise<Headers> {
     (
       await post("/api/admin/rsvp/program-items", {
         name: shaped.programItem,
-        activity: { name: shaped.programItem, startsAt: "2027-06-12T14:00:00.000Z" },
+        activities: [{ name: shaped.programItem, startsAt: "2027-06-12T14:00:00.000Z" }],
       })
     ).statusCode,
   ).toBe(201);

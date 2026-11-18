@@ -383,7 +383,7 @@ export default function RsvpSettingsCard() {
             if (
               await run("POST", PROGRAM_ITEMS_PATH, {
                 ...item,
-                activity: { name: item.name, ...activity },
+                activities: [{ name: item.name, ...activity }],
               })
             ) {
               setEditing(undefined);

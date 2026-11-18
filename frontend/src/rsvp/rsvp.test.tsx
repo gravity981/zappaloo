@@ -613,7 +613,9 @@ describe("Einstellungen › Rückmeldung", () => {
     expect(calls.find((c) => c.method === "POST")?.body).toEqual({
       name: "Party",
       hasMeal: false,
-      activity: { name: "Party", startsAt: "2027-06-12T20:00:00.000Z", endsAt: null, placeId: 7 },
+      activities: [
+        { name: "Party", startsAt: "2027-06-12T20:00:00.000Z", endsAt: null, placeId: 7 },
+      ],
     });
   });
 
