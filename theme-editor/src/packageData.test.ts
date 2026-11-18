@@ -11,6 +11,7 @@ describe("the draft as the data of a package (THM-12, THM-13)", () => {
     draft.waiting.card = "#3b2f4a";
     draft.fonts.display = {
       family: "Cormorant",
+      sizeAdjust: 120,
       files: [
         {
           id: "x",
@@ -35,6 +36,8 @@ describe("the draft as the data of a package (THM-12, THM-13)", () => {
     expect(back.colors).toEqual(draft.colors);
     expect(back.waitingEnabled).toBe(true);
     expect(back.waiting.card).toBe("#3b2f4a");
+    expect(back.fonts.display?.sizeAdjust).toBe(120);
+    expect(data.fonts.display?.sizeAdjust).toBe(120);
     expect(back.fonts.display?.files[0]).toMatchObject({
       fileName: "c.woff2",
       weight: 600,

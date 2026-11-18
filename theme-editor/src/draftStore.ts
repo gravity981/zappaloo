@@ -20,6 +20,18 @@ interface Stored {
   draft: ThemeDraft;
 }
 
+/** A draft saved before a field existed gets the field's default (THM-16: a font without size adjust has 100). */
+function withDefaults(draft: ThemeDraft): ThemeDraft {
+  const fonts = { ...draft.fonts };
+  for (const slot of FONT_SLOTS) {
+    const font = fonts[slot];
+    if (font !== null && typeof (font as { sizeAdjust?: number }).sizeAdjust !== "number") {
+      fonts[slot] = { ...font, sizeAdjust: 100 };
+    }
+  }
+  return { ...draft, fonts };
+}
+
 /** Whether a stored value is a draft of this version (a stale or foreign value is ignored). */
 export function isStoredDraft(value: unknown): value is Stored {
   if (typeof value !== "object" || value === null) return false;
@@ -92,7 +104,7 @@ export function indexedDbStore(factory: IDBFactory): DraftStore {
   return {
     async load() {
       const value = await withStore<unknown>(factory, "readonly", (store) => store.get(KEY));
-      return isStoredDraft(value) ? value.draft : null;
+      return isStoredDraft(value) ? withDefaults(value.draft) : null;
     },
     async save(draft) {
       const stored: Stored = { version: VERSION, draft };

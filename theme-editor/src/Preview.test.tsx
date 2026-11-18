@@ -38,9 +38,9 @@ function withFonts(): ThemeDraft {
   return {
     ...newDraft(),
     fonts: {
-      body: { family: "Lora", files: [file("b1"), file("b2", 700)] },
-      heading: { family: "Playfair Display", files: [file("h1", 700)] },
-      display: { family: "Cormorant", files: [file("d1", 600, "italic")] },
+      body: { family: "Lora", sizeAdjust: 108, files: [file("b1"), file("b2", 700)] },
+      heading: { family: "Playfair Display", sizeAdjust: 100, files: [file("h1", 700)] },
+      display: { family: "Cormorant", sizeAdjust: 87, files: [file("d1", 600, "italic")] },
     },
   };
 }
@@ -67,7 +67,7 @@ describe("theme package editor: preview (THM-11)", () => {
 
   it("[THM-11] leaves out a font that has no valid family or no loaded file yet", () => {
     const draft = withFonts();
-    draft.fonts.heading = { family: "Bad/Family", files: [file("h1")] };
+    draft.fonts.heading = { family: "Bad/Family", sizeAdjust: 100, files: [file("h1")] };
     const urls = new Map([
       ["b1", "blob:1"],
       ["d1", "blob:2"],
@@ -143,6 +143,32 @@ describe("theme package editor: preview (THM-11)", () => {
     rerender(<Preview draft={{ ...draft, fonts: { body: null, heading: null, display: null } }} />);
     expect(revoked.sort()).toEqual([...created].sort());
     unmount();
+  });
+
+  it("[THM-16] the preview scales a font with its size adjust, and adds nothing for 100 or for a value the package would refuse", async () => {
+    const draft = withFonts();
+    draft.fonts.heading = { family: "Playfair Display", sizeAdjust: 49, files: [file("h1", 700)] };
+    render(<Preview draft={draft} />);
+    await vi.waitFor(() => {
+      expect(themed().querySelector("style")?.textContent).toContain("size-adjust: 108%;");
+    });
+    const rules = (themed().querySelector("style")?.textContent ?? "").split("\n");
+    const of = (family: string) => rules.filter((rule) => rule.includes(`"${family}"`));
+    expect(of("Lora")).toHaveLength(2);
+    expect(of("Lora").every((rule) => rule.includes("size-adjust: 108%;"))).toBe(true);
+    expect(of("Cormorant")[0]).toContain("size-adjust: 87%;");
+    expect(of("Playfair Display")[0]).not.toContain("size-adjust");
+  });
+
+  it("[THM-16] a size adjust of 100 adds no size-adjust rule", async () => {
+    const draft = withFonts();
+    draft.fonts.body = { family: "Lora", sizeAdjust: 100, files: [file("b1")] };
+    draft.fonts.display = null;
+    render(<Preview draft={draft} />);
+    await vi.waitFor(() => {
+      expect(themed().style.getPropertyValue("--a-body-font")).toContain("Lora");
+    });
+    expect(themed().querySelector("style")?.textContent).not.toContain("size-adjust");
   });
 
   it("[THM-11] shows the app icon and the maskable icon in a circle and a rounded square", () => {

@@ -19,7 +19,7 @@ export interface PackageData {
   colors: ThemeJson["colors"];
   /** `null` is no `waiting` entry. */
   waiting: NonNullable<ThemeJson["waiting"]> | null;
-  fonts: Record<FontSlot, { family: string; files: PackageFontFile[] } | null>;
+  fonts: Record<FontSlot, { family: string; sizeAdjust: number; files: PackageFontFile[] } | null>;
   /** PNG bytes (base64) by icon name (`icon-192`); an icon that is not there has no key. */
   icons: Record<string, string>;
 }

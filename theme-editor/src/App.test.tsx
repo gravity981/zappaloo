@@ -73,6 +73,55 @@ function fontResponse(fileName: string, family: string, converted: boolean) {
   };
 }
 
+describe("theme package editor: size adjust of a font (THM-16)", () => {
+  const slider = (title: string) => screen.getByLabelText<HTMLInputElement>(`${title} size adjust`);
+  const field = (title: string) =>
+    screen.getByLabelText<HTMLInputElement>(`${title} size adjust in percent`);
+
+  it("[THM-16] a font that is switched on has a size adjust of 100 %, as a slider and a number field", () => {
+    render(<App />);
+    fireEvent.click(screen.getByRole("switch", { name: "Body font" }));
+    expect(slider("Body").value).toBe("100");
+    expect(slider("Body").min).toBe("50");
+    expect(slider("Body").max).toBe("200");
+    expect(field("Body").value).toBe("100");
+    expect(screen.queryByLabelText("Heading size adjust")).toBeNull();
+  });
+
+  it("[THM-16] the slider and the number field change the same value", () => {
+    render(<App />);
+    fireEvent.click(screen.getByRole("switch", { name: "Body font" }));
+    fireEvent.change(slider("Body"), { target: { value: "120" } });
+    expect(field("Body").value).toBe("120");
+    fireEvent.change(field("Body"), { target: { value: "87" } });
+    expect(slider("Body").value).toBe("87");
+  });
+
+  it("[THM-16] a number the package would refuse is marked and not taken over", () => {
+    render(<App />);
+    fireEvent.click(screen.getByRole("switch", { name: "Body font" }));
+    fireEvent.change(slider("Body"), { target: { value: "120" } });
+    for (const bad of ["49", "201", "12.5", "", "abc"]) {
+      fireEvent.change(field("Body"), { target: { value: bad } });
+      expect(field("Body").getAttribute("aria-invalid"), bad).toBe("true");
+      expect(slider("Body").value, bad).toBe("120");
+    }
+    expect(screen.getByText(/A whole number from 50 to 200/)).toBeTruthy();
+    fireEvent.change(field("Body"), { target: { value: "150" } });
+    expect(field("Body").getAttribute("aria-invalid")).toBe("false");
+    expect(slider("Body").value).toBe("150");
+  });
+
+  it("[THM-16] each font has its own size adjust", () => {
+    render(<App />);
+    fireEvent.click(screen.getByRole("switch", { name: "Body font" }));
+    fireEvent.click(screen.getByRole("switch", { name: "Display font" }));
+    fireEvent.change(slider("Display"), { target: { value: "90" } });
+    expect(slider("Body").value).toBe("100");
+    expect(slider("Display").value).toBe("90");
+  });
+});
+
 describe("theme package editor: fonts (THM-09)", () => {
   it("[THM-09] a font file is converted by the server, and family, weight and style are suggested", async () => {
     const fetchMock = vi.fn(() => Promise.resolve(fontResponse("Lora-Bold.woff2", "Lora", true)));

@@ -1,7 +1,7 @@
 // The theme package, format version 1 (sw-architecture.md 19.7). Declarative: the layout, the limits and
 // the rules of the format. The validator checks packages against it, and the document schemas/theme-v1.md
 // is generated from it.
-import { THEME_LIMITS } from "../theme.ts";
+import { SIZE_ADJUST, THEME_LIMITS } from "../theme.ts";
 import type { ThemeFindingCode } from "./codes.ts";
 import type { PackageDefinition } from "./definition.ts";
 
@@ -34,6 +34,11 @@ export const themeV1: PackageDefinition<ThemeFindingCode> = {
       label: "Font files",
       value: `at most ${String(THEME_LIMITS.fontCount)}`,
       requirement: "THM-03",
+    },
+    {
+      label: "Size adjust of a font",
+      value: `${String(SIZE_ADJUST.min)} to ${String(SIZE_ADJUST.max)} percent, a whole number (optional)`,
+      requirement: "THM-16",
     },
     {
       label: "Contrast of text on its background",
@@ -190,8 +195,8 @@ export const themeV1: PackageDefinition<ThemeFindingCode> = {
       id: "json.fields",
       scope: "validator",
       severity: "error",
-      requirements: ["THM-02", "THM-03"],
-      text: "`manifest.json` and `theme.json` have exactly the fields of the format version; an unknown field is refused. `$schema` is allowed and names the schema for editors.",
+      requirements: ["THM-02", "THM-03", "THM-16"],
+      text: `\`manifest.json\` and \`theme.json\` have exactly the fields of the format version; an unknown field is refused. \`$schema\` is allowed and names the schema for editors. \`sizeAdjust\` of a font, when given, is a whole number from ${String(SIZE_ADJUST.min)} to ${String(SIZE_ADJUST.max)} (percent); the app applies it as \`size-adjust\` of the font's \`@font-face\` rules.`,
       codes: ["json_field"],
     },
     {
@@ -267,6 +272,10 @@ export const themeV1: PackageDefinition<ThemeFindingCode> = {
     {
       date: "2026-11-14",
       text: "`$schema` allowed in the JSON files (step 5b); the definitions of the format are generated from this description.",
+    },
+    {
+      date: "2026-11-18",
+      text: "Optional `sizeAdjust` of a font (50 to 200 percent) within version 1 before any package was released (THM-16, 19.7).",
     },
   ],
 };

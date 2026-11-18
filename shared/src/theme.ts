@@ -18,6 +18,9 @@ export const THEME_LIMITS = {
   contrast: 4.5,
 } as const;
 
+/** The size adjust of a font in percent (19.7, THM-16): 100 is the font as it is. */
+export const SIZE_ADJUST = { min: 50, max: 200, default: 100 } as const;
+
 /** The seven colours of `theme.json`, in their order (19.7). */
 export const THEME_COLOR_KEYS = [
   "background",
@@ -57,6 +60,8 @@ const fontSchema = z.strictObject({
     .string()
     .trim()
     .regex(/^[\p{L}\p{N} -]{1,40}$/u, "letters, digits, spaces and hyphens"),
+  /** Scales this font only, as `size-adjust` of its `@font-face` rules (THM-16). */
+  sizeAdjust: z.number().int().min(SIZE_ADJUST.min).max(SIZE_ADJUST.max).optional(),
   files: z.array(fontFileSchema).min(1).max(4),
 });
 export type ThemeFont = z.infer<typeof fontSchema>;
@@ -96,6 +101,8 @@ export type ThemeJson = z.infer<typeof themeJsonSchema>;
 /** A font face the pages without sign-in load: the family and its files, with their URLs. */
 const siteFontSchema = z.strictObject({
   family: z.string(),
+  /** In percent; without it the font is used as it is. */
+  sizeAdjust: z.number().int().optional(),
   files: z.array(
     z.strictObject({
       url: z.string(),

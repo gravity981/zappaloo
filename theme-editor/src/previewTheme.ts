@@ -3,7 +3,14 @@
 // while it is typed keeps the platform's colour, so the preview does not flicker or break.
 import { THEME_COLOR_KEYS, WAITING_COLOR_KEYS } from "@zappaloo/shared";
 import type { SiteTheme } from "@zappaloo/shared";
-import { DEFAULT_COLORS, DEFAULT_WAITING, FAMILY, FONT_SLOTS, HEX } from "./model.ts";
+import {
+  DEFAULT_COLORS,
+  DEFAULT_WAITING,
+  FAMILY,
+  FONT_SLOTS,
+  HEX,
+  validSizeAdjust,
+} from "./model.ts";
 import type { ThemeDraft } from "./model.ts";
 
 type SiteFont = NonNullable<SiteTheme["fonts"]["body"]>;
@@ -23,7 +30,10 @@ export function draftToSiteTheme(draft: ThemeDraft, urls: ReadonlyMap<string, st
       const url = urls.get(file.id);
       return url === undefined ? [] : [{ url, weight: file.weight, style: file.style }];
     });
-    if (files.length > 0) fonts[slot] = { family: font.family, files } satisfies SiteFont;
+    // a size adjust that the package would refuse is left out, so the preview does not break while typing
+    const sizeAdjust = validSizeAdjust(font.sizeAdjust) ? { sizeAdjust: font.sizeAdjust } : {};
+    if (files.length > 0)
+      fonts[slot] = { family: font.family, ...sizeAdjust, files } satisfies SiteFont;
   }
   const theme: SiteTheme = {
     version: "preview",

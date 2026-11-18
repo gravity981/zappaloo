@@ -13,6 +13,7 @@ function sampleDraft(): ThemeDraft {
   draft.waitingEnabled = true;
   draft.fonts.body = {
     family: "Lora",
+    sizeAdjust: 110,
     files: [
       {
         id: "f1",
@@ -65,6 +66,23 @@ describe("the draft kept in the browser (THM-14)", () => {
       Object.entries(sampleDraft()).filter(([key]) => key !== "fonts"),
     );
     expect(isStoredDraft({ version: 1, draft: withoutFonts })).toBe(false);
+  });
+
+  it("[THM-16] a draft saved before size adjust existed loads with 100 for every font", async () => {
+    const old = sampleDraft();
+    old.fonts.heading = { family: "Playfair", files: [] } as unknown as NonNullable<
+      ThemeDraft["fonts"]["heading"]
+    >;
+    old.fonts.body = { ...old.fonts.body, family: "Lora" } as unknown as NonNullable<
+      ThemeDraft["fonts"]["body"]
+    >;
+    delete (old.fonts.body as { sizeAdjust?: number }).sizeAdjust;
+    const store = indexedDbStore(new IDBFactory());
+    await store.save(old);
+    const loaded = await store.load();
+    expect(loaded?.fonts.body?.sizeAdjust).toBe(100);
+    expect(loaded?.fonts.heading?.sizeAdjust).toBe(100);
+    expect(loaded?.fonts.display).toBeNull();
   });
 
   it("[THM-14] the in-memory store, for browsers without IndexedDB, keeps a copy", async () => {

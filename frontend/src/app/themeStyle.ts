@@ -47,13 +47,20 @@ export function themeStyle(theme: SiteTheme | null): CSSProperties {
 export function fontFaceRules(theme: SiteTheme | null): string {
   if (theme === null) return "";
   const faces = [theme.fonts.body, theme.fonts.heading, theme.fonts.display].flatMap((font) =>
-    font ? font.files.map((file) => ({ family: font.family, ...file })) : [],
+    font
+      ? font.files.map((file) => ({ family: font.family, sizeAdjust: font.sizeAdjust, ...file }))
+      : [],
   );
   return faces
     .map(
       (face) =>
         `@font-face { font-family: "${face.family}"; src: url("${face.url}") format("woff2"); ` +
-        `font-weight: ${String(face.weight)}; font-style: ${face.style}; font-display: swap; }`,
+        `font-weight: ${String(face.weight)}; font-style: ${face.style}; ` +
+        // THM-16: only the imported font is scaled; 100 percent is the font as it is
+        (face.sizeAdjust === undefined || face.sizeAdjust === 100
+          ? ""
+          : `size-adjust: ${String(face.sizeAdjust)}%; `) +
+        `font-display: swap; }`,
     )
     .join("\n");
 }

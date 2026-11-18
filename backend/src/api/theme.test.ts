@@ -177,6 +177,61 @@ function fontThemeFiles(): Record<string, Buffer> {
   });
 }
 
+describe("size adjust on the pages without sign-in (THM-16)", () => {
+  it("[THM-16] the site carries the size adjust of a font that has one, and leaves it out of the others", async () => {
+    context = await createTestApp();
+    const ctx = context;
+    const admin = await signIn(ctx, "boss", ["admin"]);
+    const files = fontThemeFiles();
+    files["theme.json"] = Buffer.from(
+      JSON.stringify({
+        colors: VALID_COLORS,
+        fonts: {
+          body: {
+            family: "Lora",
+            sizeAdjust: 108,
+            files: [{ file: "lora-400.woff2", weight: 400, style: "normal" }],
+          },
+          display: {
+            family: "Cormorant",
+            files: [{ file: "cormorant-600.woff2", weight: 600, style: "normal" }],
+          },
+        },
+      }),
+    );
+    expect((await upload(ctx, admin, buildThemeArchive(files))).statusCode).toBe(200);
+    const site = (await ctx.app.inject("/api/site")).json<{
+      theme: { fonts: Record<string, { family: string; sizeAdjust?: number } | undefined> };
+    }>().theme;
+    expect(site.fonts.body?.sizeAdjust).toBe(108);
+    expect(site.fonts.display).not.toHaveProperty("sizeAdjust");
+  });
+
+  it("[THM-16] a package with a size adjust outside 50 to 200 is refused with the field", async () => {
+    context = await createTestApp();
+    const ctx = context;
+    const admin = await signIn(ctx, "boss", ["admin"]);
+    const files = fontThemeFiles();
+    files["theme.json"] = Buffer.from(
+      JSON.stringify({
+        colors: VALID_COLORS,
+        fonts: {
+          body: {
+            family: "Lora",
+            sizeAdjust: 250,
+            files: [{ file: "lora-400.woff2", weight: 400, style: "normal" }],
+          },
+        },
+      }),
+    );
+    const response = await upload(ctx, admin, buildThemeArchive(files));
+    expect(response.statusCode).toBe(422);
+    expect(response.json<{ findings: { detail: string }[] }>().findings[0]?.detail).toContain(
+      "fonts.body.sizeAdjust",
+    );
+  });
+});
+
 describe("the theme on the pages without sign-in (THM-01, THM-04)", () => {
   it("[THM-01][THM-06] the site carries the default as null, and the active theme with its font URLs", async () => {
     context = await createTestApp();

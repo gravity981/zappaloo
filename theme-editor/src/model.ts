@@ -1,6 +1,7 @@
 // The draft of a theme in the editor (sw-architecture.md 19.7.1): what the controls change. The
 // fields mirror `theme.json` and `manifest.json`; the font files are kept as WOFF2 bytes.
 import type { Dispatch, SetStateAction } from "react";
+import { SIZE_ADJUST } from "@zappaloo/shared";
 import {
   THEME_COLOR_KEYS,
   THEME_LIMITS,
@@ -8,6 +9,10 @@ import {
   themeContrastChecks,
 } from "@zappaloo/shared";
 import type { ContrastCheck, ThemeColorKey, WaitingColorKey } from "@zappaloo/shared";
+
+/** Whether a size adjust is one the package accepts: a whole number from 50 to 200 (19.7). */
+export const validSizeAdjust = (value: number) =>
+  Number.isInteger(value) && value >= SIZE_ADJUST.min && value <= SIZE_ADJUST.max;
 
 /** How a card changes the draft: a new draft, or a function of the current one (for work that finishes later). */
 export type Update = Dispatch<SetStateAction<ThemeDraft>>;
@@ -30,6 +35,8 @@ export interface DraftFontFile {
 
 export interface DraftFont {
   family: string;
+  /** In percent (THM-16): 100 is the font as it is. */
+  sizeAdjust: number;
   files: DraftFontFile[];
 }
 

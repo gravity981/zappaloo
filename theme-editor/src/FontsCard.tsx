@@ -1,8 +1,16 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { SIZE_ADJUST } from "@zappaloo/shared";
 import { THEME_LIMITS } from "@zappaloo/shared";
 import { convertFont, FontError } from "./api.ts";
 import { Card, Switch } from "./components.tsx";
-import { FAMILY, FONT_SLOTS, fontFileCount, roomForFiles, uniqueFileName } from "./model.ts";
+import {
+  FAMILY,
+  FONT_SLOTS,
+  fontFileCount,
+  roomForFiles,
+  uniqueFileName,
+  validSizeAdjust,
+} from "./model.ts";
 import type { Update } from "./model.ts";
 import type { DraftFont, DraftFontFile, FontSlot, ThemeDraft } from "./model.ts";
 
@@ -23,6 +31,56 @@ function kb(bytes: number): string {
 }
 
 let nextId = 1;
+
+/**
+ * «Size adjust» of one font (THM-16): a slider and a number field, 50–200 percent. The preview follows
+ * at once. A number that is typed but not (yet) valid is kept in the field and not given to the draft.
+ */
+function SizeAdjust(props: { title: string; value: number; onChange: (value: number) => void }) {
+  const { title, value, onChange } = props;
+  const [text, setText] = useState(String(value));
+  useEffect(() => {
+    setText(String(value));
+  }, [value]);
+  const typed = Number(text);
+  const valid = text.trim() !== "" && validSizeAdjust(typed);
+  return (
+    <div className="size-adjust">
+      <span className="sm">
+        <b>Size adjust</b>
+      </span>
+      <input
+        type="range"
+        min={SIZE_ADJUST.min}
+        max={SIZE_ADJUST.max}
+        aria-label={`${title} size adjust`}
+        value={value}
+        onChange={(event) => {
+          onChange(Number(event.target.value));
+        }}
+      />
+      <input
+        className="input"
+        inputMode="numeric"
+        aria-label={`${title} size adjust in percent`}
+        aria-invalid={!valid}
+        value={text}
+        maxLength={3}
+        onChange={(event) => {
+          setText(event.target.value);
+          const next = Number(event.target.value);
+          if (event.target.value.trim() !== "" && validSizeAdjust(next)) onChange(next);
+        }}
+      />
+      <span className="sm">%</span>
+      {valid ? null : (
+        <small className="error">
+          A whole number from {SIZE_ADJUST.min} to {SIZE_ADJUST.max}
+        </small>
+      )}
+    </div>
+  );
+}
 
 /** The card Fonts: body, heading and display, each off or a family with 1–4 files (THM-09). */
 export function FontsCard(props: { draft: ThemeDraft; onChange: Update }) {
@@ -59,7 +117,7 @@ export function FontsCard(props: { draft: ThemeDraft; onChange: Update }) {
             style: suggestion.style,
           };
           // The first file names the family of a font that has none yet.
-          const existing = current.fonts[slot] ?? { family: "", files: [] };
+          const existing = current.fonts[slot] ?? { family: "", sizeAdjust: 100, files: [] };
           const font =
             existing.family === "" ? { ...existing, family: suggestion.family } : existing;
           return {
@@ -104,7 +162,7 @@ export function FontsCard(props: { draft: ThemeDraft; onChange: Update }) {
                 label={`${title} font`}
                 on={font !== null}
                 onChange={(on) => {
-                  setFont(slot, on ? { family: "", files: [] } : null);
+                  setFont(slot, on ? { family: "", sizeAdjust: 100, files: [] } : null);
                 }}
               />
             </div>
@@ -128,6 +186,13 @@ export function FontsCard(props: { draft: ThemeDraft; onChange: Update }) {
                     <small className="error">1–40 letters, digits, spaces and hyphens</small>
                   )}
                 </div>
+                <SizeAdjust
+                  title={title}
+                  value={font.sizeAdjust}
+                  onChange={(sizeAdjust) => {
+                    setFont(slot, { ...font, sizeAdjust });
+                  }}
+                />
                 {font.files.map((file) => (
                   <div className="font-file" key={file.id}>
                     <span className="grow">

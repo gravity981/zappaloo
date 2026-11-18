@@ -286,3 +286,20 @@
 .editor .palette-swatches i {
   flex: 1;
 }
+
+/* Size adjust of a font (THM-16). */
+.editor .size-adjust {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+}
+.editor .size-adjust input[type="range"] {
+  flex: 1;
+  min-width: 120px;
+}
+.editor .size-adjust .input {
+  width: 64px;
+  min-height: 32px;
+  text-align: right;
+}

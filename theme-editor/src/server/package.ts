@@ -27,12 +27,14 @@ export function buildPackage(data: PackageData): BuildResult {
       `${JSON.stringify({ kind: "zappaloo-theme", formatVersion: 1, name: data.name }, null, 2)}\n`,
     ),
   };
-  const fonts: Record<string, { family: string; files: unknown[] }> = {};
+  const fonts: Record<string, { family: string; sizeAdjust?: number; files: unknown[] }> = {};
   for (const slot of FONT_SLOTS) {
     const font = data.fonts[slot];
     if (font === null) continue;
     fonts[slot] = {
       family: font.family,
+      // 100 percent is the font as it is: the package says nothing then (THM-16)
+      ...(font.sizeAdjust === 100 ? {} : { sizeAdjust: font.sizeAdjust }),
       files: font.files.map((file) => ({
         file: file.fileName,
         weight: file.weight,
@@ -69,6 +71,7 @@ export function openPackage(archive: Buffer): OpenResult {
     if (font === undefined) continue;
     fonts[slot] = {
       family: font.family,
+      sizeAdjust: font.sizeAdjust ?? 100,
       files: font.files.map((file) => ({
         fileName: file.file,
         weight: file.weight,

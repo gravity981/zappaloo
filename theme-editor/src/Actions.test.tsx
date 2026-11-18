@@ -86,6 +86,7 @@ const packageData = (): PackageData => ({
   fonts: {
     body: {
       family: "Lora",
+      sizeAdjust: 112,
       files: [{ fileName: "lora.woff2", weight: 400, style: "normal", woff2: "AAEC" }],
     },
     heading: null,
@@ -195,6 +196,9 @@ describe("theme package editor: open (THM-13)", () => {
     expect(hex("accent").value).toBe("#2f6b4f");
     expect(screen.getByLabelText<HTMLInputElement>("waiting card (#rrggbb)").value).toBe("#fdfbf6");
     expect(screen.getByLabelText<HTMLInputElement>("Body family").value).toBe("Lora");
+    expect(screen.getByLabelText<HTMLInputElement>("Body size adjust in percent").value).toBe(
+      "112",
+    );
     expect(screen.getByText("lora.woff2")).toBeTruthy();
     expect(screen.getAllByAltText("icon-192 icon").length).toBeGreaterThan(0);
     // and it can be changed from there

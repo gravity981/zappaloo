@@ -82,6 +82,49 @@ describe("the theme package validator (THM-03)", () => {
     expect(result.ok).toBe(true);
   });
 
+  describe("size adjust of a font (THM-16)", () => {
+    const font = Buffer.concat([Buffer.from("wOF2"), Buffer.alloc(64)]);
+    const withSize = (sizeAdjust: unknown) =>
+      checkThemePackage(
+        archive({
+          "fonts/lora-400.woff2": font,
+          "theme.json": Buffer.from(
+            JSON.stringify({
+              colors: COLORS,
+              fonts: {
+                body: {
+                  family: "Lora",
+                  ...(sizeAdjust === undefined ? {} : { sizeAdjust }),
+                  files: [{ file: "lora-400.woff2", weight: 400, style: "normal" }],
+                },
+              },
+            }),
+          ),
+        }),
+      );
+
+    it("[THM-16] accepts a whole number from 50 to 200, and none", () => {
+      for (const value of [undefined, 50, 87, 100, 108, 200]) {
+        expect(withSize(value).ok, String(value)).toBe(true);
+      }
+      const ok = withSize(108);
+      if (ok.ok) expect(ok.package.theme.fonts?.body?.sizeAdjust).toBe(108);
+    });
+
+    it("[THM-16] refuses a value below 50, above 200, with decimals or not a number, and names the field", () => {
+      for (const value of [49, 0, -100, 201, 1000, 108.5, "108", null, true]) {
+        const result = withSize(value);
+        expect(result.ok, String(value)).toBe(false);
+        if (!result.ok) {
+          expect(result.findings).toHaveLength(1);
+          expect(result.findings[0]?.file).toBe("theme.json");
+          expect(result.findings[0]?.code).toBe("json_field");
+          expect(result.findings[0]?.detail).toContain("fonts.body.sizeAdjust");
+        }
+      }
+    });
+  });
+
   it("[THM-03] refuses an archive of more than 10 MB", () => {
     expect(codes(checkThemePackage(Buffer.alloc(10 * 1024 * 1024 + 1)))).toEqual([
       "archive_too_large",

@@ -1,5 +1,6 @@
 // @vitest-environment node
 import { spawnSync } from "node:child_process";
+import { gunzipSync } from "node:zlib";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -49,8 +50,8 @@ async function fullTheme(): Promise<PackageData> {
     },
     waiting: { card: "#3b2f4a", text: "#ffffff", button: "#ffd27a", onButton: "#2b2a26" },
     fonts: {
-      body: { family: "Source Sans Pro", files: [file(ttf, 400, "italic")] },
-      heading: { family: "Source Sans 3", files: [file(otf, 400)] },
+      body: { family: "Source Sans Pro", sizeAdjust: 108, files: [file(ttf, 400, "italic")] },
+      heading: { family: "Source Sans 3", sizeAdjust: 100, files: [file(otf, 400)] },
       display: null,
     },
     icons: {
@@ -94,6 +95,52 @@ describe("theme package export and open (THM-12, THM-13)", () => {
     expect(again.archive.equals(built.archive)).toBe(true);
   });
 
+  it("[THM-16] the size adjust is written to theme.json (100 is left out), accepted by `zappaloo validate` and read back", async () => {
+    const theme = await fullTheme();
+    const built = buildPackage(theme);
+    if (!built.ok) throw new Error(JSON.stringify(built.findings));
+    const themeJson = /\{\s*"colors"[\s\S]*?\n\}\n/.exec(
+      gunzipSync(built.archive).toString("latin1"),
+    );
+    const written = JSON.parse(themeJson?.[0] ?? "null") as {
+      fonts: Record<string, { sizeAdjust?: number }>;
+    };
+    expect(written.fonts.body?.sizeAdjust).toBe(108);
+    expect(written.fonts.heading).not.toHaveProperty("sizeAdjust");
+    const file = path.join(dir, "size.tar.gz");
+    fs.writeFileSync(file, built.archive);
+    const run = spawnSync(
+      process.execPath,
+      [path.join(root, "backend/src/cli.ts"), "validate", file],
+      {
+        cwd: root,
+        encoding: "utf8",
+      },
+    );
+    expect(run.status).toBe(0);
+    const opened = openPackage(built.archive);
+    expect(opened.ok && opened.data.fonts.body?.sizeAdjust).toBe(108);
+    expect(opened.ok && opened.data.fonts.heading?.sizeAdjust).toBe(100);
+  });
+
+  it("[THM-16] a size adjust outside 50 to 200 refuses the package, and the finding belongs to the Fonts card", async () => {
+    const theme = await fullTheme();
+    for (const value of [49, 201, 108.5]) {
+      const body = theme.fonts.body;
+      if (body === null) throw new Error("no body font");
+      const built = buildPackage({
+        ...theme,
+        fonts: { ...theme.fonts, body: { ...body, sizeAdjust: value } },
+      });
+      expect(built.ok, String(value)).toBe(false);
+      if (!built.ok) {
+        expect(built.findings).toHaveLength(1);
+        expect(built.findings[0]?.detail).toContain("fonts.body.sizeAdjust");
+        expect(findingCard(built.findings[0] ?? { file: "", code: "", detail: "" })).toBe("Fonts");
+      }
+    }
+  });
+
   it("[THM-12][THM-13] a theme without fonts, waiting card and maskable icon round-trips too", async () => {
     const { icons, colors } = await fullTheme();
     const minimal: PackageData = {
@@ -119,7 +166,7 @@ describe("theme package export and open (THM-12, THM-13)", () => {
       ...theme,
       name: "",
       icons: { ...theme.icons, "icon-192": b64(encodePng(200, 200, [0, 0, 0])) },
-      fonts: { ...theme.fonts, display: { family: "Empty", files: [] } },
+      fonts: { ...theme.fonts, display: { family: "Empty", sizeAdjust: 100, files: [] } },
     };
     const built = buildPackage(bad);
     expect(built.ok).toBe(false);

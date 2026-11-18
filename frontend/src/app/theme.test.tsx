@@ -8,7 +8,7 @@ import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import { initI18n } from "../i18n/i18n.ts";
 import { resetSiteNameCache } from "../guest/site.ts";
 import { anna, anonymous, fakeBackend, renderAt, SITE } from "../test/backend.tsx";
-import { themeStyle } from "./themeStyle.ts";
+import { fontFaceRules, themeStyle } from "./themeStyle.ts";
 
 beforeAll(async () => {
   await initI18n();
@@ -99,6 +99,27 @@ describe("the theme on the pages (sw-architecture.md 19.7)", () => {
     const faces = themed().querySelector("style")?.textContent ?? "";
     expect(faces).toContain('@font-face { font-family: "Lora";');
     expect(faces).toContain('src: url("/theme/fonts/lora-400.woff2?v=import-1")');
+  });
+
+  it("[THM-16] a font with a size adjust gets size-adjust in its @font-face rules, and 100 or none adds nothing", () => {
+    const face = (sizeAdjust: number | undefined) => ({
+      family: "Lora",
+      ...(sizeAdjust === undefined ? {} : { sizeAdjust }),
+      files: [
+        { url: "/a.woff2", weight: 400, style: "normal" as const },
+        { url: "/b.woff2", weight: 700, style: "italic" as const },
+      ],
+    });
+    const rules = (sizeAdjust: number | undefined) =>
+      fontFaceRules({ ...THEME, fonts: { body: face(sizeAdjust) } });
+    const scaled = rules(108);
+    expect(scaled.match(/size-adjust: 108%;/g)).toHaveLength(2);
+    expect(scaled).toContain(
+      '@font-face { font-family: "Lora"; src: url("/a.woff2") format("woff2"); font-weight: 400; font-style: normal; size-adjust: 108%; font-display: swap; }',
+    );
+    expect(rules(87)).toContain("size-adjust: 87%;");
+    expect(rules(100)).not.toContain("size-adjust");
+    expect(rules(undefined)).not.toContain("size-adjust");
   });
 
   it("[THM-01] without a theme the guest pages keep the platform's defaults", async () => {

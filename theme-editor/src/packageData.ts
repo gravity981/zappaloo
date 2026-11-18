@@ -14,6 +14,7 @@ export function draftToPackageData(draft: ThemeDraft): PackageData {
         ? null
         : {
             family: font.family,
+            sizeAdjust: font.sizeAdjust,
             files: font.files.map((file) => ({
               fileName: file.fileName,
               weight: file.weight,
@@ -49,6 +50,7 @@ export function packageDataToDraft(data: PackageData): ThemeDraft {
     if (font === null) continue;
     fonts[slot] = {
       family: font.family,
+      sizeAdjust: font.sizeAdjust,
       files: font.files.map((file) => {
         const woff2 = fromBase64(file.woff2);
         return {
