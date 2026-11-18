@@ -46,9 +46,9 @@ export function rsvpReminderMail(
   const until = deadline === null ? "" : ` Du kannst bis zum ${deadline} antworten.`;
   return {
     to,
-    subject: `${eventName}: Bitte gib uns deine Rückmeldung`,
+    subject: `${eventName}: Deine Anmeldung fehlt noch`,
     text:
-      `Hallo ${name}\n\nWir haben noch keine Rückmeldung von dir für ${eventName}. ` +
+      `Hallo ${name}\n\nWir haben noch keine Anmeldung von dir für ${eventName}. ` +
       `Sag uns bitte, ob du dabei bist.${until}\n\n${url}\n`,
   };
 }

@@ -54,7 +54,7 @@ describe("admin area", () => {
     ).toEqual([
       "Übersicht",
       "Einladungen",
-      "Rückmeldungen",
+      "Anmeldungen",
       "Konten & Rollen",
       "Inhalte",
       "Erlebniswelt",
@@ -457,7 +457,7 @@ describe("accounts, roles and groups", () => {
     user.click(await screen.findByRole("button", { name: "Konto Ben Offen bearbeiten" }));
     let panel = await screen.findByRole("dialog", { name: "Ben Offen" });
     expect(within(panel).getByText("noch kein Benutzername")).toBeInTheDocument();
-    expect(within(panel).getByText("Noch nicht angemeldet.")).toBeInTheDocument();
+    expect(within(panel).getByText("Noch nicht eingeloggt.")).toBeInTheDocument();
     expect(within(panel).getByRole("link", { name: "Zur Einladung" })).toHaveAttribute(
       "href",
       "/admin/invitations",
@@ -592,7 +592,7 @@ describe("accounts, roles and groups", () => {
     user.click(within(panel).getByRole("button", { name: "Konto löschen" }));
     expect(calls.some((c) => c.method === "DELETE")).toBe(false);
     expect(
-      within(panel).getByText(/mit Rückmeldung, Begleitpersonen und allen Einladungen gelöscht/),
+      within(panel).getByText(/mit Anmeldung, Begleitpersonen und allen Einladungen gelöscht/),
     ).toBeInTheDocument();
     user.click(within(panel).getByRole("button", { name: "Endgültig löschen" }));
     await waitFor(() => {
@@ -896,7 +896,7 @@ describe("event setup", () => {
     expect(
       await screen.findByRole("heading", { name: "Noch nicht eingerichtet" }),
     ).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Abmelden" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Ausloggen" })).toBeInTheDocument();
     expect(
       screen.queryByRole("heading", { name: "Willkommen bei Zappaloo" }),
     ).not.toBeInTheDocument();

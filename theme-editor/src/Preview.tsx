@@ -124,7 +124,7 @@ export function Preview(props: { draft: ThemeDraft }) {
         <div className="preview-door">
           <section className="waiting-card" aria-label="Waiting card">
             <p>Psst, Erika … hinter dieser Tür entsteht gerade etwas. Bist du dabei?</p>
-            <a className="waiting-button">Rückmeldung geben</a>
+            <a className="waiting-button">Jetzt anmelden</a>
           </section>
         </div>
 

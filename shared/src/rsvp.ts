@@ -108,7 +108,7 @@ export const perItemRequestSchema = z.strictObject({ enabled: z.boolean() });
 /** `PUT /api/admin/rsvp/companion-approval`: whether added persons need the admin's approval. */
 export const companionApprovalRequestSchema = z.strictObject({ enabled: z.boolean() });
 
-/** `GET /api/admin/rsvp/config`: deadline, program items and menus (Einstellungen › Rückmeldung). */
+/** `GET /api/admin/rsvp/config`: deadline, program items and menus (Einstellungen › Anmeldung). */
 export const rsvpConfigSchema = z.object({
   deadline: dateSchema.nullable(),
   /** Whether the RSVP asks for a song wish (RSVP-06). */

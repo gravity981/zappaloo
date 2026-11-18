@@ -56,7 +56,7 @@ const world = {
 };
 
 describe("the waiting page", () => {
-  it("[ACS-10][ACS-11][ACS-12] a guest of a closed platform lands on the door scene with the event name, Profil, Abmelden and the text", async () => {
+  it("[ACS-10][ACS-11][ACS-12] a guest of a closed platform lands on the door scene with the event name, Profil, Ausloggen and the text", async () => {
     fakeBackend({
       "GET /api/session": () => asGuest,
       "GET /api/event": closed,
@@ -70,7 +70,7 @@ describe("the waiting page", () => {
     expect(screen.getByText("Lea & Jonas")).toBeInTheDocument();
     expect(screen.getByRole("img", { name: /angelehnte Tür/ })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Profil" })).toHaveAttribute("href", "/profile");
-    expect(screen.getByRole("button", { name: "Abmelden" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Ausloggen" })).toBeInTheDocument();
     // No website navigation: the page is a scene of its own.
     expect(screen.queryByRole("link", { name: "Erlebniswelt" })).not.toBeInTheDocument();
     expect(screen.queryByRole("link", { name: "Start" })).not.toBeInTheDocument();
@@ -84,9 +84,9 @@ describe("the waiting page", () => {
       "GET /api/waiting/door": door,
     });
     renderAt("/");
-    const change = await screen.findByRole("link", { name: "Rückmeldung ändern" });
+    const change = await screen.findByRole("link", { name: "Anmeldung ändern" });
     expect(change).toHaveAttribute("href", "/rsvp");
-    expect(screen.queryByRole("link", { name: "Rückmeldung geben" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "Jetzt anmelden" })).not.toBeInTheDocument();
     expect(calls.some((c) => c.path === "/api/waiting")).toBe(true);
   });
 
@@ -98,7 +98,7 @@ describe("the waiting page", () => {
       "GET /api/waiting/door": door,
     });
     renderAt("/");
-    expect(await screen.findByRole("link", { name: "Rückmeldung geben" })).toBeInTheDocument();
+    expect(await screen.findByRole("link", { name: "Jetzt anmelden" })).toBeInTheDocument();
   });
 
   it("[ACS-11] the RSVP button is missing while the feature is off", async () => {
@@ -110,7 +110,7 @@ describe("the waiting page", () => {
     });
     renderAt("/");
     await screen.findByText(/Psst, Erika/);
-    expect(screen.queryByRole("link", { name: /Rückmeldung/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: /Anmeldung/ })).not.toBeInTheDocument();
   });
 
   it("[ACS-10] from the waiting page a guest reaches the RSVP and the profile, with a way back and without the website menu", async () => {
@@ -128,7 +128,7 @@ describe("the waiting page", () => {
       within(nav)
         .getAllByRole("link")
         .map((link) => link.textContent),
-    ).toEqual(["Warteseite", "Rückmeldung", "Profil"]);
+    ).toEqual(["Warteseite", "Anmeldung", "Profil"]);
     expect(within(nav).queryByRole("link", { name: "Erlebniswelt" })).not.toBeInTheDocument();
   });
 

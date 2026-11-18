@@ -1,4 +1,4 @@
-// Rückmeldungen (RSVP-05, RSVP-07, SEC-11; sw-architecture.md 8.3, 7.4.1): totals per program item,
+// Anmeldungen (RSVP-05, RSVP-07, SEC-11; sw-architecture.md 8.3, 7.4.1): totals per program item,
 // the menus of the meal program item, the guest table with the admin-only allergy column, the CSV
 // export and reminders. A row opens the RSVP wizard in admin mode.
 import { Fragment, useState } from "react";

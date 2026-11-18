@@ -55,7 +55,7 @@ test("[PWA-05] a phone's profile offers the install page with the steps for iOS 
   } else {
     await expect(page.getByText(de.install.android.title)).toBeVisible();
   }
-  await expect(page.getByText(/meldest du dich einmal neu an/)).toBeVisible();
+  await expect(page.getByText(/loggst du dich einmal neu ein/)).toBeVisible();
 });
 
 test("[PWA-05] a desktop browser's profile has no install card", async ({

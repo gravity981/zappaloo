@@ -183,7 +183,7 @@ export class RsvpService {
     this.#now = now;
   }
 
-  // --- Deadline, program items and menus (Einstellungen › Rückmeldung) -----------------------------
+  // --- Deadline, program items and menus (Einstellungen › Anmeldung) -----------------------------
 
   #programItems(reader: Reader = this.#database.db): ProgramItem[] {
     const names = this.#placeNames(reader);

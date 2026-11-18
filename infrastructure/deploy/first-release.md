@@ -104,7 +104,7 @@ docker compose exec app zappaloo create-admin tester --vip     # prints a one-ti
 
 - [ ] Open the link, set a password, sign in.
 - [ ] The form *Veranstaltung einrichten* appears: name, time zone, language → *Einrichtung abschliessen*.
-- [ ] Einstellungen → *Rückmeldung*: add two program items (one with the meal), a menu, a deadline. *Footer*: edit the *Fusszeile* line, see it under the page.
+- [ ] Einstellungen → *Anmeldung*: add two program items (one with the meal), a menu, a deadline. *Footer*: edit the *Fusszeile* line, see it under the page.
 - [ ] Einladungen: create one invitation for a test guest, *Karten drucken* (look at the print preview). Open the invitation link in a second browser profile or phone, register, answer the RSVP.
 - [ ] The platform is closed: the guest sees the waiting page and the RSVP, not the website.
 - [ ] Einstellungen → *Plattform öffnen* with the mail option: the "Die Tür ist offen" mail arrives in Mailpit (needs a verified address of the guest: add one in the guest's profile and confirm it with the mail). *Wieder schliessen* closes it again.
@@ -224,7 +224,7 @@ Sign in at `https://DOMAIN` with the admin. Do the steps in this order: invitati
 
 ### 6.2 Einstellungen
 
-- [ ] **Rückmeldung:** the program items (name, time, place), the program item with the meal marked, the menu list (children's menu included), the RSVP deadline (last day), the song wish question on or off.
+- [ ] **Anmeldung:** the program items (name, time, place), the program item with the meal marked, the menu list (children's menu included), the RSVP deadline (last day), the song wish question on or off.
 - [ ] **Plattform öffnen / Warteseite:** the three waiting-page texts (defaults exist), an optional opening date and the countdown switch. **Do not open the platform now.** It stays closed until the day you decide.
 - [ ] **Datenschutz:** read the German default text; it is a draft and needs your legal review. Edit it if needed.
 - [ ] **Fusszeile:** the copyright line under every page (default `© <year> <event name>`); leave it or change it.
@@ -239,13 +239,13 @@ Sign in at `https://DOMAIN` with the admin. Do the steps in this order: invitati
 
 - [ ] *Neue Einladungen*: one guest name per line, *Eingeladen zu* (the chips: the program items each guest may answer for), an optional expiry date → *Einladungen erstellen*.
 - [ ] **The codes are visible only now.** *Karten drucken* before you leave the page (print preview, or save as PDF). Lost a code? *Neu erzeugen* on the row makes a new one and replaces the old.
-- [ ] Check one card end to end: scan the QR code with a phone, redeem, answer the RSVP, look at it under *Rückmeldungen*. Then *Widerrufen* that test invitation if it was not meant for a real guest (invitations can be revoked, not deleted), or create it with a name you can recognise.
+- [ ] Check one card end to end: scan the QR code with a phone, redeem, answer the RSVP, look at it under *Anmeldungen*. Then *Widerrufen* that test invitation if it was not meant for a real guest (invitations can be revoked, not deleted), or create it with a name you can recognise.
 - [ ] Hand the cards out.
 
 ### 6.5 Then
 
 - [ ] Take another full backup (5.5).
-- [ ] Reminders for guests without an answer: *Rückmeldungen* → *Erinnern (n)* (only guests with a verified address).
+- [ ] Reminders for guests without an answer: *Anmeldungen* → *Erinnern (n)* (only guests with a verified address).
 
 ---
 

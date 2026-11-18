@@ -226,7 +226,7 @@ const rsvpPlugin: FastifyPluginAsyncZod<AuthOptions> = (app, options) => {
     },
   );
 
-  // --- Einstellungen › Rückmeldung --------------------------------------------------------
+  // --- Einstellungen › Anmeldung --------------------------------------------------------
   app.get(
     "/api/admin/rsvp/config",
     { ...admin, schema: { querystring: noQuery, response: { 200: rsvpConfigSchema } } },
@@ -459,7 +459,7 @@ const rsvpPlugin: FastifyPluginAsyncZod<AuthOptions> = (app, options) => {
     },
   );
 
-  // --- Rückmeldungen ----------------------------------------------------------------------
+  // --- Anmeldungen ----------------------------------------------------------------------
   app.get(
     "/api/admin/rsvp",
     { ...adminFeature, schema: { querystring: noQuery, response: { 200: rsvpOverviewSchema } } },
@@ -479,7 +479,7 @@ const rsvpPlugin: FastifyPluginAsyncZod<AuthOptions> = (app, options) => {
     (_request, reply) =>
       reply
         .type("text/csv; charset=utf-8")
-        .header("content-disposition", 'attachment; filename="rueckmeldungen.csv"')
+        .header("content-disposition", 'attachment; filename="anmeldungen.csv"')
         .send(rsvp.csv()),
   );
 

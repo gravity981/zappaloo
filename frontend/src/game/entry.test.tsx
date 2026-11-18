@@ -183,7 +183,7 @@ describe("entering the game", () => {
     });
     user.click(screen.getByRole("button", { name: "Weiter" }));
     expect(await screen.findByTestId("game-canvas")).toBeVisible();
-    expect(await screen.findByRole("dialog", { name: "Rückmeldung" })).toBeVisible();
+    expect(await screen.findByRole("dialog", { name: "Anmeldung" })).toBeVisible();
   });
 
   it("[GAME-13] with a figure for everybody and an answered RSVP, the game opens at once", async () => {
@@ -200,7 +200,7 @@ describe("entering the game", () => {
       const bar = await screen.findByRole("banner");
       expect(bar).toBeVisible();
       expect(within(bar).getByRole("link", { name: "Website" })).toBeVisible();
-      // No Programm or Rückmeldung button, no badge, no navigation: they are reached through the objects.
+      // No Programm or Anmeldung button, no badge, no navigation: they are reached through the objects.
       expect(within(bar).queryAllByRole("button")).toHaveLength(0);
       expect(within(bar).queryByRole("navigation")).toBeNull();
       expect(within(bar).queryByRole("status")).toBeNull();

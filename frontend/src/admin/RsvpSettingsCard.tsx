@@ -1,4 +1,4 @@
-// Einstellungen › Rückmeldung (RSVP-02, RSVP-03, RSVP-04, RSVP-17; sw-architecture.md 7.4.1,
+// Einstellungen › Anmeldung (RSVP-02, RSVP-03, RSVP-04, RSVP-17; sw-architecture.md 7.4.1,
 // 7.4.3): the deadline, the program items (name, which one has the meal) with their activities
 // (name, start, end, place from Inhalte) under each, and the one list of menu options.
 import { useState } from "react";

@@ -1,5 +1,5 @@
 // The waiting page of a closed platform (ACS-10 – ACS-13; UX mock `waiting`): a full-screen
-// door scene, the event name with Profil and Abmelden on top, and a card with the optional
+// door scene, the event name with Profil and Ausloggen on top, and a card with the optional
 // countdown, the text for the guest's RSVP status and the button to the RSVP.
 import "./waiting.css";
 import { useTranslation } from "react-i18next";

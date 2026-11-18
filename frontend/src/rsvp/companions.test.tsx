@@ -479,7 +479,7 @@ describe("accompanying persons in the wizard", () => {
   });
 });
 
-describe("Rückmeldungen: companion requests", () => {
+describe("Anmeldungen: companion requests", () => {
   const overview = (changes: Record<string, unknown> = {}) => ({
     deadline: null,
     songEnabled: true,
@@ -657,7 +657,7 @@ describe("companion approval off (RSVP-12, 7.4.2)", () => {
     expect(screen.queryByRole("button", { name: /Entfernen/ })).not.toBeInTheDocument();
   });
 
-  it("[RSVP-12] Rückmeldungen has no requests card, no badge and no tile; the admin removes a person with a second click", async () => {
+  it("[RSVP-12] Anmeldungen has no requests card, no badge and no tile; the admin removes a person with a second click", async () => {
     const overviewOff = {
       deadline: null,
       songEnabled: true,
@@ -757,7 +757,7 @@ describe("companion approval off (RSVP-12, 7.4.2)", () => {
       "GET /api/admin/activity": () => ({ status: 200, body: { entries: [] } }),
     });
     renderAt("/admin");
-    expect(await screen.findByText("Rückmeldungen")).toBeInTheDocument();
+    expect(await screen.findByText("Anmeldungen")).toBeInTheDocument();
     await waitFor(() => {
       expect(screen.getByText("0 / 0")).toBeInTheDocument();
     });

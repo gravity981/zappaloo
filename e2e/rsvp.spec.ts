@@ -113,7 +113,7 @@ test("[RSVP-01][RSVP-02][RSVP-03][RSVP-04][RSVP-05][RSVP-06][RSVP-11][ACC-17][SE
   // The card "Zuletzt" tells about it.
   await page.goto("/admin");
   await expect(page.getByRole("region", { name: de.admin.home.activity })).toContainText(
-    /Rückmeldung|Admin-Modus/,
+    /Anmeldung|Admin-Modus/,
   );
   await guestContext.close();
 });

@@ -312,7 +312,7 @@ describe("the RSVP wizard", () => {
     }
     user.click(screen.getByRole("button", { name: "Antwort senden" }));
     expect(await screen.findByRole("alert")).toHaveTextContent(
-      "Die Frist für die Rückmeldung ist vorbei.",
+      "Die Frist für die Anmeldung ist vorbei.",
     );
     expect(screen.getByRole("button", { name: "Trauung: Nicht dabei" })).toBeInTheDocument();
   });
@@ -358,7 +358,7 @@ describe("the RSVP wizard", () => {
     expect(
       await screen.findByText("Diese Funktion ist für diesen Anlass ausgeschaltet."),
     ).toBeInTheDocument();
-    expect(screen.queryByRole("link", { name: "Rückmeldung" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "Anmeldung" })).not.toBeInTheDocument();
   });
 
   it("[RSVP-01] guests find the RSVP in the menu; others are sent away", async () => {
@@ -406,7 +406,7 @@ describe("the wizard in admin mode", () => {
   });
 });
 
-describe("Rückmeldungen", () => {
+describe("Anmeldungen", () => {
   const overview = {
     deadline: "2027-05-01",
     songEnabled: true,
@@ -479,7 +479,7 @@ describe("Rückmeldungen", () => {
       "GET /api/admin/rsvp": () => ({ status: 200, body: overview }),
     });
     renderAt("/admin/rsvp");
-    expect(await screen.findByRole("heading", { name: "Rückmeldungen" })).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "Anmeldungen" })).toBeInTheDocument();
     expect(await screen.findAllByText("2 ja (2 Erwachsene) · 1 nein")).toHaveLength(2);
     expect(screen.getByText("Menüs (Dinner)")).toBeInTheDocument();
     const table = screen.getByRole("table");
@@ -552,7 +552,7 @@ describe("Rückmeldungen", () => {
   });
 });
 
-describe("Einstellungen › Rückmeldung", () => {
+describe("Einstellungen › Anmeldung", () => {
   const config = {
     deadline: "2027-05-01",
     songEnabled: true,
@@ -1119,7 +1119,7 @@ describe("Übersicht", () => {
     if (!card) throw new Error("the card has no section");
     const items = await within(card).findAllByRole("listitem");
     expect(items.map((item) => item.textContent)).toEqual([
-      expect.stringMatching(/^Erika Huber hat die Rückmeldung abgegeben/),
+      expect.stringMatching(/^Erika Huber hat die Anmeldung abgegeben/),
       expect.stringMatching(/^12 Einladungen erstellt/),
       expect.stringMatching(/^«Schnappschuss-Uploads» geändert/),
       expect.stringMatching(/^Erinnerung an 31 Gäste gesendet/),

@@ -11,7 +11,7 @@ import VersionFooter from "../app/VersionFooter.tsx";
 import { usePendingRequests } from "./pending.ts";
 import AdminSetupPage from "./AdminSetupPage.tsx";
 
-/** The number of companion requests waiting for a decision, next to "Rückmeldungen" (RSVP-09). */
+/** The number of companion requests waiting for a decision, next to "Anmeldungen" (RSVP-09). */
 function PendingBadge() {
   const { t } = useTranslation();
   const count = usePendingRequests();
@@ -23,7 +23,7 @@ function PendingBadge() {
   );
 }
 
-/** Later steps add their pages here (Rückmeldungen, Sitzplan, game world, Moderation). */
+/** Later steps add their pages here (Anmeldungen, Sitzplan, game world, Moderation). */
 const PAGES = [
   { to: "/admin", label: "admin.nav.home", end: true },
   { to: "/admin/invitations", label: "admin.nav.invitations", end: false },
