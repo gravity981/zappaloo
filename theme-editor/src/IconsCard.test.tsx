@@ -56,6 +56,7 @@ const image = (width: number, height: number, type = "image/png", name = "logo.p
 const png = (width: number, height: number, name = "icon.png") =>
   new File([fakePng(width, height)], name, { type: "image/png" });
 
+const iconsCard = () => screen.getByRole("region", { name: "Icons" });
 const choose = (file: File) => {
   fireEvent.change(screen.getByLabelText("Image for the icons"), { target: { files: [file] } });
 };
@@ -69,7 +70,7 @@ describe("theme package editor: icons (THM-10)", () => {
   it("[THM-10] starts without icons and asks for a square image", () => {
     render(<App />);
     expect(screen.getByText("Choose a square image")).toBeTruthy();
-    expect(screen.getAllByText("none")).toHaveLength(4);
+    expect(within(iconsCard()).getAllByText("none")).toHaveLength(4);
   });
 
   it("[THM-10] makes the four icons from one square image of at least 512 px", async () => {
@@ -95,7 +96,7 @@ describe("theme package editor: icons (THM-10)", () => {
     await screen.findByText(/at least 512 px \(it is 400 × 400\)/);
     choose(image(1024, 1024, "image/gif", "logo.gif"));
     await screen.findByText("logo.gif: use a PNG or JPEG image");
-    expect(screen.getAllByText("none")).toHaveLength(4);
+    expect(within(iconsCard()).getAllByText("none")).toHaveLength(4);
   });
 
   it("[THM-10] a new background makes the maskable icon again and leaves the others alone", async () => {

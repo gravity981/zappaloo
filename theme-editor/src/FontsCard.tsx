@@ -1,8 +1,9 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { THEME_LIMITS } from "@zappaloo/shared";
 import { convertFont, FontError } from "./api.ts";
 import { Card, Switch } from "./components.tsx";
 import { FAMILY, FONT_SLOTS, fontFileCount, roomForFiles, uniqueFileName } from "./model.ts";
+import type { Update } from "./model.ts";
 import type { DraftFont, DraftFontFile, FontSlot, ThemeDraft } from "./model.ts";
 
 const SLOT_TITLES: Record<FontSlot, string> = {
@@ -24,8 +25,10 @@ function kb(bytes: number): string {
 let nextId = 1;
 
 /** The card Fonts: body, heading and display, each off or a family with 1–4 files (THM-09). */
-export function FontsCard(props: { draft: ThemeDraft; onChange: (draft: ThemeDraft) => void }) {
+export function FontsCard(props: { draft: ThemeDraft; onChange: Update }) {
   const { draft, onChange } = props;
+  const latest = useRef(draft);
+  latest.current = draft;
   const [problems, setProblems] = useState<Partial<Record<FontSlot, string[]>>>({});
 
   function setFont(slot: FontSlot, font: DraftFont | null) {
@@ -33,30 +36,37 @@ export function FontsCard(props: { draft: ThemeDraft; onChange: (draft: ThemeDra
   }
 
   async function addFiles(slot: FontSlot, files: File[]) {
-    // Each file is converted on the development server; the suggestion of the first file names the
-    // family of a font that has none yet.
-    let current = draft;
+    // Each file is converted on the development server, which can take seconds. The draft may change
+    // meanwhile, so a finished file is added to the draft as it is then, not as it was at the start.
     const messages: string[] = [];
+    let room = roomForFiles(latest.current, slot);
     for (const file of files) {
-      if (roomForFiles(current, slot) === 0) {
+      if (room === 0) {
         messages.push(`${file.name}: a font has at most 4 files and a theme at most 8`);
         continue;
       }
       try {
         const { file: converted, suggestion } = await convertFont(file);
-        const entry: DraftFontFile = {
-          ...converted,
-          id: `f${String(nextId++)}`,
-          fileName: uniqueFileName(current, converted.fileName),
-          weight: suggestion.weight,
-          style: suggestion.style,
-        };
-        const existing = current.fonts[slot] ?? { family: "", files: [] };
-        const font = existing.family === "" ? { ...existing, family: suggestion.family } : existing;
-        current = {
-          ...current,
-          fonts: { ...current.fonts, [slot]: { ...font, files: [...font.files, entry] } },
-        };
+        room -= 1;
+        const id = `f${String(nextId++)}`;
+        onChange((current) => {
+          if (roomForFiles(current, slot) === 0) return current;
+          const entry: DraftFontFile = {
+            ...converted,
+            id,
+            fileName: uniqueFileName(current, converted.fileName),
+            weight: suggestion.weight,
+            style: suggestion.style,
+          };
+          // The first file names the family of a font that has none yet.
+          const existing = current.fonts[slot] ?? { family: "", files: [] };
+          const font =
+            existing.family === "" ? { ...existing, family: suggestion.family } : existing;
+          return {
+            ...current,
+            fonts: { ...current.fonts, [slot]: { ...font, files: [...font.files, entry] } },
+          };
+        });
       } catch (error) {
         if (error instanceof FontError) {
           messages.push(
@@ -68,7 +78,6 @@ export function FontsCard(props: { draft: ThemeDraft; onChange: (draft: ThemeDra
       }
     }
     setProblems((before) => ({ ...before, [slot]: messages }));
-    onChange(current);
   }
 
   const total = fontFileCount(draft);

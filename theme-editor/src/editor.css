@@ -1,6 +1,8 @@
 /* The layout of the editor around the admin styles of the app (frontend/src/app/ui.css). */
+/* The admin shell reserves a column for a navigation on wide screens; the editor has none. */
 .admin.editor {
-  grid-template-rows: auto 1fr;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: auto auto 1fr;
 }
 .editor .editor-main {
   max-width: 760px;
@@ -94,4 +96,125 @@
   outline: 1px dashed rgba(0, 0, 0, 0.4);
   border-radius: 50%;
   pointer-events: none;
+}
+
+/* The preview: the app's own styles inside a frame (THM-11). */
+.editor .editor-bar {
+  display: flex;
+  gap: 8px;
+  padding: 10px 16px;
+  background: var(--a-card);
+  border-bottom: 1px solid var(--a-line);
+}
+.editor .editor-main {
+  max-width: none;
+  margin: 0;
+  display: block;
+}
+.editor .editor-main[data-pane="edit"] .editor-preview,
+.editor .editor-main[data-pane="preview"] .editor-edit {
+  display: none;
+}
+.editor .editor-edit {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-width: 0;
+}
+.editor .preview {
+  border: 1px solid var(--a-line);
+  border-radius: 14px;
+  overflow: hidden;
+}
+.editor .preview-body {
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.editor .preview-block {
+  background: var(--a-card);
+  border: 1px solid var(--a-line);
+  border-radius: 12px;
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.editor .preview-hero {
+  aspect-ratio: 16 / 6;
+  background: var(--a-line);
+  border-radius: 8px;
+  display: grid;
+  place-items: center;
+  color: var(--a-muted);
+  font-size: 11px;
+}
+/* The waiting card sits on the dark door scene of the waiting page; here as a block, not fixed. */
+.editor .preview-door {
+  background: #2d2832;
+  border-radius: 12px;
+  padding: 16px;
+}
+.editor .preview-door .waiting-card {
+  position: static;
+  margin-inline: auto;
+}
+.editor .home-screen {
+  background: #3a4a5c;
+  border-radius: 18px;
+  padding: 16px;
+  display: flex;
+  gap: 18px;
+  justify-content: space-around;
+}
+.editor .home-app {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  color: #fff;
+  font-size: 11px;
+  min-width: 0;
+}
+.editor .home-icon {
+  width: 56px;
+  height: 56px;
+  overflow: hidden;
+  display: grid;
+  place-items: center;
+  background: rgba(255, 255, 255, 0.12);
+  border-radius: 13px;
+}
+.editor .home-icon.circle {
+  border-radius: 50%;
+}
+.editor .home-icon.squircle {
+  border-radius: 22px;
+}
+.editor .home-icon img {
+  display: block;
+}
+@media (min-width: 900px) {
+  .editor .editor-bar {
+    display: none;
+  }
+  .editor .editor-main {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 16px;
+    align-items: start;
+    padding: 20px 28px 48px;
+  }
+  .editor .editor-main[data-pane] .editor-edit,
+  .editor .editor-main[data-pane] .editor-preview {
+    display: flex;
+  }
+  .editor .editor-preview {
+    position: sticky;
+    top: 16px;
+    max-height: calc(100vh - 32px);
+    overflow: auto;
+    flex-direction: column;
+  }
 }

@@ -11,36 +11,41 @@ import {
 } from "./icons.ts";
 import type { IconSpec } from "./icons.ts";
 import { HEX } from "./model.ts";
-import type { DraftIcon, ThemeDraft } from "./model.ts";
+import type { DraftIcon, ThemeDraft, Update } from "./model.ts";
 
-/** Makes the icons that are not the icon's own from the source image. */
+/** Makes the icons from the source image, except the ones named in `skip` (icons of their own). */
 async function makeIcons(
-  draft: ThemeDraft,
   source: NonNullable<ThemeDraft["icons"]["source"]>,
   background: string,
-): Promise<Record<string, DraftIcon | undefined>> {
+  skip: ReadonlySet<string>,
+): Promise<Map<string, Uint8Array>> {
   const image = await decodeImage(source.bytes, source.mime);
   try {
-    const files: Record<string, DraftIcon | undefined> = { ...draft.icons.files };
+    const made = new Map<string, Uint8Array>();
     for (const spec of ICONS) {
-      if (files[spec.name]?.own === true) continue;
-      files[spec.name] = {
-        png: await renderIcon(image, spec, background),
-        own: false,
-      };
+      if (!skip.has(spec.name)) made.set(spec.name, await renderIcon(image, spec, background));
     }
-    return files;
+    return made;
   } finally {
     image.close();
   }
 }
 
 /** The card Icons: one square image makes the four icons; each can be replaced (THM-10). */
-export function IconsCard(props: { draft: ThemeDraft; onChange: (draft: ThemeDraft) => void }) {
+export function IconsCard(props: { draft: ThemeDraft; onChange: Update }) {
   const { draft, onChange } = props;
   const { icons } = draft;
   const [problem, setProblem] = useState<string | null>(null);
   const [problems, setProblems] = useState<Record<string, string | undefined>>({});
+
+  // The work below is asynchronous and the draft may change meanwhile, so each result is added to the
+  // draft as it is when the work is done (an update function), not as it was at the start.
+  function setIcon(name: string, icon: DraftIcon | undefined) {
+    onChange((current) => ({
+      ...current,
+      icons: { ...current.icons, files: { ...current.icons.files, [name]: icon } },
+    }));
+  }
 
   async function chooseSource(file: File) {
     setProblem(null);
@@ -59,34 +64,53 @@ export function IconsCard(props: { draft: ThemeDraft; onChange: (draft: ThemeDra
         return;
       }
       const source = { fileName: file.name, mime: file.type, bytes, width };
-      const files = await makeIcons(draft, source, icons.maskableBackground);
-      onChange({ ...draft, icons: { ...icons, source, files } });
+      const made = await makeIcons(
+        source,
+        icons.maskableBackground,
+        new Set(
+          ICONS.filter((spec) => icons.files[spec.name]?.own === true).map((spec) => spec.name),
+        ),
+      );
+      onChange((current) => {
+        const files = { ...current.icons.files };
+        for (const [name, png] of made) {
+          // an icon of its own stays
+          if (files[name]?.own !== true) files[name] = { png, own: false };
+        }
+        return { ...current, icons: { ...current.icons, source, files } };
+      });
     } catch {
       setProblem(`${file.name}: the image cannot be read`);
     }
   }
 
   async function setBackground(maskableBackground: string) {
-    if (icons.source === null || !HEX.test(maskableBackground)) {
-      onChange({ ...draft, icons: { ...icons, maskableBackground } });
-      return;
-    }
+    onChange((current) => ({ ...current, icons: { ...current.icons, maskableBackground } }));
     const maskable = ICONS.find((spec) => spec.maskable);
-    if (maskable === undefined || icons.files[maskable.name]?.own === true) {
-      onChange({ ...draft, icons: { ...icons, maskableBackground } });
+    if (
+      icons.source === null ||
+      maskable === undefined ||
+      !HEX.test(maskableBackground) ||
+      icons.files[maskable.name]?.own === true
+    ) {
       return;
     }
     const image = await decodeImage(icons.source.bytes, icons.source.mime);
     try {
       const png = await renderIcon(image, maskable, maskableBackground);
-      onChange({
-        ...draft,
-        icons: {
-          ...icons,
-          maskableBackground,
-          files: { ...icons.files, [maskable.name]: { png, own: false } },
-        },
-      });
+      onChange((current) =>
+        // only if this colour is still the chosen one and the icon is not the icon's own
+        current.icons.maskableBackground !== maskableBackground ||
+        current.icons.files[maskable.name]?.own === true
+          ? current
+          : {
+              ...current,
+              icons: {
+                ...current.icons,
+                files: { ...current.icons.files, [maskable.name]: { png, own: false } },
+              },
+            },
+      );
     } finally {
       image.close();
     }
@@ -96,11 +120,7 @@ export function IconsCard(props: { draft: ThemeDraft; onChange: (draft: ThemeDra
     const bytes = new Uint8Array(await file.arrayBuffer());
     const refusal = ownIconProblem(spec, bytes);
     setProblems((before) => ({ ...before, [spec.name]: refusal }));
-    if (refusal !== undefined) return;
-    onChange({
-      ...draft,
-      icons: { ...icons, files: { ...icons.files, [spec.name]: { png: bytes, own: true } } },
-    });
+    if (refusal === undefined) setIcon(spec.name, { png: bytes, own: true });
   }
 
   async function useGenerated(spec: IconSpec) {
@@ -109,18 +129,14 @@ export function IconsCard(props: { draft: ThemeDraft; onChange: (draft: ThemeDra
     try {
       const png = await renderIcon(image, spec, icons.maskableBackground);
       setProblems((before) => ({ ...before, [spec.name]: undefined }));
-      onChange({
-        ...draft,
-        icons: { ...icons, files: { ...icons.files, [spec.name]: { png, own: false } } },
-      });
+      setIcon(spec.name, { png, own: false });
     } finally {
       image.close();
     }
   }
 
   function remove(spec: IconSpec) {
-    const files = { ...icons.files, [spec.name]: undefined };
-    onChange({ ...draft, icons: { ...icons, files } });
+    setIcon(spec.name, undefined);
   }
 
   return (

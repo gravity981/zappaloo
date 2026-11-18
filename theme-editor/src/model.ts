@@ -1,5 +1,6 @@
 // The draft of a theme in the editor (sw-architecture.md 19.7.1): what the controls change. The
 // fields mirror `theme.json` and `manifest.json`; the font files are kept as WOFF2 bytes.
+import type { Dispatch, SetStateAction } from "react";
 import {
   THEME_COLOR_KEYS,
   THEME_LIMITS,
@@ -7,6 +8,9 @@ import {
   themeContrastChecks,
 } from "@zappaloo/shared";
 import type { ContrastCheck, ThemeColorKey, WaitingColorKey } from "@zappaloo/shared";
+
+/** How a card changes the draft: a new draft, or a function of the current one (for work that finishes later). */
+export type Update = Dispatch<SetStateAction<ThemeDraft>>;
 
 export type FontSlot = "body" | "heading" | "display";
 export const FONT_SLOTS: readonly FontSlot[] = ["body", "heading", "display"];

@@ -2,7 +2,7 @@ import { THEME_COLOR_KEYS, WAITING_COLOR_KEYS } from "@zappaloo/shared";
 import type { ThemeColorKey, WaitingColorKey } from "@zappaloo/shared";
 import { Card, ColorField, Switch } from "./components.tsx";
 import { contrastChecks } from "./model.ts";
-import type { ThemeDraft } from "./model.ts";
+import type { ThemeDraft, Update } from "./model.ts";
 
 const COLOR_HINTS: Record<ThemeColorKey, string> = {
   background: "the page",
@@ -22,7 +22,7 @@ const WAITING_HINTS: Record<WaitingColorKey, string> = {
 };
 
 /** The cards Colours, Contrast check and Waiting card (THM-09). */
-export function ColoursCards(props: { draft: ThemeDraft; onChange: (draft: ThemeDraft) => void }) {
+export function ColoursCards(props: { draft: ThemeDraft; onChange: Update }) {
   const { draft, onChange } = props;
   const checks = contrastChecks(draft);
   return (

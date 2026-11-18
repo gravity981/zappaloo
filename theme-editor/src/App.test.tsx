@@ -7,15 +7,15 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-const hex = (label: string) => screen.getByLabelText(`${label} (#rrggbb)`);
+const hex = (label: string) => screen.getByLabelText<HTMLInputElement>(`${label} (#rrggbb)`);
 const contrastCard = () => screen.getByRole("region", { name: "Contrast check" });
 
 describe("theme package editor: name and colours (THM-09)", () => {
   it("[THM-09] shows the editor's title and starts from the platform's default colours", () => {
     render(<App />);
     expect(screen.getByText("Theme package editor")).toBeTruthy();
-    expect((hex("background") as HTMLInputElement).value).toBe("#f4f4f1");
-    expect((hex("accent") as HTMLInputElement).value).toBe("#2a2a28");
+    expect(hex("background").value).toBe("#f4f4f1");
+    expect(hex("accent").value).toBe("#2a2a28");
   });
 
   it("[THM-09] takes the name, at most 60 characters", () => {
@@ -42,7 +42,7 @@ describe("theme package editor: name and colours (THM-09)", () => {
   it("[THM-09] the colour picker and the field change the same colour", () => {
     render(<App />);
     fireEvent.change(screen.getByLabelText("accent (picker)"), { target: { value: "#7a3b2e" } });
-    expect((hex("accent") as HTMLInputElement).value).toBe("#7a3b2e");
+    expect(hex("accent").value).toBe("#7a3b2e");
   });
 
   it("[THM-09] checks the waiting card's two pairs only with its own colours switched on", () => {
@@ -92,6 +92,38 @@ describe("theme package editor: fonts (THM-09)", () => {
     fireEvent.click(screen.getByRole("button", { name: "Remove Lora-Bold.woff2" }));
     expect(screen.queryByText("Lora-Bold.woff2")).toBeNull();
     expect(screen.getByText("0 of 8 files")).toBeTruthy();
+  });
+
+  it("[THM-09] changes made while a font is being converted are kept when the font arrives", async () => {
+    let finish: (value: unknown) => void = () => undefined;
+    const slowFetch = vi.fn(
+      () =>
+        new Promise((resolve) => {
+          finish = resolve;
+        }),
+    );
+    vi.stubGlobal("fetch", slowFetch);
+    render(<App />);
+    fireEvent.click(screen.getByRole("switch", { name: "Body font" }));
+    fireEvent.change(screen.getByLabelText("Add Body font file"), {
+      target: { files: [new File(["x"], "Lora-Bold.otf")] },
+    });
+    await vi.waitFor(() => {
+      expect(slowFetch).toHaveBeenCalled();
+    });
+    // the conversion takes a while: the colours, the name and the waiting card change meanwhile
+    fireEvent.change(hex("accent"), { target: { value: "#7a3b2e" } });
+    fireEvent.change(screen.getByLabelText("Name of the theme package"), {
+      target: { value: "Sommerfest" },
+    });
+    fireEvent.click(screen.getByRole("switch", { name: "Own waiting card colours" }));
+    finish(fontResponse("Lora-Bold.woff2", "Lora", true));
+    await screen.findByText("Lora-Bold.woff2");
+    expect(hex("accent").value).toBe("#7a3b2e");
+    expect(screen.getByLabelText<HTMLInputElement>("Name of the theme package").value).toBe(
+      "Sommerfest",
+    );
+    expect(screen.getByLabelText("waiting card (#rrggbb)")).toBeTruthy();
   });
 
   it("[THM-09] a refused font shows the validator's finding and is not added", async () => {
