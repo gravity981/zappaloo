@@ -3,7 +3,11 @@
 // for every route.
 import fp from "fastify-plugin";
 import { z } from "zod";
-import { avatarRequestSchema, avatarResponseSchema } from "@zappaloo/shared";
+import {
+  avatarRequestSchema,
+  avatarResponseSchema,
+  guestFiguresResponseSchema,
+} from "@zappaloo/shared";
 import type { FastifyPluginAsyncZod } from "fastify-type-provider-zod";
 import { AvatarError } from "../world/avatar.ts";
 import type { AvatarService } from "../world/avatar.ts";
@@ -28,6 +32,16 @@ const avatarPlugin: FastifyPluginAsyncZod<AvatarOptions> = (app, { avatar, world
       schema: { querystring: noQuery, response: { 200: avatarResponseSchema } },
     },
     (request) => avatar.persons(signedIn(request).user),
+  );
+
+  // The figures of the attending guests that wander the maps (PRES-01, PRES-04): signed-in users only.
+  app.get(
+    "/api/world/guests",
+    {
+      preHandler: [requireUser, access],
+      schema: { querystring: noQuery, response: { 200: guestFiguresResponseSchema } },
+    },
+    (request) => ({ guests: avatar.guests(signedIn(request).user) }),
   );
 
   app.put(

@@ -88,7 +88,7 @@ All active requirements are listed here until their stage is delivered. Shrink t
 |---|---|---|
 | GAME | GAME-31 – GAME-41 | 11 |
 | MAP | MAP-20, MAP-21 | 2 |
-| PRES | PRES-01, PRES-02, PRES-04 – PRES-06, PRES-08 – PRES-10, PRES-12 – PRES-15 | 12 |
+| PRES | PRES-05, PRES-06, PRES-09, PRES-10, PRES-12 – PRES-15 | 8 |
 | HUNT | HUNT-01 – HUNT-07 | 7 |
 | MG | MG-01 – MG-13 | 13 |
 | WEB | WEB-05, WEB-06 | 2 |
@@ -100,7 +100,7 @@ All active requirements are listed here until their stage is delivered. Shrink t
 | OPS | OPS-13 | 1 |
 | SEC | SEC-04, SEC-06 – SEC-08 | 4 |
 | PERF | PERF-01, PERF-03, PERF-04 | 3 |
-| **Total** | | **87** |
+| **Total** | | **83** |
 
 The stage each requirement belongs to is listed in `sw-architecture.md`, section 28.
 
@@ -109,7 +109,7 @@ The stage each requirement belongs to is listed in `sw-architecture.md`, section
 - ACS-05: the treasure-hunt condition (step 8d); the admin page for manual releases, with the step that stores access conditions (step 8d, HUNT-05; pages carry none in stage 4, decided 2026-11-13).
 - ACS-07: server checks for protected game areas (step 8d; stage 5 checks only sign-in, the open platform and guest access, decided 2026-11-17), contribution upload (7b), moderation (7c), minigame start and result submission (8b).
 - PRES-07 (tagged in `frontend/src/avatar/avatar.test.tsx`): the accompanying persons' figures, chosen by the VIP in the avatar editor, are done in step 5h; their seats and the table finder come with their own steps.
-- AVA-04: the player's own figure in the game is done in step 5h; the wandering figures of the other guests come with stage 6.
+- AVA-04: the player's own figure in the game is done in step 5h; the wandering figures of the other guests came with story 6a.
 - GAME-06 and MAP-15 (from step 5f on, decided 2026-11-17): the action `minigame` (stage 8; a preset `minigame` is reported at import and does nothing, and the admin cannot assign it). A content page is linked as a page and runs from step 5f; the action `dialog` comes with step 6d (dialogues moved there on 2026-11-17), and until then the game shows a short note.
 - GAME-13 and GAME-14 (from step 5i on, decided 2026-11-17): the step "Say hello" (profile photo, greeting, "How I know the couple"; stage 6) and the button "Hochladen" (stage 7).
 - CNT-02 (from stage 4 on, decided 2026-11-13): dialogues and NPC texts (5d), photo albums (7d). Unlock conditions are covered by ACS-05.

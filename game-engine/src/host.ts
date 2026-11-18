@@ -1,4 +1,5 @@
-import type { WorldObjectAction } from "@zappaloo/shared";
+import type { GuestFigure, WorldObjectAction } from "@zappaloo/shared";
+import type { GuestState } from "./guest-crowd.ts";
 import type { LoadedWorld } from "./world-data.ts";
 import type { Point } from "./geometry.ts";
 
@@ -45,6 +46,8 @@ export interface GameState {
   entries: number;
   /** The camera: the map point at its centre, its zoom, and its size in game pixels (the canvas). */
   view: { x: number; y: number; zoom: number; width: number; height: number };
+  /** The wandering guest figures of this map (test hook, PRES-01). */
+  guests: GuestState[];
 }
 
 export type GameStateReader = () => GameState;
@@ -85,6 +88,8 @@ export interface GameEngineOptions {
   texts?: GameTexts;
   /** The game preview cannot assign actions: it gives every clickable object but an easter egg an edge indicator (GAME-26). */
   indicateAllObjects?: boolean;
+  /** The figures of the attending guests that wander the maps (PRES-01); each walks on the map its id picks (PRES-02). */
+  guests?: readonly GuestFigure[];
   /** Shows the development diagnostics overlay (GAME-27); never set in a production build. */
   diagnostics?: boolean;
 }

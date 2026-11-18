@@ -5,6 +5,8 @@
 import Phaser from "phaser";
 import { walkable, cellOf, playerCollisionEllipse } from "./collision.ts";
 import { walkFrameIndex } from "./figures.ts";
+import { GuestCrowd } from "./guest-crowd.ts";
+import type { GuestFigure } from "@zappaloo/shared";
 import { figureDepth, figureOcclusionSegment, occlusionSegmentRelation } from "./draw-order.ts";
 import { interiorPoint, mapBounds, type Point, polygonCentre, tileToPixel } from "./geometry.ts";
 import { cellKey, findPath, reachableCells, type Cell, type Grid } from "./pathfinding.ts";
@@ -199,6 +201,9 @@ export class WorldScene extends Phaser.Scene {
   #flash = true;
   /** The shadow under the player's figure (GAME-28). */
   #shadow: Phaser.GameObjects.Ellipse | undefined;
+  /** The wandering guest figures of the map (PRES-01). */
+  #crowd: GuestCrowd | undefined;
+  #guests: readonly GuestFigure[] = [];
   /** The edge indicators over the canvas and the objects they may point to (GAME-26). */
   #indicatorLayer: EdgeIndicatorLayer | undefined;
   #indicatorSources: IndicatorSource[] = [];
@@ -261,6 +266,8 @@ export class WorldScene extends Phaser.Scene {
     this.#glows = new Map();
     this.#portalGlows.clear();
     this.#shadow = undefined;
+    this.#crowd = undefined;
+    this.#guests = options.guests ?? [];
     this.#indicatorLayer?.destroy();
     this.#indicatorLayer = undefined;
     this.#indicatorSources = [];
@@ -309,6 +316,17 @@ export class WorldScene extends Phaser.Scene {
       sprite.setDepth(figureDepth(this.#position, map.occluders, map.size.width));
       this.#player = sprite;
       this.#createShadow(map, sprite);
+      if (this.#world !== undefined) {
+        this.#crowd = new GuestCrowd(
+          this,
+          map,
+          this.#world,
+          this.#navigationOf(map).grid,
+          this.#guests,
+          CAMERA_ZOOM,
+          () => this.#pixelRatio(),
+        );
+      }
       this.#createMarker(map);
       // The camera does not follow by itself: it is centred on the snapped sprite in update() (GAME-27).
       this.cameras.main.setRoundPixels(true);
@@ -341,6 +359,7 @@ export class WorldScene extends Phaser.Scene {
         sparkles: this.#sparkles,
         walk: { marker: this.#feedback.marker ?? null, glow: this.#feedback.glow ?? null },
         glows: this.#glows.size,
+        guests: this.#crowd?.states ?? [],
         entries: (this.game.registry.get(ENTRIES_REGISTRY_KEY) as number | undefined) ?? 0,
         view: {
           // In CSS pixels, whatever the pixel ratio of the canvas is.
@@ -660,6 +679,7 @@ export class WorldScene extends Phaser.Scene {
     const isWalkable = (point: Point) =>
       walkable(map.obstacles, playerCollisionEllipse(point, size.width));
     const step = (size.width * SPEED_TILES_PER_SECOND * delta) / 1000;
+    this.#crowd?.update(delta);
 
     // The keys win over a walk to a point. Otherwise the walk heads for its next waypoint, skipping the ones reached.
     let move = keyDirection(this.#keys());

@@ -45,6 +45,7 @@ rate on the phone.
 - Or enter an absolute path under **Local world package** and select
   **Preview and watch**. **Stop watching** leaves the current preview running.
 - Use **Map**, **Spawn**, and **Figure** to choose the scene.
+- The preview has no guests, so it shows two sample figures with made-up names (`Guest 1`, …) in the wander areas of every map that has one; they check the areas and their collisions (PRES-02).
 - Expand **Guides and view** to toggle collision, border, spawn, portal,
   and grid guides, or **Artwork only** to hide gameplay elements.
 - Set zoom to 1×, 2×, or 3×. **Reset camera** returns the scene to the selected

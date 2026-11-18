@@ -15,6 +15,7 @@ declare global {
               glows: number;
               entries: number;
               view: { x: number; y: number; zoom: number; width: number; height: number };
+              guests: { id: string; name: string; x: number; y: number; moving: boolean }[];
             }
           | undefined;
         renderStack: () => { type: string; depth: number }[];

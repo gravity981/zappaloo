@@ -11,7 +11,8 @@ import {
   type GameInstance,
   type LoadedWorld,
 } from "@zappaloo/game-engine";
-import { avatarResponseSchema } from "@zappaloo/shared";
+import { avatarResponseSchema, guestFiguresResponseSchema } from "@zappaloo/shared";
+import type { GuestFigure } from "@zappaloo/shared";
 import { apiRequest } from "../app/api.ts";
 import { exposeGame, exposeState } from "./test-hook.ts";
 import { rememberedMap, rememberMap } from "./map-preference.ts";
@@ -24,11 +25,18 @@ async function ownFigure(): Promise<string | undefined> {
   return result.ok && parsed.success ? (parsed.data.persons[0]?.figure ?? undefined) : undefined;
 }
 
+/** The figures of the attending guests (PRES-01); none when they cannot be read, so the world still opens. */
+async function guestFigures(): Promise<GuestFigure[]> {
+  const result = await apiRequest("GET", "/api/world/guests");
+  const parsed = guestFiguresResponseSchema.safeParse(result.body);
+  return result.ok && parsed.success ? parsed.data.guests : [];
+}
+
 type Status =
   | { kind: "loading" }
   | { kind: "none" }
   | { kind: "failed" }
-  | { kind: "ready"; world: LoadedWorld; figure: string | undefined };
+  | { kind: "ready"; world: LoadedWorld; figure: string | undefined; guests: GuestFigure[] };
 
 /**
  * The game. The page above it (GAME-11) belongs to the parent: `paused` stands the game still while a page is open,
@@ -60,10 +68,12 @@ export default function GameCanvas({
   useEffect(() => {
     let active = true;
     // The world, and the figure the player chose in the avatar editor (AVA-04); without one, the world's first.
-    Promise.all([loadWorld(), ownFigure()]).then(
-      ([world, figure]) => {
+    Promise.all([loadWorld(), ownFigure(), guestFigures()]).then(
+      ([world, figure, guests]) => {
         if (active) {
-          setStatus(world === undefined ? { kind: "none" } : { kind: "ready", world, figure });
+          setStatus(
+            world === undefined ? { kind: "none" } : { kind: "ready", world, figure, guests },
+          );
         }
       },
       () => {
@@ -88,6 +98,7 @@ export default function GameCanvas({
     const instance = createGame({
       parent: parent.current,
       world: status.world,
+      guests: status.guests,
       host: {
         selection: { ...selection, ...(figureId === undefined ? {} : { figureId }) },
         rememberMap: (mapId) => {

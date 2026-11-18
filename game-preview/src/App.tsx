@@ -1,5 +1,6 @@
 import {
   createGame,
+  sampleGuests,
   setGameDiagnostics,
   setGamePaused,
   setGameGuides,
@@ -203,6 +204,8 @@ export default function App() {
         diagnostics: diagnostics.current,
         // The preview cannot assign actions, so it shows an indicator for every clickable object (GAME-26).
         indicateAllObjects: true,
+        // It has no guests either: sample figures show the wander areas (PRES-02).
+        guests: sampleGuests(loadedPreview.world),
         texts: { loading: "Loading…" },
         guides: guides.current,
         view: view.current,

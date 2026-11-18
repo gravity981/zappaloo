@@ -1,8 +1,15 @@
 // The avatar editor's API (AVA-01, AVA-02; sw-architecture.md 7.3): which figures a person may choose by the tiers
 // and the roles, the choice, the fallback, and the companions.
 import { afterEach, describe, expect, it } from "vitest";
-import type { AvatarResponse, Role } from "@zappaloo/shared";
-import { companions } from "../database/schema.ts";
+import { eq } from "drizzle-orm";
+import type { AvatarResponse, GuestFiguresResponse, Role } from "@zappaloo/shared";
+import {
+  companionAttendance,
+  companions,
+  memberships,
+  programItems,
+  rsvpAttendance,
+} from "../database/schema.ts";
 import { createTestApp, signIn } from "../test-support.ts";
 import type { TestContext } from "../test-support.ts";
 import { buildArchive } from "../packages/build.ts";
@@ -169,5 +176,128 @@ describe("the avatar editor's figures (AVA-01, AVA-02)", () => {
   it("[AVA-01] the editor needs a signed-in user", async () => {
     const { ctx } = await setup();
     expect((await ctx.app.inject({ url: "/api/avatar" })).statusCode).toBe(401);
+  });
+});
+
+describe("the wandering guest figures (PRES-01, PRES-04, AVA-04)", () => {
+  const guests = async (ctx: TestContext, headers: Headers) =>
+    (await ctx.app.inject({ url: "/api/world/guests", headers })).json<GuestFiguresResponse>();
+
+  /** One program item and yes answers of the given persons (the RSVP wizard writes the same rows). */
+  function answer(
+    ctx: TestContext,
+    answers: { userId?: number; companionId?: number; yes: boolean }[],
+  ) {
+    const { db } = ctx.database;
+    const item = db
+      .insert(programItems)
+      .values({ eventId: "event1", name: "Trauung", createdAt: new Date() })
+      .returning({ id: programItems.id })
+      .get().id;
+    for (const entry of answers) {
+      if (entry.userId !== undefined) {
+        db.insert(rsvpAttendance)
+          .values({
+            eventId: "event1",
+            userId: entry.userId,
+            programItemId: item,
+            attending: entry.yes,
+          })
+          .run();
+      }
+      if (entry.companionId !== undefined) {
+        db.insert(companionAttendance)
+          .values({
+            eventId: "event1",
+            companionId: entry.companionId,
+            programItemId: item,
+            attending: entry.yes,
+          })
+          .run();
+      }
+    }
+  }
+
+  const addCompanion = (
+    ctx: TestContext,
+    hostUserId: number,
+    name: string,
+    figure: string | null,
+  ) =>
+    ctx.database.db
+      .insert(companions)
+      .values({
+        eventId: "event1",
+        hostUserId,
+        name,
+        status: "approved",
+        avatarFigure: figure,
+        createdAt: new Date(),
+      })
+      .returning({ id: companions.id })
+      .get().id;
+
+  it("[PRES-01][AVA-04] lists attending persons and approved companions with their chosen figure, not the signed-in user", async () => {
+    const { ctx } = await setup();
+    const anna = await userWith(ctx, "anna", ["vip"]);
+    const bert = await userWith(ctx, "bert", ["vip"]);
+    const annaId = await idOf(ctx, anna);
+    const bertId = await idOf(ctx, bert);
+    expect((await put(ctx, anna, "me", "kid")).statusCode).toBe(200);
+    expect((await put(ctx, bert, "me", "male-guest")).statusCode).toBe(200);
+    const mia = addCompanion(ctx, bertId, "Mia", "wedding-guest");
+    answer(ctx, [
+      { userId: annaId, yes: true },
+      { userId: bertId, yes: true },
+      { companionId: mia, yes: true },
+    ]);
+    const seenByAnna = await guests(ctx, anna);
+    expect(seenByAnna.guests).toEqual([
+      { id: `u${String(bertId)}`, name: "bert", figure: "male-guest" },
+      { id: `c${String(mia)}`, name: "Mia", figure: "wedding-guest" },
+    ]);
+    // Bert's own companion stays in his list; only his own figure is left out.
+    expect((await guests(ctx, bert)).guests.map((guest) => guest.name)).toEqual(["anna", "Mia"]);
+  });
+
+  it("[PRES-01] a person who said no, did not answer, or has no figure does not appear", async () => {
+    const { ctx } = await setup();
+    const viewer = await userWith(ctx, "viewer", ["vip"]);
+    const no = await userWith(ctx, "nein", ["vip"]);
+    const silent = await userWith(ctx, "still", ["vip"]);
+    const plain = await userWith(ctx, "ohne", ["vip"]);
+    const noId = await idOf(ctx, no);
+    const plainId = await idOf(ctx, plain);
+    await put(ctx, no, "me", "kid");
+    await put(ctx, silent, "me", "kid");
+    const hostId = await idOf(ctx, viewer);
+    const noCompanion = addCompanion(ctx, hostId, "Absage", "kid");
+    const noFigure = addCompanion(ctx, hostId, "Ohne Figur", null);
+    answer(ctx, [
+      { userId: noId, yes: false },
+      { userId: plainId, yes: true },
+      { companionId: noCompanion, yes: false },
+      { companionId: noFigure, yes: true },
+    ]);
+    expect((await guests(ctx, viewer)).guests).toEqual([]);
+  });
+
+  it("[PRES-01] a figure that the active world no longer has is left out", async () => {
+    const { ctx } = await setup();
+    const viewer = await userWith(ctx, "viewer", ["vip"]);
+    const old = await userWith(ctx, "alt", ["vip"]);
+    const oldId = await idOf(ctx, old);
+    ctx.database.db
+      .update(memberships)
+      .set({ avatarFigure: "gibt-es-nicht" })
+      .where(eq(memberships.userId, oldId))
+      .run();
+    answer(ctx, [{ userId: oldId, yes: true }]);
+    expect((await guests(ctx, viewer)).guests).toEqual([]);
+  });
+
+  it("[PRES-04] the figures are for signed-in users only", async () => {
+    const { ctx } = await setup();
+    expect((await ctx.app.inject({ url: "/api/world/guests" })).statusCode).toBe(401);
   });
 });

@@ -519,3 +519,47 @@ test("[MAP-19] an admin switches guest access off and on again in Welt & Import;
     "true",
   );
 });
+
+test("[PRES-01][PRES-02][PRES-04][PRES-08][AVA-04] the figures of the attending guests wander the wander areas of one map each, with their name tags, and the player keeps their own avatar", async ({
+  page,
+  context,
+}, testInfo) => {
+  test.skip(testInfo.project.name !== "desktop-chromium", "shared settings: one profile only");
+  // The other guests come from the server (covered by its tests); here twelve of them are given to the browser.
+  const guests = Array.from({ length: 12 }, (_, index) => ({
+    id: `u${String(100 + index)}`,
+    name: `Gast ${String(index + 1)}`,
+    figure: "wedding-guest",
+  }));
+  await page.route("**/api/world/guests", (route) => route.fulfill({ json: { guests } }));
+  await signInAsAdmin(page, context);
+  await enterGame(page);
+  await expect(page.getByTestId("game-canvas")).toBeVisible({ timeout: 20_000 });
+  expect((await gameState(page)).guests).toEqual([]);
+
+  // The test world has wander areas on two maps (garten, saal), none on the start map: every guest is on one of them.
+  const names: string[] = [];
+  for (const mapId of ["garten", "saal"]) {
+    await page.evaluate((id) => window.__zappaloo?.game?.selectSpawn(id, "start"), mapId);
+    await page.waitForFunction((id) => window.__zappaloo?.game?.state()?.mapId === id, mapId);
+    const state = await gameState(page);
+    names.push(...state.guests.map((guest) => guest.name));
+  }
+  expect(names.sort()).toEqual(guests.map((guest) => guest.name).sort());
+  // The figures walk: after a while one of them has moved (they wait 0 to 8 s first, and 3 to 8 s between walks).
+  const before = (await gameState(page)).guests;
+  expect(before.length).toBeGreaterThan(0);
+  await expect
+    .poll(
+      async () => {
+        const now = (await gameState(page)).guests;
+        return now.some((guest) => {
+          const was = before.find((item) => item.id === guest.id);
+          return was !== undefined && (was.x !== guest.x || was.y !== guest.y);
+        });
+      },
+      { timeout: 25_000 },
+    )
+    .toBe(true);
+  await page.screenshot({ path: testInfo.outputPath("game-guests.png") });
+});

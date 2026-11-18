@@ -43,6 +43,8 @@ generated package-format documentation is derived from
   it does not extend below the feet. The same point is used for actor depth
   and portal checks.
 
+**Guest figures** (PRES-01, PRES-02): the host gives the engine `guests` (id, name, figure id). Each guest walks on the map that the hash of its id picks among the maps with a wander area (`guestMapOf`), to random reachable points of the wander areas, at a quarter of the player's speed (`GUEST_SPEED_FACTOR`), and waits 3–8 s between walks. The name tag is drawn above the figure. The preview passes `sampleGuests(world)`.
+
 The preview's **Collision**, **Border**, **Spawn**, and **Portal** guides
 visualize gameplay geometry. Renderer geometry and package constraints are
 covered by independent engine and validator tests; no Tiled executable is

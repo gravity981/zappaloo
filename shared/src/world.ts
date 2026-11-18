@@ -558,3 +558,18 @@ export type AvatarResponse = z.infer<typeof avatarResponseSchema>;
 
 /** `PUT /api/avatar/:person`. */
 export const avatarRequestSchema = z.strictObject({ figure: idSchema });
+
+/**
+ * One wandering guest figure (PRES-01): `id` is stable (`u<user id>` or `c<companion id>`) and seeds the map pick
+ * (PRES-02), `name` is the name tag, `figure` the id of the chosen figure.
+ */
+export const guestFigureSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  figure: idSchema,
+});
+export type GuestFigure = z.infer<typeof guestFigureSchema>;
+
+/** `GET /api/world/guests`: the figures of the attending guests, the signed-in user's own left out (PRES-01). */
+export const guestFiguresResponseSchema = z.object({ guests: z.array(guestFigureSchema) });
+export type GuestFiguresResponse = z.infer<typeof guestFiguresResponseSchema>;

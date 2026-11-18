@@ -2,7 +2,7 @@
 
 | Status | Release | Depends on | Branch |
 |---|---|---|---|
-| refined | Opening (completes it) | 5 | `feature/epic-6-living-world` |
+| ready | Opening (completes it) | 5 | `feature/epic-6-living-world` |
 
 [Roadmap](../roadmap.md) · [How we work on epics](../README.md)
 
@@ -16,7 +16,7 @@ Stories marked **Tiled world project** need changes in the external project that
 - Seating plan of the first event, at least as test data.
 - For 6e – 6h: a world package of format version 3 from the Tiled world project with a border, a bird, an animated fountain and at least one NPC with a path and a wave animation (can be made while 6e – 6g are built; the test world of the repository covers the tests).
 
-**Status refined (2026-11-18):** waits for the project owner to confirm that the preconditions above are met.
+**Status ready (2026-11-18):** the project owner confirmed the preconditions: the seating plan is test data, the world package of format version 3 is confirmed, epic 5 is done.
 
 **Decisions** (2026-11-18, with the project owner):
 1. **World format version 3.** World format version 2 is released (v2.0.0). NPCs, the tier `npc`, the wave animation, tile animations, the map switches and the bird change the format, so they come as format version 3. The platform keeps reading version 2 packages unchanged (sw-architecture.md 14.4).
@@ -43,6 +43,13 @@ Stories marked **Tiled world project** need changes in the external project that
 
 **Tiled world project:** wander areas (`type = wander`) on the maps.
 Figures of attending guests in the wander areas of one map per guest (picked at random, kept per guest); own avatar instead of own figure; simulated per device.
+Decided 2026-11-18 (refinement of 6a):
+
+- **Map pick:** derived, not stored: every device hashes the guest id (`u<user id>`, `c<companion id>`) over the maps that have at least one wander area (sorted by id), so the pick is the same everywhere. No column, no migration; a new world package with other maps may move guests.
+- **Behaviour:** a figure walks to a random reachable point inside a wander area with the existing pathfinding and collisions, at a quarter of the player's speed (changed the same day) with the walk animation, waits 3–8 s and repeats. NPCs (6g) walk at the same speed (decision 7: "the speed of the guest figures").
+- **Name tag:** the white pill of the edge-indicator labels above the figure's head, with the person's display name.
+- **Game preview:** it has no guests, so it shows a few sample figures of the world with made-up names in the wander areas, to check areas and collisions.
+- The signed-in user's companions appear as figures; only the user's own figure is replaced by the avatar.
 Requirements: PRES-01, PRES-02, PRES-04, PRES-08, AVA-04.
 
 ### Story 6b – Profiles and speech bubble

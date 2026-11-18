@@ -96,6 +96,8 @@ export interface ParsedMap {
   obstacles: Obstacles;
   spawns: Map<string, Point>;
   portals: PortalArea[];
+  /** The wander areas (`type = wander`) in the map's pixel space, where guest figures walk (PRES-02). */
+  wanders: Point[][];
   clickables: ClickableArea[];
   /** The number of tile layers that are drawn (for the tests and the test hook). */
   drawnLayers: number;
@@ -304,6 +306,7 @@ export function parseMap(id: string, json: unknown): ParsedMap {
   const occluders: Occluder[] = [];
   const solids: Point[][] = [];
   const borders: Point[][] = [];
+  const wanders: Point[][] = [];
   const spawns = new Map<string, Point>();
   const portals: PortalArea[] = [];
   const clickables: (Omit<ClickableArea, "approach"> & { approachName?: string })[] = [];
@@ -365,6 +368,8 @@ export function parseMap(id: string, json: unknown): ParsedMap {
         points.set(object.name, toScreen(object.x, object.y));
       } else if (type === "clickable" && polygon !== undefined) {
         clickables.push(clickableOf(object, polygon));
+      } else if (type === "wander" && polygon !== undefined) {
+        wanders.push(polygon);
       } else if (type === "border" && polygon !== undefined) {
         borders.push(polygon);
       } else if (type === "collision" && polygon !== undefined) {
@@ -386,6 +391,7 @@ export function parseMap(id: string, json: unknown): ParsedMap {
     obstacles: { size, columns: map.width, rows: map.height, blockedCells, solids, borders },
     spawns,
     portals,
+    wanders,
     clickables: clickables.map(({ approachName, ...clickable }) => ({
       ...clickable,
       approach:

@@ -25,4 +25,6 @@ export type {
 } from "./host.ts";
 export { prepareWorld } from "./world-data.ts";
 export type { FigureData, LoadedWorld, WorldSource } from "./world-data.ts";
+export { sampleGuests } from "./wander.ts";
+export type { GuestState } from "./guest-crowd.ts";
 export type { ClickableArea, ParsedMap, TileDraw, TileImage } from "./map-model.ts";

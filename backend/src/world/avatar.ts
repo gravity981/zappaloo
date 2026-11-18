@@ -2,16 +2,23 @@
 // that applies, and the choice. The figure's tier decides who may choose it: tier1 for vip, tier2 for staff, tier3
 // for admin; exact, and the union for several roles. Accompanying persons always choose from tier1. The server
 // checks the choice, not only the editor.
-import { and, eq } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 import { WORLD_ROLE_TIERS } from "@zappaloo/shared";
 import type {
   AvatarFigure,
   AvatarResponse,
+  GuestFigure,
   Role,
   WorldFigure,
   WorldFigureTier,
 } from "@zappaloo/shared";
-import { companions, memberships } from "../database/schema.ts";
+import {
+  companionAttendance,
+  companions,
+  memberships,
+  rsvpAttendance,
+  users,
+} from "../database/schema.ts";
 import type { Database } from "../database/database.ts";
 import type { EventService } from "../event/service.ts";
 import type { WorldService } from "./service.ts";
@@ -126,6 +133,79 @@ export class AvatarService {
         })),
       ],
     };
+  }
+
+  /**
+   * The figures of the attending guests (PRES-01): every person with an active account, and every approved
+   * companion, who answered yes for at least one program item and chose a figure that the active world still has.
+   * The signed-in user's own figure is left out (they see their avatar); their companions stay.
+   */
+  guests(user: AvatarUser): GuestFigure[] {
+    const known = new Set((this.#world.active()?.figures ?? []).map((figure) => figure.id));
+    const eventId = this.#event.eventId;
+    const { db } = this.#database;
+    const userIds = [
+      ...new Set(
+        db
+          .select({ id: rsvpAttendance.userId })
+          .from(rsvpAttendance)
+          .where(and(eq(rsvpAttendance.eventId, eventId), eq(rsvpAttendance.attending, true)))
+          .all()
+          .map((row) => row.id),
+      ),
+    ].filter((id) => id !== user.id);
+    const guests: GuestFigure[] =
+      userIds.length === 0
+        ? []
+        : db
+            .select({ id: users.id, name: users.displayName, figure: memberships.avatarFigure })
+            .from(memberships)
+            .innerJoin(users, eq(users.id, memberships.userId))
+            .where(
+              and(
+                eq(memberships.eventId, eventId),
+                inArray(memberships.userId, userIds),
+                eq(users.status, "active"),
+              ),
+            )
+            .orderBy(users.id)
+            .all()
+            .flatMap((row) =>
+              row.figure !== null && known.has(row.figure)
+                ? [{ id: `u${String(row.id)}`, name: row.name, figure: row.figure }]
+                : [],
+            );
+    const companionIds = [
+      ...new Set(
+        db
+          .select({ id: companionAttendance.companionId })
+          .from(companionAttendance)
+          .where(
+            and(eq(companionAttendance.eventId, eventId), eq(companionAttendance.attending, true)),
+          )
+          .all()
+          .map((row) => row.id),
+      ),
+    ];
+    if (companionIds.length === 0) return guests;
+    const rows = db
+      .select()
+      .from(companions)
+      .where(
+        and(
+          eq(companions.eventId, eventId),
+          eq(companions.status, "approved"),
+          inArray(companions.id, companionIds),
+        ),
+      )
+      .orderBy(companions.id)
+      .all();
+    for (const row of rows) {
+      if (row.avatarFigure !== null && known.has(row.avatarFigure)) {
+        guests.push({ id: `c${String(row.id)}`, name: row.name, figure: row.avatarFigure });
+      }
+    }
+    return guests;
   }
 
   /** Stores the choice for the user (`me`) or one of their approved companions. */
