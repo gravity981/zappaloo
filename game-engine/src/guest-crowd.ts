@@ -16,12 +16,12 @@ import { SPEED_TILES_PER_SECOND } from "./movement.ts";
 export const GUEST_SPEED_FACTOR = 0.25;
 import { startCells, walkRoute } from "./navigation.ts";
 import { cellKey, findPath, reachableCells, type Cell, type Grid } from "./pathfinding.ts";
+import { drawNameTag } from "./name-tag.ts";
+import { snapToPixelGrid } from "./pixel-grid.ts";
 import { playerSpritePosition } from "./player-anchor.ts";
 import type { LoadedWorld } from "./world-data.ts";
 import { Wanderer, guestsOnMap, tagText, waitDuration, wanderCells } from "./wander.ts";
 
-/** The name tags lie above every figure and object, below the editor guides. */
-const TAG_DEPTH = 1_900_000;
 /** The longest step of one frame, so that a stalled tab does not make the figures jump across the map. */
 const MAX_DELTA_MS = 100;
 
@@ -40,7 +40,9 @@ interface Member {
   wanderer: Wanderer;
   sprite: Phaser.GameObjects.Sprite;
   shadow: Phaser.GameObjects.Ellipse;
-  tag: Phaser.GameObjects.Text;
+  tag: Phaser.GameObjects.Image | undefined;
+  /** Device pixels per CSS pixel of the tag's texture. */
+  tagRatio: number;
   region: { keys: ReadonlySet<string>; cells: Cell[] };
   clock: number;
 }
@@ -82,20 +84,15 @@ export class GuestCrowd {
       const wanderer = new Wanderer(position, Math.random() * waitDuration(Math.random));
       const sprite = scene.add.sprite(0, 0, figure.standing.south).setOrigin(0.5, 1);
       const shadow = scene.add.ellipse(0, 0, 1, 1, 0x000000, 1);
-      const tag = scene.add
-        .text(0, 0, tagText(guest.name), {
-          fontFamily: "system-ui, sans-serif",
-          fontStyle: "600",
-          // World pixels: the camera's zoom makes it 12 CSS pixels, as the labels of the edge indicators.
-          fontSize: "6px",
-          color: "#000000",
-          backgroundColor: "#ffffff",
-          padding: { x: 2, y: 1 },
-        })
-        .setOrigin(0.5, 1)
-        .setDepth(TAG_DEPTH);
-      tag.setResolution(zoom * ratio());
-      const member = { guest, figure, wanderer, sprite, shadow, tag, region, clock: 0 };
+      // The tag is the pill of the edge-indicator labels, a texture of the name at this device's pixel ratio.
+      const tagRatio = ratio();
+      const image = drawNameTag(tagText(guest.name), tagRatio);
+      const key = `name-tag:${tagText(guest.name)}:${String(tagRatio)}`;
+      if (image !== undefined && !scene.textures.exists(key)) {
+        scene.textures.addCanvas(key, image.canvas);
+      }
+      const tag = image === undefined ? undefined : scene.add.image(0, 0, key).setOrigin(0.5, 1);
+      const member = { guest, figure, wanderer, sprite, shadow, tag, tagRatio, region, clock: 0 };
       this.#members.push(member);
       this.#place(member);
     }
@@ -159,6 +156,13 @@ export class GuestCrowd {
       .setSize(ground.width, ground.height)
       .setFillStyle(0x000000, ground.opacity)
       .setDepth(depth - SHADOW_DEPTH_BELOW);
-    tag.setPosition(at.x, at.y - figure.size.height - 1);
+    if (tag !== undefined) {
+      // One CSS pixel of the tag is one CSS pixel on screen: the camera's zoom and the texture's ratio cancel out.
+      tag
+        .setScale(1 / (this.#zoom * member.tagRatio))
+        .setPosition(at.x, snapToPixelGrid(at.y - figure.size.height - 1, this.#zoom, ratio))
+        // The tag has the depth of its figure, a hair above, so what covers the figure covers the tag.
+        .setDepth(depth + SHADOW_DEPTH_BELOW);
+    }
   }
 }
