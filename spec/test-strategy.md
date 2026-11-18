@@ -92,7 +92,6 @@ All active requirements are listed here until their stage is delivered. Shrink t
 | HUNT | HUNT-01 – HUNT-07 | 7 |
 | MG | MG-01 – MG-13 | 13 |
 | WEB | WEB-05, WEB-06 | 2 |
-| LANG | LANG-03 | 1 |
 | SCR | SCR-01, SCR-02, SCR-04, SCR-05, SCR-07 | 5 |
 | CNT | CNT-02, CNT-03, CNT-08 | 3 |
 | ACS | ACS-04 | 1 |
@@ -101,7 +100,7 @@ All active requirements are listed here until their stage is delivered. Shrink t
 | OPS | OPS-13 | 1 |
 | SEC | SEC-04, SEC-06 – SEC-08 | 4 |
 | PERF | PERF-01, PERF-03, PERF-04 | 3 |
-| **Total** | | **95** |
+| **Total** | | **87** |
 
 The stage each requirement belongs to is listed in `sw-architecture.md`, section 28.
 
@@ -239,4 +238,3 @@ A test that fails now and then without a change in the code is **flaky**. It is 
 | File | Test | Projects seen | Since | Symptom |
 |---|---|---|---|---|
 | `e2e/rsvp.spec.ts` | a guest answers the RSVP once for the invited program items; the admin sees it and changes it | mobile-ios | 2026-11-18 | Timed out on the first attempt, passed on the retry. |
-| `e2e/skeleton.spec.ts` | the server started with the example event and serves it with its toggles | mobile-ios | 2026-11-18 | Saw `platformOpen: true` instead of the fresh state on the first attempt, passed on the retry. Probably another test (the platform opening) running in parallel on the same installation. |
