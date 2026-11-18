@@ -629,12 +629,15 @@ const sw = (on = false) => `<button type="button" class="m-switch ${on ? "on" : 
 const qr = () => `<div class="m-qr"><canvas data-qr width="25" height="25"></canvas></div>`;
 
 const EVENT = { couple: "Lea & Jonas", date: "Sa, 12. Juni 2027" };
+// A program item is what a guest is invited to and answers for (RSVP unit, meal flag). Its activities, [start, name, place, end?],
+// are what the programme shows (epic 5.3, decisions 1 – 6). The item has no time or place of its own.
 const PROGRAM_ITEMS = [
-  ["Trauung", "14:00", "Kirche Muri", "15:00"],
-  ["Apéro", "15:30", "Schlossgarten"],
-  ["Dinner", "18:30", "Landgasthof Linde"],
-  ["Party", "22:00", "Linde, Saal"],
+  ["Trauung", [["13:30", "Eintreffen", "Kirche Muri"], ["14:00", "Trauung", "Kirche Muri", "15:00"]]],
+  ["Apéro", [["15:30", "Apéro", "Schlossgarten"]]],
+  ["Dinner", [["18:30", "Dinner", "Landgasthof Linde"], ["20:30", "Paar-Quiz", "Linde, Saal · am Handy"]]],
+  ["Party", [["22:00", "Party", "Linde, Saal"]]],
 ];
+const ACTIVITIES = PROGRAM_ITEMS.flatMap(([item, acts]) => acts.map(([t, n, pl, e]) => ({ item, t, n, pl, e }))).sort((a, b) => a.t.localeCompare(b.t));
 const MENUS = ["Fleisch", "Vegetarisch", "Vegan", "Kindermenü"]; // one list for everyone, asked for the meal program item only (Q51)
 const HOW = ["Familie Braut", "Familie Bräutigam", "Freunde Braut", "Freunde Bräutigam", "Freunde beider", "Arbeit"];
 
@@ -698,21 +701,15 @@ function sheet(title, body, closeTo = "game") {
 
 /* ---------- reusable content blocks ---------- */
 function partsBlock(on = [0, 0, 0, 1]) {
-  return PROGRAM_ITEMS.map(([n, t, p], i) => `<div class="m-card"><div class="m-program-item"><div class="grow"><b>${n}</b><span class="m-muted sm">${t} · ${p}</span></div>${seg(["Ja", "Nein"], on[i])}</div></div>`).join("");
+  return PROGRAM_ITEMS.map(([n, acts], i) => `<div class="m-card"><div class="m-program-item"><div class="grow"><b>${n}</b><span class="m-muted sm">${acts.map((a) => `${a[1]} ${a[0]}`).join(", ")}</span></div>${seg(["Ja", "Nein"], on[i])}</div></div>`).join("");
 }
 function timeline(eventDay, withGo = true, only = null) {
-  const rows = [
-    ["13:30", "Eintreffen", "Kirche Muri", false],
-    ["14:00", "Trauung", "Kirche Muri", true],
-    ["15:30", "Apéro", "Schlossgarten", true],
-    ["18:30", "Dinner", "Landgasthof Linde", true],
-    ["20:30", "Paar-Quiz", "Linde, Saal · am Handy", false],
-    ["22:00", "Party", "Linde, Saal", true],
-  ];
-  return `<div class="m-timeline">${rows.map((r, i) => (only && !only.includes(r[1]) ? "" : tlRow(r, i))).join("")}</div>`;
-  function tlRow([t, n, p, map], i) {
+  // One row per activity of the program items shown, by start time (WEB-12).
+  const rows = ACTIVITIES.filter((a) => !only || only.includes(a.item));
+  return `<div class="m-timeline">${rows.map(tlRow).join("")}</div>`;
+  function tlRow(a, i) {
     const cls = eventDay ? (i < 2 ? "past" : i === 2 ? "now" : "") : "";
-    return `<div class="m-tl ${cls}"><div class="t">${t}</div><div class="rail"></div><div class="c"><div class="m-row2"><b>${n}</b>${cls === "now" ? '<span class="m-tag bad">Jetzt</span>' : ""}</div><span class="m-muted sm">${p}</span></div></div>`;
+    return `<div class="m-tl ${cls}"><div class="t">${a.t}</div><div class="rail"></div><div class="c"><div class="m-row2"><b>${a.n}</b>${cls === "now" ? '<span class="m-tag bad">Jetzt</span>' : ""}</div><span class="m-muted sm">${a.pl}</span></div></div>`;
   }
 }
 function bubbleCard(name, badge, greet, how) {
@@ -949,7 +946,7 @@ add({
 add({
   id: "rsvp-parts", group: "access", title: "RSVP 1 · Attendance", path: "/rsvp", reqs: ["RSVP-01", "RSVP-02", "RSVP-04", "RSVP-11"],
   variants: [["one", "One answer (default)"], ["per", "Per program item"]],
-  shows: ["One answer (RSVP-11, decided 2026-11-12, the default): “Ja” / “Nein” once per person, with the program items the invitation covers listed below it. A program item added later takes the answer. With the switch “Pro Programmpunkt zusagen” on (variant), yes/no per program item as before.", "Only the program items this invitation covers.", "Approved companions get their own yes/no block below the guest's (step 3b, decided 2026-11-11).", "Deadline shown up front.", "Declining every part skips straight to the summary.", "Opened by an admin from Rückmeldungen, the same wizard runs in admin mode, also after the deadline."],
+  shows: ["One answer (RSVP-11, decided 2026-11-12, the default): “Ja” / “Nein” once per person, with the program items the invitation covers listed below it. A program item added later takes the answer. With the switch “Pro Programmpunkt zusagen” on (variant), yes/no per program item as before.", "Only the program items this invitation covers. Each lists its activities with their start times in a small line below its name, in both variants (epic 5.3).", "Approved companions get their own yes/no block below the guest's (step 3b, decided 2026-11-11).", "Deadline shown up front.", "Declining every part skips straight to the summary.", "Opened by an admin from Rückmeldungen, the same wizard runs in admin mode, also after the deadline."],
   qs: [
     { q: "RSVP as a three-step wizard (attendance → food → companions & song), or one long page?", p: "Mock: wizard, because it feels light on a phone and reuses well inside the game overlay." },
     { q: "Add a shortcut like “Ich bin überall dabei”?", p: "Mock: not shown. Could be a link above the program items." },
@@ -1195,7 +1192,7 @@ function seatingBody(compact) {
 add({
   id: "home", group: "web", title: "Start page", path: "/home", reqs: ["WEB-01", "WEB-02", "WEB-04", "WEB-07", "WEB-10", "WEB-11", "THM-06", "GAME-12"],
   variants: [["before", "Before the event"], ["eventday", "Event day"], ["world-off", "Erlebniswelt disabled"]],
-  shows: ["Bottom tab bar on phones (Start · Programm · Hochladen · Erinnerungen · Mehr). A top nav on desktop.", "“Erlebniswelt” appears in guest navigation only while guest access is enabled.", "Fixed layout (decided 2026-11-13). The hosts edit the hero image, the welcome text and the countdown switch in Inhalte, not the arrangement.", "Before the event day: the hero image (optional, full width, uncropped; without it the text moves up), the welcome text, “Erlebniswelt betreten” only while guest access is enabled, then the countdown card, the RSVP card and the shortcuts (“Programm” and the first three pages visible in “Mehr”).", "With guest access disabled, guest navigation has no Erlebniswelt entry and direct guest navigation is blocked.", "Countdown: calendar days to the day of the first program item, with its date and place. “Noch 1 Tag” the day before, gone on the event day and without program items. The number uses the theme's display font, or the heading font without one. Calm, not pixel style.", "Event day (from the start of the day of the first program item): now/next on top, then the cards of the features that exist (seat stage 6, upload stage 7, quiz stage 8), then the shortcuts. No hero image, welcome text, countdown or RSVP card."],
+  shows: ["Bottom tab bar on phones (Start · Programm · Hochladen · Erinnerungen · Mehr). A top nav on desktop.", "“Erlebniswelt” appears in guest navigation only while guest access is enabled.", "Fixed layout (decided 2026-11-13). The hosts edit the hero image, the welcome text and the countdown switch in Inhalte, not the arrangement.", "Before the event day: the hero image (optional, full width, uncropped; without it the text moves up), the welcome text, “Erlebniswelt betreten” only while guest access is enabled, then the countdown card, the RSVP card and the shortcuts (“Programm” and the first three pages visible in “Mehr”).", "With guest access disabled, guest navigation has no Erlebniswelt entry and direct guest navigation is blocked.", "Countdown: calendar days to the day of the first activity of the guest's program items, with its date and place. “Noch 1 Tag” the day before, gone on the event day and without program items. The number uses the theme's display font, or the heading font without one. Calm, not pixel style.", "Event day (from the start of the day of the first activity of all): now/next (activities) on top, then the cards of the features that exist (seat stage 6, upload stage 7, quiz stage 8), then the shortcuts. No hero image, welcome text, countdown or RSVP card."],
   qs: [
     { q: "Are these the right five tabs? “Erinnerungen” groups the gallery and the keepsake page.", p: "Mock: as shown. Info pages (Anreise, FAQ, …) live under “Mehr”." },
     { q: "What content does the home page carry? Is it editable Markdown, structured blocks, or both?", p: "Decided 2026-11-13: a fixed layout. The hosts edit the hero image, the welcome text (Markdown) and the countdown switch. The cards are fixed (sw-architecture.md 5.6)." },
@@ -1222,7 +1219,7 @@ add({
 add({
   id: "programme", group: "web", title: "Programme", path: "/programme", reqs: ["WEB-02", "WEB-07", "WEB-09"],
   variants: [["eventday", "Event day"], ["before", "Before"], ["apero", "Guest invited to Apéro only"]],
-  shows: ["Structured schedule as a timeline. On the event day, past entries are greyed out and the current entry is marked.", "Only the program items the guest is invited to. One line says so (state “Apéro only”)."],
+  shows: ["Structured schedule as a timeline of activities, by start time (epic 5.3). On the event day, past activities are greyed out and the current one is marked.", "Only the activities of the program items the guest is invited to. One line says so (state “Apéro only”)."],
   qs: [{ q: "Show only the program items the guest is invited to (e.g. hide Dinner for aperitif-only guests)?", p: "Not in the spec. Mock: shows all. Proposal: hide uninvited program items and say so in one line." }],
   render: (v) => site("programme", `<h1 class="m-h1">Programm</h1><span class="m-eyebrow">Samstag, 12. Juni 2027</span>${v === "apero" ? `<div class="m-card flat sm">${ic("eye")} Du siehst die Programmpunkte, zu denen du eingeladen bist: Apéro.</div>` : ""}${timeline(v === "eventday", true, v === "apero" ? ["Apéro"] : null)}`),
 });
@@ -1548,7 +1545,7 @@ add({
 add({
   id: "admin-settings", group: "admin", title: "Settings & opening", path: "/admin/settings", reqs: ["ACS-10", "ACS-11", "ACS-13", "ACS-14", "PHO-18", "RSVP-04", "PRES-15", "CFG-02", "CFG-03", "SCR-04", "SCR-07", "PHO-14", "THM-01", "THM-03", "THM-05"],
   variants: [["active", "Design aktiv"], ["default", "Standard-Design"], ["refused", "Paket abgelehnt"], ["confirm", "Zweiter Klick"]],
-  shows: ["One page with sections.", "Design (decided 2026-11-13, stage 4): the active theme with its format and the time of the import. “Design importieren” takes a .tar.gz package as a whole. A refused package lists every finding (the findings are shown in English, as the server gives them) and the active theme stays as it was. “Standard-Design verwenden” asks for a second click (Ja / Abbrechen) before it removes the package. Without a package the card says that the platform’s default applies.", "Opening the platform with an optional “Die Tür ist offen” email (verified addresses only). An optional opening date and, separately, the switch for the countdown (decided 2026-11-11). Once open, the card offers “Wieder schliessen” (no email).", "RSVP deadline, program items (name, time, place, one program item marked as the meal) and one menu list.", "Waiting page texts with placeholders (only here, not in Inhalte).", "Privacy notice as Markdown (SEC-09).", "Features. Upload links and screen links (create, QR, revoke, per screen link: show the upload QR now and then).", "Guest profiles: the “Wie kennst du das Paar?” list, in its own section."],
+  shows: ["One page with sections.", "Design (decided 2026-11-13, stage 4): the active theme with its format and the time of the import. “Design importieren” takes a .tar.gz package as a whole. A refused package lists every finding (the findings are shown in English, as the server gives them) and the active theme stays as it was. “Standard-Design verwenden” asks for a second click (Ja / Abbrechen) before it removes the package. Without a package the card says that the platform’s default applies.", "Opening the platform with an optional “Die Tür ist offen” email (verified addresses only). An optional opening date and, separately, the switch for the countdown (decided 2026-11-11). Once open, the card offers “Wieder schliessen” (no email).", "RSVP deadline, program items (name, one marked as the meal) with their activities underneath (name, start, optional end, place; “Aktivität hinzufügen”; the last activity of a program item cannot be deleted, the program item is deleted instead; a new program item asks for its first activity; epic 5.3), and one menu list.", "Waiting page texts with placeholders (only here, not in Inhalte).", "Privacy notice as Markdown (SEC-09).", "Features. Upload links and screen links (create, QR, revoke, per screen link: show the upload QR now and then).", "Guest profiles: the “Wie kennst du das Paar?” list, in its own section."],
   qs: [
     { q: "One long settings page, or split into tabs (Öffnung · Rückmeldung · Funktionen · Links)?", p: "Mock: one page with sections. Splitting is easy later." },
     { n: 54, q: "Where are the waiting-page texts edited: Einstellungen or the content editor?", p: "Proposal: Einstellungen only. The content editor has no “Warteseite” page." },
@@ -1582,9 +1579,11 @@ add({
         <div class="m-setrow"><div class="grow"><b class="sm">Pro Programmpunkt zusagen</b><span class="m-hint">Aus: Gäste antworten einmal für alle ihre Programmpunkte. Ein: Ja oder Nein pro Programmpunkt.</span></div>${sw(false)}</div>
         <div class="m-setrow"><div class="grow"><b class="sm">Begleitpersonen bestätigen</b><span class="m-hint">Aus: Eine hinzugefügte Begleitperson zählt sofort. Ein: Du bestätigst jede Anfrage.</span></div>${sw(false)}</div>
         <span class="m-eyebrow">Programmpunkte</span>
-        <div class="m-list">${PROGRAM_ITEMS.map((p) => `<div class="m-li"><div class="grow"><b>${p[0]}${p[0] === "Dinner" ? ' <span class="m-tag ok">Essen</span>' : ""}</b><span class="m-hint">12.06.2027 ${p[1]}${p[3] ? "–" + p[3] : ""} · ${p[2]}</span></div><button class="m-btn soft sm">Bearbeiten</button><button class="m-btn ghost sm">Löschen</button></div>`).join("")}</div>
+        <div class="m-stack">${PROGRAM_ITEMS.map((p) => `<div class="m-card flat"><div class="m-row2"><b class="grow" style="flex:1">${p[0]}${p[0] === "Dinner" ? ' <span class="m-tag ok">Essen</span>' : ""}</b><button class="m-btn soft sm">Bearbeiten</button><button class="m-btn ghost sm">Löschen</button></div>
+          <div class="m-list">${p[1].map((a) => `<div class="m-li"><div class="grow"><b class="sm">${a[1]}</b><span class="m-hint">12.06.2027 ${a[0]}${a[3] ? "–" + a[3] : ""} · ${a[2]}</span></div><button class="m-btn soft sm">Bearbeiten</button><button class="m-btn ghost sm"${p[1].length === 1 ? " disabled" : ""}>Löschen</button></div>`).join("")}</div>
+          <button class="m-btn ghost sm" style="align-self:flex-start">${ic("plus")} Aktivität hinzufügen</button>${p[1].length === 1 ? '<span class="m-hint">Die letzte Aktivität lässt sich nicht löschen. Lösche stattdessen den Programmpunkt.</span>' : ""}</div>`).join("")}</div>
         <button class="m-btn ghost sm" style="align-self:flex-start">${ic("plus")} Programmpunkt hinzufügen</button>
-        <span class="m-hint">Ein Programmpunkt hat Name, Uhrzeit und einen Ort aus der Liste der Orte in Inhalte (kein Freitext). Ein Programmpunkt kann das Essen haben: Nur dafür wird das Menü gefragt.</span>
+        <span class="m-hint">Ein Programmpunkt ist das, wozu Gäste eingeladen sind und was sie beantworten: Name und Essen, keine Uhrzeit. Seine Aktivitäten zeigt das Programm: Name, Beginn, optionales Ende und ein Ort aus der Liste der Orte in Inhalte (kein Freitext). Ein neuer Programmpunkt fragt gleich nach seiner ersten Aktivität. Ein Programmpunkt kann das Essen haben: Nur dafür wird das Menü gefragt.</span>
         <span class="m-eyebrow">Menüs (für alle)</span><div class="m-chips">${MENUS.map((p) => `<span class="m-chip">${p}</span>`).join("")}<button class="m-chip">${ic("plus")}</button></div></div>
       <div class="m-card"><b>Funktionen</b>${[["Minigames", 1], ["Schnappschüsse", 1], ["Galerie", 1], ["Gästebuch", 1], ["Schatzsuche", 1], ["Eventscreen", 1], ["Galerie für Gäste freigegeben", 0]].map(([n, o]) => `<div class="m-setrow"><div class="grow"><b class="sm">${n}</b></div>${sw(o)}</div>`).join("")}</div>
     </div>
