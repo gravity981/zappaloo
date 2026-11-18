@@ -409,7 +409,7 @@ export const worldGuestAccessRequestSchema = z.strictObject({ enabled: z.boolean
 export const worldActionSchema = z.discriminatedUnion("kind", [
   /** A website page as an overlay: `programme`, `rsvp`, `profile` or `p/<slug>`, any content page. */
   z.strictObject({ kind: z.literal("page"), page: z.string().min(1).max(100) }),
-  /** A dialogue the guest taps through (step 6d). */
+  /** A dialogue the guest taps through (CNT-02). */
   z.strictObject({ kind: z.literal("dialog"), dialogId: z.string().min(1).max(100) }),
   /** A minigame (stage 8): only a preset of the Tiled file can name one. */
   z.strictObject({ kind: z.literal("minigame"), minigameId: z.string().min(1).max(100) }),
@@ -504,7 +504,7 @@ export const worldObjectsSchema = z.object({
   ),
   /** The pages that can be shown as an overlay: `programme`, `rsvp`, `profile` and `p/<slug>` of every content page. */
   pages: z.array(z.string()),
-  /** The ids of the dialogues (they come with step 6d). */
+  /** The ids of the dialogues the admin made (CNT-02). */
   dialogues: z.array(z.string()),
 });
 export type WorldObjects = z.infer<typeof worldObjectsSchema>;

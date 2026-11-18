@@ -3,7 +3,7 @@
 // the browser does not change and closing it returns the player to the same spot. A link to another site opens in a
 // new window. A router cannot sit inside the app's router, so the page is rendered into a React root of its own, with
 // the session and the event of the app. The sheet takes the focus while it is open; the game stands still behind it.
-// The action `dialog` (step 6d) comes later; until then it shows a short note.
+// The action `dialog` is not a page: the dialogue box of the game shows it (DialogueBox, CNT-02).
 import type { MouseEvent as ReactMouseEvent } from "react";
 import { useCallback, useEffect, useRef } from "react";
 import { createRoot, type Root } from "react-dom/client";

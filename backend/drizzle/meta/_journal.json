@@ -225,6 +225,13 @@
       "when": 1795029280000,
       "tag": "0031_heavy_mephistopheles",
       "breakpoints": true
+    },
+    {
+      "idx": 32,
+      "version": "6",
+      "when": 1795031139361,
+      "tag": "0032_bizarre_ben_urich",
+      "breakpoints": true
     }
   ]
 }

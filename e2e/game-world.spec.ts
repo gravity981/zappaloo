@@ -667,3 +667,53 @@ test("[PRES-05][PRES-06] the admin makes a table with its places in the seating 
   await expect(page.getByTestId("seating-hidden")).toBeVisible();
   await expect(page.getByText(de.seating.secretTitle)).toBeVisible();
 });
+
+test("[CNT-02][CNT-03][GAME-06] the admin writes the dialogue of an NPC in Erlebniswelt, and the player's tap on the NPC opens the dialogue box, which goes on line by line and closes", async ({
+  page,
+  context,
+}, testInfo) => {
+  test.skip(testInfo.project.name !== "desktop-chromium", "shared settings: one profile only");
+  await signInAsAdmin(page, context);
+  // The test world's object "pastor" opens the dialogue "npc-pastor" (a Tiled preset), which does not exist yet.
+  await page.goto("/admin/world");
+  await page.getByRole("button", { name: de.admin.world.tabDialogues }).click();
+  await page.getByRole("button", { name: de.admin.dialogues.add }).click();
+  await page.getByLabel(de.admin.dialogues.npcName).fill("Pfarrer Keller");
+  await page.getByLabel(de.admin.dialogues.id).fill("npc-pastor");
+  await page.getByLabel("Zeile 1", { exact: true }).fill("Grüss Gott! Schön, dass du da bist.");
+  await page.getByRole("button", { name: de.admin.dialogues.addLine }).click();
+  await page.getByLabel("Zeile 2", { exact: true }).fill("Die Trauung beginnt um **14:00**.");
+  await page.getByRole("button", { name: de.admin.dialogues.save }).click();
+  await expect(page.getByText(de.admin.dialogues.saved)).toBeVisible();
+  // It is used by the object, which the editor says.
+  await expect(page.getByText("kirche › pastor", { exact: false })).toBeVisible();
+
+  await enterGame(page);
+  await expect(page.getByTestId("game-canvas")).toBeVisible({ timeout: 20_000 });
+  await gameState(page);
+  const pastor = (await page.evaluate(() => window.__zappaloo?.game?.clickables()))?.find(
+    (item) => item.name === "pastor",
+  );
+  if (pastor === undefined) throw new Error("the test world has no pastor");
+  const box = page.getByTestId("dialogue-box");
+  await expect(async () => {
+    const target = await pagePoint(page, { x: pastor.x, y: pastor.y });
+    await page.mouse.click(target.x, target.y);
+    await expect(box).toBeVisible({ timeout: 4_000 });
+  }).toPass({ timeout: 40_000 });
+  await expect(box).toContainText("Pfarrer Keller");
+  await expect(box).toContainText("Grüss Gott! Schön, dass du da bist.");
+  await expect(box).toContainText("1 / 2");
+  // The game waits behind the box: the player stands still while it is open.
+  const standing = await gameState(page);
+  await page.waitForTimeout(600);
+  const still = await gameState(page);
+  expect({ x: still.x, y: still.y }).toEqual({ x: standing.x, y: standing.y });
+  await page.screenshot({ path: testInfo.outputPath("game-dialogue.png") });
+  // A tap goes on; the box shows the second line as Markdown; the last tap closes it.
+  await page.getByTestId("dialogue-layer").click({ position: { x: 20, y: 20 } });
+  await expect(box).toContainText("2 / 2");
+  await expect(box.locator("strong")).toHaveText("14:00");
+  await page.getByTestId("dialogue-layer").click({ position: { x: 20, y: 20 } });
+  await expect(box).toHaveCount(0);
+});

@@ -9,6 +9,7 @@ import { dirname, join, resolve, sep } from "node:path";
 import { and, eq } from "drizzle-orm";
 import {
   contentPages,
+  dialogues,
   eventSettings,
   worldObjectActions,
   worldPackages,
@@ -417,8 +418,15 @@ export class WorldService {
       .from(contentPages)
       .where(eq(contentPages.eventId, this.#event.eventId))
       .all();
-    // Dialogues are content items of step 6d; until they exist, no dialogue is there.
-    return { pageSlugs: new Set(pages.map((page) => page.slug)), dialogueIds: new Set() };
+    const dialogueRows = this.#database.db
+      .select({ id: dialogues.id })
+      .from(dialogues)
+      .where(eq(dialogues.eventId, this.#event.eventId))
+      .all();
+    return {
+      pageSlugs: new Set(pages.map((page) => page.slug)),
+      dialogueIds: new Set(dialogueRows.map((row) => row.id)),
+    };
   }
 
   /** The maps of a package by their ids, as their bytes. */

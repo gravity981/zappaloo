@@ -14,6 +14,7 @@ import { hintSeen, markHintSeen, useFirstEntry, useWorldActive } from "../app/ga
 import ProfileEditor from "../profile/ProfileEditor.tsx";
 import GameBar from "../game/GameBar.tsx";
 import GameHint from "../game/GameHint.tsx";
+import DialogueBox from "../game/DialogueBox.tsx";
 import GameOverlay from "../game/GameOverlay.tsx";
 import type { Overlay } from "../game/GameOverlay.tsx";
 import { rsvpUnanswered } from "../rsvp/landing.ts";
@@ -50,6 +51,8 @@ export default function GamePage() {
   const world = useWorldActive(true);
   const [firstEntry, finishEntry] = useFirstEntry();
   const [overlay, setOverlay] = useState<Overlay>();
+  /** The id of the dialogue an NPC or object shows in the dialogue box (CNT-02), if one is open. */
+  const [dialogue, setDialogue] = useState<string>();
   const [hint, setHint] = useState(() => !hintSeen());
   const rsvpOpen = useRsvpOpen(rsvpEnabled, overlay);
   /** The second step of the first entry, "Sag hallo": the profile of a guest (GAME-13, PRES-09). */
@@ -122,10 +125,15 @@ export default function GamePage() {
         <div className="game-stage">
           <Suspense fallback={<p>{t("game.loading")}</p>}>
             <GameCanvas
-              paused={overlay !== undefined}
+              paused={overlay !== undefined || dialogue !== undefined}
               onActivate={(activation) => {
                 markHintSeen();
                 setHint(false);
+                // A dialogue is not a page: its box stands over the game, which waits (CNT-02).
+                if (activation.action.kind === "dialog") {
+                  setDialogue(activation.action.dialogId);
+                  return;
+                }
                 setOverlay({
                   action: activation.action,
                   ...(activation.label === undefined ? {} : { label: activation.label }),
@@ -136,7 +144,15 @@ export default function GamePage() {
               }}
             />
           </Suspense>
-          {hint && overlay === undefined && <GameHint />}
+          {hint && overlay === undefined && dialogue === undefined && <GameHint />}
+          {dialogue !== undefined && (
+            <DialogueBox
+              id={dialogue}
+              onClose={() => {
+                setDialogue(undefined);
+              }}
+            />
+          )}
         </div>
       </div>
       {overlay && <GameOverlay overlay={overlay} onClose={closeOverlay} onLeave={leaveOverlay} />}

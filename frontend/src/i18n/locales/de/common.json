@@ -728,7 +728,8 @@
           "minigame": "Minispiel: {{target}}",
           "none": "– keine –"
         }
-      }
+      },
+      "tabDialogues": "Dialoge"
     },
     "relations": {
       "title": "Gästeprofile",
@@ -784,6 +785,45 @@
       "deleteButton": "Löschen",
       "tableDuplicate": "Es gibt schon einen Tisch mit diesem Namen.",
       "deleteHold": "Zum Löschen gedrückt halten."
+    },
+    "dialogues": {
+      "title": "Dialoge",
+      "add": "+ Dialog",
+      "none": "Noch keine Dialoge.",
+      "edit": "Dialog {{name}} bearbeiten",
+      "unused": "nicht verwendet",
+      "hint": "Ein Objekt zeigt einen Dialog, wenn seine Aktion «Dialog» ist (in «Objekte & Portale» oder als Vorgabe in Tiled mit contentId).",
+      "back": "‹ Dialoge",
+      "newTitle": "Neuer Dialog",
+      "npcName": "Name der Figur",
+      "id": "Kennung",
+      "idHint": "In Tiled als contentId = {{id}}. Kleinbuchstaben, Ziffern und -.",
+      "line": "Zeile {{n}}",
+      "up": "Zeile {{n}} nach oben",
+      "down": "Zeile {{n}} nach unten",
+      "removeLine": "Zeile {{n}} entfernen",
+      "remove": "Entfernen",
+      "addLine": "+ Zeile",
+      "preview": "Vorschau",
+      "portrait": "Bild der Figur",
+      "portraitLater": "Das Bild kannst du nach dem ersten Speichern hochladen.",
+      "portraitInput": "Bild der Figur auswählen",
+      "portraitAdd": "Bild hochladen",
+      "portraitChange": "Bild ändern",
+      "portraitRemove": "Bild entfernen",
+      "portraitHint": "JPEG, PNG oder WebP, höchstens 1 MB und 512 Pixel pro Seite. Das Bild wird nicht verändert.",
+      "portraitType": "Das Bild muss ein JPEG, PNG oder WebP sein.",
+      "portraitTooLarge": "Das Bild ist zu gross (höchstens 1 MB und 512 Pixel pro Seite).",
+      "portraitInvalid": "Das Bild konnte nicht gelesen werden.",
+      "usedBy": "Verwendet von",
+      "save": "Speichern",
+      "saved": "Gespeichert.",
+      "delete": "Dialog löschen",
+      "deleteHint": "Zum Löschen gedrückt halten. Ein Dialog, den ein Objekt zeigt, lässt sich nicht löschen. Wird die Kennung geändert, zeigen Vorgaben in Tiled mit der alten Kennung auf nichts.",
+      "exists": "Es gibt schon einen Dialog mit dieser Kennung.",
+      "inUse": "Dieser Dialog wird noch gezeigt von: {{objects}}.",
+      "lines_one": "{{count}} Zeile",
+      "lines_other": "{{count}} Zeilen"
     }
   },
   "home": {
@@ -815,7 +855,15 @@
       "comingSoon": "Das gibt es hier bald."
     },
     "bubbleClose": "Sprechblase schliessen",
-    "defaultGreeting": "Hallo 🙂"
+    "defaultGreeting": "Hallo 🙂",
+    "dialogue": {
+      "failed": "Der Dialog konnte nicht geladen werden.",
+      "close": "Dialog schliessen",
+      "closeSign": "×",
+      "step": "{{n}} / {{count}}",
+      "tapNext": "Tippen für weiter",
+      "tapClose": "Tippen zum Schliessen"
+    }
   },
   "avatar": {
     "title": "Wie siehst du aus?",

@@ -92,14 +92,14 @@ All active requirements are listed here until their stage is delivered. Shrink t
 | MG | MG-01 – MG-13 | 13 |
 | WEB | WEB-05, WEB-06 | 2 |
 | SCR | SCR-01, SCR-02, SCR-04, SCR-05, SCR-07 | 5 |
-| CNT | CNT-02, CNT-03, CNT-08 | 3 |
+| CNT | CNT-02 | 1 |
 | ACS | ACS-04 | 1 |
 | PHO | PHO-01 – PHO-03, PHO-05 – PHO-19 | 18 |
 | MOD | MOD-01 – MOD-05 | 5 |
 | OPS | OPS-13 | 1 |
 | SEC | SEC-04, SEC-06 – SEC-08 | 4 |
 | PERF | PERF-01, PERF-03, PERF-04 | 3 |
-| **Total** | | **75** |
+| **Total** | | **73** |
 
 The stage each requirement belongs to is listed in `sw-architecture.md`, section 28.
 
@@ -109,10 +109,9 @@ The stage each requirement belongs to is listed in `sw-architecture.md`, section
 - ACS-07: server checks for protected game areas (step 8d; stage 5 checks only sign-in, the open platform and guest access, decided 2026-11-17), contribution upload (7b), moderation (7c), minigame start and result submission (8b).
 - PRES-07 (tagged in `frontend/src/avatar/avatar.test.tsx`): the accompanying persons' figures, chosen by the VIP in the avatar editor, are done in step 5h; their seats and the table finder come with their own steps.
 - AVA-04: the player's own figure in the game is done in step 5h; the wandering figures of the other guests came with story 6a.
-- GAME-06 and MAP-15 (from step 5f on, decided 2026-11-17): the action `minigame` (stage 8; a preset `minigame` is reported at import and does nothing, and the admin cannot assign it). A content page is linked as a page and runs from step 5f; the action `dialog` comes with step 6d (dialogues moved there on 2026-11-17), and until then the game shows a short note.
+- GAME-06 and MAP-15 (from step 5f on, decided 2026-11-17): the action `minigame` (stage 8; a preset `minigame` is reported at import and does nothing, and the admin cannot assign it). A content page is linked as a page and runs from step 5f; the action `dialog` came with story 6d (dialogues moved there on 2026-11-17).
 - GAME-13 and GAME-14 (from step 5i on, decided 2026-11-17): the step "Say hello" (profile photo, greeting, "How I know the couple") came with story 6b; the button "Hochladen" (stage 7).
-- CNT-02 (from stage 4 on, decided 2026-11-13): dialogues and NPC texts (5d), photo albums (7d). Unlock conditions are covered by ACS-05.
-- CNT-03 (from stage 4 on): the reference from a game-world object by `contentId` (5d).
+- CNT-02 (from stage 4 on, decided 2026-11-13): the dialogues and NPC texts came with story 6d; the photo albums follow in 7d. Unlock conditions are covered by ACS-05.
 - ROLE-06: the capabilities in use: `editWebsiteContent` (4a), `moderateContributions` (7c). Until then only test routes use them.
 - ROLE-07: every step that adds an administration function guards it with the admin role and adds a `[ROLE-07]` test that a user without it is refused. The admin pages of stage 2 are built in step 2h; each later admin page adds its own `[ROLE-07]` test.
 

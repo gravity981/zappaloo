@@ -135,7 +135,7 @@ describe("the world of the event (MAP-04, MAP-05, MAP-06, MAP-08, MAP-09, MAP-10
     // "schild" and "sprecher" show the content page "anreise", which the installation does not have.
     expect(codes).toContain("preset_missing:schild");
     expect(codes).toContain("preset_missing:sprecher");
-    // "pastor" opens the dialogue "npc-pastor"; dialogues come with step 6d.
+    // "pastor" opens the dialogue "npc-pastor", which the installation does not have (the admin makes dialogues in 6d).
     expect(codes).toContain("preset_missing:pastor");
     // "altar" opens the built-in programme: no warning.
     expect(codes).not.toContain("preset_missing:altar");
@@ -401,7 +401,7 @@ describe("the actions of clickable objects (MAP-15, GAME-06)", () => {
     const altar = church?.clickables.find((item) => item.name === "altar");
     expect(altar?.preset).toEqual({ kind: "page", page: "programme" });
     expect(altar?.missing).toBe(false);
-    // The dialogue of "pastor" does not exist before step 6d; the preset is marked as missing.
+    // The dialogue of "pastor" does not exist yet; the preset is marked as missing.
     const pastor = church?.clickables.find((item) => item.name === "pastor");
     expect(pastor).toMatchObject({
       preset: { kind: "dialog", dialogId: "npc-pastor" },

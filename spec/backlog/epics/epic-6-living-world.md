@@ -89,10 +89,11 @@ Requirements: PRES-05, PRES-06, PRES-07, PRES-12.
 
 ### Story 6d – Dialogues
 
-Mock screen: `admin-world` (variant "Dialoge"). Moved here from 5g on 2026-11-17.
-- Dialogues edited by admins in Erlebniswelt › Dialoge (id, NPC name, lines in Markdown, "Verwendet von"), audited with ids only. Deleting is refused while an object shows the dialogue; changing the id keeps the assignments.
-- The action `dialog`: the NPC name and the lines, which the guest taps through. The dialogues the admin can pick for a clickable object (Objekte & Portale) and the `preset_missing` warning for a dialogue that does not exist start working with them.
-- The optional portrait picture of a dialogue, uploaded in Dialoge and shown on the left of the dialogue box.
+Mock screen: `admin-world` (variant "Dialoge"). Moved here from 5g on 2026-11-17. Decided 2026-11-18 (refinement of 6d):
+- **Data:** a dialogue has an id (`a–z 0–9 -`, 1–40 characters, the `contentId` of Tiled presets), the NPC's name (1–60 characters), 1–30 lines in Markdown (each 1–500 characters) and an optional portrait. It is stored in the database, not in the world package.
+- **Admin:** Erlebniswelt gets the tab "Dialoge" (admins only): the list (name, id, number of lines, "nicht verwendet" or the objects that show it), the editor (name, id, lines that can be moved and removed, a preview, "Verwendet von", the portrait upload, "Speichern", "Dialog löschen" held for four seconds). Deleting is refused while an object shows the dialogue and names the objects (`409 dialogue_in_use`); changing the id keeps the assignments (the admin's assignments follow; presets in Tiled files that name the old id point to nothing and warn, MAP-08). Audited with ids only.
+- **The action `dialog`:** a dialogue box at the bottom of the game, over the paused game: the portrait on the left, the NPC's name, the line, "n / m · Tippen für weiter". A tap, Enter or Space goes on, the last one closes it; a cross or Escape closes it at once; the game goes on at the same spot. The lines are Markdown, sanitised as on the website. The dialogues the admin can pick for a clickable object and the `preset_missing` warning start working with real data.
+- **Portrait (CNT-08):** JPEG, PNG or WebP, at most 1 MB and 512 pixels per side, checked by content and kept as uploaded, so pixel art stays crisp; shown in a fixed square box, small pictures scaled without smoothing. Not part of the world package; it is shown whichever NPC or object opens the dialogue.
 Requirements: CNT-02 (the dialogue and NPC text part; albums follow in step 7d), CNT-03 (completing it), CNT-08.
 
 ### Story 6e – World format version 3 and atmosphere

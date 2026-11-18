@@ -1672,3 +1672,81 @@ button {
 :is(.admin, .guest) .table-form .btn {
   align-self: flex-end;
 }
+
+/* The dialogue box of the game (CNT-02, CNT-08): over the paused game, at the bottom; a tap anywhere goes on. */
+.dialogue-layer {
+  position: absolute;
+  inset: 0;
+  z-index: 6;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding: 12px;
+  cursor: pointer;
+}
+.dialogue-box {
+  position: relative;
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  box-sizing: border-box;
+  width: min(100%, 640px);
+  padding: 12px 36px 12px 12px;
+  background: #fff;
+  color: #000;
+  border: 2px solid #222;
+  border-radius: 12px;
+  box-shadow: 3px 3px 0 rgba(0, 0, 0, 0.25);
+  font:
+    14px/1.4 system-ui,
+    sans-serif;
+}
+.dialogue-box:focus {
+  outline: none;
+}
+.dialogue-portrait {
+  flex: none;
+  width: 72px;
+  height: 72px;
+  object-fit: contain;
+  background: #e8e8e2;
+  border: 1.5px solid #d5d5ce;
+  border-radius: 8px;
+}
+.dialogue-portrait.pixelated {
+  image-rendering: pixelated;
+}
+.dialogue-text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.dialogue-text b {
+  font-weight: 700;
+}
+.dialogue-text .markdown p {
+  margin: 0;
+}
+.dialogue-step {
+  align-self: flex-end;
+  font-size: 12px;
+  color: #6a6a64;
+}
+.dialogue-close {
+  position: absolute;
+  top: -10px;
+  right: -10px;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: #222;
+  color: #fff;
+  font:
+    13px/1 system-ui,
+    sans-serif;
+  cursor: pointer;
+}

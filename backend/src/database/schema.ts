@@ -625,6 +625,30 @@ export const seatingConfig = sqliteTable("seating_config", {
   visibleFrom: integer("visible_from", { mode: "timestamp_ms" }),
 });
 
+// --- Dialogues (sw-architecture.md 6.2, 14.4; CNT-02, CNT-03, CNT-08) -------------------------
+
+/**
+ * A dialogue of the game world: the name of the NPC and lines in Markdown that the guest taps through, with an optional
+ * portrait picture. The id is the `contentId` of Tiled presets; the admin edits all of it in Erlebniswelt › Dialoge.
+ */
+export const dialogues = sqliteTable(
+  "dialogues",
+  {
+    eventId: text("event_id")
+      .notNull()
+      .references(() => events.id),
+    id: text("id").notNull(),
+    npcName: text("npc_name").notNull(),
+    /** The lines as a JSON array of Markdown texts. */
+    lines: text("lines").notNull(),
+    /** The portrait as uploaded (at most 1 MB), kept unchanged so that pixel art stays crisp (CNT-08). */
+    portrait: blob("portrait", { mode: "buffer" }),
+    portraitMime: text("portrait_mime"),
+    updatedAt: integer("updated_at", { mode: "timestamp_ms" }).notNull(),
+  },
+  (table) => [primaryKey({ columns: [table.eventId, table.id] })],
+);
+
 // --- Waiting page (sw-architecture.md 10.4; ACS-11, ACS-13) -------------------------------
 
 /** The waiting page's settings: opening date, countdown switch and the admin's own texts. */
