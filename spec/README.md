@@ -79,8 +79,8 @@ Status values: **specified** (requirements written, not implemented) · **in pro
 | GB | Guestbook — merged into PHO | 13.6 | 0 (4 withdrawn) | – | withdrawn |
 | PWA | Installable app (manifest, icons, home screen) | 19.5 | 5 | 3.5 | implemented |
 | LIC | Copyright and license notice in the footer | 19.6 | 3 | 3.5 | implemented |
-| THM | Theme package (app icons, colours, fonts) and its editor | 19.7 | 13 | 4, 5.2 | in progress |
-| | **Total** | | **277** (314 IDs, 37 withdrawn) | | |
+| THM | Theme package (app icons, colours, fonts) and its editor | 19.7 | 17 | 4, 5.2 | implemented |
+| | **Total** | | **280** (317 IDs, 37 withdrawn) | | |
 
 Sections with no requirement table describe architecture and technology choices: 15 (stack), 16 (frontend), 17 (backend), 26 (project structure), 27 (decision summary), 28 (stages) and 29 (principles). Section 30 lists what is out of scope for the first version.
 

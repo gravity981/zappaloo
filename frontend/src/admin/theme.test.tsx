@@ -2,7 +2,8 @@
 import { fireEvent, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import { initI18n } from "../i18n/i18n.ts";
-import { anna, fakeBackend, renderAt, user } from "../test/backend.tsx";
+import { resetSiteNameCache } from "../guest/site.ts";
+import { anna, fakeBackend, renderAt, SITE, user } from "../test/backend.tsx";
 
 beforeAll(async () => {
   await initI18n();
@@ -15,7 +16,7 @@ const admin = { ...anna, id: 9, username: "lea", displayName: "Lea", roles: ["ad
 const asAdmin = () => ({ status: 200, body: { user: admin, csrfToken: "csrf-9" } });
 const sommerfest = {
   name: "Sommerfest",
-  formatVersion: 1,
+  formatVersion: 2,
   importedAt: "2026-11-12T17:04:00.000Z",
 };
 
@@ -34,7 +35,7 @@ describe("the card Design", () => {
     });
     renderAt("/admin/settings");
     expect(await screen.findByText("Aktiv: Sommerfest")).toBeInTheDocument();
-    expect(screen.getByText(/Format 1 · importiert am/)).toBeInTheDocument();
+    expect(screen.getByText(/Format 2 · importiert am/)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Standard-Design verwenden" })).toBeInTheDocument();
   });
 
@@ -108,6 +109,75 @@ describe("the card Design", () => {
     });
     expect(calls.filter((call) => call.method === "DELETE")).toHaveLength(1);
   });
+  it("[THM-01] after an import the website's theme is read again, so the pages carry it without a reload", async () => {
+    resetSiteNameCache();
+    let active: typeof sommerfest | null = null;
+    let theme: unknown = null;
+    const calls = fakeBackend({
+      "GET /api/session": asAdmin,
+      "GET /api/admin/theme": () => ({ status: 200, body: { active } }),
+      "GET /api/site": () => ({ status: 200, body: { ...SITE, theme } }),
+      "POST /api/admin/theme": () => {
+        active = sommerfest;
+        theme = {
+          version: "import-1",
+          colors: {
+            background: "#f6f1e7",
+            surface: "#fffdf8",
+            text: "#2b2a26",
+            muted: "#6b6558",
+            line: "#ddd3bf",
+            accent: "#7a3b2e",
+            onAccent: "#ffffff",
+          },
+          fonts: {},
+        };
+        return { status: 200, body: { active } };
+      },
+    });
+    renderAt("/admin/settings");
+    await screen.findByText("Es gilt das Standard-Design der Plattform.");
+    const siteReads = () =>
+      calls.filter((c) => c.path === "/api/site" && c.method === "GET").length;
+    await waitFor(() => {
+      expect(siteReads()).toBe(1);
+    });
+    fireEvent.change(fileInput(), {
+      target: { files: [new File(["x"], "design.tar.gz", { type: "application/gzip" })] },
+    });
+    await screen.findByText("Aktiv: Sommerfest");
+    await waitFor(() => {
+      expect(siteReads()).toBe(2);
+    });
+  });
+
+  it("[THM-05] after the return to the default the website's theme is read again", async () => {
+    resetSiteNameCache();
+    let active: typeof sommerfest | null = sommerfest;
+    const calls = fakeBackend({
+      "GET /api/session": asAdmin,
+      "GET /api/admin/theme": () => ({ status: 200, body: { active } }),
+      "GET /api/site": () => ({ status: 200, body: { ...SITE, theme: null } }),
+      "DELETE /api/admin/theme": () => {
+        active = null;
+        return { status: 204 };
+      },
+    });
+    renderAt("/admin/settings");
+    await screen.findByText("Aktiv: Sommerfest");
+    const siteReads = () =>
+      calls.filter((c) => c.path === "/api/site" && c.method === "GET").length;
+    await waitFor(() => {
+      expect(siteReads()).toBe(1);
+    });
+    user.click(screen.getByRole("button", { name: "Standard-Design verwenden" }));
+    user.click(await screen.findByRole("button", { name: "Ja, Standard-Design verwenden" }));
+    await screen.findByText("Es gilt das Standard-Design der Plattform.");
+    await waitFor(() => {
+      expect(siteReads()).toBe(2);
+    });
+  });
+
   it("[THM-01] an imported package becomes the active theme at once", async () => {
     let active: typeof sommerfest | null = null;
     const calls = fakeBackend({

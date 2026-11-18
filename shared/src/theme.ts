@@ -3,8 +3,15 @@
 // guest pages read the same shapes.
 import { z } from "zod";
 
+/**
+ * The format version of the theme package (THM-02). Version 2 (2026-11-18) adds `sizeAdjust` and
+ * replaces version 1, which the platform no longer reads: the formats are not kept backwards
+ * compatible for the time being (19.7).
+ */
+export const THEME_FORMAT_VERSION = 2;
+
 /** The format versions the platform reads (THM-02). */
-export const THEME_FORMAT_VERSIONS = [1] as const;
+export const THEME_FORMAT_VERSIONS = [THEME_FORMAT_VERSION] as const;
 
 export const THEME_KIND = "zappaloo-theme";
 
@@ -17,6 +24,9 @@ export const THEME_LIMITS = {
   /** The contrast that text on a background, and text on an accent, must reach (WCAG AA). */
   contrast: 4.5,
 } as const;
+
+/** The size adjust of a font in percent (19.7, THM-16): 100 is the font as it is. */
+export const SIZE_ADJUST = { min: 50, max: 200, default: 100 } as const;
 
 /** The seven colours of `theme.json`, in their order (19.7). */
 export const THEME_COLOR_KEYS = [
@@ -34,7 +44,7 @@ export type ThemeColorKey = (typeof THEME_COLOR_KEYS)[number];
 export const themeManifestSchema = z.strictObject({
   $schema: z.string().optional(),
   kind: z.literal(THEME_KIND),
-  formatVersion: z.literal(1),
+  formatVersion: z.literal(THEME_FORMAT_VERSION),
   name: z.string().trim().min(1).max(60),
 });
 export type ThemeManifest = z.infer<typeof themeManifestSchema>;
@@ -57,6 +67,8 @@ const fontSchema = z.strictObject({
     .string()
     .trim()
     .regex(/^[\p{L}\p{N} -]{1,40}$/u, "letters, digits, spaces and hyphens"),
+  /** Scales this font only, as `size-adjust` of its `@font-face` rules (THM-16). */
+  sizeAdjust: z.number().int().min(SIZE_ADJUST.min).max(SIZE_ADJUST.max).optional(),
   files: z.array(fontFileSchema).min(1).max(4),
 });
 export type ThemeFont = z.infer<typeof fontSchema>;
@@ -96,6 +108,8 @@ export type ThemeJson = z.infer<typeof themeJsonSchema>;
 /** A font face the pages without sign-in load: the family and its files, with their URLs. */
 const siteFontSchema = z.strictObject({
   family: z.string(),
+  /** In percent; without it the font is used as it is. */
+  sizeAdjust: z.number().int().optional(),
   files: z.array(
     z.strictObject({
       url: z.string(),

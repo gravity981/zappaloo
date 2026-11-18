@@ -986,6 +986,14 @@ button {
   font: 600 15px/1.3 var(--a-display);
   margin: 14px 0 4px;
 }
+/* every heading level of a text is a heading of the theme: the heading font (19.7) */
+.guest .markdown h3,
+.guest .markdown h4,
+.guest .markdown h5,
+.guest .markdown h6 {
+  font: 600 14px/1.3 var(--a-display);
+  margin: 12px 0 4px;
+}
 .guest .markdown p,
 .guest .markdown ul,
 .guest .markdown ol {
@@ -997,6 +1005,17 @@ button {
 }
 .guest .markdown a {
   text-decoration: underline;
+}
+
+/* A preview of guest content in the admin area: the guest's view, with the event's theme. */
+.guest.themed-preview {
+  min-height: 0;
+  padding: 14px;
+  border-radius: 10px;
+  border: 1px solid var(--a-line);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
 }
 
 /* a password field with an eye button */
@@ -1035,7 +1054,8 @@ button {
   flex-wrap: wrap;
   gap: 8px 16px;
   padding: calc(12px + env(safe-area-inset-top, 0px)) 16px 12px;
-  background: var(--a-card);
+  /* the theme gives the bar a tint of its accent (THM-17); without a theme it is the card colour */
+  background: var(--a-bar, var(--a-card));
   border-bottom: 1px solid var(--a-line);
 }
 .guest-site-head b {
@@ -1060,7 +1080,7 @@ button {
   cursor: pointer;
 }
 .guest-site-head nav a.active {
-  background: var(--a-fill);
+  background: var(--a-bar-pill, var(--a-fill));
   color: var(--a-ink);
   font-weight: 700;
 }
@@ -1190,7 +1210,7 @@ button {
     bottom: 0;
     justify-content: space-around;
     gap: 0;
-    background: var(--a-card, #ffffff);
+    background: var(--a-bar, var(--a-card, #ffffff));
     border-top: 1px solid var(--a-line);
     padding: 6px 0 calc(6px + env(safe-area-inset-bottom));
     z-index: 10;

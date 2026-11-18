@@ -91,6 +91,22 @@
           "endsPattern": "ready in"
         }
       }
+    },
+    {
+      "label": "theme editor",
+      "detail": "Theme package editor on port 5176",
+      "type": "npm",
+      "script": "dev:theme-editor",
+      "isBackground": true,
+      "presentation": { "panel": "dedicated", "clear": true },
+      "problemMatcher": {
+        "owner": "zappaloo-theme-editor",
+        "pattern": { "regexp": "^__never_matches__$" },
+        "background": {
+          "beginsPattern": "VITE v",
+          "endsPattern": "ready in"
+        }
+      }
     }
   ]
 }

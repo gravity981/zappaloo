@@ -9,6 +9,7 @@ const MANIFESTS = [
   "frontend/package.json",
   "game-engine/package.json",
   "game-preview/package.json",
+  "theme-editor/package.json",
 ];
 /** The client libraries of the common AI APIs. */
 const AI_LIBRARIES =

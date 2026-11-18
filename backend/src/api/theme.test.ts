@@ -41,7 +41,7 @@ describe("the theme of the event (THM-01, THM-03, THM-04, THM-05)", () => {
     expect(imported.statusCode).toBe(200);
     expect(bodyOf<ThemeStatus>(imported).active?.name).toBe("Sommerfest");
     const status = await ctx.app.inject({ url: "/api/admin/theme", headers: admin });
-    expect(bodyOf<ThemeStatus>(status).active?.formatVersion).toBe(1);
+    expect(bodyOf<ThemeStatus>(status).active?.formatVersion).toBe(2);
     // The package lies in its own folder, as a whole.
     const [folder] = themeFolders(ctx);
     expect(
@@ -78,16 +78,18 @@ describe("the theme of the event (THM-01, THM-03, THM-04, THM-05)", () => {
     context = await createTestApp();
     const ctx = context;
     const admin = await signIn(ctx, "boss", ["admin"]);
-    const newer = validThemeFiles({
-      "manifest.json": Buffer.from(
-        JSON.stringify({ kind: "zappaloo-theme", formatVersion: 2, name: "Neu" }),
-      ),
-    });
-    const refused = await upload(ctx, admin, buildThemeArchive(newer));
-    expect(refused.statusCode).toBe(422);
-    expect(bodyOf<{ findings: { code: string }[] }>(refused).findings.map((f) => f.code)).toEqual([
-      "format_version",
-    ]);
+    for (const formatVersion of [1, 3]) {
+      const other = validThemeFiles({
+        "manifest.json": Buffer.from(
+          JSON.stringify({ kind: "zappaloo-theme", formatVersion, name: "Other" }),
+        ),
+      });
+      const refused = await upload(ctx, admin, buildThemeArchive(other));
+      expect(refused.statusCode, String(formatVersion)).toBe(422);
+      expect(bodyOf<{ findings: { code: string }[] }>(refused).findings.map((f) => f.code)).toEqual(
+        ["format_version"],
+      );
+    }
   });
 
   it("[THM-03] an archive that is not gzip is refused before anything is written", async () => {
@@ -176,6 +178,61 @@ function fontThemeFiles(): Record<string, Buffer> {
     "fonts/cormorant-600.woff2": face("cormorant"),
   });
 }
+
+describe("size adjust on the pages without sign-in (THM-16)", () => {
+  it("[THM-16] the site carries the size adjust of a font that has one, and leaves it out of the others", async () => {
+    context = await createTestApp();
+    const ctx = context;
+    const admin = await signIn(ctx, "boss", ["admin"]);
+    const files = fontThemeFiles();
+    files["theme.json"] = Buffer.from(
+      JSON.stringify({
+        colors: VALID_COLORS,
+        fonts: {
+          body: {
+            family: "Lora",
+            sizeAdjust: 108,
+            files: [{ file: "lora-400.woff2", weight: 400, style: "normal" }],
+          },
+          display: {
+            family: "Cormorant",
+            files: [{ file: "cormorant-600.woff2", weight: 600, style: "normal" }],
+          },
+        },
+      }),
+    );
+    expect((await upload(ctx, admin, buildThemeArchive(files))).statusCode).toBe(200);
+    const site = (await ctx.app.inject("/api/site")).json<{
+      theme: { fonts: Record<string, { family: string; sizeAdjust?: number } | undefined> };
+    }>().theme;
+    expect(site.fonts.body?.sizeAdjust).toBe(108);
+    expect(site.fonts.display).not.toHaveProperty("sizeAdjust");
+  });
+
+  it("[THM-16] a package with a size adjust outside 50 to 200 is refused with the field", async () => {
+    context = await createTestApp();
+    const ctx = context;
+    const admin = await signIn(ctx, "boss", ["admin"]);
+    const files = fontThemeFiles();
+    files["theme.json"] = Buffer.from(
+      JSON.stringify({
+        colors: VALID_COLORS,
+        fonts: {
+          body: {
+            family: "Lora",
+            sizeAdjust: 250,
+            files: [{ file: "lora-400.woff2", weight: 400, style: "normal" }],
+          },
+        },
+      }),
+    );
+    const response = await upload(ctx, admin, buildThemeArchive(files));
+    expect(response.statusCode).toBe(422);
+    expect(response.json<{ findings: { detail: string }[] }>().findings[0]?.detail).toContain(
+      "fonts.body.sizeAdjust",
+    );
+  });
+});
 
 describe("the theme on the pages without sign-in (THM-01, THM-04)", () => {
   it("[THM-01][THM-06] the site carries the default as null, and the active theme with its font URLs", async () => {

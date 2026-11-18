@@ -1,6 +1,7 @@
 // Builds theme packages (the shared encoder and archive writer are in packages/build.ts). The tests
 // and the example package of the repository (step 4e-7) use the same code, so a package in a test is
 // a real package.
+import { THEME_FORMAT_VERSION } from "@zappaloo/shared";
 import { buildArchive, encodePng } from "../packages/build.ts";
 
 export { encodePng };
@@ -26,7 +27,7 @@ export function validThemeFiles(
 ): Record<string, Buffer> {
   return {
     "manifest.json": Buffer.from(
-      JSON.stringify({ kind: "zappaloo-theme", formatVersion: 1, name }),
+      JSON.stringify({ kind: "zappaloo-theme", formatVersion: THEME_FORMAT_VERSION, name }),
     ),
     "theme.json": Buffer.from(JSON.stringify({ colors: VALID_COLORS })),
     "icons/icon-192.png": encodePng(192, 192, [42, 42, 40]),

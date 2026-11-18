@@ -17,6 +17,7 @@
 | Release 1: invitation and RSVP | Enter invitation code, redeem and create account, login, forgot password, set password (setup and reset link), confirm email address, page not found, privacy notice, waiting page, RSVP (attendance, food and allergies, companions and song, summary), profile |
 | Game world | First entry (avatar, say hello), game world, page overlay over the game, table finder |
 | Website | Start, programme, content page, more, where do I sit, upload, upload confirmation, gallery with photo viewer, keepsake page, games and rankings, treasure found |
+| Developer tools | Theme package editor (development only, epic 5.2) |
 | Admin | Event setup, overview, invitations, accounts and roles, RSVP overview, seating plan, content editor, game world (objects and portals, maps and import), settings, moderation, event screen |
 
 ## UX decisions (2026-11-10)
@@ -166,3 +167,20 @@ Written into sw-architecture.md 14.2 and 14.4 as well.
 | Admin card "Welt" | The info line shows the format, the tile size as width × height ("Kachel 64 × 32 Pixel"), the number of figures, the import time and the start map (MAP-05). |
 | Refused package | The findings name the file of a figure with its frame, for example `avatar/<figure>/…/south.png: falsches Format (32 × 32 instead of 48 × 48)`. |
 | Import text | "Ein Weltpaket (.tar.gz, Format 2) mit isometrischen Karten, Tilesets, Figuren und optional der Tür der Warteseite." |
+
+## UX decisions for the theme package editor (2026-11-18, epic 5.2, story 5.2a)
+
+Written into sw-architecture.md 19.7.1 as well. The screen `theme-editor` (group "Developer tools") is drawn with four states: theme in progress, empty draft, contrast check failing, export refused.
+
+| Topic | Decision |
+|---|---|
+| Tool, not product | Development only (THM-08). English texts, admin styles of the mocks. The screen has no guest chrome and no link into the app. |
+| Wide screen | Controls in cards on the left (Name, Colours, Contrast check, Waiting card, Fonts, Icons, Export), preview on the right. In the editor the two columns scroll on their own under a fixed header (changed 2026-11-18; the mock shows the whole screen as one page). |
+| Narrow screen | Tabs «Edit» and «Preview» instead of one long column, so the preview is one tap away and not below a long list of controls. Proposed; the project owner confirms the mock before story 5.2c. |
+| Header | «Open package…», «New theme» (second click), «Export», and the line «Draft saved in this browser». |
+| Contrast check | Its own card with the five pairs of the validator, ratio and ✓ / ✗, live. A failing pair does not block «Export»; the validator's refusal is shown in the card Export. |
+| Findings | Listed in the card Export with the card and field they belong to; nothing is downloaded. |
+| Empty draft | The platform's default colours, no fonts, no icons; the Export card says what is missing. |
+| Colour assistant (decided 2026-11-18) | Master colour = accent, with «Surprise me». Palette cards, each a complete mapping onto the seven colour keys: Tint, Neutral, Warm paper, Cool, Soft complement, Analogous, High contrast, each with ✓ when all pairs of the validator pass. Picking a card fills the colours (and the waiting card's if on); later edits stay; nothing is recomputed. No dark theme (status colours are for light surfaces). Modelled on mycolor.space (one colour in, many named palettes out), but every palette must fit the theme package's keys (THM-15). |
+| Size adjust (decided 2026-11-18) | Per font, in the card Fonts: slider and number field, 50–200 %, default 100; live in the preview; for fonts whose letters look smaller or larger than the others (THM-16). |
+| Soft buttons and bars (decided 2026-11-18) | In a theme, soft buttons, chips and tags and the bars (website header, game bar, phone tab bar) take a tint of the accent over the surface; the active tab is the surface colour. Derived from the seven colours (about 12 %, lowered until the text on it reaches 4.5 : 1), so the theme format has no new key (THM-17). The mocks stay neutral; the editor's mock shows the effect in a «Website bar» and a soft button. |

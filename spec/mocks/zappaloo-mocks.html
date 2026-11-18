@@ -510,6 +510,66 @@ select.m-input { appearance: auto; }
   .m-keys { display: block; }
   .m-bubble { width: 240px; }
 }
+
+/* theme editor (developer tool, epic 5.2) */
+.te-master { display: flex; flex-direction: column; gap: 8px; }
+.te-pals { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.te-pal { text-align: left; display: flex; flex-direction: column; gap: 5px; align-items: flex-start; padding: 10px; border: 1.5px solid var(--w-line); border-radius: 12px; background: #fff; cursor: pointer; font: inherit; color: inherit; }
+.te-pal.on { border-color: var(--w-ink); box-shadow: 0 0 0 1px var(--w-ink); }
+.te-sw { display: flex; width: 100%; height: 26px; border-radius: 6px; overflow: hidden; border: 1px solid var(--w-line); }
+.te-sw i { flex: 1; }
+.te-size { display: flex; gap: 10px; align-items: center; }
+.te-size input[type=range] { flex: 1; min-width: 0; }
+.te-pct { width: 64px; min-height: 32px; text-align: right; }
+.m-te { display: flex; flex-direction: column; min-height: 100%; }
+.te-head .te-saved { margin-left: auto; font-size: 12px; opacity: 0.8; }
+.te-bar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; padding: 10px 14px; background: var(--w-card); border-bottom: 1px solid var(--w-line); position: sticky; top: 46px; z-index: 5; }
+.te-bar .te-tabs { margin-right: auto; }
+.te-main { padding: 14px; display: block; min-width: 0; }
+.m-te[data-pane="edit"] .te-prev, .m-te[data-pane="preview"] .te-edit { display: none; }
+.te-color { display: flex; gap: 10px; align-items: center; }
+.te-color input[type=color] { width: 40px; height: 36px; padding: 2px; border: 1.5px solid var(--w-line); border-radius: 8px; background: #fff; flex: none; }
+.te-hex { width: 104px; min-height: 36px; font-family: ui-monospace, Menlo, monospace; }
+.te-pair { width: 34px; height: 28px; border-radius: 6px; display: grid; place-items: center; font-weight: 700; border: 1px solid var(--w-line); flex: none; }
+.te-font { display: flex; flex-direction: column; gap: 8px; padding-top: 10px; border-top: 1px solid var(--w-line); }
+.te-icons { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.te-icon { display: flex; flex-direction: column; gap: 4px; align-items: flex-start; }
+.te-ic { width: 72px; height: 72px; border-radius: 14px; display: grid; place-items: center; color: #fff; background: var(--w-fill); border: 1px dashed var(--w-line); }
+.te-ic.mask { border-radius: 50%; outline: 2px dashed rgba(255,255,255,.5); outline-offset: -8px; }
+.te-ic svg.i { width: 34px; height: 34px; }
+.te-sample { background: var(--s-bg); color: var(--s-text); font-family: var(--s-body); padding: 14px; display: flex; flex-direction: column; gap: 10px; }
+.te-sample .m-eyebrow { color: var(--s-muted); font-family: var(--f-text); }
+.te-sample h3, .te-sample h4 { font-family: var(--s-head); margin: 0; }
+.te-sample p, .te-sample ul { margin: 0; }
+.te-sample a { color: var(--s-accent); }
+.te-pv { background: var(--s-surface); border: 1px solid var(--s-line); border-radius: 12px; padding: 14px; display: flex; flex-direction: column; gap: 8px; }
+.te-pv-hero { aspect-ratio: 16/6; background: var(--s-line); border-radius: 8px; display: grid; place-items: center; color: var(--s-muted); font-size: 11px; }
+.te-pv-card { border: 2px solid var(--s-accent); border-radius: 12px; padding: 12px; display: flex; flex-direction: column; gap: 2px; }
+.te-disp { font: 600 30px/1.1 var(--s-disp); }
+.te-eb, .te-mu { color: var(--s-muted); font-size: 12.5px; }
+.te-lbl { display: flex; flex-direction: column; gap: 4px; font-size: 12.5px; font-weight: 600; }
+.te-in { min-height: 40px; border: 1.5px solid var(--s-line); background: var(--s-surface); color: var(--s-text); border-radius: 10px; padding: 0 12px; font: inherit; }
+.te-btn { min-height: 40px; padding: 0 16px; border-radius: 10px; border: 1.5px solid var(--s-accent); background: var(--s-accent); color: var(--s-on); font: 600 14px var(--s-body); }
+.te-btn.ghost { background: transparent; color: var(--s-accent); }
+.te-btn.soft { background: var(--s-fill); border-color: var(--s-fill); color: var(--s-text); }
+.te-bar2 { background: var(--s-fill); border: 1px solid var(--s-line); border-radius: 12px; padding: 10px 14px; display: flex; gap: 6px; align-items: center; color: var(--s-muted); }
+.te-bar2 b { color: var(--s-text); font-family: var(--s-head); margin-right: 10px; }
+.te-bar2 span { padding: 5px 10px; border-radius: 999px; font-size: 13px; }
+.te-bar2 span.on { background: var(--s-surface); color: var(--s-text); font-weight: 700; }
+.te-wait { background: var(--w-card); color: var(--w-text); border-radius: 14px; padding: 16px; display: flex; flex-direction: column; gap: 10px; }
+.te-wait button { min-height: 40px; border-radius: 10px; border: 0; background: var(--w-b); color: var(--w-on); font-weight: 700; }
+.te-home { background: #3a4a5c; border-radius: 18px; padding: 16px; display: flex; gap: 18px; justify-content: space-around; }
+.te-app { display: flex; flex-direction: column; align-items: center; gap: 4px; color: #fff; font-size: 11px; }
+.te-app i { width: 56px; height: 56px; border-radius: 13px; display: grid; place-items: center; color: #fff; }
+.te-app i.round { border-radius: 50%; } .te-app i.sq { border-radius: 22px; }
+@container (min-width: 720px) {
+  .te-tabs { display: none; }
+  .te-main { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 16px; align-items: start; padding: 20px 28px 40px; }
+  .m-te[data-pane] .te-edit, .m-te[data-pane] .te-prev { display: flex; }
+  .te-prev { position: sticky; top: 108px; }
+  .te-icons { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .te-pals { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
 @media (prefers-reduced-motion: reduce) { .m-modcard, .m-switch::after { transition: none; } }
 </style>
 </head>
@@ -680,6 +740,7 @@ const GROUPS = [
   ["game", "Game world"],
   ["web", "Website"],
   ["admin", "Admin, moderation, event screen"],
+  ["dev", "Developer tools"],
 ];
 
 /* ===== Release 1 ===== */
@@ -1496,7 +1557,7 @@ add({
   render: (v) => {
     const dv = v || "active";
     const designTag = dv === "default" ? '<span class="m-tag line">Standard-Design</span>' : '<span class="m-tag ok">Aktiv: Sommerfest</span>';
-    const designInfo = dv === "default" ? "Es gilt das Standard-Design der Plattform." : "Format 1 · importiert am 12.11.2026 um 18:04. Das Design gilt für die Website und die Gästeseiten sowie für die Icons der App. Die Verwaltung bleibt neutral.";
+    const designInfo = dv === "default" ? "Es gilt das Standard-Design der Plattform." : "Format 2 · importiert am 12.11.2026 um 18:04. Das Design gilt für die Website und die Gästeseiten sowie für die Icons der App. Die Verwaltung bleibt neutral.";
     const designButtons = dv === "confirm" ? '<button class="m-btn soft sm">Ja, Standard-Design verwenden</button><button class="m-btn ghost sm">Abbrechen</button>' : '<button class="m-btn soft sm">Design importieren</button>' + (dv === "default" ? "" : '<button class="m-btn ghost sm">Standard-Design verwenden</button>');
     const designFindings = dv !== "refused" ? "" : '<div class="m-card flat"><b class="sm">Das Paket wurde abgelehnt</b><span class="m-hint">Das aktive Design bleibt unverändert. Alle Befunde:</span><ul class="m-list sm"><li>icons/icon-192.png: falsche Grösse (200 × 200 instead of 192 × 192)</li><li>theme.json: Feld unbekannt oder ungültig (unknown field «shadow»)</li><li>theme.json: Kontrast zu gering («text» on «surface»: 3.1 : 1 (at least 4.5 : 1))</li></ul></div>';
     return admin("admin-settings", `<h1 class="m-h1">Einstellungen</h1>
@@ -1593,6 +1654,104 @@ add({
       ? [["1", "Lukas Meier", "10/10"], ["2", "Sara Keller", "9/10"], ["3", "Tom Brunner", "9/10"], ["4", "Erika Huber", "8/10"], ["5", "Nina Roth", "8/10"]]
       : [["1", "Familie Brunner", "8 / 8"], ["2", "Lukas Meier", "7 / 8"], ["3", "Sara Keller", "6 / 8"], ["4", "Jonas' Team", "5 / 8"], ["5", "Peter Graf", "4 / 8"]];
     return `<div class="m-tv">${top(v === "quiz" ? 'Paar-Quiz <span class="m-live" style="font-size:14px;margin-left:10px"><i></i> live</span>' : "Schatzsuche")}<div class="m-tvmain"><div class="m-tvboard" style="max-width:900px;margin-inline:auto">${rows.map(([r, n, s], i) => `<div class="m-tvrow ${v === "quiz" && i === 3 ? "up" : ""}"><span class="rk">${r}</span><span>${n}</span><span class="sc">${s}</span></div>`).join("")}</div></div>${side}${dots}</div>`;
+  },
+});
+
+/* ===== Developer tools (epic 5.2) ===== */
+add({
+  id: "theme-editor", group: "dev", title: "Theme package editor", path: "localhost:5176 (development only)", reqs: ["THM-08", "THM-09", "THM-10", "THM-11", "THM-12", "THM-13", "THM-14"],
+  variants: [["filled", "Theme in progress"], ["empty", "Empty draft"], ["contrast", "Contrast check failing"], ["refused", "Export refused"]],
+  shows: [
+    "Development tool, proposed 2026-11-18 (epic 5.2): runs on the developer's machine only (`APP_ENV=dev npm run dev:theme-editor`, port 5176, like the game preview), never in the app or its image (THM-08). Texts are English like the game preview; the controls use the admin styles.",
+    "Wide screen: the controls in cards on the left, the preview as a scrolling column on the right. Narrow screen (Phone switch): one column with the tabs «Edit» and «Preview», so each gets the whole width; the header with «Export» stays. The tab choice is kept while the page is open.",
+    "Header: «Open package…» (THM-13: validates, fills every field, icon and font; a refused package shows its findings and is not opened), «New theme» (asks a second click, then starts from the platform's default colours), «Export» (THM-12). A line under the title says «Draft saved in this browser» (THM-14).",
+    "Card Name: the manifest's `name`, 1–60 characters. The file is downloaded as the slug of the name, here `sommerfest.tar.gz`.",
+    "Colour assistant (THM-15, proposed 2026-11-18, after mycolor.space): the card Colours starts with the master colour, which is the accent, and «Surprise me» for a random one. Below it palette cards, each a complete mapping onto the colour keys: Tint, Neutral, Warm paper, Cool, Soft complement, Analogous, High contrast (a dark theme is not offered: the status colours are made for light surfaces). A card shows its seven colours and ✓ when every pair of the validator passes. Picking one fills the seven colours (and the waiting card colours when they are on); the accent stays the master colour, onAccent becomes black or white, text, muted and line are derived to keep the contrast. Colours edited afterwards stay as they are. The mock shows the cards for the sample master colour; the real ones follow the master colour you set.",
+    "Card Colours (THM-09): for each of the seven colours a colour picker and a #rrggbb field. Beside them the five contrast pairs of the validator (text on background, text on surface, on-accent on accent, and with «Own waiting card colours» on: text on card, on-button on button) with their ratio and a ✓ / ✗ against 4.5 : 1, updated while typing. State «Contrast check failing» shows a failing pair; the export stays possible to try, the validator then refuses it.",
+    "Card Waiting card: a switch «Own waiting card colours» (off: no `waiting` entry in the package) and four colours when on: card, text, button, button text.",
+    "Card Fonts (THM-09): body, heading and display, each off or a family name with 1–4 files. Each font has «Size adjust» (THM-16, proposed 2026-11-18): a slider and a number field, 50–200 %, default 100, shown live in the preview; it scales this font only (CSS size-adjust), for fonts that draw their letters smaller or larger than the others (the mock's body font is at 108 %). A file row has the file name, weight, style and «Remove». «Add font file» takes WOFF2, OTF or TTF; OTF and TTF are converted to WOFF2 by the editor (the row says «converted from OTF»). Family, weight and style are suggested from the file. A counter «5 of 8 files» and the 2 MB limit after conversion.",
+    "Card Icons (THM-10): one square image of at least 512 px; the editor makes the four icons from it, shows each at its size and builds the maskable icon with the content inside the central 80 % on a chosen background colour (shown with the safe-zone circle). «Replace» on each icon takes its own PNG of the exact size; a wrong size is refused on the spot.",
+    "Card Export: the name, «Export» and, when the validator refuses the package, the findings with the field each belongs to (state «Export refused»). Nothing is downloaded then.",
+    "Soft buttons, chips and the bars (THM-17, decided 2026-11-18): the theme has no colour for them, so they take a derived tint of the accent over the surface (about 12 %, lowered until the text on it reaches 4.5 : 1). The preview shows it in the «Website bar» (website header, game bar and phone tab bar look the same way; the active tab is the surface colour) and in the soft button «Mehr erfahren».",
+    "Preview (THM-11): sample elements built with the app's own stylesheets and theme code, not the real pages: the start page (hero, welcome text, countdown card in the display font), a content page with Markdown headings and text, a form with fields and a primary and a secondary button, the waiting card, and the icons on a phone home screen with the maskable icon in a circle and in a rounded square. They follow every change at once. The mock draws them with the sample colours of the screen.",
+    "Empty draft: the platform's default colours, no fonts, no icons («Choose an image»); the preview shows the platform's default look, and Export says what is missing.",
+  ],
+  qs: [
+    { q: "Narrow screen: tabs «Edit» and «Preview», or one column with the controls first and the preview below?", p: "Mock: tabs. The preview is long, and with one column the changes would be out of sight while editing. The full preview is on the other tab in one tap." },
+  ],
+  render: (v) => {
+    const dv = v || "filled";
+    const empty = dv === "empty";
+    const C = empty
+      ? { background: "#f4f4f1", surface: "#ffffff", text: "#1f1f1d", muted: "#6a6a64", line: "#d5d5ce", accent: "#2a2a28", onAccent: "#ffffff" }
+      : { background: "#f6f1e7", surface: "#fffdf8", text: "#2b2a26", muted: "#6b6558", line: "#ddd3bf", accent: "#7a3b2e", onAccent: "#ffffff" };
+    if (dv === "contrast") { C.text = "#9a9486"; }
+    const lum = (h) => { const n = parseInt(h.slice(1), 16); return [n >> 16, (n >> 8) & 255, n & 255].map((x) => { x /= 255; return x <= 0.03928 ? x / 12.92 : ((x + 0.055) / 1.055) ** 2.4; }).reduce((a, x, i) => a + x * [0.2126, 0.7152, 0.0722][i], 0); };
+    const ratio = (a, b) => { const [x, y] = [lum(a), lum(b)].sort((p, q) => q - p); return (x + 0.05) / (y + 0.05); };
+    const W = { card: "#3b2f4a", text: "#ffffff", button: "#ffd27a", onButton: "#2b2a26" };
+    const pairs = [["text", "background", C.text, C.background], ["text", "surface", C.text, C.surface], ["onAccent", "accent", C.onAccent, C.accent], ["text", "waiting card", W.text, W.card], ["onButton", "button", W.onButton, W.button]];
+    const pairRows = pairs.map(([a, b, f, g], i) => { const r = ratio(f, g); const ok = r >= 4.5; return `<div class="m-setrow"><span class="te-pair" style="background:${g};color:${f}">Aa</span><div class="grow"><b class="sm">${a} on ${b}${i > 2 ? ' <span class="m-hint">(waiting card)</span>' : ""}</b></div><span class="m-tag ${ok ? "ok" : "bad"}">${ok ? "✓" : "✗"} ${r.toFixed(1)} : 1</span></div>`; }).join("");
+    const colorRow = ([k, hint]) => `<div class="te-color"><input type="color" value="${C[k]}" aria-label="${k}"><div class="grow"><b class="sm">${k}</b><span class="m-hint">${hint}</span></div><input class="m-input te-hex" value="${C[k]}" maxlength="7" aria-label="${k} as #rrggbb"></div>`;
+    const PALETTES = [
+      ["Tint", "light tints of the master hue", { background: "#f7eeeb", surface: "#fffaf8", text: "#2e1914", muted: "#7a5b53", line: "#e3d0ca" }],
+      ["Neutral", "grey tones", { background: "#f4f4f1", surface: "#ffffff", text: "#1f1f1d", muted: "#6a6a64", line: "#d5d5ce" }],
+      ["Warm paper", "cream tones", { background: "#f6f1e7", surface: "#fffdf8", text: "#2b2a26", muted: "#6b6558", line: "#ddd3bf" }],
+      ["Cool", "blue-grey tones", { background: "#eef2f4", surface: "#fbfdfe", text: "#1b2328", muted: "#5a6a73", line: "#d0dade" }],
+      ["Soft complement", "tints of the opposite hue", { background: "#edf5f3", surface: "#fafdfc", text: "#1a2b28", muted: "#56706b", line: "#cfe0dc" }],
+      ["Analogous", "tints of the neighbouring hues", { background: "#faf0e6", surface: "#fffaf5", text: "#33201a", muted: "#80604f", line: "#ecd5c3" }],
+      ["High contrast", "white and black", { background: "#ffffff", surface: "#ffffff", text: "#000000", muted: "#4a4a4a", line: "#1f1f1f" }],
+    ];
+    const palCard = ([n, d, c], i) => {
+      const all = { ...c, accent: "#7a3b2e", onAccent: "#ffffff" };
+      const okAll = ratio(all.text, all.background) >= 4.5 && ratio(all.text, all.surface) >= 4.5 && ratio(all.onAccent, all.accent) >= 4.5 && ratio(all.muted, all.background) >= 4.5;
+      return `<button type="button" class="te-pal ${i === 2 && !empty ? "on" : ""}"><b class="sm">${n}</b><span class="te-sw">${["background", "surface", "text", "muted", "line", "accent", "onAccent"].map((k) => `<i style="background:${all[k]}" title="${k}"></i>`).join("")}</span><span class="m-hint">${d}</span><span class="m-tag ${okAll ? "ok" : "bad"}">${okAll ? "✓ all pairs" : "✗"}</span></button>`;
+    };
+    const suggest = `<div class="te-master"><div class="te-color"><input type="color" value="${C.accent}" aria-label="master colour"><div class="grow"><b class="sm">Master colour</b><span class="m-hint"> the accent; the suggestions are made from it</span></div><input class="m-input te-hex" value="${C.accent}" maxlength="7" aria-label="master colour as #rrggbb"></div><button class="m-btn soft sm" style="align-self:flex-start">Surprise me</button></div>
+      <span class="m-eyebrow">Suggested palettes</span><div class="te-pals" data-single>${PALETTES.map(palCard).join("")}</div><span class="m-hint">Picking a card fills the seven colours${empty ? "" : " and the waiting card colours"}. The accent stays the master colour. Colours you change afterwards stay as they are.</span>`;
+    const colours = [["background", "the page"], ["surface", "cards and fields"], ["text", "main text"], ["muted", "secondary text"], ["line", "borders"], ["accent", "buttons, highlights"], ["onAccent", "text on accent"]].map(colorRow).join("");
+    const fontRow = (name, fam, files, size = 100) => `<div class="te-font"><div class="m-row2"><b class="grow" style="flex:1">${name}</b>${sw(!!fam)}</div>${fam ? `${field("Family", inp("te-f-" + name, fam))}<div class="te-size"><span class="sm"><b>Size adjust</b></span><input type="range" min="50" max="200" value="${size}" aria-label="${name} size adjust"><input class="m-input te-pct" value="${size}" aria-label="${name} size adjust in percent"><span class="sm">%</span></div><span class="m-hint">Scales this font only; 100 % is the font as it is. For fonts that draw their letters smaller or larger than the others.</span>${files.map(([f, w, s, note]) => `<div class="m-row2 sm te-file"><span class="grow" style="flex:1 1 140px"><b>${f}</b>${note ? ` <span class="m-hint">${note}</span>` : ""}</span><select class="m-input" style="width:auto;min-height:32px"><option>${w}</option></select><select class="m-input" style="width:auto;min-height:32px"><option>${s}</option></select><button class="m-btn ghost sm">Remove</button></div>`).join("")}<button class="m-btn soft sm" style="align-self:flex-start">${ic("plus")} Add font file</button>` : '<span class="m-hint">Off: the platform\'s font is used.</span>'}</div>`;
+    const fonts = empty
+      ? [fontRow("Body", "", []), fontRow("Heading", "", []), fontRow("Display", "", [])].join("")
+      : [fontRow("Body", "Lora", [["Lora-Regular.ttf", 400, "normal", "converted from TTF · 118 KB"], ["Lora-Bold.woff2", 700, "normal", "96 KB"]], 108), fontRow("Heading", "Playfair Display", [["PlayfairDisplay-Bold.otf", 700, "normal", "converted from OTF · 143 KB"]]), fontRow("Display", "Cormorant", [["Cormorant-SemiBold.woff2", 600, "normal", "88 KB"]])].join("");
+    const iconTile = (label, size, bg, mask, own) => `<div class="te-icon"><div class="te-ic ${mask ? "mask" : ""}" style="${empty ? "" : `background:${bg}`}">${empty ? "" : `<span style="${mask ? "transform:scale(.8)" : ""}">${ic("home")}</span>`}</div><b class="sm">${label}</b><span class="m-hint">${size}${own ? " · own file" : ""}</span><button class="m-btn ghost sm">Replace</button></div>`;
+    const icons = `<div class="m-row2">${empty ? '<div class="m-composer-photo" style="flex:1">' + ic("cam") + "<b>Choose a square image (at least 512 px)</b><span class=\"m-hint\">PNG or JPEG</span></div>" : '<span class="m-tag ok">logo.png · 1024 × 1024</span><button class="m-btn soft sm">Choose another image</button>'}</div>
+      ${empty ? "" : field("Background of the maskable icon", `<div class="te-color"><input type="color" value="${C.accent}" aria-label="maskable background"><input class="m-input te-hex" value="${C.accent}" maxlength="7"></div>`, "The content sits inside the central 80 %.")}
+      <div class="te-icons">${iconTile("icon-192", "192 × 192", C.accent)}${iconTile("icon-512", "512 × 512", C.accent)}${iconTile("icon-maskable-512", "512 × 512 · optional", C.accent, true)}${iconTile("apple-touch-icon", "180 × 180", C.accent, false, !empty)}</div>`;
+    const findings = dv !== "refused" ? "" : `<div class="m-card flat"><b class="sm">The package was not exported</b><span class="m-hint">The validator refuses it. Every finding, with the field it belongs to:</span><ul class="m-list sm"><li><a>Colours › text</a>: theme.json: contrast too low («text» on «surface»: 3.1 : 1 (at least 4.5 : 1))</li><li><a>Fonts › Body</a>: fonts/lora-400.woff2: larger than 2 MB (2.4 MB)</li><li><a>Icons › icon-192</a>: icons/icon-192.png: wrong size (200 × 200 instead of 192 × 192)</li></ul></div>`;
+    const nameVal = empty ? "" : "Sommerfest";
+    const edit = `
+      <div class="m-card"><b class="m-h2">Name</b>${field("Name of the theme package", inp("te-name", nameVal, 'maxlength="60" placeholder="e.g. Sommerfest"'), "1–60 characters. The file is downloaded as " + (empty ? "<code>&lt;name&gt;.tar.gz</code>" : "<code>sommerfest.tar.gz</code>") + ".")}</div>
+      <div class="m-card"><b class="m-h2">Colours</b>${suggest}<span class="m-eyebrow">The seven colours</span><div class="m-stack" style="gap:8px">${colours}</div></div>
+      <div class="m-card"><b class="m-h2">Contrast check</b><span class="m-hint">As the validator checks it: at least 4.5 : 1.</span><div class="m-list">${pairRows}</div></div>
+      <div class="m-card"><div class="m-setrow"><div class="grow"><b class="m-h2">Own waiting card colours</b><span class="m-hint">Off: the waiting card uses the colours above.</span></div>${sw(!empty)}</div>
+        ${empty ? "" : [["card", W.card], ["text", W.text], ["button", W.button], ["onButton", W.onButton]].map(([k, c]) => `<div class="te-color"><input type="color" value="${c}" aria-label="waiting ${k}"><div class="grow"><b class="sm">${k}</b></div><input class="m-input te-hex" value="${c}" maxlength="7"></div>`).join("")}</div>
+      <div class="m-card"><div class="m-row2"><b class="m-h2" style="flex:1">Fonts</b><span class="m-tag line">${empty ? 0 : 4} of 8 files</span></div><span class="m-hint">WOFF2, OTF or TTF, at most 2 MB each after conversion. OTF and TTF are converted to WOFF2 here.</span>${fonts}</div>
+      <div class="m-card"><b class="m-h2">Icons</b>${icons}</div>
+      <div class="m-card strong"><b class="m-h2">Export</b><span class="m-hint">The package is built and checked with the platform's own code.</span><div class="m-row2"><button class="m-btn" ${empty ? "" : ""}>${ic("play")} Export</button>${empty ? '<span class="m-hint">Missing: a name and the three required icons.</span>' : ""}</div>${findings}</div>`;
+    const mix = (a, b, p) => "#" + [1, 3, 5].map((i) => Math.round(parseInt(a.slice(i, i + 2), 16) * p + parseInt(b.slice(i, i + 2), 16) * (1 - p)).toString(16).padStart(2, "0")).join("");
+    const fill = mix(C.accent, C.surface, 0.12);
+    const sampleVars = `--s-fill:${fill};--s-bg:${C.background};--s-surface:${C.surface};--s-text:${C.text};--s-muted:${C.muted};--s-line:${C.line};--s-accent:${C.accent};--s-on:${C.onAccent};--s-head:${empty ? "inherit" : "'Playfair Display', Georgia, serif"};--s-body:${empty ? "inherit" : "'Lora', Georgia, serif"};--s-disp:${empty ? "inherit" : "'Cormorant', Georgia, serif"}`;
+    const preview = `<div class="te-sample" style="${sampleVars}">
+      <span class="m-eyebrow">Website bar</span>
+      <div class="te-bar2"><b>${name}</b><span class="on">Start</span><span>Programm</span><span>Mehr</span></div>
+      <span class="m-eyebrow">Start page</span>
+      <div class="te-pv"><div class="te-pv-hero">hero image</div><h3>Wir heiraten!</h3><p>Wir freuen uns riesig, diesen Tag mit euch zu feiern.</p>
+        <div class="te-pv-card"><span class="te-eb">Noch</span><b class="te-disp">214 Tage</b><span class="te-mu">Sa, 12. Juni 2027 · Kirche Muri</span></div></div>
+      <span class="m-eyebrow">Content page (Markdown)</span>
+      <div class="te-pv"><h3>Anreise</h3><p>Mit dem Zug bis <b>Muri</b>, dann zehn Minuten zu Fuss.</p><h4>Parkplätze</h4><ul><li>beim Schloss</li><li>an der Kirche</li></ul><p class="te-mu">Stand: Mai 2027 · <a>Karte öffnen</a></p></div>
+      <span class="m-eyebrow">Form</span>
+      <div class="te-pv"><label class="te-lbl">Name<input class="te-in" value="Erika Huber"></label><label class="te-lbl">Allergien<input class="te-in" placeholder="optional"></label><div class="m-row2"><button class="te-btn">Speichern</button><button class="te-btn soft">Mehr erfahren</button><button class="te-btn ghost">Abbrechen</button></div></div>
+      <span class="m-eyebrow">Waiting card</span>
+      <div class="te-wait" style="${empty ? `--w-card:${C.surface};--w-text:${C.text};--w-b:${C.accent};--w-on:${C.onAccent}` : `--w-card:${W.card};--w-text:${W.text};--w-b:${W.button};--w-on:${W.onButton}`}"><p>Psst, Erika … hinter dieser Tür entsteht gerade etwas. Bist du dabei?</p><button>Rückmeldung geben</button></div>
+      <span class="m-eyebrow">App icon</span>
+      <div class="te-home"><div class="te-app"><i style="background:${C.accent}">${ic("home")}</i><small>Sommerfest</small></div><div class="te-app"><i class="round" style="background:${C.accent}">${ic("home")}</i><small>maskable, circle</small></div><div class="te-app"><i class="sq" style="background:${C.accent}">${ic("home")}</i><small>maskable, rounded</small></div></div>
+    </div>`;
+    return `<div class="m-te" data-pane="edit">
+      <header class="m-ahead te-head"><b>Theme package editor</b><span class="m-tag">development only</span><span class="te-saved">Draft saved in this browser</span></header>
+      <div class="te-bar"><div class="m-seg te-tabs" data-te-tabs><button type="button" class="on" data-te-tab="edit">Edit</button><button type="button" data-te-tab="preview">Preview</button></div>
+        <button class="m-btn soft sm">${empty ? "Open package…" : "Open package…"}</button><button class="m-btn ghost sm">New theme</button><button class="m-btn sm">${ic("play")} Export</button></div>
+      <div class="te-main"><div class="te-edit m-stack">${edit}</div><div class="te-prev m-stack"><div class="m-card" style="padding:0;overflow:hidden">${preview}</div></div></div>
+    </div>`;
   },
 });
 
@@ -2319,6 +2478,8 @@ function mountModeration(root) {
 /* ---------- generic in-mock interactions ---------- */
 function wire(root) {
   root.addEventListener("click", (e) => {
+    const tt = e.target.closest("[data-te-tab]");
+    if (tt) { tt.parentElement.querySelectorAll("button").forEach((b) => b.classList.toggle("on", b === tt)); tt.closest(".m-te").dataset.pane = tt.dataset.teTab; return; }
     const s = e.target.closest("[data-seg] > button");
     if (s) { s.parentElement.querySelectorAll("button").forEach((b) => b.classList.toggle("on", b === s)); return; }
     const c1 = e.target.closest("[data-single] > button");

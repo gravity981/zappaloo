@@ -13,7 +13,7 @@ This document defines how the requirements in [sw-architecture.md](sw-architectu
 
 | Level | Tool | Scope | Runs in |
 |---|---|---|---|
-| Unit | Vitest | Pure logic in `backend`, `shared`, `game-engine`, `game-preview`, `frontend` (e.g. access-condition evaluation, role combination rules, result plausibility checks, config schema validation) | CI, every push |
+| Unit | Vitest | Pure logic in `backend`, `shared`, `game-engine`, `game-preview`, `theme-editor`, `frontend` (e.g. access-condition evaluation, role combination rules, result plausibility checks, config schema validation) | CI, every push |
 | Component | Vitest + React Testing Library (jsdom) | React UI components and pages in isolation | CI, every push |
 | Integration | Vitest | Backend modules against a real SQLite database (temporary file per test run), and the HTTP API through the real server | CI, every push |
 | End-to-end | Playwright | Full stack in the browser: website flows, game world, standalone game preview, contributions. Desktop and mobile viewports (Chromium, WebKit) | CI, every push |
@@ -98,8 +98,7 @@ All active requirements are listed here until their stage is delivered. Shrink t
 | OPS | OPS-13 | 1 |
 | SEC | SEC-04, SEC-06 – SEC-08 | 4 |
 | PERF | PERF-01, PERF-03, PERF-04 | 3 |
-| THM | THM-08 – THM-14 | 7 |
-| **Total** | | **94** |
+| **Total** | | **87** |
 
 The stage each requirement belongs to is listed in `sw-architecture.md`, section 28.
 

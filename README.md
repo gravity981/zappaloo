@@ -36,6 +36,7 @@ Development data (SQLite database, uploads, maps) lives in the Docker volume `za
 | Command | Does |
 |---|---|
 | `APP_ENV=dev npm run dev:game-preview` | Run the standalone game preview on port 5175; enter an absolute world-package path in the preview to watch local changes |
+| `APP_ENV=dev npm run dev:theme-editor` | Run the developer-only theme package editor on port 5176 (epic 5.2) |
 | `npm test` | Unit, component and integration tests (Vitest) |
 | `npm run test:e2e` | End-to-end tests (Playwright, desktop and mobile, Chromium and WebKit) |
 | `npm run lint` / `npm run format` | ESLint / Prettier |
@@ -54,6 +55,7 @@ The full list is in [CLAUDE.md](CLAUDE.md#environment).
 frontend/        React app and i18n messages (src/i18n/locales)
 game-engine/     Shared Phaser 4.2.1 world renderer and movement engine
 game-preview/    Developer-only world-package preview (port 5175)
+theme-editor/    Developer-only theme package editor (port 5176)
 backend/         Fastify API, CLI, database schema and migrations (drizzle/)
 shared/          Code used by both: API schemas (Zod), version scheme, event setup schema
 e2e/             Playwright tests

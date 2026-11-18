@@ -1,0 +1,34 @@
+# Theme package editor
+
+A developer-only web tool that defines, previews and exports a theme package
+(sw-architecture.md 19.7 and 19.7.1, epic 5.2). It is not part of the app.
+
+Start it from the repository root:
+
+```sh
+APP_ENV=dev npm run dev:theme-editor
+```
+
+Open [http://localhost:5176](http://localhost:5176). The server listens on
+`127.0.0.1` only. It refuses to start without `APP_ENV=dev`, and the workspace
+cannot be built for production (`vite build` fails). Its source is not copied
+into the production image (only `package.json`, so that `npm ci` knows the
+workspace), and the frontend does not import it (THM-08).
+
+It exports a theme package through the development server, which builds the archive
+with `backend/src/theme/build.ts` and checks it with the platform's validator (a package
+the validator refuses is not downloaded; its findings are listed with the card they belong
+to), opens an existing package (validated, then filled in) and keeps the work in the
+browser's IndexedDB, so a reload does not lose it.
+
+The editor is built story by story; see
+[epic 5.2](../spec/backlog/epics/epic-5.2-theme-package-editor.md). The screen
+is in the UX mocks (`theme-editor`).
+
+## After a change of the platform code
+
+The server part of the editor (the Vite plugin, and the `shared` and `backend` code it
+uses to build and check packages) is loaded when the editor starts and is not reloaded.
+After a change of the format or of the validator, stop the editor and start it again. The
+editor notices a server that is out of date: it does not download a package whose format
+version differs from its own and says so.

@@ -14,6 +14,7 @@ export function siteTheme(active: ActiveTheme | undefined): SiteTheme | null {
       ? undefined
       : {
           family: font.family,
+          ...(font.sizeAdjust === undefined ? {} : { sizeAdjust: font.sizeAdjust }),
           files: font.files.map((file) => ({
             url: fontUrl(file.file, active.importId),
             weight: file.weight,

@@ -28,6 +28,15 @@ export default defineConfig({
           testTimeout,
         },
       },
+      {
+        test: {
+          name: "theme-editor",
+          root: "./theme-editor",
+          include: ["src/**/*.test.{ts,tsx}"],
+          environment: "jsdom",
+          testTimeout,
+        },
+      },
       { test: { name: "backend", root: "./backend", include: ["src/**/*.test.ts"], testTimeout } },
       {
         // Uses the frontend's Vite config (React plugin), with a browser-like DOM.

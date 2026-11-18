@@ -1,7 +1,8 @@
 import { fireEvent, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import { initI18n } from "../i18n/i18n.ts";
-import { anna, fakeBackend, renderAt, user } from "../test/backend.tsx";
+import { resetSiteNameCache } from "../guest/site.ts";
+import { anna, fakeBackend, renderAt, SITE, user } from "../test/backend.tsx";
 
 beforeAll(async () => {
   await initI18n();
@@ -49,6 +50,112 @@ const content = {
   ],
   places: [],
 };
+
+/** The event's theme as `GET /api/site` carries it: a heading font at 125 %, a body font, an accent. */
+const THEME = {
+  version: "import-1",
+  colors: {
+    background: "#f9f0e5",
+    surface: "#fffaf4",
+    text: "#251e15",
+    muted: "#6d6152",
+    line: "#dfd4c5",
+    accent: "#2f4f79",
+    onAccent: "#ffffff",
+  },
+  fonts: {
+    heading: {
+      family: "Birds of Paradise",
+      sizeAdjust: 125,
+      files: [{ url: "/theme/fonts/birds.woff2?v=import-1", weight: 600, style: "normal" }],
+    },
+    body: {
+      family: "Lora",
+      files: [{ url: "/theme/fonts/lora.woff2?v=import-1", weight: 400, style: "normal" }],
+    },
+  },
+};
+
+describe("the preview of the content editor carries the theme (CNT-05, THM-01, THM-06)", () => {
+  const previewOf = () => {
+    const preview = document.querySelector<HTMLElement>(".themed-preview");
+    const themed = preview?.closest<HTMLElement>(".themed");
+    if (!preview || !themed) throw new Error("no themed preview");
+    return { preview, themed };
+  };
+  const editPage = (theme: unknown) => {
+    resetSiteNameCache();
+    fakeBackend({
+      "GET /api/session": () => asAdmin,
+      "GET /api/content": () => ({ status: 200, body: content }),
+      "GET /api/content/images?item=page-1": () => ({ status: 200, body: { images: [] } }),
+      "GET /api/site": () => ({ status: 200, body: { ...SITE, theme } }),
+    });
+    renderAt("/admin/content/pages/1");
+  };
+
+  it("[CNT-05][THM-01] the preview of a page has the theme's colours and font faces, like the website", async () => {
+    editPage(THEME);
+    await screen.findByLabelText("Titel");
+    await waitFor(() => {
+      expect(previewOf().themed.style.getPropertyValue("--a-dark")).toBe("#2f4f79");
+    });
+    const { themed, preview } = previewOf();
+    expect(themed.style.getPropertyValue("--a-bg")).toBe("#f9f0e5");
+    expect(themed.style.getPropertyValue("--a-display")).toContain("Birds of Paradise");
+    expect(themed.style.getPropertyValue("--a-body-font")).toContain("Lora");
+    const faces = themed.querySelector("style")?.textContent ?? "";
+    expect(faces).toContain('font-family: "Birds of Paradise"');
+    expect(faces).toContain("size-adjust: 125%;");
+    // it is the guest's view: the markdown of the page is inside the guest frame of the website
+    expect(within(preview).getAllByRole("heading", { name: "Das Fest", level: 1 })).toHaveLength(2);
+  });
+
+  it("[CNT-05][THM-06] the page title is shown above the text in the heading style, and follows the field", async () => {
+    editPage(THEME);
+    const title = await screen.findByLabelText("Titel");
+    await waitFor(() => {
+      expect(document.querySelector(".themed-preview")).not.toBeNull();
+    });
+    const { preview } = previewOf();
+    // the title "Das Fest" and the text's own "# Das Fest" are two headings
+    const headings = within(preview).getAllByRole("heading", { name: "Das Fest" });
+    expect(headings).toHaveLength(2);
+    expect(headings[0]).toHaveClass("h1");
+    expect(headings[0]?.closest(".markdown")).toBeNull();
+    expect(headings[1]?.closest(".markdown")).not.toBeNull();
+    fireEvent.change(title, { target: { value: "Neuer Titel" } });
+    expect(within(preview).getByRole("heading", { name: "Neuer Titel" })).toHaveClass("h1");
+  });
+
+  it("[CNT-05] without a theme the preview is still the guest's view, with the platform's look", async () => {
+    editPage(null);
+    await screen.findByLabelText("Titel");
+    await waitFor(() => {
+      expect(document.querySelector(".themed-preview")).not.toBeNull();
+    });
+    const { themed } = previewOf();
+    expect(themed.getAttribute("style") ?? "").toBe("");
+    expect(themed.querySelector("style")).toBeNull();
+  });
+
+  it("[CNT-05] the Startseite's preview shows the text only: it has no title", async () => {
+    resetSiteNameCache();
+    fakeBackend({
+      "GET /api/session": () => asAdmin,
+      "GET /api/content": () => ({ status: 200, body: content }),
+      "GET /api/content/images?item=start": () => ({ status: 200, body: { images: [] } }),
+      "GET /api/site": () => ({ status: 200, body: { ...SITE, theme: THEME } }),
+    });
+    renderAt("/admin/content/pages/start");
+    await screen.findByLabelText("Begrüssungstext der Startseite");
+    await waitFor(() => {
+      expect(previewOf().themed.style.getPropertyValue("--a-dark")).toBe("#2f4f79");
+    });
+    expect(previewOf().preview.querySelector(":scope > h1")).toBeNull();
+    expect(previewOf().preview.querySelector(".markdown")).not.toBeNull();
+  });
+});
 
 describe("the content editor", () => {
   it("[CNT-05] an admin changes the start page text and sees the preview", async () => {

@@ -165,6 +165,26 @@ describe("staging deployment", () => {
     expect(["", ":0"]).toContain(staging.compose("port", "app", "3000").trim());
   });
 
+  it("[THM-08] the production image excludes the theme package editor", () => {
+    const env = staging;
+    if (!env) throw new Error("staging not deployed");
+    const report = JSON.parse(
+      env.node(
+        `(() => {
+          const fs = require("node:fs");
+          const assets = fs.readdirSync("/app/frontend/dist/assets");
+          const bundle = assets.filter((name) => name.endsWith(".js"))
+            .map((name) => fs.readFileSync("/app/frontend/dist/assets/" + name, "utf8")).join("\\n");
+          console.log(JSON.stringify({
+            editorSource: fs.existsSync("/app/theme-editor/src") || fs.existsSync("/app/theme-editor/vite.config.ts"),
+            editorUi: bundle.includes("Theme package editor")
+          }));
+        })();`,
+      ),
+    ) as { editorSource: boolean; editorUi: boolean };
+    expect(report).toEqual({ editorSource: false, editorUi: false });
+  });
+
   it("[MAP-18] the production image excludes the standalone preview and private world assets", () => {
     const env = staging;
     if (!env) throw new Error("staging not deployed");

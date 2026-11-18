@@ -66,6 +66,10 @@ export default tseslint.config(
     languageOptions: { globals: { ...globals.browser } },
   },
   {
+    files: ["theme-editor/src/**/*.{ts,tsx}"],
+    languageOptions: { globals: { ...globals.browser } },
+  },
+  {
     files: ["frontend/src/**/*.{ts,tsx}"],
     languageOptions: { globals: { ...globals.browser } },
     plugins: { i18next },

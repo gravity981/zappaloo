@@ -58,6 +58,11 @@
               "type": "string",
               "pattern": "^[\\p{L}\\p{N} -]{1,40}$"
             },
+            "sizeAdjust": {
+              "type": "integer",
+              "minimum": 50,
+              "maximum": 200
+            },
             "files": {
               "minItems": 1,
               "maxItems": 4,
@@ -104,6 +109,11 @@
               "type": "string",
               "pattern": "^[\\p{L}\\p{N} -]{1,40}$"
             },
+            "sizeAdjust": {
+              "type": "integer",
+              "minimum": 50,
+              "maximum": 200
+            },
             "files": {
               "minItems": 1,
               "maxItems": 4,
@@ -149,6 +159,11 @@
             "family": {
               "type": "string",
               "pattern": "^[\\p{L}\\p{N} -]{1,40}$"
+            },
+            "sizeAdjust": {
+              "type": "integer",
+              "minimum": 50,
+              "maximum": 200
             },
             "files": {
               "minItems": 1,

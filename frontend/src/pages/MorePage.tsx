@@ -18,7 +18,7 @@ export default function MorePage() {
     (roles.includes("staff") && (session.user?.capabilities ?? []).includes("editWebsiteContent"));
   return (
     <section className="more">
-      <h1>{t("nav.more")}</h1>
+      <h1 className="h1">{t("nav.more")}</h1>
       <div className="card">
         <ul className="list">
           {content?.pages

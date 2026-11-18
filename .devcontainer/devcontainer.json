@@ -17,6 +17,7 @@
     "3000": { "label": "Backend (Node.js API)", "onAutoForward": "silent" },
     "5174": { "label": "UX mocks (task \"mocks\")", "onAutoForward": "notify" },
     "5175": { "label": "World preview (game-preview task)", "onAutoForward": "notify" },
+    "5176": { "label": "Theme editor (theme-editor task)", "onAutoForward": "notify" },
     "8025": { "label": "Mailpit (caught emails)", "onAutoForward": "silent" }
   },
   "mounts": [

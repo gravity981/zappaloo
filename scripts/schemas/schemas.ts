@@ -10,8 +10,8 @@ import { renderPackageDocument } from "../../shared/src/packages/markdown.ts";
 
 /** The committed schema files, by name in `schemas/`, with the schema each one describes. */
 export const SCHEMA_FILES: Record<string, z.ZodType> = {
-  "theme-manifest.v1.schema.json": themeManifestSchema,
-  "theme.v1.schema.json": themeJsonSchema,
+  "theme-manifest.v2.schema.json": themeManifestSchema,
+  "theme.v2.schema.json": themeJsonSchema,
   "world-manifest.v2.schema.json": worldManifestSchema,
   "world-figures.v2.schema.json": worldFiguresSchema,
   "world-map.v2.schema.json": tiledMapSchema,

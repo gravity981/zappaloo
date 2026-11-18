@@ -32,7 +32,7 @@ The order is the priority: of the epics that are **ready**, the highest one in t
 | [4](epics/epic-4-content-website.md) | Content and website | 3.9 | done |
 | [5](epics/epic-5-game-world.md) | Game world and world importer (review findings fixed in 5l) | 4 | done |
 | [5.1](epics/epic-5.1-gameworld-prototype-findings.md) | Game world prototype findings: straight paths, target marker, edge indicators, iOS stutter | 5 | done |
-| [5.2](epics/epic-5.2-theme-package-editor.md) | Theme package editor: a development tool to define, preview and export theme packages | 4 | ready |
+| [5.2](epics/epic-5.2-theme-package-editor.md) | Theme package editor: a development tool to define, preview and export theme packages | 4 | done |
 | [6](epics/epic-6-living-world.md) | Living world: guest figures, speech bubbles, table finder, dialogues, NPCs, atmosphere, animated objects | 5 | refined |
 | ▶ | **Opening** | | open |
 | [7](epics/epic-7-contributions-event-screen.md) | Contributions and event screen | 5 | open |

@@ -34,14 +34,14 @@ describe("the JSON Schemas and the documents of the package formats (THM-07, MAP
   });
 
   it("[MAP-17][THM-07] the Markdown documents are build output: one per format version, none committed", () => {
-    expect(Object.keys(generatedDocuments()).sort()).toEqual(["theme-v1.md", "world-v2.md"]);
+    expect(Object.keys(generatedDocuments()).sort()).toEqual(["theme-v2.md", "world-v2.md"]);
     expect(readdirSync(SCHEMA_DIR).filter((name) => name.endsWith(".md"))).toEqual([]);
   });
 
   it("[THM-07] the example theme passes the theme schemas", () => {
     const files = exampleFiles();
-    expect(committed("theme-manifest.v1.schema.json").safeParse(json(files["manifest.json"])).success).toBe(true);
-    expect(committed("theme.v1.schema.json").safeParse(json(files["theme.json"])).success).toBe(true);
+    expect(committed("theme-manifest.v2.schema.json").safeParse(json(files["manifest.json"])).success).toBe(true);
+    expect(committed("theme.v2.schema.json").safeParse(json(files["theme.json"])).success).toBe(true);
   });
 
   it("[MAP-17] the test world passes the world schemas", () => {
