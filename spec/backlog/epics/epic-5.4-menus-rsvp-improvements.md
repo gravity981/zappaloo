@@ -2,7 +2,7 @@
 
 | Status | Release | Depends on | Branch |
 |---|---|---|---|
-| refined | Opening | 5.3 | `feature/epic-5.4-menus-rsvp-improvements` |
+| ready | Opening | 5.3 | `feature/epic-5.4-menus-rsvp-improvements` |
 
 [Roadmap](../roadmap.md) · [How we work on epics](../README.md)
 
