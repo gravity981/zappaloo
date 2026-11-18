@@ -54,6 +54,8 @@ A requirement report script, `npm run req-report`, is built in the first stage. 
 
 CI runs the report after the test jobs and fails the build on a non-zero exit.
 
+The full report is one self-contained HTML page, `reports/requirements.html` (decided 2026-11-18): a result tree (epic → requirement → tests) in which every node starts collapsed, with "Expand all" and "Collapse all", and the errors and warnings in nodes of their own. CI uploads it as the artifact `requirement-report`. The page of a GitHub Actions run cannot show the HTML page, so the run gets a short Markdown summary instead (result, progress per epic, the first problems) that says the full report is in the artifact.
+
 ## 4. Test areas per topic
 
 | Topic | Main level(s) | Notes |

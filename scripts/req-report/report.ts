@@ -216,69 +216,6 @@ const STATUS_LABEL: Record<RequirementStatus, string> = {
   untested: "no test",
 };
 
-function escapeCell(text: string): string {
-  return text.replaceAll("|", "\\|");
-}
-
-/** Full report as Markdown: summary, epics, problems, and one row per active requirement. */
-export function renderMarkdown(report: Report): string {
-  const { totals } = report;
-  const out: string[] = [];
-  out.push("# Requirement report", "");
-  out.push(
-    `**Result:** ${report.errors.length === 0 ? "OK" : `FAILED (${report.errors.length} error(s))`}`,
-    "",
-  );
-  out.push(
-    `- Requirements: ${totals.ids} IDs, ${totals.active} active, ${totals.withdrawn} withdrawn`,
-    `- Implemented: ${totals.implemented} of ${totals.active} active, ${totals.implementedPassing} with passing tests; ${totals.notImplemented} not yet implemented`,
-    ...totals.tests.map(
-      (t) => `- ${t.runner}: ${t.total} test result(s), ${t.tagged} tagged with requirement IDs`,
-    ),
-    "",
-  );
-
-  out.push(
-    "## Epics",
-    "",
-    "| Epic | Title | Planned | Implemented | Remaining |",
-    "|---|---|---|---|---|",
-  );
-  for (const p of progressByEpic(report)) {
-    out.push(
-      `| ${p.epic ?? "–"} | ${p.title} | ${p.planned} | ${p.implemented} | ${p.remaining} |`,
-    );
-  }
-  out.push("");
-
-  if (report.errors.length > 0) {
-    out.push("## Errors", "", ...report.errors.map((e) => `- ${e}`), "");
-  }
-  if (report.warnings.length > 0) {
-    out.push("## Warnings", "", ...report.warnings.map((w) => `- ${w}`), "");
-  }
-
-  out.push(
-    "## Requirements",
-    "",
-    "| ID | Prio | Epic | Implemented | Status | Tests |",
-    "|---|---|---|---|---|---|",
-  );
-  for (const row of report.rows) {
-    const tests = row.tests
-      .map(
-        (t) =>
-          `${t.status === "passed" ? "✓" : t.status === "failed" ? "✗" : "–"} ${t.runner}${t.project ? `/${t.project}` : ""}: ${t.title}`,
-      )
-      .join("<br>");
-    out.push(
-      `| ${row.id} | ${row.priority} | ${row.epic ?? "–"} | ${row.implemented ? "yes" : "not yet"} | ${STATUS_LABEL[row.status]} | ${escapeCell(tests)} |`,
-    );
-  }
-  out.push("");
-  return out.join("\n");
-}
-
 /** Short console summary: totals, epics, errors, warnings, and the implemented requirements. */
 export function renderConsole(report: Report): string {
   const { totals } = report;
