@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Card } from "./components.tsx";
 import { ColoursCards } from "./ColoursCards.tsx";
 import { FontsCard } from "./FontsCard.tsx";
+import { IconsCard } from "./IconsCard.tsx";
 import { newDraft } from "./model.ts";
 import type { ThemeDraft } from "./model.ts";
 
@@ -33,6 +34,7 @@ export default function App() {
         </Card>
         <ColoursCards draft={draft} onChange={setDraft} />
         <FontsCard draft={draft} onChange={setDraft} />
+        <IconsCard draft={draft} onChange={setDraft} />
       </main>
     </div>
   );

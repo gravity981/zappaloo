@@ -29,6 +29,28 @@ export interface DraftFont {
   files: DraftFontFile[];
 }
 
+export interface DraftIcon {
+  png: Uint8Array;
+  /** True when the PNG was uploaded for this icon and is not made from the source image. */
+  own: boolean;
+}
+
+/** The image the icons are made from (THM-10), kept as bytes so that they can be made again. */
+export interface DraftIconSource {
+  fileName: string;
+  mime: string;
+  bytes: Uint8Array;
+  width: number;
+}
+
+export interface DraftIcons {
+  source: DraftIconSource | null;
+  /** The background of the maskable icon (the content sits inside its central 80 %). */
+  maskableBackground: string;
+  /** By icon name (`icon-192`); a missing key has no icon. */
+  files: Record<string, DraftIcon | undefined>;
+}
+
 export interface ThemeDraft {
   name: string;
   colors: Record<ThemeColorKey, string>;
@@ -36,6 +58,7 @@ export interface ThemeDraft {
   waitingEnabled: boolean;
   waiting: Record<WaitingColorKey, string>;
   fonts: Record<FontSlot, DraftFont | null>;
+  icons: DraftIcons;
 }
 
 /** The platform's default colours (ui.css, waiting.css): "New theme" starts from them. */
@@ -62,6 +85,7 @@ export function newDraft(): ThemeDraft {
     waitingEnabled: false,
     waiting: { ...DEFAULT_WAITING },
     fonts: { body: null, heading: null, display: null },
+    icons: { source: null, maskableBackground: DEFAULT_COLORS.accent, files: {} },
   };
 }
 
