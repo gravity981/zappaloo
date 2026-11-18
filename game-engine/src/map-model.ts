@@ -79,6 +79,13 @@ export interface PortalArea {
   targetSpawn?: string;
 }
 
+/** The map properties `clouds`, `birds` and `fog` (14.2): an effect is on unless its property is `false`. */
+export interface MapAtmosphere {
+  clouds: boolean;
+  birds: boolean;
+  fog: boolean;
+}
+
 export interface ParsedMap {
   id: string;
   name: string;
@@ -99,6 +106,8 @@ export interface ParsedMap {
   /** The wander areas (`type = wander`) in the map's pixel space, where guest figures walk (PRES-02). */
   wanders: Point[][];
   clickables: ClickableArea[];
+  /** Which effects the map has (format version 3, GAME-34): each is on unless the map property says `false`. */
+  atmosphere: MapAtmosphere;
   /** The number of tile layers that are drawn (for the tests and the test hook). */
   drawnLayers: number;
 }
@@ -398,8 +407,18 @@ export function parseMap(id: string, json: unknown): ParsedMap {
         (approachName === undefined ? undefined : points.get(approachName)) ??
         belowOf(clickable.polygon, size),
     })),
+    atmosphere: atmosphereOf(map),
     drawnLayers,
   };
+}
+
+/** The effects a map has: each is on unless the map property of the same name is `false` (GAME-34). */
+function atmosphereOf(map: {
+  properties?: { name: string; value: unknown }[] | undefined;
+}): MapAtmosphere {
+  const on = (name: string): boolean =>
+    map.properties?.find((property) => property.name === name)?.value !== false;
+  return { clouds: on("clouds"), birds: on("birds"), fog: on("fog") };
 }
 
 /** A clickable object before its approach point is resolved: the point has a name, which may come later. */

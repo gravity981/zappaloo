@@ -48,6 +48,8 @@ export interface GameState {
   view: { x: number; y: number; zoom: number; width: number; height: number };
   /** The wandering guest figures of this map (test hook, PRES-01). */
   guests: GuestState[];
+  /** The effects of the map: whether it has fog, how many cloud shadows and how many birds are there (test hook, GAME-31 – GAME-34). */
+  atmosphere: { fog: boolean; clouds: number; birds: number };
 }
 
 export type GameStateReader = () => GameState;

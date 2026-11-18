@@ -39,6 +39,9 @@ export const WORLD_FINDING_CODES = [
   "figure_metadata",
   "figure_frame",
   "door_sheet",
+  // The bird of format version 3
+  "bird_metadata",
+  "bird_frame",
   // Warnings of the package
   "property_unknown",
   "map_collision",

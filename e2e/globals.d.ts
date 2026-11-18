@@ -24,6 +24,7 @@ declare global {
                 bubble: boolean;
                 pinned: boolean;
               }[];
+              atmosphere: { fog: boolean; clouds: number; birds: number };
             }
           | undefined;
         renderStack: () => { type: string; depth: number }[];

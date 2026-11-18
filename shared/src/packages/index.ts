@@ -4,15 +4,16 @@
 import type { PackageDefinition } from "./definition.ts";
 import { themeV2 } from "./theme-v2.ts";
 import { worldV2 } from "./world-v2.ts";
+import { worldV3 } from "./world-v3.ts";
 
 export * from "./codes.ts";
 export type * from "./definition.ts";
-export { themeV2, worldV2 };
+export { themeV2, worldV2, worldV3 };
 
 /** Every definition: the package, then its format version. */
 export const PACKAGE_DEFINITIONS = {
   theme: { 2: themeV2 },
-  world: { 2: worldV2 },
+  world: { 2: worldV2, 3: worldV3 },
 } as const;
 
 /** Every definition as a list, for the checks that apply to all of them. */

@@ -720,7 +720,8 @@ describe("the objects (MAP-02, MAP-06)", () => {
   });
 
   it("[MAP-06] refuses an object of a shape its type does not take", () => {
-    const files = edit(world(), "maps/saal.json", (m) => {
+    // A seat, in format version 2 (version 3 does not read the type).
+    const files = edit(testWorldFiles(2), "maps/saal.json", (m) => {
       objectNamed(m, "platz-1").point = undefined;
       objectNamed(m, "platz-1").polygon = [
         { x: 0, y: 0 },
@@ -947,14 +948,14 @@ describe("the objects (MAP-02, MAP-06)", () => {
   });
 
   it("[MAP-06] refuses a seat without its table", () => {
-    const files = edit(world(), "maps/saal.json", (m) => {
+    const files = edit(testWorldFiles(2), "maps/saal.json", (m) => {
       removeProperty(objectNamed(m, "platz-1"), "table");
     });
     expectRefused(files, "map_property");
   });
 
   it("[MAP-06] accepts a table given as a number, as Tiled's int property", () => {
-    expectAccepted(world());
+    expectAccepted(testWorldFiles(2));
   });
 
   it("[MAP-06] a hidden layer still applies its objects: a collision in it counts as collision", () => {
@@ -1131,7 +1132,8 @@ describe("warnings (MAP-08): listed, the package is still accepted", () => {
       m.layers = (m.layers as Json[]).filter((layer) => layer.name !== "collision");
       const objects = layerNamed(m, "Gameplay");
       objects.objects = (objects.objects as Json[]).filter(
-        (object) => object.type !== "wander" && object.type !== "collision",
+        (object) =>
+          object.type !== "wander" && object.type !== "collision" && object.type !== "border",
       );
     });
     const findings = expectAccepted(files);
@@ -1374,5 +1376,135 @@ describe("references between the maps (MAP-08)", () => {
       setProperty(objectNamed(m, "zum-garten"), "targetSpawn", "eingang");
     });
     expectRefused(files, "map_reference");
+  });
+});
+
+describe("format version 3: the bird and the map switches (MAP-20, GAME-32, GAME-34)", () => {
+  /** A package without the bird: every file of `ambient/` removed. */
+  const withoutBird = (): Files =>
+    Object.fromEntries(Object.entries(world()).filter(([path]) => !path.startsWith("ambient/")));
+  const BIRD_FILE = "ambient/bird/metadata.json";
+
+  it("[MAP-20] reads both versions: the test world of version 3 and the one of version 2 are accepted", () => {
+    expectAccepted(testWorldFiles(3));
+    expectAccepted(testWorldFiles(2));
+    expect(read(testWorldFiles(3), "manifest.json").formatVersion).toBe(3);
+    expect(read(testWorldFiles(2), "manifest.json").formatVersion).toBe(2);
+  });
+
+  it("[MAP-20] a version the platform does not read is refused, and the checks of a package follow its own version", () => {
+    const files = edit(world(), "manifest.json", (m) => {
+      m.formatVersion = 4;
+    });
+    expectRefused(files, "format_version");
+    // A package of version 2 has no `ambient/` folder: the bird is not part of its layout.
+    const v2 = {
+      ...testWorldFiles(2),
+      ...Object.fromEntries(Object.entries(world()).filter(([p]) => p.startsWith("ambient/"))),
+    };
+    expectRefused(v2, "file_not_in_layout");
+  });
+
+  it("[GAME-32] the bird is optional: without it the package is accepted and has none", () => {
+    expectAccepted(withoutBird());
+  });
+
+  it("[GAME-32] the bird's metadata is a PixelLab metadata file, with the flight for east and west", () => {
+    const broken = edit(world(), BIRD_FILE, (m) => {
+      m.states = [];
+    });
+    expectRefused(broken, "bird_metadata");
+    const noFlight = edit(world(), BIRD_FILE, (m) => {
+      const animations = ((m.states as Json[])[0]?.frames as Json).animations as Json;
+      delete animations.flying;
+    });
+    expectRefused(noFlight, "bird_metadata");
+    const noEast = edit(world(), BIRD_FILE, (m) => {
+      const flying = (((m.states as Json[])[0]?.frames as Json).animations as Json).flying as Json;
+      delete flying.east;
+    });
+    expectRefused(noEast, "bird_metadata");
+    const notJson = world();
+    notJson[BIRD_FILE] = Buffer.from("{");
+    expectRefused(notJson, "json_invalid");
+  });
+
+  it("[GAME-32] the bird's frames exist, have the canvas size and each direction has the same number of them", () => {
+    const missing = world();
+    delete missing["ambient/bird/Idle/animations/flying/east/frame_000.png"];
+    expectRefused(missing, "file_missing");
+    const wrongSize = world();
+    wrongSize["ambient/bird/Idle/rotations/south.png"] = encodePng(16, 16, [1, 2, 3]);
+    expectRefused(wrongSize, "bird_frame");
+    const unequal = edit(world(), BIRD_FILE, (m) => {
+      const flying = (((m.states as Json[])[0]?.frames as Json).animations as Json).flying as Json;
+      (flying.east as string[]).pop();
+    });
+    expectRefused(unequal, "bird_frame");
+    const outside = edit(world(), BIRD_FILE, (m) => {
+      ((m.states as Json[])[0]?.frames as Json).rotations = {
+        south: "../../avatar/wedding-guest/metadata.json",
+        west: "Idle/rotations/west.png",
+        east: "Idle/rotations/east.png",
+        north: "Idle/rotations/north.png",
+      };
+    });
+    expectRefused(outside, "bird_frame");
+    const tooBig = edit(world(), BIRD_FILE, (m) => {
+      ((m.states as Json[])[0]?.character as Json).size = { width: 300, height: 300 };
+    });
+    expectRefused(tooBig, "bird_frame");
+  });
+
+  it("[GAME-32] every file of ambient/ is named by the bird's metadata", () => {
+    const extra = world();
+    extra["ambient/bird/Idle/extra.png"] = encodePng(8, 8, [1, 2, 3]);
+    expectRefused(extra, "file_unreferenced");
+    // Frames without the metadata that names them are not a bird.
+    const orphan = Object.fromEntries(
+      Object.entries(world()).filter(([path]) => path !== BIRD_FILE),
+    );
+    expectRefused(orphan, "file_unreferenced");
+  });
+
+  it("[GAME-34] the map properties clouds, birds and fog are switches: booleans, no warning, and anything else is refused", () => {
+    expectAccepted(world());
+    const saal = read(world(), "maps/saal.json");
+    const names = (saal.properties as Json[]).map((property) => property.name);
+    expect(names).toEqual(expect.arrayContaining(["clouds", "birds", "fog"]));
+    const result = checkWorldPackage(archive(world()));
+    expect(result.findings.some((finding) => finding.code === "property_unknown")).toBe(false);
+    const text = edit(world(), "maps/garten.json", (m) => {
+      (m.properties as Json[]).push({ name: "fog", type: "string", value: "aus" });
+    });
+    expectRefused(text, "map_property");
+    // In version 2 the same properties are not read: a warning, as for any unknown property.
+    const v2 = edit(testWorldFiles(2), "maps/garten.json", (m) => {
+      (m.properties as Json[]).push({ name: "fog", type: "bool", value: false });
+    });
+    const v2Result = checkWorldPackage(archive(v2));
+    expect(v2Result.ok).toBe(true);
+    expect(codes(v2Result.findings, "warning")).toContain("property_unknown");
+  });
+
+  it("[MAP-20] the type seat is not read in version 3 (the seating plan lives in the platform) and still is in version 2", () => {
+    const seat = edit(world(), "maps/saal.json", (m) => {
+      const layer = allLayers(m.layers as Json[]).find((item) => item.type === "objectgroup");
+      (layer?.objects as Json[]).push({
+        id: 900,
+        name: "platz",
+        type: "seat",
+        point: true,
+        x: 16,
+        y: 16,
+        width: 0,
+        height: 0,
+        rotation: 0,
+        visible: true,
+        properties: [{ name: "table", type: "string", value: "1" }],
+      });
+    });
+    expectRefused(seat, "map_object");
+    expectAccepted(testWorldFiles(2));
   });
 });

@@ -1,6 +1,7 @@
 // Common preparation for production and preview adapters: validated public data becomes the plain data the scene
 // draws. Transport and the mapping from asset paths to URLs belong to the host.
 import {
+  pixelLabBirdSchema,
   pixelLabMetadataSchema,
   publicWorldSchema,
   WORLD_DIRECTIONS,
@@ -21,6 +22,13 @@ export interface FigureData {
   walk: Record<Direction, string[]>;
 }
 
+/** The bird of the world (format version 3, GAME-32): the flying frames to the east and the west, as texture keys. */
+export interface BirdData {
+  /** The canvas of every frame, in pixels. */
+  size: { width: number; height: number };
+  flying: { east: string[]; west: string[] };
+}
+
 export interface LoadedWorld {
   version: string;
   name: string;
@@ -28,6 +36,8 @@ export interface LoadedWorld {
   tileSize: TileSize;
   maps: Map<string, ParsedMap>;
   figures: FigureData[];
+  /** The bird, when the world has one; without it there are no birds. */
+  bird?: BirdData;
   /** Every image the world draws, by its texture key, with its URL. */
   images: Map<string, string>;
   /** The actions the admin assigned to clickable objects, by `<map id>/<object name>` (MAP-15). */
@@ -39,16 +49,21 @@ export interface WorldSource {
   summary: unknown;
   maps: ReadonlyMap<string, unknown>;
   figureMetadata: ReadonlyMap<string, unknown>;
+  /** The bird's PixelLab metadata (`ambient/bird/metadata.json`), when the summary says the world has a bird. */
+  birdMetadata?: unknown;
   resolveAsset: (path: string) => string;
 }
 
-function assetPathOf(key: string, figureFolders: Map<string, string>): string | undefined {
+/** The texture key prefix of the bird's frames: a figure id is a valid id, so `$bird` cannot clash with one. */
+const BIRD_ID = "$bird";
+
+function assetPathOf(key: string, folders: Map<string, string>): string | undefined {
   if (key.startsWith("tileset:")) return `tilesets/${key.slice("tileset:".length)}.png`;
   if (key.startsWith("frame:")) {
-    const [, figure, ...rest] = key.split(":");
-    const folder = figure === undefined ? undefined : figureFolders.get(figure);
+    const [, owner, ...rest] = key.split(":");
+    const folder = owner === undefined ? undefined : folders.get(owner);
     if (folder === undefined) return undefined;
-    return `avatar/${folder === "" ? "" : `${folder}/`}${rest.join(":")}`;
+    return `${folder}/${rest.join(":")}`;
   }
   return undefined;
 }
@@ -62,6 +77,7 @@ export function prepareWorld(source: WorldSource): LoadedWorld {
     maps.set(id, parseMap(id, source.maps.get(id)));
   }
 
+  // The folder of the frames of each figure and of the bird, as the path in the package.
   const figureFolders = new Map<string, string>();
   const figures: FigureData[] = [];
   for (const figure of summary.figures) {
@@ -70,7 +86,7 @@ export function prepareWorld(source: WorldSource): LoadedWorld {
     const folder = figure.metadata.includes("/")
       ? figure.metadata.slice(0, figure.metadata.lastIndexOf("/"))
       : "";
-    figureFolders.set(figure.id, folder);
+    figureFolders.set(figure.id, folder === "" ? "avatar" : `avatar/${folder}`);
     const metadata = pixelLabMetadataSchema.parse(source.figureMetadata.get(figure.metadata));
     const state = metadata.states[0];
     if (state === undefined) continue;
@@ -93,6 +109,23 @@ export function prepareWorld(source: WorldSource): LoadedWorld {
     });
   }
 
+  // The bird: only the frames of its flight to the east and the west are drawn.
+  let bird: BirdData | undefined;
+  if (summary.bird && source.birdMetadata !== undefined) {
+    const state = pixelLabBirdSchema.parse(source.birdMetadata).states[0];
+    if (state !== undefined) {
+      figureFolders.set(BIRD_ID, "ambient/bird");
+      const frame = (path: string) => `frame:${BIRD_ID}:${path}`;
+      bird = {
+        size: { width: state.character.size.width, height: state.character.size.height },
+        flying: {
+          east: state.frames.animations.flying.east.map(frame),
+          west: state.frames.animations.flying.west.map(frame),
+        },
+      };
+    }
+  }
+
   const images = new Map<string, string>();
   const keys = new Set<string>();
   for (const map of maps.values()) {
@@ -102,6 +135,7 @@ export function prepareWorld(source: WorldSource): LoadedWorld {
     for (const key of Object.values(figure.standing)) keys.add(key);
     for (const list of Object.values(figure.walk)) for (const key of list) keys.add(key);
   }
+  for (const key of [...(bird?.flying.east ?? []), ...(bird?.flying.west ?? [])]) keys.add(key);
   for (const key of keys) {
     const path = assetPathOf(key, figureFolders);
     if (path !== undefined) images.set(key, source.resolveAsset(path));
@@ -114,6 +148,7 @@ export function prepareWorld(source: WorldSource): LoadedWorld {
     tileSize: { width: summary.tileWidth, height: summary.tileHeight },
     maps,
     figures,
+    ...(bird === undefined ? {} : { bird }),
     images,
     actions: new Map(summary.actions.map((item) => [`${item.map}/${item.object}`, item.action])),
   };

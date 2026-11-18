@@ -8,6 +8,7 @@ import {
   WORLD_BUILTIN_PAGES,
   WORLD_ID_PATTERN,
   WORLD_LIMITS,
+  WORLD_MAP_SWITCHES,
 } from "@zappaloo/shared";
 import type {
   TiledLayer,
@@ -31,6 +32,8 @@ export interface MapContext {
   files: Map<string, Buffer>;
   /** The size of every PNG of the package by its path. */
   images: Map<string, PngSize>;
+  /** The format version of the package (14.4); 2 when it is not known. */
+  formatVersion?: number;
 }
 
 /** A portal of a valid map, with its target; checked against the other maps by `checkMapReferences`. */
@@ -465,8 +468,18 @@ export function checkMap(id: string, bytes: Buffer, context: MapContext): MapRes
   // Map properties: `name` is the name the admin area shows; the camera zoom is fixed at 2 and read
   // from nowhere; other properties are not used by the platform and are reported.
   const mapProperties = propertyTable(map.properties);
+  const switches: readonly string[] = (context.formatVersion ?? 2) >= 3 ? WORLD_MAP_SWITCHES : [];
   for (const key of mapProperties.keys()) {
     if (key === "name") continue;
+    // The switches of format version 3 are properties of the platform: an effect is on unless it is `false`.
+    if (switches.includes(key)) {
+      if (typeof mapProperties.get(key) !== "boolean") {
+        findings.push(
+          errorFinding(file, "map_property", `the map property ${key} must be true or false`),
+        );
+      }
+      continue;
+    }
     const detail =
       key === FIXED_ZOOM_PROPERTY
         ? "the camera zoom is fixed at 2 and is not read from the map"
@@ -993,7 +1006,8 @@ function checkObject(
     if (name !== "") result.points.add(name);
     return;
   }
-  if (!(type in SHAPES)) {
+  // Format version 3 does not read the type `seat` any more: the seating plan lives in the platform (14.4).
+  if (!(type in SHAPES) || (type === "seat" && (context.formatVersion ?? 2) >= 3)) {
     findings.push(errorFinding(file, "map_object", `the type ${type} is not allowed`, label));
     return;
   }

@@ -86,8 +86,8 @@ All active requirements are listed here until their stage is delivered. Shrink t
 
 | Prefix | IDs | Count |
 |---|---|---|
-| GAME | GAME-31 – GAME-41 | 11 |
-| MAP | MAP-20, MAP-21 | 2 |
+| GAME | GAME-35 – GAME-41 | 7 |
+| MAP | MAP-21 | 1 |
 | HUNT | HUNT-01 – HUNT-07 | 7 |
 | MG | MG-01 – MG-13 | 13 |
 | WEB | WEB-05, WEB-06 | 2 |
@@ -99,7 +99,7 @@ All active requirements are listed here until their stage is delivered. Shrink t
 | OPS | OPS-13 | 1 |
 | SEC | SEC-04, SEC-06 – SEC-08 | 4 |
 | PERF | PERF-01, PERF-03, PERF-04 | 3 |
-| **Total** | | **73** |
+| **Total** | | **68** |
 
 The stage each requirement belongs to is listed in `sw-architecture.md`, section 28.
 
@@ -111,6 +111,7 @@ The stage each requirement belongs to is listed in `sw-architecture.md`, section
 - AVA-04: the player's own figure in the game is done in step 5h; the wandering figures of the other guests came with story 6a.
 - GAME-06 and MAP-15 (from step 5f on, decided 2026-11-17): the action `minigame` (stage 8; a preset `minigame` is reported at import and does nothing, and the admin cannot assign it). A content page is linked as a page and runs from step 5f; the action `dialog` came with story 6d (dialogues moved there on 2026-11-17).
 - GAME-13 and GAME-14 (from step 5i on, decided 2026-11-17): the step "Say hello" (profile photo, greeting, "How I know the couple") came with story 6b; the button "Hochladen" (stage 7).
+- MAP-20 (from story 6e on, decided 2026-11-18): format version 3 with the bird and the map switches; the tile animations and the NPCs of the same version come with stories 6f and 6g, and their tests carry GAME-35 and GAME-36. The platform reads versions 2 and 3, so the test world exists in both (`testWorldFiles(2)`, `testWorldFiles(3)`).
 - CNT-02 (from stage 4 on, decided 2026-11-13): the dialogues and NPC texts came with story 6d; the photo albums follow in 7d. Unlock conditions are covered by ACS-05.
 - ROLE-06: the capabilities in use: `editWebsiteContent` (4a), `moderateContributions` (7c). Until then only test routes use them.
 - ROLE-07: every step that adds an administration function guards it with the admin role and adds a `[ROLE-07]` test that a user without it is refused. The admin pages of stage 2 are built in step 2h; each later admin page adds its own `[ROLE-07]` test.

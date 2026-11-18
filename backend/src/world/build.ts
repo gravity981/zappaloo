@@ -324,8 +324,20 @@ function tiledMap(
 
 const json = (value: unknown): Buffer => Buffer.from(`${JSON.stringify(value, null, 2)}\n`);
 
+/**
+ * The corners, in map pixels (what `polygon` takes), of a border along the edge of a map of this many tiles: the
+ * diamond the ground tiles are drawn in, as the map's bounds have it. Inside it the guests walk, outside it the fog
+ * lies (GAME-33).
+ */
+const mapEdge = (columns: number, rows: number): [number, number][] => [
+  [32, 0],
+  [(columns - 1) * 32 + TILE_WIDTH, (columns - 1) * 16 + 16],
+  [(columns - rows) * 32 + 32, (columns + rows - 2) * 16 + TILE_HEIGHT],
+  [-(rows - 1) * 32, (rows - 1) * 16 + 16],
+];
+
 /** The maps of the test world, by their ids. */
-function maps(): Record<string, unknown> {
+function maps(version: TestWorldVersion): Record<string, unknown> {
   // Kirche: the start map. Every object type is placed here or in the other maps.
   const kirche = tiledMap(
     12,
@@ -367,6 +379,9 @@ function maps(): Record<string, unknown> {
           "Gameplay",
           [
             point(1, "start", "spawn", 160, 200),
+            // The edge of the world: the border along the map, inside which the guests walk and outside which the
+            // fog lies (GAME-33).
+            object(90, "", "border", { x: 0, y: 0 }, [], polygon(mapEdge(12, 10))),
             point(2, "eingang", "spawn", 160, 40),
             tileObject(3, "zum-garten", "portal", { x: 0, y: 192, width: 64, height: 32 }, PORTAL, [
               property("targetMap", "garten"),
@@ -442,6 +457,7 @@ function maps(): Record<string, unknown> {
       tiledLayer(2, "collision", 14, 10, csv(14, 10, border(14, 10))),
       objectLayer(3, "Gameplay", [
         point(1, "start", "spawn", 64, 64),
+        object(90, "", "border", { x: 0, y: 0 }, [], polygon(mapEdge(14, 10))),
         tileObject(2, "zur-kirche", "portal", { x: 0, y: 32, width: 64, height: 32 }, PORTAL, [
           property("targetMap", "kirche"),
           property("targetSpawn", "eingang"),
@@ -476,7 +492,7 @@ function maps(): Record<string, unknown> {
     [property("name", "Garten")],
   );
 
-  // Saal: the banquet hall with seats at two tables, a wander area and a dialogue sign.
+  // Saal: the banquet hall (an indoor map: no clouds, birds or fog), a wander area and a dialogue sign.
   const saal = tiledMap(
     12,
     10,
@@ -497,8 +513,13 @@ function maps(): Record<string, unknown> {
           property("targetMap", "garten"),
           property("targetSpawn", "start"),
         ]),
-        point(3, "platz-1", "seat", 80, 80, [property("table", "1")]),
-        point(4, "platz-2", "seat", 96, 80, [property("table", 3)]),
+        // The type `seat` is read in format version 2 only (the seating plan lives in the platform).
+        ...(version === 2
+          ? [
+              point(3, "platz-1", "seat", 80, 80, [property("table", "1")]),
+              point(4, "platz-2", "seat", 96, 80, [property("table", 3)]),
+            ]
+          : []),
         object(5, "tanzflaeche", "wander", { x: 64, y: 64, width: 96, height: 64 }),
         object(6, "sprecher", "clickable", { x: 240, y: 96, width: 16, height: 16 }, [
           property("action", "content"),
@@ -506,7 +527,13 @@ function maps(): Record<string, unknown> {
         ]),
       ]),
     ],
-    [property("name", "Saal")],
+    [
+      property("name", "Saal"),
+      // An indoor map: no cloud shadows, no birds, no fog (format version 3, GAME-34).
+      ...(version === 3
+        ? [property("clouds", false), property("birds", false), property("fog", false)]
+        : []),
+    ],
   );
 
   return { kirche, garten, saal };
@@ -573,12 +600,69 @@ function figure(folder: string, colour: [number, number, number]): Record<string
   return files;
 }
 
+/** The format version of the test world: 3 by default; 2 for the tests of the older format. */
+export type TestWorldVersion = 2 | 3;
+
+/** The side of one frame of the bird of the test world. */
+export const BIRD_SIDE = 8;
+
+/** The bird of format version 3: PixelLab metadata like a figure's, with the animation `flying`. */
+function bird(): Record<string, Buffer> {
+  const frame = () =>
+    encodePngPixels(BIRD_SIDE, BIRD_SIDE, (x, y) => [
+      40,
+      40,
+      50,
+      Math.abs(x - 4) + y < 6 ? 255 : 0,
+    ]);
+  const directions = ["south", "west", "east", "north"] as const;
+  const rotations = Object.fromEntries(directions.map((d) => [d, `Idle/rotations/${d}.png`]));
+  const flying = Object.fromEntries(
+    directions.map((d) => [
+      d,
+      [0, 1].map(
+        (index) => `Idle/animations/flying/${d}/frame_${String(index).padStart(3, "0")}.png`,
+      ),
+    ]),
+  );
+  const files: Record<string, Buffer> = {
+    "ambient/bird/metadata.json": json({
+      group_id: "bird-group",
+      states: [
+        {
+          character: {
+            id: "bird-character",
+            name: "Idle",
+            prompt: "A small bird in flight.",
+            size: { width: BIRD_SIDE, height: BIRD_SIDE },
+            template_id: "bird",
+            directions: 4,
+            view: "high top-down",
+          },
+          folder: "Idle",
+          frames: { rotations, animations: { flying } },
+        },
+      ],
+      export_version: "1",
+    }),
+  };
+  for (const d of directions) {
+    files[`ambient/bird/Idle/rotations/${d}.png`] = frame();
+    for (const index of [0, 1]) {
+      files[
+        `ambient/bird/Idle/animations/flying/${d}/frame_${String(index).padStart(3, "0")}.png`
+      ] = frame();
+    }
+  }
+  return files;
+}
+
 /** The files of the test world, by their paths in the archive. */
-export function testWorldFiles(): Record<string, Buffer> {
+export function testWorldFiles(version: TestWorldVersion = 3): Record<string, Buffer> {
   const files: Record<string, Buffer> = {
     "manifest.json": json({
       kind: "zappaloo-world",
-      formatVersion: 2,
+      formatVersion: version,
       name: TEST_WORLD_NAME,
       startMap: "kirche",
       tileWidth: TILE_WIDTH,
@@ -631,14 +715,16 @@ export function testWorldFiles(): Record<string, Buffer> {
     ...figure("kid", [0xe0, 0xa0, 0x2a]),
     ...figure("crew", [0x2a, 0xa0, 0x6a]),
     ...figure("pastor", [0x30, 0x30, 0x30]),
+    // The bird belongs to format version 3.
+    ...(version === 3 ? bird() : {}),
   };
-  for (const [id, map] of Object.entries(maps())) {
+  for (const [id, map] of Object.entries(maps(version))) {
     files[`maps/${id}.json`] = json(map);
   }
   return files;
 }
 
 /** The test world as a `tar.gz` package. The same bytes on every run. */
-export function buildTestWorld(): Buffer {
-  return buildArchive(testWorldFiles());
+export function buildTestWorld(version: TestWorldVersion = 3): Buffer {
+  return buildArchive(testWorldFiles(version));
 }

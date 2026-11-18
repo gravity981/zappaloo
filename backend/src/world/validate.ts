@@ -10,7 +10,8 @@ import { checkFigures } from "./figures.ts";
 import { checkDoor } from "./door.ts";
 import { errorFinding, warningFinding, zodDetail } from "./findings.ts";
 import type { WorldFinding } from "./findings.ts";
-import { worldV2 } from "@zappaloo/shared";
+import { worldV2, worldV3 } from "@zappaloo/shared";
+import { checkBird } from "./bird.ts";
 import { checkMap, checkMapReferences } from "./maps.ts";
 import type { MapInfo } from "./maps.ts";
 
@@ -32,14 +33,34 @@ export type WorldCheck =
   | { ok: false; findings: WorldFinding[] };
 
 /**
- * Whether a path is part of the layout of format version 2 (14.4): an entry of the definition of its kind
+ * Whether a path is part of the layout of a format version (14.4): an entry of the definition of its kind
  * matches it. Folders and files are matched by their own entries, because a folder pattern also matches
- * the paths below it.
+ * the paths below it. A version that is not known is checked against the newest layout.
  */
-export function inWorldLayout(path: string, kind: "file" | "folder" = "file"): boolean {
-  return worldV2.layout.some(
+export function inWorldLayout(
+  path: string,
+  kind: "file" | "folder" = "file",
+  version = 3,
+): boolean {
+  const definition = version === 2 ? worldV2 : worldV3;
+  return definition.layout.some(
     (entry) => (entry.kind === "folder") === (kind === "folder") && entry.match.test(path),
   );
+}
+
+/** The format version a manifest names: 2 or 3; anything else (or no manifest) counts as the newest. */
+function versionOf(entry: { kind: string; data?: Buffer } | undefined): number {
+  if (entry?.data === undefined) return 3;
+  try {
+    const raw = JSON.parse(entry.data.toString("utf8")) as unknown;
+    const version =
+      typeof raw === "object" && raw !== null && "formatVersion" in raw
+        ? raw.formatVersion
+        : undefined;
+    return version === 2 ? 2 : 3;
+  } catch {
+    return 3;
+  }
 }
 
 /** Reads one JSON file of the package, recording a finding when it is missing or not JSON. */
@@ -84,16 +105,18 @@ export function checkWorldPackage(archive: Buffer): WorldCheck {
     throw error;
   }
 
+  // The format version decides which layout and which rules apply, so it is read before the files are sorted.
+  const version = versionOf(entries.find((entry) => entry.path === "manifest.json"));
   const findings: WorldFinding[] = [];
   const files = new Map<string, Buffer>();
   for (const entry of entries) {
     if (entry.kind === "directory") {
-      if (!inWorldLayout(entry.path, "folder")) {
+      if (!inWorldLayout(entry.path, "folder", version)) {
         findings.push(errorFinding(entry.path, "file_not_in_layout", "not part of the layout"));
       }
       continue;
     }
-    if (!inWorldLayout(entry.path)) {
+    if (!inWorldLayout(entry.path, "file", version)) {
       findings.push(errorFinding(entry.path, "file_not_in_layout", "not part of the layout"));
       continue;
     }
@@ -183,6 +206,7 @@ export function checkWorldPackage(archive: Buffer): WorldCheck {
       tileHeight: manifest?.tileHeight,
       files,
       images,
+      formatVersion: manifest?.formatVersion ?? version,
     });
     findings.push(...result.findings);
     if (result.info !== undefined) infos.push(result.info);
@@ -200,6 +224,9 @@ export function checkWorldPackage(archive: Buffer): WorldCheck {
       }
     }
   }
+
+  // The bird belongs to format version 3; in version 2 the folder `ambient/` is not part of the layout.
+  if (version >= 3) findings.push(...checkBird(files, images).findings);
 
   const door = checkDoor(files, images);
   findings.push(...door.findings);

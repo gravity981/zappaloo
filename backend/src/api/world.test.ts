@@ -40,7 +40,7 @@ function namedWorld(name: string): Buffer {
   files["manifest.json"] = Buffer.from(
     JSON.stringify({
       kind: "zappaloo-world",
-      formatVersion: 2,
+      formatVersion: 3,
       name,
       startMap: "kirche",
       tileWidth: 64,

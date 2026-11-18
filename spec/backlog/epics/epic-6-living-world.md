@@ -98,9 +98,15 @@ Requirements: CNT-02 (the dialogue and NPC text part; albums follow in step 7d),
 
 ### Story 6e – World format version 3 and atmosphere
 
-**Tiled world project:** `formatVersion: 3`; `border` polygons where the fog shall lie; the map properties `clouds`, `birds`, `fog` where an effect is off; one bird in `ambient/`.
-Mock screen: `game` (atmosphere only as a note).
-- World format version 3 (`shared/src/packages/world-v3.ts`, JSON Schemas, format document, `zappaloo validate`, test world); version 2 stays readable. Its fields come with this story and 6f – 6g. Version 3 drops the object type `seat` (the seating plan lives in Zappaloo, story 6c).
+**Tiled world project:** `formatVersion: 3`; `border` polygons where the fog shall lie (the outer border of the map is the edge of the world); the map properties `clouds`, `birds`, `fog` where an effect is off; one bird in `ambient/bird/`.
+Mock screen: `game` (atmosphere only as a note). Decided 2026-11-18 (refinement of 6e):
+- **Format reading:** the platform reads versions 2 and 3 (as decision 1, unlike the theme format which reads its newest version only); each package is checked against the layout and the rules of its own version; the definitions of both versions are kept (`world-v2.ts`, `world-v3.ts`), with their own JSON Schemas (`schemas/world-*.v3.schema.json`) and format documents. Version 3 drops the type `seat`. 14.4 and 19.7 say so.
+- **Bird:** `ambient/bird/metadata.json` is a PixelLab metadata file like a figure's; the animation `flying` is needed for `east` and `west` (`south` and `north` are checked when there), 1–16 frames per direction, played at 8 frames per second; frames of 8–256 pixels; every file of `ambient/` must be named. Without it there are no birds. A flock flies to the left or to the right (random), 3–5 birds, every 20–60 s, at a random height of the view.
+- **Cloud shadows:** faint (at most 13 % dark) and soft, squashed to the 2 : 1 of the ground plane, drawn over the ground, the objects and the figures, below the fog. The project owner doubted how a flat shadow looks over buildings; it was decided to keep faint, soft shadows and to check them on the real world.
+- **Reduced motion:** cloud shadows and birds are not shown at all; the fog stays.
+- **Fog colour:** a light mist (223, 230, 233), the same on every map.
+- **In the app and in the game preview:** the engine draws the atmosphere; the preview loads the bird from the local package.
+- World format version 3 (`shared/src/packages/world-v3.ts`, JSON Schemas, format document, `zappaloo validate`, test world in both versions); version 2 stays readable. Its fields come with this story and 6f – 6g. Version 3 drops the object type `seat` (the seating plan lives in Zappaloo, story 6c).
 - Fog along the border, cloud shadows, birds, the map switches, reduced motion; in the app and the game preview.
 Requirements: MAP-20, GAME-31, GAME-32, GAME-33, GAME-34.
 

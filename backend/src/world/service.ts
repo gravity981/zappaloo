@@ -3,7 +3,7 @@
 // is validated before anything is written; it is staged in a folder and moved into place, and the rows
 // and the audit entry change in one transaction. A failure leaves the active world as it was.
 import { randomUUID } from "node:crypto";
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { mkdir, rename, rm, writeFile } from "node:fs/promises";
 import { dirname, join, resolve, sep } from "node:path";
 import { and, eq } from "drizzle-orm";
@@ -16,7 +16,12 @@ import {
 } from "../database/schema.ts";
 import type { Database } from "../database/database.ts";
 import type { Actor, EventService } from "../event/service.ts";
-import { WORLD_BUILTIN_PAGES, WORLD_FILE_SEGMENT, worldActionSchema } from "@zappaloo/shared";
+import {
+  WORLD_BIRD_METADATA,
+  WORLD_BUILTIN_PAGES,
+  WORLD_FILE_SEGMENT,
+  worldActionSchema,
+} from "@zappaloo/shared";
 import type {
   PublicWorld,
   WorldObjectAction,
@@ -86,12 +91,12 @@ export interface StoredWorld {
 }
 
 /**
- * The files a player's browser may load from a world: maps, tileset images, and the figures' metadata and
- * frames (in their folders under avatar/). The manifest and the door scene are not served.
+ * The files a player's browser may load from a world: maps, tileset images, the metadata and frames of the figures
+ * (in their folders under avatar/) and of the bird (under ambient/bird/). The manifest and the door scene are not served.
  */
 const SEGMENT = WORLD_FILE_SEGMENT.source.slice(1, -1);
 const SERVED_FILE = new RegExp(
-  `^(?:maps\\/[a-z0-9-]{1,40}\\.json|tilesets\\/${SEGMENT}\\.png|avatar\\/figures\\.json|avatar\\/(?:${SEGMENT}\\/)+${SEGMENT}\\.(?:png|json))$`,
+  `^(?:maps\\/[a-z0-9-]{1,40}\\.json|tilesets\\/${SEGMENT}\\.png|avatar\\/figures\\.json|avatar\\/(?:${SEGMENT}\\/)+${SEGMENT}\\.(?:png|json)|ambient\\/bird\\/(?:${SEGMENT}\\/)*${SEGMENT}\\.(?:png|json))$`,
 );
 
 type Row = typeof worldPackages.$inferSelect;
@@ -231,6 +236,8 @@ export class WorldService {
       maps: active.maps.map((map) => map.id),
       figures: active.figures,
       actions: this.#overridesOf(active),
+      // Format version 3: without the metadata of the bird there are no birds (GAME-32).
+      bird: existsSync(join(this.directory, active.importId, WORLD_BIRD_METADATA)),
     };
   }
 

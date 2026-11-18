@@ -1,6 +1,6 @@
 // Authenticated transport for the active world (MAP-10, AVA-02). Preparation is shared with the engine so that
 // preview adapters can provide local package data and a different asset URL resolver.
-import { publicWorldSchema } from "@zappaloo/shared";
+import { publicWorldSchema, WORLD_BIRD_METADATA } from "@zappaloo/shared";
 import { prepareWorld, type LoadedWorld } from "@zappaloo/game-engine";
 import { worldBase } from "./world-base.ts";
 
@@ -30,10 +30,14 @@ export async function loadWorld(): Promise<LoadedWorld | undefined> {
     ),
   );
 
+  // Format version 3: the bird that now and then flies through the view, when the world has one (GAME-32).
+  const birdMetadata = summary.bird ? await fetchJson(`${base}/${WORLD_BIRD_METADATA}`) : undefined;
+
   return prepareWorld({
     summary,
     maps,
     figureMetadata,
+    ...(birdMetadata === undefined ? {} : { birdMetadata }),
     resolveAsset: (path) => `${base}/${path}`,
   });
 }

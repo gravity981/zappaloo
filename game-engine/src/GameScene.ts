@@ -5,6 +5,8 @@
 import Phaser from "phaser";
 import { walkable, cellOf, playerCollisionEllipse } from "./collision.ts";
 import { walkFrameIndex } from "./figures.ts";
+import { Atmosphere } from "./atmosphere.ts";
+import { atmospherePlan, prefersReducedMotion } from "./atmosphere-plan.ts";
 import { GuestCrowd } from "./guest-crowd.ts";
 import type { GuestFigure } from "@zappaloo/shared";
 import { figureDepth, figureOcclusionSegment, occlusionSegmentRelation } from "./draw-order.ts";
@@ -203,6 +205,8 @@ export class WorldScene extends Phaser.Scene {
   #shadow: Phaser.GameObjects.Ellipse | undefined;
   /** The wandering guest figures of the map (PRES-01). */
   #crowd: GuestCrowd | undefined;
+  /** The fog, the cloud shadows and the birds of the map (GAME-31 – GAME-34). */
+  #atmosphere: Atmosphere | undefined;
   #guests: readonly GuestFigure[] = [];
   /** The edge indicators over the canvas and the objects they may point to (GAME-26). */
   #indicatorLayer: EdgeIndicatorLayer | undefined;
@@ -267,6 +271,7 @@ export class WorldScene extends Phaser.Scene {
     this.#portalGlows.clear();
     this.#shadow = undefined;
     this.#crowd = undefined;
+    this.#atmosphere = undefined;
     this.#guests = options.guests ?? [];
     this.#indicatorLayer?.destroy();
     this.#indicatorLayer = undefined;
@@ -350,6 +355,14 @@ export class WorldScene extends Phaser.Scene {
                 photoOf: options.guestPhoto,
               },
         );
+        // The fog, the cloud shadows and the birds, unless the map or the device switches them off (GAME-34).
+        this.#atmosphere = new Atmosphere(
+          this,
+          map,
+          this.#world,
+          atmospherePlan(map, this.#world, prefersReducedMotion()),
+          () => this.#pixelRatio(),
+        );
       }
       this.#createMarker(map);
       // The camera does not follow by itself: it is centred on the snapped sprite in update() (GAME-27).
@@ -384,6 +397,7 @@ export class WorldScene extends Phaser.Scene {
         walk: { marker: this.#feedback.marker ?? null, glow: this.#feedback.glow ?? null },
         glows: this.#glows.size,
         guests: this.#crowd?.states ?? [],
+        atmosphere: this.#atmosphere?.state ?? { fog: false, clouds: 0, birds: 0 },
         entries: (this.game.registry.get(ENTRIES_REGISTRY_KEY) as number | undefined) ?? 0,
         view: {
           // In CSS pixels, whatever the pixel ratio of the canvas is.
@@ -407,6 +421,8 @@ export class WorldScene extends Phaser.Scene {
       this.#indicatorLayer = undefined;
       this.#crowd?.destroy();
       this.#crowd = undefined;
+      this.#atmosphere?.destroy();
+      this.#atmosphere = undefined;
       this.scale.off(Phaser.Scale.Events.RESIZE, this.#onResize);
       window.removeEventListener("keydown", this.#onKeyDown);
       window.removeEventListener("keyup", this.#onKeyUp);
@@ -767,6 +783,7 @@ export class WorldScene extends Phaser.Scene {
     this.#followPlayer();
     // The guest figures and their bubbles, with the camera of this frame (PRES-10).
     this.#crowd?.update(delta, this.#position);
+    this.#atmosphere?.update(delta);
     player.setDepth(figureDepth(this.#position, map.occluders, map.size.width));
     this.#placeShadow(map, player);
     this.#drawOcclusionActor();

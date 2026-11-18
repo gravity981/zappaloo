@@ -1,12 +1,16 @@
-// The world package (sw-architecture.md 14.4, MAP-16, MAP-17): the format version 2 of `manifest.json`
+// The world package (sw-architecture.md 14.4, MAP-16, MAP-17): the format versions 2 and 3 of `manifest.json`
 // and `avatar/figures.json`, the figures' PixelLab metadata, the subset of Tiled's JSON that the platform
 // accepts, and the limits of the validator. Shared, so the validator, the JSON Schemas and the admin
 // area read the same rules.
 import { z } from "zod";
 import { doorSheetSchema } from "./waiting.ts";
 
-/** The format versions the platform reads (14.4). Version 1 was never released and is not read. */
-export const WORLD_FORMAT_VERSIONS = [2] as const;
+/**
+ * The format versions the platform reads (14.4, MAP-20). Version 1 was never released and is not read; version 2 stays
+ * readable next to version 3, which adds to it (decided 2026-11-18, epic 6).
+ */
+export const WORLD_FORMAT_VERSIONS = [2, 3] as const;
+export type WorldFormatVersion = (typeof WORLD_FORMAT_VERSIONS)[number];
 
 export const WORLD_KIND = "zappaloo-world";
 
@@ -28,6 +32,8 @@ export const WORLD_LIMITS = {
   figureFrameSide: { min: 8, max: 256 },
   /** The walk frames of one direction of a figure. */
   walkFrames: { min: 1, max: 16 },
+  /** The flying frames of one direction of the bird (format version 3). */
+  flyFrames: { min: 1, max: 16 },
   /** Length of the names: the id of a map, an object, a figure; the label of a figure. */
   idLength: 40,
   labelLength: 30,
@@ -74,16 +80,27 @@ export const WORLD_DIRECTIONS = ["south", "west", "east", "north"] as const;
 
 const idSchema = z.string().regex(WORLD_ID_PATTERN, "1–40 characters of a–z, 0–9 and -");
 
-/** `manifest.json` of a world package, exactly these fields (14.4). `$schema` only names the schema. */
-export const worldManifestSchema = z.strictObject({
-  $schema: z.string().optional(),
-  kind: z.literal(WORLD_KIND),
-  formatVersion: z.literal(2),
-  name: z.string().trim().min(1).max(WORLD_LIMITS.nameLength),
-  startMap: idSchema,
-  tileWidth: z.number().int().min(WORLD_LIMITS.tileSide.min).max(WORLD_LIMITS.tileSide.max),
-  tileHeight: z.number().int().min(WORLD_LIMITS.tileSide.min).max(WORLD_LIMITS.tileSide.max),
-});
+/** `manifest.json` of one format version: exactly these fields (14.4). `$schema` only names the schema. */
+const manifestOf = <V extends WorldFormatVersion>(formatVersion: V) =>
+  z.strictObject({
+    $schema: z.string().optional(),
+    kind: z.literal(WORLD_KIND),
+    formatVersion: z.literal(formatVersion),
+    name: z.string().trim().min(1).max(WORLD_LIMITS.nameLength),
+    startMap: idSchema,
+    tileWidth: z.number().int().min(WORLD_LIMITS.tileSide.min).max(WORLD_LIMITS.tileSide.max),
+    tileHeight: z.number().int().min(WORLD_LIMITS.tileSide.min).max(WORLD_LIMITS.tileSide.max),
+  });
+
+/** `manifest.json` of format version 2. */
+export const worldManifestV2Schema = manifestOf(2);
+/** `manifest.json` of format version 3: the same fields. */
+export const worldManifestV3Schema = manifestOf(3);
+/** `manifest.json` of any version the platform reads. */
+export const worldManifestSchema = z.discriminatedUnion("formatVersion", [
+  worldManifestV2Schema,
+  worldManifestV3Schema,
+]);
 export type WorldManifest = z.infer<typeof worldManifestSchema>;
 
 /** The kinds of figure the avatar editor asks for first (7.3, decided 2026-11-17). */
@@ -155,6 +172,47 @@ export const pixelLabMetadataSchema = z.looseObject({
     .min(1),
 });
 export type PixelLabMetadata = z.infer<typeof pixelLabMetadataSchema>;
+
+/**
+ * The PixelLab metadata of the bird (`ambient/bird/metadata.json`, format version 3, GAME-32): the file structure of a
+ * figure, with the animation `flying` instead of `walking`. A flock flies to the left or to the right, so `east` and
+ * `west` are needed; `south` and `north` may be there and are checked when they are.
+ */
+export const pixelLabBirdSchema = z.looseObject({
+  states: z
+    .array(
+      z.looseObject({
+        character: z.looseObject({
+          size: z.looseObject({ width: z.number().int(), height: z.number().int() }),
+        }),
+        frames: z.looseObject({
+          rotations: z.looseObject({
+            south: z.string(),
+            west: z.string(),
+            east: z.string(),
+            north: z.string(),
+          }),
+          animations: z.looseObject({
+            flying: z.looseObject({
+              west: z.array(z.string()),
+              east: z.array(z.string()),
+              south: z.array(z.string()).optional(),
+              north: z.array(z.string()).optional(),
+            }),
+          }),
+        }),
+      }),
+    )
+    .min(1),
+});
+export type PixelLabBird = z.infer<typeof pixelLabBirdSchema>;
+
+/** The map properties that switch an effect off (format version 3, GAME-34); each is on unless set to `false`. */
+export const WORLD_MAP_SWITCHES = ["clouds", "birds", "fog"] as const;
+export type WorldMapSwitch = (typeof WORLD_MAP_SWITCHES)[number];
+
+/** The folder and the metadata of the bird in a package of format version 3 (14.4). */
+export const WORLD_BIRD_METADATA = "ambient/bird/metadata.json";
 
 /**
  * The stored choice of a guest's figure (AVA-02, 7.3): `{ "figure": "<id>" }`. An id that the active
@@ -521,6 +579,8 @@ export const publicWorldSchema = z.object({
   figures: z.array(worldFigureSchema),
   /** The actions the admin assigned to clickable objects; they replace the presets of the maps (MAP-15). */
   actions: z.array(worldActionOverrideSchema).default([]),
+  /** Whether the world has a bird (`ambient/bird/metadata.json`, format version 3): without one there are no birds. */
+  bird: z.boolean().default(false),
 });
 export type PublicWorld = z.infer<typeof publicWorldSchema>;
 

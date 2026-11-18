@@ -1,0 +1,60 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "$schema": {
+      "type": "string"
+    },
+    "figures": {
+      "minItems": 1,
+      "maxItems": 50,
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[a-z0-9-]{1,40}$"
+          },
+          "label": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 30
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "male",
+              "female",
+              "child",
+              "other"
+            ]
+          },
+          "tier": {
+            "type": "string",
+            "enum": [
+              "tier1",
+              "tier2",
+              "tier3"
+            ]
+          },
+          "metadata": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._/-]{0,199}\\.json$"
+          }
+        },
+        "required": [
+          "id",
+          "type",
+          "tier",
+          "metadata"
+        ],
+        "additionalProperties": false
+      }
+    }
+  },
+  "required": [
+    "figures"
+  ],
+  "additionalProperties": false
+}

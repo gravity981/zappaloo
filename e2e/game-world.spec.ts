@@ -378,6 +378,8 @@ test("[GAME-11][GAME-13] on the first entry with an open RSVP, typing into the R
   await guest.goto("/game");
   await guest.getByRole("group", { name: de.avatar.kind }).getByRole("button").first().click();
   await guest.getByRole("button", { name: de.game.first.continue }).click();
+  // The second step of the first entry is the profile ("Sag hallo"); it is skipped here.
+  await guest.getByRole("button", { name: de.game.first.hello.skip }).click();
 
   // The RSVP opens above the game; the answer leads to the text field of the allergies.
   const rsvp = guest.getByRole("dialog", { name: de.nav.rsvp });
@@ -716,4 +718,69 @@ test("[CNT-02][CNT-03][GAME-06] the admin writes the dialogue of an NPC in Erleb
   await expect(box.locator("strong")).toHaveText("14:00");
   await page.getByTestId("dialogue-layer").click({ position: { x: 20, y: 20 } });
   await expect(box).toHaveCount(0);
+});
+
+test("[GAME-31][GAME-33][GAME-34][MAP-20] the church has fog and cloud shadows, the indoor hall has none (map properties), and with reduced motion the fog stays and the shadows go", async ({
+  page,
+  context,
+}, testInfo) => {
+  test.skip(testInfo.project.name !== "desktop-chromium", "shared settings: one profile only");
+  await signInAsAdmin(page, context);
+  await enterGame(page);
+  await expect(page.getByTestId("game-canvas")).toBeVisible({ timeout: 20_000 });
+  // The start map has a border, so it has fog, and the shadows drift over it.
+  const church = await gameState(page);
+  expect(church.mapId).toBe("kirche");
+  expect(church.atmosphere.fog).toBe(true);
+  expect(church.atmosphere.clouds).toBeGreaterThanOrEqual(2);
+  await page.waitForTimeout(500);
+  await page.screenshot({ path: testInfo.outputPath("game-atmosphere.png") });
+  // The hall switches clouds, birds and fog off (it is indoors).
+  await page.evaluate(() => window.__zappaloo?.game?.selectSpawn("saal", "start"));
+  await page.waitForFunction(() => window.__zappaloo?.game?.state()?.mapId === "saal");
+  expect((await gameState(page)).atmosphere).toEqual({ fog: false, clouds: 0, birds: 0 });
+  // The garden has no switch: everything is on.
+  await page.evaluate(() => window.__zappaloo?.game?.selectSpawn("garten", "start"));
+  await page.waitForFunction(() => window.__zappaloo?.game?.state()?.mapId === "garten");
+  expect((await gameState(page)).atmosphere.clouds).toBeGreaterThanOrEqual(2);
+
+  // A device that asks for reduced motion: no shadows and no birds, but the fog stays (it does not move).
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await page.goto("/game");
+  await expect(page.getByTestId("game-canvas")).toBeVisible({ timeout: 20_000 });
+  await page.waitForFunction(() => window.__zappaloo?.game?.state()?.mapId !== undefined);
+  const reduced = await gameState(page);
+  expect(reduced.atmosphere.clouds).toBe(0);
+  expect(reduced.atmosphere.birds).toBe(0);
+  expect(reduced.atmosphere.fog).toBe(["kirche", "garten"].includes(reduced.mapId));
+});
+
+test("[GAME-32] now and then a flock of the world's bird flies through the view", async ({
+  page,
+  context,
+}, testInfo) => {
+  test.skip(testInfo.project.name !== "desktop-chromium", "shared settings: one profile only");
+  test.setTimeout(90_000);
+  // The first flock comes 20 to 60 seconds after the map is entered; with the lowest random number it is 20 seconds.
+  await page.addInitScript(() => {
+    Math.random = () => 0.01;
+  });
+  await signInAsAdmin(page, context);
+  await enterGame(page);
+  await expect(page.getByTestId("game-canvas")).toBeVisible({ timeout: 20_000 });
+  expect((await gameState(page)).atmosphere.birds).toBe(0);
+  await expect
+    .poll(async () => (await gameState(page)).atmosphere.birds, {
+      timeout: 40_000,
+      intervals: [500],
+    })
+    .toBeGreaterThanOrEqual(3);
+  await page.screenshot({ path: testInfo.outputPath("game-birds.png") });
+  // The flock leaves the view on the other side, and then there are none until the next one.
+  await expect
+    .poll(async () => (await gameState(page)).atmosphere.birds, {
+      timeout: 40_000,
+      intervals: [500],
+    })
+    .toBe(0);
 });
