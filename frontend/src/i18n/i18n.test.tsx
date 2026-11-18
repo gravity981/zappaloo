@@ -75,6 +75,11 @@ describe("words (LANG-03)", () => {
       /Rückmeld|Abmelden|Anmelden|dich (neu |wieder |einmal neu |ab jetzt )?an(melden)?\b|angemeldet/;
     const found = strings(de).filter(([, text]) => old.test(text));
     expect(found).toEqual([]);
+    // A button label ("Jetzt anmelden") pasted into a sentence by the rename reads as nonsense.
+    const pasted = strings(de).filter(([, text]) =>
+      /\b(eine|einen|der|die|das|zu) Jetzt\b/.test(text),
+    );
+    expect(pasted).toEqual([]);
     expect(de.login.title).toBe("Einloggen");
     expect(de.nav.logout).toBe("Ausloggen");
   });

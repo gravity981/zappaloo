@@ -181,6 +181,37 @@ describe("accompanying persons in the wizard", () => {
     );
   });
 
+  it("[RSVP-19][RSVP-21] switching the type drops a menu the new list does not offer", async () => {
+    fakeBackend({
+      "GET /api/session": () => asGuest,
+      "GET /api/rsvp": () => ({ status: 200, body: state() }),
+    });
+    renderAt("/rsvp");
+    await toStepThree();
+    user.click(screen.getByRole("button", { name: "+ Kind" }));
+    await screen.findByText("Begleitperson hinzufügen", { selector: "b" });
+    user.type(screen.getByLabelText("Name"), "Mia Huber");
+    user.click(screen.getByRole("button", { name: "Trauung: Dabei" }));
+    user.click(screen.getByRole("button", { name: "Dinner: Dabei" }));
+    user.click(screen.getByRole("button", { name: "Mia Huber: Kindermenü" }));
+    const submit = screen.getByRole("button", { name: "Hinzufügen" });
+    expect(submit).toBeEnabled();
+
+    // The adults' list does not offer the children's menu: nothing is chosen, and the guest must choose.
+    user.click(screen.getByRole("button", { name: "Erwachsen" }));
+    expect(screen.getByRole("button", { name: "Mia Huber: Fleisch" })).toHaveAttribute(
+      "aria-pressed",
+      "false",
+    );
+    expect(submit).toBeDisabled();
+    user.click(screen.getByRole("button", { name: "Mia Huber: Fleisch" }));
+    expect(submit).toBeEnabled();
+
+    // And back: the adults' menu is dropped the same way.
+    user.click(screen.getByRole("button", { name: "Kind" }));
+    expect(submit).toBeDisabled();
+  });
+
   it("[RSVP-08] the guest requests a person: name, note, attendance, menu and allergies", async () => {
     const calls = fakeBackend({
       "GET /api/session": () => asGuest,

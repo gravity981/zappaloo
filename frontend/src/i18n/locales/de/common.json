@@ -969,7 +969,7 @@
     "setup_incomplete": "Die Veranstaltung ist noch nicht eingerichtet.",
     "program_item_not_found": "Diesen Programmpunkt gibt es nicht.",
     "menu_not_found": "Dieses Menü gibt es nicht.",
-    "not_a_guest": "Nur Gäste können eine Jetzt anmelden.",
+    "not_a_guest": "Nur Gäste können sich anmelden.",
     "rsvp_closed": "Die Frist für die Anmeldung ist vorbei. Melde dich bei den Gastgebern.",
     "invalid_attendance": "Bitte antworte für jeden Programmpunkt mit Ja oder Nein.",
     "menu_required": "Bitte wähle ein Menü.",

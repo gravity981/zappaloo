@@ -310,6 +310,12 @@ export function CompanionForm({
             aria-pressed={type === personType}
             onClick={() => {
               setType(personType);
+              // The menu lists differ by type (RSVP-19): a choice the new list does not offer would
+              // show no pressed chip and be rejected on saving. A saved menu is kept (7.4.4).
+              const offered = menusFor(menus, personType).some((menu) => menu.id === answer.menuId);
+              if (answer.menuId !== null && !offered && answer.menuId !== companion?.menuId) {
+                setAnswer({ ...answer, menuId: null });
+              }
             }}
           >
             {t(`personTypes.${personType}`)}
