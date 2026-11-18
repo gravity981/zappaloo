@@ -986,6 +986,14 @@ button {
   font: 600 15px/1.3 var(--a-display);
   margin: 14px 0 4px;
 }
+/* every heading level of a text is a heading of the theme: the heading font (19.7) */
+.guest .markdown h3,
+.guest .markdown h4,
+.guest .markdown h5,
+.guest .markdown h6 {
+  font: 600 14px/1.3 var(--a-display);
+  margin: 12px 0 4px;
+}
 .guest .markdown p,
 .guest .markdown ul,
 .guest .markdown ol {
@@ -997,6 +1005,17 @@ button {
 }
 .guest .markdown a {
   text-decoration: underline;
+}
+
+/* A preview of guest content in the admin area: the guest's view, with the event's theme. */
+.guest.themed-preview {
+  min-height: 0;
+  padding: 14px;
+  border-radius: 10px;
+  border: 1px solid var(--a-line);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
 }
 
 /* a password field with an eye button */

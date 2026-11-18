@@ -41,6 +41,10 @@ Added 2026-11-18. Today a theme package (sw-architecture.md 19.7) is written by 
 - **Font size override:** imported fonts draw their letters in different sizes. Decided: an optional `sizeAdjust` per font in percent (50–200) that becomes `size-adjust` of the font's `@font-face`. It breaks the contract of the theme format, which v1.2.0 to v2.0.0 already released, so it is **theme format version 2** (decided by the owner 2026-11-18): the platform reads version 2 only, version 1 is removed, and the release that contains it is a major version (3.0.0, 19.7). The owner's rule: the formats have no requirement to be backwards compatible at the moment, and a change of a package contract that needs a change of the platform is a potential major version break, and one if the platform code was already released. The validator, the JSON Schemas, `GET /api/site`, `fontFaceRules()`, the example package and the editor change with it (THM-16).
 - Both go into epic 5.2.
 
+**More findings of the owner's try with the event's theme (2026-11-18):**
+- **Page titles without the heading font:** the title of a content page and of «Mehr» was a plain `<h1>` and did not use the heading font, while the Markdown headings below it did (so the first line of a page was not in the heading font and the next one was). Markdown headings below level 2 had no style at all. Fixed (story 5.2k).
+- **The content preview in the admin area did not apply the theme:** it showed the platform's neutral look. Decided: a preview of guest content shows the guest's view, with the theme and the page title (story 5.2l).
+
 ## Stories
 
 ### Story 5.2a – Spec and mock
@@ -106,6 +110,16 @@ Mock screens: `theme-editor`.
 - `sizeAdjust` in the format (`shared/src/packages/theme-v2.ts`, `shared/src/theme.ts`), the validator, the JSON Schemas and the format document (`npm run schemas`), `GET /api/site`, `fontFaceRules()` of the app and the editor (slider and number field per font, live in the preview, written by the export and read by «Open»).
 - A test exports a theme with `sizeAdjust`, validates it with `zappaloo validate` and opens it again; the app test checks the `size-adjust` rule.
 Requirements: THM-16. Re-verified: THM-01, THM-02, THM-03, THM-06, THM-07.
+
+### Story 5.2k – Heading font for page titles and every Markdown heading level
+
+- The titles of a content page and of «Mehr» get the heading style (`h1` class); Markdown headings of the levels 3 to 6 are headings in the heading font like levels 1 and 2. The spec says how a page is laid out (6.2).
+Requirements: THM-06 (unchanged). Re-verified: WEB-02.
+
+### Story 5.2l – The content preview in the admin area applies the theme
+
+- The Markdown preview of the content editor is wrapped like the website (`ThemedPreview`: the colours and font faces of `GET /api/site`) and shows the page's title above the text; the Startseite's preview shows the text only. The theme is read again after an import (5.2 fix), so the preview follows it.
+Requirements: CNT-05, THM-01 (unchanged).
 
 ## Report
 

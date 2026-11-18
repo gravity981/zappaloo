@@ -41,7 +41,7 @@ export default function ContentPage() {
   if (!page) {
     return (
       <section>
-        <h1>{t("website.pageNotFound")}</h1>
+        <h1 className="h1">{t("website.pageNotFound")}</h1>
         <Link to="/mehr">{t("nav.more")}</Link>
       </section>
     );
@@ -54,7 +54,7 @@ export default function ContentPage() {
       </nav>
       <div className="page-grid">
         <div className="page-text">
-          <h1>{page.title}</h1>
+          <h1 className="h1">{page.title}</h1>
           <Markdown text={page.markdown} />
         </div>
         {places.length > 0 && (

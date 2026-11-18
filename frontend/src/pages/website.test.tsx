@@ -1,4 +1,5 @@
 import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { screen, within } from "@testing-library/react";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import { initI18n } from "../i18n/i18n.ts";
@@ -145,6 +146,38 @@ describe("the content page and Mehr (WEB-02, WEB-05, CNT-07)", () => {
     expect(link).toHaveAttribute("href", "https://maps.app.goo.gl/Kirche");
     expect(link).toHaveAttribute("target", "_blank");
     expect(link.getAttribute("rel")).toContain("noopener");
+  });
+
+  it("[WEB-02][THM-06] the title of a page uses the heading style, so the heading font reaches it", async () => {
+    fakeBackend({
+      "GET /api/session": () => signedIn,
+      "GET /api/content": () => ({ status: 200, body: site }),
+    });
+    renderAt("/p/anreise");
+    const title = await screen.findByRole("heading", { name: "Anreise & Parkieren" });
+    expect(title).toHaveClass("h1");
+    expect(title.closest(".markdown")).toBeNull();
+  });
+
+  it("[WEB-02][THM-06] the title of «Mehr» uses the heading style", async () => {
+    fakeBackend({
+      "GET /api/session": () => signedIn,
+      "GET /api/content": () => ({ status: 200, body: site }),
+    });
+    renderAt("/mehr");
+    expect(await screen.findByRole("heading", { name: "Mehr" })).toHaveClass("h1");
+  });
+
+  it("[WEB-02][THM-06] every heading level of a text is styled with the theme's heading font", () => {
+    const css = readFileSync(join(import.meta.dirname, "../app/ui.css"), "utf8");
+    for (const level of ["1", "2", "3", "4", "5", "6"]) {
+      expect(css, "h" + level).toContain(".guest .markdown h" + level);
+    }
+    // the rule of the levels 3 to 6 sets the heading font, like the rules of 1 and 2
+    const start = css.indexOf(".guest .markdown h3,");
+    const rule = css.slice(start, css.indexOf("}", start));
+    expect(rule).toContain(".guest .markdown h6");
+    expect(rule).toContain("var(--a-display)");
   });
 
   it("[WEB-02] Mehr lists the visible pages and the profile; the admin entries only for those who may use them", async () => {

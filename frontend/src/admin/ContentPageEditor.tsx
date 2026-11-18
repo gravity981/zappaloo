@@ -16,6 +16,7 @@ import {
 import type { ContentImage, ContentPage, ContentPlace, StartSettings } from "@zappaloo/shared";
 import { apiRequest } from "../app/api.ts";
 import Markdown from "../app/Markdown.tsx";
+import { ThemedPreview } from "../app/ThemedPreview.tsx";
 import { useSession } from "../app/session.ts";
 import { useAdminCall, useAdminData, useErrorText } from "./data.ts";
 import {
@@ -37,10 +38,13 @@ function TextField({
   label,
   value,
   onChange,
+  previewTitle,
 }: {
   label: string;
   value: string;
   onChange: (value: string) => void;
+  /** The page's title, shown above the text as the website shows it (not for the Startseite). */
+  previewTitle?: string;
 }) {
   const { t } = useTranslation();
   return (
@@ -59,7 +63,12 @@ function TextField({
       </label>
       <div className="card">
         <span className="eyebrow">{t("admin.content.preview")}</span>
-        <Markdown text={value} />
+        <ThemedPreview>
+          {previewTitle !== undefined && previewTitle.trim() !== "" && (
+            <h1 className="h1">{previewTitle}</h1>
+          )}
+          <Markdown text={value} />
+        </ThemedPreview>
       </div>
     </div>
   );
@@ -379,6 +388,7 @@ function PageForm({
       )}
       <TextField
         label={isStart ? t("admin.content.startText") : t("admin.content.text")}
+        previewTitle={isStart ? undefined : title}
         value={markdown}
         onChange={(value) => {
           setMarkdown(value);
