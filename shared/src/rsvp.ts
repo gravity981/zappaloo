@@ -20,40 +20,72 @@ export const songWishSchema = z.string().trim().min(1).max(200);
 /** A calendar day, `2027-05-01`. */
 export const dateSchema = z.iso.date();
 
-/** A program item: ceremony, aperitif, dinner, party (RSVP-02). */
-export const programItemSchema = z.object({
+/**
+ * An activity of a program item: what the programme shows (WEB-12). It has a name, a start, an
+ * optional end and a place of its own.
+ */
+export const activitySchema = z.object({
   id: idSchema,
   name: z.string(),
   /** ISO date-time. */
   startsAt: z.string(),
-  /** ISO date-time of the end, or null: the item has no end (WEB-07). */
+  /** ISO date-time of the end, or null: the activity has no end (WEB-07). */
   endsAt: z.string().nullable(),
   /** The place from Inhalte (CNT-07), or none; `place` is its name, read-only. */
   placeId: z.number().int().positive().nullable(),
   place: z.string().nullable(),
+});
+export type Activity = z.infer<typeof activitySchema>;
+
+/**
+ * A program item: what a guest is invited to and answers for (RSVP-02). It has no time or place of
+ * its own; its activities, by start, are what the programme shows. It has at least one (RSVP-17).
+ */
+export const programItemSchema = z.object({
+  id: idSchema,
+  name: z.string(),
   /** The program item that has the meal: the menu is asked only for persons attending it. */
   hasMeal: z.boolean(),
+  activities: z.array(activitySchema),
 });
 export type ProgramItem = z.infer<typeof programItemSchema>;
 
 export const menuOptionSchema = z.object({ id: idSchema, name: z.string() });
 export type MenuOption = z.infer<typeof menuOptionSchema>;
 
-/** `POST`/`PATCH /api/admin/rsvp/program-items`: a program item; a change names what changes. */
-export const programItemRequestSchema = z.strictObject({
-  name: programItemNameSchema,
+export const activityNameSchema = z.string().trim().min(1).max(60);
+
+/** `POST /api/admin/rsvp/program-items/:id/activities`: an activity; a change names what changes. */
+export const activityRequestSchema = z.strictObject({
+  name: activityNameSchema,
   startsAt: z.iso.datetime(),
   endsAt: z.iso.datetime().nullable().optional(),
   placeId: z.number().int().positive().nullable().optional(),
+});
+export type ActivityRequest = z.infer<typeof activityRequestSchema>;
+export const activityUpdateSchema = z
+  .strictObject({
+    name: activityNameSchema.optional(),
+    startsAt: z.iso.datetime().optional(),
+    endsAt: z.iso.datetime().nullable().optional(),
+    placeId: z.number().int().positive().nullable().optional(),
+  })
+  .refine((value) => Object.keys(value).length > 0, { message: "name at least one value" });
+export type ActivityUpdate = z.infer<typeof activityUpdateSchema>;
+
+/**
+ * `POST /api/admin/rsvp/program-items`: a program item with its first activity (RSVP-17).
+ * `PATCH`: a change names what changes; the activities have their own routes.
+ */
+export const programItemRequestSchema = z.strictObject({
+  name: programItemNameSchema,
   hasMeal: z.boolean().optional(),
+  activity: activityRequestSchema,
 });
 export type ProgramItemRequest = z.infer<typeof programItemRequestSchema>;
 export const programItemUpdateSchema = z
   .strictObject({
     name: programItemNameSchema.optional(),
-    startsAt: z.iso.datetime().optional(),
-    endsAt: z.iso.datetime().nullable().optional(),
-    placeId: z.number().int().positive().nullable().optional(),
     hasMeal: z.boolean().optional(),
   })
   .refine((value) => Object.keys(value).length > 0, { message: "name at least one value" });
@@ -345,6 +377,9 @@ export const ACTIVITY_ACTIONS = [
   "rsvp.program_item.create",
   "rsvp.program_item.update",
   "rsvp.program_item.delete",
+  "rsvp.activity.create",
+  "rsvp.activity.update",
+  "rsvp.activity.delete",
   "rsvp.menu.create",
   "rsvp.menu.update",
   "rsvp.menu.delete",

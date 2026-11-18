@@ -19,29 +19,47 @@ const PARTS = [
   {
     id: 1,
     name: "Trauung",
-    startsAt: "2027-06-12T12:00:00.000Z",
-    endsAt: null,
-    placeId: 1,
-    place: "Kirche",
     hasMeal: false,
+    activities: [
+      {
+        id: 1,
+        name: "Trauung",
+        startsAt: "2027-06-12T12:00:00.000Z",
+        endsAt: null,
+        placeId: 1,
+        place: "Kirche",
+      },
+    ],
   },
   {
     id: 2,
     name: "Apéro",
-    startsAt: "2027-06-12T13:30:00.000Z",
-    endsAt: null,
-    placeId: null,
-    place: null,
     hasMeal: false,
+    activities: [
+      {
+        id: 2,
+        name: "Apéro",
+        startsAt: "2027-06-12T13:30:00.000Z",
+        endsAt: null,
+        placeId: null,
+        place: null,
+      },
+    ],
   },
   {
     id: 3,
     name: "Dinner",
-    startsAt: "2027-06-12T16:30:00.000Z",
-    endsAt: null,
-    placeId: 2,
-    place: "Linde",
     hasMeal: true,
+    activities: [
+      {
+        id: 3,
+        name: "Dinner",
+        startsAt: "2027-06-12T16:30:00.000Z",
+        endsAt: null,
+        placeId: 2,
+        place: "Linde",
+      },
+    ],
   },
 ];
 /** A place of Inhalte the program item form can choose (CNT-07). */
@@ -564,11 +582,17 @@ describe("Einstellungen › Rückmeldung", () => {
         body: {
           id: 4,
           name: "Party",
-          startsAt: "2027-06-12T20:00:00.000Z",
-          endsAt: null,
-          placeId: 7,
-          place: "Saal",
           hasMeal: false,
+          activities: [
+            {
+              id: 4,
+              name: "Party",
+              startsAt: "2027-06-12T20:00:00.000Z",
+              endsAt: null,
+              placeId: 7,
+              place: "Saal",
+            },
+          ],
         },
       }),
     });
@@ -588,10 +612,8 @@ describe("Einstellungen › Rückmeldung", () => {
     // 22:00 in Zurich (summer time) is 20:00 UTC.
     expect(calls.find((c) => c.method === "POST")?.body).toEqual({
       name: "Party",
-      startsAt: "2027-06-12T20:00:00.000Z",
-      endsAt: null,
-      placeId: 7,
       hasMeal: false,
+      activity: { name: "Party", startsAt: "2027-06-12T20:00:00.000Z", endsAt: null, placeId: 7 },
     });
   });
 

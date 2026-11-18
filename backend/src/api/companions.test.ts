@@ -92,7 +92,7 @@ async function setup() {
   ] as const) {
     const made = await call<ProgramItem>(root, "POST", "/api/admin/rsvp/program-items", {
       name,
-      startsAt: `2027-06-12T${String(hour)}:00:00.000Z`,
+      activity: { name, startsAt: `2027-06-12T${String(hour)}:00:00.000Z` },
       hasMeal,
     });
     programItems.push(must(made.body));

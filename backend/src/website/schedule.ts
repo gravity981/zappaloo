@@ -6,6 +6,8 @@ import { calendarDay } from "./countdown.ts";
 export interface ScheduleEntry {
   id: number;
   name: string;
+  /** The program item the activity belongs to (WEB-12). */
+  programItemId: number;
   startsAt: Date;
   endsAt: Date | null;
   placeName: string | null;
@@ -13,7 +15,7 @@ export interface ScheduleEntry {
 
 export type EntryStatus = "past" | "now" | "upcoming";
 
-/** Whether `now` is on the day of the first program item (the event day starts at its midnight). */
+/** Whether `now` is on the day of the first activity (the event day starts at its midnight). */
 export function isEventDay(first: Date | undefined, now: Date, timeZone: string): boolean {
   return first !== undefined && calendarDay(now, timeZone) === calendarDay(first, timeZone);
 }

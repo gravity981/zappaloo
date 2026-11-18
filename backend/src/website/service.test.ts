@@ -25,15 +25,18 @@ async function setup() {
     headers: admin,
     payload: {
       name: "Trauung",
-      startsAt: "2027-06-12T10:00:00.000Z",
-      endsAt: "2027-06-12T10:45:00.000Z",
+      activity: {
+        name: "Trauung",
+        startsAt: "2027-06-12T10:00:00.000Z",
+        endsAt: "2027-06-12T10:45:00.000Z",
+      },
     },
   });
   const apero = await ctx.app.inject({
     method: "POST",
     url: "/api/admin/rsvp/program-items",
     headers: admin,
-    payload: { name: "Apéro", startsAt: "2027-06-12T11:30:00.000Z" },
+    payload: { name: "Apéro", activity: { name: "Apéro", startsAt: "2027-06-12T11:30:00.000Z" } },
   });
   // Yes or no per program item (RSVP-11), so a guest can attend one item and decline the other.
   ctx.auth.rsvp.setPerItem(true, "test");
@@ -42,7 +45,7 @@ async function setup() {
     ctx,
     admin,
     trauung: trauung.json<{ id: number }>(),
-    apero: apero.json<{ id: number }>(),
+    apero: apero.json<{ id: number; activities: { id: number }[] }>(),
     website,
   };
 }
@@ -154,28 +157,32 @@ describe("the website and the programme (WEB-07, WEB-09, WEB-10)", () => {
 
   it("[WEB-07] an item ends after it starts: a wrong end is refused on create and on change", async () => {
     const { ctx, admin, apero } = await setup();
+    const aperoActivity = apero.activities[0]?.id;
     const wrong = await ctx.app.inject({
       method: "POST",
       url: "/api/admin/rsvp/program-items",
       headers: admin,
       payload: {
         name: "Party",
-        startsAt: "2027-06-12T20:00:00.000Z",
-        endsAt: "2027-06-12T19:00:00.000Z",
+        activity: {
+          name: "Party",
+          startsAt: "2027-06-12T20:00:00.000Z",
+          endsAt: "2027-06-12T19:00:00.000Z",
+        },
       },
     });
     expect(wrong.statusCode).toBe(400);
     expect(wrong.json<{ error: { code: string } }>().error.code).toBe("invalid_time");
     const changed = await ctx.app.inject({
       method: "PATCH",
-      url: `/api/admin/rsvp/program-items/${String(apero.id)}`,
+      url: `/api/admin/rsvp/activities/${String(aperoActivity)}`,
       headers: admin,
       payload: { endsAt: "2027-06-12T11:00:00.000Z" },
     });
     expect(changed.statusCode).toBe(400);
     const ended = await ctx.app.inject({
       method: "PATCH",
-      url: `/api/admin/rsvp/program-items/${String(apero.id)}`,
+      url: `/api/admin/rsvp/activities/${String(aperoActivity)}`,
       headers: admin,
       payload: { endsAt: "2027-06-12T13:00:00.000Z" },
     });

@@ -245,6 +245,7 @@ describe("the schedule (WEB-07, WEB-09, WEB-10)", () => {
       {
         id: 1,
         name: "Trauung",
+        programItemId: 1,
         startsAt: "2027-06-12T10:00:00.000Z",
         endsAt: "2027-06-12T10:45:00.000Z",
         placeName: "Kirche Muri",
@@ -253,6 +254,7 @@ describe("the schedule (WEB-07, WEB-09, WEB-10)", () => {
       {
         id: 2,
         name: "Apéro",
+        programItemId: 2,
         startsAt: "2027-06-12T11:30:00.000Z",
         endsAt: null,
         placeName: "Schlossgarten",
@@ -261,6 +263,7 @@ describe("the schedule (WEB-07, WEB-09, WEB-10)", () => {
       {
         id: 3,
         name: "Dinner",
+        programItemId: 3,
         startsAt: "2027-06-12T14:30:00.000Z",
         endsAt: null,
         placeName: "Landgasthof Linde",
@@ -323,6 +326,7 @@ describe("the schedule (WEB-07, WEB-09, WEB-10)", () => {
           now: {
             id: 2,
             name: "Apéro",
+            programItemId: 2,
             startsAt: "2027-06-12T11:30:00.000Z",
             endsAt: null,
             placeName: "Schlossgarten",
@@ -330,6 +334,7 @@ describe("the schedule (WEB-07, WEB-09, WEB-10)", () => {
           next: {
             id: 3,
             name: "Dinner",
+            programItemId: 3,
             startsAt: "2027-06-12T14:30:00.000Z",
             endsAt: null,
             placeName: "Landgasthof Linde",

@@ -144,13 +144,14 @@ function WizardForm({
   const admin = mode.kind === "admin";
   const locked = state.closed && !admin;
   const { programItems, menus } = state;
-  const time = (programItem: ProgramItem) =>
-    programItem.place
-      ? t("rsvp.programItemWhen", {
-          time: format.time(programItem.startsAt),
-          place: programItem.place,
-        })
-      : format.time(programItem.startsAt);
+  // Story 5.3e lists all activities; until then the line shows the first one.
+  const time = (programItem: ProgramItem) => {
+    const first = programItem.activities[0];
+    if (!first) return "";
+    return first.place
+      ? t("rsvp.programItemWhen", { time: format.time(first.startsAt), place: first.place })
+      : format.time(first.startsAt);
+  };
 
   const valueOf = (companion: Companion): PersonValue =>
     edits[companion.id] ?? personOf(companion, programItems, state.perItem);

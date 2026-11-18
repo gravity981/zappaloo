@@ -4,7 +4,7 @@
 import { asc, eq } from "drizzle-orm";
 import type { ProgrammeResponse, ScheduleEntryView, WebsiteResponse } from "@zappaloo/shared";
 import type { Database } from "../database/database.ts";
-import { contentPlaces, contentStart, programItems } from "../database/schema.ts";
+import { activities, contentPlaces, contentStart } from "../database/schema.ts";
 import type { EventService } from "../event/service.ts";
 import type { RsvpService } from "../rsvp/service.ts";
 import { calendarDay, countdownAt } from "./countdown.ts";
@@ -22,7 +22,7 @@ export class WebsiteService {
     this.#rsvp = rsvp;
   }
 
-  /** All program items of the event in their order, with the names of their places. */
+  /** All activities of the event by start, with the names of their places (WEB-12). */
   #entries(): ScheduleEntry[] {
     const { db } = this.#database;
     const eventId = this.#event.eventId;
@@ -36,13 +36,14 @@ export class WebsiteService {
     );
     return db
       .select()
-      .from(programItems)
-      .where(eq(programItems.eventId, eventId))
-      .orderBy(asc(programItems.startsAt), asc(programItems.id))
+      .from(activities)
+      .where(eq(activities.eventId, eventId))
+      .orderBy(asc(activities.startsAt), asc(activities.id))
       .all()
       .map((row) => ({
         id: row.id,
         name: row.name,
+        programItemId: row.programItemId,
         startsAt: row.startsAt,
         endsAt: row.endsAt,
         placeName: row.placeId === null ? null : (names.get(row.placeId) ?? null),
@@ -84,14 +85,14 @@ export class WebsiteService {
     };
   }
 
-  /** `GET /api/programme`: the program items the guest is invited to, with their status. */
+  /** `GET /api/programme`: the activities of the program items the guest is invited to, with their status. */
   programme(userId: number, now: Date = new Date()): ProgrammeResponse {
     const timeZone = this.#event.get().timezone;
     const entries = this.#entries();
     const invited = new Set(this.#rsvp.invitedProgramItemIds(userId));
     const eventDay = timeZone !== null && isEventDay(entries[0]?.startsAt, now, timeZone);
     // The programme says that it leaves items out only when it does (WEB-09).
-    const hidden = entries.some((entry) => !invited.has(entry.id));
+    const hidden = entries.some((entry) => !invited.has(entry.programItemId));
     // Only a guest who accepted is told which entry is now (WEB-07); the others see past and upcoming.
     const accepted = this.#rsvp.guestStatus(userId) === "attending";
     const current = eventDay && accepted ? nowNextAt(entries, now).now : null;
@@ -101,7 +102,7 @@ export class WebsiteService {
       eventDate:
         timeZone !== null && entries[0] ? calendarDay(entries[0].startsAt, timeZone) : null,
       items: entries
-        .filter((entry) => invited.has(entry.id))
+        .filter((entry) => invited.has(entry.programItemId))
         .map((entry) => ({
           ...view(entry),
           status: eventDay ? statusAt(entry, current, now) : "upcoming",
@@ -114,6 +115,7 @@ function view(entry: ScheduleEntry): ScheduleEntryView {
   return {
     id: entry.id,
     name: entry.name,
+    programItemId: entry.programItemId,
     startsAt: entry.startsAt.toISOString(),
     endsAt: entry.endsAt?.toISOString() ?? null,
     placeName: entry.placeName,

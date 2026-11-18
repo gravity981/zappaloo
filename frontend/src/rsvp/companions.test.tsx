@@ -24,20 +24,32 @@ const PARTS = [
   {
     id: 1,
     name: "Trauung",
-    startsAt: "2027-06-12T12:00:00.000Z",
-    endsAt: null,
-    placeId: null,
-    place: null,
     hasMeal: false,
+    activities: [
+      {
+        id: 1,
+        name: "Trauung",
+        startsAt: "2027-06-12T12:00:00.000Z",
+        endsAt: null,
+        placeId: null,
+        place: null,
+      },
+    ],
   },
   {
     id: 3,
     name: "Dinner",
-    startsAt: "2027-06-12T16:30:00.000Z",
-    endsAt: null,
-    placeId: null,
-    place: null,
     hasMeal: true,
+    activities: [
+      {
+        id: 3,
+        name: "Dinner",
+        startsAt: "2027-06-12T16:30:00.000Z",
+        endsAt: null,
+        placeId: null,
+        place: null,
+      },
+    ],
   },
 ];
 const MENUS = [

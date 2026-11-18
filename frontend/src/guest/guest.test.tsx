@@ -292,11 +292,17 @@ describe("the RSVP in the flow frame (UX mock rsvp-parts)", () => {
       {
         id: 1,
         name: "Trauung",
-        startsAt: "2027-06-12T12:00:00.000Z",
-        endsAt: null,
-        placeId: null,
-        place: null,
         hasMeal: false,
+        activities: [
+          {
+            id: 1,
+            name: "Trauung",
+            startsAt: "2027-06-12T12:00:00.000Z",
+            endsAt: null,
+            placeId: null,
+            place: null,
+          },
+        ],
       },
     ],
     menus: [],

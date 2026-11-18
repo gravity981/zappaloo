@@ -12,6 +12,7 @@ const entry = (
 ): ScheduleEntry => ({
   id,
   name,
+  programItemId: id,
   startsAt: zurich(start),
   endsAt: end === null ? null : zurich(end),
   placeName: null,

@@ -69,7 +69,11 @@ async function setup() {
   const items = ["Trauung", "Dinner"].map(
     (name, i) =>
       ctx.auth.rsvp.createProgramItem(
-        { name, startsAt: `2027-06-12T${String(12 + i * 4)}:00:00.000Z`, hasMeal: false },
+        {
+          name,
+          activity: { name, startsAt: `2027-06-12T${String(12 + i * 4)}:00:00.000Z` },
+          hasMeal: false,
+        },
         "cli",
       ).id,
   );

@@ -24,6 +24,15 @@ const SONG_PATH = "/api/admin/rsvp/song";
 const PER_ITEM_PATH = "/api/admin/rsvp/per-item";
 const APPROVAL_PATH = "/api/admin/rsvp/companion-approval";
 
+/** The when and where of an activity as the form reads them. */
+interface ActivityFields {
+  startsAt: string;
+  endsAt: string | null;
+  placeId: number | null;
+}
+
+// Until the activities have their own place in this card (story 5.3c), the form edits the program
+// item's name and meal and the start, end and place of its first activity.
 /** The form of one program item; `programItem` undefined is a new one. */
 function ProgramItemForm({
   programItem,
@@ -36,22 +45,24 @@ function ProgramItemForm({
   /** The places of Inhalte (CNT-07) the item can refer to. */
   places: ContentPlace[];
   timeZone: string;
-  onSubmit: (body: object) => Promise<void>;
+  onSubmit: (item: { name: string; hasMeal: boolean }, activity: ActivityFields) => Promise<void>;
   onCancel: () => void;
 }) {
   const { t } = useTranslation();
+  const first = programItem?.activities[0];
   function submit(event: SubmitEvent<HTMLFormElement>) {
     event.preventDefault();
     const form = new FormData(event.currentTarget);
     const placeId = fieldText(form, "placeId");
     const endsAtValue = fieldText(form, "endsAt");
-    void onSubmit({
-      name: fieldText(form, "name"),
-      startsAt: localToInstant(fieldText(form, "startsAt"), timeZone).toISOString(),
-      endsAt: endsAtValue === "" ? null : localToInstant(endsAtValue, timeZone).toISOString(),
-      placeId: placeId === "" ? null : Number(placeId),
-      hasMeal: form.get("hasMeal") !== null,
-    });
+    void onSubmit(
+      { name: fieldText(form, "name"), hasMeal: form.get("hasMeal") !== null },
+      {
+        startsAt: localToInstant(fieldText(form, "startsAt"), timeZone).toISOString(),
+        endsAt: endsAtValue === "" ? null : localToInstant(endsAtValue, timeZone).toISOString(),
+        placeId: placeId === "" ? null : Number(placeId),
+      },
+    );
   }
   return (
     <form className="card flat" onSubmit={submit}>
@@ -73,7 +84,7 @@ function ProgramItemForm({
             name="startsAt"
             type="datetime-local"
             required
-            defaultValue={programItem ? instantToLocal(programItem.startsAt, timeZone) : undefined}
+            defaultValue={first ? instantToLocal(first.startsAt, timeZone) : undefined}
           />
         </label>
         <label className="field">
@@ -82,14 +93,12 @@ function ProgramItemForm({
             className="input"
             name="endsAt"
             type="datetime-local"
-            defaultValue={
-              programItem?.endsAt ? instantToLocal(programItem.endsAt, timeZone) : undefined
-            }
+            defaultValue={first?.endsAt ? instantToLocal(first.endsAt, timeZone) : undefined}
           />
         </label>
         <label className="field">
           <span>{t("admin.rsvpSettings.programItemPlace")}</span>
-          <select className="input" name="placeId" defaultValue={programItem?.placeId ?? ""}>
+          <select className="input" name="placeId" defaultValue={first?.placeId ?? ""}>
             <option value="">{t("admin.rsvpSettings.noPlace")}</option>
             {places.map((place) => (
               <option key={place.id} value={place.id}>
@@ -287,13 +296,20 @@ export default function RsvpSettingsCard() {
                 onCancel={() => {
                   setEditing(undefined);
                 }}
-                onSubmit={async (body) => {
+                onSubmit={async (item, activity) => {
+                  const first = programItem.activities[0];
                   if (
-                    await run(
+                    (await run(
                       "PATCH",
                       `/api/admin/rsvp/program-items/${String(programItem.id)}`,
-                      body,
-                    )
+                      item,
+                    )) &&
+                    (!first ||
+                      (await run(
+                        "PATCH",
+                        `/api/admin/rsvp/activities/${String(first.id)}`,
+                        activity,
+                      )))
                   ) {
                     setEditing(undefined);
                   }
@@ -307,11 +323,13 @@ export default function RsvpSettingsCard() {
                 {programItem.hasMeal && (
                   <span className="tag ok">{t("admin.rsvpSettings.mealTag")}</span>
                 )}
-                <span className="hint">
-                  {format.date(programItem.startsAt)} {format.time(programItem.startsAt)}
-                  {programItem.endsAt !== null && `–${format.time(programItem.endsAt)}`}
-                  {programItem.place && ` · ${programItem.place}`}
-                </span>
+                {programItem.activities.map((activity) => (
+                  <span key={activity.id} className="hint">
+                    {format.date(activity.startsAt)} {format.time(activity.startsAt)}
+                    {activity.endsAt !== null && `–${format.time(activity.endsAt)}`}
+                    {activity.place && ` · ${activity.place}`}
+                  </span>
+                ))}
               </div>
               <button
                 type="button"
@@ -361,8 +379,15 @@ export default function RsvpSettingsCard() {
           onCancel={() => {
             setEditing(undefined);
           }}
-          onSubmit={async (body) => {
-            if (await run("POST", PROGRAM_ITEMS_PATH, body)) setEditing(undefined);
+          onSubmit={async (item, activity) => {
+            if (
+              await run("POST", PROGRAM_ITEMS_PATH, {
+                ...item,
+                activity: { name: item.name, ...activity },
+              })
+            ) {
+              setEditing(undefined);
+            }
           }}
         />
       ) : (
