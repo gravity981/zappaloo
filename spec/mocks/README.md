@@ -45,7 +45,7 @@ The decisions behind the mocks, by question number in the prototype's "Questions
 | 18 | Overlay links | Links inside an overlay stay in the overlay. |
 | 19 | Website tabs | Start · Programm · Hochladen · Erinnerungen · Mehr (bottom tab bar on phones, top nav on desktop). |
 | 20 | Start page | Fixed layout. The hosts edit the hero image, the welcome text and the countdown switch. The cards are fixed (RSVP status, countdown, now / next, shortcuts). Changed 2026-11-13, see "Start page" under stage 4. |
-| 21 | Programme | Only the parts the guest is invited to, with one line saying so (WEB-09). |
+| 21 | Programme | Only the program items the guest is invited to (WEB-09); since 2026-11-18 without a line saying that others are left out. |
 | 22 | Content pages | Plain Markdown for every page, FAQ included. |
 | 23 | Table finder | The table and tablemates only, no seat. |
 | 24 | Text limits | Snapshot caption 140 characters, keepsake text 1000 (PHO-15). |
@@ -193,7 +193,7 @@ Written into the epic file (`spec/backlog/epics/epic-5.3-program-items-activitie
 |---|---|
 | Program item and activity | A program item is what a guest is invited to and answers for: name and meal flag, no time or place. An activity belongs to one program item and has a name, a start, an optional end and a place. The mock's four items: Trauung (Eintreffen, Trauung), Apéro, Dinner (Dinner, Paar-Quiz), Party. |
 | Programm page | One timeline row per activity, by start time, only for the program items the guest is invited to. The line "Du siehst die Programmpunkte, zu denen du eingeladen bist" stays. |
-| Start page | "Now / next" shows activities. The countdown counts to the first activity of all program items, the same for every guest, with its date and place. The event day starts with the day of the first activity of all. |
+| Start page | "Now / next" shows activities. The countdown counts to the first activity of all program items, the same for every guest, with its date and place. Every day that has an activity is an event day. |
 | RSVP wizard | Each program item shows its activities in a small line below its name, with start times: "Eintreffen 13:30, Trauung 14:00". Per program item: the activities line below its name. With one answer for all: one line per program item below the yes / no, "Trauung – Eintreffen 13:30, Trauung 14:00". The summary: the same line below each program item's name. |
 | Einstellungen › Rückmeldung | Each program item is a card with its name, the "Essen" tag, "Bearbeiten" and "Löschen"; its activities are listed inside it, each with "Bearbeiten" and "Löschen", then "Aktivität hinzufügen". The last activity of an item has no active "Löschen", and a hint says to delete the program item instead. "Programmpunkt hinzufügen" asks for the first activity at once. |
 
@@ -203,4 +203,5 @@ Written into the epic file (`spec/backlog/epics/epic-5.3-program-items-activitie
 |---|---|
 | Order of the cards | Einstellungen shows the cards that are used often first: Veranstaltung, Plattform öffnen, then Rückmeldung and Funktionen side by side. The rarely changed cards come last: Design, Warteseite-Texte, Datenschutz and Fusszeile. |
 | Erlebniswelt warnings | On "Welt & Import" the warnings of an accepted package come last, below the table of maps. The findings of a refused package stay at the top, because they answer the import. |
+| Programme over several days | The programme has one timeline per calendar day, each under its own heading ("Samstag, 12. Juni 2027"), and rows show the time of day only. Every day with an activity is an event day: the start page shows its event-day layout, and the programme marks past and current activities on every day of the event. An activity without an end does not last into the next day. The line "Du siehst nur die Programmpunkte, zu denen du eingeladen bist." is gone. |
 | Hold button | The confirmation of the design reset ("Ja, Standard-Design verwenden") and of the world rollback ("Ja, zurückrollen") must be held for four seconds, with the mouse, a finger or the Enter or Space key. While it is held a darker fill grows across the button like a progress bar; letting go or leaving the button starts over. A plain click does nothing, and the hint "Halte den Knopf vier Sekunden gedrückt." stands next to it. The first button ("Standard-Design verwenden", "Zurückrollen") still only asks. |

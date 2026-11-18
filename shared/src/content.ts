@@ -202,11 +202,15 @@ export const entryStatusSchema = z.enum(["past", "now", "upcoming"]);
  * Outside the event day every entry is "upcoming".
  */
 export const programmeResponseSchema = z.object({
-  /** True when the programme leaves out program items the guest is not invited to (WEB-09). */
-  hidden: z.boolean(),
   eventDay: z.boolean(),
   eventDate: z.string().nullable(),
-  items: z.array(scheduleEntrySchema.extend({ status: entryStatusSchema })),
+  items: z.array(
+    scheduleEntrySchema.extend({
+      status: entryStatusSchema,
+      /** The calendar day of the activity in the event's time zone, `2027-06-12`. */
+      day: z.string(),
+    }),
+  ),
 });
 export type ProgrammeResponse = z.infer<typeof programmeResponseSchema>;
 

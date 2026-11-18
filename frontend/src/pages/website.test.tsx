@@ -238,7 +238,6 @@ describe("the website frame (WEB-04, WEB-01)", () => {
 
 describe("the schedule (WEB-07, WEB-09, WEB-10)", () => {
   const programme = {
-    hidden: true,
     eventDay: true,
     eventDate: "2027-06-12",
     items: [
@@ -250,6 +249,7 @@ describe("the schedule (WEB-07, WEB-09, WEB-10)", () => {
         endsAt: "2027-06-12T10:45:00.000Z",
         placeName: "Kirche Muri",
         status: "past",
+        day: "2027-06-12",
       },
       {
         id: 2,
@@ -259,6 +259,7 @@ describe("the schedule (WEB-07, WEB-09, WEB-10)", () => {
         endsAt: null,
         placeName: "Schlossgarten",
         status: "now",
+        day: "2027-06-12",
       },
       {
         id: 3,
@@ -268,19 +269,19 @@ describe("the schedule (WEB-07, WEB-09, WEB-10)", () => {
         endsAt: null,
         placeName: "Landgasthof Linde",
         status: "upcoming",
+        day: "2027-06-12",
       },
     ],
   };
 
-  it("[WEB-09] the programme shows only the invited items, with one line that says so, and greys out the past", async () => {
+  it("[WEB-09] the programme shows only the invited items, without a line about the others, and greys out the past", async () => {
     fakeBackend({
       "GET /api/session": () => signedIn,
       "GET /api/programme": () => ({ status: 200, body: programme }),
     });
     renderAt("/programme");
-    expect(
-      await screen.findByText("Du siehst nur die Programmpunkte, zu denen du eingeladen bist."),
-    ).toBeInTheDocument();
+    expect(await screen.findByText("Trauung")).toBeInTheDocument();
+    expect(screen.queryByText(/Du siehst nur die Programmpunkte/)).not.toBeInTheDocument();
     const past = screen.getByText("Trauung").closest("li");
     expect(past).toHaveClass("past");
     expect(screen.getByText("Apéro").closest("li")).toHaveClass("now");
@@ -300,6 +301,7 @@ describe("the schedule (WEB-07, WEB-09, WEB-10)", () => {
       endsAt: null,
       placeName: null,
       status: "upcoming",
+      day: "2027-06-12",
     };
     fakeBackend({
       "GET /api/session": () => signedIn,
@@ -316,16 +318,37 @@ describe("the schedule (WEB-07, WEB-09, WEB-10)", () => {
     expect(rows[3]).toContain("Paar-Quiz");
   });
 
-  it("[WEB-09] without hidden items the programme has no line about invitations", async () => {
+  it("[WEB-12] a programme over several days has a timeline with its own heading for each day", async () => {
+    // Brunch is on the Monday: the same time of day as an activity on Saturday must not be mixed up.
+    const brunch = {
+      id: 5,
+      name: "Brunch",
+      programItemId: 3,
+      startsAt: "2027-06-14T11:30:00.000Z",
+      endsAt: null,
+      placeName: "Schlossgarten",
+      status: "upcoming",
+      day: "2027-06-14",
+    };
     fakeBackend({
       "GET /api/session": () => signedIn,
-      "GET /api/programme": () => ({ status: 200, body: { ...programme, hidden: false } }),
+      "GET /api/programme": () => ({
+        status: 200,
+        body: { ...programme, items: [...programme.items, brunch] },
+      }),
     });
     renderAt("/programme");
-    expect(await screen.findByText("Trauung")).toBeInTheDocument();
-    expect(
-      screen.queryByText("Du siehst nur die Programmpunkte, zu denen du eingeladen bist."),
-    ).not.toBeInTheDocument();
+    const headings = await screen.findAllByRole("heading", { level: 2 });
+    expect(headings.map((heading) => heading.textContent)).toEqual([
+      "Samstag, 12. Juni 2027",
+      "Montag, 14. Juni 2027",
+    ]);
+    const [saturday, monday] = screen.getAllByRole("list");
+    if (!saturday || !monday) throw new Error("one timeline per day expected");
+    expect(within(saturday).getAllByRole("listitem")).toHaveLength(3);
+    expect(within(monday).getByText("Brunch")).toBeInTheDocument();
+    // The time of day is still shown in each row (13:30 in Zurich).
+    expect(within(monday).getByText("13:30")).toBeInTheDocument();
   });
 
   it("[WEB-09] a guest without invitations gets a line that says so", async () => {

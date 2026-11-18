@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { isEventDay, nowNextAt, statusAt } from "./schedule.ts";
+import { eventDays, isEventDay, isEventUnderWay, nowNextAt, statusAt } from "./schedule.ts";
 import type { ScheduleEntry } from "./schedule.ts";
 
 /** A time on the event day in Zurich (summer time, UTC+2). */
@@ -60,12 +60,61 @@ describe("the programme's status of an entry (WEB-09)", () => {
 });
 
 describe("the event day (WEB-10)", () => {
-  const first = zurich("12:00");
+  const entries = [{ startsAt: zurich("12:00") }];
   it("[WEB-10] is the calendar day of the first program item in the event's time zone", () => {
     // 00:30 in Zurich on the event day is 22:30 UTC on the day before.
-    expect(isEventDay(first, new Date("2027-06-11T22:30:00.000Z"), "Europe/Zurich")).toBe(true);
+    expect(isEventDay(entries, new Date("2027-06-11T22:30:00.000Z"), "Europe/Zurich")).toBe(true);
     // 23:30 in Zurich the day before is still the day before.
-    expect(isEventDay(first, new Date("2027-06-11T21:30:00.000Z"), "Europe/Zurich")).toBe(false);
-    expect(isEventDay(undefined, zurich("12:00"), "Europe/Zurich")).toBe(false);
+    expect(isEventDay(entries, new Date("2027-06-11T21:30:00.000Z"), "Europe/Zurich")).toBe(false);
+    expect(isEventDay([], zurich("12:00"), "Europe/Zurich")).toBe(false);
+  });
+});
+
+describe("a programme over several days (WEB-10, WEB-12)", () => {
+  /** Saturday 12th, and Monday 14th: Sunday has no activity. */
+  const at = (day: string, hm: string) => ({
+    startsAt: new Date(`2027-06-${day}T${hm}:00.000+02:00`),
+  });
+  const entries = [at("12", "14:00"), at("12", "18:30"), at("14", "10:00")];
+  const zone = "Europe/Zurich";
+
+  it("[WEB-12] lists each calendar day with an activity once, earliest first", () => {
+    expect(eventDays(entries, zone)).toEqual(["2027-06-12", "2027-06-14"]);
+  });
+
+  it("[WEB-10] every day with an activity is an event day, a day without one is not", () => {
+    expect(isEventDay(entries, at("12", "09:00").startsAt, zone)).toBe(true);
+    expect(isEventDay(entries, at("13", "12:00").startsAt, zone)).toBe(false);
+    expect(isEventDay(entries, at("14", "08:00").startsAt, zone)).toBe(true);
+    expect(isEventDay(entries, at("15", "08:00").startsAt, zone)).toBe(false);
+  });
+
+  it("[WEB-10] the event is under way from the first day to the last, the quiet day in between included", () => {
+    expect(isEventUnderWay(entries, at("11", "12:00").startsAt, zone)).toBe(false);
+    expect(isEventUnderWay(entries, at("12", "00:30").startsAt, zone)).toBe(true);
+    expect(isEventUnderWay(entries, at("13", "12:00").startsAt, zone)).toBe(true);
+    expect(isEventUnderWay(entries, at("14", "23:00").startsAt, zone)).toBe(true);
+    expect(isEventUnderWay(entries, at("15", "00:30").startsAt, zone)).toBe(false);
+  });
+
+  it("[WEB-07] now and next on the second day come from that day's activities", () => {
+    const named = entries.map((entry, index) => ({
+      id: index + 1,
+      name: `A${String(index + 1)}`,
+      programItemId: 1,
+      endsAt: null,
+      placeName: null,
+      ...entry,
+    }));
+    const monday = nowNextAt(named, at("14", "11:00").startsAt);
+    expect(monday.now?.name).toBe("A3");
+    expect(monday.next).toBeNull();
+    // On the quiet Sunday nothing is on: the last open-ended activity of Saturday ended with its day.
+    const sunday = nowNextAt(named, at("13", "12:00").startsAt, zone);
+    expect(sunday.now).toBeNull();
+    expect(sunday.next?.name).toBe("A3");
+    // Saturday evening it is still on, and without a time zone the old rule holds.
+    expect(nowNextAt(named, at("12", "23:00").startsAt, zone).now?.name).toBe("A2");
+    expect(nowNextAt(named, at("13", "12:00").startsAt).now?.name).toBe("A2");
   });
 });

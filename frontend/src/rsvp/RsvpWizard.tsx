@@ -144,7 +144,7 @@ function WizardForm({
   const admin = mode.kind === "admin";
   const locked = state.closed && !admin;
   const { programItems, menus } = state;
-  /** The activities of a program item with their start times: "Eintreffen 13:30, Trauung 14:00" (RSVP-16). */
+  /** The activities of a program item with their start times: "Name 13:30, Name 14:00" (RSVP-16). */
   const activities = (programItem: ProgramItem) =>
     programItem.activities
       .map((activity) => `${activity.name} ${format.time(activity.startsAt)}`)

@@ -8,7 +8,7 @@ import { activities, contentPlaces, contentStart } from "../database/schema.ts";
 import type { EventService } from "../event/service.ts";
 import type { RsvpService } from "../rsvp/service.ts";
 import { calendarDay, countdownAt } from "./countdown.ts";
-import { isEventDay, nowNextAt, statusAt } from "./schedule.ts";
+import { isEventDay, isEventUnderWay, nowNextAt, statusAt } from "./schedule.ts";
 import type { ScheduleEntry } from "./schedule.ts";
 
 export class WebsiteService {
@@ -69,12 +69,13 @@ export class WebsiteService {
       .from(contentStart)
       .where(eq(contentStart.eventId, eventId))
       .get();
-    const eventDay = isEventDay(first?.startsAt, now, timeZone);
+    const eventDay = isEventDay(entries, now, timeZone);
     const accepted = this.#rsvp.guestStatus(userId) === "attending";
     // "Now / next" come from the activities of the guest's own program items (7.4.3).
     const invited = new Set(this.#rsvp.invitedProgramItemIds(userId));
     const mine = entries.filter((entry) => invited.has(entry.programItemId));
-    const nowNext = eventDay && accepted ? nowNextAt(mine, now) : { now: null, next: null };
+    const nowNext =
+      eventDay && accepted ? nowNextAt(mine, now, timeZone) : { now: null, next: null };
     return {
       countdown: countdownAt({
         first: first && { startsAt: first.startsAt, placeName: first.placeName },
@@ -94,21 +95,21 @@ export class WebsiteService {
     const timeZone = this.#event.get().timezone;
     const entries = this.#entries();
     const invited = new Set(this.#rsvp.invitedProgramItemIds(userId));
-    const eventDay = timeZone !== null && isEventDay(entries[0]?.startsAt, now, timeZone);
-    // The programme says that it leaves items out only when it does (WEB-09).
-    const hidden = entries.some((entry) => !invited.has(entry.programItemId));
+    const eventDay = timeZone !== null && isEventDay(entries, now, timeZone);
+    // Past and current activities are marked while the event is under way, on every day of it.
+    const underWay = timeZone !== null && isEventUnderWay(entries, now, timeZone);
     // Only a guest who accepted is told which entry is now (WEB-07); the others see past and upcoming.
     const accepted = this.#rsvp.guestStatus(userId) === "attending";
     const visible = entries.filter((entry) => invited.has(entry.programItemId));
-    const current = eventDay && accepted ? nowNextAt(visible, now).now : null;
+    const current = eventDay && accepted ? nowNextAt(visible, now, timeZone).now : null;
     return {
-      hidden,
       eventDay,
       eventDate:
         timeZone !== null && entries[0] ? calendarDay(entries[0].startsAt, timeZone) : null,
       items: visible.map((entry) => ({
         ...view(entry),
-        status: eventDay ? statusAt(entry, current, now) : "upcoming",
+        status: underWay ? statusAt(entry, current, now) : "upcoming",
+        day: timeZone === null ? "" : calendarDay(entry.startsAt, timeZone),
       })),
     };
   }

@@ -153,7 +153,6 @@ describe("the website and the programme (WEB-07, WEB-09, WEB-10)", () => {
     const userId = await guest(ctx, admin, "anna", [apero.id]);
     const programme: ProgrammeResponse = website.programme(userId, EVENT_DAY);
     expect(programme.items.map((item) => item.name)).toEqual(["Apéro"]);
-    expect(programme.hidden).toBe(true);
     expect(programme.items[0]?.status).toBe("upcoming");
     expect(programme.items.some((item) => item.id === trauung.id)).toBe(false);
     // Outside the event day nothing is greyed out or marked.
@@ -225,8 +224,6 @@ describe("activities on the website (WEB-12)", () => {
       website.programme(userId, DAY_BEFORE).items.map((item) => item.name);
     expect(names(anna)).toEqual(["Apéro", "Ständli"]);
     expect(names(ben)).toEqual(["Trauung", "Apéro", "Ständli"]);
-    expect(website.programme(anna, DAY_BEFORE).hidden).toBe(true);
-    expect(website.programme(ben, DAY_BEFORE).hidden).toBe(false);
     const rows = website.programme(ben, DAY_BEFORE).items;
     expect(rows.map((row) => row.programItemId)).toEqual([trauung.id, apero.id, apero.id]);
   });
@@ -252,5 +249,60 @@ describe("activities on the website (WEB-12)", () => {
     expect(body.next?.name).toBe("Apéro");
     const programme = website.programme(anna, DURING_TRAUUNG);
     expect(programme.items.map((item) => item.status)).toEqual(["upcoming"]);
+  });
+});
+
+describe("a programme over several days (WEB-10, WEB-12)", () => {
+  const SUNDAY = new Date("2027-06-13T10:00:00.000Z"); // no activity that day
+  const MONDAY = new Date("2027-06-14T08:30:00.000Z"); // 10:30 in Zurich
+
+  it("[WEB-12] the programme groups by calendar day; past activities are marked on every day of the event", async () => {
+    const { ctx, admin, trauung, apero, website } = await setup();
+    const made = await ctx.app.inject({
+      method: "POST",
+      url: `/api/admin/rsvp/program-items/${String(apero.id)}/activities`,
+      headers: admin,
+      payload: { name: "Brunch", startsAt: "2027-06-14T08:00:00.000Z" },
+    });
+    expect(made.statusCode).toBe(201);
+    const ben = await guest(ctx, admin, "ben", [trauung.id, apero.id]);
+    answer(ctx, ben, [trauung.id, apero.id], [trauung.id, apero.id]);
+
+    const sunday: ProgrammeResponse = website.programme(ben, SUNDAY);
+    expect(sunday.items.map((item) => [item.name, item.day])).toEqual([
+      ["Trauung", "2027-06-12"],
+      ["Apéro", "2027-06-12"],
+      ["Brunch", "2027-06-14"],
+    ]);
+    // Sunday itself has nothing on, but the Saturday activities are over and Monday's is ahead.
+    expect(sunday.eventDay).toBe(false);
+    expect(sunday.items.map((item) => item.status)).toEqual(["past", "past", "upcoming"]);
+
+    const monday = website.programme(ben, MONDAY);
+    expect(monday.eventDay).toBe(true);
+    expect(monday.items.map((item) => item.status)).toEqual(["past", "past", "now"]);
+  });
+
+  it("[WEB-10][WEB-11] every day with an activity shows the event-day start page; the quiet day shows neither that nor a countdown", async () => {
+    const { ctx, admin, trauung, apero, website } = await setup();
+    await ctx.app.inject({
+      method: "POST",
+      url: `/api/admin/rsvp/program-items/${String(apero.id)}/activities`,
+      headers: admin,
+      payload: { name: "Brunch", startsAt: "2027-06-14T08:00:00.000Z" },
+    });
+    const ben = await guest(ctx, admin, "ben", [trauung.id, apero.id]);
+    answer(ctx, ben, [trauung.id, apero.id], [trauung.id, apero.id]);
+    expect(website.website(ben, EVENT_DAY).eventDay).toBe(true);
+    const quiet = website.website(ben, SUNDAY);
+    expect(quiet.eventDay).toBe(false);
+    expect(quiet.countdown).toBeNull();
+    const monday = website.website(ben, MONDAY);
+    expect(monday.eventDay).toBe(true);
+    expect(monday.countdown).toBeNull();
+    expect(monday.now?.name).toBe("Brunch");
+    // Saturday's last activity has no end, but it did not last into Sunday.
+    expect(quiet.now).toBeNull();
+    expect(quiet.next).toBeNull();
   });
 });

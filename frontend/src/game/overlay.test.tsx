@@ -17,7 +17,6 @@ afterEach(() => {
 });
 
 const programme = {
-  hidden: false,
   eventDay: false,
   eventDate: "2027-06-12",
   items: [
@@ -29,6 +28,7 @@ const programme = {
       endsAt: null,
       placeName: "Kirche Muri",
       status: "upcoming",
+      day: "2027-06-12",
     },
   ],
 };
