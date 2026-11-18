@@ -581,10 +581,27 @@ export const profiles = sqliteTable(
 
 // --- Seating plan (sw-architecture.md 3.6; PRES-05 – PRES-07, PRES-12) ----------------------
 
+/** The tables of the seating plan, made by the admin: a name and the number of places (PRES-05). */
+export const seatingTables = sqliteTable(
+  "seating_tables",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    eventId: text("event_id")
+      .notNull()
+      .references(() => events.id),
+    name: text("name").notNull(),
+    /** The name in lower case, so that two tables cannot differ by their case only. */
+    nameKey: text("name_key").notNull(),
+    places: integer("places").notNull(),
+    createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull(),
+  },
+  (table) => [uniqueIndex("seating_tables_name").on(table.eventId, table.nameKey)],
+);
+
 /**
  * The table of a person the admin placed (PRES-05): a guest (`u<user id>`) or an approved companion
- * (`c<companion id>`). The table is the `table` value of the seat objects of the world, so it is a name, not a row. A
- * companion without a row follows the guest's table (PRES-07).
+ * (`c<companion id>`). A companion without a row follows the guest's table (PRES-07). A table that is deleted takes
+ * its rows with it, so its persons have no table.
  */
 export const seatingAssignments = sqliteTable(
   "seating_assignments",
@@ -593,7 +610,9 @@ export const seatingAssignments = sqliteTable(
       .notNull()
       .references(() => events.id),
     personKey: text("person_key").notNull(),
-    tableName: text("table_name").notNull(),
+    tableId: integer("table_id")
+      .notNull()
+      .references(() => seatingTables.id, { onDelete: "cascade" }),
   },
   (table) => [primaryKey({ columns: [table.eventId, table.personKey] })],
 );

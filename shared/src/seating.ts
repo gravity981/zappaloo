@@ -1,7 +1,14 @@
-// The seating plan and the table finder (sw-architecture.md 3.6; PRES-05 – PRES-07, PRES-12): the admin places the
-// attending persons on tables, guests look up their table and their tablemates. A table is a `table` value of the
-// seat objects of the world, with as many places as seat objects; there is no seat position (decided 2026-11-18).
+// The seating plan and the table finder (sw-architecture.md 3.6; PRES-05 – PRES-07, PRES-12): the admin makes the
+// tables (a name and the number of places) and places the attending persons on them, guests look up their table and
+// their tablemates. Where at a table somebody sits is not part of Zappaloo, and the game world has no seats (decided
+// 2026-11-18).
 import { z } from "zod";
+
+export const SEATING_LIMITS = {
+  /** The name of a table, in characters, and its number of places. */
+  name: 40,
+  places: 100,
+} as const;
 
 /** A person of the plan: a guest or an approved companion who attends. */
 export const seatingPersonSchema = z.object({
@@ -16,11 +23,9 @@ export const seatingPersonSchema = z.object({
 export type SeatingPerson = z.infer<typeof seatingPersonSchema>;
 
 export const seatingTableSchema = z.object({
+  id: z.number().int(),
   name: z.string(),
-  /** The id and the name of the map with the table's seats. */
-  map: z.string(),
-  mapName: z.string().nullable(),
-  places: z.number().int().nonnegative(),
+  places: z.number().int().positive(),
   persons: z.array(seatingPersonSchema),
 });
 export type SeatingTable = z.infer<typeof seatingTableSchema>;
@@ -34,9 +39,15 @@ export const adminSeatingResponseSchema = z.object({
 });
 export type AdminSeatingResponse = z.infer<typeof adminSeatingResponseSchema>;
 
-/** `PUT /api/admin/seating/assignments/:key`: the table of a person, or none (a companion then follows the guest). */
+/** `PUT /api/admin/seating/assignments/:key`: the id of the person's table, or none (a companion then follows the guest). */
 export const seatingAssignRequestSchema = z.strictObject({
-  table: z.string().min(1).max(40).nullable(),
+  table: z.number().int().positive().nullable(),
+});
+
+/** `POST /api/admin/seating/tables` and `PUT /api/admin/seating/tables/:id`: a table's name and number of places. */
+export const seatingTableRequestSchema = z.strictObject({
+  name: z.string().trim().min(1).max(SEATING_LIMITS.name),
+  places: z.number().int().min(1).max(SEATING_LIMITS.places),
 });
 
 /** `PUT /api/admin/seating/visibility`. */
@@ -60,9 +71,7 @@ export type SeatingMate = z.infer<typeof seatingMateSchema>;
 /** A table of the guest or of one of their companions, with the persons of the guest's party at it and its other guests. */
 export const seatingGuestTableSchema = z.object({
   name: z.string(),
-  map: z.string(),
-  mapName: z.string().nullable(),
-  places: z.number().int().nonnegative(),
+  places: z.number().int().positive(),
   /** The names of the guest's own party at this table. */
   party: z.array(z.string()),
   mates: z.array(seatingMateSchema),

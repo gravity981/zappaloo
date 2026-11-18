@@ -1260,8 +1260,8 @@ add({
 add({
   id: "seating", group: "web", title: "Where do I sit?", path: "/seating", reqs: ["PRES-05", "PRES-06", "PRES-07", "PRES-12", "PRES-15"],
   variants: [["visible", "Visible"], ["hidden", "Not yet visible"]],
-  shows: ["Table name and tablemates with photo, greeting and badge. Only the table, no seat (a table has as many places as the world has seat objects; seats have no position).", "Before release: a friendly notice with the date."],
-  qs: [{ q: "Show the guest's exact seat, or only the table?", p: "Decided: only the table. Seats have no position in the game; a table has as many places as seat objects (story 6c)." }],
+  shows: ["Table name and tablemates with photo, greeting and badge. Only the table, no seat (where at a table somebody sits is managed outside Zappaloo).", "Before release: a friendly notice with the date."],
+  qs: [{ q: "Show the guest's exact seat, or only the table?", p: "Decided: only the table. Where at a table somebody sits is managed outside Zappaloo; the game world has no seats (story 6c)." }],
   render: (v) => site("more", v === "hidden"
     ? `<h1 class="m-h1">Wo sitze ich?</h1><div class="m-card m-empty"><div class="m-av lg">${ic("seat")}</div><b class="m-h2">Noch ein Geheimnis</b><p class="m-muted">Der Sitzplan wird am Festtag hier sichtbar.</p></div>`
     : `<h1 class="m-h1">Wo sitze ich?</h1><div class="m-grid-d2"><div class="m-stack">${seatingBody(false)}</div></div>`),
@@ -1450,12 +1450,19 @@ add({
 });
 add({
   id: "admin-seating", group: "admin", title: "Seating plan", path: "/admin/seating", reqs: ["PRES-05", "PRES-06", "PRES-07"],
-  shows: ["Tables (from the map's seat objects, each with as many places as seat objects) with assigned guests. Unassigned guests to drag onto tables, or tap a person and then «Hierher» on touch screens. A table refuses more persons than places.", "Companions follow their VIP by default.", "When the plan becomes visible to guests."],
-  qs: [{ q: "Is drag-and-drop enough, or do you also want an auto-fill (e.g. by group)?", p: "Mock: drag-and-drop only." }],
-  render: () => admin("admin-seating", `<div class="m-sethead"><h1 class="m-h1 grow">Sitzplan</h1></div>
-    <div class="m-card flat" style="flex-direction:row;flex-wrap:wrap;align-items:center;gap:12px"><b class="sm">Für Gäste sichtbar ab</b>${inp("as-vis", "12.06.2027 00:00", 'placeholder="TT.MM.JJJJ HH:MM" inputmode="numeric" style="width:11em"')}</div>
-    <div class="m-card"><b>Noch ohne Platz (5)</b><div class="m-chips">${["Peter Graf", "Hans Graf ↳", "Nina Roth", "Tom Brunner", "Noah Brunner ↳"].map((n) => `<span class="m-chip">${n}</span>`).join("")}</div><span class="m-hint">↳ Begleitperson, folgt standardmässig der einladenden Person.</span></div>
-    <div class="m-grid-d3">${[["Edelweiss", 8, ["Erika Huber", "Mia Huber ↳", "Lukas Meier", "Sara Keller", "Tom B."]], ["Enzian", 8, ["Familie Brunner (4)", "Lea's Eltern (2)"]], ["Brauttisch", 6, ["Lea", "Jonas", "Trauzeugen (4)"]]].map(([t, c, g]) => `<div class="m-card"><div class="m-row2"><b class="grow" style="flex:1">${t}</b><span class="m-hint">${g.length >= 5 ? 5 : g.length} / ${c}</span></div><div class="m-list sm">${g.map((n) => `<div class="m-li" style="padding:7px 0">${n}</div>`).join("")}</div></div>`).join("")}</div>`),
+  variants: [["plan", "Plan"], ["tap", "Person tapped"]],
+  shows: ["The admin makes the tables (name and number of places, «Tisch hinzufügen»; «Bearbeiten» and «Löschen» per table; «Löschen» must be held for four seconds). No seats and no map: only the table counts; where at a table somebody sits is managed outside Zappaloo.", "Persons are chips: unassigned ones on top, placed ones in their table card. Drag a chip onto a table (or back onto the list to take the place away), or on touch screens tap a person and then «Hierher».", "A table refuses more persons than places («n / places», shown as a warning tag when full). Companions (↳) follow their guest by default; placing one elsewhere makes them a table of their own for that person.", "«Für Gäste sichtbar ab» with «Datum speichern»: without a date the plan stays hidden."],
+  qs: [{ q: "Is drag-and-drop enough, or do you also want an auto-fill (e.g. by group)?", p: "Decided (mock decision 32): drag and drop only, no auto-fill. Persons are chips, as in the implementation." }],
+  render: (v) => {
+    const tap = v === "tap";
+    const chip = (n, on = false) => `<button class="m-chip ${on ? "on" : ""}" draggable="true">${n}</button>`;
+    const tables = [["Edelweiss", 8, ["Erika Huber", "Mia Huber ↳", "Lukas Meier", "Sara Keller", "Tom Brunner"]], ["Enzian", 8, []], ["Brauttisch", 6, ["Lea", "Jonas"]]];
+    return admin("admin-seating", `<div class="m-sethead"><h1 class="m-h1 grow">Sitzplan</h1></div>
+    <div class="m-card flat" style="gap:8px"><label class="m-field"><span>Für Gäste sichtbar ab</span>${inp("as-vis", "12.06.2027 00:00", 'placeholder="TT.MM.JJJJ HH:MM" inputmode="numeric" style="width:11em"')}<small class="m-hint">Ohne Datum bleibt der Sitzplan verborgen. Bis dahin sehen die Gäste einen Hinweis mit dem Datum.</small></label><button class="m-btn sm" style="align-self:flex-start">Datum speichern</button></div>
+    <div class="m-card"><b>Noch ohne Platz (5)</b><div class="m-chips">${["Peter Graf", "Hans Graf ↳", "Nina Roth", "Tom Brunner", "Noah Brunner ↳"].map((n) => chip(n, tap && n === "Peter Graf")).join("")}</div><span class="m-hint">↳ Begleitperson, folgt standardmässig der einladenden Person. Ziehe eine Person auf einen Tisch, oder tippe sie an und dann «Hierher». Wo am Tisch jemand sitzt, regelst du ausserhalb von Zappaloo.</span></div>
+    <div class="m-grid-d3">${tables.map(([t, c, g]) => `<div class="m-card"><div class="m-row2"><b class="grow" style="flex:1">${t}</b><span class="${g.length >= c ? "m-tag warn" : "m-hint"}">${g.length} / ${c}</span></div><div class="m-chips">${g.map((n) => chip(n)).join("")}</div>${tap ? '<button class="m-btn soft sm" style="align-self:flex-start">Hierher</button>' : ""}<div class="m-row2"><button class="m-btn ghost sm">Bearbeiten</button>${holdBtn("Löschen", "m-btn ghost sm")}</div><span class="m-hint">Zum Löschen gedrückt halten.</span></div>`).join("")}</div>
+    <div class="m-card flat" style="flex-direction:row;flex-wrap:wrap;align-items:flex-end;gap:12px"><b class="sm" style="width:100%">Tisch hinzufügen</b>${field("Name", inp("as-name", "", 'style="width:12em"'))}${field("Plätze", inp("as-places", "8", 'inputmode="numeric" style="width:5em"'))}<button class="m-btn">Tisch hinzufügen</button></div>`);
+  },
 });
 add({
   id: "admin-content", group: "admin", title: "Content editor", path: "/admin/content", reqs: ["CNT-05", "CNT-06", "CNT-07", "WEB-03", "LANG-02"],

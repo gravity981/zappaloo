@@ -1,6 +1,6 @@
-// The seating plan and the table finder (PRES-05 – PRES-07, PRES-12; sw-architecture.md 3.6): the tables are the
-// seat objects of the world (the test world: table 1 with three places, table 3 with one), the admin places the
-// attending persons, a companion follows the guest, guests see their table from the date the admin sets.
+// The seating plan and the table finder (PRES-05 – PRES-07, PRES-12; sw-architecture.md 3.6): the admin makes the
+// tables (a name and the number of places) and places the attending persons on them, a companion follows the guest,
+// guests see their table from the date the admin sets. There are no seats and no map: only the table counts.
 import sharp from "sharp";
 import { afterEach, describe, expect, it } from "vitest";
 import type { AdminSeatingResponse, SeatingGuestResponse } from "@zappaloo/shared";
@@ -13,7 +13,6 @@ import {
 } from "../database/schema.ts";
 import { createTestApp, signIn } from "../test-support.ts";
 import type { TestContext } from "../test-support.ts";
-import { buildTestWorld } from "../world/build.ts";
 
 let context: TestContext | undefined;
 afterEach(async () => {
@@ -28,13 +27,6 @@ async function setup() {
   context = ctx;
   ctx.event.setSetting("platformOpen", true, "cli");
   const admin = await signIn(ctx, "boss", ["admin"]);
-  const imported = await ctx.app.inject({
-    method: "POST",
-    url: "/api/admin/world",
-    headers: { ...admin, "content-type": "application/vnd.zappaloo.world" },
-    payload: buildTestWorld(),
-  });
-  expect(imported.statusCode).toBe(200);
   return { ctx, admin };
 }
 
@@ -77,7 +69,35 @@ const plan = async (ctx: TestContext, admin: Headers) =>
     await ctx.app.inject({ url: "/api/admin/seating", headers: admin })
   ).json<AdminSeatingResponse>();
 
-const place = (ctx: TestContext, admin: Headers, key: string, table: string | null) =>
+const requestTable = (
+  ctx: TestContext,
+  admin: Headers,
+  method: "POST" | "PUT",
+  path: string,
+  body: { name: string; places: number },
+) =>
+  ctx.app.inject({
+    method,
+    url: `/api/admin/seating/tables${path}`,
+    headers: admin,
+    payload: body,
+  });
+
+/** Makes a table and returns its id. */
+async function makeTable(
+  ctx: TestContext,
+  admin: Headers,
+  name: string,
+  places: number,
+): Promise<number> {
+  const made = await requestTable(ctx, admin, "POST", "", { name, places });
+  expect(made.statusCode).toBe(201);
+  const created = made.json<AdminSeatingResponse>().tables.find((table) => table.name === name);
+  if (created === undefined) throw new Error("table not made");
+  return created.id;
+}
+
+const place = (ctx: TestContext, admin: Headers, key: string, table: number | null) =>
   ctx.app.inject({
     method: "PUT",
     url: `/api/admin/seating/assignments/${key}`,
@@ -98,21 +118,113 @@ const finder = async (ctx: TestContext, headers: Headers) =>
 
 const DAY = 24 * 60 * 60 * 1000;
 
-describe("the tables and the plan (PRES-05)", () => {
-  it("[PRES-05] the tables are the seat objects of the world, each with as many places as seats; only attending persons are listed", async () => {
+describe("the tables (PRES-05)", () => {
+  it("[PRES-05] the admin makes tables with a name and places; they are listed by name with numbers by value", async () => {
+    const { ctx, admin } = await setup();
+    await makeTable(ctx, admin, "10", 6);
+    await makeTable(ctx, admin, "Edelweiss", 8);
+    await makeTable(ctx, admin, "2", 4);
+    const view = await plan(ctx, admin);
+    expect(view.tables.map((table) => [table.name, table.places])).toEqual([
+      ["2", 4],
+      ["10", 6],
+      ["Edelweiss", 8],
+    ]);
+    expect(view.visibleFrom).toBeNull();
+  });
+
+  it("[PRES-05] a table needs a name and between 1 and 100 places, and names are unique whatever the case", async () => {
+    const { ctx, admin } = await setup();
+    await makeTable(ctx, admin, "Enzian", 8);
+    for (const body of [
+      { name: "", places: 8 },
+      { name: "   ", places: 8 },
+      { name: "x".repeat(41), places: 8 },
+      { name: "Leer", places: 0 },
+      { name: "Riesig", places: 101 },
+      { name: "Halb", places: 2.5 },
+    ]) {
+      expect((await requestTable(ctx, admin, "POST", "", body)).statusCode).toBe(400);
+    }
+    const twice = await requestTable(ctx, admin, "POST", "", { name: "ENZIAN", places: 4 });
+    expect(twice.statusCode).toBe(409);
+    expect(twice.json<{ error: { code: string } }>().error.code).toBe("table_duplicate");
+    expect((await plan(ctx, admin)).tables).toHaveLength(1);
+  });
+
+  it("[PRES-05] a table is renamed and gets other places, but not fewer than the persons at it", async () => {
+    const { ctx, admin } = await setup();
+    const item = programItem(ctx);
+    const anna = await attendingGuest(ctx, "anna", item);
+    addCompanion(ctx, anna.id, "Mia", item);
+    const id = await makeTable(ctx, admin, "Enzian", 4);
+    await makeTable(ctx, admin, "Edelweiss", 4);
+    await place(ctx, admin, anna.key, id);
+    expect(
+      (await requestTable(ctx, admin, "PUT", `/${String(id)}`, { name: "Alpenrose", places: 3 }))
+        .statusCode,
+    ).toBe(200);
+    const view = await plan(ctx, admin);
+    expect(view.tables.find((table) => table.id === id)).toMatchObject({
+      name: "Alpenrose",
+      places: 3,
+    });
+    // The guest and the companion sit there: fewer than two places is refused, the name of another table too.
+    const fewer = await requestTable(ctx, admin, "PUT", `/${String(id)}`, {
+      name: "Alpenrose",
+      places: 1,
+    });
+    expect(fewer.statusCode).toBe(409);
+    expect(fewer.json<{ error: { code: string } }>().error.code).toBe("table_full");
+    const taken = await requestTable(ctx, admin, "PUT", `/${String(id)}`, {
+      name: "edelweiss",
+      places: 3,
+    });
+    expect(taken.json<{ error: { code: string } }>().error.code).toBe("table_duplicate");
+    expect(
+      (await requestTable(ctx, admin, "PUT", "/999", { name: "X", places: 2 })).statusCode,
+    ).toBe(404);
+  });
+
+  it("[PRES-05] a deleted table leaves its persons without a table", async () => {
+    const { ctx, admin } = await setup();
+    const item = programItem(ctx);
+    const anna = await attendingGuest(ctx, "anna", item);
+    const mia = addCompanion(ctx, anna.id, "Mia", item);
+    const id = await makeTable(ctx, admin, "Enzian", 4);
+    await place(ctx, admin, anna.key, id);
+    const gone = await ctx.app.inject({
+      method: "DELETE",
+      url: `/api/admin/seating/tables/${String(id)}`,
+      headers: admin,
+    });
+    expect(gone.statusCode).toBe(200);
+    const view = gone.json<AdminSeatingResponse>();
+    expect(view.tables).toEqual([]);
+    expect(view.unassigned.map((person) => person.key).sort()).toEqual([anna.key, mia.key].sort());
+    expect(view.unassigned.every((person) => !person.placed)).toBe(true);
+    expect(
+      (
+        await ctx.app.inject({
+          method: "DELETE",
+          url: `/api/admin/seating/tables/${String(id)}`,
+          headers: admin,
+        })
+      ).statusCode,
+    ).toBe(404);
+  });
+});
+
+describe("the plan (PRES-05, PRES-07)", () => {
+  it("[PRES-05] only persons who attend are in the plan: guests and approved companions with a yes", async () => {
     const { ctx, admin } = await setup();
     const item = programItem(ctx);
     const anna = await attendingGuest(ctx, "anna", item);
     await signIn(ctx, "stille", ["vip"]); // no RSVP: not in the plan
     const mia = addCompanion(ctx, anna.id, "Mia", item);
     const view = await plan(ctx, admin);
-    expect(view.tables.map((table) => [table.name, table.places, table.map])).toEqual([
-      ["1", 3, "saal"],
-      ["3", 1, "saal"],
-    ]);
     expect(view.unassigned.map((person) => person.key).sort()).toEqual([anna.key, mia.key].sort());
     expect(view.unassigned.find((person) => person.key === mia.key)?.companionOf).toBe("anna");
-    expect(view.visibleFrom).toBeNull();
   });
 
   it("[PRES-05][PRES-07] a guest placed at a table takes their companions along, who can be placed elsewhere and follow again", async () => {
@@ -120,12 +232,14 @@ describe("the tables and the plan (PRES-05)", () => {
     const item = programItem(ctx);
     const anna = await attendingGuest(ctx, "anna", item);
     const mia = addCompanion(ctx, anna.id, "Mia", item);
-    expect((await place(ctx, admin, anna.key, "1")).statusCode).toBe(200);
+    const one = await makeTable(ctx, admin, "1", 3);
+    const three = await makeTable(ctx, admin, "3", 1);
+    expect((await place(ctx, admin, anna.key, one)).statusCode).toBe(200);
     let view = await plan(ctx, admin);
     expect(view.tables[0]?.persons.map((person) => person.name).sort()).toEqual(["Mia", "anna"]);
     expect(view.tables[0]?.persons.find((person) => person.key === mia.key)?.placed).toBe(false);
     // The admin places the companion at another table: she leaves the guest's.
-    expect((await place(ctx, admin, mia.key, "3")).statusCode).toBe(200);
+    expect((await place(ctx, admin, mia.key, three)).statusCode).toBe(200);
     view = await plan(ctx, admin);
     expect(view.tables.map((table) => table.persons.map((person) => person.name))).toEqual([
       ["anna"],
@@ -147,13 +261,15 @@ describe("the tables and the plan (PRES-05)", () => {
     const anna = await attendingGuest(ctx, "anna", item);
     addCompanion(ctx, anna.id, "Mia", item);
     const bert = await attendingGuest(ctx, "bert", item);
+    const one = await makeTable(ctx, admin, "1", 3);
+    const three = await makeTable(ctx, admin, "3", 1);
     // Table 3 has one place: a guest with a companion do not fit, a single guest does.
-    const refused = await place(ctx, admin, anna.key, "3");
+    const refused = await place(ctx, admin, anna.key, three);
     expect(refused.statusCode).toBe(409);
     expect(refused.json<{ error: { code: string } }>().error.code).toBe("table_full");
-    expect((await place(ctx, admin, bert.key, "3")).statusCode).toBe(200);
+    expect((await place(ctx, admin, bert.key, three)).statusCode).toBe(200);
     expect((await plan(ctx, admin)).tables[1]?.persons).toHaveLength(1);
-    expect((await place(ctx, admin, anna.key, "1")).statusCode).toBe(200);
+    expect((await place(ctx, admin, anna.key, one)).statusCode).toBe(200);
   });
 
   it("[PRES-05] a person who does not attend, or a table that does not exist, is refused", async () => {
@@ -162,29 +278,40 @@ describe("the tables and the plan (PRES-05)", () => {
     const anna = await attendingGuest(ctx, "anna", item);
     const stille = await signIn(ctx, "stille", ["vip"]);
     const stilleId = await idOf(ctx, stille);
-    expect((await place(ctx, admin, `u${String(stilleId)}`, "1")).statusCode).toBe(404);
-    expect((await place(ctx, admin, anna.key, "99")).statusCode).toBe(404);
-    expect((await place(ctx, admin, "x1", "1")).statusCode).toBe(404);
+    const one = await makeTable(ctx, admin, "1", 3);
+    expect((await place(ctx, admin, `u${String(stilleId)}`, one)).statusCode).toBe(404);
+    expect((await place(ctx, admin, anna.key, 999)).statusCode).toBe(404);
+    expect((await place(ctx, admin, "x1", one)).statusCode).toBe(404);
   });
 
   it("[PRES-05] only the admin sees and changes the plan, and every change is audited with ids only", async () => {
     const { ctx, admin } = await setup();
     const item = programItem(ctx);
     const anna = await attendingGuest(ctx, "anna", item);
+    const body = { name: "Enzian", places: 4 };
     expect(
       (await ctx.app.inject({ url: "/api/admin/seating", headers: anna.headers })).statusCode,
     ).toBe(403);
-    expect((await place(ctx, anna.headers, anna.key, "1")).statusCode).toBe(403);
+    expect((await requestTable(ctx, anna.headers, "POST", "", body)).statusCode).toBe(403);
+    expect((await place(ctx, anna.headers, anna.key, 1)).statusCode).toBe(403);
     expect((await ctx.app.inject({ url: "/api/admin/seating" })).statusCode).toBe(401);
-    await place(ctx, admin, anna.key, "1");
+    const id = await makeTable(ctx, admin, "Enzian", 4);
+    await place(ctx, admin, anna.key, id);
     await visibleFrom(ctx, admin, new Date(Date.now() - DAY));
     const entries = ctx.database.db
       .select()
       .from(auditLog)
       .all()
       .filter((row) => row.action.startsWith("seating."));
-    expect(entries.map((row) => row.action)).toEqual(["seating.assign", "seating.visibility"]);
-    expect(entries.map((row) => row.details).join("")).not.toContain("anna");
+    expect(entries.map((row) => row.action)).toEqual([
+      "seating.table.create",
+      "seating.assign",
+      "seating.visibility",
+    ]);
+    // Ids and numbers only: neither a guest's name nor the table's name is written to the log.
+    const logged = entries.map((row) => row.details).join("");
+    expect(logged).not.toContain("anna");
+    expect(logged).not.toContain("Enzian");
   });
 });
 
@@ -193,7 +320,7 @@ describe("the table finder (PRES-06, PRES-12)", () => {
     const { ctx, admin } = await setup();
     const item = programItem(ctx);
     const anna = await attendingGuest(ctx, "anna", item);
-    await place(ctx, admin, anna.key, "1");
+    await place(ctx, admin, anna.key, await makeTable(ctx, admin, "1", 3));
     expect(await finder(ctx, anna.headers)).toEqual({
       visible: false,
       visibleFrom: null,
@@ -213,13 +340,14 @@ describe("the table finder (PRES-06, PRES-12)", () => {
     expect((await finder(ctx, anna.headers)).visible).toBe(false);
   });
 
-  it("[PRES-06][PRES-12] a guest sees their table with its map, its places and their tablemates with greeting, badge and line, no seat", async () => {
+  it("[PRES-06][PRES-12] a guest sees their table with its places and their tablemates with greeting, badge and line, no seat and no map", async () => {
     const { ctx, admin } = await setup();
     const item = programItem(ctx);
     const anna = await attendingGuest(ctx, "anna", item);
     const bert = await attendingGuest(ctx, "bert", item);
-    await place(ctx, admin, anna.key, "1");
-    await place(ctx, admin, bert.key, "1");
+    const one = await makeTable(ctx, admin, "1", 3);
+    await place(ctx, admin, anna.key, one);
+    await place(ctx, admin, bert.key, one);
     const relation = (
       await ctx.app.inject({ url: "/api/profile/people", headers: bert.headers })
     ).json<{ relations: { id: number; name: string }[] }>().relations[1];
@@ -232,12 +360,7 @@ describe("the table finder (PRES-06, PRES-12)", () => {
     await visibleFrom(ctx, admin, new Date(Date.now() - 1000));
     const seen = await finder(ctx, anna.headers);
     expect(seen.tables).toHaveLength(1);
-    expect(seen.tables[0]).toMatchObject({
-      name: "1",
-      map: "saal",
-      places: 3,
-      party: ["anna"],
-    });
+    expect(seen.tables[0]).toMatchObject({ name: "1", places: 3, party: ["anna"] });
     expect(seen.tables[0]?.mates).toEqual([
       {
         key: bert.key,
@@ -249,7 +372,7 @@ describe("the table finder (PRES-06, PRES-12)", () => {
         photo: null,
       },
     ]);
-    expect(JSON.stringify(seen)).not.toContain("platz");
+    expect(JSON.stringify(seen)).not.toMatch(/seat|platz|map/i);
   });
 
   it("[PRES-07] a companion is a tablemate of the guest's table and at their own table appears as an extra table of the guest", async () => {
@@ -258,8 +381,10 @@ describe("the table finder (PRES-06, PRES-12)", () => {
     const anna = await attendingGuest(ctx, "anna", item);
     const mia = addCompanion(ctx, anna.id, "Mia", item);
     const bert = await attendingGuest(ctx, "bert", item);
-    await place(ctx, admin, anna.key, "1");
-    await place(ctx, admin, bert.key, "1");
+    const one = await makeTable(ctx, admin, "1", 4);
+    const three = await makeTable(ctx, admin, "3", 2);
+    await place(ctx, admin, anna.key, one);
+    await place(ctx, admin, bert.key, one);
     await visibleFrom(ctx, admin, new Date(Date.now() - 1000));
     const together = await finder(ctx, anna.headers);
     expect(together.tables.map((table) => table.party)).toEqual([["anna", "Mia"]]);
@@ -267,7 +392,7 @@ describe("the table finder (PRES-06, PRES-12)", () => {
       ["bert", null],
       ["Mia", "anna"],
     ]);
-    await place(ctx, admin, mia.key, "3");
+    await place(ctx, admin, mia.key, three);
     const apart = await finder(ctx, anna.headers);
     expect(apart.tables.map((table) => [table.name, table.party])).toEqual([
       ["1", ["anna"]],
@@ -284,8 +409,9 @@ describe("the table finder (PRES-06, PRES-12)", () => {
     const anna = await attendingGuest(ctx, "anna", item);
     const bert = await attendingGuest(ctx, "bert", item);
     const carl = await attendingGuest(ctx, "carl", item);
-    await place(ctx, admin, anna.key, "1");
-    await place(ctx, admin, bert.key, "1");
+    const one = await makeTable(ctx, admin, "1", 3);
+    await place(ctx, admin, anna.key, one);
+    await place(ctx, admin, bert.key, one);
     for (const guest of [bert, carl]) {
       await ctx.app.inject({
         method: "PUT",

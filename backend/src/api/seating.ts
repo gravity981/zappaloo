@@ -1,5 +1,5 @@
-// The seating plan and the table finder (sw-architecture.md 3.6; PRES-05 – PRES-07, PRES-12): the admin places the
-// attending persons on the tables of the world and sets when guests see the plan; a guest looks up their table and
+// The seating plan and the table finder (sw-architecture.md 3.6; PRES-05 – PRES-07, PRES-12): the admin makes the tables,
+// places the attending persons on them and sets when guests see the plan; a guest looks up their table and
 // their tablemates. While the platform is closed this stays closed to guests (the server gate of ACS-10 lists only
 // the routes a restricted guest may call).
 import fp from "fastify-plugin";
@@ -7,9 +7,11 @@ import { z } from "zod";
 import {
   adminSeatingResponseSchema,
   seatingAssignRequestSchema,
+  seatingTableRequestSchema,
   seatingGuestResponseSchema,
   seatingVisibilityRequestSchema,
 } from "@zappaloo/shared";
+import type { FastifyReply } from "fastify";
 import type { FastifyPluginAsyncZod } from "fastify-type-provider-zod";
 import { SeatingError } from "../seating/service.ts";
 import type { SeatingService } from "../seating/service.ts";
@@ -18,7 +20,14 @@ import { requireRole, requireUser, signedIn } from "./auth.ts";
 const noQuery = z.strictObject({});
 const errorBody = z.object({ error: z.object({ code: z.string(), message: z.string() }) });
 
-const STATUS = { person_not_found: 404, table_not_found: 404, table_full: 409 } as const;
+const STATUS = {
+  person_not_found: 404,
+  table_not_found: 404,
+  table_full: 409,
+  table_duplicate: 409,
+} as const;
+
+const tableParams = z.strictObject({ id: z.coerce.number().int().positive() });
 
 interface SeatingOptions {
   seating: SeatingService;
@@ -28,6 +37,16 @@ const seatingPlugin: FastifyPluginAsyncZod<SeatingOptions> = (app, { seating }) 
   const admin = { preHandler: requireRole("admin") };
   const actor = (request: Parameters<typeof signedIn>[0]) =>
     `user:${String(signedIn(request).user.id)}`;
+
+  /** A refused change as the error body with its status; anything else is not ours to answer. */
+  const fail = async (reply: FastifyReply, error: unknown) => {
+    if (error instanceof SeatingError) {
+      return await reply
+        .status(STATUS[error.code] as 404)
+        .send({ error: { code: error.code, message: error.message } });
+    }
+    throw error;
+  };
 
   app.get(
     "/api/seating",
@@ -82,12 +101,75 @@ const seatingPlugin: FastifyPluginAsyncZod<SeatingOptions> = (app, { seating }) 
       try {
         seating.assign(request.params.key, request.body.table, actor(request));
       } catch (error) {
-        if (error instanceof SeatingError) {
-          return await reply
-            .status(STATUS[error.code] as 404)
-            .send({ error: { code: error.code, message: error.message } });
-        }
-        throw error;
+        return await fail(reply, error);
+      }
+      return await reply.send(seating.admin());
+    },
+  );
+
+  // The tables of the plan: a name and the number of places.
+  app.post(
+    "/api/admin/seating/tables",
+    {
+      ...admin,
+      schema: {
+        querystring: noQuery,
+        body: seatingTableRequestSchema,
+        response: { 201: adminSeatingResponseSchema, 409: errorBody },
+      },
+    },
+    async (request, reply) => {
+      try {
+        seating.createTable(request.body.name, request.body.places, actor(request));
+      } catch (error) {
+        return await fail(reply, error);
+      }
+      return await reply.status(201).send(seating.admin());
+    },
+  );
+
+  app.put(
+    "/api/admin/seating/tables/:id",
+    {
+      ...admin,
+      schema: {
+        querystring: noQuery,
+        params: tableParams,
+        body: seatingTableRequestSchema,
+        response: { 200: adminSeatingResponseSchema, 404: errorBody, 409: errorBody },
+      },
+    },
+    async (request, reply) => {
+      try {
+        seating.updateTable(
+          request.params.id,
+          request.body.name,
+          request.body.places,
+          actor(request),
+        );
+      } catch (error) {
+        return await fail(reply, error);
+      }
+      return await reply.send(seating.admin());
+    },
+  );
+
+  app.delete(
+    "/api/admin/seating/tables/:id",
+    {
+      ...admin,
+      schema: {
+        querystring: noQuery,
+        params: tableParams,
+        body: z.null().optional(),
+        response: { 200: adminSeatingResponseSchema, 404: errorBody },
+      },
+    },
+    async (request, reply) => {
+      try {
+        seating.deleteTable(request.params.id, actor(request));
+      } catch (error) {
+        return await fail(reply, error);
       }
       return await reply.send(seating.admin());
     },

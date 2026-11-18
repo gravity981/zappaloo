@@ -56,7 +56,7 @@ The decisions behind the mocks, by question number in the prototype's "Questions
 | 29 | Treasure found | Shows the hint of one item not found yet. |
 | 30 | Admin on phones | Everything responsive; tables are tuned for desktop. |
 | 31 | Invited program items | Set per batch when creating invitations. The invitation list shows them as read-only letters (T A D P). Changed afterwards in the account panel only (changed 2026-11-12). |
-| 32 | Seating plan | Drag and drop only, no auto-fill. |
+| 32 | Seating plan | Drag and drop only, no auto-fill. Persons are chips (unassigned on top, placed in their table card); on touch screens a tap on a person and then «Hierher» does the same. The admin makes the tables (name, places); no seats (changed 2026-11-18, story 6c). |
 | 33 | Content editor | One "Veröffentlichen" button, live at once; no drafts. |
 | 34 | Settings | One page with sections; the "Wie kennst du das Paar?" list has its own section. |
 | 35 | Moderation card | Contributor name, upload time, type and location. |
@@ -204,7 +204,7 @@ Written into the epic file (`spec/backlog/epics/epic-5.3-program-items-activitie
 | Order of the cards | Einstellungen shows the cards that are used often first: Veranstaltung, Plattform öffnen, then Anmeldung and Funktionen side by side. The rarely changed cards come last: Design, Warteseite-Texte, Datenschutz and Fusszeile. |
 | Erlebniswelt warnings | On "Welt & Import" the warnings of an accepted package come last, below the table of maps. The findings of a refused package stay at the top, because they answer the import. |
 | Programme over several days | The programme has one timeline per calendar day, each under its own heading ("Samstag, 12. Juni 2027"), and rows show the time of day only. Every day with an activity is an event day: the start page shows its event-day layout, and the programme marks past and current activities on every day of the event. An activity without an end does not last into the next day. The line "Du siehst nur die Programmpunkte, zu denen du eingeladen bist." is gone. |
-| Hold button | The confirmation of the design reset ("Ja, Standard-Design verwenden") and of the world rollback ("Ja, zurückrollen") must be held for four seconds, with the mouse, a finger or the Enter or Space key. While it is held a darker fill grows across the button like a progress bar; letting go or leaving the button starts over. A plain click does nothing, and no instruction stands next to the button (changed 2026-11-18). The same holds for "Jetzt öffnen" and "Wieder schliessen" of the platform and for "Frist entfernen" and "Erinnern" of the RSVP. The first button ("Standard-Design verwenden", "Zurückrollen") still only asks. |
+| Hold button | «Löschen» of a table in the seating plan (no second step; a hint says to hold it) and the confirmation of the design reset ("Ja, Standard-Design verwenden") and of the world rollback ("Ja, zurückrollen") must be held for four seconds, with the mouse, a finger or the Enter or Space key. While it is held a darker fill grows across the button like a progress bar; letting go or leaving the button starts over. A plain click does nothing, and no instruction stands next to the button (changed 2026-11-18). The same holds for "Jetzt öffnen" and "Wieder schliessen" of the platform and for "Frist entfernen" and "Erinnern" of the RSVP. The first button ("Standard-Design verwenden", "Zurückrollen") still only asks. |
 
 ## UX decisions for epic 5.4 (2026-11-18, story 5.4a)
 

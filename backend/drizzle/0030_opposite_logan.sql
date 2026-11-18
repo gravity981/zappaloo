@@ -1,0 +1,1 @@
+DROP TABLE `seating_assignments`;

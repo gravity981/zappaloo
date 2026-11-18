@@ -761,18 +761,29 @@
       "title": "Sitzplan",
       "visibleFrom": "Für Gäste sichtbar ab",
       "visibleFromHint": "Ohne Datum bleibt der Sitzplan verborgen. Bis dahin sehen die Gäste einen Hinweis mit dem Datum.",
-      "saveVisibility": "Speichern",
+      "saveVisibility": "Datum speichern",
       "saved": "Gespeichert.",
       "unassigned": "Noch ohne Platz ({{count}})",
-      "unassignedHint": "↳ Begleitperson, folgt standardmässig der einladenden Person. Ziehe eine Person auf einen Tisch, oder tippe sie an und dann «Hierher».",
+      "unassignedHint": "↳ Begleitperson, folgt standardmässig der einladenden Person. Ziehe eine Person auf einen Tisch, oder tippe sie an und dann «Hierher». Wo am Tisch jemand sitzt, regelst du ausserhalb von Zappaloo.",
       "companionSign": " ↳",
       "companionOf": "Begleitung von {{name}}",
       "takeAway": "Platz entfernen",
       "placeHere": "Hierher",
       "tableLabel": "Tisch {{name}}",
       "places": "{{taken}} von {{count}} Plätzen belegt",
-      "noTables": "Die Erlebniswelt hat noch keine Tische: Sitzplätze (type = seat) mit der Eigenschaft table legen sie fest.",
-      "tableFull": "Dieser Tisch hat keinen Platz mehr für alle."
+      "noTables": "Noch keine Tische. Lege unten den ersten Tisch an: mit einem Namen und der Anzahl Plätze.",
+      "tableFull": "Dieser Tisch hat keinen Platz mehr für alle.",
+      "newTable": "Tisch hinzufügen",
+      "tableName": "Name",
+      "tablePlaces": "Plätze",
+      "addTable": "Tisch hinzufügen",
+      "saveTable": "Speichern",
+      "cancel": "Abbrechen",
+      "edit": "Tisch {{name}} bearbeiten",
+      "editButton": "Bearbeiten",
+      "deleteButton": "Löschen",
+      "tableDuplicate": "Es gibt schon einen Tisch mit diesem Namen.",
+      "deleteHold": "Zum Löschen gedrückt halten."
     }
   },
   "home": {
@@ -1204,7 +1215,6 @@
     "yourTable": "Dein Tisch",
     "tableFor": "Tisch für {{names}}",
     "tableNumber": "Tisch {{name}}",
-    "where": "{{place}} · {{count}} Plätze",
     "atYourTable": "An deinem Tisch",
     "atThisTable": "An diesem Tisch",
     "alone": "Noch niemand sonst an diesem Tisch.",
@@ -1215,6 +1225,7 @@
     "noneTitle": "Noch kein Platz",
     "noneText": "Für dich ist noch kein Tisch eingetragen. Die Gastgeber sagen dir Bescheid.",
     "with": "mit {{names}}",
-    "withMore": "mit {{names}} und {{count}} weiteren"
+    "withMore": "mit {{names}} und {{count}} weiteren",
+    "places": "{{count}} Plätze"
   }
 }

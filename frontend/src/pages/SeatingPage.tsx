@@ -57,19 +57,19 @@ function TableCard({ table, mine }: { table: SeatingGuestTable; mine: boolean })
           {mine ? t("seating.yourTable") : t("seating.tableFor", { names: table.party.join(", ") })}
         </span>
         <h2 className="h1">{tableName(table.name)}</h2>
-        <span className="hint">
-          {t("seating.where", { place: table.mapName ?? table.map, count: table.places })}
-        </span>
+        <span className="hint">{t("seating.places", { count: table.places })}</span>
       </div>
       <b>{mine ? t("seating.atYourTable") : t("seating.atThisTable")}</b>
       {table.mates.length === 0 ? (
         <p className="hint">{t("seating.alone")}</p>
       ) : (
-        <ul className="list card">
-          {table.mates.map((mate) => (
-            <Mate key={mate.key} mate={mate} />
-          ))}
-        </ul>
+        <div className="card">
+          <ul className="list">
+            {table.mates.map((mate) => (
+              <Mate key={mate.key} mate={mate} />
+            ))}
+          </ul>
+        </div>
       )}
     </>
   );

@@ -1665,3 +1665,10 @@ button {
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 }
+/* The fields of a table and its button on one line: the buttons stand level with the inputs, not with the labels. */
+:is(.admin, .guest) .table-form {
+  align-items: flex-end;
+}
+:is(.admin, .guest) .table-form .btn {
+  align-self: flex-end;
+}

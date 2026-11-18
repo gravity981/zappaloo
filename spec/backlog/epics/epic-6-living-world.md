@@ -78,12 +78,13 @@ Requirements: PRES-10.
 
 ### Story 6c – Seating plan and table finder
 
-**Tiled world project:** seats (`type = seat`, `table`) at the tables, and clickable objects (e.g. the tables) with `action = page`, `page = seating`.
-Mock screens: `admin-seating`, `seating`, `game-table`. Decided 2026-11-18 (refinement of 6c), simplified by the project owner: no seat placement and no wayfinding in the game.
-- **Tables:** the `table` values of the seat objects of the active world; a table has as many places as it has seat objects (the seats have no position in the game). The server refuses more persons than places (`409 table_full`). A table that a new world package no longer has leaves its persons unassigned.
+**Tiled world project:** clickable objects (e.g. the tables) with `action = page`, `page = seating`. The world has no seats.
+Mock screens: `admin-seating`, `seating`, `game-table`. Decided 2026-11-18 (refinement of 6c), simplified by the project owner twice: no seat placement and no wayfinding in the game, and no seats or tables in the game world at all.
+- **Tables:** made by the admin in the Sitzplan, each with a name and a number of places. Only the table counts, not where at a table somebody sits (that is managed outside Zappaloo). The server refuses more persons than places (`409 table_full`); a deleted table leaves its persons without a table.
 - **Seating plan** (Sitzplan, new admin page): persons who attend (guests and approved companions) are placed on tables by drag and drop, or by tapping a person and then a table for touch screens; a companion follows the guest's table until the admin places them elsewhere; the date from which guests see the plan is set on the page (without a date the plan stays hidden).
-- **Table finder:** the page `seating` ("Wo sitze ich?"): the guest's table (name, map, places) and the tablemates with photo, greeting and badge, no seat. It is a built-in page like `programme`, `rsvp` and `profile`: clickable objects can open it (Tiled preset or the admin's assignment) and the website has `/seating` under Mehr. Before the visibility date it shows a notice with the date.
+- **Table finder:** the page `seating` ("Wo sitze ich?"): the guest's table (name, places) and the tablemates with photo, greeting and badge, no seat. It is a built-in page like `programme`, `rsvp` and `profile`: clickable objects can open it (Tiled preset or the admin's assignment) and the website has `/seating` under Mehr and, on the event day, a card on the start page. Before the visibility date it shows a notice with the date.
 - The photos of tablemates are served at `GET /api/seating/photo/:key`, only for the viewer's own tablemates.
+- The `seat` object type is not used any more: format version 2 still accepts and ignores it, format version 3 drops it (story 6e).
 Requirements: PRES-05, PRES-06, PRES-07, PRES-12.
 
 ### Story 6d – Dialogues
@@ -98,7 +99,7 @@ Requirements: CNT-02 (the dialogue and NPC text part; albums follow in step 7d),
 
 **Tiled world project:** `formatVersion: 3`; `border` polygons where the fog shall lie; the map properties `clouds`, `birds`, `fog` where an effect is off; one bird in `ambient/`.
 Mock screen: `game` (atmosphere only as a note).
-- World format version 3 (`shared/src/packages/world-v3.ts`, JSON Schemas, format document, `zappaloo validate`, test world); version 2 stays readable. Its fields come with this story and 6f – 6g.
+- World format version 3 (`shared/src/packages/world-v3.ts`, JSON Schemas, format document, `zappaloo validate`, test world); version 2 stays readable. Its fields come with this story and 6f – 6g. Version 3 drops the object type `seat` (the seating plan lives in Zappaloo, story 6c).
 - Fog along the border, cloud shadows, birds, the map switches, reduced motion; in the app and the game preview.
 Requirements: MAP-20, GAME-31, GAME-32, GAME-33, GAME-34.
 

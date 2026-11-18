@@ -293,37 +293,6 @@ export class WorldService {
     };
   }
 
-  /**
-   * The tables of the active world: the `table` values of its seat objects, each with its places (the seats) and the
-   * map of its seats (the first by id when a table has seats on several maps), in the order of the names (PRES-05).
-   */
-  tables(): { name: string; map: string; mapName?: string; places: number }[] {
-    const active = this.active();
-    if (active === undefined) return [];
-    const found = new Map<
-      string,
-      { name: string; map: string; mapName?: string; places: number }
-    >();
-    for (const map of this.#objectsOf(active)) {
-      for (const table of map.seats) {
-        const known = found.get(table);
-        if (known === undefined) {
-          found.set(table, {
-            name: table,
-            map: map.id,
-            ...(map.name === undefined ? {} : { mapName: map.name }),
-            places: 1,
-          });
-        } else {
-          known.places += 1;
-        }
-      }
-    }
-    return [...found.values()].sort((a, b) =>
-      a.name.localeCompare(b.name, undefined, { numeric: true }),
-    );
-  }
-
   /** The clickable objects and portals of every map, with the presets and the assignments (MAP-15). */
   objects(): WorldObjects {
     const active = this.active();

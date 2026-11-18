@@ -121,7 +121,7 @@ export async function buildApp(options: AppOptions): Promise<FastifyInstance> {
   });
   await app.register(profileRoutes, { profile });
   await app.register(seatingRoutes, {
-    seating: new SeatingService(options.database, options.event, options.auth.world, profile),
+    seating: new SeatingService(options.database, options.event, profile),
   });
   await app.register(eventApiRoutes, { event: options.event, footer: options.auth.footer, theme });
   await app.register(pwaRoutes, {

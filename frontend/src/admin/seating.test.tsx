@@ -1,9 +1,9 @@
-// The admin's seating plan (PRES-05, PRES-06, PRES-07; UX mock `admin-seating`): placing persons by drag and drop or by
-// tapping, the capacity, the date from which guests see the plan.
+// The admin's seating plan (PRES-05, PRES-06, PRES-07; UX mock `admin-seating`): making the tables, placing persons by
+// drag and drop or by tapping, the capacity, the date from which guests see the plan.
 import { createEvent, fireEvent, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import { initI18n } from "../i18n/i18n.ts";
-import { anna, event, fakeBackend, renderAt, user } from "../test/backend.tsx";
+import { anna, event, fakeBackend, hold, renderAt, user } from "../test/backend.tsx";
 
 beforeAll(async () => {
   await initI18n();
@@ -28,20 +28,19 @@ function plan(changes: Record<string, unknown> = {}) {
     visibleFrom: null,
     tables: [
       {
+        id: 1,
         name: "Edelweiss",
-        map: "saal",
-        mapName: "Saal",
         places: 3,
         persons: [person("u1", "Erika Huber", null, true)],
       },
-      { name: "Enzian", map: "saal", mapName: "Saal", places: 1, persons: [] },
+      { id: 2, name: "Enzian", places: 1, persons: [] },
     ],
     unassigned: [person("u2", "Peter Graf"), person("c5", "Hans Graf", "Peter Graf")],
     ...changes,
   };
 }
 
-function backend(options: { full?: boolean; current?: () => unknown } = {}) {
+function backend(options: { full?: boolean; duplicate?: boolean; current?: () => unknown } = {}) {
   return fakeBackend({
     "GET /api/session": () => asAdmin,
     "GET /api/event": () => ({ status: 200, body: event }),
@@ -52,6 +51,12 @@ function backend(options: { full?: boolean; current?: () => unknown } = {}) {
         : { status: 200, body: plan() },
     "PUT /api/admin/seating/assignments/c5": () => ({ status: 200, body: plan() }),
     "PUT /api/admin/seating/visibility": () => ({ status: 200, body: plan() }),
+    "POST /api/admin/seating/tables": () =>
+      options.duplicate === true
+        ? { status: 409, body: { error: { code: "table_duplicate", message: "x" } } }
+        : { status: 201, body: plan() },
+    "PUT /api/admin/seating/tables/1": () => ({ status: 200, body: plan() }),
+    "DELETE /api/admin/seating/tables/2": () => ({ status: 200, body: plan({ tables: [] }) }),
   });
 }
 
@@ -80,7 +85,7 @@ describe("the seating plan", () => {
         "/api/admin/seating/assignments/u2",
       );
     });
-    expect(calls.find((call) => call.method === "PUT")?.body).toEqual({ table: "Enzian" });
+    expect(calls.find((call) => call.method === "PUT")?.body).toEqual({ table: 2 });
     expect(calls.find((call) => call.method === "PUT")?.csrf).toBe("csrf-1");
   });
 
@@ -98,7 +103,7 @@ describe("the seating plan", () => {
     await waitFor(() => {
       expect(calls.filter((call) => call.method === "PUT")).toHaveLength(1);
     });
-    expect(calls.find((call) => call.method === "PUT")?.body).toEqual({ table: "Enzian" });
+    expect(calls.find((call) => call.method === "PUT")?.body).toEqual({ table: 2 });
     drop(screen.getByRole("region", { name: /Noch ohne Platz/ }), "c5");
     await waitFor(() => {
       expect(calls.filter((call) => call.method === "PUT")).toHaveLength(2);
@@ -116,10 +121,82 @@ describe("the seating plan", () => {
     expect(within(screen.getByTestId("seating-unassigned")).getByText("Peter Graf")).toBeVisible();
   });
 
-  it("[PRES-05] a world without tables points to the seats of the world", async () => {
+  it("[PRES-05] without tables the page asks for the first one", async () => {
     backend({ current: () => plan({ tables: [] }) });
     renderAt("/admin/seating");
-    expect(await screen.findByText(/Sitzplätze \(type = seat\)/)).toBeVisible();
+    expect(await screen.findByText(/Noch keine Tische/)).toBeVisible();
+  });
+});
+
+describe("the tables", () => {
+  it("[PRES-05] the admin adds a table with a name and the number of places", async () => {
+    const calls = backend();
+    renderAt("/admin/seating");
+    const form = (await screen.findByRole("region", { name: "Tisch hinzufügen" })).querySelector(
+      "form",
+    );
+    if (form === null) throw new Error("no form");
+    user.type(within(form).getByLabelText("Name"), "Brauttisch");
+    user.type(within(form).getByLabelText("Plätze"), "6");
+    user.click(within(form).getByRole("button", { name: "Tisch hinzufügen" }));
+    await waitFor(() => {
+      expect(calls.find((call) => call.method === "POST")?.body).toEqual({
+        name: "Brauttisch",
+        places: 6,
+      });
+    });
+  });
+
+  it("[PRES-05] a name that exists already is reported", async () => {
+    backend({ duplicate: true });
+    renderAt("/admin/seating");
+    const form = (await screen.findByRole("region", { name: "Tisch hinzufügen" })).querySelector(
+      "form",
+    );
+    if (form === null) throw new Error("no form");
+    user.type(within(form).getByLabelText("Name"), "Enzian");
+    user.click(within(form).getByRole("button", { name: "Tisch hinzufügen" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "schon einen Tisch mit diesem Namen",
+    );
+  });
+
+  it("[PRES-05] a table is renamed and gets other places", async () => {
+    const calls = backend();
+    renderAt("/admin/seating");
+    await screen.findByTestId("table-Edelweiss");
+    user.click(screen.getByRole("button", { name: "Tisch Edelweiss bearbeiten" }));
+    const card = screen.getByTestId("table-Edelweiss");
+    const name = within(card).getByLabelText("Name");
+    user.clear(name);
+    user.type(name, "Alpenrose");
+    const places = within(card).getByLabelText("Plätze");
+    user.clear(places);
+    user.type(places, "5");
+    user.click(within(card).getByRole("button", { name: "Speichern" }));
+    await waitFor(() => {
+      expect(calls.find((call) => call.method === "PUT")?.path).toBe("/api/admin/seating/tables/1");
+    });
+    expect(calls.find((call) => call.method === "PUT")?.body).toEqual({
+      name: "Alpenrose",
+      places: 5,
+    });
+  });
+
+  it("[PRES-05] a table is deleted only by holding the button, a click does nothing", async () => {
+    const calls = backend();
+    renderAt("/admin/seating");
+    const card = await screen.findByTestId("table-Enzian");
+    const button = within(card).getByRole("button", { name: "Löschen" });
+    user.click(button);
+    expect(calls.some((call) => call.method === "DELETE")).toBe(false);
+    expect(within(card).getByText(/gedrückt halten/)).toBeVisible();
+    hold(button);
+    await waitFor(() => {
+      expect(calls.find((call) => call.method === "DELETE")?.path).toBe(
+        "/api/admin/seating/tables/2",
+      );
+    });
   });
 });
 
@@ -129,7 +206,7 @@ describe("the date from which guests see the plan", () => {
     renderAt("/admin/seating");
     const field = await screen.findByLabelText(/Für Gäste sichtbar ab/);
     user.type(field, "12.06.2027 08:00");
-    user.click(screen.getByRole("button", { name: "Speichern" }));
+    user.click(screen.getByRole("button", { name: "Datum speichern" }));
     await waitFor(() => {
       expect(calls.some((call) => call.path === "/api/admin/seating/visibility")).toBe(true);
     });
@@ -138,7 +215,7 @@ describe("the date from which guests see the plan", () => {
       visibleFrom: "2027-06-12T06:00:00.000Z",
     });
     user.clear(screen.getByLabelText(/Für Gäste sichtbar ab/));
-    user.click(screen.getByRole("button", { name: "Speichern" }));
+    user.click(screen.getByRole("button", { name: "Datum speichern" }));
     await waitFor(() => {
       expect(
         calls.filter((call) => call.path === "/api/admin/seating/visibility").at(-1)?.body,

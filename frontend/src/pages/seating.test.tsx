@@ -42,8 +42,6 @@ const visible = (tables: unknown[]) => ({
 
 const table = (changes: Record<string, unknown> = {}) => ({
   name: "Edelweiss",
-  map: "saal",
-  mapName: "Saal",
   places: 8,
   party: ["Anna"],
   mates: [],
@@ -74,7 +72,7 @@ describe("the table finder page", () => {
     expect(notice).toHaveTextContent("sobald er feststeht");
   });
 
-  it("[PRES-06][PRES-12] shows the table with its map and places and the tablemates with greeting, badge and line, no seat", async () => {
+  it("[PRES-06][PRES-12] shows the table with its places and the tablemates with greeting, badge and line, no seat", async () => {
     backend(
       visible([
         table({
@@ -88,7 +86,7 @@ describe("the table finder page", () => {
     renderAt("/seating");
     expect(await screen.findByText("Dein Tisch")).toBeVisible();
     expect(screen.getByRole("heading", { name: "Edelweiss" })).toBeVisible();
-    expect(screen.getByText("Saal · 8 Plätze")).toBeVisible();
+    expect(screen.getByText("8 Plätze")).toBeVisible();
     const mates = screen.getAllByTestId("tablemate");
     expect(mates).toHaveLength(2);
     const [lukas] = mates;
