@@ -96,7 +96,11 @@ describe("game world › Welt & Import", () => {
       }),
     });
     renderAt("/admin/world");
-    expect(await screen.findByText("Warnungen (1)")).toBeVisible();
+    const warnings = await screen.findByText("Warnungen (1)");
+    expect(warnings).toBeVisible();
+    // The warnings come last, below the table of maps.
+    const maps = screen.getByRole("table");
+    expect(maps.compareDocumentPosition(warnings) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(
       screen.getByText(
         "warning: maps/kirche.json › infotafel: the page p/geschichte does not exist",

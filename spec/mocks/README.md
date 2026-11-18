@@ -202,4 +202,5 @@ Written into the epic file (`spec/backlog/epics/epic-5.3-program-items-activitie
 | Topic | Decision |
 |---|---|
 | Order of the cards | Einstellungen shows the cards that are used often first: Veranstaltung, Plattform öffnen, then Rückmeldung and Funktionen side by side. The rarely changed cards come last: Design, Warteseite-Texte, Datenschutz and Fusszeile. |
+| Erlebniswelt warnings | On "Welt & Import" the warnings of an accepted package come last, below the table of maps. The findings of a refused package stay at the top, because they answer the import. |
 | Hold button | The confirmation of the design reset ("Ja, Standard-Design verwenden") and of the world rollback ("Ja, zurückrollen") must be held for four seconds, with the mouse, a finger or the Enter or Space key. While it is held a darker fill grows across the button like a progress bar; letting go or leaving the button starts over. A plain click does nothing, and the hint "Halte den Knopf vier Sekunden gedrückt." stands next to it. The first button ("Standard-Design verwenden", "Zurückrollen") still only asks. |
