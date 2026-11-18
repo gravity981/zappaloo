@@ -17,6 +17,7 @@
 | Release 1: invitation and RSVP | Enter invitation code, redeem and create account, login, forgot password, set password (setup and reset link), confirm email address, page not found, privacy notice, waiting page, RSVP (attendance, food and allergies, companions and song, summary), profile |
 | Game world | First entry (avatar, say hello), game world, page overlay over the game, table finder |
 | Website | Start, programme, content page, more, where do I sit, upload, upload confirmation, gallery with photo viewer, keepsake page, games and rankings, treasure found |
+| Developer tools | Theme package editor (development only, epic 5.2) |
 | Admin | Event setup, overview, invitations, accounts and roles, RSVP overview, seating plan, content editor, game world (objects and portals, maps and import), settings, moderation, event screen |
 
 ## UX decisions (2026-11-10)
@@ -166,3 +167,17 @@ Written into sw-architecture.md 14.2 and 14.4 as well.
 | Admin card "Welt" | The info line shows the format, the tile size as width × height ("Kachel 64 × 32 Pixel"), the number of figures, the import time and the start map (MAP-05). |
 | Refused package | The findings name the file of a figure with its frame, for example `avatar/<figure>/…/south.png: falsches Format (32 × 32 instead of 48 × 48)`. |
 | Import text | "Ein Weltpaket (.tar.gz, Format 2) mit isometrischen Karten, Tilesets, Figuren und optional der Tür der Warteseite." |
+
+## UX decisions for the theme package editor (2026-11-18, epic 5.2, story 5.2a)
+
+Written into sw-architecture.md 19.7.1 as well. The screen `theme-editor` (group "Developer tools") is drawn with four states: theme in progress, empty draft, contrast check failing, export refused.
+
+| Topic | Decision |
+|---|---|
+| Tool, not product | Development only (THM-08). English texts, admin styles of the mocks. The screen has no guest chrome and no link into the app. |
+| Wide screen | Controls in cards on the left (Name, Colours, Contrast check, Waiting card, Fonts, Icons, Export), preview as a scrolling column on the right. |
+| Narrow screen | Tabs «Edit» and «Preview» instead of one long column, so the preview is one tap away and not below a long list of controls. Proposed; the project owner confirms the mock before story 5.2c. |
+| Header | «Open package…», «New theme» (second click), «Export», and the line «Draft saved in this browser». |
+| Contrast check | Its own card with the five pairs of the validator, ratio and ✓ / ✗, live. A failing pair does not block «Export»; the validator's refusal is shown in the card Export. |
+| Findings | Listed in the card Export with the card and field they belong to; nothing is downloaded. |
+| Empty draft | The platform's default colours, no fonts, no icons; the Export card says what is missing. |

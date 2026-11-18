@@ -2403,6 +2403,21 @@ The answer to a refused package lists every finding with its file and reason.
 | THM-13 | An existing theme package can be opened in the editor and changed (added 2026-11-18). | Should |
 | THM-14 | The work in the editor survives a reload of the page (added 2026-11-18). | Could |
 
+## 19.7.1 Theme Package Editor (decided 2026-11-18, epic 5.2)
+
+Today a theme package is written by hand. The theme package editor is a standalone web tool that defines, previews and exports one. It is a development tool, like the game preview (MAP-18): it is not part of the app, its production bundles or its image.
+
+- **Setup (THM-08).** A workspace `theme-editor`, started with `APP_ENV=dev npm run dev:theme-editor` on `http://localhost:5176`, bound to `127.0.0.1`. The Vite server refuses to start without `APP_ENV=dev`, and the workspace cannot be built for production. The parts that need Node run in a Vite plugin on the development server.
+- **Style.** The editor's controls use the admin styles (`ui.css`: cards, fields, buttons, segments). Its texts are English, because it is a developer tool and not for guests. The screen is in the mocks (`theme-editor`).
+- **Layout (THM-11).** On a wide screen the controls sit on the left in cards (Name, Colours, Contrast check, Waiting card, Fonts, Icons, Export) and the preview on the right as a scrolling column. On a narrow screen the layout is rearranged into the tabs «Edit» and «Preview»; the header with «Open package…», «New theme» and «Export» stays.
+- **Colours (THM-09).** For each of the seven colours a colour picker and a `#rrggbb` field. The waiting card colours sit behind the switch «Own waiting card colours»; off means no `waiting` entry. The five contrast pairs of the validator are shown with their ratio and a pass or fail mark, updated live, with the same contrast function as the validator.
+- **Fonts (THM-09).** For each of body, heading and display: off, or a family name and 1–4 font files, each with weight and style. WOFF2, OTF and TTF are accepted. OTF and TTF are converted to WOFF2 on the development server, because the package holds WOFF2 only; the converted file goes through the validator's font check. Family, weight and style are suggested from the font file. At most 8 files in all and 2 MB each after conversion, as in 19.7.
+- **Icons (THM-10).** One square image (PNG or JPEG) of at least 512 px is uploaded. The editor scales it to the four icon sizes in the browser and builds the maskable icon with the content inside the central 80 % on a chosen background colour. Each icon can be replaced by a PNG of its own; a wrong size is refused at once.
+- **Preview (THM-11).** Sample elements built with the app's own stylesheets (`ui.css`, `waiting.css`) and its own `themeStyle()` and `fontFaceRules()`, not the real page components, so the editor needs no backend and does not break when a page changes: the start page (hero, welcome text, countdown card in the display font), a content page with Markdown, a form with a primary and a secondary button, the waiting card, and the icons on a phone home screen (the maskable icon in a circle and in a rounded square). Uploaded fonts load from object URLs. The preview follows every change at once.
+- **Export (THM-12).** A field for the name (the manifest's `name`, 1–60 characters) and a button «Export». The development server builds the package with `backend/src/theme/build.ts` and checks it with `validate.ts`, and the browser downloads `<slug of the name>.tar.gz`. A package the validator would refuse is not exported; its findings are listed with the card each belongs to.
+- **Open (THM-13).** An existing package is opened, validated and its fields, icons and fonts filled in. A refused package shows its findings and is not opened.
+- **Draft (THM-14).** The work is kept in the browser (IndexedDB) and survives a reload. «New theme» asks a second click and starts from the platform's default colours.
+
 ---
 
 # 20. Installation and Operating Model
