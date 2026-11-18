@@ -2,7 +2,7 @@
 
 | Status | Release | Depends on | Branch |
 |---|---|---|---|
-| done | Opening | 5 | `feature/epic-5.1-gameworld-prototype-findings` |
+| done | World pilot (v2.0.0) | 5 | `feature/epic-5.1-gameworld-prototype-findings` |
 
 [Roadmap](../roadmap.md) · [How we work on epics](../README.md)
 

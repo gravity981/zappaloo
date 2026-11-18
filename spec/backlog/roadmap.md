@@ -10,6 +10,7 @@ The epics follow the order of work in [sw-architecture.md](../sw-architecture.md
 |---|---|---|
 | **Release 1 (early)** | 3.5 | Redeem invitation, answer the RSVP, waiting page with the door scene, add the site to the home screen as an app. The platform is closed. |
 | Release 1 updates | 3.9 | Findings from the pilot on prod: one RSVP answer for all program items, "Begleitperson hinzufügen" without approval, person types; invited guests on the guest list before they redeem. |
+| **World pilot** | 5.1 | Content pages and website, the programme, and the game world with the prototype world as a pilot on prod: straight paths, target marker, edge indicators. Its findings feed epics 5.3, 5.4 and 6. |
 | **Opening** | 6 | The admin opens the platform: website, game world, wandering figures, speech bubbles, table finder. |
 | **Event-ready** | 9 | Contributions, photo wall, moderation, minigames, treasure hunt; load test passed and release checklist done. |
 | **After the event** | 10 | Export, shutdown notice and deletion (mandatory, ready before the shutdown date). |
@@ -32,6 +33,7 @@ The order is the priority: of the epics that are **ready**, the highest one in t
 | [4](epics/epic-4-content-website.md) | Content and website | 3.9 | done |
 | [5](epics/epic-5-game-world.md) | Game world and world importer (review findings fixed in 5l) | 4 | done |
 | [5.1](epics/epic-5.1-gameworld-prototype-findings.md) | Game world prototype findings: straight paths, target marker, edge indicators, iOS stutter | 5 | done |
+| ▶ | **World pilot** (v2.0.0 on prod, 2026-11-17, with the prototype world) | | released |
 | [5.2](epics/epic-5.2-theme-package-editor.md) | Theme package editor: a development tool to define, preview and export theme packages | 4 | done |
 | [5.3](epics/epic-5.3-program-items-activities.md) | Program items and activities: a program item (RSVP) has one or more activities (programme) | 4 | done |
 | [5.4](epics/epic-5.4-menus-rsvp-improvements.md) | Children's menus and RSVP improvements: "Anmeldung", landing on it after redeeming, remarks, clearer admin tables | 5.3 | refined |

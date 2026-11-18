@@ -2,7 +2,7 @@
 
 | Status | Release | Depends on | Branch |
 |---|---|---|---|
-| done | Opening | 3.9 | `feature/stage-4` (PR #8) |
+| done | World pilot (v2.0.0) | 3.9 | `feature/stage-4` (PR #8) |
 
 [Roadmap](../roadmap.md) · [How we work on epics](../README.md)
 

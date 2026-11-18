@@ -2,7 +2,7 @@
 
 | Status | Release | Depends on | Branch |
 |---|---|---|---|
-| done | Opening | 4 | `feature/stage-5` (PR #9), `feature/stage-5-world-v2` (PR #10) |
+| done | World pilot (v2.0.0) | 4 | `feature/stage-5` (PR #9), `feature/stage-5-world-v2` (PR #10) |
 
 [Roadmap](../roadmap.md) · [How we work on epics](../README.md)
 
