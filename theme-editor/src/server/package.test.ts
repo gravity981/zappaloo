@@ -22,8 +22,17 @@ afterAll(() => {
 
 const b64 = (bytes: Uint8Array) => Buffer.from(bytes).toString("base64");
 
-/** A complete theme: every colour, the waiting card, three fonts (one converted from OTF), four icons. */
+/**
+ * A complete theme: every colour, the waiting card, two fonts (one converted from OTF), four icons.
+ * The conversion takes seconds, so it is done once; every test gets its own copy.
+ */
+let converted: Promise<PackageData> | undefined;
 async function fullTheme(): Promise<PackageData> {
+  converted ??= buildFullTheme();
+  return structuredClone(await converted);
+}
+
+async function buildFullTheme(): Promise<PackageData> {
   const otf = await prepareFont(
     "SourceSans3-Regular.otf",
     fs.readFileSync(path.join(fixtures, "SourceSans3-Regular.otf")),

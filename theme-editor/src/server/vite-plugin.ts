@@ -1,6 +1,6 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
 import type { Plugin } from "vite";
-import { THEME_LIMITS } from "@zappaloo/shared";
+import { THEME_FORMAT_VERSION, THEME_LIMITS } from "@zappaloo/shared";
 import { FontRefused, prepareFont } from "./font.ts";
 import { buildPackage, openPackage } from "./package.ts";
 import type { PackageData } from "../transfer.ts";
@@ -111,6 +111,8 @@ async function exportTheme(request: IncomingMessage, response: ServerResponse): 
       "Content-Type": "application/gzip",
       "Content-Disposition": `attachment; filename="${built.fileName}"`,
       "X-File-Name": built.fileName,
+      // the editor compares it with its own, so that a server started before a format change is noticed
+      "X-Format-Version": String(THEME_FORMAT_VERSION),
       "X-Content-Type-Options": "nosniff",
     });
     response.end(built.archive);

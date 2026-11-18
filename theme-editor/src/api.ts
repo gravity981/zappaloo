@@ -59,7 +59,7 @@ export async function convertFont(file: File): Promise<ConvertedFont> {
 const API = "/__theme-editor/api";
 
 export type ExportResult =
-  | { ok: true; fileName: string; blob: Blob }
+  | { ok: true; fileName: string; blob: Blob; formatVersion: number | null }
   | { ok: false; findings: PackageFinding[]; message: string };
 
 export type OpenResult =
@@ -90,6 +90,7 @@ export async function exportPackage(data: PackageData): Promise<ExportResult> {
   return {
     ok: true,
     fileName: response.headers.get("X-File-Name") ?? "theme.tar.gz",
+    formatVersion: Number(response.headers.get("X-Format-Version")) || null,
     blob: await response.blob(),
   };
 }

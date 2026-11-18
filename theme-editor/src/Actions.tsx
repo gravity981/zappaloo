@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { THEME_FORMAT_VERSION } from "@zappaloo/shared";
 import { exportPackage, openPackage } from "./api.ts";
 import { draftToPackageData, packageDataToDraft } from "./packageData.ts";
 import type { ThemeDraft, Update } from "./model.ts";
@@ -54,7 +55,18 @@ export function Actions(props: {
     setReport(null);
     try {
       const result = await exportPackage(draftToPackageData(draft));
-      if (result.ok) {
+      if (result.ok && result.formatVersion !== THEME_FORMAT_VERSION) {
+        // A server that was started before a change of the format still writes the old one.
+        setReport({
+          kind: "refused",
+          action: "export",
+          subject: "The theme",
+          findings: [],
+          message: `The development server is out of date: it writes format version ${
+            result.formatVersion === null ? "(unknown)" : String(result.formatVersion)
+          }, the editor expects ${String(THEME_FORMAT_VERSION)}. Nothing was downloaded. Restart the editor (npm run dev:theme-editor) and export again.`,
+        });
+      } else if (result.ok) {
         download(result.blob, result.fileName);
         setReport({ kind: "exported", fileName: result.fileName });
       } else {
@@ -186,8 +198,8 @@ function ReportPanel(props: { report: Report | null }) {
   if (report.kind === "exported") {
     return (
       <div className="editor-report" role="status">
-        <span className="tag ok">Exported</span> {report.fileName} was checked by the platform's
-        validator and downloaded.
+        <span className="tag ok">Exported</span> {report.fileName} (format version{" "}
+        {THEME_FORMAT_VERSION}) was checked by the platform's validator and downloaded.
       </div>
     );
   }

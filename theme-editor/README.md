@@ -24,3 +24,11 @@ browser's IndexedDB, so a reload does not lose it.
 The editor is built story by story; see
 [epic 5.2](../spec/backlog/epics/epic-5.2-theme-package-editor.md). The screen
 is in the UX mocks (`theme-editor`).
+
+## After a change of the platform code
+
+The server part of the editor (the Vite plugin, and the `shared` and `backend` code it
+uses to build and check packages) is loaded when the editor starts and is not reloaded.
+After a change of the format or of the validator, stop the editor and start it again. The
+editor notices a server that is out of date: it does not download a package whose format
+version differs from its own and says so.

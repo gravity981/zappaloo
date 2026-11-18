@@ -102,7 +102,10 @@ describe("theme package editor: export (THM-12)", () => {
       sent.push([url, init]);
       return Promise.resolve({
         ok: true,
-        headers: { get: () => "sommerfest.tar.gz" },
+        headers: {
+          get: (name: string) =>
+            ({ "X-File-Name": "sommerfest.tar.gz", "X-Format-Version": "2" })[name] ?? null,
+        },
         blob: () => Promise.resolve(new Blob(["archive"])),
       });
     });
@@ -111,7 +114,9 @@ describe("theme package editor: export (THM-12)", () => {
     await saved();
     fireEvent.change(name(), { target: { value: "Sommerfest" } });
     fireEvent.click(screen.getByRole("button", { name: "Export" }));
-    await screen.findByText(/sommerfest\.tar\.gz was checked by the platform's validator/);
+    await screen.findByText(
+      /sommerfest\.tar\.gz \(format version 2\) was checked by the platform's validator/,
+    );
     expect(downloads).toEqual(["sommerfest.tar.gz"]);
     const [url, init] = sent[0] ?? ["", {}];
     expect(url).toBe("/__theme-editor/api/export");
@@ -163,6 +168,35 @@ describe("theme package editor: export (THM-12)", () => {
       "Name · manifest.json: name: too small",
     ]);
     expect(downloads).toEqual([]);
+  });
+
+  it("[THM-12][THM-02] a development server that still writes an old format version is noticed: nothing is downloaded", async () => {
+    for (const version of ["1", null]) {
+      vi.stubGlobal(
+        "fetch",
+        vi.fn(() =>
+          Promise.resolve({
+            ok: true,
+            headers: {
+              get: (name: string) =>
+                ({ "X-File-Name": "old.tar.gz", "X-Format-Version": version })[name] ?? null,
+            },
+            blob: () => Promise.resolve(new Blob(["archive"])),
+          }),
+        ),
+      );
+      const { unmount } = render(<App store={memoryStore()} />);
+      await saved();
+      fireEvent.click(screen.getByRole("button", { name: "Export" }));
+      const alert = await screen.findByRole("alert");
+      expect(alert.textContent).toContain("The development server is out of date");
+      expect(alert.textContent).toContain(
+        `writes format version ${version ?? "(unknown)"}, the editor expects 2`,
+      );
+      expect(alert.textContent).toContain("npm run dev:theme-editor");
+      expect(downloads).toEqual([]);
+      unmount();
+    }
   });
 
   it("[THM-12] says so when the development server does not answer", async () => {
