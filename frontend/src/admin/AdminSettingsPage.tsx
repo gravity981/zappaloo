@@ -12,6 +12,7 @@ import EventIdentityForm from "./EventIdentityForm.tsx";
 import { identityOf } from "./identity.ts";
 import type { EventIdentity } from "./identity.ts";
 import FooterSettingsCard from "./FooterSettingsCard.tsx";
+import RelationsCard from "./RelationsCard.tsx";
 import PrivacySettingsCard from "./PrivacySettingsCard.tsx";
 import RsvpSettingsCard from "./RsvpSettingsCard.tsx";
 import ThemeSettingsCard from "./ThemeSettingsCard.tsx";
@@ -86,6 +87,7 @@ export default function AdminSettingsPage() {
         </div>
       )}
       {/* Rarely changed cards come last: the design, the waiting page texts, the privacy notice and the footer. */}
+      {event?.setupComplete && <RelationsCard />}
       {event?.setupComplete && <ThemeSettingsCard />}
       {event?.setupComplete && <WaitingTextsCard />}
       {event?.setupComplete && <PrivacySettingsCard />}

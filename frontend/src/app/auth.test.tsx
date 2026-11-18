@@ -180,26 +180,69 @@ describe("setting a password with a link", () => {
 });
 
 describe("profile", () => {
-  it("[ACC-04] shows the profile, saves changes with the CSRF token and sends visitors to the login", async () => {
+  it("[ACC-04] shows the profile, stores the name when it is left and the email with its button, with the CSRF token", async () => {
     const saved = { ...anna, displayName: "Anna Muster", email: "anna@example.org" };
     const calls = fakeBackend({
       "GET /api/session": () => signedIn,
+      "GET /api/profile/people": () => ({
+        status: 200,
+        body: {
+          persons: [
+            {
+              id: "me",
+              key: "u1",
+              name: "Anna",
+              greeting: null,
+              relation: null,
+              relationLine: null,
+              photo: null,
+            },
+          ],
+          relations: [],
+        },
+      }),
       "PATCH /api/profile": () => ({ status: 200, body: saved }),
     });
     renderAt("/profile");
+    // The name is the first field of the card "So sehen dich andere Gäste", the email belongs to the account.
     const name = await screen.findByLabelText("Anzeigename");
     expect(name).toHaveValue("Anna");
     expect(screen.getByText("anna", { selector: "b" })).toBeInTheDocument();
     user.clear(name);
     user.type(name, "Anna Muster");
+    fireEvent.blur(name);
+    expect(await screen.findByRole("status")).toHaveTextContent("Gespeichert.");
     user.type(screen.getByLabelText("E-Mail-Adresse (optional)"), "anna@example.org");
     user.click(screen.getByRole("button", { name: "Speichern" }));
 
-    expect(await screen.findByRole("status")).toHaveTextContent("Gespeichert.");
+    await waitFor(() => {
+      expect(calls.filter((c) => c.method === "PATCH")).toHaveLength(2);
+    });
     expect(screen.getByText("Die Adresse ist noch nicht bestätigt.")).toBeInTheDocument();
-    const patch = calls.find((c) => c.method === "PATCH");
-    expect(patch?.csrf).toBe("csrf-1");
-    expect(patch?.body).toEqual({ displayName: "Anna Muster", email: "anna@example.org" });
+    const [first, second] = calls.filter((c) => c.method === "PATCH");
+    expect(first?.csrf).toBe("csrf-1");
+    expect(first?.body).toEqual({ displayName: "Anna Muster", email: null });
+    expect(second?.body).toEqual({ displayName: "Anna Muster", email: "anna@example.org" });
+  });
+
+  it("[ACC-04] staff and admins without vip get a plain name field, since they have no profile card", async () => {
+    const staff = { ...anna, roles: ["staff"] };
+    const calls = fakeBackend({
+      "GET /api/session": () => ({ status: 200, body: { user: staff, csrfToken: "csrf-1" } }),
+      "PATCH /api/profile": () => ({ status: 200, body: { ...staff, displayName: "Neuer Name" } }),
+    });
+    renderAt("/profile");
+    const name = await screen.findByLabelText("Anzeigename");
+    user.clear(name);
+    user.type(name, "Neuer Name");
+    fireEvent.blur(name);
+    await waitFor(() => {
+      expect(calls.find((c) => c.method === "PATCH")?.body).toEqual({
+        displayName: "Neuer Name",
+        email: null,
+      });
+    });
+    expect(screen.queryByText("So sehen dich andere Gäste")).toBeNull();
   });
 
   it("[ACC-06] changes the password with the current one", async () => {
@@ -388,6 +431,7 @@ describe("email and account self-service", () => {
   it("[ACC-12] explains why the last admin cannot delete the account", async () => {
     fakeBackend({
       "GET /api/session": () => signedIn,
+      "GET /api/profile/people": () => ({ status: 200, body: { persons: [], relations: [] } }),
       "DELETE /api/profile": () => ({
         status: 409,
         body: { error: { code: "last_admin", message: "x" } },

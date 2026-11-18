@@ -728,6 +728,33 @@
           "none": "– keine –"
         }
       }
+    },
+    "relations": {
+      "title": "Gästeprofile",
+      "hint": "Auswahl für «Wie kennst du das Paar?» im Profil der Gäste und in der Sprechblase. Wird eine Option entfernt, verlieren die Gäste, die sie gewählt hatten, ihre Auswahl.",
+      "option": "Option {{n}}",
+      "up": "{{name}} nach oben",
+      "down": "{{name}} nach unten",
+      "remove": "{{name}} entfernen",
+      "upSign": "↑",
+      "downSign": "↓",
+      "removeSign": "×",
+      "add": "Option hinzufügen",
+      "save": "Liste speichern",
+      "saved": "Gespeichert."
+    },
+    "profiles": {
+      "title": "Profil",
+      "empty": "Kein Foto, kein Gruss und keine Zeile.",
+      "remove": "{{part}} entfernen",
+      "confirm": "{{part}} wirklich entfernen?",
+      "yes": "Ja, entfernen",
+      "no": "Abbrechen",
+      "parts": {
+        "photo": "Foto",
+        "greeting": "Gruss",
+        "relationLine": "Zeile"
+      }
     }
   },
   "home": {
@@ -745,7 +772,12 @@
       "desktop": "Klicke auf Dinge, die funkeln – oder geh hin und drück Enter"
     },
     "first": {
-      "continue": "Weiter"
+      "continue": "Weiter",
+      "hello": {
+        "title": "Sag hallo",
+        "skip": "Überspringen",
+        "go": "Los geht's"
+      }
     },
     "overlay": {
       "title": "Erlebniswelt",
@@ -778,9 +810,9 @@
     "hintFigure": "Figuren sind fertige Pixelfiguren aus der Erlebniswelt. «Zufällig» wählt nur unter den Figuren dieser Art.",
     "everyone": "Wähle für jede Person eine Figur, dann geht es weiter.",
     "finish": "Fertig",
-    "cardTitle": "Deine Figur",
-    "cardText": "So siehst du in der Erlebniswelt aus, und die Personen, die du mitbringst.",
-    "cardButton": "Figur wählen"
+    "cardTitle": "Figur",
+    "cardText": "Andere Gäste sehen deine Figur in der Erlebniswelt herumspazieren.",
+    "cardButton": "Avatar bearbeiten"
   },
   "notFound": {
     "title": "Seite nicht gefunden",
@@ -924,7 +956,9 @@
     "emailTag": {
       "unverified": "nicht bestätigt",
       "verified": "bestätigt"
-    }
+    },
+    "deleteNote": "Beim Löschen verschwindet dein Login (Benutzername, Passwort, E-Mail, Sitzungen). Deine Anmeldung mit Begleitpersonen und Allergien bleibt für die Organisation bei den Gastgebern. Wenn du sie auch gelöscht haben willst, schreib ihnen. Nach dem Fest löschen wir alle persönlichen Daten.",
+    "deleteNoteOther": "Beim Löschen verschwindet dein Konto mit allen Daten."
   },
   "errors": {
     "unknown": "Das hat nicht geklappt. Bitte versuche es später noch einmal.",
@@ -993,7 +1027,8 @@
     "fst_err_ctp_body_too_large": "Das Bild ist grösser als 10 MB.",
     "fst_err_ctp_invalid_media_type": "Die Datei ist kein JPEG, PNG oder WebP.",
     "image_in_use": "Das Bild wird noch im Text oder als Titelbild gebraucht.",
-    "alt_required": "Das Titelbild braucht einen Alt-Text."
+    "alt_required": "Das Titelbild braucht einen Alt-Text.",
+    "relation_duplicate": "Eine Option kommt doppelt vor."
   },
   "notSetUp": {
     "title": "Noch nicht eingerichtet",
@@ -1118,5 +1153,29 @@
     "next": "Danach",
     "since": "seit {{time}}",
     "programmeAria": "Programm"
+  },
+  "profileCard": {
+    "title": "So sehen dich andere Gäste",
+    "text": "Wenn andere Gäste deiner Figur begegnen, sehen sie diese Sprechblase. Alles ist freiwillig.",
+    "loading": "Das Profil wird geladen …",
+    "loadFailed": "Das Profil konnte nicht geladen werden.",
+    "persons": "Personen",
+    "photoInput": "Profilfoto auswählen",
+    "photoAdd": "Foto hinzufügen",
+    "photoChange": "Foto ändern",
+    "photoRemove": "Foto entfernen",
+    "greeting": "Gruss (eine Zeile)",
+    "greetingPlaceholder": "Hi, schön dich kennenzulernen!",
+    "how": "Wie kennst du das Paar?",
+    "linePlaceholder": "Eigene Zeile (optional)",
+    "preview": "Vorschau",
+    "errors": {
+      "unknown": "Das konnte nicht gespeichert werden.",
+      "photo_type": "Das Foto muss ein JPEG, PNG oder WebP sein.",
+      "photo_too_large": "Das Foto ist zu gross (höchstens 10 MB).",
+      "photo_invalid": "Das Foto konnte nicht gelesen werden.",
+      "relation_not_found": "Diese Auswahl gibt es nicht mehr.",
+      "network_error": "Keine Verbindung. Versuche es noch einmal."
+    }
   }
 }

@@ -20,6 +20,7 @@ import {
   membershipRoles,
   memberships,
   oneTimeLinks,
+  profiles,
   sessions,
   users,
 } from "../database/schema.ts";
@@ -795,6 +796,10 @@ export class AccountService {
       .get();
     tx.delete(sessions).where(eq(sessions.userId, userId)).run();
     tx.delete(oneTimeLinks).where(eq(oneTimeLinks.userId, userId)).run();
+    // The guest's own photo and lines go with the login (ACC-12); the companions' stay with the entry.
+    tx.delete(profiles)
+      .where(and(eq(profiles.userId, userId), isNull(profiles.companionId)))
+      .run();
     tx.delete(membershipRoles)
       .where(
         and(

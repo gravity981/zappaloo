@@ -1089,7 +1089,7 @@ add({
     { q: "Is the “show my figure” switch per person (companions too)?", p: "Mock: yes, it sits in the per-person section." },
     { n: 47, q: "PRES-04 says a guest can hide their own figure. With no switch, should the spec drop that part?", p: "Proposal: yes. PRES-04 becomes “Figures and name tags are shown only to signed-in users.” A guest who doesn't want to appear can still leave out the avatar's photo and lines, or delete the account." },
   ],
-  render: () => site("more", `
+  render: (v) => site("more", `
     <div class="m-crumb">Mehr › Profil</div>
     <h1 class="m-h1">Mein Profil</h1>
     <div class="m-person-tabs" data-single>${["Erika", "Mia"].map((n, i) => `<button class="m-chip ${i === 0 ? "on" : ""}">${n}</button>`).join("")}</div>
@@ -1100,7 +1100,7 @@ add({
           ${field("Anzeigename", inp("pf-name", "Erika Huber"))}
           ${field("Gruss (eine Zeile)", inp("pf-greet", "Hi, schön dich kennenzulernen!", 'maxlength="80"'))}
           ${field("Wie kennst du das Paar?", chips(HOW, [2]))}
-          ${inp("pf-how", "WG-Gspänli aus Bern", 'maxlength="80" placeholder="Eigene Zeile (optional)"')}
+          ${inp("pf-how", "WG-Gspänli aus Bern", 'maxlength="60" placeholder="Eigene Zeile (optional)"')}
           <span class="m-eyebrow">Vorschau</span>${bubbleCard("Erika Huber", "Freunde Braut", "Hi, schön dich kennenzulernen!", "WG-Gspänli aus Bern")}
         </div>
       </div>
@@ -1414,6 +1414,7 @@ add({
       <b>Eingeladen zu</b>${chipsOn(PROGRAM_ITEMS.map((p) => p[0]), [1, 1, 1, 0])}<span class="m-hint">Dieselbe Liste wie unter Einladungen.</span>
       <b>Passwort</b><span class="m-hint">Für Gäste ohne bestätigte E-Mail-Adresse: Erstelle einen Link und gib ihn weiter. Damit setzt die Person ein neues Passwort.</span>
       ${link("Link zum Zurücksetzen", "https://zappaloo.ch/set-password/q8Zr…")}
+      <b>Profil</b><div class="m-card" style="gap:6px"><b>Erika Huber</b><span>Hi, schön dich kennenzulernen!</span><span class="m-hint">WG-Gspänli aus Bern</span><div class="m-row2"><button class="m-btn ghost sm">Foto entfernen</button><button class="m-btn ghost sm">Gruss entfernen</button><button class="m-btn ghost sm">Zeile entfernen</button></div></div><span class="m-hint">Epic 6b (PRES-14): Foto, Gruss und Zeile jeder Person (auch der Begleitung) lassen sich entfernen, mit einem zweiten Klick («Ja, entfernen»).</span>
       <button class="m-btn soft sm" style="align-self:flex-start">Konto sperren</button><span class="m-hint">Sperren braucht einen zweiten Klick («Endgültig sperren»). Die Person kann sich dann nicht mehr einloggen. Anmeldung und Gruppen bleiben.</span>
       ${dangerZone()}`);
     if (v === "create") over = panel("Konto anlegen", `${field("Benutzername", inp("au-user", "oma.erika"))}<span class="m-hint">3–32 Zeichen: a–z, 0–9, Punkt, Unterstrich, Bindestrich. Lässt sich nicht mehr ändern.</span>

@@ -8,6 +8,7 @@
 // (DATA-02); a test checks this for every table, so a table added later cannot
 // forget it.
 import {
+  blob,
   foreignKey,
   index,
   integer,
@@ -524,6 +525,58 @@ export const companionAttendance = sqliteTable(
     attending: integer("attending", { mode: "boolean" }).notNull(),
   },
   (table) => [primaryKey({ columns: [table.companionId, table.programItemId] })],
+);
+
+// --- Profiles (sw-architecture.md 3.6; PRES-09, PRES-13 – PRES-15) -----------------------
+
+/** The options of "How I know the couple", one list per event, edited by the admin (PRES-15). */
+export const relationOptions = sqliteTable(
+  "relation_options",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    eventId: text("event_id")
+      .notNull()
+      .references(() => events.id),
+    name: text("name").notNull(),
+    /** The order of the list; the admin's order. */
+    position: integer("position").notNull(),
+    createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull(),
+  },
+  (table) => [index("relation_options_event").on(table.eventId)],
+);
+
+/**
+ * What others see of a person: optional photo, greeting and "How I know the couple". One row per person: a guest
+ * (`companion_id` null) or one of their companions. The photo is the processed picture itself (256 px, a few
+ * kilobytes), so it goes with the row when the account or companion is deleted (ACC-12) and is part of every backup.
+ */
+export const profiles = sqliteTable(
+  "profiles",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    eventId: text("event_id")
+      .notNull()
+      .references(() => events.id),
+    /** The guest, or the host of the companion. */
+    userId: integer("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    companionId: integer("companion_id").references(() => companions.id, { onDelete: "cascade" }),
+    greeting: text("greeting"),
+    relationId: integer("relation_id").references(() => relationOptions.id, {
+      onDelete: "set null",
+    }),
+    relationLine: text("relation_line"),
+    photo: blob("photo", { mode: "buffer" }),
+    photoMime: text("photo_mime"),
+    updatedAt: integer("updated_at", { mode: "timestamp_ms" }).notNull(),
+  },
+  (table) => [
+    uniqueIndex("profiles_guest")
+      .on(table.eventId, table.userId)
+      .where(sql`${table.companionId} is null`),
+    uniqueIndex("profiles_companion").on(table.companionId),
+  ],
 );
 
 // --- Waiting page (sw-architecture.md 10.4; ACS-11, ACS-13) -------------------------------

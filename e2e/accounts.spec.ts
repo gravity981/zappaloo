@@ -46,8 +46,9 @@ test("[ACC-14][ACC-01][ACC-04][ACC-05] set the password with the setup link, sig
 
   // The profile is editable, and the change survives a reload (it is on the server).
   await page.getByRole("link", { name: de.nav.profile }).click();
+  // The name is stored when the field is left.
   await page.getByLabel(de.profile.displayName).fill("E2E Admin");
-  await page.getByRole("button", { name: de.profile.save }).click();
+  await page.getByLabel(de.profile.displayName).blur();
   await expect(page.getByRole("status")).toHaveText(de.profile.saved);
   await page.reload();
   await expect(page.getByLabel(de.profile.displayName)).toHaveValue("E2E Admin");

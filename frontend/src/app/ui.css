@@ -1575,3 +1575,70 @@ button {
     align-self: flex-start;
   }
 }
+
+/* The profile editor and the preview of the speech bubble (PRES-09; UX mocks `profile`, `onboard-profile`). */
+:is(.admin, .guest) .bubble-card {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  padding: 12px;
+  background: #fff;
+  border: 2px solid var(--a-ink, #222);
+  border-radius: 12px;
+}
+:is(.admin, .guest) .bubble-text {
+  gap: 4px;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+:is(.admin, .guest) .bubble-text b {
+  font-weight: 700;
+}
+:is(.admin, .guest) .bubble-text .tag {
+  align-self: flex-start;
+}
+:is(.admin, .guest) .bubble-pic {
+  flex: none;
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  object-fit: cover;
+  display: grid;
+  place-items: center;
+  background: var(--a-fill);
+  border: 1.5px solid var(--a-line);
+  color: var(--a-muted);
+  font-weight: 600;
+  font-size: 13px;
+}
+:is(.admin, .guest) .bubble-pic.large {
+  width: 72px;
+  height: 72px;
+  font-size: 20px;
+}
+/* The picture with its two buttons one above the other on its right, as in the mock `profile`. */
+:is(.admin, .guest) .profile-photo {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+:is(.admin, .guest) .profile-photo-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+}
+:is(.admin, .guest) .own-figure {
+  min-height: 0;
+  padding: 8px;
+  border-radius: 10px;
+}
+/* The figure with its button on the right, both on one centre line (a button is otherwise flush with the top). */
+:is(.admin, .guest) .figure-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+:is(.admin, .guest) .figure-row .btn {
+  align-self: center;
+}

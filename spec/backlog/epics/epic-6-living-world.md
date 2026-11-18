@@ -52,11 +52,22 @@ Decided 2026-11-18 (refinement of 6a):
 - The signed-in user's companions appear as figures; only the user's own figure is replaced by the avatar.
 Requirements: PRES-01, PRES-02, PRES-04, PRES-08, AVA-04.
 
-### Story 6b – Profiles and speech bubble
+### Story 6b – Profiles
 
-Profile photo, greeting, "How I know the couple" with relation list; speech bubble opening for the nearest figure; admin can remove profile data.
-Several bubbles can be open at once; of bubbles that would overlap, only the nearest figure's is shown (decision 10).
-Requirements: PRES-09, PRES-10, PRES-13, PRES-14, PRES-15.
+Mock screens: `profile`, `onboard-profile`, `admin-settings` (relation list), `admin-users` (profile section, drawn in this story).
+Split on 2026-11-18 (with the project owner): the speech bubble in the game is story 6b2.
+- Profile photo, greeting and "How I know the couple" (a list option and a free line) per person, the guest and each approved companion; the profile card "So sehen dich andere" with the bubble preview and the step "Sag hallo" of the first entry (GAME-13).
+- **Photo:** processed on the server with `sharp` (sw-architecture.md 25): JPEG, PNG and WebP are accepted (HEIC comes with the contribution pipeline of epic 7: sharp's prebuilt binaries cannot decode it, and a phone's browser converts it to JPEG when it is picked), the picture is cropped to a square, shrunk to 256 px, re-encoded as WebP and stripped of EXIF and GPS data. The pipeline is the one epic 7 reuses. The processed picture (a few kilobytes) is stored as a BLOB in the table `profiles`, so account deletion and backups need no file handling.
+- **Limits:** greeting 80 characters, the free line 60. The relation list is edited by the admin in Einstellungen and starts with the six wedding defaults of the mock (Familie Braut, Familie Bräutigam, Freunde Braut, Freunde Bräutigam, Freunde beider, Arbeit).
+- **Admin removal** (PRES-14): the account panel in Konten gets a section "Profil" per person with the photo, the greeting and the lines, each with a button to remove it, audited with ids only. The mock `admin-users` gets the section in this story.
+Requirements: PRES-09, PRES-13, PRES-14, PRES-15.
+Re-verified: GAME-13.
+
+### Story 6b2 – Speech bubble
+
+Mock screen: `game`.
+- The speech bubble of a guest figure opens automatically when the player comes close; the figure stops and turns to the player. Several bubbles can be open at once; of bubbles that would overlap, only the nearest figure's is shown (decision 10). A click or tap pins a bubble until it is closed.
+Requirements: PRES-10.
 
 ### Story 6c – Seating plan and table finder
 

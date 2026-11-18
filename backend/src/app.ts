@@ -15,6 +15,8 @@ import { contentRoutes } from "./api/content.ts";
 import { themeRoutes } from "./api/theme.ts";
 import { ThemeService } from "./theme/service.ts";
 import { avatarRoutes } from "./api/avatar.ts";
+import { profileRoutes } from "./api/profile.ts";
+import { ProfileService } from "./profile/service.ts";
 import { worldRoutes } from "./api/world.ts";
 import { AvatarService } from "./world/avatar.ts";
 import { websiteRoutes } from "./api/website.ts";
@@ -112,6 +114,9 @@ export async function buildApp(options: AppOptions): Promise<FastifyInstance> {
   await app.register(avatarRoutes, {
     avatar: new AvatarService(options.database, options.event, options.auth.world),
     world: options.auth.world,
+  });
+  await app.register(profileRoutes, {
+    profile: new ProfileService(options.database, options.event),
   });
   await app.register(eventApiRoutes, { event: options.event, footer: options.auth.footer, theme });
   await app.register(pwaRoutes, {
