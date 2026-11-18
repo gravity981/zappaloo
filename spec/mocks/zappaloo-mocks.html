@@ -1598,7 +1598,7 @@ add({
         <span class="m-eyebrow">Kindermenüs</span>
         <div class="m-list">${KID_MENUS.map((p) => `<div class="m-li"><div class="grow"><b class="sm">${p}</b></div><span class="m-hint">Kürzel</span>${inp("mk-" + p, CODES[p], 'maxlength="2" style="width:56px" aria-label="Kürzel"')}<button class="m-btn ghost sm">Löschen</button></div>`).join("")}</div>
         <button class="m-btn ghost sm" style="align-self:flex-start">${ic("plus")} Kindermenü hinzufügen</button>
-        <span class="m-hint">Erwachsene wählen aus «Menüs», Kinder aus «Kindermenüs». Ein Menü ist Pflicht, solange die Liste der Person Einträge hat; ohne Kindermenüs werden Kinder nicht gefragt. Das Kürzel (1–2 Zeichen, vorgegeben: der erste Buchstabe) steht in den Tabellen, ebenso das der Programmpunkte. Wer vor dem Update ein Menü der Erwachsenen-Liste gewählt hat, behält es, bis neu gewählt wird; die Übersicht zeigt es als «Erwachsenenmenü».</span></div>
+        <span class="m-hint">Erwachsene wählen aus «Menüs», Kinder aus «Kindermenüs». Gefragt wird nur beim Programmpunkt mit dem Essen.</span></div>
       <div class="m-card"><b>Funktionen</b>${[["Minigames", 1], ["Schnappschüsse", 1], ["Galerie", 1], ["Gästebuch", 1], ["Schatzsuche", 1], ["Eventscreen", 1], ["Galerie für Gäste freigegeben", 0]].map(([n, o]) => `<div class="m-setrow"><div class="grow"><b class="sm">${n}</b></div>${sw(o)}</div>`).join("")}</div>
     </div>
     <div class="m-grid-d2">
