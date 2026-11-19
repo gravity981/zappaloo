@@ -58,6 +58,8 @@ export class PreviewPackageStore {
           bird: result.package.files.has(WORLD_BIRD_METADATA),
           // A preview has no installation: the presets of the maps apply (MAP-15).
           actions: [],
+          // ... and no short dialogs: the NPCs show no speech bubble (GAME-37).
+          npcs: [],
         },
         findings: result.findings,
       },

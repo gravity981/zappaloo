@@ -134,6 +134,11 @@ Re-verified: GAME-25, AVA-01.
 
 Mock screens: `admin-world` (NPC list), `game` (NPC bubble).
 - The NPC list per map in Erlebniswelt with name, short dialog and action, audited; the NPC bubble from 3 tiles, several bubbles with the overlap rule; edge indicators for NPCs with an action.
+- **Decided 2026-11-18 (with the project owner):**
+  - **Tap on a bubble:** a tap or click on an NPC's open bubble does what a tap on the NPC does: the player walks to it and its action runs. An NPC without an action behaves like a guest figure: the tap pins the bubble until its cross is used.
+  - **Picture:** the circle of the bubble shows the portrait of the NPC's dialogue when its effective action is a dialogue that has a portrait (CNT-08), otherwise the initials of the NPC's name.
+  - **Admin:** each map's card "NPCs" lies below its objects in the tab Objekte & Portale: one block per NPC with name, short dialog (counter, 120 characters), the action select (live at once, like an object's) and a button "Speichern" for the two texts. The UX mock `admin-world` gets the card in the same story.
+  - **Details I settled:** the name is the admin's, else the Tiled `label`, else the object name; it labels the bubble and the edge indicator. An NPC's bubble opens within 3 tiles and closes beyond 3.5. The edge indicator of an NPC follows it and a tap on it walks to the NPC. The NPC's texts are stored per map and NPC name in the table `world_npcs` and the audit entry names the map and the NPC only; the action is the one of `world_object_actions`.
 Requirements: MAP-21, GAME-37, GAME-39.
 Re-verified: PRES-10, CNT-03, GAME-26.
 

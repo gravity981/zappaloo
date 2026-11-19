@@ -6,6 +6,7 @@ import {
   pixelLabMetadataSchema,
   publicWorldSchema,
   WORLD_DIRECTIONS,
+  type PublicNpc,
   type PublicWorld,
   type WorldObjectAction,
 } from "@zappaloo/shared";
@@ -45,6 +46,8 @@ export interface LoadedWorld {
   images: Map<string, string>;
   /** The actions the admin assigned to clickable objects, by `<map id>/<object name>` (MAP-15). */
   actions: Map<string, WorldObjectAction>;
+  /** The texts the admin gave the NPCs, by `<map id>/<NPC name>` (MAP-21): name, short dialog and portrait. */
+  npcs: Map<string, PublicNpc>;
 }
 
 /** Inputs already loaded by a host adapter; the same path prepares authenticated and local packages. */
@@ -172,5 +175,6 @@ export function prepareWorld(source: WorldSource): LoadedWorld {
     ...(bird === undefined ? {} : { bird }),
     images,
     actions: new Map(summary.actions.map((item) => [`${item.map}/${item.object}`, item.action])),
+    npcs: new Map(summary.npcs.map((item) => [`${item.map}/${item.name}`, item])),
   };
 }

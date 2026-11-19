@@ -5,38 +5,14 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { contentResponseSchema, worldObjectsSchema } from "@zappaloo/shared";
-import type { WorldClickable, WorldObjectAction, WorldObjects } from "@zappaloo/shared";
+import type { WorldClickable, WorldNpc, WorldObjectAction, WorldObjects } from "@zappaloo/shared";
+import AdminWorldNpcs from "./AdminWorldNpcs.tsx";
+import ActionSelect from "./ActionSelect.tsx";
+import { actionOfValue, selectValue } from "./world-actions.ts";
 import { useAdminCall, useAdminData, useErrorText } from "./data.ts";
 
 const OBJECTS_PATH = "/api/admin/world/objects";
-/** The value of the select for "no action". */
-const NO_ACTION = "none";
-const NONE_ACTION: WorldObjectAction = { kind: "none" };
-
-/** The value of the select for an action. */
-function selectValue(action: WorldObjectAction | undefined): string {
-  if (action === undefined) return NO_ACTION;
-  switch (action.kind) {
-    case "page":
-      return `page:${action.page}`;
-    case "dialog":
-      return `dialog:${action.dialogId}`;
-    case "minigame":
-      return `minigame:${action.minigameId}`;
-    case "none":
-      return NO_ACTION;
-  }
-}
-
-/** The action a select value stands for. */
-function actionOfValue(value: string): WorldObjectAction {
-  if (value === NO_ACTION) return NONE_ACTION;
-  const [kind, ...rest] = value.split(":");
-  const target = rest.join(":");
-  if (kind === "page") return { kind: "page", page: target };
-  return { kind: "dialog", dialogId: target };
-}
-
+const NPCS_PATH = "/api/admin/world/npcs";
 export default function AdminWorldObjects() {
   const { t } = useTranslation();
   const errorText = useErrorText();
@@ -92,7 +68,8 @@ export default function AdminWorldObjects() {
     }
   };
 
-  async function assign(clickable: WorldClickable, value: string) {
+  /** Assigns an action to a clickable object or an NPC: picking what the preset says returns to the preset. */
+  async function assign(clickable: Pick<WorldClickable, "name" | "preset">, value: string) {
     setError(undefined);
     setSaved(false);
     const candidate = actionOfValue(value);
@@ -111,6 +88,29 @@ export default function AdminWorldObjects() {
       } else {
         setError(errorText(result.errorCode));
       }
+    } finally {
+      setSaving(undefined);
+    }
+  }
+
+  /** Saves the name and the short dialog of an NPC; true when they were saved. */
+  async function saveTexts(npc: WorldNpc, title: string, dialog: string): Promise<boolean> {
+    setError(undefined);
+    setSaved(false);
+    setSaving(npc.name);
+    try {
+      const path = `${NPCS_PATH}/${encodeURIComponent(map?.id ?? "")}/${encodeURIComponent(npc.name)}`;
+      const result = await call("PUT", path, {
+        title: title === "" ? null : title,
+        dialog: dialog === "" ? null : dialog,
+      });
+      const parsed = worldObjectsSchema.safeParse(result.body);
+      if (result.ok && parsed.success) {
+        replace(parsed.data);
+        return true;
+      }
+      setError(errorText(result.errorCode));
+      return false;
     } finally {
       setSaving(undefined);
     }
@@ -179,6 +179,16 @@ export default function AdminWorldObjects() {
           </p>
         )}
       </section>
+      {map.npcs.length > 0 && (
+        <AdminWorldNpcs
+          npcs={map.npcs}
+          targets={data}
+          actionName={actionName}
+          busy={saving}
+          onAction={(npc, value) => void assign(npc, value)}
+          onTexts={saveTexts}
+        />
+      )}
       <section className="card" aria-labelledby="portals-title">
         <b id="portals-title">
           {t("admin.world.objects.portalsTitle", { count: map.portals.length })}
@@ -223,24 +233,6 @@ function ClickableRow({
   onChange: (value: string) => void;
 }) {
   const { t } = useTranslation();
-  const effective = clickable.override ?? clickable.preset;
-  const options = [
-    ...targets.pages.map((page) => `page:${page}`),
-    ...targets.dialogues.map((id) => `dialog:${id}`),
-    // A preset can name a minigame, which an admin cannot assign (stage 8): it is listed so it can be shown.
-    ...(clickable.preset?.kind === "minigame" ? [selectValue(clickable.preset)] : []),
-  ];
-  // The select shows the action that applies; a target that does not exist shows as «– keine –» (the preset
-  // column says what is missing).
-  const shown = selectValue(effective);
-  const value = options.includes(shown) ? shown : NO_ACTION;
-  const label = (option: string): string => {
-    const [kind, ...rest] = option.split(":");
-    const target = rest.join(":");
-    if (kind === "page") return actionName({ kind: "page", page: target });
-    if (kind === "dialog") return actionName({ kind: "dialog", dialogId: target });
-    return actionName({ kind: "minigame", minigameId: target });
-  };
   return (
     <tr>
       <td>
@@ -255,24 +247,17 @@ function ClickableRow({
         )}
       </td>
       <td>
-        <select
-          className="input auto"
-          aria-label={t("admin.world.objects.actionOf", {
+        <ActionSelect
+          ariaLabel={t("admin.world.objects.actionOf", {
             name: clickable.label ?? clickable.name,
           })}
-          value={value}
-          disabled={busy}
-          onChange={(event) => {
-            onChange(event.target.value);
-          }}
-        >
-          {options.map((option) => (
-            <option key={option} value={option}>
-              {label(option)}
-            </option>
-          ))}
-          <option value={NO_ACTION}>{actionName(NONE_ACTION)}</option>
-        </select>
+          preset={clickable.preset}
+          effective={clickable.override ?? clickable.preset}
+          targets={targets}
+          actionName={actionName}
+          busy={busy}
+          onChange={onChange}
+        />
       </td>
       <td className="muted sm">
         {clickable.preset === undefined ? (

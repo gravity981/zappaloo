@@ -258,8 +258,9 @@ test("[GAME-26][GAME-06][GAME-16] an object outside the view has an indicator at
   context,
 }, testInfo) => {
   test.skip(testInfo.project.name !== "desktop-chromium", "shared settings: one profile only");
-  // A phone-sized view shows only a small part of the map, so objects lie outside it.
-  await page.setViewportSize({ width: 360, height: 340 });
+  // A phone-sized view shows only a small part of the map, so objects lie outside it. It is tall enough that the
+  // indicator of the sexton (an NPC with an action, GAME-39) does not overlap the altar's, which it would hide.
+  await page.setViewportSize({ width: 360, height: 420 });
   await signInAsAdmin(page, context);
   await enterGame(page);
   const before = await gameState(page);
@@ -891,10 +892,10 @@ test("[GAME-38][GAME-36] a tap on the sexton walks the player to him, he waits a
   await expect(page.getByTestId("game-canvas")).toBeVisible({ timeout: 20_000 });
   const sexton = (await gameState(page)).npcs.find((npc) => npc.name === "kuester");
   if (sexton === undefined) throw new Error("the church has no sexton");
-  // An NPC is no clickable object of the map: no sparkles, no shine, and no indicator at the edge.
+  // An NPC is no clickable object of the map: no sparkles, no shine, and no indicator while it is in view.
   const objects = (await page.evaluate(() => window.__zappaloo?.game?.clickables())) ?? [];
   expect(objects.some((object) => object.name === "kuester")).toBe(false);
-  await expect(page.locator('[data-indicator="object:kuester"]')).toHaveCount(0);
+  await expect(page.locator('[data-indicator="npc:kuester"]')).toHaveCount(0);
   expect((await gameState(page)).walk.glow).toBeNull();
 
   // A tap on his body: the walk starts, and he glows and waits (he does not walk on while the player is on the way).
@@ -922,4 +923,90 @@ test("[GAME-38][GAME-36] a tap on the sexton walks the player to him, he waits a
   // The page is open above the game, and the glow is gone with the walk.
   expect((await gameState(page)).walk.glow).toBeNull();
   await page.screenshot({ path: testInfo.outputPath("game-npc-tap.png") });
+});
+
+/** Sets the name and the short dialog of the sexton of the church in Erlebniswelt (MAP-21); empty texts remove them. */
+async function setSextonTexts(page: Page, title: string, dialog: string): Promise<void> {
+  await page.goto("/admin/world");
+  await page.getByRole("button", { name: de.admin.world.tabObjects }).click();
+  await page.getByRole("button", { name: "Kirche" }).click();
+  const block = page.getByTestId("npc-kuester");
+  await block.getByLabel(/^Name/).fill(title);
+  await block.getByLabel(/^Kurzer Dialog/).fill(dialog);
+  await block.getByRole("button", { name: de.admin.world.npcs.save }).click();
+  await expect(block.getByText(de.admin.world.npcs.saved)).toBeVisible();
+}
+
+test("[MAP-21][GAME-37] the admin gives the sexton a name and a short dialog; in the game his speech bubble opens, he stops and turns to the player, and a tap on the bubble opens his page", async ({
+  page,
+  context,
+}, testInfo) => {
+  test.skip(testInfo.project.name !== "desktop-chromium", "shared settings: one profile only");
+  test.setTimeout(90_000);
+  await signInAsAdmin(page, context);
+  await setSextonTexts(page, "Küster Fritz", "Psst, hier entlang zum Programm!");
+
+  await enterGame(page);
+  await expect(page.getByTestId("game-canvas")).toBeVisible({ timeout: 20_000 });
+  expect((await gameState(page)).mapId).toBe("kirche");
+  // The player starts within 3 tiles of him: his bubble opens with his name and his short dialog, and he stands still.
+  const bubble = page.locator('[data-testid="guest-bubble"][data-guest="npc:kuester"]');
+  await expect(bubble).toBeVisible({ timeout: 10_000 });
+  await expect(bubble).toContainText("Küster Fritz");
+  await expect(bubble).toContainText("Psst, hier entlang zum Programm!");
+  const sexton = async () => (await gameState(page)).npcs.find((npc) => npc.name === "kuester");
+  expect(await sexton()).toMatchObject({ bubble: true, moving: false, tappable: true });
+  await page.screenshot({ path: testInfo.outputPath("game-npc-bubble.png") });
+  // The gardener has no short dialog, so he has no bubble.
+  await expect(page.locator('[data-testid="guest-bubble"][data-guest="npc:gaertner"]')).toHaveCount(
+    0,
+  );
+
+  // A tap on the bubble does what a tap on the NPC does: his action runs, a page above the game named by his name.
+  const dialog = page.getByRole("dialog", { name: "Küster Fritz" });
+  await expect(async () => {
+    if (await dialog.isVisible()) return;
+    await bubble.click();
+    await expect(dialog).toBeVisible({ timeout: 4_000 });
+  }).toPass({ timeout: 40_000 });
+  // The bubbles are hidden while a page is open above the game (GAME-11).
+  await expect(bubble).toBeHidden();
+
+  // The texts are live at the next load; emptied, the bubble is gone, and the label of Tiled names him again.
+  await setSextonTexts(page, "", "");
+  await enterGame(page);
+  await expect(page.getByTestId("game-canvas")).toBeVisible({ timeout: 20_000 });
+  await expect.poll(async () => (await gameState(page)).npcs.length).toBeGreaterThan(0);
+  await expect(bubble).toHaveCount(0);
+});
+
+test("[GAME-39][GAME-37] an NPC with an action outside the view has an indicator labelled with his name; a tap on it walks to him and opens his page", async ({
+  page,
+  context,
+}, testInfo) => {
+  test.skip(testInfo.project.name !== "desktop-chromium", "shared settings: one profile only");
+  test.setTimeout(90_000);
+  await signInAsAdmin(page, context);
+  await setSextonTexts(page, "Küster Fritz", "");
+  // A phone-sized view shows only a small part of the map, so the sexton lies outside it.
+  await page.setViewportSize({ width: 320, height: 520 });
+  await enterGame(page);
+  await expect(page.getByTestId("game-canvas")).toBeVisible({ timeout: 20_000 });
+  const indicator = page.locator('[data-indicator="npc:kuester"]');
+  await expect(indicator).toBeVisible({ timeout: 10_000 });
+  await expect(indicator).toContainText("Küster Fritz");
+  // He has no short dialog now, so no bubble opens even if the player is near him.
+  await expect(page.locator('[data-testid="guest-bubble"][data-guest="npc:kuester"]')).toHaveCount(
+    0,
+  );
+  // The gardener has no action, so he has no indicator, in the garden or here.
+  await expect(page.locator('[data-indicator="npc:gaertner"]')).toHaveCount(0);
+  await page.screenshot({ path: testInfo.outputPath("game-npc-indicator.png") });
+  await indicator.click();
+  await expect(page.getByRole("dialog", { name: "Küster Fritz" })).toBeVisible({ timeout: 40_000 });
+  // The page is open above the paused game: no indicator over it (GAME-11).
+  await expect(indicator).toBeHidden();
+
+  await page.setViewportSize({ width: 1280, height: 720 });
+  await setSextonTexts(page, "", "");
 });

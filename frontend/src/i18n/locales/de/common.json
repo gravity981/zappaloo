@@ -729,6 +729,21 @@
           "none": "– keine –"
         }
       },
+      "npcs": {
+        "title": "NPCs ({{count}})",
+        "info": "Figuren aus der Tiled-Datei · Aktion sofort live, Texte mit «Speichern»",
+        "name": "Name",
+        "nameHint": "Steht in der Sprechblase und am Rand. Leer: das Label aus Tiled.",
+        "action": "Aktion beim Antippen",
+        "actionOf": "Aktion von {{name}}",
+        "preset": "Vorgabe aus Tiled: {{action}}",
+        "noPreset": "Ohne Vorgabe aus Tiled",
+        "dialog": "Kurzer Dialog",
+        "dialogHint": "Eine Zeile für die Sprechblase. Leer: keine Sprechblase.",
+        "counter": "{{count}} / {{max}}",
+        "save": "Speichern",
+        "saved": "Gespeichert."
+      },
       "tabDialogues": "Dialoge"
     },
     "relations": {

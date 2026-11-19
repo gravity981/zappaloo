@@ -869,3 +869,21 @@ export const worldObjectActions = sqliteTable(
   },
   (table) => [primaryKey({ columns: [table.eventId, table.mapId, table.objectName] })],
 );
+
+/**
+ * The texts the admin gave the NPCs of the world (sw-architecture.md 14.4, MAP-21): a name and a short dialog, per
+ * map id and NPC name, so they survive a new import of the world. Either may be null; a row with neither is removed.
+ */
+export const worldNpcs = sqliteTable(
+  "world_npcs",
+  {
+    eventId: text("event_id")
+      .notNull()
+      .references(() => events.id),
+    mapId: text("map_id").notNull(),
+    npcName: text("npc_name").notNull(),
+    title: text("title"),
+    dialog: text("dialog"),
+  },
+  (table) => [primaryKey({ columns: [table.eventId, table.mapId, table.npcName] })],
+);

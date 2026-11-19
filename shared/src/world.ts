@@ -41,6 +41,8 @@ export const WORLD_LIMITS = {
   idLength: 40,
   labelLength: 30,
   nameLength: 60,
+  /** The longest short dialog of an NPC, in characters (MAP-21). */
+  npcDialogLength: 120,
   /** The longest text of a map object's property (a content id, a table, a page). */
   propertyLength: 60,
 } as const;
@@ -577,6 +579,30 @@ export const worldClickableSchema = z.object({
 });
 export type WorldClickable = z.infer<typeof worldClickableSchema>;
 
+/** One NPC of a map, as the admin's list shows it (MAP-21): its Tiled data, the assignment and the two texts. */
+export const worldNpcSchema = z.object({
+  name: z.string(),
+  /** The Tiled `label`, which names the NPC until the admin gives it a name. */
+  label: z.string().optional(),
+  /** The preset action of the Tiled file, if it has one. */
+  preset: worldActionSchema.optional(),
+  /** The admin's assignment, if there is one. */
+  override: worldActionSchema.optional(),
+  /** Whether the effective action points to something that does not exist. */
+  missing: z.boolean(),
+  /** The admin's name for the NPC, if there is one. */
+  title: z.string().optional(),
+  /** The short dialog, if there is one. */
+  dialog: z.string().optional(),
+});
+export type WorldNpc = z.infer<typeof worldNpcSchema>;
+
+/** `PUT /api/admin/world/npcs/:map/:name`: the NPC's name and short dialog; null (or an empty text) removes one (MAP-21). */
+export const worldNpcRequestSchema = z.strictObject({
+  title: z.string().trim().max(WORLD_LIMITS.nameLength).nullable(),
+  dialog: z.string().trim().max(WORLD_LIMITS.npcDialogLength).nullable(),
+});
+
 /** One portal of a map, read-only (MAP-15). */
 export const worldPortalSchema = z.object({
   name: z.string(),
@@ -593,6 +619,8 @@ export const worldObjectsSchema = z.object({
       id: z.string(),
       name: z.string().optional(),
       clickables: z.array(worldClickableSchema),
+      /** The NPCs of the map (format version 3, MAP-21). */
+      npcs: z.array(worldNpcSchema).default([]),
       portals: z.array(worldPortalSchema),
     }),
   ),
@@ -602,6 +630,17 @@ export const worldObjectsSchema = z.object({
   dialogues: z.array(z.string()),
 });
 export type WorldObjects = z.infer<typeof worldObjectsSchema>;
+
+/** What the game knows of an NPC's texts (GAME-37): the admin's name and short dialog, and a portrait. */
+export const publicNpcSchema = z.object({
+  map: z.string(),
+  name: z.string(),
+  title: z.string().optional(),
+  dialog: z.string().optional(),
+  /** The address of the portrait of the NPC's dialogue, when its action is a dialogue that has one (CNT-08). */
+  portrait: z.string().optional(),
+});
+export type PublicNpc = z.infer<typeof publicNpcSchema>;
 
 /** `GET /api/world`: what a player's browser needs to load the world (MAP-10). `version` is the import id. */
 export const publicWorldSchema = z.object({
@@ -615,6 +654,8 @@ export const publicWorldSchema = z.object({
   figures: z.array(worldFigureV3Schema),
   /** The actions the admin assigned to clickable objects; they replace the presets of the maps (MAP-15). */
   actions: z.array(worldActionOverrideSchema).default([]),
+  /** The texts the admin gave the NPCs (MAP-21); an NPC without any is not listed. */
+  npcs: z.array(publicNpcSchema).default([]),
   /** Whether the world has a bird (`ambient/bird/metadata.json`, format version 3): without one there are no birds. */
   bird: z.boolean().default(false),
 });

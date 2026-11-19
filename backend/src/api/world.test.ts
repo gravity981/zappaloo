@@ -1,5 +1,6 @@
 import { existsSync, readdirSync } from "node:fs";
 import { join } from "node:path";
+import sharp from "sharp";
 import { afterEach, describe, expect, it } from "vitest";
 import type { PublicWorld, WorldObjects, WorldStatus } from "@zappaloo/shared";
 import { buildArchive } from "../packages/build.ts";
@@ -686,5 +687,235 @@ describe("guest access to the world (MAP-19)", () => {
     await upload(ctx, admin, buildTestWorld());
     await setAccess(ctx, admin, false);
     expect(ctx.event.auditEntries().map((entry) => entry.action)).toContain("world.guest_access");
+  });
+});
+
+describe("the NPCs in Erlebniswelt: name, short dialog, action (MAP-21, GAME-37)", () => {
+  const putNpc = (ctx: TestContext, headers: Headers, map: string, name: string, body: object) =>
+    ctx.app.inject({
+      method: "PUT",
+      url: `/api/admin/world/npcs/${map}/${name}`,
+      headers,
+      payload: body,
+    });
+  const objects = async (ctx: TestContext, headers: Headers) =>
+    bodyOf<WorldObjects>(await ctx.app.inject({ url: "/api/admin/world/objects", headers }));
+  const world = async (ctx: TestContext, headers: Headers) =>
+    bodyOf<PublicWorld>(await ctx.app.inject({ url: "/api/world", headers }));
+  const npcOf = (list: WorldObjects, map: string, name: string) =>
+    list.maps.find((item) => item.id === map)?.npcs.find((item) => item.name === name);
+
+  /** The test world without the sexton of the church, to see what a new import does with his texts. */
+  const worldWithoutSexton = (): Buffer => {
+    const files = testWorldFiles();
+    interface Layer {
+      objects?: { name: string }[];
+      layers?: Layer[];
+    }
+    const map = JSON.parse(files["maps/kirche.json"]?.toString("utf8") ?? "{}") as {
+      layers: Layer[];
+    };
+    const drop = (layers: Layer[]): void => {
+      for (const layer of layers) {
+        if (layer.objects) layer.objects = layer.objects.filter((item) => item.name !== "kuester");
+        if (layer.layers) drop(layer.layers);
+      }
+    };
+    drop(map.layers);
+    files["maps/kirche.json"] = Buffer.from(JSON.stringify(map));
+    return buildArchive(files);
+  };
+
+  it("[MAP-21] each map lists its NPCs with the label and the preset of the Tiled file, and no name or short dialog yet", async () => {
+    context = await createTestApp();
+    const ctx = context;
+    const admin = await signIn(ctx, "boss", ["admin"]);
+    await upload(ctx, admin, buildTestWorld());
+    const list = await objects(ctx, admin);
+    expect(npcOf(list, "kirche", "kuester")).toEqual({
+      name: "kuester",
+      label: "Küster",
+      preset: { kind: "page", page: "programme" },
+      missing: false,
+    });
+    expect(npcOf(list, "garten", "gaertner")).toEqual({ name: "gaertner", missing: false });
+    expect(npcOf(list, "saal", "kuester")).toBeUndefined();
+  });
+
+  it("[MAP-21][GAME-37] the admin sets an NPC's name and short dialog, live at once for the game; null or an empty text removes one", async () => {
+    context = await createTestApp();
+    const ctx = context;
+    const admin = await signIn(ctx, "boss", ["admin"]);
+    ctx.event.setSetting("platformOpen", true, "cli");
+    const player = await signIn(ctx, "gast", ["vip"]);
+    await upload(ctx, admin, buildTestWorld());
+    expect((await world(ctx, player)).npcs).toEqual([]);
+
+    const set = await putNpc(ctx, admin, "garten", "gaertner", {
+      title: "  Gärtner Hans ",
+      dialog: "Schöne Rosen, nicht wahr?",
+    });
+    expect(set.statusCode).toBe(200);
+    expect(npcOf(set.json<WorldObjects>(), "garten", "gaertner")).toMatchObject({
+      title: "Gärtner Hans",
+      dialog: "Schöne Rosen, nicht wahr?",
+    });
+    expect((await world(ctx, player)).npcs).toEqual([
+      {
+        map: "garten",
+        name: "gaertner",
+        title: "Gärtner Hans",
+        dialog: "Schöne Rosen, nicht wahr?",
+      },
+    ]);
+
+    // One text alone is fine; an empty text is none.
+    await putNpc(ctx, admin, "garten", "gaertner", { title: null, dialog: "Hallo!" });
+    expect((await world(ctx, player)).npcs).toEqual([
+      { map: "garten", name: "gaertner", dialog: "Hallo!" },
+    ]);
+    await putNpc(ctx, admin, "garten", "gaertner", { title: "", dialog: null });
+    expect((await world(ctx, player)).npcs).toEqual([]);
+    expect(npcOf(await objects(ctx, admin), "garten", "gaertner")).toEqual({
+      name: "gaertner",
+      missing: false,
+    });
+  });
+
+  it("[MAP-21] the audit entry names the map and the NPC, not the texts", async () => {
+    context = await createTestApp();
+    const ctx = context;
+    const admin = await signIn(ctx, "boss", ["admin"]);
+    await upload(ctx, admin, buildTestWorld());
+    await putNpc(ctx, admin, "garten", "gaertner", { title: "Geheim", dialog: "Auch geheim" });
+    const entry = ctx.event.auditEntries().find((item) => item.action === "world.npc");
+    expect(entry?.details).toEqual({ map: "garten", npc: "gaertner" });
+  });
+
+  it("[MAP-21] the short dialog has at most 120 characters, the name 60; the NPC must exist; only admins set the texts", async () => {
+    context = await createTestApp();
+    const ctx = context;
+    const admin = await signIn(ctx, "boss", ["admin"]);
+    const staff = await signIn(ctx, "crew", ["staff"]);
+    await upload(ctx, admin, buildTestWorld());
+    const ok = { title: "x".repeat(60), dialog: "y".repeat(120) };
+    expect((await putNpc(ctx, admin, "garten", "gaertner", ok)).statusCode).toBe(200);
+    for (const body of [
+      { title: null, dialog: "y".repeat(121) },
+      { title: "x".repeat(61), dialog: null },
+      { title: null },
+      { title: null, dialog: null, other: 1 },
+    ]) {
+      expect((await putNpc(ctx, admin, "garten", "gaertner", body)).statusCode).toBe(400);
+    }
+    const nobody = await putNpc(ctx, admin, "garten", "nobody", { title: "x", dialog: null });
+    expect(nobody.statusCode).toBe(404);
+    expect(nobody.json<{ error: { code: string } }>().error.code).toBe("object_not_found");
+    // A clickable object is no NPC.
+    expect(
+      (await putNpc(ctx, admin, "kirche", "altar", { title: "x", dialog: null })).statusCode,
+    ).toBe(404);
+    expect(
+      (await putNpc(ctx, staff, "garten", "gaertner", { title: "x", dialog: null })).statusCode,
+    ).toBe(403);
+  });
+
+  it("[MAP-21][GAME-38] an NPC's action is assigned like an object's, and returns to its preset", async () => {
+    context = await createTestApp();
+    const ctx = context;
+    const admin = await signIn(ctx, "boss", ["admin"]);
+    await upload(ctx, admin, buildTestWorld());
+    const assign = (action: unknown) =>
+      ctx.app.inject({
+        method: "PUT",
+        url: "/api/admin/world/objects/garten/gaertner",
+        headers: admin,
+        payload: { action },
+      });
+    const assigned = await assign({ kind: "page", page: "profile" });
+    expect(assigned.statusCode).toBe(200);
+    expect(npcOf(assigned.json<WorldObjects>(), "garten", "gaertner")).toMatchObject({
+      override: { kind: "page", page: "profile" },
+    });
+    expect((await world(ctx, admin)).actions).toEqual([
+      { map: "garten", object: "gaertner", action: { kind: "page", page: "profile" } },
+    ]);
+    await assign(null);
+    expect((await world(ctx, admin)).actions).toEqual([]);
+    // The preset of the sexton applies until the admin picks another action.
+    expect(npcOf(await objects(ctx, admin), "kirche", "kuester")?.preset).toEqual({
+      kind: "page",
+      page: "programme",
+    });
+  });
+
+  it("[MAP-21] the texts follow the NPC by its map and name: a new import without the NPC neither shows nor serves them, and they are back with the NPC", async () => {
+    context = await createTestApp();
+    const ctx = context;
+    const admin = await signIn(ctx, "boss", ["admin"]);
+    await upload(ctx, admin, buildTestWorld());
+    await putNpc(ctx, admin, "kirche", "kuester", { title: "Küster Fritz", dialog: "Psst!" });
+    expect((await world(ctx, admin)).npcs).toHaveLength(1);
+
+    expect((await upload(ctx, admin, worldWithoutSexton())).statusCode).toBe(200);
+    expect(npcOf(await objects(ctx, admin), "kirche", "kuester")).toBeUndefined();
+    expect((await world(ctx, admin)).npcs).toEqual([]);
+
+    await upload(ctx, admin, buildTestWorld());
+    expect(npcOf(await objects(ctx, admin), "kirche", "kuester")).toMatchObject({
+      title: "Küster Fritz",
+      dialog: "Psst!",
+    });
+    expect((await world(ctx, admin)).npcs).toEqual([
+      { map: "kirche", name: "kuester", title: "Küster Fritz", dialog: "Psst!" },
+    ]);
+  });
+
+  it("[MAP-21][GAME-37] the portrait of the NPC's dialogue is named by its address, with the version, once the action is that dialogue", async () => {
+    context = await createTestApp();
+    const ctx = context;
+    const admin = await signIn(ctx, "boss", ["admin"]);
+    await upload(ctx, admin, buildTestWorld());
+    const made = await ctx.app.inject({
+      method: "POST",
+      url: "/api/admin/dialogues",
+      headers: admin,
+      payload: { id: "kuester-gespraech", npcName: "Küster", lines: ["Grüss Gott!"] },
+    });
+    expect(made.statusCode).toBe(201);
+    await ctx.app.inject({
+      method: "PUT",
+      url: "/api/admin/world/objects/kirche/kuester",
+      headers: admin,
+      payload: { action: { kind: "dialog", dialogId: "kuester-gespraech" } },
+    });
+    // The dialogue has no portrait yet, and the NPC no texts: it is not listed.
+    expect((await world(ctx, admin)).npcs).toEqual([]);
+
+    const png = await sharp({ create: { width: 32, height: 32, channels: 3, background: "#369" } })
+      .png()
+      .toBuffer();
+    const portrait = await ctx.app.inject({
+      method: "PUT",
+      url: "/api/admin/dialogues/kuester-gespraech/portrait",
+      headers: { ...admin, "content-type": "image/png" },
+      payload: png,
+    });
+    const version = portrait.json<{ portrait: number }>().portrait;
+    expect((await world(ctx, admin)).npcs).toEqual([
+      {
+        map: "kirche",
+        name: "kuester",
+        portrait: `/api/dialogues/kuester-gespraech/portrait?v=${String(version)}`,
+      },
+    ]);
+    // An action that is no dialogue has no portrait.
+    await ctx.app.inject({
+      method: "PUT",
+      url: "/api/admin/world/objects/kirche/kuester",
+      headers: admin,
+      payload: { action: { kind: "page", page: "profile" } },
+    });
+    expect((await world(ctx, admin)).npcs).toEqual([]);
   });
 });

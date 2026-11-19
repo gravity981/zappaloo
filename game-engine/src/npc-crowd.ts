@@ -3,6 +3,9 @@
 // only and do not block the player. An NPC with an action is tappable: the crowd keeps a clickable area for it that
 // follows the figure, which the scene's tap, Enter and arrival logic read like those of an object (14.2, 14.4).
 import Phaser from "phaser";
+import type { PublicNpc } from "@zappaloo/shared";
+import type { BubbleBoard, BubbleParticipant } from "./bubble-board.ts";
+import { NPC_BUBBLE_CLOSE_TILES, NPC_BUBBLE_OPEN_TILES } from "./bubble.ts";
 import { figureDepth } from "./draw-order.ts";
 import { SHADOW_DEPTH_BELOW, figureShadow } from "./figure-shadow.ts";
 import { walkFrameIndex } from "./figures.ts";
@@ -10,6 +13,7 @@ import { GUEST_SPEED_FACTOR } from "./guest-crowd.ts";
 import type { Point } from "./geometry.ts";
 import { type ClickableArea, type NpcSpec, type ParsedMap } from "./map-model.ts";
 import { directionOf, SPEED_TILES_PER_SECOND } from "./movement.ts";
+import { npcKey, npcTitle } from "./npc-texts.ts";
 import { NpcWalker, waveFrameIndex, waveLength } from "./npc-walk.ts";
 import { playerSpritePosition } from "./player-anchor.ts";
 import { actionOf } from "./interaction.ts";
@@ -29,6 +33,8 @@ export interface NpcState {
   waving: boolean;
   /** Whether a tap on it does anything. */
   tappable: boolean;
+  /** Whether its speech bubble is open (test hook, GAME-37). */
+  bubble: boolean;
 }
 
 interface Member {
@@ -39,6 +45,8 @@ interface Member {
   shadow: Phaser.GameObjects.Ellipse;
   /** The clickable area of an NPC with an action; it moves with the figure. */
   area: ClickableArea | undefined;
+  /** What the admin gave it: name, short dialog and portrait (MAP-21). */
+  texts: PublicNpc | undefined;
   /** Milliseconds of walking, which the walk animation runs on. */
   clock: number;
 }
@@ -48,6 +56,9 @@ export class NpcCrowd {
   readonly #zoom: number;
   readonly #ratio: () => number;
   readonly #members: Member[] = [];
+  readonly #board: BubbleBoard | undefined;
+  /** What a tap on the bubble of an NPC with an action does: walk to it and run the action. */
+  readonly #onTap: ((area: ClickableArea) => void) | undefined;
   /** The NPC the player walks to, which waits for them. */
   #held: string | undefined;
 
@@ -57,7 +68,11 @@ export class NpcCrowd {
     world: LoadedWorld,
     zoom: number,
     ratio: () => number,
+    board?: BubbleBoard,
+    onTap?: (area: ClickableArea) => void,
   ) {
+    this.#board = board;
+    this.#onTap = onTap;
     this.#map = map;
     this.#zoom = zoom;
     this.#ratio = ratio;
@@ -73,7 +88,8 @@ export class NpcCrowd {
       const sprite = scene.add.sprite(0, 0, figure.standing.south).setOrigin(0.5, 1);
       const shadow = scene.add.ellipse(0, 0, 1, 1, 0x000000, 1);
       const area = this.#areaOf(spec, figure, walker, world);
-      const member: Member = { spec, figure, walker, sprite, shadow, area, clock: 0 };
+      const texts = world.npcs.get(npcKey(map.id, spec.name));
+      const member: Member = { spec, figure, walker, sprite, shadow, area, texts, clock: 0 };
       this.#members.push(member);
       this.#place(member);
     }
@@ -99,7 +115,36 @@ export class NpcCrowd {
       moving: walker.moving,
       waving: walker.waveElapsed !== undefined,
       tappable: area !== undefined,
+      bubble: this.#board?.isOpen(`npc:${spec.name}`) ?? false,
     }));
+  }
+
+  /** The NPCs with a short dialog as bubble participants; one without a short dialog has no bubble (GAME-37). */
+  participants(player: Point): BubbleParticipant[] {
+    const onTap = this.#onTap;
+    return this.#members.flatMap((member) => {
+      const { spec, walker, sprite, figure, texts, area } = member;
+      if (this.#board === undefined || texts?.dialog === undefined) return [];
+      return [
+        {
+          id: `npc:${spec.name}`,
+          distance: Math.hypot(walker.position.x - player.x, walker.position.y - player.y),
+          head: { x: sprite.x, y: sprite.y - figure.size.height },
+          content: { name: npcTitle(spec, texts), greeting: texts.dialog },
+          photo: texts.portrait,
+          openTiles: NPC_BUBBLE_OPEN_TILES,
+          closeTiles: NPC_BUBBLE_CLOSE_TILES,
+          // A tap on the bubble does what a tap on the NPC does; an NPC without an action pins it like a guest.
+          ...(area === undefined || onTap === undefined
+            ? {}
+            : {
+                onTap: () => {
+                  onTap(area);
+                },
+              }),
+        },
+      ];
+    });
   }
 
   /** The NPC with this name waits instead of walking on (the player walks to it), or none does. */
@@ -107,14 +152,17 @@ export class NpcCrowd {
     this.#held = name;
   }
 
-  /** One frame: the NPCs walk, stand or wave, and the sprites, shadows and tap areas follow them. */
-  update(delta: number, player: Point): void {
+  /**
+   * One frame: the NPCs walk, stand or wave, and the sprites, shadows and tap areas follow them. An NPC with an open
+   * bubble (`shown`) waits and turns to the player, like the NPC the player walks to.
+   */
+  update(delta: number, player: Point, shown: ReadonlySet<string>): void {
     const map = this.#map;
     const dt = Math.min(delta, MAX_DELTA_MS);
     const step = (map.size.width * SPEED_TILES_PER_SECOND * GUEST_SPEED_FACTOR * dt) / 1000;
     for (const member of this.#members) {
       const { walker } = member;
-      walker.held = this.#held === member.spec.name;
+      walker.held = this.#held === member.spec.name || shown.has(`npc:${member.spec.name}`);
       if (walker.held) {
         walker.direction = directionOf({
           x: player.x - walker.position.x,
@@ -136,7 +184,8 @@ export class NpcCrowd {
   ): ClickableArea | undefined {
     const area: ClickableArea = {
       name: spec.name,
-      ...(spec.label === undefined ? {} : { label: spec.label }),
+      // The name of the NPC, which names the page its action opens (the admin's, else the Tiled label).
+      label: npcTitle(spec, world.npcs.get(npcKey(this.#map.id, spec.name))),
       hidden: true,
       objectId: spec.objectId,
       polygon: [],

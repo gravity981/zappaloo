@@ -86,8 +86,7 @@ All active requirements are listed here until their stage is delivered. Shrink t
 
 | Prefix | IDs | Count |
 |---|---|---|
-| GAME | GAME-37, GAME-39 – GAME-41 | 4 |
-| MAP | MAP-21 | 1 |
+| GAME | GAME-40 – GAME-41 | 2 |
 | HUNT | HUNT-01 – HUNT-07 | 7 |
 | MG | MG-01 – MG-13 | 13 |
 | WEB | WEB-05, WEB-06 | 2 |
@@ -99,7 +98,7 @@ All active requirements are listed here until their stage is delivered. Shrink t
 | OPS | OPS-13 | 1 |
 | SEC | SEC-04, SEC-06 – SEC-08 | 4 |
 | PERF | PERF-01, PERF-03, PERF-04 | 3 |
-| **Total** | | **65** |
+| **Total** | | **62** |
 
 The stage each requirement belongs to is listed in `sw-architecture.md`, section 28.
 

@@ -97,7 +97,16 @@ export class EdgeIndicatorLayer {
   /** Hides all indicators, as while a page is open above the game (GAME-11), or shows those of the last update again. */
   setHidden(hidden: boolean): void {
     this.#hidden = hidden;
-    for (const { button } of this.#buttons.values()) button.hidden = hidden;
+    for (const { button } of this.#buttons.values()) this.#show(button);
+  }
+
+  /**
+   * Shows or hides a button. The `hidden` attribute alone does not do it: the button's own `display: flex` wins over
+   * the attribute's, so the display is set too.
+   */
+  #show(button: HTMLButtonElement): void {
+    button.hidden = this.#hidden;
+    button.style.display = this.#hidden ? "none" : "flex";
   }
 
   /** Shows exactly these indicators, creating, moving and removing buttons as needed. */
@@ -115,7 +124,7 @@ export class EdgeIndicatorLayer {
         this.#buttons.set(view.id, entry);
         this.#parent.append(entry.button);
       }
-      entry.button.hidden = this.#hidden;
+      this.#show(entry.button);
       // The picture turns with the direction; the position changes every frame, the picture and the label only when
       // they must.
       const key = [Math.round(view.angle * 50), view.side, view.labelWidth, view.label].join("|");

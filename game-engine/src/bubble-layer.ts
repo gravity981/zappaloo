@@ -72,7 +72,13 @@ export class BubbleLayer {
   /** Hides all bubbles, as while a page is open above the game (GAME-11), or shows those of the last update again. */
   setHidden(hidden: boolean): void {
     this.#hidden = hidden;
-    for (const { root } of this.#bubbles.values()) root.hidden = hidden;
+    for (const { root } of this.#bubbles.values()) this.#show(root);
+  }
+
+  /** Shows or hides a bubble: the `hidden` attribute alone loses to the bubble's own `display: flex`. */
+  #show(root: HTMLDivElement): void {
+    root.hidden = this.#hidden;
+    root.style.display = this.#hidden ? "none" : "flex";
   }
 
   /** Shows exactly these bubbles, creating, moving and removing them as needed. */
@@ -100,7 +106,7 @@ export class BubbleLayer {
         this.#bubbles.set(view.id, entry);
         this.#parent.append(entry.root);
       }
-      entry.root.hidden = this.#hidden;
+      this.#show(entry.root);
       entry.root.style.transform = `translate(${String(Math.round(view.x))}px, ${String(Math.round(view.y))}px)`;
       entry.tail.style.left = `${String(Math.round(view.tail) - 7)}px`;
     }

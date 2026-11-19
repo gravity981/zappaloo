@@ -8,7 +8,9 @@ import { walkFrameIndex } from "./figures.ts";
 import { Atmosphere } from "./atmosphere.ts";
 import { atmospherePlan, prefersReducedMotion } from "./atmosphere-plan.ts";
 import { TileAnimations, type AnimatedPicture } from "./tile-animation.ts";
+import { BubbleBoard } from "./bubble-board.ts";
 import { NpcCrowd } from "./npc-crowd.ts";
+import { npcTitle, npcKey } from "./npc-texts.ts";
 import { GuestCrowd } from "./guest-crowd.ts";
 import type { GuestFigure } from "@zappaloo/shared";
 import { figureDepth, figureOcclusionSegment, occlusionSegmentRelation } from "./draw-order.ts";
@@ -209,6 +211,8 @@ export class WorldScene extends Phaser.Scene {
   #crowd: GuestCrowd | undefined;
   /** The NPCs of the map (GAME-36). */
   #npcs: NpcCrowd | undefined;
+  /** The speech bubbles of the guests and the NPCs (PRES-10, GAME-37). */
+  #board: BubbleBoard | undefined;
   /** The glow of each tappable NPC by its Tiled id: dark, until a walk leads to the NPC (GAME-38). */
   #npcGlows = new Map<number, Phaser.Filters.Glow>();
   /** The fog, the cloud shadows and the birds of the map (GAME-31 – GAME-34). */
@@ -279,6 +283,7 @@ export class WorldScene extends Phaser.Scene {
     this.#shadow = undefined;
     this.#crowd = undefined;
     this.#npcs = undefined;
+    this.#board = undefined;
     this.#npcGlows = new Map();
     this.#atmosphere = undefined;
     this.#tileAnimations = undefined;
@@ -336,6 +341,30 @@ export class WorldScene extends Phaser.Scene {
         const options = this.game.registry.get(ENGINE_CONFIG_REGISTRY_KEY) as GameEngineOptions;
         const parent = this.game.canvas.parentElement;
         const camera = this.cameras.main;
+        this.#board =
+          parent === null
+            ? undefined
+            : new BubbleBoard(
+                {
+                  parent,
+                  closeLabel: options.texts?.closeBubble ?? "",
+                  defaultGreeting: options.texts?.defaultGreeting,
+                  // A point of the map in the game view, in CSS pixels (the camera's zoom includes the pixel ratio).
+                  project: (point) => ({
+                    x:
+                      (point.x - camera.midPoint.x) * (camera.zoom / this.#pixelRatio()) +
+                      camera.width / this.#pixelRatio() / 2,
+                    y:
+                      (point.y - camera.midPoint.y) * (camera.zoom / this.#pixelRatio()) +
+                      camera.height / this.#pixelRatio() / 2,
+                  }),
+                  viewSize: () => ({
+                    width: camera.width / this.#pixelRatio(),
+                    height: camera.height / this.#pixelRatio(),
+                  }),
+                },
+                map.size.width,
+              );
         this.#crowd = new GuestCrowd(
           this,
           map,
@@ -344,30 +373,23 @@ export class WorldScene extends Phaser.Scene {
           this.#guests,
           CAMERA_ZOOM,
           () => this.#pixelRatio(),
-          parent === null
-            ? undefined
-            : {
-                parent,
-                closeLabel: options.texts?.closeBubble ?? "",
-                defaultGreeting: options.texts?.defaultGreeting,
-                // A point of the map in the game view, in CSS pixels (the camera's zoom includes the pixel ratio).
-                project: (point) => ({
-                  x:
-                    (point.x - camera.midPoint.x) * (camera.zoom / this.#pixelRatio()) +
-                    camera.width / this.#pixelRatio() / 2,
-                  y:
-                    (point.y - camera.midPoint.y) * (camera.zoom / this.#pixelRatio()) +
-                    camera.height / this.#pixelRatio() / 2,
-                }),
-                viewSize: () => ({
-                  width: camera.width / this.#pixelRatio(),
-                  height: camera.height / this.#pixelRatio(),
-                }),
-                photoOf: options.guestPhoto,
-              },
+          this.#board,
+          options.guestPhoto,
         );
         // The NPCs walk and wave; those with an action glow while the player walks to them (GAME-36, GAME-38).
-        this.#npcs = new NpcCrowd(this, map, this.#world, CAMERA_ZOOM, () => this.#pixelRatio());
+        this.#npcs = new NpcCrowd(
+          this,
+          map,
+          this.#world,
+          CAMERA_ZOOM,
+          () => this.#pixelRatio(),
+          this.#board,
+          // A tap on the bubble of an NPC with an action does what a tap on the NPC does (GAME-37).
+          (area) => {
+            if (this.sys.isActive() && !this.#transitioning)
+              this.#tapTo(interiorPoint(area.polygon));
+          },
+        );
         this.#glowNpcs(this.#npcs);
         // The fog, the cloud shadows and the birds, unless the map or the device switches them off (GAME-34).
         this.#atmosphere = new Atmosphere(
@@ -438,7 +460,8 @@ export class WorldScene extends Phaser.Scene {
       this.#removeShines();
       this.#indicatorLayer?.destroy();
       this.#indicatorLayer = undefined;
-      this.#crowd?.destroy();
+      this.#board?.destroy();
+      this.#board = undefined;
       this.#crowd = undefined;
       this.#atmosphere?.destroy();
       this.#atmosphere = undefined;
@@ -535,9 +558,36 @@ export class WorldScene extends Phaser.Scene {
     this.#indicatorSources = sources;
     // A tap on an indicator does what a tap on the object does.
     this.#indicatorLayer = new EdgeIndicatorLayer(parent, (id) => {
-      const source = this.#indicatorSources.find((item) => item.id === id);
+      const source = [...this.#indicatorSources, ...this.#npcIndicatorSources()].find(
+        (item) => item.id === id,
+      );
       if (source !== undefined && this.sys.isActive() && !this.#transitioning)
         this.#tapTo(source.tap);
+    });
+  }
+
+  /**
+   * The indicators of the NPCs with an action (GAME-39): labelled with the NPC's name, and following the NPC, so
+   * their bounds and the point a tap on the indicator taps are those of the NPC now.
+   */
+  #npcIndicatorSources(): IndicatorSource[] {
+    const world = this.#world;
+    const map = this.#map;
+    if (world === undefined || map === undefined) return [];
+    return (this.#npcs?.areas ?? []).map((area) => {
+      const xs = area.polygon.map((point) => point.x);
+      const ys = area.polygon.map((point) => point.y);
+      const x = Math.min(...xs);
+      const y = Math.min(...ys);
+      const bounds = { x, y, width: Math.max(...xs) - x, height: Math.max(...ys) - y };
+      return {
+        id: `npc:${area.name}`,
+        kind: "object" as const,
+        label: npcTitle(area, world.npcs.get(npcKey(map.id, area.name))),
+        bounds,
+        centre: { x: x + bounds.width / 2, y: y + bounds.height / 2 },
+        tap: interiorPoint(area.polygon),
+      };
     });
   }
 
@@ -554,7 +604,7 @@ export class WorldScene extends Phaser.Scene {
       y: (point.y - camera.midPoint.y) * CAMERA_ZOOM + view.height / 2,
     });
     const avatar = toView(this.#position);
-    const candidates = this.#indicatorSources
+    const candidates = [...this.#indicatorSources, ...this.#npcIndicatorSources()]
       .filter((source) => isOutside(source.bounds, camera.worldView))
       .map((source) => {
         const place = indicatorPlace(avatar, toView(source.centre), view);
@@ -828,13 +878,18 @@ export class WorldScene extends Phaser.Scene {
     player.setPosition(spritePosition.x, spritePosition.y);
     this.#followPlayer();
     // The guest figures and their bubbles, with the camera of this frame (PRES-10).
-    this.#crowd?.update(delta, this.#position);
+    const shown =
+      this.#board?.update([
+        ...(this.#crowd?.participants(this.#position) ?? []),
+        ...(this.#npcs?.participants(this.#position) ?? []),
+      ]) ?? new Set<string>();
+    this.#crowd?.update(delta, this.#position, shown);
     // The NPC the player walks to waits for them (GAME-38).
     const walkingTo = this.#pending;
     this.#npcs?.hold(
       walkingTo !== undefined && this.#npcs.areas.includes(walkingTo) ? walkingTo.name : undefined,
     );
-    this.#npcs?.update(delta, this.#position);
+    this.#npcs?.update(delta, this.#position, shown);
     this.#atmosphere?.update(delta);
     this.#tileAnimations?.update(delta);
     player.setDepth(figureDepth(this.#position, map.occluders, map.size.width));
@@ -1639,7 +1694,7 @@ export class WorldScene extends Phaser.Scene {
     if (paused) {
       this.scene.pause();
       this.#indicatorLayer?.setHidden(true);
-      this.#crowd?.setBubblesHidden(true);
+      this.#board?.setHidden(true);
       keyboard?.resetKeys();
       return;
     }
@@ -1647,7 +1702,7 @@ export class WorldScene extends Phaser.Scene {
     this.#activationBlocked = this.#activateKeys.some((key) => key.isDown);
     this.scene.resume();
     this.#indicatorLayer?.setHidden(false);
-    this.#crowd?.setBubblesHidden(false);
+    this.#board?.setHidden(false);
     keyboard?.resetKeys();
   }
 

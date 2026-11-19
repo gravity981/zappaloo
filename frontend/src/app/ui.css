@@ -434,6 +434,15 @@
 :is(.admin, .guest) .card.tight > .tight-foot {
   padding: 0 6px 8px;
 }
+/* the NPCs of a map in Erlebniswelt: one block each, set apart by a line */
+:is(.admin, .guest) .npc-block {
+  padding-top: 12px;
+  border-top: 1px solid var(--a-line);
+}
+:is(.admin, .guest) .npc-list > .npc-block:first-child {
+  border-top: 0;
+  padding-top: 0;
+}
 /* the card that asks for something: requests to decide, opening the platform */
 :is(.admin, .guest) .card.strong {
   border: 2px solid var(--a-ink);

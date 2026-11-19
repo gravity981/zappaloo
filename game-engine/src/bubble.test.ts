@@ -7,10 +7,26 @@ import {
   bubbleWidth,
   chooseBubbles,
   isNear,
+  NPC_BUBBLE_CLOSE_TILES,
+  NPC_BUBBLE_OPEN_TILES,
   placeBubble,
 } from "./bubble.ts";
 
 const TILE = 64;
+
+describe("when an NPC's bubble opens and closes (GAME-37)", () => {
+  it("[GAME-37] opens within 3 tile widths and closes beyond 3.5, further than a guest's", () => {
+    expect(NPC_BUBBLE_OPEN_TILES).toBe(3);
+    expect(NPC_BUBBLE_CLOSE_TILES).toBe(3.5);
+    expect(NPC_BUBBLE_OPEN_TILES).toBeGreaterThan(BUBBLE_OPEN_TILES);
+    const near = (distance: number, wasOpen: boolean) =>
+      isNear(distance, TILE, wasOpen, NPC_BUBBLE_OPEN_TILES, NPC_BUBBLE_CLOSE_TILES);
+    expect(near(3 * TILE, false)).toBe(true);
+    expect(near(3.2 * TILE, false)).toBe(false);
+    expect(near(3.2 * TILE, true)).toBe(true);
+    expect(near(3.6 * TILE, true)).toBe(false);
+  });
+});
 
 describe("when a bubble opens and closes (PRES-10)", () => {
   it("[PRES-10] opens within 0.8 tile widths and closes beyond 1.1, so it does not flicker at the edge", () => {

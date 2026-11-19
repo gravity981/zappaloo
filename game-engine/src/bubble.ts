@@ -8,6 +8,9 @@ import { boxesOverlap, type Rect } from "./indicators.ts";
 export const BUBBLE_OPEN_TILES = 0.8;
 /** An open bubble closes when the player is further away than this, so that it does not flicker at the edge. */
 export const BUBBLE_CLOSE_TILES = 1.1;
+/** An NPC wants attention: its bubble opens from further away, within 3 tile widths, and closes beyond 3.5 (GAME-37). */
+export const NPC_BUBBLE_OPEN_TILES = 3;
+export const NPC_BUBBLE_CLOSE_TILES = 3.5;
 
 /** The width of a bubble in CSS pixels (the mock's): wider on a phone. */
 export const BUBBLE_WIDTH = 214;
@@ -21,8 +24,14 @@ export const bubbleWidth = (viewWidth: number): number =>
   viewWidth < PHONE_VIEW ? BUBBLE_WIDTH_PHONE : BUBBLE_WIDTH;
 
 /** Whether a guest at `distance` (map pixels) has an open bubble: it opens within 0.8 tile widths and stays until 1.1. */
-export function isNear(distance: number, tileWidth: number, wasOpen: boolean): boolean {
-  return distance <= (wasOpen ? BUBBLE_CLOSE_TILES : BUBBLE_OPEN_TILES) * tileWidth;
+export function isNear(
+  distance: number,
+  tileWidth: number,
+  wasOpen: boolean,
+  openTiles = BUBBLE_OPEN_TILES,
+  closeTiles = BUBBLE_CLOSE_TILES,
+): boolean {
+  return distance <= (wasOpen ? closeTiles : openTiles) * tileWidth;
 }
 
 /** What a bubble shows; the height is estimated from the text, because the layout runs without a browser. */

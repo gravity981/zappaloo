@@ -11,6 +11,13 @@ export interface MapClickable {
   preset?: WorldObjectAction;
 }
 
+/** An NPC of a map (format version 3): the admin sets its action, name and short dialog (MAP-21). */
+export interface MapNpc {
+  name: string;
+  label?: string;
+  preset?: WorldObjectAction;
+}
+
 export interface MapPortal {
   name: string;
   targetMap?: string;
@@ -21,6 +28,7 @@ export interface MapObjects {
   id: string;
   name?: string;
   clickables: MapClickable[];
+  npcs: MapNpc[];
   portals: MapPortal[];
 }
 
@@ -31,7 +39,7 @@ function text(value: unknown): string | undefined {
 /** The objects of one map; a map that does not parse has none (the validator reported it). */
 export function mapObjects(id: string, bytes: Buffer): MapObjects {
   const parsed = tiledMapSchema.safeParse(JSON.parse(bytes.toString("utf8")) as unknown);
-  const result: MapObjects = { id, clickables: [], portals: [] };
+  const result: MapObjects = { id, clickables: [], npcs: [], portals: [] };
   if (!parsed.success) return result;
   const name = text(parsed.data.properties?.find((property) => property.name === "name")?.value);
   if (name !== undefined) result.name = name;
@@ -48,6 +56,14 @@ export function mapObjects(id: string, bytes: Buffer): MapObjects {
           name: object.name,
           ...(label === undefined ? {} : { label }),
           hidden: property("hidden") === true,
+          ...(preset === undefined ? {} : { preset }),
+        });
+      } else if (type === "npc" && object.name !== undefined) {
+        const label = text(property("label"));
+        const preset = presetActionOf(object.properties);
+        result.npcs.push({
+          name: object.name,
+          ...(label === undefined ? {} : { label }),
           ...(preset === undefined ? {} : { preset }),
         });
       } else if (type === "portal" && object.name !== undefined) {

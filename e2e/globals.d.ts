@@ -32,6 +32,7 @@ declare global {
                 moving: boolean;
                 waving: boolean;
                 tappable: boolean;
+                bubble: boolean;
               }[];
               atmosphere: { fog: boolean; clouds: number; birds: number };
               tileAnimation: { objects: number; frames: number[] };
