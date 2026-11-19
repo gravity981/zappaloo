@@ -121,6 +121,11 @@ export class GuestCrowd {
     }
   }
 
+  /** The drawn figures, for their silhouettes behind objects (GAME-42). */
+  get sprites(): Phaser.GameObjects.Sprite[] {
+    return this.#members.map((member) => member.sprite);
+  }
+
   /** The guests on this map, for the test hook. */
   get states(): GuestState[] {
     return this.#members.map(({ guest, wanderer }) => ({

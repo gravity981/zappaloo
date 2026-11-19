@@ -1093,3 +1093,36 @@ test("[GAME-41][GAME-40] an object, portal or NPC in sight carries its label, na
   await page.waitForFunction(() => window.__zappaloo?.game?.state()?.mapId === "garten");
   await expect(label("npc:gaertner")).toHaveText("gaertner", { timeout: 10_000 });
 });
+
+test("[GAME-42] the player shows as a silhouette while an object in front covers them, and not in the open", async ({
+  page,
+  context,
+}, testInfo) => {
+  test.skip(testInfo.project.name !== "desktop-chromium", "shared settings: one profile only");
+  await signInAsAdmin(page, context);
+  await enterGame(page);
+  await expect(page.getByTestId("game-canvas")).toBeVisible({ timeout: 20_000 });
+  // At the start point, in front of everything: no silhouette.
+  expect((await gameState(page)).silhouettes).toEqual({ player: false, figures: 0, marker: false });
+
+  // The walk to the top of the church leads past the altar, whose picture covers the figure behind it.
+  const target = await pagePoint(page, { x: 160, y: 30 });
+  await page.mouse.click(target.x, target.y);
+  await expect
+    .poll(async () => (await gameState(page)).silhouettes.player, {
+      timeout: 20_000,
+      intervals: [50],
+    })
+    .toBe(true);
+  await page.screenshot({ path: testInfo.outputPath("game-silhouette.png") });
+
+  // Back in the open, in front of the objects, it is gone again.
+  const back = await pagePoint(page, { x: 160, y: 200 });
+  await page.mouse.click(back.x, back.y);
+  await expect
+    .poll(async () => (await gameState(page)).silhouettes.player, {
+      timeout: 30_000,
+      intervals: [100],
+    })
+    .toBe(false);
+});

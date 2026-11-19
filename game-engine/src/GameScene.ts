@@ -46,6 +46,15 @@ import {
   visibleEdge,
 } from "./interaction.ts";
 import { playerSpritePosition } from "./player-anchor.ts";
+import {
+  AlphaMasks,
+  coverOfPicture,
+  coversOfTileLayer,
+  MARKER_DEPTH,
+  SilhouetteLayer,
+  type MarkerShape,
+} from "./silhouette-layer.ts";
+import type { Cover } from "./silhouette.ts";
 import { isTypingTarget } from "./keys.ts";
 import { startsPaused } from "./pause.ts";
 import { SHADOW_DEPTH_BELOW, figureShadow } from "./figure-shadow.ts";
@@ -105,8 +114,8 @@ const ENTRIES_REGISTRY_KEY = "zappaloo.game-map-entries";
 /** The warm glow of a portal's floating arrow (GAME-15). */
 const PORTAL_GLOW_COLOR = 0xffd36b;
 
-/** Below the objects and figures (their depths are the y of their feet, from 0 on), above the ground layers. */
-const MARKER_DEPTH = -1;
+/** The colour of the silhouettes when the host gives none (GAME-42): a dark blue. */
+const DEFAULT_SILHOUETTE_COLOR = 0x1d2b4f;
 
 /** The zoom of the camera; fixed for every map (decided 2026-11-15). */
 export const CAMERA_ZOOM = 2;
@@ -174,6 +183,11 @@ export class WorldScene extends Phaser.Scene {
   #pending: ClickableArea | undefined;
   /** The arrows of the portals by the Tiled id of their tile object, which wobble (GAME-15). */
   #objectSprites = new Map<number, ObjectPicture>();
+  /** The tile layers drawn above the figures (the Foreground), which can cover them (GAME-42). */
+  #foregroundLayers: Phaser.Tilemaps.TilemapLayer[] = [];
+  #silhouettes: SilhouetteLayer | undefined;
+  /** The half width of the target marker's ring in map pixels. */
+  #markerRadius = 0;
   /** How many sparkles have appeared in this map, and how many are visible now (GAME-15). */
   #sparkles = 0;
   #activeSparkles = 0;
@@ -273,6 +287,8 @@ export class WorldScene extends Phaser.Scene {
     this.#path = [];
     this.#pending = undefined;
     this.#objectSprites = new Map();
+    this.#foregroundLayers = [];
+    this.#silhouettes = undefined;
     this.#feedback = NO_FEEDBACK;
     this.#marker = undefined;
     this.#markerPulse = undefined;
@@ -402,6 +418,7 @@ export class WorldScene extends Phaser.Scene {
         );
       }
       this.#createMarker(map);
+      this.#createSilhouettes();
       // The camera does not follow by itself: it is centred on the snapped sprite in update() (GAME-27).
       this.cameras.main.setRoundPixels(true);
     }
@@ -436,6 +453,11 @@ export class WorldScene extends Phaser.Scene {
         guests: this.#crowd?.states ?? [],
         npcs: this.#npcs?.states ?? [],
         atmosphere: this.#atmosphere?.state ?? { fog: false, clouds: 0, birds: 0 },
+        silhouettes: this.#silhouettes?.state(this.#player) ?? {
+          player: false,
+          figures: 0,
+          marker: false,
+        },
         tileAnimation: {
           objects: this.#tileAnimations?.count ?? 0,
           frames: [...(this.#tileAnimations?.shown ?? [])],
@@ -712,12 +734,51 @@ export class WorldScene extends Phaser.Scene {
   }
 
   /**
+   * What covers the figures (the tile objects and the foreground layers) and the silhouettes that show them through
+   * (GAME-42). The covers are measured once per map; only animated objects are read again as they change.
+   */
+  #createSilhouettes(): void {
+    const options = this.game.registry.get(ENGINE_CONFIG_REGISTRY_KEY) as GameEngineOptions;
+    const masks = new AlphaMasks(this);
+    const covers: Cover[] = [
+      ...[...this.#objectSprites.values()].map((picture) => coverOfPicture(picture, masks)),
+      ...this.#foregroundLayers.flatMap((layer) => coversOfTileLayer(layer, masks)),
+    ];
+    this.#silhouettes = new SilhouetteLayer(
+      this,
+      options.silhouetteColor ?? DEFAULT_SILHOUETTE_COLOR,
+      masks,
+      covers,
+    );
+  }
+
+  /** The silhouettes of the player, the guest figures, the NPCs and the target marker, as they stand this frame. */
+  #updateSilhouettes(player: Phaser.GameObjects.Sprite): void {
+    const marker = this.#marker;
+    const shape: MarkerShape | undefined =
+      marker?.visible === true
+        ? {
+            centre: { x: marker.x, y: marker.y },
+            radiusX: this.#markerRadius,
+            radiusY: this.#markerRadius / 2,
+            scale: marker.scale,
+            alpha: marker.alpha,
+          }
+        : undefined;
+    this.#silhouettes?.update(
+      [player, ...(this.#crowd?.sprites ?? []), ...(this.#npcs?.sprites ?? [])],
+      shape,
+    );
+  }
+
+  /**
    * The ring of the target marker (GAME-24): an ellipse of the tile's 2 : 1 ratio, 0.4 tile widths wide, in the colour
    * of the glow with a dark contour, flat on the ground. It pulses once per second, from 0.8 to 1.2 times its size
    * while it fades out. It lies above the ground layers and below objects and figures.
    */
   #createMarker(map: ParsedMap): void {
     const width = map.size.width * 0.4;
+    this.#markerRadius = width / 2;
     const contour = this.add.ellipse(0, 0, width, width / 2).setStrokeStyle(3.5, 0x141414, 0.9);
     const ring = this.add.ellipse(0, 0, width, width / 2).setStrokeStyle(2, GLOW_COLOR, 1);
     const marker = this.add
@@ -954,6 +1015,7 @@ export class WorldScene extends Phaser.Scene {
     this.#tileAnimations?.update(delta);
     player.setDepth(figureDepth(this.#position, map.occluders, map.size.width));
     this.#placeShadow(map, player);
+    this.#updateSilhouettes(player);
     this.#drawOcclusionActor();
     this.#drawCollisionActor();
 
@@ -1081,6 +1143,9 @@ export class WorldScene extends Phaser.Scene {
         const depth =
           order > actorLayerOrder ? 1_000_000 + order * 1000 : -1_000_000 + order * 1000;
         displayLayer.setDepth(depth);
+        if (depth > 0 && displayLayer instanceof Phaser.Tilemaps.TilemapLayer) {
+          this.#foregroundLayers.push(displayLayer);
+        }
       }
       const objects = drawObjects && this.#drawNativeTileObjects(map, tilemap);
       return { ground: true, objects };

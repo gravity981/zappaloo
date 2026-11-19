@@ -21,6 +21,7 @@ import { apiRequest } from "../app/api.ts";
 import { exposeGame, exposeState } from "./test-hook.ts";
 import { rememberedMap, rememberMap } from "./map-preference.ts";
 import { objectTitle } from "./titles.ts";
+import { accentColorAt } from "./silhouette-color.ts";
 import { loadWorld } from "./world-data.ts";
 
 /** The figure that applies to the signed-in player; undefined when it cannot be read. */
@@ -57,6 +58,11 @@ type Status =
       guests: GuestFigure[];
       titles: Map<string, string>;
     };
+
+function silhouetteOption(element: Element): { silhouetteColor?: number } {
+  const silhouetteColor = accentColorAt(element);
+  return silhouetteColor === undefined ? {} : { silhouetteColor };
+}
 
 /**
  * The game. The page above it (GAME-11) belongs to the parent: `paused` stands the game still while a page is open,
@@ -141,6 +147,8 @@ export default function GameCanvas({
         guest.photo === null
           ? undefined
           : `/api/world/guests/${guest.id}/photo?v=${String(guest.photo)}`,
+      // The silhouettes of figures behind objects are in the event's accent colour (GAME-42).
+      ...silhouetteOption(parent.current),
       transparent: import.meta.env.VITE_TEST_HOOKS === "true",
       preserveDrawingBuffer: import.meta.env.VITE_TEST_HOOKS === "true",
       // The frame diagnostics (GAME-27) exist on the dev server only; a production build drops them.

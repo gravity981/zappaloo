@@ -53,6 +53,8 @@ export interface GameState {
   npcs: NpcState[];
   /** The effects of the map: whether it has fog, how many cloud shadows and how many birds are there (test hook, GAME-31 – GAME-34). */
   atmosphere: { fog: boolean; clouds: number; birds: number };
+  /** The silhouettes that show behind objects: the player's, how many figures' in all, the target marker's (test hook, GAME-42). */
+  silhouettes: { player: boolean; figures: number; marker: boolean };
   /** The animated tile objects of this map and the frame each shows now (test hook, GAME-35). */
   tileAnimation: { objects: number; frames: number[] };
 }
@@ -105,6 +107,8 @@ export interface GameEngineOptions {
   titleOf?: (action: WorldObjectAction) => string | undefined;
   /** The address of a guest's photo for the speech bubble; without it the bubble shows the initials. */
   guestPhoto?: (guest: GuestFigure) => string | undefined;
+  /** The colour of the silhouettes of figures behind objects (GAME-42), as a number (0xRRGGBB): the event's accent colour. */
+  silhouetteColor?: number;
   /** Shows the development diagnostics overlay (GAME-27); never set in a production build. */
   diagnostics?: boolean;
 }

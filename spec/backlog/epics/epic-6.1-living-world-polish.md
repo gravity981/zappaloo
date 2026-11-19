@@ -57,12 +57,14 @@ First sketch (2026-11-19), refined with the decisions above. Built in the order 
 - Tapping or clicking the player's own avatar does nothing, and the profile is reached through the website.
 - GAME-18 is withdrawn in this story: "~~Clicking or tapping the player's own avatar opens the profile as an overlay.~~ (withdrawn 2026-11-19, epic 6.1: the profile is reached through the website)"; its tests are removed or turned into a test that tapping the own avatar opens nothing.
 - Built: `onPlayerTap` (engine host, `GameCanvas`, `GamePage`), the hit test `onAvatar` and its branch in `GameScene` are removed, so a tap on the figure is an ordinary tap on the ground. The end-to-end test checks that it opens nothing.
-Requirements: none new (GAME-18 withdrawn).
+Requirements: none new. (The own-avatar tap is withdrawn, see above.)
 
-### Story 6.1b – Silhouettes behind obstacles
+### Story 6.1b – Silhouettes behind obstacles — Done (2026-11-19)
 
 - Figures covered by objects stay visible as silhouettes (decision 6).
 - The target marker of a tap (GAME-24) placed behind an obstacle is shown as a silhouette too, as soon as any part of it is covered (added 2026-11-19).
+- Built: `silhouette.ts` (the arithmetic), `silhouette-layer.ts` (alpha masks, covers from tile objects and foreground tile layers, the silhouette sprites and the marker's ring), wired into `GameScene`; the page passes the theme's accent colour. Decisions are in sw-architecture.md ("Silhouettes").
+- Open: the frame rate on the iPhone is not checked yet (checked with the diagnostics overlay together with 6.1j); the foreground-layer measuring and the target marker's silhouette are covered by unit tests only, because the test world has no reachable place behind them.
 Requirements: GAME-42.
 
 ### Story 6.1c – Dialogues give objects and NPCs a voice

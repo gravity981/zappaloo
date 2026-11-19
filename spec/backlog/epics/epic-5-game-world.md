@@ -173,7 +173,7 @@ Done 2026-11-17. Decisions: sw-architecture.md 14.4 "Decisions of step 5i". Mock
 - The guided first entry: avatar (also for companions), the RSVP in an overlay if not answered, then free play.
 - The bar at the top with Programm, Rückmeldung (badge while the RSVP is open) and Website. The hint "Tippe auf Dinge, die funkeln" until the first object is used. The own avatar opens the profile.
 - Size (added 2026-11-17): the game fills a phone's viewport and is a centred window of at most 1280 × 800 pixels on a wide screen.
-Requirements: GAME-12, GAME-13 (without "Say hello"), GAME-14 (without "Hochladen"), GAME-17, GAME-18, GAME-21.
+Requirements: GAME-12, GAME-13 (without "Say hello"), GAME-14 (without "Hochladen"), GAME-17, GAME-21 (the own-avatar tap was withdrawn in epic 6.1).
 
 ### Story 5j – Moved to step 9c (decided 2026-11-17)
 

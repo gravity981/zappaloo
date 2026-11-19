@@ -36,6 +36,7 @@ declare global {
               }[];
               atmosphere: { fog: boolean; clouds: number; birds: number };
               tileAnimation: { objects: number; frames: number[] };
+              silhouettes: { player: boolean; figures: number; marker: boolean };
             }
           | undefined;
         renderStack: () => { type: string; depth: number }[];

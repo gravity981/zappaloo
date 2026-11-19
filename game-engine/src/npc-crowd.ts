@@ -114,6 +114,11 @@ export class NpcCrowd {
     return this.#members.find((member) => member.spec.objectId === objectId)?.sprite;
   }
 
+  /** The drawn figures, for their silhouettes behind objects (GAME-42). */
+  get sprites(): Phaser.GameObjects.Sprite[] {
+    return this.#members.map((member) => member.sprite);
+  }
+
   /** The NPCs on this map, for the test hook. */
   get states(): NpcState[] {
     return this.#members.map(({ spec, walker, area }) => ({
