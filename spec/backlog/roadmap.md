@@ -11,11 +11,11 @@ The epics follow the order of work in [sw-architecture.md](../sw-architecture.md
 | **Release 1 (early)** | 3.5 | Redeem invitation, answer the RSVP, waiting page with the door scene, add the site to the home screen as an app. The platform is closed. |
 | Release 1 updates | 3.9 | Findings from the pilot on prod: one RSVP answer for all program items, "Begleitperson hinzufügen" without approval, person types; invited guests on the guest list before they redeem. |
 | **World pilot** | 5.1 | Content pages and website, the programme, and the game world with the prototype world as a pilot on prod: straight paths, target marker, edge indicators. Its findings feed epics 5.3, 5.4 and 6. |
-| **Opening** | 6 | The admin opens the platform: website, game world, wandering figures, speech bubbles, table finder. |
+| **Living-world pilot** | 6.1 | The living world as a further pilot on prod, with the platform still closed to guests: wandering figures, speech bubbles, table finder, NPCs, dialogues and atmosphere, polished in epic 6.1. Its findings feed the next epics. |
 | **Event-ready** | 9 | Contributions, photo wall, moderation, minigames, treasure hunt; load test passed and release checklist done. |
 | **After the event** | 10 | Export, shutdown notice and deletion (mandatory, ready before the shutdown date). |
 
-Each release goes into production. From Release 1 on, real guest data is stored, so backups (epic 1), the privacy notice (epic 3) and the installable app (epic 3.5) were in place before Release 1.
+The release after epic 6, first planned as "Opening", became the **Living-world pilot** on 2026-11-19: the platform is not opened to guests yet, and further pilots may follow; the name "Opening" is no longer used for a release. Each release goes into production. From Release 1 on, real guest data is stored, so backups (epic 1), the privacy notice (epic 3) and the installable app (epic 3.5) were in place before Release 1.
 
 ## Order of the epics
 
@@ -38,7 +38,8 @@ The order is the priority: of the epics that are **ready**, the highest one in t
 | [5.3](epics/epic-5.3-program-items-activities.md) | Program items and activities: a program item (RSVP) has one or more activities (programme) | 4 | done |
 | [5.4](epics/epic-5.4-menus-rsvp-improvements.md) | Children's menus and RSVP improvements: "Anmeldung", landing on it after redeeming, remarks, clearer admin tables | 5.3 | done |
 | [6](epics/epic-6-living-world.md) | Living world: guest figures, speech bubbles, table finder, dialogues, NPCs, atmosphere, animated objects | 5 | done |
-| ▶ | **Opening** | | open |
+| [6.1](epics/epic-6.1-living-world-polish.md) | Living world polish: own figure, silhouettes, dialogues and speech bubbles, welcome dialogue, loading, app updates and smoothness on iOS | 6 | ready |
+| ▶ | **Living-world pilot** | | open |
 | [7](epics/epic-7-contributions-event-screen.md) | Contributions and event screen | 5 | open |
 | [8](epics/epic-8-minigames-treasure-hunt.md) | Minigames, treasure hunt and highscores (story 8b also needs 7e) | 5 | open |
 | [9](epics/epic-9-event-readiness.md) | Event readiness | 6, 7, 8 | open |

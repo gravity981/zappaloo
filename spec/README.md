@@ -52,14 +52,14 @@ Status values: **specified** (requirements written, not implemented) · **in pro
 
 | Prefix | Topic | Section in sw-architecture.md | Reqs (active) | Stage | Status |
 |---|---|---|---|---|---|
-| GAME | Game world: entry, guided start, controls, movement, objects and rendering fidelity, NPCs and atmosphere | 3 | 41 | 5, 5.1, 6 | in progress |
+| GAME | Game world: entry, guided start, controls, movement, objects and rendering fidelity, NPCs and atmosphere | 3 | 44 | 5, 5.1, 6, 6.1 | in progress |
 | PRES | Guest presence (wandering figures, speech bubble with profile) and seating | 3.6 | 13 (2 withdrawn) | 6 | specified |
 | HUNT | Treasure hunt | 3.7 | 7 | 8 | specified |
 | MG | Minigames, results, highscores | 4 | 13 | 8 | specified |
 | WEB | Classic website | 5 | 12 | 4, 5, 5.3, 7, 8 | specified |
 | LANG | Language and i18n | 5.3 | 3 | 1, 4, 5.4 | in progress |
 | SCR | Event screen (photo wall, live rankings) | 5.4 | 5 (2 withdrawn) | 7, 8 | specified |
-| CNT | Shared content base, Markdown editing, images, places | 6 | 8 | 4, 5, 7 | in progress |
+| CNT | Shared content base, Markdown editing, images, places | 6 | 9 | 4, 5, 6.1, 7 | in progress |
 | ACC | User accounts, account states, authentication, email | 7, 23.8 | 19 (1 withdrawn) | 2, 3, 3.9 | in progress |
 | AVA | Avatars | 7.3 | 4 | 5, 6 | in progress |
 | RSVP | RSVP, program items and their activities, accompanying persons, person types | 7.4 | 24 | 3, 3.9, 5.3, 5.4 | in progress |
@@ -77,7 +77,7 @@ Status values: **specified** (requirements written, not implemented) · **in pro
 | PERF | Performance and load | 25 | 3 (1 withdrawn) | 7, 9 | specified |
 | MP | Multiplayer — removed | 3.3 | 0 (6 withdrawn) | – | withdrawn |
 | GB | Guestbook — merged into PHO | 13.6 | 0 (4 withdrawn) | – | withdrawn |
-| PWA | Installable app (manifest, icons, home screen) | 19.5 | 5 | 3.5 | implemented |
+| PWA | Installable app (manifest, icons, home screen) | 19.5 | 7 | 3.5, 6.1 | in progress |
 | LIC | Copyright and license notice in the footer | 19.6 | 3 | 3.5 | implemented |
 | THM | Theme package (app icons, colours, fonts) and its editor | 19.7 | 17 | 4, 5.2 | implemented |
 | | **Total** | | **292** (329 IDs, 37 withdrawn) | | |
@@ -151,6 +151,7 @@ Sections with no requirement table describe architecture and technology choices:
 | 2026-11-17 | **Native Phaser 4 Tiled integration and foot-anchored collision** (sw-architecture.md 3, 14.1, 14.2, 14.4; GAME-02, GAME-19, MAP-02, MAP-16). Phaser 4.2.1 renders the pinned Tiled 1.12.2 maps using the Ground → Props → Foreground layer convention. Tile objects must use natural image size, bottom alignment and zero tileset offset; unsupported transforms are refused. Collision and portal trigger guides remain gameplay data; actor-relative occlusion uses image-local polylines with Phaser depth overrides, not split artwork. The player's collision ellipse is centered 2 px left of its feet, with horizontal and vertical radii of 0.1 and 0.05 tile widths; the occlusion point is 3 px left of the feet. The WorldPackage contract is defined in 14.4 and generated from `shared/src/packages/world-v2.ts`. |
 | 2026-11-17 | **Clickable objects: assigned actions and the page overlay** (sw-architecture.md 14.4 "Decisions of step 5f"; GAME-06, GAME-11, GAME-16, MAP-15). The admin's action per object is stored by map id and object name and survives a new import (rows of vanished objects are dropped with a warning); `GET /api/world` carries them. A page opens as an overlay rendered in the application with a router of its own, not as an `iframe`. |
 | 2026-11-17 | **No template world; guest access can be disabled** (sw-architecture.md 14.5, MAP-12 – MAP-14 withdrawn, MAP-19). The platform ships no template world. Admins control guest access in Erlebniswelt › Welt & Import; it is enabled on the first successful world import. Disabling it removes guest entry/navigation and blocks guest world-serving routes without removing the active package or admin management. |
+| 2026-11-19 | **Epic 6.1 and the Living-world pilot** (backlog/roadmap.md, sw-architecture.md 19.5; GAME-42 – GAME-44, CNT-09, PWA-06, PWA-07 added). The release after epic 6 is a further pilot, not the Opening; epic 6.1 polishes the living world before it. The installed app checks for a new release and reloads itself; there is still no service worker, and on iOS a changed home-screen icon needs the app to be added again. |
 
 ## Open points
 

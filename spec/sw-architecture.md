@@ -387,6 +387,9 @@ A treasure hunt connects the real venue with the game world:
 | GAME-39 | Edge indicators also point to NPCs, labelled with the NPC's name; an NPC has one unless its `showIndicator` is off (added 2026-11-18, epic 6; reworded story 6i). | Should |
 | GAME-40 | An edge indicator and the label of an object are named by the title of the page its object opens, otherwise by the object's label or name  (added 2026-11-18, epic 6; reworded 2026-11-19, story 6i). | Should |
 | GAME-41 | Once an object, portal or NPC with an edge indicator is in sight, its label sticks to the top of it instead; of labels that would overlap, only the nearest is shown; whether an object or NPC has them depends only on its setting `showIndicator` (on by default; the admin can turn it off) (added 2026-11-18, epic 6; reworded 2026-11-19, story 6i). | Should |
+| GAME-42 | When more than two thirds of the player's avatar, a guest figure or an NPC is covered by objects in front of it, the figure shows through them as a flat silhouette (theme colour, about 50 % opacity); if measuring the covered share costs too much on iOS, only when it is covered completely. The target marker (GAME-24) shows as a silhouette as soon as any part of it is covered (added 2026-11-19, epic 6.1). | Should |
+| GAME-43 | Until the game is ready, its view is a black canvas of the game's size: first the loading text in white in its middle, then, once the game engine loads, a progress bar of the loading and the map build with a short playful text per step, picked at random from a pool built into the app (added 2026-11-19, epic 6.1). | Should |
+| GAME-44 | A page or dialogue opened over the game (GAME-11) opens smoothly, at the full frame rate of the device, also on iOS and in the installed app (added 2026-11-19, epic 6.1). | Should |
 | MP-01 | ~~Each map is a separate multiplayer room managed by the server.~~ (withdrawn: no multiplayer, see 3.3) | – |
 | MP-02 | ~~Players on the same map see the avatars and movements of the other players in that room in near real time.~~ (withdrawn: no multiplayer, see 3.3) | – |
 | MP-03 | ~~Passing through a portal moves the player from the current room to the target map's room at the configured target spawn point.~~ (withdrawn: no multiplayer; portals are covered by GAME-06) | – |
@@ -712,6 +715,7 @@ The platform therefore separates:
 | CNT-06 | Admins and staff with `editWebsiteContent` upload images (JPEG, PNG, WebP) in the editor and use them in content texts and places. The images are stored on the installation and served to signed-in users only. | Must |
 | CNT-07 | Places (name, optional address, optional Google Maps link, optional uploaded map image) are maintained once and referenced by program items and pages. A place shows its map image and the link "In Google Maps öffnen". No map is embedded from another site. | Must |
 | CNT-08 | A dialogue can have an optional portrait picture, uploaded in Erlebniswelt › Dialoge; it is shown on the left of the dialogue box (added 2026-11-18, epic 6). | Should |
+| CNT-09 | A dialogue has a figure name and an optional greeting (one line of plain text, at most 120 characters); its id is made from the figure name when it is created and is not entered by the admin (added 2026-11-19, epic 6.1). | Should |
 
 ## 6.2 Content Model (decided 2026-11-13, stage 4)
 
@@ -2346,6 +2350,7 @@ Guests can add the site to the home screen of iOS and Android and open it like a
 - **Standalone layout:** no browser chrome means no address bar and no back button. Every page offers its own way back, and the guest shells, the waiting page with its door scene and the admin area respect the safe areas (`env(safe-area-inset-*)`).
 - **Install hint** (UX decision 60, decided 2026-11-11): shown only in a mobile browser (Android, iOS), never in the installed app (display mode `standalone`, or `navigator.standalone` on iOS) and never on a desktop browser. Two places: a slim strip under the top bar of the waiting page, hidden for good with × (kept in the browser's `localStorage`, so it comes back if storage is blocked), and a permanent card "App" in the profile. Both lead to the page `/install` (a flow page, sign-in required, back to the start page where there is nothing to do): on Android a button opens the browser's own install prompt (`beforeinstallprompt`) and without a prompt the steps of the browser menu are shown; on iOS, which has no prompt, three steps of the Share menu. The page also says that the app asks for the password once more, because a home screen app's cookies are stored apart from the browser's. There is no pop-up on the first visit.
 - **No service worker:** the app needs a connection and caches nothing, so a new release is never hidden behind a stale cache. Offline support, push notifications and a store listing are out of scope.
+- **Update check** (PWA-06, decided 2026-11-19, epic 6.1): an installed app on iOS is suspended in the background and resumed without a reload, so it can run an old release for days. The client therefore compares its build version with `GET /api/version` on start and on `visibilitychange` to visible, and reloads when they differ, once it is safe: at once outside the game, in the game when no overlay or dialogue is open. A service worker was considered and not chosen: it would detect a release too, but the page would still have to reload, and its cache is a source of stale versions. iOS keeps the home-screen icon from the time the app was added; no web technique changes it.
 
 | ID | Requirement | Prio |
 |---|---|---|
@@ -2354,6 +2359,8 @@ Guests can add the site to the home screen of iOS and Android and open it like a
 | PWA-03 | The page head carries the tags iOS and Android need to install the site as an app with its icon and name, and `viewport-fit=cover`. | Must |
 | PWA-04 | Opened from the home screen, every page is usable without browser chrome: content stays clear of the safe areas, and each page offers a way back. | Must |
 | PWA-05 | Guests on a mobile browser see a dismissible hint on how to add the site to the home screen (Android: install button; iOS: Share-menu steps); it never appears in standalone mode. | Should |
+| PWA-06 | A running client notices a new release: it compares its own version with the server's when it starts and when it comes back to the foreground, and reloads itself at a safe moment (at once on the website, in the game when no page or dialogue is open). There is still no service worker. A changed home-screen icon is served at once; Android updates it on its own, on iOS the app has to be added to the home screen again (added 2026-11-19, epic 6.1). | Must |
+| PWA-07 | While the app is in the background, the game loop, timers, polling and audio stop; leaving the game destroys the game engine and frees its WebGL context (added 2026-11-19, epic 6.1). | Should |
 
 ## 19.6 Footer: Copyright and License Notice (decided 2026-11-11, stage 3.5)
 
@@ -2702,7 +2709,7 @@ flowchart LR
 - Tags matching `v*` are protected by a repository ruleset: only the release workflows can create them; nobody can move or delete them.
 - Releases and candidates are immutable. A problem found in `1.2.0-rc.1` is fixed on `main` and released as `1.2.0-rc.2`. A problem found after `1.2.0` is released becomes `1.2.1`.
 - Releases are always made from `main`; there are no release branches. Hotfixes follow the same flow with a patch version.
-- The product releases in backlog/roadmap.md (Release 1, Opening, Event-ready, After the event) are each shipped as such a release.
+- The product releases in backlog/roadmap.md (Release 1, World pilot, Living-world pilot, Event-ready, After the event) are each shipped as such a release.
 
 ### 23.3.1 Release Notes
 

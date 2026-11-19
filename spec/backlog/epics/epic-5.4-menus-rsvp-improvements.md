@@ -2,13 +2,13 @@
 
 | Status | Release | Depends on | Branch |
 |---|---|---|---|
-| done | Opening | 5.3 | `feature/epic-5.4-menus-rsvp-improvements` |
+| done | Living-world pilot | 5.3 | `feature/epic-5.4-menus-rsvp-improvements` |
 
 [Roadmap](../roadmap.md) · [How we work on epics](../README.md)
 
 ## Refinement
 
-Added 2026-11-18. Children get a menu list of their own, the RSVP is called "Anmeldung", guests land on it right after redeeming their invitation, and the RSVP and account tables of the admin area become easier to scan. Numbered 5.4 so that it is built before epic 6 and the Opening.
+Added 2026-11-18. Children get a menu list of their own, the RSVP is called "Anmeldung", guests land on it right after redeeming their invitation, and the RSVP and account tables of the admin area become easier to scan. Numbered 5.4 so that it is built before epic 6 and the Opening (since 2026-11-19: the Living-world pilot).
 
 **Current state (2026-11-18):**
 - One menu list for everyone, the children's menu included (7.4.1); a child's menu is optional (RSVP-14). Without menus nobody is asked.

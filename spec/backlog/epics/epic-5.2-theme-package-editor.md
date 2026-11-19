@@ -8,7 +8,7 @@
 
 ## Refinement
 
-Added 2026-11-18. Today a theme package (sw-architecture.md 19.7) is written by hand: `theme.json`, `manifest.json`, four PNG icons of exact sizes and the font files, packed into a `tar.gz`, then checked with `zappaloo validate`. This epic adds a standalone, web-based editor in the development environment, started like the game preview, where every part of a theme is defined, previewed with the app's own stylesheets, and exported as a valid theme package with a given name. Numbered 5.2 so that it is built before the Opening (the event's theme is needed then) and the later epics keep their numbers.
+Added 2026-11-18. Today a theme package (sw-architecture.md 19.7) is written by hand: `theme.json`, `manifest.json`, four PNG icons of exact sizes and the font files, packed into a `tar.gz`, then checked with `zappaloo validate`. This epic adds a standalone, web-based editor in the development environment, started like the game preview, where every part of a theme is defined, previewed with the app's own stylesheets, and exported as a valid theme package with a given name. Numbered 5.2 so that it is built before the Opening (since 2026-11-19: the Living-world pilot; the event's theme is needed then) and the later epics keep their numbers.
 
 **Current state (2026-11-18):**
 - The format is declared in `shared/src/packages/theme-v1.ts` (theme-v2.ts since story 5.2j) and `shared/src/theme.ts` (zod schemas, `THEME_LIMITS`, the colour and waiting keys). The validator is `backend/src/theme/validate.ts`; `backend/src/theme/build.ts` packs an archive and encodes PNGs (used by `scripts/build-example-theme.ts`).
@@ -20,7 +20,7 @@ Added 2026-11-18. Today a theme package (sw-architecture.md 19.7) is written by 
 - The mock of the editor (story 5.2a) is confirmed before story 5.2c starts.
 
 **Decisions** (2026-11-18, with the project owner):
-1. **Position:** epic 5.2, after 5.1 and before epic 6, so that it is done before the Opening. It depends on epic 4 (the theme package format) only.
+1. **Position:** epic 5.2, after 5.1 and before epic 6, so that it is done before the Opening (since 2026-11-19: the Living-world pilot). It depends on epic 4 (the theme package format) only.
 2. **Preview:** sample elements built with the app's real stylesheets (`ui.css`, `waiting.css`) and the app's own `themeStyle()` and `fontFaceRules()`, not the real page components. The editor needs no backend and does not break when a page component changes.
 3. **Icons:** one square image of at least 512 px is uploaded. The editor scales it to the four icon sizes and builds the maskable icon, with the content inside the central 80 % on a chosen background colour. Each icon can be replaced by an upload of its own.
 

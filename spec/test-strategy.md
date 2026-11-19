@@ -96,7 +96,10 @@ All active requirements are listed here until their stage is delivered. Shrink t
 | OPS | OPS-13 | 1 |
 | SEC | SEC-04, SEC-06 – SEC-08 | 4 |
 | PERF | PERF-01, PERF-03, PERF-04 | 3 |
-| **Total** | | **59** |
+| GAME | GAME-42 – GAME-44 | 3 |
+| CNT | CNT-09 | 1 |
+| PWA | PWA-06, PWA-07 | 2 |
+| **Total** | | **65** |
 
 The stage each requirement belongs to is listed in `sw-architecture.md`, section 28.
 

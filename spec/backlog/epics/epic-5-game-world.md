@@ -12,7 +12,7 @@ Refined 2026-11-14 with the project owner, before the stage started. Branch `fea
 
 **Before the epic starts:**
 - The layout of the world package is defined and confirmed (sw-architecture.md 14.4). A draft was agreed on 2026-11-14 (below); step 5a writes it into the spec.
-- A first world package of the project owner, with maps drawn in Tiled, is needed for the Opening, not for building the steps. Steps 5b to 5k use a test world that a script generates.
+- A first world package of the project owner, with maps drawn in Tiled, is needed for the Opening (since 2026-11-19: the Living-world pilot), not for building the steps. Steps 5b to 5k use a test world that a script generates.
 
 **Decisions from the plan review (2026-11-14):**
 - **Importer first, then the engine.** The validator, the import and the admin card come before the rendering. The engine is built against the generated test world.
@@ -470,7 +470,7 @@ An admin imports a whole world package (isometric maps from Tiled, complete figu
 **Remaining requirements by stage** (from the requirement report, whole stage numbers): stage 1 → 1; 2 → 0; 3 → 0; 4 → 2 (CNT-02, CNT-03); 5 → 0; 6 → 14; 7 → 30; 8 → 22; 9 → 2 (PERF-01, PERF-04); 10 → 4. In total 75 of 247 active requirements not yet implemented.
 
 **Waiting on the project owner:**
-- A first world package with maps drawn in Tiled and figures from PixelLab, for the Opening; the steps used a generated test world.
+- A first world package with maps drawn in Tiled and figures from PixelLab, for the Opening (since 2026-11-19: the Living-world pilot); the steps used a generated test world.
 - A release candidate to check the game on real phones and a computer; that check also tells whether the loading time (step 9c) needs work.
 - Confirm the preconditions and steps of stage 6 before it starts.
 - **Open points (from stage 5):**

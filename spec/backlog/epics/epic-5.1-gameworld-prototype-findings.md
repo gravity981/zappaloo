@@ -8,7 +8,7 @@
 
 ## Refinement
 
-Added 2026-11-17, after the project owner tried the game with the prototype world. Walking by tap feels unnatural and sometimes does nothing, players don't see where they are going or what lies outside the visible area, and on iOS the whole view stutters while the camera follows the avatar. This epic makes tap-to-move and orientation in the world good enough for the Opening. Numbered 5.1 so that the later epics keep their numbers.
+Added 2026-11-17, after the project owner tried the game with the prototype world. Walking by tap feels unnatural and sometimes does nothing, players don't see where they are going or what lies outside the visible area, and on iOS the whole view stutters while the camera follows the avatar. This epic makes tap-to-move and orientation in the world good enough for the Opening (since 2026-11-19: the Living-world pilot). Numbered 5.1 so that the later epics keep their numbers.
 
 **What the game does today** (end of epic 5):
 - Tap-to-move (`game-engine/src/pathfinding.ts`, `navigation.ts`): A* over the tile grid with one cell per tile and four neighbours, which are the diagonals on screen. The avatar walks through the centre of every cell on the path, so it zigzags.

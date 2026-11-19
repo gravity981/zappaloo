@@ -2,13 +2,13 @@
 
 | Status | Release | Depends on | Branch |
 |---|---|---|---|
-| done | Opening | 4 | `feature/epic-5.3-program-items-activities` |
+| done | Living-world pilot | 4 | `feature/epic-5.3-program-items-activities` |
 
 [Roadmap](../roadmap.md) · [How we work on epics](../README.md)
 
 ## Refinement
 
-Added 2026-11-18. Today a program item is both the unit a guest answers the RSVP for and an entry of the schedule. That forces one RSVP answer per schedule entry: an event with Apéro, Dinner and Party needs three answers, or the programme shows one coarse entry. This epic separates the two: a **program item** is what a guest is invited to and answers for, and it has one or more **activities**, which are what the programme shows. Invitations can then be set up more finely, because not every activity needs its own RSVP answer. Numbered 5.3 so that it is built before epic 6 and the Opening.
+Added 2026-11-18. Today a program item is both the unit a guest answers the RSVP for and an entry of the schedule. That forces one RSVP answer per schedule entry: an event with Apéro, Dinner and Party needs three answers, or the programme shows one coarse entry. This epic separates the two: a **program item** is what a guest is invited to and answers for, and it has one or more **activities**, which are what the programme shows. Invitations can then be set up more finely, because not every activity needs its own RSVP answer. Numbered 5.3 so that it is built before epic 6 and the Opening (since 2026-11-19: the Living-world pilot).
 
 **Current state (2026-11-18):** program items (`program_items`: name, start, optional end, place, meal flag) are edited in Einstellungen › Rückmeldung (7.4.1). Invitations (`membership_program_items`), answers (`rsvp_attendance`), the menu rule (meal item), the figures (PRES-01) and the CSV refer to program items. The programme, "now / next", the "now" marker and the countdown read the program items' times (5.5, 5.6).
 

@@ -13,7 +13,7 @@ Replanned 2026-11-13 after a review of the plan against stages 3 to 3.9 and a cl
 **Before the epic starts:**
 - Stage 3.9 is complete, and step 3.9g (update on prod) is done (confirmed by the project owner on 2026-11-13). The "not yet tested" list in test-strategy.md, section 5, is cleared (done 2026-11-13: the device and prod checks of stage 3.5 are recorded in the manual test protocol).
 - The project owner confirms the proposals below.
-- Texts for the first event's pages (at least drafts) and a theme package for the first event (icons, colours, fonts). Both are needed for the Opening, not for building the steps. The steps use test data.
+- Texts for the first event's pages (at least drafts) and a theme package for the first event (icons, colours, fonts). Both are needed for the Opening (since 2026-11-19: the Living-world pilot), not for building the steps. The steps use test data.
 
 **Decisions from the plan review (2026-11-13):**
 - **Four channels** shape an event: the admin area, the theme package, the world package and the feature data (19.1.1). Copying an event to another installation is out of scope.

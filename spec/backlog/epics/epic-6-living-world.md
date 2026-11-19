@@ -2,7 +2,7 @@
 
 | Status | Release | Depends on | Branch |
 |---|---|---|---|
-| done | Opening (completes it) | 5 | `feature/epic-6-living-world` |
+| done | Living-world pilot | 5 | `feature/epic-6-living-world` |
 
 [Roadmap](../roadmap.md) · [How we work on epics](../README.md)
 
@@ -190,7 +190,7 @@ Re-verified: GAME-26.
 **Remaining requirements by epic:** epic 1 → 1, epic 7 → 30, epic 8 → 22, epic 9 → 2, epic 10 → 4 (from the requirement report; the others have 0). Requirements of unplanned groups on the list: SEC-04, which has passing tests but is still on the "not yet implemented" list (a leftover of an earlier epic, not changed here).
 
 **Waiting on the project owner:**
-- The release point "Opening" follows this epic. This release carries world format 3, eleven new migrations (0024 – 0034 since v2.0.0) and the new admin screens; the world package of the Tiled project needs `formatVersion: 3`, borders at the world's edge, an optional bird in `ambient/bird/`, NPCs with figures and paths, a figure of the tier `npc` with a `wave`, and a fountain animation, to see the epic's effects on the real world.
+- The release point "Living-world pilot" (first planned as "Opening", renamed 2026-11-19) follows epic 6.1, which was inserted after this epic. This release carries world format 3, eleven new migrations (0024 – 0034 since v2.0.0) and the new admin screens; the world package of the Tiled project needs `formatVersion: 3`, borders at the world's edge, an optional bird in `ambient/bird/`, NPCs with figures and paths, a figure of the tier `npc` with a `wave`, and a fountain animation, to see the epic's effects on the real world.
 - Tell me whether the cloud shadows should stay an overlay or lie on the ground only (they are an overlay today); the real-world screenshots comparing the two were offered, not made.
 - Art and content for the real world: the NPCs' names, short dialogs and dialogues with portraits, and the programme/table plan data.
 
