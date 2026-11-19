@@ -97,10 +97,14 @@ export interface GameEngineOptions {
   view?: GameView;
   /** The words the game shows. */
   texts?: GameTexts;
-  /** The game preview cannot assign actions: it gives every clickable object but an easter egg an edge indicator (GAME-26). */
-  indicateAllObjects?: boolean;
   /** The figures of the attending guests that wander the maps (PRES-01); each walks on the map its id picks (PRES-02). */
   guests?: readonly GuestFigure[];
+  /**
+   * The title of what an action opens (GAME-40): a page's title, a minigame's name. The edge indicator and the label
+   * of an object carry it; without a title (or without this function, as in the game preview) the object's own label
+   * or name stands.
+   */
+  titleOf?: (action: WorldObjectAction) => string | undefined;
   /** The address of a guest's photo for the speech bubble; without it the bubble shows the initials. */
   guestPhoto?: (guest: GuestFigure) => string | undefined;
   /** Shows the development diagnostics overlay (GAME-27); never set in a production build. */

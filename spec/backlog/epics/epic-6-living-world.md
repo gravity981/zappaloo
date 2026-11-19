@@ -2,7 +2,7 @@
 
 | Status | Release | Depends on | Branch |
 |---|---|---|---|
-| ready | Opening (completes it) | 5 | `feature/epic-6-living-world` |
+| done | Opening (completes it) | 5 | `feature/epic-6-living-world` |
 
 [Roadmap](../roadmap.md) · [How we work on epics](../README.md)
 
@@ -33,13 +33,13 @@ Stories marked **Tiled world project** need changes in the external project that
    **Several bubbles:** bubbles of NPCs and guest figures can be open at the same time. Of bubbles that would overlap, only the nearest figure's is shown, as with the edge indicators. This changes PRES-10, which allowed only the nearest figure's bubble (reworded 2026-11-18).
    **Game preview:** it has no short dialogs, so NPC bubbles are not shown there and are tested in the app only.
 11. **Tapping an NPC** walks the player to it and runs its action, like a clickable object. An NPC does not sparkle; it glows only while the player walks to it (GAME-25), and it waits instead of walking on.
-12. **Edge indicators** also point to NPCs with an action, labelled with the NPC's name.
+12. **Edge indicators** also point to NPCs, labelled with the NPC's name (whether an NPC has one follows the setting `showIndicator`, story 6i).
 13. **Edge indicator labels** show the title of what the object opens: a page's title (Programm, Rückmeldung, Profil, or the content page's title), a dialogue's NPC name, a minigame's name. Without an action, the Tiled `label`, or the name. The game preview has no actions and keeps the label or name.
 14. **Labels on objects in sight:** once an object or portal with an edge indicator comes into view, its indicator goes and its label sticks to the top of the object (the same white pill), so the player still sees what it is. Of labels that would overlap, only the nearest is shown.
 
 ## Stories
 
-### Story 6a – Wandering figures
+### Story 6a – Wandering figures – Done (2026-11-18)
 
 **Tiled world project:** wander areas (`type = wander`) on the maps.
 Figures of attending guests in the wander areas of one map per guest (picked at random, kept per guest); own avatar instead of own figure; simulated per device.
@@ -52,7 +52,7 @@ Decided 2026-11-18 (refinement of 6a):
 - The signed-in user's companions appear as figures; only the user's own figure is replaced by the avatar.
 Requirements: PRES-01, PRES-02, PRES-04, PRES-08, AVA-04.
 
-### Story 6b – Profiles
+### Story 6b – Profiles – Done (2026-11-18)
 
 Mock screens: `profile`, `onboard-profile`, `admin-settings` (relation list), `admin-users` (profile section, drawn in this story).
 Split on 2026-11-18 (with the project owner): the speech bubble in the game is story 6b2.
@@ -63,7 +63,7 @@ Split on 2026-11-18 (with the project owner): the speech bubble in the game is s
 Requirements: PRES-09, PRES-13, PRES-14, PRES-15.
 Re-verified: GAME-13.
 
-### Story 6b2 – Speech bubble
+### Story 6b2 – Speech bubble – Done (2026-11-18)
 
 Mock screen: `game`.
 - The speech bubble of a guest figure opens automatically when the player comes close; the figure stops and turns to the player. Several bubbles can be open at once; of bubbles that would overlap, only the nearest figure's is shown (decision 10). A click or tap pins a bubble until it is closed.
@@ -76,7 +76,7 @@ Decided 2026-11-18 (refinement of 6b2):
 - **Game preview:** its sample guests carry a made-up greeting and badge, no photo.
 Requirements: PRES-10.
 
-### Story 6c – Seating plan and table finder
+### Story 6c – Seating plan and table finder – Done (2026-11-18)
 
 **Tiled world project:** clickable objects (e.g. the tables) with `action = page`, `page = seating`. The world has no seats.
 Mock screens: `admin-seating`, `seating`, `game-table`. Decided 2026-11-18 (refinement of 6c), simplified by the project owner twice: no seat placement and no wayfinding in the game, and no seats or tables in the game world at all.
@@ -87,7 +87,7 @@ Mock screens: `admin-seating`, `seating`, `game-table`. Decided 2026-11-18 (refi
 - The `seat` object type is not used any more: format version 2 still accepts and ignores it, format version 3 drops it (story 6e).
 Requirements: PRES-05, PRES-06, PRES-07, PRES-12.
 
-### Story 6d – Dialogues
+### Story 6d – Dialogues – Done (2026-11-18)
 
 Mock screen: `admin-world` (variant "Dialoge"). Moved here from 5g on 2026-11-17. Decided 2026-11-18 (refinement of 6d):
 - **Data:** a dialogue has an id (`a–z 0–9 -`, 1–40 characters, the `contentId` of Tiled presets), the NPC's name (1–60 characters), 1–30 lines in Markdown (each 1–500 characters) and an optional portrait. It is stored in the database, not in the world package.
@@ -96,7 +96,7 @@ Mock screen: `admin-world` (variant "Dialoge"). Moved here from 5g on 2026-11-17
 - **Portrait (CNT-08):** JPEG, PNG or WebP, at most 1 MB and 512 pixels per side, checked by content and kept as uploaded, so pixel art stays crisp; shown in a fixed square box, small pictures scaled without smoothing. Not part of the world package; it is shown whichever NPC or object opens the dialogue.
 Requirements: CNT-02 (the dialogue and NPC text part; albums follow in step 7d), CNT-03 (completing it), CNT-08.
 
-### Story 6e – World format version 3 and atmosphere
+### Story 6e – World format version 3 and atmosphere – Done (2026-11-18)
 
 **Tiled world project:** `formatVersion: 3`; `border` polygons where the fog shall lie (the outer border of the map is the edge of the world); the map properties `clouds`, `birds`, `fog` where an effect is off; one bird in `ambient/bird/`.
 Mock screen: `game` (atmosphere only as a note). Decided 2026-11-18 (refinement of 6e):
@@ -110,14 +110,14 @@ Mock screen: `game` (atmosphere only as a note). Decided 2026-11-18 (refinement 
 - Fog along the border, cloud shadows, birds, the map switches, reduced motion; in the app and the game preview.
 Requirements: MAP-20, GAME-31, GAME-32, GAME-33, GAME-34.
 
-### Story 6f – Animated tile objects
+### Story 6f – Animated tile objects – Done (2026-11-18)
 
 **Tiled world project:** the animation of the fountain (and other animated props) in its image-collection tileset.
 - The validator reads tile animations of image-collection tiles in format version 3 (frames are tiles of the same tileset, each with a duration); the engine plays them on tile objects, in step for all objects on a map. Format version 2 keeps refusing them.
 - **Decided 2026-11-18 (with the project owner):** every frame has the size of the animated tile's own picture (an error otherwise), so the object does not jump and its guides stay valid; with `prefers-reduced-motion` the object stands on its first frame; the guides, sparkles and glow follow the first frame. A tile animation is 1 to 32 frames of 20 to 10 000 ms each.
 Requirements: GAME-35.
 
-### Story 6g – NPCs in the world
+### Story 6g – NPCs in the world – Done (2026-11-19)
 
 **Tiled world project:** `npc` objects with `figure`, `label` and `path` polylines; NPC figures with tier `npc` and a wave animation.
 Mock screen: `game`.
@@ -130,7 +130,7 @@ Mock screen: `game`.
 Requirements: GAME-36, GAME-38.
 Re-verified: GAME-25, AVA-01.
 
-### Story 6h – NPCs in Erlebniswelt: name, short dialog, action
+### Story 6h – NPCs in Erlebniswelt: name, short dialog, action – Done (2026-11-19)
 
 Mock screens: `admin-world` (NPC list), `game` (NPC bubble).
 - The NPC list per map in Erlebniswelt with name, short dialog and action, audited; the NPC bubble from 3 tiles, several bubbles with the overlap rule; edge indicators for NPCs with an action.
@@ -142,14 +142,60 @@ Mock screens: `admin-world` (NPC list), `game` (NPC bubble).
 Requirements: MAP-21, GAME-37, GAME-39.
 Re-verified: PRES-10, CNT-03, GAME-26.
 
-### Story 6i – Labels: title of the action, on objects in sight
+### Story 6i – Labels: title of the action, on objects in sight – Done (2026-11-19)
 
 Mock screen: `game`.
 - The app gives the engine the title of what each object opens; the preview keeps the label or name.
 - Once an object or portal with an indicator is in view, its label sticks to the top of the object; the overlap rule of the indicators applies.
+- **Decided 2026-11-18 (with the project owner):**
+  - **NPCs** with an action get the label too, but not while their speech bubble is open (the bubble names them). NPCs keep their indicator (GAME-39) whatever their action is.
+  - **Titles:** the dialogue part of GAME-40 dropped: the title is that of a page; a minigame has no name yet (stage 8), and an object without a title keeps its label or name.
+  - **Taps go through** the in-sight label to what lies beneath; the label of an edge indicator stays part of its touch area.
+  - **`showIndicator`:** whether a clickable object or NPC has an edge indicator and a label depends only on this setting (decided 2026-11-19), on by default, also for an easter egg, an object without an action, an object that shows a dialogue and an NPC without an action. The admin turns it off per object and NPC in Objekte & Portale (a checkbox per object and per NPC block) for less important information or surprises. Stored as the objects where it is off in `world_hidden_indicators` (migration `0034`), public as `indicators` in `GET /api/world`. This replaces the earlier rule that dialogue objects, easter eggs and objects without an action have none.
 Requirements: GAME-40, GAME-41.
 Re-verified: GAME-26.
 
 ## Report
 
-<Added when the epic is complete, from the template in README.md.>
+### Epic report (2026-11-19)
+
+**Summary:** the game world is alive: the figures of the attending guests wander the maps and introduce themselves in speech bubbles, guests find their table and tablemates (the admin makes the tables in the backend; the world has no seats), NPCs walk their paths, wave, talk and open pages, and the world has fog at its border, cloud shadows, birds and animated props such as fountains. Admins write dialogues with portraits, give NPCs a name, a short dialog and an action, and can turn the edge indicator and label of any object or NPC off. Objects and NPCs in sight carry a label named by the page they open, and the admin decides per object and NPC whether it shows an indicator and label.
+
+**Stories:**
+- 6a Wandering figures – done.
+- 6b Profiles – done (split: 6b, and 6b2 the speech bubble).
+- 6b2 Speech bubble – done.
+- 6c Seating plan and table finder – changed: the seating plan is made entirely in the backend (tables with a name and places, persons placed on a table), the world has no seats, and the table finder shows the guest's table and tablemates.
+- 6d Dialogues – done.
+- 6e World format version 3 and atmosphere – done (fog, cloud shadows, birds, map switches).
+- 6f Animated tile objects – done.
+- 6g NPCs in the world – done.
+- 6h NPCs in Erlebniswelt: name, short dialog, action – done, with the bubble, several bubbles and the NPC edge indicators.
+- 6i Labels: title of the action, on objects in sight – changed: the setting `showIndicator` (on by default) alone decides whether an object or NPC has an edge indicator and a label, and the admin sets it per object and NPC (new, asked for during the story).
+
+**Requirements:** 28 of 28 planned for this epic implemented, all with passing tests (requirement report). Overall: 233 of 292 active requirements implemented (223 pass in the report; the rest are requirements whose only tests are the deploy tests, which run on CI only and show stale results here), 59 not yet implemented.
+
+**Tests:** Vitest 1655 passed, 0 failed (159 files). Playwright 103 passed, 0 failed, 105 skipped (tests that restrict themselves to one project) over desktop and mobile, Chromium and WebKit. The deployment test (`npm run test:deploy`) runs on CI only and was not run; the requirement report therefore still shows the old deploy results as errors (OPS-02, OPS-05, OPS-13, OPS-15, OPS-16, ACC-05, ACC-11, ACC-14, CFG-02, CFG-07, SEC-01), as in earlier epics. Lint, typecheck and the migration check are clean. No manual checks were done on real art: the fog, cloud shadows (overlay variant, the owner tests on the real world), birds, fountain and NPCs were seen only with the generated test world.
+
+**Spec changes and deviations:**
+- World format version 3 is read together with version 2 (decision 1): it adds the map switches, the bird, tile animations, NPCs with paths, the figure tier `npc` and the wave, and drops the type `seat`. The theme format keeps reading the newest version only.
+- The seating plan lives in the backend only; the world has no seats and the exact seat is not managed in Zappaloo (decided 2026-11-18).
+- Whether an object or NPC has an edge indicator and a label depends only on its setting `showIndicator` (on by default; GAME-26, GAME-39, GAME-41). The earlier exclusions (easter eggs, objects without an action) are gone, so they show both unless the admin turns them off. The dialogue part of GAME-40 dropped; the title is a page's.
+- New setting `showIndicator` for the indicator and label of an object or NPC (GAME-26, GAME-39, GAME-41): table `world_hidden_indicators`. It alone decides, so easter eggs and objects without an action now show them unless turned off (this replaces the earlier exclusions).
+- New tables and migrations 0028 – 0034: profiles and relation options, seating, dialogues with portraits, NPC texts (`world_npcs`), hidden indicators.
+- The edge indicators and the speech bubbles were not actually hidden while a page is open (their inline `display` beat the `hidden` attribute); fixed in 6h (GAME-11).
+- Older e2e tests were repaired along the way: the first-entry test after the profile step, the dialogue and bubble tests whose retry loops clicked again after the target had opened, GAME-09, which no longer asserts a distance that depends on the machine's frame rate but the direction and that the player moved, and the DATA-02 table list.
+- Mock and UX decisions: `spec/mocks/` has the NPC card, the indicator column and the notes for NPC bubbles and labels.
+
+**Remaining requirements by epic:** epic 1 → 1, epic 7 → 30, epic 8 → 22, epic 9 → 2, epic 10 → 4 (from the requirement report; the others have 0). Requirements of unplanned groups on the list: SEC-04, which has passing tests but is still on the "not yet implemented" list (a leftover of an earlier epic, not changed here).
+
+**Waiting on the project owner:**
+- The release point "Opening" follows this epic. This release carries world format 3, eleven new migrations (0024 – 0034 since v2.0.0) and the new admin screens; the world package of the Tiled project needs `formatVersion: 3`, borders at the world's edge, an optional bird in `ambient/bird/`, NPCs with figures and paths, a figure of the tier `npc` with a `wave`, and a fountain animation, to see the epic's effects on the real world.
+- Tell me whether the cloud shadows should stay an overlay or lie on the ground only (they are an overlay today); the real-world screenshots comparing the two were offered, not made.
+- Art and content for the real world: the NPCs' names, short dialogs and dialogues with portraits, and the programme/table plan data.
+
+**Risks and notes:**
+- The e2e test PRES-10 (guest bubble) failed now and then in whole-file runs and passed alone and on re-runs; its cause is not found. It is not tagged `@flaky`, because it depends on the world that the first test of its serial group imports and so cannot run apart. GAME-09 failed under load because the engine caps the step of a frame, which makes the walk shorter than the wall-clock hold; it now asserts direction and movement only.
+- NPCs follow their polyline without searching a way round collisions; the world maker draws paths where it is free.
+- NPC bubbles and short dialogs are not in the game preview.
+- Edge indicators and labels are resolved by distance, so a nearer NPC can hide the indicator of an object in a small view (as seen in the GAME-26 test). Since `showIndicator` is on by default, a world with many objects shows more indicators than before; the admin turns the unimportant ones off.

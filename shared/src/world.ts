@@ -576,6 +576,8 @@ export const worldClickableSchema = z.object({
   override: worldActionSchema.optional(),
   /** Whether the effective action points to something that does not exist (a missing page). */
   missing: z.boolean(),
+  /** Whether the object shows its edge indicator and its label in the game; on unless the admin turns it off. */
+  showIndicator: z.boolean().default(true),
 });
 export type WorldClickable = z.infer<typeof worldClickableSchema>;
 
@@ -590,6 +592,8 @@ export const worldNpcSchema = z.object({
   override: worldActionSchema.optional(),
   /** Whether the effective action points to something that does not exist. */
   missing: z.boolean(),
+  /** Whether the NPC shows its edge indicator and its label in the game; on unless the admin turns it off. */
+  showIndicator: z.boolean().default(true),
   /** The admin's name for the NPC, if there is one. */
   title: z.string().optional(),
   /** The short dialog, if there is one. */
@@ -602,6 +606,17 @@ export const worldNpcRequestSchema = z.strictObject({
   title: z.string().trim().max(WORLD_LIMITS.nameLength).nullable(),
   dialog: z.string().trim().max(WORLD_LIMITS.npcDialogLength).nullable(),
 });
+
+/** `PUT /api/admin/world/objects/:map/:object/indicator`: whether the object or NPC shows its indicator and label. */
+export const worldIndicatorRequestSchema = z.strictObject({ showIndicator: z.boolean() });
+
+/** The setting `showIndicator` of an object or NPC of a map, by the map's id and its Tiled name. */
+export const worldIndicatorSettingSchema = z.strictObject({
+  map: z.string(),
+  object: z.string(),
+  showIndicator: z.boolean(),
+});
+export type WorldIndicatorSetting = z.infer<typeof worldIndicatorSettingSchema>;
 
 /** One portal of a map, read-only (MAP-15). */
 export const worldPortalSchema = z.object({
@@ -656,6 +671,11 @@ export const publicWorldSchema = z.object({
   actions: z.array(worldActionOverrideSchema).default([]),
   /** The texts the admin gave the NPCs (MAP-21); an NPC without any is not listed. */
   npcs: z.array(publicNpcSchema).default([]),
+  /**
+   * The objects and NPCs whose `showIndicator` the admin changed (GAME-26, GAME-41); every other object and NPC
+   * shows its edge indicator and label.
+   */
+  indicators: z.array(worldIndicatorSettingSchema).default([]),
   /** Whether the world has a bird (`ambient/bird/metadata.json`, format version 3): without one there are no birds. */
   bird: z.boolean().default(false),
 });

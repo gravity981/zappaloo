@@ -48,6 +48,11 @@ export interface LoadedWorld {
   actions: Map<string, WorldObjectAction>;
   /** The texts the admin gave the NPCs, by `<map id>/<NPC name>` (MAP-21): name, short dialog and portrait. */
   npcs: Map<string, PublicNpc>;
+  /**
+   * The `showIndicator` the admin set for objects and NPCs, by `<map id>/<name>`; one that is not listed shows its edge
+   * indicator and label (GAME-26, GAME-41).
+   */
+  showIndicator: Map<string, boolean>;
 }
 
 /** Inputs already loaded by a host adapter; the same path prepares authenticated and local packages. */
@@ -176,5 +181,8 @@ export function prepareWorld(source: WorldSource): LoadedWorld {
     images,
     actions: new Map(summary.actions.map((item) => [`${item.map}/${item.object}`, item.action])),
     npcs: new Map(summary.npcs.map((item) => [`${item.map}/${item.name}`, item])),
+    showIndicator: new Map(
+      summary.indicators.map((item) => [`${item.map}/${item.object}`, item.showIndicator]),
+    ),
   };
 }

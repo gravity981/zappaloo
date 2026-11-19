@@ -871,6 +871,23 @@ export const worldObjectActions = sqliteTable(
 );
 
 /**
+ * The clickable objects and NPCs whose edge indicator and label the admin turned off (sw-architecture.md 14.4,
+ * GAME-26, GAME-41): a row per map id and object or NPC name, so the setting survives a new import. Without a row
+ * the indicator and label are shown. For less important information or surprises.
+ */
+export const worldHiddenIndicators = sqliteTable(
+  "world_hidden_indicators",
+  {
+    eventId: text("event_id")
+      .notNull()
+      .references(() => events.id),
+    mapId: text("map_id").notNull(),
+    objectName: text("object_name").notNull(),
+  },
+  (table) => [primaryKey({ columns: [table.eventId, table.mapId, table.objectName] })],
+);
+
+/**
  * The texts the admin gave the NPCs of the world (sw-architecture.md 14.4, MAP-21): a name and a short dialog, per
  * map id and NPC name, so they survive a new import of the world. Either may be null; a row with neither is removed.
  */

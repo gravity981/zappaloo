@@ -737,8 +737,13 @@ describe("the NPCs in Erlebniswelt: name, short dialog, action (MAP-21, GAME-37)
       label: "Küster",
       preset: { kind: "page", page: "programme" },
       missing: false,
+      showIndicator: true,
     });
-    expect(npcOf(list, "garten", "gaertner")).toEqual({ name: "gaertner", missing: false });
+    expect(npcOf(list, "garten", "gaertner")).toEqual({
+      name: "gaertner",
+      missing: false,
+      showIndicator: true,
+    });
     expect(npcOf(list, "saal", "kuester")).toBeUndefined();
   });
 
@@ -779,6 +784,7 @@ describe("the NPCs in Erlebniswelt: name, short dialog, action (MAP-21, GAME-37)
     expect(npcOf(await objects(ctx, admin), "garten", "gaertner")).toEqual({
       name: "gaertner",
       missing: false,
+      showIndicator: true,
     });
   });
 
@@ -917,5 +923,113 @@ describe("the NPCs in Erlebniswelt: name, short dialog, action (MAP-21, GAME-37)
       payload: { action: { kind: "page", page: "profile" } },
     });
     expect((await world(ctx, admin)).npcs).toEqual([]);
+  });
+});
+
+describe("the edge indicator and label of an object or NPC (GAME-26, GAME-41)", () => {
+  const setIndicator = (
+    ctx: TestContext,
+    headers: Headers,
+    map: string,
+    object: string,
+    body: object,
+  ) =>
+    ctx.app.inject({
+      method: "PUT",
+      url: `/api/admin/world/objects/${map}/${object}/indicator`,
+      headers,
+      payload: body,
+    });
+  const objects = async (ctx: TestContext, headers: Headers) =>
+    bodyOf<WorldObjects>(await ctx.app.inject({ url: "/api/admin/world/objects", headers }));
+  const world = async (ctx: TestContext, headers: Headers) =>
+    bodyOf<PublicWorld>(await ctx.app.inject({ url: "/api/world", headers }));
+
+  it("[GAME-26][GAME-41] every object and NPC shows its indicator and label unless the admin turned them off, live at once", async () => {
+    context = await createTestApp();
+    const ctx = context;
+    const admin = await signIn(ctx, "boss", ["admin"]);
+    await upload(ctx, admin, buildTestWorld());
+    expect((await world(ctx, admin)).indicators).toEqual([]);
+    const kirche = (await objects(ctx, admin)).maps.find((map) => map.id === "kirche");
+    expect(kirche?.clickables.every((item) => item.showIndicator)).toBe(true);
+    expect(kirche?.npcs.every((item) => item.showIndicator)).toBe(true);
+
+    // An object and an NPC.
+    expect(
+      (await setIndicator(ctx, admin, "kirche", "altar", { showIndicator: false })).statusCode,
+    ).toBe(200);
+    const off = await setIndicator(ctx, admin, "kirche", "kuester", { showIndicator: false });
+    const list = off.json<WorldObjects>().maps.find((map) => map.id === "kirche");
+    expect(list?.clickables.find((item) => item.name === "altar")?.showIndicator).toBe(false);
+    expect(list?.npcs.find((item) => item.name === "kuester")?.showIndicator).toBe(false);
+    expect(list?.clickables.find((item) => item.name === "pastor")?.showIndicator).toBe(true);
+    expect((await world(ctx, admin)).indicators).toEqual([
+      { map: "kirche", object: "altar", showIndicator: false },
+      { map: "kirche", object: "kuester", showIndicator: false },
+    ]);
+
+    await setIndicator(ctx, admin, "kirche", "altar", { showIndicator: true });
+    expect((await world(ctx, admin)).indicators).toEqual([
+      { map: "kirche", object: "kuester", showIndicator: false },
+    ]);
+    // Names only in the audit log.
+    const entries = ctx.event.auditEntries().filter((item) => item.action === "world.indicator");
+    expect(entries.map((item) => item.details)).toContainEqual({
+      map: "kirche",
+      object: "kuester",
+    });
+    expect(entries).toHaveLength(3);
+  });
+
+  it("[GAME-41] the object must exist, a portal is no object of this kind, the body is a boolean, and only admins set it", async () => {
+    context = await createTestApp();
+    const ctx = context;
+    const admin = await signIn(ctx, "boss", ["admin"]);
+    const staff = await signIn(ctx, "crew", ["staff"]);
+    await upload(ctx, admin, buildTestWorld());
+    const gone = await setIndicator(ctx, admin, "kirche", "nobody", { showIndicator: false });
+    expect(gone.statusCode).toBe(404);
+    expect(gone.json<{ error: { code: string } }>().error.code).toBe("object_not_found");
+    expect(
+      (await setIndicator(ctx, admin, "kirche", "zum-garten", { showIndicator: false })).statusCode,
+    ).toBe(404);
+    expect(
+      (await setIndicator(ctx, admin, "kirche", "altar", { showIndicator: "no" })).statusCode,
+    ).toBe(400);
+    expect((await setIndicator(ctx, admin, "kirche", "altar", {})).statusCode).toBe(400);
+    expect(
+      (await setIndicator(ctx, staff, "kirche", "altar", { showIndicator: false })).statusCode,
+    ).toBe(403);
+  });
+
+  it("[GAME-41] the setting follows the object by its map and name: a new import without it neither shows nor serves the row, and it is back with the object", async () => {
+    context = await createTestApp();
+    const ctx = context;
+    const admin = await signIn(ctx, "boss", ["admin"]);
+    await upload(ctx, admin, buildTestWorld());
+    await setIndicator(ctx, admin, "kirche", "kuester", { showIndicator: false });
+    const files = testWorldFiles();
+    interface Layer {
+      objects?: { name: string }[];
+      layers?: Layer[];
+    }
+    const map = JSON.parse(files["maps/kirche.json"]?.toString("utf8") ?? "{}") as {
+      layers: Layer[];
+    };
+    const drop = (layers: Layer[]): void => {
+      for (const layer of layers) {
+        if (layer.objects) layer.objects = layer.objects.filter((item) => item.name !== "kuester");
+        if (layer.layers) drop(layer.layers);
+      }
+    };
+    drop(map.layers);
+    files["maps/kirche.json"] = Buffer.from(JSON.stringify(map));
+    await upload(ctx, admin, buildArchive(files));
+    expect((await world(ctx, admin)).indicators).toEqual([]);
+    await upload(ctx, admin, buildTestWorld());
+    expect((await world(ctx, admin)).indicators).toEqual([
+      { map: "kirche", object: "kuester", showIndicator: false },
+    ]);
   });
 });

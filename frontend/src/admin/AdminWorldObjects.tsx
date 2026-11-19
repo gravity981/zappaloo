@@ -93,6 +93,26 @@ export default function AdminWorldObjects() {
     }
   }
 
+  /** Turns the edge indicator and the label of an object or NPC on or off; live at once (GAME-26, GAME-41). */
+  async function setIndicator(name: string, showIndicator: boolean) {
+    setError(undefined);
+    setSaved(false);
+    setSaving(name);
+    try {
+      const path = `${OBJECTS_PATH}/${encodeURIComponent(map?.id ?? "")}/${encodeURIComponent(name)}/indicator`;
+      const result = await call("PUT", path, { showIndicator });
+      const parsed = worldObjectsSchema.safeParse(result.body);
+      if (result.ok && parsed.success) {
+        setSaved(true);
+        replace(parsed.data);
+      } else {
+        setError(errorText(result.errorCode));
+      }
+    } finally {
+      setSaving(undefined);
+    }
+  }
+
   /** Saves the name and the short dialog of an NPC; true when they were saved. */
   async function saveTexts(npc: WorldNpc, title: string, dialog: string): Promise<boolean> {
     setError(undefined);
@@ -151,6 +171,7 @@ export default function AdminWorldObjects() {
                   <th>{t("admin.world.objects.object")}</th>
                   <th>{t("admin.world.objects.action")}</th>
                   <th>{t("admin.world.objects.presetColumn")}</th>
+                  <th>{t("admin.world.objects.indicatorColumn")}</th>
                 </tr>
               </thead>
               <tbody>
@@ -162,6 +183,7 @@ export default function AdminWorldObjects() {
                     actionName={actionName}
                     busy={saving === clickable.name}
                     onChange={(value) => void assign(clickable, value)}
+                    onIndicator={(show) => void setIndicator(clickable.name, show)}
                   />
                 ))}
               </tbody>
@@ -186,6 +208,7 @@ export default function AdminWorldObjects() {
           actionName={actionName}
           busy={saving}
           onAction={(npc, value) => void assign(npc, value)}
+          onIndicator={(npc, show) => void setIndicator(npc.name, show)}
           onTexts={saveTexts}
         />
       )}
@@ -225,12 +248,14 @@ function ClickableRow({
   actionName,
   busy,
   onChange,
+  onIndicator,
 }: {
   clickable: WorldClickable;
   targets: WorldObjects;
   actionName: (action: WorldObjectAction | undefined) => string;
   busy: boolean;
   onChange: (value: string) => void;
+  onIndicator: (show: boolean) => void;
 }) {
   const { t } = useTranslation();
   return (
@@ -273,6 +298,19 @@ function ClickableRow({
             )}
           </>
         )}
+      </td>
+      <td>
+        <input
+          type="checkbox"
+          checked={clickable.showIndicator}
+          disabled={busy}
+          aria-label={t("admin.world.objects.indicatorOf", {
+            name: clickable.label ?? clickable.name,
+          })}
+          onChange={(event) => {
+            onIndicator(event.target.checked);
+          }}
+        />
       </td>
     </tr>
   );

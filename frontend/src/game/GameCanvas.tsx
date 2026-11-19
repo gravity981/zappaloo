@@ -11,11 +11,16 @@ import {
   type GameInstance,
   type LoadedWorld,
 } from "@zappaloo/game-engine";
-import { avatarResponseSchema, guestFiguresResponseSchema } from "@zappaloo/shared";
+import {
+  avatarResponseSchema,
+  contentResponseSchema,
+  guestFiguresResponseSchema,
+} from "@zappaloo/shared";
 import type { GuestFigure } from "@zappaloo/shared";
 import { apiRequest } from "../app/api.ts";
 import { exposeGame, exposeState } from "./test-hook.ts";
 import { rememberedMap, rememberMap } from "./map-preference.ts";
+import { objectTitle } from "./titles.ts";
 import { loadWorld } from "./world-data.ts";
 
 /** The figure that applies to the signed-in player; undefined when it cannot be read. */
@@ -32,11 +37,26 @@ async function guestFigures(): Promise<GuestFigure[]> {
   return result.ok && parsed.success ? parsed.data.guests : [];
 }
 
+/** The titles of the content pages by their slugs, for the labels of the objects (GAME-40); none when unreadable. */
+async function pageTitles(): Promise<Map<string, string>> {
+  const result = await apiRequest("GET", "/api/content");
+  const parsed = contentResponseSchema.safeParse(result.body);
+  return result.ok && parsed.success
+    ? new Map(parsed.data.pages.map((page) => [page.slug, page.title]))
+    : new Map();
+}
+
 type Status =
   | { kind: "loading" }
   | { kind: "none" }
   | { kind: "failed" }
-  | { kind: "ready"; world: LoadedWorld; figure: string | undefined; guests: GuestFigure[] };
+  | {
+      kind: "ready";
+      world: LoadedWorld;
+      figure: string | undefined;
+      guests: GuestFigure[];
+      titles: Map<string, string>;
+    };
 
 /**
  * The game. The page above it (GAME-11) belongs to the parent: `paused` stands the game still while a page is open,
@@ -68,11 +88,13 @@ export default function GameCanvas({
   useEffect(() => {
     let active = true;
     // The world, and the figure the player chose in the avatar editor (AVA-04); without one, the world's first.
-    Promise.all([loadWorld(), ownFigure(), guestFigures()]).then(
-      ([world, figure, guests]) => {
+    Promise.all([loadWorld(), ownFigure(), guestFigures(), pageTitles()]).then(
+      ([world, figure, guests, titles]) => {
         if (active) {
           setStatus(
-            world === undefined ? { kind: "none" } : { kind: "ready", world, figure, guests },
+            world === undefined
+              ? { kind: "none" }
+              : { kind: "ready", world, figure, guests, titles },
           );
         }
       },
@@ -118,6 +140,9 @@ export default function GameCanvas({
         closeBubble: translate.current("game.bubbleClose"),
         defaultGreeting: translate.current("game.defaultGreeting"),
       },
+      // The title of what an object opens names its edge indicator and its label (GAME-40): the title of a page.
+      // A dialogue has none (objects that show one have no indicator or label), nor has a minigame yet (stage 8).
+      titleOf: (action) => objectTitle(action, translate.current, status.titles),
       // The photo of a guest for the speech bubble (PRES-10); the version lets the browser keep it.
       guestPhoto: (guest) =>
         guest.photo === null

@@ -100,6 +100,15 @@ export class NpcCrowd {
     return this.#members.flatMap((member) => (member.area === undefined ? [] : [member.area]));
   }
 
+  /** Every NPC's body as a polygon where it stands now, with its name and label: what its edge indicator points at. */
+  get bodies(): { name: string; label?: string; polygon: Point[] }[] {
+    return this.#members.map(({ spec, figure, walker }) => ({
+      name: spec.name,
+      ...(spec.label === undefined ? {} : { label: spec.label }),
+      polygon: this.#bodyOf(figure, walker.position),
+    }));
+  }
+
   /** The drawn figure of a tappable NPC by the Tiled id of its object, for its glow. */
   spriteOf(objectId: number): Phaser.GameObjects.Sprite | undefined {
     return this.#members.find((member) => member.spec.objectId === objectId)?.sprite;
@@ -197,15 +206,20 @@ export class NpcCrowd {
     return actionOf(world.actions, this.#map.id, area).kind === "none" ? undefined : area;
   }
 
-  /** Puts an area where the figure stands: a box around its body, and the approach point half a tile below it. */
-  #follow(area: ClickableArea, figure: FigureData, at: Point): void {
+  /** The box around a figure's body where it stands. */
+  #bodyOf(figure: FigureData, at: Point): Point[] {
     const halfWidth = Math.max(figure.size.width / 3, 6);
-    area.polygon = [
+    return [
       { x: at.x - halfWidth, y: at.y - figure.size.height },
       { x: at.x + halfWidth, y: at.y - figure.size.height },
       { x: at.x + halfWidth, y: at.y },
       { x: at.x - halfWidth, y: at.y },
     ];
+  }
+
+  /** Puts an area where the figure stands: a box around its body, and the approach point half a tile below it. */
+  #follow(area: ClickableArea, figure: FigureData, at: Point): void {
+    area.polygon = this.#bodyOf(figure, at);
     area.approach = { x: at.x, y: at.y + this.#map.size.height / 2 };
   }
 

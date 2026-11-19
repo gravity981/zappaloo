@@ -182,4 +182,37 @@ describe("preparing world input (MAP-10, AVA-02)", () => {
     // A figure that names no wave has none, though its metadata has the animation.
     expect(world.figures.find((figure) => figure.id === "guest")?.wave).toBeUndefined();
   });
+
+  it("[GAME-41] the showIndicator the admin set for objects and NPCs is listed by map and name", () => {
+    const world = prepareWorld({
+      summary: {
+        version: "import-1",
+        name: "Test world",
+        startMap: "courtyard",
+        tileWidth: 64,
+        tileHeight: 32,
+        maps: ["courtyard"],
+        figures: [],
+        indicators: [{ map: "courtyard", object: "altar", showIndicator: false }],
+      },
+      maps: new Map([
+        [
+          "courtyard",
+          {
+            type: "map",
+            orientation: "isometric",
+            width: 1,
+            height: 1,
+            tilewidth: 64,
+            tileheight: 32,
+            layers: [],
+            tilesets: [],
+          },
+        ],
+      ]),
+      figureMetadata: new Map(),
+      resolveAsset: (path) => path,
+    });
+    expect(world.showIndicator).toEqual(new Map([["courtyard/altar", false]]));
+  });
 });

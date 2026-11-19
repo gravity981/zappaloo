@@ -9,6 +9,8 @@ import { Atmosphere } from "./atmosphere.ts";
 import { atmospherePlan, prefersReducedMotion } from "./atmosphere-plan.ts";
 import { TileAnimations, type AnimatedPicture } from "./tile-animation.ts";
 import { BubbleBoard } from "./bubble-board.ts";
+import { ObjectLabelLayer } from "./object-label-layer.ts";
+import { chooseObjectLabels, objectLabelBox, objectLabelWidth } from "./object-labels.ts";
 import { NpcCrowd } from "./npc-crowd.ts";
 import { npcTitle, npcKey } from "./npc-texts.ts";
 import { GuestCrowd } from "./guest-crowd.ts";
@@ -56,7 +58,8 @@ import {
   labelSide,
   labelWidth,
   selectIndicators,
-  wantsIndicator,
+  indicatorShown,
+  portalWantsIndicator,
   type Rect,
 } from "./indicators.ts";
 import {
@@ -221,6 +224,8 @@ export class WorldScene extends Phaser.Scene {
   #guests: readonly GuestFigure[] = [];
   /** The edge indicators over the canvas and the objects they may point to (GAME-26). */
   #indicatorLayer: EdgeIndicatorLayer | undefined;
+  /** The labels of the objects in sight (GAME-41). */
+  #labelLayer: ObjectLabelLayer | undefined;
   #indicatorSources: IndicatorSource[] = [];
   readonly #onKeyDown = (event: KeyboardEvent): void => {
     // The scroll and button keys are the game's only while it runs and no field or button of the page has the focus.
@@ -290,6 +295,8 @@ export class WorldScene extends Phaser.Scene {
     this.#guests = options.guests ?? [];
     this.#indicatorLayer?.destroy();
     this.#indicatorLayer = undefined;
+    this.#labelLayer?.destroy();
+    this.#labelLayer = undefined;
     this.#indicatorSources = [];
     this.#flash = data.flash ?? true;
     this.#sparkles = 0;
@@ -460,6 +467,8 @@ export class WorldScene extends Phaser.Scene {
       this.#removeShines();
       this.#indicatorLayer?.destroy();
       this.#indicatorLayer = undefined;
+      this.#labelLayer?.destroy();
+      this.#labelLayer = undefined;
       this.#board?.destroy();
       this.#board = undefined;
       this.#crowd = undefined;
@@ -515,7 +524,6 @@ export class WorldScene extends Phaser.Scene {
     const parent = this.game.canvas.parentElement;
     if (world === undefined || parent === null) return;
     const options = this.game.registry.get(ENGINE_CONFIG_REGISTRY_KEY) as GameEngineOptions;
-    const anyObject = options.indicateAllObjects === true;
     const bounds = (objectId: number | undefined, polygon: Point[]): Rect => {
       const sprite = objectId === undefined ? undefined : this.#objectSprites.get(objectId);
       if (sprite !== undefined) {
@@ -530,20 +538,23 @@ export class WorldScene extends Phaser.Scene {
     };
     const sources: IndicatorSource[] = [];
     for (const area of map.clickables) {
-      const hasAction = actionOf(world.actions, map.id, area).kind !== "none";
-      if (!wantsIndicator({ kind: "object", hidden: area.hidden, hasAction }, anyObject)) continue;
+      const action = actionOf(world.actions, map.id, area);
+      // Only the setting `showIndicator` decides (the admin turns it off for side notes and surprises), whatever the
+      // object is: an easter egg, an object without an action or one that shows a dialogue included.
+      if (!indicatorShown(world.showIndicator, npcKey(map.id, area.name))) continue;
       const box = bounds(area.objectId, area.polygon);
       sources.push({
         id: `object:${area.name}`,
         kind: "object",
-        label: area.label ?? area.name,
+        // The title of what the object opens, else its label, else its name (GAME-40).
+        label: options.titleOf?.(action) ?? area.label ?? area.name,
         bounds: box,
         centre: { x: box.x + box.width / 2, y: box.y + box.height / 2 },
         tap: interiorPoint(area.polygon),
       });
     }
     for (const portal of map.portals) {
-      if (!wantsIndicator({ kind: "portal", hasTarget: portal.targetMap !== undefined })) continue;
+      if (!portalWantsIndicator(portal.targetMap !== undefined)) continue;
       const box = bounds(portal.objectId, portal.polygon);
       sources.push({
         id: `portal:${portal.name}`,
@@ -556,6 +567,7 @@ export class WorldScene extends Phaser.Scene {
       });
     }
     this.#indicatorSources = sources;
+    this.#labelLayer = new ObjectLabelLayer(parent);
     // A tap on an indicator does what a tap on the object does.
     this.#indicatorLayer = new EdgeIndicatorLayer(parent, (id) => {
       const source = [...this.#indicatorSources, ...this.#npcIndicatorSources()].find(
@@ -567,28 +579,82 @@ export class WorldScene extends Phaser.Scene {
   }
 
   /**
-   * The indicators of the NPCs with an action (GAME-39): labelled with the NPC's name, and following the NPC, so
+   * The indicators of the NPCs (GAME-39): labelled with the NPC's name, and following the NPC, so
    * their bounds and the point a tap on the indicator taps are those of the NPC now.
    */
   #npcIndicatorSources(): IndicatorSource[] {
     const world = this.#world;
     const map = this.#map;
     if (world === undefined || map === undefined) return [];
-    return (this.#npcs?.areas ?? []).map((area) => {
-      const xs = area.polygon.map((point) => point.x);
-      const ys = area.polygon.map((point) => point.y);
-      const x = Math.min(...xs);
-      const y = Math.min(...ys);
-      const bounds = { x, y, width: Math.max(...xs) - x, height: Math.max(...ys) - y };
-      return {
-        id: `npc:${area.name}`,
-        kind: "object" as const,
-        label: npcTitle(area, world.npcs.get(npcKey(map.id, area.name))),
-        bounds,
-        centre: { x: x + bounds.width / 2, y: y + bounds.height / 2 },
-        tap: interiorPoint(area.polygon),
-      };
+    return (this.#npcs?.bodies ?? [])
+      .filter((body) => indicatorShown(world.showIndicator, npcKey(map.id, body.name)))
+      .map((body) => {
+        const xs = body.polygon.map((point) => point.x);
+        const ys = body.polygon.map((point) => point.y);
+        const x = Math.min(...xs);
+        const y = Math.min(...ys);
+        const bounds = { x, y, width: Math.max(...xs) - x, height: Math.max(...ys) - y };
+        return {
+          id: `npc:${body.name}`,
+          kind: "object" as const,
+          label: npcTitle(body, world.npcs.get(npcKey(map.id, body.name))),
+          bounds,
+          centre: { x: x + bounds.width / 2, y: y + bounds.height / 2 },
+          tap: interiorPoint(body.polygon),
+        };
+      });
+  }
+
+  /**
+   * The labels of the objects in sight (GAME-41): an object, portal or NPC with an indicator that is not outside the
+   * view carries its label on top, the nearest first and without overlaps. An NPC whose speech bubble is open
+   * shows no label: the bubble names it.
+   */
+  #updateLabels(): void {
+    const layer = this.#labelLayer;
+    if (layer === undefined) return;
+    const camera = this.cameras.main;
+    const ratio = this.#pixelRatio();
+    const view = { width: camera.width / ratio, height: camera.height / ratio };
+    const toView = (point: Point): Point => ({
+      x: (point.x - camera.midPoint.x) * CAMERA_ZOOM + view.width / 2,
+      y: (point.y - camera.midPoint.y) * CAMERA_ZOOM + view.height / 2,
     });
+    const candidates = [...this.#indicatorSources, ...this.#npcIndicatorSources()]
+      .filter(
+        (source) =>
+          !isOutside(source.bounds, camera.worldView) &&
+          !(source.id.startsWith("npc:") && (this.#board?.isOpen(source.id) ?? false)),
+      )
+      .map((source) => {
+        const width = objectLabelWidth(source.label);
+        return {
+          source,
+          width,
+          id: source.id,
+          box: objectLabelBox(
+            toView({ x: source.bounds.x + source.bounds.width / 2, y: source.bounds.y }),
+            width,
+            view,
+          ),
+          distance: Math.hypot(
+            source.centre.x - this.#position.x,
+            source.centre.y - this.#position.y,
+          ),
+        };
+      });
+    const shown = new Set(chooseObjectLabels(candidates));
+    layer.update(
+      candidates
+        .filter((candidate) => shown.has(candidate.id))
+        .map(({ source, width, box }) => ({
+          id: source.id,
+          text: source.label,
+          x: box.x,
+          y: box.y,
+          width,
+        })),
+    );
   }
 
   /** Shows the indicators of the objects outside the view, the nearest first and without overlaps (GAME-26). */
@@ -907,6 +973,7 @@ export class WorldScene extends Phaser.Scene {
     this.#feedbackEvent({ type: "frame", waypoints: this.#path.length, keysHeld });
     this.#showFeedback(time);
     this.#updateIndicators();
+    this.#updateLabels();
 
     const portal = portalAt(map, this.#position);
     if (!this.#armed) {
@@ -1694,6 +1761,7 @@ export class WorldScene extends Phaser.Scene {
     if (paused) {
       this.scene.pause();
       this.#indicatorLayer?.setHidden(true);
+      this.#labelLayer?.setHidden(true);
       this.#board?.setHidden(true);
       keyboard?.resetKeys();
       return;
@@ -1702,6 +1770,7 @@ export class WorldScene extends Phaser.Scene {
     this.#activationBlocked = this.#activateKeys.some((key) => key.isDown);
     this.scene.resume();
     this.#indicatorLayer?.setHidden(false);
+    this.#labelLayer?.setHidden(false);
     this.#board?.setHidden(false);
     keyboard?.resetKeys();
   }

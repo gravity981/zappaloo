@@ -15,6 +15,8 @@ interface Props {
   /** The NPC whose action or texts are being saved: its controls wait. */
   busy: string | undefined;
   onAction: (npc: WorldNpc, value: string) => void;
+  /** Turns the NPC's edge indicator and label on or off (GAME-26, GAME-41). */
+  onIndicator: (npc: WorldNpc, show: boolean) => void;
   /** Saves the two texts; true when they were saved. */
   onTexts: (npc: WorldNpc, title: string, dialog: string) => Promise<boolean>;
 }
@@ -25,6 +27,7 @@ export default function AdminWorldNpcs({
   actionName,
   busy,
   onAction,
+  onIndicator,
   onTexts,
 }: Props) {
   const { t } = useTranslation();
@@ -47,6 +50,9 @@ export default function AdminWorldNpcs({
             onAction={(value) => {
               onAction(npc, value);
             }}
+            onIndicator={(show) => {
+              onIndicator(npc, show);
+            }}
             onTexts={onTexts}
           />
         ))}
@@ -61,6 +67,7 @@ function NpcBlock({
   actionName,
   busy,
   onAction,
+  onIndicator,
   onTexts,
 }: {
   npc: WorldNpc;
@@ -68,6 +75,7 @@ function NpcBlock({
   actionName: Props["actionName"];
   busy: boolean;
   onAction: (value: string) => void;
+  onIndicator: (show: boolean) => void;
   onTexts: Props["onTexts"];
 }) {
   const { t } = useTranslation();
@@ -123,6 +131,17 @@ function NpcBlock({
           </small>
         </label>
       </div>
+      <label className="row">
+        <input
+          type="checkbox"
+          checked={npc.showIndicator}
+          disabled={busy}
+          onChange={(event) => {
+            onIndicator(event.target.checked);
+          }}
+        />
+        <span>{t("admin.world.npcs.indicator")}</span>
+      </label>
       <label className="field">
         <span>{t("admin.world.npcs.dialog")}</span>
         <input

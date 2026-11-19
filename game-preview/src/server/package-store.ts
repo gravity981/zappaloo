@@ -60,6 +60,7 @@ export class PreviewPackageStore {
           actions: [],
           // ... and no short dialogs: the NPCs show no speech bubble (GAME-37).
           npcs: [],
+          indicators: [],
         },
         findings: result.findings,
       },

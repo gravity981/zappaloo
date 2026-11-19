@@ -510,3 +510,56 @@ describe("game world › Objekte & Portale › NPCs (MAP-21, GAME-37)", () => {
     expect(within(gardener).queryByText("Gespeichert.")).toBeNull();
   });
 });
+
+describe("game world › Objekte & Portale › indicator and label (GAME-26, GAME-41)", () => {
+  const list = {
+    maps: [
+      {
+        id: "kirche",
+        name: "Kirche",
+        clickables: [
+          { name: "altar", label: "Programm", hidden: false, missing: false, showIndicator: true },
+          { name: "glocke", hidden: false, missing: false, showIndicator: false },
+        ],
+        npcs: [{ name: "kuester", label: "Küster", missing: false, showIndicator: false }],
+        portals: [],
+      },
+    ],
+    startMap: "kirche",
+    pages: ["programme"],
+    dialogues: [],
+  };
+
+  it("[GAME-41] each object and NPC has a checkbox for its indicator and label, which shows what is set and saves at once", async () => {
+    const calls = fakeBackend({
+      "GET /api/session": asAdmin,
+      "GET /api/admin/world": () => ({
+        status: 200,
+        body: { guestAccess: true, active: sommerfest, previous: null },
+      }),
+      "GET /api/admin/world/objects": () => ({ status: 200, body: list }),
+      "GET /api/content": () => ({ status: 200, body: site }),
+      "PUT /api/admin/world/objects/kirche/altar/indicator": () => ({ status: 200, body: list }),
+      "PUT /api/admin/world/objects/kirche/kuester/indicator": () => ({ status: 200, body: list }),
+    });
+    renderAt("/admin/world");
+    user.click(await screen.findByRole("button", { name: "Objekte & Portale" }));
+    const altar = await screen.findByRole("checkbox", {
+      name: "Randhinweis und Label von Programm zeigen",
+    });
+    expect(altar).toBeChecked();
+    expect(
+      screen.getByRole("checkbox", { name: "Randhinweis und Label von glocke zeigen" }),
+    ).not.toBeChecked();
+    const sexton = within(screen.getByTestId("npc-kuester")).getByRole("checkbox");
+    expect(sexton).not.toBeChecked();
+    user.click(altar);
+    user.click(sexton);
+    await waitFor(() => {
+      expect(calls.filter((call) => call.method === "PUT").map((call) => call.body)).toEqual([
+        { showIndicator: false },
+        { showIndicator: true },
+      ]);
+    });
+  });
+});

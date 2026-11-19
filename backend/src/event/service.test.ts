@@ -230,6 +230,7 @@ describe("data model", () => {
       "seating_tables",
       "theme_active",
       "waiting_config",
+      "world_hidden_indicators",
       "world_npcs",
       "world_object_actions",
       "world_packages",

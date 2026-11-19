@@ -11,6 +11,7 @@ import {
   contentPages,
   dialogues,
   eventSettings,
+  worldHiddenIndicators,
   worldNpcs,
   worldObjectActions,
   worldPackages,
@@ -245,9 +246,27 @@ export class WorldService {
       figures: active.figures,
       actions: this.#overridesOf(active),
       npcs: this.#publicNpcs(active),
+      indicators: this.#hiddenIndicators(active).map((item) => ({ ...item, showIndicator: false })),
       // Format version 3: without the metadata of the bird there are no birds (GAME-32).
       bird: existsSync(join(this.directory, active.importId, WORLD_BIRD_METADATA)),
     };
+  }
+
+  /** The objects and NPCs of the world whose indicator and label the admin turned off. */
+  #hiddenIndicators(world: StoredWorld): { map: string; object: string }[] {
+    const existing = new Set(
+      this.#objectsOf(world).flatMap((map) => [
+        ...map.clickables.map((item) => `${map.id}/${item.name}`),
+        ...map.npcs.map((item) => `${map.id}/${item.name}`),
+      ]),
+    );
+    const rows = this.#database.db
+      .select()
+      .from(worldHiddenIndicators)
+      .where(eq(worldHiddenIndicators.eventId, this.#event.eventId))
+      .all()
+      .filter((row) => existing.has(`${row.mapId}/${row.objectName}`));
+    return rows.map((row) => ({ map: row.mapId, object: row.objectName }));
   }
 
   /** The rows of the NPC texts of the event, by `<map>/<name>`. */
@@ -378,6 +397,9 @@ export class WorldService {
       this.#storedOverrides().map((item) => [`${item.map}/${item.object}`, item.action]),
     );
     const texts = this.#storedNpcs();
+    const hidden = new Set(
+      this.#hiddenIndicators(active).map((item) => `${item.map}/${item.object}`),
+    );
     const missing = (action: WorldObjectAction | undefined): boolean => {
       if (action === undefined) return false;
       if (action.kind === "page") return !targets.pages.includes(action.page);
@@ -398,6 +420,7 @@ export class WorldService {
             ...(clickable.preset === undefined ? {} : { preset: clickable.preset }),
             ...(override === undefined ? {} : { override }),
             missing: missing(override ?? clickable.preset),
+            showIndicator: !hidden.has(`${map.id}/${clickable.name}`),
           };
         }),
         npcs: map.npcs.map((npc) => {
@@ -410,6 +433,7 @@ export class WorldService {
             ...(npc.preset === undefined ? {} : { preset: npc.preset }),
             ...(override === undefined ? {} : { override }),
             missing: missing(override ?? npc.preset),
+            showIndicator: !hidden.has(key),
             ...(stored?.title ? { title: stored.title } : {}),
             ...(stored?.dialog ? { dialog: stored.dialog } : {}),
           };
@@ -473,6 +497,41 @@ export class WorldService {
           .run();
       }
       this.#event.audit(actor, "world.action", { map: mapId, object: objectName }, tx);
+    });
+  }
+
+  /**
+   * Turns the edge indicator and the label of a clickable object or an NPC of the active world on or off (GAME-26,
+   * GAME-41). Live at once. The audit entry names the map and the object only.
+   */
+  setIndicator(mapId: string, objectName: string, show: boolean, actor: Actor): void {
+    const active = this.active();
+    if (active === undefined) throw new WorldObjectError("no_world", "no world is imported");
+    const exists = this.#objectsOf(active).some(
+      (map) =>
+        map.id === mapId &&
+        (map.clickables.some((item) => item.name === objectName) ||
+          map.npcs.some((item) => item.name === objectName)),
+    );
+    if (!exists) {
+      throw new WorldObjectError(
+        "object_not_found",
+        `the map ${mapId} has no clickable object or NPC ${objectName}`,
+      );
+    }
+    const key = and(
+      eq(worldHiddenIndicators.eventId, this.#event.eventId),
+      eq(worldHiddenIndicators.mapId, mapId),
+      eq(worldHiddenIndicators.objectName, objectName),
+    );
+    this.#database.db.transaction((tx) => {
+      tx.delete(worldHiddenIndicators).where(key).run();
+      if (!show) {
+        tx.insert(worldHiddenIndicators)
+          .values({ eventId: this.#event.eventId, mapId, objectName })
+          .run();
+      }
+      this.#event.audit(actor, "world.indicator", { map: mapId, object: objectName }, tx);
     });
   }
 
