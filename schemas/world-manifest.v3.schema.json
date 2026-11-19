@@ -1,0 +1,45 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "$schema": {
+      "type": "string"
+    },
+    "kind": {
+      "type": "string",
+      "const": "zappaloo-world"
+    },
+    "formatVersion": {
+      "type": "number",
+      "const": 3
+    },
+    "name": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 60
+    },
+    "startMap": {
+      "type": "string",
+      "pattern": "^[a-z0-9-]{1,40}$"
+    },
+    "tileWidth": {
+      "type": "integer",
+      "minimum": 8,
+      "maximum": 128
+    },
+    "tileHeight": {
+      "type": "integer",
+      "minimum": 8,
+      "maximum": 128
+    }
+  },
+  "required": [
+    "kind",
+    "formatVersion",
+    "name",
+    "startMap",
+    "tileWidth",
+    "tileHeight"
+  ],
+  "additionalProperties": false
+}

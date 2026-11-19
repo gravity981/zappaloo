@@ -15,6 +15,27 @@ declare global {
               glows: number;
               entries: number;
               view: { x: number; y: number; zoom: number; width: number; height: number };
+              guests: {
+                id: string;
+                name: string;
+                x: number;
+                y: number;
+                moving: boolean;
+                bubble: boolean;
+                pinned: boolean;
+              }[];
+              npcs: {
+                name: string;
+                figure: string;
+                x: number;
+                y: number;
+                moving: boolean;
+                waving: boolean;
+                tappable: boolean;
+                bubble: boolean;
+              }[];
+              atmosphere: { fog: boolean; clouds: number; birds: number };
+              tileAnimation: { objects: number; frames: number[] };
             }
           | undefined;
         renderStack: () => { type: string; depth: number }[];

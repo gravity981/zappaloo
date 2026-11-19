@@ -332,6 +332,112 @@ describe("the map as the game draws it (MAP-02, GAME-19)", () => {
     });
   });
 
+  it("[GAME-36] the NPCs of the map: their figure, label and preset, their position, and the path they walk (it starts at its first point)", () => {
+    const npc = (id: number, name: string, properties: unknown[]) => ({
+      id,
+      name,
+      type: "npc",
+      x: 96,
+      y: 64,
+      point: true,
+      properties,
+    });
+    const text = (name: string, value: string) => ({ name, type: "string", value });
+    const map = parseMap(
+      "kirche",
+      tiledMap({
+        objects: [
+          {
+            id: 20,
+            name: "runde",
+            type: "path",
+            x: 0,
+            y: 0,
+            polyline: [
+              { x: 0, y: 0 },
+              { x: 64, y: 0 },
+              { x: 64, y: 64 },
+            ],
+            properties: [],
+          },
+          npc(21, "kuester", [
+            text("figure", "herold"),
+            text("label", "Küster"),
+            text("action", "page"),
+            text("page", "programme"),
+          ]),
+          npc(22, "gaertner", [text("figure", "kid"), text("path", "runde")]),
+          npc(23, "ohne-figur", []),
+          npc(24, "falscher-weg", [text("figure", "kid"), text("path", "nirgends")]),
+        ],
+      }),
+    );
+    expect(map.npcs.map((item) => item.name)).toEqual(["kuester", "gaertner", "falscher-weg"]);
+    expect(map.npcs[0]).toEqual({
+      name: "kuester",
+      objectId: 21,
+      figure: "herold",
+      label: "Küster",
+      position: { x: 32, y: 80 },
+      preset: { kind: "page", page: "programme" },
+    });
+    // On a path the NPC starts at the polyline's first point and walks the points in order.
+    expect(map.npcs[1]?.position).toEqual({ x: 0, y: 0 });
+    expect(map.npcs[1]?.path).toEqual([
+      { x: 0, y: 0 },
+      { x: 64, y: 32 },
+      { x: 0, y: 64 },
+    ]);
+    // A path of another name is no path: the NPC stands where its point is.
+    expect(map.npcs[2]?.path).toBeUndefined();
+    expect(map.npcs[2]?.position).toEqual({ x: 32, y: 80 });
+    // NPCs are no clickable objects of the map: they have neither sparkles nor an edge indicator.
+    expect(map.clickables).toEqual([]);
+  });
+
+  it("[GAME-35] an animated collection tile lists the textures and durations of its frames; a still tile has none", () => {
+    const base = tiledMap();
+    const tilesets = base.tilesets.map((set) =>
+      set.name === "gebaeude"
+        ? {
+            ...set,
+            tiles: [
+              {
+                id: 0,
+                image: "../tilesets/brunnen-1.png",
+                imagewidth: 32,
+                imageheight: 32,
+                animation: [
+                  { tileid: 0, duration: 150 },
+                  { tileid: 1, duration: 250 },
+                ],
+              },
+              { id: 1, image: "../tilesets/brunnen-2.png", imagewidth: 32, imageheight: 32 },
+              { id: 2, image: "../tilesets/stein.png", imagewidth: 32, imageheight: 32 },
+            ],
+          }
+        : set,
+    );
+    const layers = [
+      {
+        type: "tilelayer",
+        name: "boden",
+        visible: true,
+        width: 3,
+        height: 3,
+        data: [30, 31, 32, 0, 0, 0, 0, 0, 0],
+        encoding: "csv",
+      },
+    ];
+    const map = parseMap("kirche", tiledMap({ layers, tilesets }));
+    expect(map.ground[0]?.image.animation).toEqual([
+      { key: "tileset:brunnen-1", duration: 150 },
+      { key: "tileset:brunnen-2", duration: 250 },
+    ]);
+    expect(map.ground[1]?.image.animation).toBeUndefined();
+    expect(map.ground[2]?.image.animation).toBeUndefined();
+  });
+
   it("[GAME-20] sheet crops derive columns from dimensions and include margin and spacing", () => {
     const base = tiledMap();
     const tilesets = base.tilesets.map((set, index) =>

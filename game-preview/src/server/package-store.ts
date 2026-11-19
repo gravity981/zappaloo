@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 import { isSafePath } from "../../../backend/src/packages/archive.ts";
 import { checkWorldPackage } from "../../../backend/src/world/validate.ts";
 import type { WorldFinding } from "../../../backend/src/world/findings.ts";
-import type { PublicWorld } from "@zappaloo/shared";
+import { WORLD_BIRD_METADATA, type PublicWorld } from "@zappaloo/shared";
 
 const PACKAGE_TTL_MS = 30 * 60 * 1000;
 
@@ -55,8 +55,12 @@ export class PreviewPackageStore {
           tileHeight: result.package.manifest.tileHeight,
           maps: result.package.mapIds,
           figures: result.package.figures,
+          bird: result.package.files.has(WORLD_BIRD_METADATA),
           // A preview has no installation: the presets of the maps apply (MAP-15).
           actions: [],
+          // ... and no short dialogs: the NPCs show no speech bubble (GAME-37).
+          npcs: [],
+          indicators: [],
         },
         findings: result.findings,
       },

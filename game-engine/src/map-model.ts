@@ -38,6 +38,14 @@ export interface TileImage {
   trigger?: Point[];
   /** The occlusion polyline of the tile, in the image's pixels. */
   occlusion?: Point[];
+  /** The frames of the tile's animation (format version 3), each with its picture's texture key; the first frame is the tile itself. */
+  animation?: TileAnimationFrame[];
+}
+
+/** One frame of a tile animation: the texture of its picture and how long it stays, in milliseconds. */
+export interface TileAnimationFrame {
+  key: string;
+  duration: number;
 }
 
 /** One drawn tile: its image and where it goes, the top-left corner in the map's pixel space. */
@@ -70,6 +78,22 @@ export interface ClickableArea {
   preset?: WorldObjectAction;
 }
 
+/** An NPC (14.2, GAME-36): a figure at a point of the map, standing or walking along a path. */
+export interface NpcSpec {
+  name: string;
+  /** The Tiled id of the object, which the glow of the NPC is kept under. */
+  objectId: number;
+  /** The id of the figure it is drawn as. */
+  figure: string;
+  label?: string;
+  /** Where it stands, in the map's pixel space; with a path, where the path starts. */
+  position: Point;
+  /** The points of its path in the map's pixel space, from the first to the last. */
+  path?: Point[];
+  /** The preset of its action; the admin's assignment (by `<map>/<name>`) replaces it (MAP-15). */
+  preset?: WorldObjectAction;
+}
+
 export interface PortalArea {
   name: string;
   /** The Tiled id of the portal's tile object: its arrow, which wobbles (GAME-15). */
@@ -77,6 +101,13 @@ export interface PortalArea {
   polygon: Point[];
   targetMap?: string;
   targetSpawn?: string;
+}
+
+/** The map properties `clouds`, `birds` and `fog` (14.2): an effect is on unless its property is `false`. */
+export interface MapAtmosphere {
+  clouds: boolean;
+  birds: boolean;
+  fog: boolean;
 }
 
 export interface ParsedMap {
@@ -96,7 +127,13 @@ export interface ParsedMap {
   obstacles: Obstacles;
   spawns: Map<string, Point>;
   portals: PortalArea[];
+  /** The wander areas (`type = wander`) in the map's pixel space, where guest figures walk (PRES-02). */
+  wanders: Point[][];
   clickables: ClickableArea[];
+  /** The NPCs of the map (format version 3, GAME-36). */
+  npcs: NpcSpec[];
+  /** Which effects the map has (format version 3, GAME-34): each is on unless the map property says `false`. */
+  atmosphere: MapAtmosphere;
   /** The number of tile layers that are drawn (for the tests and the test hook). */
   drawnLayers: number;
 }
@@ -167,6 +204,7 @@ function tileSources(tilesets: TiledTileset[]): TileSource[] {
             collision: collisionOf(tile),
             trigger: triggerOf(tile),
             occlusion: occlusionOf(tile),
+            ...animationOf(tile, byGid, set.firstgid),
           };
         },
       });
@@ -209,6 +247,20 @@ function tileSources(tilesets: TiledTileset[]): TileSource[] {
     });
   }
   return sources.sort((a, b) => a.firstgid - b.firstgid);
+}
+
+/** The animation of a collection tile as frames with texture keys; frames without a picture are left out. */
+function animationOf(
+  tile: TiledTile,
+  byGid: ReadonlyMap<number, TiledTile>,
+  firstgid: number,
+): { animation: TileAnimationFrame[] } | undefined {
+  const frames: TileAnimationFrame[] = [];
+  for (const frame of tile.animation ?? []) {
+    const image = byGid.get(firstgid + frame.tileid)?.image;
+    if (image !== undefined) frames.push({ key: tilesetImageKey(image), duration: frame.duration });
+  }
+  return frames.length > 1 ? { animation: frames } : undefined;
 }
 
 /** The collision polygons of a collection tile: guides named `collision`, polygons or rectangles. */
@@ -304,9 +356,12 @@ export function parseMap(id: string, json: unknown): ParsedMap {
   const occluders: Occluder[] = [];
   const solids: Point[][] = [];
   const borders: Point[][] = [];
+  const wanders: Point[][] = [];
   const spawns = new Map<string, Point>();
   const portals: PortalArea[] = [];
   const clickables: (Omit<ClickableArea, "approach"> & { approachName?: string })[] = [];
+  const npcObjects: { object: TiledObject; position: Point }[] = [];
+  const paths = new Map<string, Point[]>();
   const points = new Map<string, Point>();
   const toScreen = (x: number, y: number): Point => tiledToWorld({ x, y }, size);
   for (const layer of layers) {
@@ -363,8 +418,17 @@ export function parseMap(id: string, json: unknown): ParsedMap {
       } else if (type === "" && object.point === true && object.name !== undefined) {
         // An untyped point is the approach point of a clickable object (14.2).
         points.set(object.name, toScreen(object.x, object.y));
+      } else if (type === "npc" && object.point === true) {
+        npcObjects.push({ object, position: toScreen(object.x, object.y) });
+      } else if (type === "path" && object.polyline !== undefined) {
+        paths.set(
+          object.name ?? "",
+          object.polyline.map((p) => toScreen(object.x + p.x, object.y + p.y)),
+        );
       } else if (type === "clickable" && polygon !== undefined) {
         clickables.push(clickableOf(object, polygon));
+      } else if (type === "wander" && polygon !== undefined) {
+        wanders.push(polygon);
       } else if (type === "border" && polygon !== undefined) {
         borders.push(polygon);
       } else if (type === "collision" && polygon !== undefined) {
@@ -386,14 +450,45 @@ export function parseMap(id: string, json: unknown): ParsedMap {
     obstacles: { size, columns: map.width, rows: map.height, blockedCells, solids, borders },
     spawns,
     portals,
+    wanders,
     clickables: clickables.map(({ approachName, ...clickable }) => ({
       ...clickable,
       approach:
         (approachName === undefined ? undefined : points.get(approachName)) ??
         belowOf(clickable.polygon, size),
     })),
+    npcs: npcObjects.flatMap(({ object, position }) => {
+      const figure = stringOf(propertyOf(object, "figure"));
+      if (figure === undefined) return [];
+      const label = stringOf(propertyOf(object, "label"));
+      const route = paths.get(stringOf(propertyOf(object, "path")) ?? "");
+      const preset = presetActionOf(object.properties);
+      const first = route?.[0];
+      return [
+        {
+          name: object.name ?? "",
+          objectId: object.id,
+          figure,
+          ...(label === undefined ? {} : { label }),
+          // On a path the NPC starts at the polyline's first point (14.2).
+          position: first ?? position,
+          ...(route !== undefined && route.length >= 2 ? { path: route } : {}),
+          ...(preset === undefined ? {} : { preset }),
+        },
+      ];
+    }),
+    atmosphere: atmosphereOf(map),
     drawnLayers,
   };
+}
+
+/** The effects a map has: each is on unless the map property of the same name is `false` (GAME-34). */
+function atmosphereOf(map: {
+  properties?: { name: string; value: unknown }[] | undefined;
+}): MapAtmosphere {
+  const on = (name: string): boolean =>
+    map.properties?.find((property) => property.name === name)?.value !== false;
+  return { clouds: on("clouds"), birds: on("birds"), fog: on("fog") };
 }
 
 /** A clickable object before its approach point is resolved: the point has a name, which may come later. */

@@ -4,11 +4,13 @@
 // and that every file of avatar/ is named by a figure.
 import { posix } from "node:path";
 import {
+  pixelLabDirectionsSchema,
   pixelLabMetadataSchema,
   WORLD_DIRECTIONS,
   WORLD_FILE_SEGMENT,
   WORLD_LIMITS,
   worldFiguresSchema,
+  worldFiguresV3Schema,
 } from "@zappaloo/shared";
 import type { WorldFigure } from "@zappaloo/shared";
 import type { PngSize } from "../packages/png.ts";
@@ -32,6 +34,7 @@ function hasUnknownKeys(issues: { code: string }[]): boolean {
 export function checkFigures(
   files: Map<string, Buffer>,
   images: Map<string, PngSize>,
+  formatVersion = 3,
 ): FiguresResult {
   const findings: WorldFinding[] = [];
   const bytes = files.get(FIGURES_FILE);
@@ -46,14 +49,15 @@ export function checkFigures(
     findings.push(errorFinding(FIGURES_FILE, "json_invalid", "not valid JSON"));
     return { findings };
   }
-  const parsed = worldFiguresSchema.safeParse(raw);
+  // Format version 2 has no tier `npc` and no `wave`: its schema refuses them (14.4).
+  const parsed = (formatVersion >= 3 ? worldFiguresV3Schema : worldFiguresSchema).safeParse(raw);
   if (!parsed.success) {
     const code = hasUnknownKeys(parsed.error.issues) ? "json_field" : "figure_list";
     findings.push(errorFinding(FIGURES_FILE, code, zodDetail(parsed.error)));
     return { findings };
   }
 
-  const figures = parsed.data.figures;
+  const figures: WorldFigure[] = parsed.data.figures;
   // Every guest (vip) chooses from tier1: a world without such a figure leaves them nothing (7.3).
   if (!figures.some((figure) => figure.tier === "tier1")) {
     findings.push(
@@ -211,5 +215,53 @@ function checkFigure(
   for (const direction of WORLD_DIRECTIONS) {
     for (const frame of walking[direction]) check(frame);
   }
+  if (figure.wave !== undefined) {
+    checkWave(figure.wave, state.frames.animations, { metadataPath, label, findings, check });
+  }
   return named;
+}
+
+/**
+ * The wave of a figure (format version 3, GAME-36): the animation of the metadata it names has the four directions,
+ * each of the same number of frames as the others, 1 to 16, and every frame is checked like a walk frame.
+ */
+function checkWave(
+  name: string,
+  animations: Record<string, unknown>,
+  context: {
+    metadataPath: string;
+    label: string;
+    findings: WorldFinding[];
+    check: (frame: string) => void;
+  },
+): void {
+  const { metadataPath, label, findings, check } = context;
+  const wave = pixelLabDirectionsSchema.safeParse(animations[name]);
+  if (!wave.success) {
+    findings.push(
+      errorFinding(
+        metadataPath,
+        "figure_metadata",
+        `the wave ${name} of ${label} is no animation of the metadata with the four directions`,
+        label,
+      ),
+    );
+    return;
+  }
+  const counts = WORLD_DIRECTIONS.map((direction) => wave.data[direction].length);
+  const count = counts[0] ?? 0;
+  const limits = WORLD_LIMITS.walkFrames;
+  if (counts.some((value) => value !== count) || count < limits.min || count > limits.max) {
+    findings.push(
+      errorFinding(
+        metadataPath,
+        "figure_frame",
+        `the wave has ${counts.join(", ")} frames; each direction needs the same number, ${String(limits.min)} to ${String(limits.max)}`,
+        label,
+      ),
+    );
+  }
+  for (const direction of WORLD_DIRECTIONS) {
+    for (const frame of wave.data[direction]) check(frame);
+  }
 }

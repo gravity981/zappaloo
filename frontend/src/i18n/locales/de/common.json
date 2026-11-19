@@ -92,7 +92,8 @@
       "rsvp": "Anmeldungen",
       "rsvpBadge": "{{count}} offene Anfragen",
       "content": "Inhalte",
-      "world": "Erlebniswelt"
+      "world": "Erlebniswelt",
+      "seating": "Sitzplan"
     },
     "home": {
       "title": "Übersicht",
@@ -714,6 +715,8 @@
         "action": "Aktion",
         "actionOf": "Aktion von {{name}}",
         "presetColumn": "Vorgabe aus Tiled",
+        "indicatorColumn": "Hinweis im Spiel",
+        "indicatorOf": "Randhinweis und Label von {{name}} zeigen",
         "inTiled": "in Tiled",
         "portalTarget": "→ {{map}} · Spawn «{{spawn}}»",
         "hidden": "Easter Egg",
@@ -727,7 +730,118 @@
           "minigame": "Minispiel: {{target}}",
           "none": "– keine –"
         }
+      },
+      "npcs": {
+        "title": "NPCs ({{count}})",
+        "info": "Figuren aus der Tiled-Datei · Aktion sofort live, Texte mit «Speichern»",
+        "name": "Name",
+        "nameHint": "Steht in der Sprechblase und am Rand. Leer: das Label aus Tiled.",
+        "action": "Aktion beim Antippen",
+        "actionOf": "Aktion von {{name}}",
+        "preset": "Vorgabe aus Tiled: {{action}}",
+        "noPreset": "Ohne Vorgabe aus Tiled",
+        "indicator": "Randhinweis und Label im Spiel zeigen (aus: für Nebensächliches oder Überraschungen)",
+        "dialog": "Kurzer Dialog",
+        "dialogHint": "Eine Zeile für die Sprechblase. Leer: keine Sprechblase.",
+        "counter": "{{count}} / {{max}}",
+        "save": "Speichern",
+        "saved": "Gespeichert."
+      },
+      "tabDialogues": "Dialoge"
+    },
+    "relations": {
+      "title": "Gästeprofile",
+      "hint": "Auswahl für «Wie kennst du das Paar?» im Profil der Gäste und in der Sprechblase. Wird eine Option entfernt, verlieren die Gäste, die sie gewählt hatten, ihre Auswahl.",
+      "option": "Option {{n}}",
+      "up": "{{name}} nach oben",
+      "down": "{{name}} nach unten",
+      "remove": "{{name}} entfernen",
+      "upSign": "↑",
+      "downSign": "↓",
+      "removeSign": "×",
+      "add": "Option hinzufügen",
+      "save": "Liste speichern",
+      "saved": "Gespeichert."
+    },
+    "profiles": {
+      "title": "Profil",
+      "empty": "Kein Foto, kein Gruss und keine Zeile.",
+      "remove": "{{part}} entfernen",
+      "confirm": "{{part}} wirklich entfernen?",
+      "yes": "Ja, entfernen",
+      "no": "Abbrechen",
+      "parts": {
+        "photo": "Foto",
+        "greeting": "Gruss",
+        "relationLine": "Zeile"
       }
+    },
+    "seating": {
+      "title": "Sitzplan",
+      "visibleFrom": "Für Gäste sichtbar ab",
+      "visibleFromHint": "Ohne Datum bleibt der Sitzplan verborgen. Bis dahin sehen die Gäste einen Hinweis mit dem Datum.",
+      "saveVisibility": "Datum speichern",
+      "saved": "Gespeichert.",
+      "unassigned": "Noch ohne Platz ({{count}})",
+      "unassignedHint": "↳ Begleitperson, folgt standardmässig der einladenden Person. Ziehe eine Person auf einen Tisch, oder tippe sie an und dann «Hierher». Wo am Tisch jemand sitzt, regelst du ausserhalb von Zappaloo.",
+      "companionSign": " ↳",
+      "companionOf": "Begleitung von {{name}}",
+      "takeAway": "Platz entfernen",
+      "placeHere": "Hierher",
+      "tableLabel": "Tisch {{name}}",
+      "places": "{{taken}} von {{count}} Plätzen belegt",
+      "noTables": "Noch keine Tische. Lege unten den ersten Tisch an: mit einem Namen und der Anzahl Plätze.",
+      "tableFull": "Dieser Tisch hat keinen Platz mehr für alle.",
+      "newTable": "Tisch hinzufügen",
+      "tableName": "Name",
+      "tablePlaces": "Plätze",
+      "addTable": "Tisch hinzufügen",
+      "saveTable": "Speichern",
+      "cancel": "Abbrechen",
+      "edit": "Tisch {{name}} bearbeiten",
+      "editButton": "Bearbeiten",
+      "deleteButton": "Löschen",
+      "tableDuplicate": "Es gibt schon einen Tisch mit diesem Namen.",
+      "deleteHold": "Zum Löschen gedrückt halten."
+    },
+    "dialogues": {
+      "title": "Dialoge",
+      "add": "+ Dialog",
+      "none": "Noch keine Dialoge.",
+      "edit": "Dialog {{name}} bearbeiten",
+      "unused": "nicht verwendet",
+      "hint": "Ein Objekt zeigt einen Dialog, wenn seine Aktion «Dialog» ist (in «Objekte & Portale» oder als Vorgabe in Tiled mit contentId).",
+      "back": "‹ Dialoge",
+      "newTitle": "Neuer Dialog",
+      "npcName": "Name der Figur",
+      "id": "Kennung",
+      "idHint": "In Tiled als contentId = {{id}}. Kleinbuchstaben, Ziffern und -.",
+      "line": "Zeile {{n}}",
+      "up": "Zeile {{n}} nach oben",
+      "down": "Zeile {{n}} nach unten",
+      "removeLine": "Zeile {{n}} entfernen",
+      "remove": "Entfernen",
+      "addLine": "+ Zeile",
+      "preview": "Vorschau",
+      "portrait": "Bild der Figur",
+      "portraitLater": "Das Bild kannst du nach dem ersten Speichern hochladen.",
+      "portraitInput": "Bild der Figur auswählen",
+      "portraitAdd": "Bild hochladen",
+      "portraitChange": "Bild ändern",
+      "portraitRemove": "Bild entfernen",
+      "portraitHint": "JPEG, PNG oder WebP, höchstens 1 MB und 512 Pixel pro Seite. Das Bild wird nicht verändert.",
+      "portraitType": "Das Bild muss ein JPEG, PNG oder WebP sein.",
+      "portraitTooLarge": "Das Bild ist zu gross (höchstens 1 MB und 512 Pixel pro Seite).",
+      "portraitInvalid": "Das Bild konnte nicht gelesen werden.",
+      "usedBy": "Verwendet von",
+      "save": "Speichern",
+      "saved": "Gespeichert.",
+      "delete": "Dialog löschen",
+      "deleteHint": "Zum Löschen gedrückt halten. Ein Dialog, den ein Objekt zeigt, lässt sich nicht löschen. Wird die Kennung geändert, zeigen Vorgaben in Tiled mit der alten Kennung auf nichts.",
+      "exists": "Es gibt schon einen Dialog mit dieser Kennung.",
+      "inUse": "Dieser Dialog wird noch gezeigt von: {{objects}}.",
+      "lines_one": "{{count}} Zeile",
+      "lines_other": "{{count}} Zeilen"
     }
   },
   "home": {
@@ -745,13 +859,28 @@
       "desktop": "Klicke auf Dinge, die funkeln – oder geh hin und drück Enter"
     },
     "first": {
-      "continue": "Weiter"
+      "continue": "Weiter",
+      "hello": {
+        "title": "Sag hallo",
+        "skip": "Überspringen",
+        "go": "Los geht's"
+      }
     },
     "overlay": {
       "title": "Erlebniswelt",
       "paused": "II PAUSIERT",
       "close": "Schliessen",
       "comingSoon": "Das gibt es hier bald."
+    },
+    "bubbleClose": "Sprechblase schliessen",
+    "defaultGreeting": "Hallo 🙂",
+    "dialogue": {
+      "failed": "Der Dialog konnte nicht geladen werden.",
+      "close": "Dialog schliessen",
+      "closeSign": "×",
+      "step": "{{n}} / {{count}}",
+      "tapNext": "Tippen für weiter",
+      "tapClose": "Tippen zum Schliessen"
     }
   },
   "avatar": {
@@ -778,9 +907,9 @@
     "hintFigure": "Figuren sind fertige Pixelfiguren aus der Erlebniswelt. «Zufällig» wählt nur unter den Figuren dieser Art.",
     "everyone": "Wähle für jede Person eine Figur, dann geht es weiter.",
     "finish": "Fertig",
-    "cardTitle": "Deine Figur",
-    "cardText": "So siehst du in der Erlebniswelt aus, und die Personen, die du mitbringst.",
-    "cardButton": "Figur wählen"
+    "cardTitle": "Figur",
+    "cardText": "Andere Gäste sehen deine Figur in der Erlebniswelt herumspazieren.",
+    "cardButton": "Avatar bearbeiten"
   },
   "notFound": {
     "title": "Seite nicht gefunden",
@@ -924,7 +1053,9 @@
     "emailTag": {
       "unverified": "nicht bestätigt",
       "verified": "bestätigt"
-    }
+    },
+    "deleteNote": "Beim Löschen verschwindet dein Login (Benutzername, Passwort, E-Mail, Sitzungen). Deine Anmeldung mit Begleitpersonen und Allergien bleibt für die Organisation bei den Gastgebern. Wenn du sie auch gelöscht haben willst, schreib ihnen. Nach dem Fest löschen wir alle persönlichen Daten.",
+    "deleteNoteOther": "Beim Löschen verschwindet dein Konto mit allen Daten."
   },
   "errors": {
     "unknown": "Das hat nicht geklappt. Bitte versuche es später noch einmal.",
@@ -993,7 +1124,8 @@
     "fst_err_ctp_body_too_large": "Das Bild ist grösser als 10 MB.",
     "fst_err_ctp_invalid_media_type": "Die Datei ist kein JPEG, PNG oder WebP.",
     "image_in_use": "Das Bild wird noch im Text oder als Titelbild gebraucht.",
-    "alt_required": "Das Titelbild braucht einen Alt-Text."
+    "alt_required": "Das Titelbild braucht einen Alt-Text.",
+    "relation_duplicate": "Eine Option kommt doppelt vor."
   },
   "notSetUp": {
     "title": "Noch nicht eingerichtet",
@@ -1118,5 +1250,48 @@
     "next": "Danach",
     "since": "seit {{time}}",
     "programmeAria": "Programm"
+  },
+  "profileCard": {
+    "title": "So sehen dich andere Gäste",
+    "text": "Wenn andere Gäste deiner Figur begegnen, sehen sie diese Sprechblase. Alles ist freiwillig.",
+    "loading": "Das Profil wird geladen …",
+    "loadFailed": "Das Profil konnte nicht geladen werden.",
+    "persons": "Personen",
+    "photoInput": "Profilfoto auswählen",
+    "photoAdd": "Foto hinzufügen",
+    "photoChange": "Foto ändern",
+    "photoRemove": "Foto entfernen",
+    "greeting": "Gruss (eine Zeile)",
+    "greetingPlaceholder": "Hi, schön dich kennenzulernen!",
+    "how": "Wie kennst du das Paar?",
+    "linePlaceholder": "Eigene Zeile (optional)",
+    "preview": "Vorschau",
+    "errors": {
+      "unknown": "Das konnte nicht gespeichert werden.",
+      "photo_type": "Das Foto muss ein JPEG, PNG oder WebP sein.",
+      "photo_too_large": "Das Foto ist zu gross (höchstens 10 MB).",
+      "photo_invalid": "Das Foto konnte nicht gelesen werden.",
+      "relation_not_found": "Diese Auswahl gibt es nicht mehr.",
+      "network_error": "Keine Verbindung. Versuche es noch einmal."
+    },
+    "defaultGreeting": "Hallo 🙂"
+  },
+  "seating": {
+    "title": "Wo sitze ich?",
+    "yourTable": "Dein Tisch",
+    "tableFor": "Tisch für {{names}}",
+    "tableNumber": "Tisch {{name}}",
+    "atYourTable": "An deinem Tisch",
+    "atThisTable": "An diesem Tisch",
+    "alone": "Noch niemand sonst an diesem Tisch.",
+    "companionOf": "Begleitung von {{name}}",
+    "secretTitle": "Noch ein Geheimnis",
+    "secretDate": "Der Sitzplan wird am {{date}} hier sichtbar.",
+    "secretNoDate": "Der Sitzplan wird hier sichtbar, sobald er feststeht.",
+    "noneTitle": "Noch kein Platz",
+    "noneText": "Für dich ist noch kein Tisch eingetragen. Die Gastgeber sagen dir Bescheid.",
+    "with": "mit {{names}}",
+    "withMore": "mit {{names}} und {{count}} weiteren",
+    "places": "{{count}} Plätze"
   }
 }

@@ -10,6 +10,7 @@ import ContentPlaceEditor from "../admin/ContentPlaceEditor.tsx";
 import AdminRsvpGuestPage from "../admin/AdminRsvpGuestPage.tsx";
 import AdminRsvpPage from "../admin/AdminRsvpPage.tsx";
 import AdminSettingsPage from "../admin/AdminSettingsPage.tsx";
+import AdminSeatingPage from "../admin/AdminSeatingPage.tsx";
 import AdminWorldPage from "../admin/AdminWorldPage.tsx";
 import AdminUsersPage from "../admin/AdminUsersPage.tsx";
 import AvatarPage from "../pages/AvatarPage.tsx";
@@ -21,6 +22,7 @@ import InstallPage from "../pages/InstallPage.tsx";
 import InvitePage from "../pages/InvitePage.tsx";
 import MorePage from "../pages/MorePage.tsx";
 import ProgrammePage from "../pages/ProgrammePage.tsx";
+import SeatingPage from "../pages/SeatingPage.tsx";
 import LicensePage from "../pages/LicensePage.tsx";
 import LoginPage from "../pages/LoginPage.tsx";
 import NotFoundPage from "../pages/NotFoundPage.tsx";
@@ -79,6 +81,7 @@ export const routes: RouteObject[] = [
                       { path: "mehr", element: <MorePage /> },
                       { path: "avatar", element: <AvatarPage /> },
                       { path: "programme", element: <ProgrammePage /> },
+                      { path: "seating", element: <SeatingPage /> },
                     ],
                   },
                   { path: "profile", element: <ProfilePage /> },
@@ -111,6 +114,7 @@ export const routes: RouteObject[] = [
                   { path: "places/:id", element: <ContentPlaceEditor /> },
                 ],
               },
+              { path: "seating", element: <AdminSeatingPage /> },
               { path: "world", element: <AdminWorldPage /> },
               { path: "settings", element: <AdminSettingsPage /> },
               { path: "*", element: <NotFoundPage /> },

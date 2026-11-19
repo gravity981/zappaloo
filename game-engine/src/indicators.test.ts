@@ -14,27 +14,28 @@ import {
   isOutside,
   overlaps,
   selectIndicators,
-  wantsIndicator,
+  indicatorShown,
+  portalWantsIndicator,
 } from "./indicators.ts";
 
-describe("which objects get an indicator (GAME-26)", () => {
-  it("[GAME-26] a clickable object with an action and a portal with a target do", () => {
-    expect(wantsIndicator({ kind: "object", hidden: false, hasAction: true })).toBe(true);
-    expect(wantsIndicator({ kind: "portal", hasTarget: true })).toBe(true);
+describe("which objects get an indicator (GAME-26, GAME-41)", () => {
+  it("[GAME-26][GAME-41] an object or NPC does unless its setting showIndicator says false, whatever else it is", () => {
+    const settings = new Map([
+      ["kirche/glocke", false],
+      ["kirche/altar", true],
+    ]);
+    expect(indicatorShown(settings, "kirche/altar")).toBe(true);
+    expect(indicatorShown(settings, "kirche/glocke")).toBe(false);
+    // Without a setting it is on: also for an easter egg, an object without an action and one that shows a dialogue.
+    expect(indicatorShown(settings, "kirche/osterei")).toBe(true);
+    expect(indicatorShown(new Map(), "kirche/pastor")).toBe(true);
+    // The setting is by map and name.
+    expect(indicatorShown(settings, "garten/glocke")).toBe(true);
   });
 
-  it("[GAME-26] an easter egg, an object without an action and a portal without a target do not", () => {
-    expect(wantsIndicator({ kind: "object", hidden: true, hasAction: true })).toBe(false);
-    expect(wantsIndicator({ kind: "object", hidden: false, hasAction: false })).toBe(false);
-    expect(wantsIndicator({ kind: "portal", hasTarget: false })).toBe(false);
-  });
-});
-
-describe("the indicators of the game preview (GAME-26, MAP-18)", () => {
-  it("[GAME-26] the preview, which cannot assign actions, gives every clickable object but an easter egg an indicator", () => {
-    expect(wantsIndicator({ kind: "object", hidden: false, hasAction: false }, true)).toBe(true);
-    expect(wantsIndicator({ kind: "object", hidden: true, hasAction: false }, true)).toBe(false);
-    expect(wantsIndicator({ kind: "portal", hasTarget: false }, true)).toBe(false);
+  it("[GAME-26] a portal with a target does, one without a target does not", () => {
+    expect(portalWantsIndicator(true)).toBe(true);
+    expect(portalWantsIndicator(false)).toBe(false);
   });
 });
 

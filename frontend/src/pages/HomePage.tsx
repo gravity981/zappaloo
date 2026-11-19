@@ -21,6 +21,7 @@ import { hasVisitedWebsite, useWorldActive } from "../app/gameEntry.ts";
 import { useEventFormat } from "../rsvp/format.ts";
 import { SITE_ICON_PATHS } from "../app/siteIconPaths.ts";
 import { SiteIcon } from "../app/siteIcons.tsx";
+import SeatCard from "./SeatCard.tsx";
 import WaitingPage from "../waiting/WaitingPage.tsx";
 
 /** The countdown card (WEB-11): the days, and the date and place of the first program item. */
@@ -144,6 +145,7 @@ export default function HomePage() {
           {website.next !== null && (
             <NowNextCard label={t("website.next")} entry={website.next} current={false} />
           )}
+          <SeatCard />
         </div>
         <div className="start-side">
           {enter}

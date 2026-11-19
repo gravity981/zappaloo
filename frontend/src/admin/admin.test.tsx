@@ -55,6 +55,7 @@ describe("admin area", () => {
       "Übersicht",
       "Einladungen",
       "Anmeldungen",
+      "Sitzplan",
       "Konten & Rollen",
       "Inhalte",
       "Erlebniswelt",

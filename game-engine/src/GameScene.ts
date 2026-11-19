@@ -5,6 +5,16 @@
 import Phaser from "phaser";
 import { walkable, cellOf, playerCollisionEllipse } from "./collision.ts";
 import { walkFrameIndex } from "./figures.ts";
+import { Atmosphere } from "./atmosphere.ts";
+import { atmospherePlan, prefersReducedMotion } from "./atmosphere-plan.ts";
+import { TileAnimations, type AnimatedPicture } from "./tile-animation.ts";
+import { BubbleBoard } from "./bubble-board.ts";
+import { ObjectLabelLayer } from "./object-label-layer.ts";
+import { chooseObjectLabels, objectLabelBox, objectLabelWidth } from "./object-labels.ts";
+import { NpcCrowd } from "./npc-crowd.ts";
+import { npcTitle, npcKey } from "./npc-texts.ts";
+import { GuestCrowd } from "./guest-crowd.ts";
+import type { GuestFigure } from "@zappaloo/shared";
 import { figureDepth, figureOcclusionSegment, occlusionSegmentRelation } from "./draw-order.ts";
 import { interiorPoint, mapBounds, type Point, polygonCentre, tileToPixel } from "./geometry.ts";
 import { cellKey, findPath, reachableCells, type Cell, type Grid } from "./pathfinding.ts";
@@ -48,7 +58,8 @@ import {
   labelSide,
   labelWidth,
   selectIndicators,
-  wantsIndicator,
+  indicatorShown,
+  portalWantsIndicator,
   type Rect,
 } from "./indicators.ts";
 import {
@@ -199,8 +210,22 @@ export class WorldScene extends Phaser.Scene {
   #flash = true;
   /** The shadow under the player's figure (GAME-28). */
   #shadow: Phaser.GameObjects.Ellipse | undefined;
+  /** The wandering guest figures of the map (PRES-01). */
+  #crowd: GuestCrowd | undefined;
+  /** The NPCs of the map (GAME-36). */
+  #npcs: NpcCrowd | undefined;
+  /** The speech bubbles of the guests and the NPCs (PRES-10, GAME-37). */
+  #board: BubbleBoard | undefined;
+  /** The glow of each tappable NPC by its Tiled id: dark, until a walk leads to the NPC (GAME-38). */
+  #npcGlows = new Map<number, Phaser.Filters.Glow>();
+  /** The fog, the cloud shadows and the birds of the map (GAME-31 – GAME-34). */
+  #atmosphere: Atmosphere | undefined;
+  #tileAnimations: TileAnimations | undefined;
+  #guests: readonly GuestFigure[] = [];
   /** The edge indicators over the canvas and the objects they may point to (GAME-26). */
   #indicatorLayer: EdgeIndicatorLayer | undefined;
+  /** The labels of the objects in sight (GAME-41). */
+  #labelLayer: ObjectLabelLayer | undefined;
   #indicatorSources: IndicatorSource[] = [];
   readonly #onKeyDown = (event: KeyboardEvent): void => {
     // The scroll and button keys are the game's only while it runs and no field or button of the page has the focus.
@@ -261,8 +286,17 @@ export class WorldScene extends Phaser.Scene {
     this.#glows = new Map();
     this.#portalGlows.clear();
     this.#shadow = undefined;
+    this.#crowd = undefined;
+    this.#npcs = undefined;
+    this.#board = undefined;
+    this.#npcGlows = new Map();
+    this.#atmosphere = undefined;
+    this.#tileAnimations = undefined;
+    this.#guests = options.guests ?? [];
     this.#indicatorLayer?.destroy();
     this.#indicatorLayer = undefined;
+    this.#labelLayer?.destroy();
+    this.#labelLayer = undefined;
     this.#indicatorSources = [];
     this.#flash = data.flash ?? true;
     this.#sparkles = 0;
@@ -290,6 +324,7 @@ export class WorldScene extends Phaser.Scene {
     // ratio (the window moves to another screen) changes the zoom itself.
     this.scale.on(Phaser.Scale.Events.RESIZE, this.#onResize);
     this.#drawMap(map);
+    this.#tileAnimations = this.#animateObjects(map);
     // The guides lie above every layer, the foreground ones included (MAP-18).
     this.#guideGraphics = this.add.graphics().setDepth(2_000_000);
     this.#occlusionGraphics = this.add.graphics().setDepth(2_000_001);
@@ -309,6 +344,69 @@ export class WorldScene extends Phaser.Scene {
       sprite.setDepth(figureDepth(this.#position, map.occluders, map.size.width));
       this.#player = sprite;
       this.#createShadow(map, sprite);
+      if (this.#world !== undefined) {
+        const options = this.game.registry.get(ENGINE_CONFIG_REGISTRY_KEY) as GameEngineOptions;
+        const parent = this.game.canvas.parentElement;
+        const camera = this.cameras.main;
+        this.#board =
+          parent === null
+            ? undefined
+            : new BubbleBoard(
+                {
+                  parent,
+                  closeLabel: options.texts?.closeBubble ?? "",
+                  defaultGreeting: options.texts?.defaultGreeting,
+                  // A point of the map in the game view, in CSS pixels (the camera's zoom includes the pixel ratio).
+                  project: (point) => ({
+                    x:
+                      (point.x - camera.midPoint.x) * (camera.zoom / this.#pixelRatio()) +
+                      camera.width / this.#pixelRatio() / 2,
+                    y:
+                      (point.y - camera.midPoint.y) * (camera.zoom / this.#pixelRatio()) +
+                      camera.height / this.#pixelRatio() / 2,
+                  }),
+                  viewSize: () => ({
+                    width: camera.width / this.#pixelRatio(),
+                    height: camera.height / this.#pixelRatio(),
+                  }),
+                },
+                map.size.width,
+              );
+        this.#crowd = new GuestCrowd(
+          this,
+          map,
+          this.#world,
+          this.#navigationOf(map).grid,
+          this.#guests,
+          CAMERA_ZOOM,
+          () => this.#pixelRatio(),
+          this.#board,
+          options.guestPhoto,
+        );
+        // The NPCs walk and wave; those with an action glow while the player walks to them (GAME-36, GAME-38).
+        this.#npcs = new NpcCrowd(
+          this,
+          map,
+          this.#world,
+          CAMERA_ZOOM,
+          () => this.#pixelRatio(),
+          this.#board,
+          // A tap on the bubble of an NPC with an action does what a tap on the NPC does (GAME-37).
+          (area) => {
+            if (this.sys.isActive() && !this.#transitioning)
+              this.#tapTo(interiorPoint(area.polygon));
+          },
+        );
+        this.#glowNpcs(this.#npcs);
+        // The fog, the cloud shadows and the birds, unless the map or the device switches them off (GAME-34).
+        this.#atmosphere = new Atmosphere(
+          this,
+          map,
+          this.#world,
+          atmospherePlan(map, this.#world, prefersReducedMotion()),
+          () => this.#pixelRatio(),
+        );
+      }
       this.#createMarker(map);
       // The camera does not follow by itself: it is centred on the snapped sprite in update() (GAME-27).
       this.cameras.main.setRoundPixels(true);
@@ -341,6 +439,13 @@ export class WorldScene extends Phaser.Scene {
         sparkles: this.#sparkles,
         walk: { marker: this.#feedback.marker ?? null, glow: this.#feedback.glow ?? null },
         glows: this.#glows.size,
+        guests: this.#crowd?.states ?? [],
+        npcs: this.#npcs?.states ?? [],
+        atmosphere: this.#atmosphere?.state ?? { fog: false, clouds: 0, birds: 0 },
+        tileAnimation: {
+          objects: this.#tileAnimations?.count ?? 0,
+          frames: [...(this.#tileAnimations?.shown ?? [])],
+        },
         entries: (this.game.registry.get(ENTRIES_REGISTRY_KEY) as number | undefined) ?? 0,
         view: {
           // In CSS pixels, whatever the pixel ratio of the canvas is.
@@ -362,6 +467,13 @@ export class WorldScene extends Phaser.Scene {
       this.#removeShines();
       this.#indicatorLayer?.destroy();
       this.#indicatorLayer = undefined;
+      this.#labelLayer?.destroy();
+      this.#labelLayer = undefined;
+      this.#board?.destroy();
+      this.#board = undefined;
+      this.#crowd = undefined;
+      this.#atmosphere?.destroy();
+      this.#atmosphere = undefined;
       this.scale.off(Phaser.Scale.Events.RESIZE, this.#onResize);
       window.removeEventListener("keydown", this.#onKeyDown);
       window.removeEventListener("keyup", this.#onKeyUp);
@@ -412,7 +524,6 @@ export class WorldScene extends Phaser.Scene {
     const parent = this.game.canvas.parentElement;
     if (world === undefined || parent === null) return;
     const options = this.game.registry.get(ENGINE_CONFIG_REGISTRY_KEY) as GameEngineOptions;
-    const anyObject = options.indicateAllObjects === true;
     const bounds = (objectId: number | undefined, polygon: Point[]): Rect => {
       const sprite = objectId === undefined ? undefined : this.#objectSprites.get(objectId);
       if (sprite !== undefined) {
@@ -427,20 +538,23 @@ export class WorldScene extends Phaser.Scene {
     };
     const sources: IndicatorSource[] = [];
     for (const area of map.clickables) {
-      const hasAction = actionOf(world.actions, map.id, area).kind !== "none";
-      if (!wantsIndicator({ kind: "object", hidden: area.hidden, hasAction }, anyObject)) continue;
+      const action = actionOf(world.actions, map.id, area);
+      // Only the setting `showIndicator` decides (the admin turns it off for side notes and surprises), whatever the
+      // object is: an easter egg, an object without an action or one that shows a dialogue included.
+      if (!indicatorShown(world.showIndicator, npcKey(map.id, area.name))) continue;
       const box = bounds(area.objectId, area.polygon);
       sources.push({
         id: `object:${area.name}`,
         kind: "object",
-        label: area.label ?? area.name,
+        // The title of what the object opens, else its label, else its name (GAME-40).
+        label: options.titleOf?.(action) ?? area.label ?? area.name,
         bounds: box,
         centre: { x: box.x + box.width / 2, y: box.y + box.height / 2 },
         tap: interiorPoint(area.polygon),
       });
     }
     for (const portal of map.portals) {
-      if (!wantsIndicator({ kind: "portal", hasTarget: portal.targetMap !== undefined })) continue;
+      if (!portalWantsIndicator(portal.targetMap !== undefined)) continue;
       const box = bounds(portal.objectId, portal.polygon);
       sources.push({
         id: `portal:${portal.name}`,
@@ -453,12 +567,94 @@ export class WorldScene extends Phaser.Scene {
       });
     }
     this.#indicatorSources = sources;
+    this.#labelLayer = new ObjectLabelLayer(parent);
     // A tap on an indicator does what a tap on the object does.
     this.#indicatorLayer = new EdgeIndicatorLayer(parent, (id) => {
-      const source = this.#indicatorSources.find((item) => item.id === id);
+      const source = [...this.#indicatorSources, ...this.#npcIndicatorSources()].find(
+        (item) => item.id === id,
+      );
       if (source !== undefined && this.sys.isActive() && !this.#transitioning)
         this.#tapTo(source.tap);
     });
+  }
+
+  /**
+   * The indicators of the NPCs (GAME-39): labelled with the NPC's name, and following the NPC, so
+   * their bounds and the point a tap on the indicator taps are those of the NPC now.
+   */
+  #npcIndicatorSources(): IndicatorSource[] {
+    const world = this.#world;
+    const map = this.#map;
+    if (world === undefined || map === undefined) return [];
+    return (this.#npcs?.bodies ?? [])
+      .filter((body) => indicatorShown(world.showIndicator, npcKey(map.id, body.name)))
+      .map((body) => {
+        const xs = body.polygon.map((point) => point.x);
+        const ys = body.polygon.map((point) => point.y);
+        const x = Math.min(...xs);
+        const y = Math.min(...ys);
+        const bounds = { x, y, width: Math.max(...xs) - x, height: Math.max(...ys) - y };
+        return {
+          id: `npc:${body.name}`,
+          kind: "object" as const,
+          label: npcTitle(body, world.npcs.get(npcKey(map.id, body.name))),
+          bounds,
+          centre: { x: x + bounds.width / 2, y: y + bounds.height / 2 },
+          tap: interiorPoint(body.polygon),
+        };
+      });
+  }
+
+  /**
+   * The labels of the objects in sight (GAME-41): an object, portal or NPC with an indicator that is not outside the
+   * view carries its label on top, the nearest first and without overlaps. An NPC whose speech bubble is open
+   * shows no label: the bubble names it.
+   */
+  #updateLabels(): void {
+    const layer = this.#labelLayer;
+    if (layer === undefined) return;
+    const camera = this.cameras.main;
+    const ratio = this.#pixelRatio();
+    const view = { width: camera.width / ratio, height: camera.height / ratio };
+    const toView = (point: Point): Point => ({
+      x: (point.x - camera.midPoint.x) * CAMERA_ZOOM + view.width / 2,
+      y: (point.y - camera.midPoint.y) * CAMERA_ZOOM + view.height / 2,
+    });
+    const candidates = [...this.#indicatorSources, ...this.#npcIndicatorSources()]
+      .filter(
+        (source) =>
+          !isOutside(source.bounds, camera.worldView) &&
+          !(source.id.startsWith("npc:") && (this.#board?.isOpen(source.id) ?? false)),
+      )
+      .map((source) => {
+        const width = objectLabelWidth(source.label);
+        return {
+          source,
+          width,
+          id: source.id,
+          box: objectLabelBox(
+            toView({ x: source.bounds.x + source.bounds.width / 2, y: source.bounds.y }),
+            width,
+            view,
+          ),
+          distance: Math.hypot(
+            source.centre.x - this.#position.x,
+            source.centre.y - this.#position.y,
+          ),
+        };
+      });
+    const shown = new Set(chooseObjectLabels(candidates));
+    layer.update(
+      candidates
+        .filter((candidate) => shown.has(candidate.id))
+        .map(({ source, width, box }) => ({
+          id: source.id,
+          text: source.label,
+          x: box.x,
+          y: box.y,
+          width,
+        })),
+    );
   }
 
   /** Shows the indicators of the objects outside the view, the nearest first and without overlaps (GAME-26). */
@@ -474,7 +670,7 @@ export class WorldScene extends Phaser.Scene {
       y: (point.y - camera.midPoint.y) * CAMERA_ZOOM + view.height / 2,
     });
     const avatar = toView(this.#position);
-    const candidates = this.#indicatorSources
+    const candidates = [...this.#indicatorSources, ...this.#npcIndicatorSources()]
       .filter((source) => isOutside(source.bounds, camera.worldView))
       .map((source) => {
         const place = indicatorPlace(avatar, toView(source.centre), view);
@@ -559,6 +755,29 @@ export class WorldScene extends Phaser.Scene {
     }
   }
 
+  /**
+   * The map with the tappable NPCs among its clickable objects, for the tap, Enter and Space. The NPCs are not in
+   * `map.clickables`, so they have neither sparkles nor an edge indicator (GAME-38).
+   */
+  #interactiveMap(map: ParsedMap): ParsedMap {
+    const areas = this.#npcs?.areas ?? [];
+    return areas.length === 0 ? map : { ...map, clickables: [...map.clickables, ...areas] };
+  }
+
+  /** A glow on the figure of each tappable NPC, dark until the player walks to it (GAME-38). */
+  #glowNpcs(npcs: NpcCrowd): void {
+    for (const area of npcs.areas) {
+      if (area.objectId === undefined) continue;
+      const sprite = npcs.spriteOf(area.objectId);
+      if (sprite === undefined) continue;
+      sprite.enableFilters();
+      const glow = sprite.filters?.internal.addGlow(GLOW_COLOR, 0, 0, 0.8, false, 8, 10);
+      if (glow === undefined) continue;
+      glow.setPaddingOverride(null);
+      this.#npcGlows.set(area.objectId, glow);
+    }
+  }
+
   /** The glow along the edges of the clickable objects that sparkle, steady until a walk leads to one (GAME-29). */
   #glowClickables(map: ParsedMap): void {
     for (const area of map.clickables) {
@@ -590,6 +809,10 @@ export class WorldScene extends Phaser.Scene {
         marker.setPosition(at.x, at.y).setVisible(true);
         this.#markerPulse?.restart();
       }
+    }
+    // An NPC glows only while the player walks to it, and is dark otherwise (GAME-38).
+    for (const [id, glow] of this.#npcGlows) {
+      glow.outerStrength = id === glowing ? objectGlowStrength(true, time - this.#glowSince) : 0;
     }
     for (const [id, glow] of this.#glows) {
       if (this.#portalGlows.has(id)) {
@@ -673,7 +896,7 @@ export class WorldScene extends Phaser.Scene {
       .map((key) => Phaser.Input.Keyboard.JustDown(key))
       .some((value) => value);
     if (pressed && !this.#activationBlocked && !isTypingTarget(document.activeElement)) {
-      const area = clickableInReach(map, this.#position);
+      const area = clickableInReach(this.#interactiveMap(map), this.#position);
       if (area !== undefined) {
         this.#path = [];
         this.#pending = undefined;
@@ -720,6 +943,21 @@ export class WorldScene extends Phaser.Scene {
     const spritePosition = playerSpritePosition(this.#position, CAMERA_ZOOM, this.#pixelRatio());
     player.setPosition(spritePosition.x, spritePosition.y);
     this.#followPlayer();
+    // The guest figures and their bubbles, with the camera of this frame (PRES-10).
+    const shown =
+      this.#board?.update([
+        ...(this.#crowd?.participants(this.#position) ?? []),
+        ...(this.#npcs?.participants(this.#position) ?? []),
+      ]) ?? new Set<string>();
+    this.#crowd?.update(delta, this.#position, shown);
+    // The NPC the player walks to waits for them (GAME-38).
+    const walkingTo = this.#pending;
+    this.#npcs?.hold(
+      walkingTo !== undefined && this.#npcs.areas.includes(walkingTo) ? walkingTo.name : undefined,
+    );
+    this.#npcs?.update(delta, this.#position, shown);
+    this.#atmosphere?.update(delta);
+    this.#tileAnimations?.update(delta);
     player.setDepth(figureDepth(this.#position, map.occluders, map.size.width));
     this.#placeShadow(map, player);
     this.#drawOcclusionActor();
@@ -735,6 +973,7 @@ export class WorldScene extends Phaser.Scene {
     this.#feedbackEvent({ type: "frame", waypoints: this.#path.length, keysHeld });
     this.#showFeedback(time);
     this.#updateIndicators();
+    this.#updateLabels();
 
     const portal = portalAt(map, this.#position);
     if (!this.#armed) {
@@ -756,6 +995,19 @@ export class WorldScene extends Phaser.Scene {
         if (draw.objectId !== undefined) this.#objectSprites.set(draw.objectId, picture);
       }
     }
+  }
+
+  /** The tile objects with an animation play it (GAME-35); with reduced motion they stay on their first frame. */
+  #animateObjects(map: ParsedMap): TileAnimations {
+    const pictures: AnimatedPicture[] = [];
+    for (const draw of map.objects) {
+      const frames = draw.image.animation;
+      const picture =
+        draw.objectId === undefined ? undefined : this.#objectSprites.get(draw.objectId);
+      if (frames === undefined || picture === undefined) continue;
+      pictures.push({ frames, show: (key) => void picture.setTexture(key) });
+    }
+    return new TileAnimations(pictures, prefersReducedMotion());
   }
 
   /** Use Phaser's native isometric renderer for sheet and image-collection tile layers. */
@@ -1163,7 +1415,7 @@ export class WorldScene extends Phaser.Scene {
     const size = map.size;
     const portal = portalAt(map, point);
     // A tap on a clickable object walks to its approach point, where its action runs (GAME-16).
-    const area = portal === undefined ? clickableAt(map, point) : undefined;
+    const area = portal === undefined ? clickableAt(this.#interactiveMap(map), point) : undefined;
     this.#pending = undefined;
     this.#feedbackEvent({ type: "tap" });
     if (area !== undefined) {
@@ -1509,6 +1761,8 @@ export class WorldScene extends Phaser.Scene {
     if (paused) {
       this.scene.pause();
       this.#indicatorLayer?.setHidden(true);
+      this.#labelLayer?.setHidden(true);
+      this.#board?.setHidden(true);
       keyboard?.resetKeys();
       return;
     }
@@ -1516,6 +1770,8 @@ export class WorldScene extends Phaser.Scene {
     this.#activationBlocked = this.#activateKeys.some((key) => key.isDown);
     this.scene.resume();
     this.#indicatorLayer?.setHidden(false);
+    this.#labelLayer?.setHidden(false);
+    this.#board?.setHidden(false);
     keyboard?.resetKeys();
   }
 
@@ -1531,7 +1787,10 @@ export class WorldScene extends Phaser.Scene {
     reachable: boolean;
   }[] {
     const map = this.#map;
-    const inReach = map === undefined ? undefined : clickableInReach(map, this.#position)?.name;
+    const inReach =
+      map === undefined
+        ? undefined
+        : clickableInReach(this.#interactiveMap(map), this.#position)?.name;
     return (map?.clickables ?? []).map((area) => {
       const centre = polygonCentre(area.polygon);
       return {

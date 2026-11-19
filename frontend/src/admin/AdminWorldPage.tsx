@@ -9,6 +9,7 @@ import type { WorldFindingDto, WorldStatus } from "@zappaloo/shared";
 import { apiRequest } from "../app/api.ts";
 import { useSession } from "../app/session.ts";
 import { useEventFormat } from "../rsvp/format.ts";
+import AdminDialogues from "./AdminDialogues.tsx";
 import AdminWorldObjects from "./AdminWorldObjects.tsx";
 import { useAdminData, useErrorText } from "./data.ts";
 import { HoldButton, Switch } from "./ui.tsx";
@@ -25,9 +26,10 @@ function findingText(finding: WorldFindingDto): string {
 
 export default function AdminWorldPage() {
   const { t } = useTranslation();
-  const [tab, setTab] = useState<"objects" | "import">("import");
+  const [tab, setTab] = useState<"objects" | "dialogues" | "import">("import");
   const tabs = [
     ["objects", t("admin.world.tabObjects")],
+    ["dialogues", t("admin.world.tabDialogues")],
     ["import", t("admin.world.tabImport")],
   ] as const;
   return (
@@ -49,7 +51,9 @@ export default function AdminWorldPage() {
           </button>
         ))}
       </div>
-      {tab === "objects" ? <AdminWorldObjects /> : <WorldCard />}
+      {tab === "objects" && <AdminWorldObjects />}
+      {tab === "dialogues" && <AdminDialogues />}
+      {tab === "import" && <WorldCard />}
     </>
   );
 }

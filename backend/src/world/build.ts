@@ -172,6 +172,13 @@ function tileObject(
   return object(id, name, kind, box, properties, { gid });
 }
 
+/** A polyline from screen points; the object stands at the first point, the others are relative to it. */
+const polyline = (points: [number, number][]) => ({
+  polyline: points.map(([x, y]) =>
+    tiledVector(x - (points[0]?.[0] ?? 0), y - (points[0]?.[1] ?? 0)),
+  ),
+});
+
 /** A polygon, with its points relative to the object's position (Tiled's convention). */
 const polygon = (points: [number, number][]) => ({
   polygon: points.map(([x, y]) => tiledVector(x, y)),
@@ -237,17 +244,32 @@ function sheet(firstgid: number, name: string, columns: number, rows: number) {
   };
 }
 
+/** How long a frame of the fountain shows in the test world, in milliseconds. */
+export const FOUNTAIN_FRAME_MS = 150;
+
 /**
  * The image-collection tileset `gebaeude`: one PNG per tile, with gaps in the tile ids. Tile 0 is a house
- * with a collision polygon, tile 3 a sign with a collision rectangle only.
+ * with a collision polygon, tile 3 a sign with a collision rectangle only. In format version 3, tile 6 is a fountain
+ * that plays the pictures of the tiles 6, 7 and 8 (GAME-35).
  */
-function collection(firstgid: number) {
+function collection(firstgid: number, version: TestWorldVersion) {
+  const fountain = (id: number, animation = false) => ({
+    id,
+    image: `../tilesets/gebaeude-brunnen-${String(id - 5)}.png`,
+    imagewidth: 32,
+    imageheight: 32,
+    ...(animation
+      ? {
+          animation: [6, 7, 8].map((tileid) => ({ tileid, duration: FOUNTAIN_FRAME_MS })),
+        }
+      : {}),
+  });
   return {
     firstgid,
     name: "gebaeude",
     objectalignment: "bottom",
     columns: 0,
-    tilecount: 2,
+    tilecount: version >= 3 ? 5 : 2,
     tilewidth: TILE_WIDTH,
     tileheight: TILE_HEIGHT,
     tiles: [
@@ -291,6 +313,7 @@ function collection(firstgid: number) {
           objects: [{ id: 1, name: "collision", x: 4, y: 40, width: 24, height: 8 }],
         },
       },
+      ...(version >= 3 ? [fountain(6, true), fountain(7), fountain(8)] : []),
     ],
   };
 }
@@ -324,8 +347,20 @@ function tiledMap(
 
 const json = (value: unknown): Buffer => Buffer.from(`${JSON.stringify(value, null, 2)}\n`);
 
+/**
+ * The corners, in map pixels (what `polygon` takes), of a border along the edge of a map of this many tiles: the
+ * diamond the ground tiles are drawn in, as the map's bounds have it. Inside it the guests walk, outside it the fog
+ * lies (GAME-33).
+ */
+const mapEdge = (columns: number, rows: number): [number, number][] => [
+  [32, 0],
+  [(columns - 1) * 32 + TILE_WIDTH, (columns - 1) * 16 + 16],
+  [(columns - rows) * 32 + 32, (columns + rows - 2) * 16 + TILE_HEIGHT],
+  [-(rows - 1) * 32, (rows - 1) * 16 + 16],
+];
+
 /** The maps of the test world, by their ids. */
-function maps(): Record<string, unknown> {
+function maps(version: TestWorldVersion): Record<string, unknown> {
   // Kirche: the start map. Every object type is placed here or in the other maps.
   const kirche = tiledMap(
     12,
@@ -334,7 +369,7 @@ function maps(): Record<string, unknown> {
       sheet(1, "boden", 4, 4),
       sheet(17, "dekor", 4, 2),
       sheet(25, "objekte", 3, 1),
-      collection(30),
+      collection(30, version),
       portals(),
     ],
     [
@@ -367,6 +402,27 @@ function maps(): Record<string, unknown> {
           "Gameplay",
           [
             point(1, "start", "spawn", 160, 200),
+            // The edge of the world: the border along the map, inside which the guests walk and outside which the
+            // fog lies (GAME-33).
+            object(90, "", "border", { x: 0, y: 0 }, [], polygon(mapEdge(12, 10))),
+            // The sexton stands in a quiet corner and waves now and then; a tap on him opens the programme (GAME-36).
+            ...(version >= 3
+              ? [
+                  object(
+                    20,
+                    "kuester",
+                    "npc",
+                    { x: 256, y: 176 },
+                    [
+                      property("figure", "herold"),
+                      property("label", "Küster"),
+                      property("action", "page"),
+                      property("page", "programme"),
+                    ],
+                    { point: true },
+                  ),
+                ]
+              : []),
             point(2, "eingang", "spawn", 160, 40),
             tileObject(3, "zum-garten", "portal", { x: 0, y: 192, width: 64, height: 32 }, PORTAL, [
               property("targetMap", "garten"),
@@ -430,7 +486,7 @@ function maps(): Record<string, unknown> {
   const garten = tiledMap(
     14,
     10,
-    [sheet(1, "boden", 4, 4), sheet(17, "dekor", 4, 2), portals()],
+    [sheet(1, "boden", 4, 4), sheet(17, "dekor", 4, 2), collection(30, version), portals()],
     [
       tiledLayer(
         1,
@@ -442,6 +498,31 @@ function maps(): Record<string, unknown> {
       tiledLayer(2, "collision", 14, 10, csv(14, 10, border(14, 10))),
       objectLayer(3, "Gameplay", [
         point(1, "start", "spawn", 64, 64),
+        object(90, "", "border", { x: 0, y: 0 }, [], polygon(mapEdge(14, 10))),
+        // The gardener walks to and fro along a path (format version 3, GAME-36).
+        ...(version >= 3
+          ? [
+              object(
+                21,
+                "gaertner-runde",
+                "path",
+                { x: 0, y: 230 },
+                [],
+                polyline([
+                  [0, 230],
+                  [120, 230],
+                ]),
+              ),
+              object(
+                22,
+                "gaertner",
+                "npc",
+                { x: 0, y: 230 },
+                [property("figure", "male-guest"), property("path", "gaertner-runde")],
+                { point: true },
+              ),
+            ]
+          : []),
         tileObject(2, "zur-kirche", "portal", { x: 0, y: 32, width: 64, height: 32 }, PORTAL, [
           property("targetMap", "kirche"),
           property("targetSpawn", "eingang"),
@@ -471,12 +552,16 @@ function maps(): Record<string, unknown> {
           property("label", "Bank"),
         ]),
         tileObject(7, "", "decoration", { x: 96, y: 160, width: 64, height: 32 }, 17),
+        // The fountain plays its animation (format version 3 only, GAME-35).
+        ...(version >= 3
+          ? [tileObject(8, "", "decoration", { x: 224, y: 160, width: 32, height: 32 }, 36)]
+          : []),
       ]),
     ],
     [property("name", "Garten")],
   );
 
-  // Saal: the banquet hall with seats at two tables, a wander area and a dialogue sign.
+  // Saal: the banquet hall (an indoor map: no clouds, birds or fog), a wander area and a dialogue sign.
   const saal = tiledMap(
     12,
     10,
@@ -497,8 +582,13 @@ function maps(): Record<string, unknown> {
           property("targetMap", "garten"),
           property("targetSpawn", "start"),
         ]),
-        point(3, "platz-1", "seat", 80, 80, [property("table", "1")]),
-        point(4, "platz-2", "seat", 96, 80, [property("table", 3)]),
+        // The type `seat` is read in format version 2 only (the seating plan lives in the platform).
+        ...(version === 2
+          ? [
+              point(3, "platz-1", "seat", 80, 80, [property("table", "1")]),
+              point(4, "platz-2", "seat", 96, 80, [property("table", 3)]),
+            ]
+          : []),
         object(5, "tanzflaeche", "wander", { x: 64, y: 64, width: 96, height: 64 }),
         object(6, "sprecher", "clickable", { x: 240, y: 96, width: 16, height: 16 }, [
           property("action", "content"),
@@ -506,7 +596,13 @@ function maps(): Record<string, unknown> {
         ]),
       ]),
     ],
-    [property("name", "Saal")],
+    [
+      property("name", "Saal"),
+      // An indoor map: no cloud shadows, no birds, no fog (format version 3, GAME-34).
+      ...(version === 3
+        ? [property("clouds", false), property("birds", false), property("fog", false)]
+        : []),
+    ],
   );
 
   return { kirche, garten, saal };
@@ -527,7 +623,15 @@ function figureFrame(colour: [number, number, number]): Buffer {
 }
 
 /** One figure's PixelLab metadata, its frames and the folder they sit in. */
-function figure(folder: string, colour: [number, number, number]): Record<string, Buffer> {
+/** The frames of the wave of the NPC figure of the test world. */
+const WAVE_FRAMES = 3;
+
+function figure(
+  folder: string,
+  colour: [number, number, number],
+  /** The name of an extra animation, which an NPC waves with (format version 3). */
+  wave?: string,
+): Record<string, Buffer> {
   const frame = () => figureFrame(colour);
   const directions = ["south", "west", "east", "north"] as const;
   const rotations = Object.fromEntries(directions.map((d) => [d, `Idle/rotations/${d}.png`]));
@@ -540,6 +644,17 @@ function figure(folder: string, colour: [number, number, number]): Record<string
       ),
     ]),
   );
+  const frameNames = (animation: string, count: number) =>
+    Object.fromEntries(
+      directions.map((d) => [
+        d,
+        Array.from(
+          { length: count },
+          (_, index) =>
+            `Idle/animations/${animation}/${d}/frame_${String(index).padStart(3, "0")}.png`,
+        ),
+      ]),
+    );
   const metadata = {
     group_id: `${folder}-group`,
     states: [
@@ -554,7 +669,13 @@ function figure(folder: string, colour: [number, number, number]): Record<string
           view: "high top-down",
         },
         folder: "Idle",
-        frames: { rotations, animations: { walking } },
+        frames: {
+          rotations,
+          animations: {
+            walking,
+            ...(wave === undefined ? {} : { [wave]: frameNames(wave, WAVE_FRAMES) }),
+          },
+        },
       },
     ],
     export_version: "1",
@@ -570,15 +691,77 @@ function figure(folder: string, colour: [number, number, number]): Record<string
       ] = frame();
     }
   }
+  if (wave !== undefined) {
+    for (const names of Object.values(frameNames(wave, WAVE_FRAMES))) {
+      for (const name of names) files[`avatar/${folder}/${name}`] = frame();
+    }
+  }
+  return files;
+}
+
+/** The format version of the test world: 3 by default; 2 for the tests of the older format. */
+export type TestWorldVersion = 2 | 3;
+
+/** The side of one frame of the bird of the test world. */
+export const BIRD_SIDE = 8;
+
+/** The bird of format version 3: PixelLab metadata like a figure's, with the animation `flying`. */
+function bird(): Record<string, Buffer> {
+  const frame = () =>
+    encodePngPixels(BIRD_SIDE, BIRD_SIDE, (x, y) => [
+      40,
+      40,
+      50,
+      Math.abs(x - 4) + y < 6 ? 255 : 0,
+    ]);
+  const directions = ["south", "west", "east", "north"] as const;
+  const rotations = Object.fromEntries(directions.map((d) => [d, `Idle/rotations/${d}.png`]));
+  const flying = Object.fromEntries(
+    directions.map((d) => [
+      d,
+      [0, 1].map(
+        (index) => `Idle/animations/flying/${d}/frame_${String(index).padStart(3, "0")}.png`,
+      ),
+    ]),
+  );
+  const files: Record<string, Buffer> = {
+    "ambient/bird/metadata.json": json({
+      group_id: "bird-group",
+      states: [
+        {
+          character: {
+            id: "bird-character",
+            name: "Idle",
+            prompt: "A small bird in flight.",
+            size: { width: BIRD_SIDE, height: BIRD_SIDE },
+            template_id: "bird",
+            directions: 4,
+            view: "high top-down",
+          },
+          folder: "Idle",
+          frames: { rotations, animations: { flying } },
+        },
+      ],
+      export_version: "1",
+    }),
+  };
+  for (const d of directions) {
+    files[`ambient/bird/Idle/rotations/${d}.png`] = frame();
+    for (const index of [0, 1]) {
+      files[
+        `ambient/bird/Idle/animations/flying/${d}/frame_${String(index).padStart(3, "0")}.png`
+      ] = frame();
+    }
+  }
   return files;
 }
 
 /** The files of the test world, by their paths in the archive. */
-export function testWorldFiles(): Record<string, Buffer> {
+export function testWorldFiles(version: TestWorldVersion = 3): Record<string, Buffer> {
   const files: Record<string, Buffer> = {
     "manifest.json": json({
       kind: "zappaloo-world",
-      formatVersion: 2,
+      formatVersion: version,
       name: TEST_WORLD_NAME,
       startMap: "kirche",
       tileWidth: TILE_WIDTH,
@@ -590,6 +773,13 @@ export function testWorldFiles(): Record<string, Buffer> {
     "tilesets/gebaeude-haus.png": encodePng(128, 96, [0xb0, 0x6a, 0x4a]),
     "tilesets/gebaeude-schild.png": encodePng(32, 48, [0xf2, 0xd3, 0x8a]),
     "tilesets/portal.png": encodePng(64, 32, [0xe0, 0x4a, 0x9c]),
+    ...(version >= 3
+      ? {
+          "tilesets/gebaeude-brunnen-1.png": encodePng(32, 32, [0x4a, 0x90, 0xd9]),
+          "tilesets/gebaeude-brunnen-2.png": encodePng(32, 32, [0x7f, 0xb8, 0xee]),
+          "tilesets/gebaeude-brunnen-3.png": encodePng(32, 32, [0xb4, 0xd8, 0xf7]),
+        }
+      : {}),
     "avatar/figures.json": json({
       figures: [
         {
@@ -615,6 +805,19 @@ export function testWorldFiles(): Record<string, Buffer> {
           tier: "tier3",
           metadata: "pastor/metadata.json",
         },
+        // The figure only NPCs use, which waves (format version 3, GAME-36).
+        ...(version >= 3
+          ? [
+              {
+                id: "herold",
+                label: "Herold",
+                type: "other",
+                tier: "npc",
+                wave: "waving",
+                metadata: "herold/metadata.json",
+              },
+            ]
+          : []),
       ],
     }),
     "door/door.json": json({
@@ -631,14 +834,17 @@ export function testWorldFiles(): Record<string, Buffer> {
     ...figure("kid", [0xe0, 0xa0, 0x2a]),
     ...figure("crew", [0x2a, 0xa0, 0x6a]),
     ...figure("pastor", [0x30, 0x30, 0x30]),
+    ...(version >= 3 ? figure("herold", [0xd0, 0x90, 0x20], "waving") : {}),
+    // The bird belongs to format version 3.
+    ...(version === 3 ? bird() : {}),
   };
-  for (const [id, map] of Object.entries(maps())) {
+  for (const [id, map] of Object.entries(maps(version))) {
     files[`maps/${id}.json`] = json(map);
   }
   return files;
 }
 
 /** The test world as a `tar.gz` package. The same bytes on every run. */
-export function buildTestWorld(): Buffer {
-  return buildArchive(testWorldFiles());
+export function buildTestWorld(version: TestWorldVersion = 3): Buffer {
+  return buildArchive(testWorldFiles(version));
 }

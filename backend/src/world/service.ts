@@ -3,20 +3,29 @@
 // is validated before anything is written; it is staged in a folder and moved into place, and the rows
 // and the audit entry change in one transaction. A failure leaves the active world as it was.
 import { randomUUID } from "node:crypto";
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { mkdir, rename, rm, writeFile } from "node:fs/promises";
 import { dirname, join, resolve, sep } from "node:path";
-import { and, eq } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 import {
   contentPages,
+  dialogues,
   eventSettings,
+  worldHiddenIndicators,
+  worldNpcs,
   worldObjectActions,
   worldPackages,
 } from "../database/schema.ts";
 import type { Database } from "../database/database.ts";
 import type { Actor, EventService } from "../event/service.ts";
-import { WORLD_BUILTIN_PAGES, WORLD_FILE_SEGMENT, worldActionSchema } from "@zappaloo/shared";
+import {
+  WORLD_BIRD_METADATA,
+  WORLD_BUILTIN_PAGES,
+  WORLD_FILE_SEGMENT,
+  worldActionSchema,
+} from "@zappaloo/shared";
 import type {
+  PublicNpc,
   PublicWorld,
   WorldObjectAction,
   WorldActionOverride,
@@ -47,6 +56,12 @@ export class WorldRefused extends Error {
     this.name = "WorldRefused";
     this.findings = findings;
   }
+}
+
+/** The name and the short dialog of an NPC; each may be absent (MAP-21). */
+export interface NpcTexts {
+  title: string | null;
+  dialog: string | null;
 }
 
 /** Why an action could not be assigned (MAP-15). */
@@ -85,12 +100,12 @@ export interface StoredWorld {
 }
 
 /**
- * The files a player's browser may load from a world: maps, tileset images, and the figures' metadata and
- * frames (in their folders under avatar/). The manifest and the door scene are not served.
+ * The files a player's browser may load from a world: maps, tileset images, the metadata and frames of the figures
+ * (in their folders under avatar/) and of the bird (under ambient/bird/). The manifest and the door scene are not served.
  */
 const SEGMENT = WORLD_FILE_SEGMENT.source.slice(1, -1);
 const SERVED_FILE = new RegExp(
-  `^(?:maps\\/[a-z0-9-]{1,40}\\.json|tilesets\\/${SEGMENT}\\.png|avatar\\/figures\\.json|avatar\\/(?:${SEGMENT}\\/)+${SEGMENT}\\.(?:png|json))$`,
+  `^(?:maps\\/[a-z0-9-]{1,40}\\.json|tilesets\\/${SEGMENT}\\.png|avatar\\/figures\\.json|avatar\\/(?:${SEGMENT}\\/)+${SEGMENT}\\.(?:png|json)|ambient\\/bird\\/(?:${SEGMENT}\\/)*${SEGMENT}\\.(?:png|json))$`,
 );
 
 type Row = typeof worldPackages.$inferSelect;
@@ -230,7 +245,86 @@ export class WorldService {
       maps: active.maps.map((map) => map.id),
       figures: active.figures,
       actions: this.#overridesOf(active),
+      npcs: this.#publicNpcs(active),
+      indicators: this.#hiddenIndicators(active).map((item) => ({ ...item, showIndicator: false })),
+      // Format version 3: without the metadata of the bird there are no birds (GAME-32).
+      bird: existsSync(join(this.directory, active.importId, WORLD_BIRD_METADATA)),
     };
+  }
+
+  /** The objects and NPCs of the world whose indicator and label the admin turned off. */
+  #hiddenIndicators(world: StoredWorld): { map: string; object: string }[] {
+    const existing = new Set(
+      this.#objectsOf(world).flatMap((map) => [
+        ...map.clickables.map((item) => `${map.id}/${item.name}`),
+        ...map.npcs.map((item) => `${map.id}/${item.name}`),
+      ]),
+    );
+    const rows = this.#database.db
+      .select()
+      .from(worldHiddenIndicators)
+      .where(eq(worldHiddenIndicators.eventId, this.#event.eventId))
+      .all()
+      .filter((row) => existing.has(`${row.mapId}/${row.objectName}`));
+    return rows.map((row) => ({ map: row.mapId, object: row.objectName }));
+  }
+
+  /** The rows of the NPC texts of the event, by `<map>/<name>`. */
+  #storedNpcs(): Map<string, NpcTexts> {
+    return new Map(
+      this.#database.db
+        .select()
+        .from(worldNpcs)
+        .where(eq(worldNpcs.eventId, this.#event.eventId))
+        .all()
+        .map((row) => [`${row.mapId}/${row.npcName}`, { title: row.title, dialog: row.dialog }]),
+    );
+  }
+
+  /**
+   * What the game needs of the NPCs' texts (GAME-37): the admin's name and short dialog of every NPC of the world that
+   * has either, and the portrait of the NPC's dialogue when its effective action is a dialogue that has one (CNT-08).
+   */
+  #publicNpcs(world: StoredWorld): PublicNpc[] {
+    const stored = this.#storedNpcs();
+    const actions = new Map(
+      this.#storedOverrides().map((item) => [`${item.map}/${item.object}`, item.action]),
+    );
+    const portraits = new Map(
+      this.#database.db
+        .select({
+          id: dialogues.id,
+          version: dialogues.updatedAt,
+          has: sql<number>`${dialogues.portrait} IS NOT NULL`,
+        })
+        .from(dialogues)
+        .where(eq(dialogues.eventId, this.#event.eventId))
+        .all()
+        .filter((row) => row.has === 1)
+        .map((row) => [row.id, row.version.getTime()]),
+    );
+    return this.#objectsOf(world).flatMap((map) =>
+      map.npcs.flatMap((npc) => {
+        const key = `${map.id}/${npc.name}`;
+        const texts = stored.get(key);
+        const action = actions.get(key) ?? npc.preset;
+        const version = action?.kind === "dialog" ? portraits.get(action.dialogId) : undefined;
+        if (texts === undefined && version === undefined) return [];
+        return [
+          {
+            map: map.id,
+            name: npc.name,
+            ...(texts?.title ? { title: texts.title } : {}),
+            ...(texts?.dialog ? { dialog: texts.dialog } : {}),
+            ...(version === undefined || action?.kind !== "dialog"
+              ? {}
+              : {
+                  portrait: `/api/dialogues/${encodeURIComponent(action.dialogId)}/portrait?v=${String(version)}`,
+                }),
+          },
+        ];
+      }),
+    );
   }
 
   /** The maps of a stored world with their objects, read from its files. */
@@ -263,9 +357,10 @@ export class WorldService {
   /** The assignments of the admin for objects that exist in the world; the others wait for their object. */
   #overridesOf(world: StoredWorld): WorldActionOverride[] {
     const existing = new Set(
-      this.#objectsOf(world).flatMap((map) =>
-        map.clickables.map((clickable) => `${map.id}/${clickable.name}`),
-      ),
+      this.#objectsOf(world).flatMap((map) => [
+        ...map.clickables.map((clickable) => `${map.id}/${clickable.name}`),
+        ...map.npcs.map((npc) => `${map.id}/${npc.name}`),
+      ]),
     );
     return this.#storedOverrides().filter((item) => existing.has(`${item.map}/${item.object}`));
   }
@@ -301,6 +396,10 @@ export class WorldService {
     const overrides = new Map(
       this.#storedOverrides().map((item) => [`${item.map}/${item.object}`, item.action]),
     );
+    const texts = this.#storedNpcs();
+    const hidden = new Set(
+      this.#hiddenIndicators(active).map((item) => `${item.map}/${item.object}`),
+    );
     const missing = (action: WorldObjectAction | undefined): boolean => {
       if (action === undefined) return false;
       if (action.kind === "page") return !targets.pages.includes(action.page);
@@ -321,6 +420,22 @@ export class WorldService {
             ...(clickable.preset === undefined ? {} : { preset: clickable.preset }),
             ...(override === undefined ? {} : { override }),
             missing: missing(override ?? clickable.preset),
+            showIndicator: !hidden.has(`${map.id}/${clickable.name}`),
+          };
+        }),
+        npcs: map.npcs.map((npc) => {
+          const key = `${map.id}/${npc.name}`;
+          const override = overrides.get(key);
+          const stored = texts.get(key);
+          return {
+            name: npc.name,
+            ...(npc.label === undefined ? {} : { label: npc.label }),
+            ...(npc.preset === undefined ? {} : { preset: npc.preset }),
+            ...(override === undefined ? {} : { override }),
+            missing: missing(override ?? npc.preset),
+            showIndicator: !hidden.has(key),
+            ...(stored?.title ? { title: stored.title } : {}),
+            ...(stored?.dialog ? { dialog: stored.dialog } : {}),
           };
         }),
         portals: map.portals,
@@ -342,12 +457,15 @@ export class WorldService {
     const active = this.active();
     if (active === undefined) throw new WorldObjectError("no_world", "no world is imported");
     const exists = this.#objectsOf(active).some(
-      (map) => map.id === mapId && map.clickables.some((item) => item.name === objectName),
+      (map) =>
+        map.id === mapId &&
+        (map.clickables.some((item) => item.name === objectName) ||
+          map.npcs.some((item) => item.name === objectName)),
     );
     if (!exists) {
       throw new WorldObjectError(
         "object_not_found",
-        `the map ${mapId} has no clickable object ${objectName}`,
+        `the map ${mapId} has no clickable object or NPC ${objectName}`,
       );
     }
     if (action !== null) {
@@ -379,6 +497,72 @@ export class WorldService {
           .run();
       }
       this.#event.audit(actor, "world.action", { map: mapId, object: objectName }, tx);
+    });
+  }
+
+  /**
+   * Turns the edge indicator and the label of a clickable object or an NPC of the active world on or off (GAME-26,
+   * GAME-41). Live at once. The audit entry names the map and the object only.
+   */
+  setIndicator(mapId: string, objectName: string, show: boolean, actor: Actor): void {
+    const active = this.active();
+    if (active === undefined) throw new WorldObjectError("no_world", "no world is imported");
+    const exists = this.#objectsOf(active).some(
+      (map) =>
+        map.id === mapId &&
+        (map.clickables.some((item) => item.name === objectName) ||
+          map.npcs.some((item) => item.name === objectName)),
+    );
+    if (!exists) {
+      throw new WorldObjectError(
+        "object_not_found",
+        `the map ${mapId} has no clickable object or NPC ${objectName}`,
+      );
+    }
+    const key = and(
+      eq(worldHiddenIndicators.eventId, this.#event.eventId),
+      eq(worldHiddenIndicators.mapId, mapId),
+      eq(worldHiddenIndicators.objectName, objectName),
+    );
+    this.#database.db.transaction((tx) => {
+      tx.delete(worldHiddenIndicators).where(key).run();
+      if (!show) {
+        tx.insert(worldHiddenIndicators)
+          .values({ eventId: this.#event.eventId, mapId, objectName })
+          .run();
+      }
+      this.#event.audit(actor, "world.indicator", { map: mapId, object: objectName }, tx);
+    });
+  }
+
+  /**
+   * Sets the name and the short dialog of an NPC of the active world, each text or null (MAP-21). Live at once. A row
+   * without either text is removed. The audit entry names the map and the NPC only.
+   */
+  setNpc(mapId: string, npcName: string, texts: NpcTexts, actor: Actor): void {
+    const active = this.active();
+    if (active === undefined) throw new WorldObjectError("no_world", "no world is imported");
+    const exists = this.#objectsOf(active).some(
+      (map) => map.id === mapId && map.npcs.some((item) => item.name === npcName),
+    );
+    if (!exists) {
+      throw new WorldObjectError("object_not_found", `the map ${mapId} has no NPC ${npcName}`);
+    }
+    const title = texts.title === null || texts.title === "" ? null : texts.title;
+    const dialog = texts.dialog === null || texts.dialog === "" ? null : texts.dialog;
+    const key = and(
+      eq(worldNpcs.eventId, this.#event.eventId),
+      eq(worldNpcs.mapId, mapId),
+      eq(worldNpcs.npcName, npcName),
+    );
+    this.#database.db.transaction((tx) => {
+      tx.delete(worldNpcs).where(key).run();
+      if (title !== null || dialog !== null) {
+        tx.insert(worldNpcs)
+          .values({ eventId: this.#event.eventId, mapId, npcName, title, dialog })
+          .run();
+      }
+      this.#event.audit(actor, "world.npc", { map: mapId, npc: npcName }, tx);
     });
   }
 
@@ -417,8 +601,15 @@ export class WorldService {
       .from(contentPages)
       .where(eq(contentPages.eventId, this.#event.eventId))
       .all();
-    // Dialogues are content items of step 6d; until they exist, no dialogue is there.
-    return { pageSlugs: new Set(pages.map((page) => page.slug)), dialogueIds: new Set() };
+    const dialogueRows = this.#database.db
+      .select({ id: dialogues.id })
+      .from(dialogues)
+      .where(eq(dialogues.eventId, this.#event.eventId))
+      .all();
+    return {
+      pageSlugs: new Set(pages.map((page) => page.slug)),
+      dialogueIds: new Set(dialogueRows.map((row) => row.id)),
+    };
   }
 
   /** The maps of a package by their ids, as their bytes. */

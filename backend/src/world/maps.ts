@@ -8,6 +8,7 @@ import {
   WORLD_BUILTIN_PAGES,
   WORLD_ID_PATTERN,
   WORLD_LIMITS,
+  WORLD_MAP_SWITCHES,
 } from "@zappaloo/shared";
 import type {
   TiledLayer,
@@ -31,6 +32,10 @@ export interface MapContext {
   files: Map<string, Buffer>;
   /** The size of every PNG of the package by its path. */
   images: Map<string, PngSize>;
+  /** The format version of the package (14.4); 2 when it is not known. */
+  formatVersion?: number;
+  /** The ids of the figures of the package, to check what an NPC names; unknown when the figures are invalid. */
+  figureIds?: ReadonlySet<string>;
 }
 
 /** A portal of a valid map, with its target; checked against the other maps by `checkMapReferences`. */
@@ -78,6 +83,8 @@ const SHAPES: Record<string, Shape[]> = {
   clickable: ["rectangle", "polygon", "tile"],
   decoration: ["rectangle", "polygon", "tile", "point"],
   seat: ["point"],
+  npc: ["point"],
+  path: ["polyline"],
   wander: ["rectangle", "polygon"],
   border: ["polygon"],
   collision: ["rectangle", "polygon"],
@@ -93,12 +100,17 @@ const PROPERTIES: Record<string, string[]> = {
   clickable: ["label", "approach", "action", "page", "contentId", "minigameId", "hidden"],
   decoration: [],
   seat: ["table"],
+  npc: ["figure", "label", "path", "action", "page", "contentId", "minigameId"],
+  path: [],
   wander: [],
   border: [],
   collision: [],
   protected: [],
   "": [],
 };
+
+/** The object types of format version 3 only (14.2, story 6g). */
+const V3_TYPES: readonly string[] = ["npc", "path"];
 
 /** The property each action of a clickable object needs (14.2). */
 const ACTION_PROPERTY: Record<string, "page" | "contentId" | "minigameId"> = {
@@ -412,7 +424,9 @@ export function checkMap(id: string, bytes: Buffer, context: MapContext): MapRes
         }
         continue;
       }
-      if (tile.animation !== undefined && tile.animation.length > 0) {
+      if (tile.animation !== undefined && (context.formatVersion ?? 2) >= 3) {
+        checkTileAnimation(tile, tileset, file, findings);
+      } else if (tile.animation !== undefined && tile.animation.length > 0) {
         findings.push(
           errorFinding(
             file,
@@ -462,11 +476,38 @@ export function checkMap(id: string, bytes: Buffer, context: MapContext): MapRes
     }
   }
 
+  // The paths: each path an NPC names is a path of this map; a path no NPC names is a warning (format version 3).
+  const named = new Set<string>();
+  for (const npc of objects.npcs) {
+    if (npc.path === undefined) continue;
+    named.add(npc.path);
+    if (!objects.paths.has(npc.path)) {
+      findings.push(
+        errorFinding(file, "map_reference", `path ${npc.path} names no path of the map`, npc.label),
+      );
+    }
+  }
+  for (const path of objects.paths) {
+    if (!named.has(path)) {
+      findings.push(warningFinding(file, "path_unused", "no NPC of the map names this path", path));
+    }
+  }
+
   // Map properties: `name` is the name the admin area shows; the camera zoom is fixed at 2 and read
   // from nowhere; other properties are not used by the platform and are reported.
   const mapProperties = propertyTable(map.properties);
+  const switches: readonly string[] = (context.formatVersion ?? 2) >= 3 ? WORLD_MAP_SWITCHES : [];
   for (const key of mapProperties.keys()) {
     if (key === "name") continue;
+    // The switches of format version 3 are properties of the platform: an effect is on unless it is `false`.
+    if (switches.includes(key)) {
+      if (typeof mapProperties.get(key) !== "boolean") {
+        findings.push(
+          errorFinding(file, "map_property", `the map property ${key} must be true or false`),
+        );
+      }
+      continue;
+    }
     const detail =
       key === FIXED_ZOOM_PROPERTY
         ? "the camera zoom is fixed at 2 and is not read from the map"
@@ -748,6 +789,77 @@ interface TileGuides {
   trigger: boolean;
 }
 
+/** The size a tile of an image-collection tileset declares for its picture. */
+function tileImageSize(tile: TiledTile, tileset: TiledTileset): { width: number; height: number } {
+  return {
+    width: tile.imagewidth ?? tileset.tilewidth,
+    height: tile.imageheight ?? tileset.tileheight,
+  };
+}
+
+/**
+ * The animation of an image-collection tile (format version 3, GAME-35): 1 to 32 frames, each a tile of the same
+ * tileset with a picture of the animated tile's own size, and a duration per frame.
+ */
+function checkTileAnimation(
+  tile: TiledTile,
+  tileset: TiledTileset,
+  file: string,
+  findings: WorldFinding[],
+): void {
+  const frames = tile.animation ?? [];
+  const where = `${tileset.name} tile ${String(tile.id)}`;
+  const { tileAnimationFrames: count, tileAnimationDuration: duration } = WORLD_LIMITS;
+  if (frames.length < count.min || frames.length > count.max) {
+    findings.push(
+      errorFinding(
+        file,
+        "map_animation",
+        `a tile animation has ${String(count.min)} to ${String(count.max)} frames, not ${String(frames.length)}`,
+        where,
+      ),
+    );
+    return;
+  }
+  const own = tileImageSize(tile, tileset);
+  const byId = new Map((tileset.tiles ?? []).map((item) => [item.id, item]));
+  for (const frame of frames) {
+    if (frame.duration < duration.min || frame.duration > duration.max) {
+      findings.push(
+        errorFinding(
+          file,
+          "map_animation",
+          `a frame lasts ${String(duration.min)} to ${String(duration.max)} milliseconds, not ${String(frame.duration)}`,
+          where,
+        ),
+      );
+    }
+    const target = byId.get(frame.tileid);
+    if (target?.image === undefined) {
+      findings.push(
+        errorFinding(
+          file,
+          "map_animation",
+          `the frame ${String(frame.tileid)} is no tile with a picture of the tileset`,
+          where,
+        ),
+      );
+      continue;
+    }
+    const size = tileImageSize(target, tileset);
+    if (size.width !== own.width || size.height !== own.height) {
+      findings.push(
+        errorFinding(
+          file,
+          "map_animation",
+          `the frame ${String(frame.tileid)} is ${String(size.width)} x ${String(size.height)} pixels, the tile ${String(own.width)} x ${String(own.height)}`,
+          where,
+        ),
+      );
+    }
+  }
+}
+
 function checkTileGuides(
   tile: TiledTile,
   tileset: TiledTileset,
@@ -888,6 +1000,10 @@ interface ObjectsResult {
   points: Set<string>;
   /** Approach references: object name → the point it names. */
   approaches: [string, string][];
+  /** The NPCs' references: object name → the figure and the path it names (format version 3). */
+  npcs: { label: string; figure: string | undefined; path: string | undefined }[];
+  /** The names of the paths of the map. */
+  paths: Set<string>;
   /** Whether a collision rectangle, polygon or border is on the map. */
   collision: boolean;
   /** Whether a tile with a collision guide is placed on the map. */
@@ -908,6 +1024,8 @@ function checkObjects(
     portals: [],
     points: new Set(),
     approaches: [],
+    npcs: [],
+    paths: new Set(),
     collision: false,
     placedBlocking: false,
   };
@@ -993,7 +1111,10 @@ function checkObject(
     if (name !== "") result.points.add(name);
     return;
   }
-  if (!(type in SHAPES)) {
+  // Format version 3 does not read the type `seat` any more: the seating plan lives in the platform (14.4).
+  // The types `npc` and `path` exist in format version 3 only.
+  const v3 = (context.formatVersion ?? 2) >= 3;
+  if (!(type in SHAPES) || (type === "seat" && v3) || (V3_TYPES.includes(type) && !v3)) {
     findings.push(errorFinding(file, "map_object", `the type ${type} is not allowed`, label));
     return;
   }
@@ -1011,7 +1132,13 @@ function checkObject(
     }
   }
 
-  if (type === "spawn" || type === "portal" || type === "clickable") {
+  if (
+    type === "spawn" ||
+    type === "portal" ||
+    type === "clickable" ||
+    type === "npc" ||
+    type === "path"
+  ) {
     if (!WORLD_ID_PATTERN.test(name)) {
       findings.push(
         errorFinding(
@@ -1026,7 +1153,7 @@ function checkObject(
         errorFinding(
           file,
           "map_object",
-          "the name is used by another spawn, portal or clickable object",
+          "the name is used by another spawn, portal, clickable object, NPC or path",
           label,
         ),
       );
@@ -1048,6 +1175,15 @@ function checkObject(
     checkPortal(object, label, file, findings, result, properties, tileGuides);
   } else if (type === "clickable") {
     checkClickable(label, file, findings, properties);
+  } else if (type === "npc") {
+    checkNpc(label, file, findings, properties, context, result);
+  } else if (type === "path") {
+    result.paths.add(name);
+    if ((object.polyline?.length ?? 0) < 2) {
+      findings.push(
+        errorFinding(file, "map_object", "a path is a polyline of at least 2 points", label),
+      );
+    }
   } else if (type === "seat") {
     const table = properties.get("table");
     const value = typeof table === "number" ? String(table) : stringProperty(table);
@@ -1059,6 +1195,34 @@ function checkObject(
   } else if (type === "collision" || type === "border") {
     result.collision = true;
   }
+}
+
+/** An NPC (format version 3, GAME-36): its figure and path are names, checked against the package and the map. */
+function checkNpc(
+  label: string,
+  file: string,
+  findings: WorldFinding[],
+  properties: Map<string, unknown>,
+  context: MapContext,
+  result: ObjectsResult,
+): void {
+  const figure = stringProperty(properties.get("figure"));
+  const path = stringProperty(properties.get("path"));
+  if (figure === undefined || !WORLD_ID_PATTERN.test(figure)) {
+    findings.push(
+      errorFinding(file, "map_property", "figure is missing or not a figure id", label),
+    );
+  } else if (context.figureIds !== undefined && !context.figureIds.has(figure)) {
+    findings.push(
+      errorFinding(file, "map_property", `figure ${figure} is no figure of the package`, label),
+    );
+  }
+  if (properties.has("path") && (path === undefined || !WORLD_ID_PATTERN.test(path))) {
+    findings.push(errorFinding(file, "map_property", "path is not a path name", label));
+  }
+  result.npcs.push({ label, figure, path });
+  // The label and the preset action are those of a clickable object.
+  checkClickable(label, file, findings, properties);
 }
 
 function checkPortal(

@@ -12,6 +12,7 @@ import {
   rsvpConfigSchema,
 } from "@zappaloo/shared";
 import type { AdminUser, Capability, Group, PersonType, Role } from "@zappaloo/shared";
+import ProfilesSection from "./ProfilesSection.tsx";
 import { useAdminCall, useAdminData } from "./data.ts";
 import { HandOverLink, Panel, ToggleChip } from "./ui.tsx";
 import { rolesLocked, useToggleRole, useUsersErrorText } from "./users.ts";
@@ -288,6 +289,8 @@ export function AccountPanel({
           )}
         </section>
       )}
+
+      {isVip && <ProfilesSection userId={user.id} />}
 
       <section className="stack" aria-label={t("admin.users.dangerZone")}>
         {user.status === "blocked" && (

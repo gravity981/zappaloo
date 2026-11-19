@@ -168,14 +168,16 @@ describe("the test world", () => {
       "kid",
       "crew",
       "pastor",
+      "herold",
     ]);
-    // Kind and tier are both mandatory (7.3): the three tiers and all kinds but none missing are in the test world.
+    // Kind and tier are both mandatory (7.3): the three tiers, the tier of the NPCs and all kinds are in the test world.
     expect(result.package.figures.map((figure) => figure.tier)).toEqual([
       "tier1",
       "tier1",
       "tier1",
       "tier2",
       "tier3",
+      "npc",
     ]);
     expect(result.package.figures.map((figure) => figure.type)).toEqual([
       "female",
@@ -183,6 +185,7 @@ describe("the test world", () => {
       "child",
       "other",
       "male",
+      "other",
     ]);
     expect(result.package.manifest.startMap).toBe("kirche");
     expect(result.package.manifest.tileWidth).toBe(64);
@@ -474,8 +477,8 @@ describe("the maps: format and layers (MAP-02, MAP-06)", () => {
     expectRefused(files, "map_object");
   });
 
-  it("[MAP-06][GAME-20] refuses animated tiles", () => {
-    const files = edit(world(), "maps/kirche.json", (m) => {
+  it("[MAP-06][GAME-20] format version 2 refuses animated tiles", () => {
+    const files = edit(testWorldFiles(2), "maps/kirche.json", (m) => {
       tileAt(tilesetNamed(m, "gebaeude"), 0).animation = [
         {
           tileid: 0,
@@ -720,7 +723,8 @@ describe("the objects (MAP-02, MAP-06)", () => {
   });
 
   it("[MAP-06] refuses an object of a shape its type does not take", () => {
-    const files = edit(world(), "maps/saal.json", (m) => {
+    // A seat, in format version 2 (version 3 does not read the type).
+    const files = edit(testWorldFiles(2), "maps/saal.json", (m) => {
       objectNamed(m, "platz-1").point = undefined;
       objectNamed(m, "platz-1").polygon = [
         { x: 0, y: 0 },
@@ -947,14 +951,14 @@ describe("the objects (MAP-02, MAP-06)", () => {
   });
 
   it("[MAP-06] refuses a seat without its table", () => {
-    const files = edit(world(), "maps/saal.json", (m) => {
+    const files = edit(testWorldFiles(2), "maps/saal.json", (m) => {
       removeProperty(objectNamed(m, "platz-1"), "table");
     });
     expectRefused(files, "map_property");
   });
 
   it("[MAP-06] accepts a table given as a number, as Tiled's int property", () => {
-    expectAccepted(world());
+    expectAccepted(testWorldFiles(2));
   });
 
   it("[MAP-06] a hidden layer still applies its objects: a collision in it counts as collision", () => {
@@ -1131,7 +1135,8 @@ describe("warnings (MAP-08): listed, the package is still accepted", () => {
       m.layers = (m.layers as Json[]).filter((layer) => layer.name !== "collision");
       const objects = layerNamed(m, "Gameplay");
       objects.objects = (objects.objects as Json[]).filter(
-        (object) => object.type !== "wander" && object.type !== "collision",
+        (object) =>
+          object.type !== "wander" && object.type !== "collision" && object.type !== "border",
       );
     });
     const findings = expectAccepted(files);
@@ -1374,5 +1379,337 @@ describe("references between the maps (MAP-08)", () => {
       setProperty(objectNamed(m, "zum-garten"), "targetSpawn", "eingang");
     });
     expectRefused(files, "map_reference");
+  });
+});
+
+describe("format version 3: the bird and the map switches (MAP-20, GAME-32, GAME-34)", () => {
+  /** A package without the bird: every file of `ambient/` removed. */
+  const withoutBird = (): Files =>
+    Object.fromEntries(Object.entries(world()).filter(([path]) => !path.startsWith("ambient/")));
+  const BIRD_FILE = "ambient/bird/metadata.json";
+
+  it("[MAP-20] reads both versions: the test world of version 3 and the one of version 2 are accepted", () => {
+    expectAccepted(testWorldFiles(3));
+    expectAccepted(testWorldFiles(2));
+    expect(read(testWorldFiles(3), "manifest.json").formatVersion).toBe(3);
+    expect(read(testWorldFiles(2), "manifest.json").formatVersion).toBe(2);
+  });
+
+  it("[MAP-20] a version the platform does not read is refused, and the checks of a package follow its own version", () => {
+    const files = edit(world(), "manifest.json", (m) => {
+      m.formatVersion = 4;
+    });
+    expectRefused(files, "format_version");
+    // A package of version 2 has no `ambient/` folder: the bird is not part of its layout.
+    const v2 = {
+      ...testWorldFiles(2),
+      ...Object.fromEntries(Object.entries(world()).filter(([p]) => p.startsWith("ambient/"))),
+    };
+    expectRefused(v2, "file_not_in_layout");
+  });
+
+  it("[GAME-32] the bird is optional: without it the package is accepted and has none", () => {
+    expectAccepted(withoutBird());
+  });
+
+  it("[GAME-32] the bird's metadata is a PixelLab metadata file, with the flight for east and west", () => {
+    const broken = edit(world(), BIRD_FILE, (m) => {
+      m.states = [];
+    });
+    expectRefused(broken, "bird_metadata");
+    const noFlight = edit(world(), BIRD_FILE, (m) => {
+      const animations = ((m.states as Json[])[0]?.frames as Json).animations as Json;
+      delete animations.flying;
+    });
+    expectRefused(noFlight, "bird_metadata");
+    const noEast = edit(world(), BIRD_FILE, (m) => {
+      const flying = (((m.states as Json[])[0]?.frames as Json).animations as Json).flying as Json;
+      delete flying.east;
+    });
+    expectRefused(noEast, "bird_metadata");
+    const notJson = world();
+    notJson[BIRD_FILE] = Buffer.from("{");
+    expectRefused(notJson, "json_invalid");
+  });
+
+  it("[GAME-32] the bird's frames exist, have the canvas size and each direction has the same number of them", () => {
+    const missing = world();
+    delete missing["ambient/bird/Idle/animations/flying/east/frame_000.png"];
+    expectRefused(missing, "file_missing");
+    const wrongSize = world();
+    wrongSize["ambient/bird/Idle/rotations/south.png"] = encodePng(16, 16, [1, 2, 3]);
+    expectRefused(wrongSize, "bird_frame");
+    const unequal = edit(world(), BIRD_FILE, (m) => {
+      const flying = (((m.states as Json[])[0]?.frames as Json).animations as Json).flying as Json;
+      (flying.east as string[]).pop();
+    });
+    expectRefused(unequal, "bird_frame");
+    const outside = edit(world(), BIRD_FILE, (m) => {
+      ((m.states as Json[])[0]?.frames as Json).rotations = {
+        south: "../../avatar/wedding-guest/metadata.json",
+        west: "Idle/rotations/west.png",
+        east: "Idle/rotations/east.png",
+        north: "Idle/rotations/north.png",
+      };
+    });
+    expectRefused(outside, "bird_frame");
+    const tooBig = edit(world(), BIRD_FILE, (m) => {
+      ((m.states as Json[])[0]?.character as Json).size = { width: 300, height: 300 };
+    });
+    expectRefused(tooBig, "bird_frame");
+  });
+
+  it("[GAME-32] every file of ambient/ is named by the bird's metadata", () => {
+    const extra = world();
+    extra["ambient/bird/Idle/extra.png"] = encodePng(8, 8, [1, 2, 3]);
+    expectRefused(extra, "file_unreferenced");
+    // Frames without the metadata that names them are not a bird.
+    const orphan = Object.fromEntries(
+      Object.entries(world()).filter(([path]) => path !== BIRD_FILE),
+    );
+    expectRefused(orphan, "file_unreferenced");
+  });
+
+  it("[GAME-34] the map properties clouds, birds and fog are switches: booleans, no warning, and anything else is refused", () => {
+    expectAccepted(world());
+    const saal = read(world(), "maps/saal.json");
+    const names = (saal.properties as Json[]).map((property) => property.name);
+    expect(names).toEqual(expect.arrayContaining(["clouds", "birds", "fog"]));
+    const result = checkWorldPackage(archive(world()));
+    expect(result.findings.some((finding) => finding.code === "property_unknown")).toBe(false);
+    const text = edit(world(), "maps/garten.json", (m) => {
+      (m.properties as Json[]).push({ name: "fog", type: "string", value: "aus" });
+    });
+    expectRefused(text, "map_property");
+    // In version 2 the same properties are not read: a warning, as for any unknown property.
+    const v2 = edit(testWorldFiles(2), "maps/garten.json", (m) => {
+      (m.properties as Json[]).push({ name: "fog", type: "bool", value: false });
+    });
+    const v2Result = checkWorldPackage(archive(v2));
+    expect(v2Result.ok).toBe(true);
+    expect(codes(v2Result.findings, "warning")).toContain("property_unknown");
+  });
+
+  it("[MAP-20] the type seat is not read in version 3 (the seating plan lives in the platform) and still is in version 2", () => {
+    const seat = edit(world(), "maps/saal.json", (m) => {
+      const layer = allLayers(m.layers as Json[]).find((item) => item.type === "objectgroup");
+      (layer?.objects as Json[]).push({
+        id: 900,
+        name: "platz",
+        type: "seat",
+        point: true,
+        x: 16,
+        y: 16,
+        width: 0,
+        height: 0,
+        rotation: 0,
+        visible: true,
+        properties: [{ name: "table", type: "string", value: "1" }],
+      });
+    });
+    expectRefused(seat, "map_object");
+    expectAccepted(testWorldFiles(2));
+  });
+});
+
+describe("format version 3: tile animations (MAP-20, GAME-35)", () => {
+  /** The animated tile of the test world's collection `gebaeude`: the fountain, tile 6 (third in the list). */
+  const FOUNTAIN = 2;
+  const changeFountain = (change: (tile: Json) => void, path = "maps/kirche.json"): Files =>
+    edit(world(), path, (m) => {
+      change(tileAt(tilesetNamed(m, "gebaeude"), FOUNTAIN));
+    });
+
+  it("[GAME-35][MAP-20] accepts the fountain: an image-collection tile with frames of the same tileset", () => {
+    const map = read(world(), "maps/garten.json");
+    const fountain = tileAt(tilesetNamed(map, "gebaeude"), FOUNTAIN);
+    expect((fountain.animation as Json[]).map((frame) => frame.tileid)).toEqual([6, 7, 8]);
+    expectAccepted(world());
+  });
+
+  it("[GAME-35][MAP-20] refuses an animation without frames or with more than 32", () => {
+    const none = changeFountain((tile) => {
+      tile.animation = [];
+    });
+    expectRefused(none, "map_animation");
+    const many = changeFountain((tile) => {
+      tile.animation = Array.from({ length: 33 }, () => ({ tileid: 6, duration: 100 }));
+    });
+    expectRefused(many, "map_animation");
+  });
+
+  it("[GAME-35][MAP-20] refuses a frame that is no tile with a picture of the tileset", () => {
+    const files = changeFountain((tile) => {
+      tile.animation = [
+        { tileid: 6, duration: 100 },
+        { tileid: 99, duration: 100 },
+      ];
+    });
+    const findings = expectRefused(files, "map_animation");
+    expect(findings.some((finding) => finding.detail.includes("99"))).toBe(true);
+  });
+
+  it("[GAME-35][MAP-20] refuses a frame whose picture has another size than the tile's", () => {
+    const files = edit(world(), "maps/kirche.json", (m) => {
+      tileAt(tilesetNamed(m, "gebaeude"), 3).imageheight = 16;
+    });
+    files["tilesets/gebaeude-brunnen-2.png"] = encodePng(32, 16, [0x7f, 0xb8, 0xee]);
+    const findings = expectRefused(files, "map_animation");
+    expect(findings.some((finding) => finding.detail.includes("32 x 16"))).toBe(true);
+  });
+
+  it("[GAME-35][MAP-20] refuses a frame shorter than 20 or longer than 10 000 milliseconds", () => {
+    for (const duration of [10, 10_001]) {
+      const files = changeFountain((tile) => {
+        tile.animation = [
+          { tileid: 6, duration },
+          { tileid: 7, duration: 100 },
+        ];
+      });
+      expectRefused(files, "map_animation");
+    }
+  });
+
+  it("[GAME-35][MAP-20] ignores the animation of a sheet tile, like the other data of a sheet tile", () => {
+    const files = edit(world(), "maps/garten.json", (m) => {
+      tilesetNamed(m, "boden").tiles = [{ id: 0, animation: [{ tileid: 1, duration: 100 }] }];
+    });
+    expectAccepted(files);
+  });
+});
+
+describe("format version 3: NPCs, paths and the wave (MAP-20, GAME-36)", () => {
+  /** The entry of `avatar/figures.json` at an index. */
+  const figureEntry = (figures: Json, index: number): Json => {
+    const found = (figures.figures as Json[])[index];
+    if (found === undefined) throw new Error(`no figure ${String(index)}`);
+    return found;
+  };
+  const setProperty = (object: Json, name: string, value: string | boolean): void => {
+    const properties = object.properties as Json[];
+    const found = properties.find((item) => item.name === name);
+    if (found === undefined) properties.push({ name, type: "string", value });
+    else found.value = value;
+  };
+
+  it("[GAME-36][MAP-20] accepts the NPCs of the test world: a standing one with a wave and an action, and one on a path", () => {
+    const files = world();
+    expectAccepted(files);
+    const kirche = read(files, "maps/kirche.json");
+    expect(objectNamed(kirche, "kuester").type).toBe("npc");
+    const garten = read(files, "maps/garten.json");
+    expect(objectNamed(garten, "gaertner-runde").type).toBe("path");
+  });
+
+  it("[GAME-36][MAP-20] refuses an NPC without a figure or with a figure the package does not have", () => {
+    const missing = edit(world(), "maps/kirche.json", (m) => {
+      const npc = objectNamed(m, "kuester");
+      npc.properties = (npc.properties as Json[]).filter((item) => item.name !== "figure");
+    });
+    expectRefused(missing, "map_property");
+    const unknown = edit(world(), "maps/kirche.json", (m) => {
+      setProperty(objectNamed(m, "kuester"), "figure", "nobody");
+    });
+    const findings = expectRefused(unknown, "map_property");
+    expect(findings.some((finding) => finding.detail.includes("nobody"))).toBe(true);
+  });
+
+  it("[GAME-36][MAP-20] an NPC may use a figure of any tier", () => {
+    const files = edit(world(), "maps/kirche.json", (m) => {
+      setProperty(objectNamed(m, "kuester"), "figure", "wedding-guest");
+    });
+    expectAccepted(files);
+  });
+
+  it("[GAME-36][MAP-20] refuses a path that names no path of the map, or that is not a polyline of two points", () => {
+    const unknown = edit(world(), "maps/garten.json", (m) => {
+      setProperty(objectNamed(m, "gaertner"), "path", "nowhere");
+    });
+    expectRefused(unknown, "map_reference");
+    const short = edit(world(), "maps/garten.json", (m) => {
+      const path = objectNamed(m, "gaertner-runde");
+      path.polyline = (path.polyline as Json[]).slice(0, 1);
+    });
+    expectRefused(short, "map_object");
+  });
+
+  it("[GAME-36][MAP-20] a path that no NPC names is a warning, and a path must be a polyline", () => {
+    const unused = edit(world(), "maps/garten.json", (m) => {
+      const npc = objectNamed(m, "gaertner");
+      npc.properties = (npc.properties as Json[]).filter((item) => item.name !== "path");
+    });
+    const result = checkWorldPackage(archive(unused));
+    expect(result.ok).toBe(true);
+    expect(codes(result.findings, "warning")).toContain("path_unused");
+    const polygon = edit(world(), "maps/garten.json", (m) => {
+      const path = objectNamed(m, "gaertner-runde");
+      path.polygon = path.polyline;
+      delete path.polyline;
+    });
+    expectRefused(polygon, "map_object");
+  });
+
+  it("[GAME-36][MAP-20] the names of NPCs and paths are unique among the objects of a map", () => {
+    const files = edit(world(), "maps/kirche.json", (m) => {
+      objectNamed(m, "kuester").name = "altar";
+    });
+    expectRefused(files, "map_object");
+  });
+
+  it("[GAME-36][GAME-38][MAP-20] an NPC takes the preset action of a clickable object, checked the same way", () => {
+    const files = edit(world(), "maps/kirche.json", (m) => {
+      setProperty(objectNamed(m, "kuester"), "action", "teleport");
+    });
+    expectRefused(files, "map_property");
+  });
+
+  it("[GAME-36][MAP-20] format version 2 has neither the types npc and path nor the tier npc or a wave", () => {
+    const v2 = testWorldFiles(2);
+    const withNpc = edit(v2, "maps/garten.json", (m) => {
+      const layer = (m.layers as Json[]).find((item) => item.type === "objectgroup");
+      (layer?.objects as Json[]).push({
+        id: 90,
+        name: "gaertner",
+        type: "npc",
+        x: 0,
+        y: 0,
+        width: 0,
+        height: 0,
+        point: true,
+        visible: true,
+        properties: [{ name: "figure", type: "string", value: "kid" }],
+      });
+    });
+    expectRefused(withNpc, "map_object");
+    const tier = edit(v2, "avatar/figures.json", (figures) => {
+      figureEntry(figures, 4).tier = "npc";
+    });
+    expectRefused(tier, "figure_list");
+    const wave = edit(v2, "avatar/figures.json", (figures) => {
+      figureEntry(figures, 4).wave = "waving";
+    });
+    // An unknown field of the file is refused as such (14.4).
+    expectRefused(wave, "json_field");
+  });
+
+  it("[GAME-36][MAP-20] refuses a wave that is no animation of the metadata, or that has other frames per direction", () => {
+    const unknown = edit(world(), "avatar/figures.json", (figures) => {
+      figureEntry(figures, 5).wave = "dancing";
+    });
+    expectRefused(unknown, "figure_metadata");
+    const uneven = editMetadata(world(), "herold", (state) => {
+      const waving = ((state.frames as Json).animations as Json).waving as Json;
+      waving.north = (waving.north as string[]).slice(0, 1);
+    });
+    expectRefused(uneven, "figure_frame");
+  });
+
+  it("[GAME-36][MAP-20] refuses a wave frame that is missing or has another size than the canvas", () => {
+    const missing = world();
+    delete missing["avatar/herold/Idle/animations/waving/south/frame_001.png"];
+    expectRefused(missing, "file_missing");
+    const wrong = world();
+    wrong["avatar/herold/Idle/animations/waving/south/frame_001.png"] = encodePng(8, 8, [0, 0, 0]);
+    expectRefused(wrong, "figure_frame");
   });
 });

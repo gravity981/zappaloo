@@ -1,4 +1,6 @@
-import type { WorldObjectAction } from "@zappaloo/shared";
+import type { GuestFigure, WorldObjectAction } from "@zappaloo/shared";
+import type { NpcState } from "./npc-crowd.ts";
+import type { GuestState } from "./guest-crowd.ts";
 import type { LoadedWorld } from "./world-data.ts";
 import type { Point } from "./geometry.ts";
 
@@ -45,6 +47,14 @@ export interface GameState {
   entries: number;
   /** The camera: the map point at its centre, its zoom, and its size in game pixels (the canvas). */
   view: { x: number; y: number; zoom: number; width: number; height: number };
+  /** The wandering guest figures of this map (test hook, PRES-01). */
+  guests: GuestState[];
+  /** The NPCs of this map (test hook, GAME-36). */
+  npcs: NpcState[];
+  /** The effects of the map: whether it has fog, how many cloud shadows and how many birds are there (test hook, GAME-31 – GAME-34). */
+  atmosphere: { fog: boolean; clouds: number; birds: number };
+  /** The animated tile objects of this map and the frame each shows now (test hook, GAME-35). */
+  tileAnimation: { objects: number; frames: number[] };
 }
 
 export type GameStateReader = () => GameState;
@@ -72,6 +82,10 @@ export interface GameHost {
 export interface GameTexts {
   /** Shown over the game while the map behind a portal is built (GAME-30). Without it, the overlay has no text. */
   loading?: string;
+  /** The name of the cross of a pinned speech bubble, for screen readers (PRES-10). */
+  closeBubble?: string;
+  /** The greeting of a guest who wrote none (PRES-10), e.g. "Hallo 🙂". */
+  defaultGreeting?: string;
 }
 
 export interface GameEngineOptions {
@@ -83,8 +97,16 @@ export interface GameEngineOptions {
   view?: GameView;
   /** The words the game shows. */
   texts?: GameTexts;
-  /** The game preview cannot assign actions: it gives every clickable object but an easter egg an edge indicator (GAME-26). */
-  indicateAllObjects?: boolean;
+  /** The figures of the attending guests that wander the maps (PRES-01); each walks on the map its id picks (PRES-02). */
+  guests?: readonly GuestFigure[];
+  /**
+   * The title of what an action opens (GAME-40): a page's title, a minigame's name. The edge indicator and the label
+   * of an object carry it; without a title (or without this function, as in the game preview) the object's own label
+   * or name stands.
+   */
+  titleOf?: (action: WorldObjectAction) => string | undefined;
+  /** The address of a guest's photo for the speech bubble; without it the bubble shows the initials. */
+  guestPhoto?: (guest: GuestFigure) => string | undefined;
   /** Shows the development diagnostics overlay (GAME-27); never set in a production build. */
   diagnostics?: boolean;
 }

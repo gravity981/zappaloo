@@ -11,8 +11,10 @@ import { apiRequest } from "../app/api.ts";
 import { useFeature } from "../app/event.ts";
 import { useSession } from "../app/session.ts";
 import { hintSeen, markHintSeen, useFirstEntry, useWorldActive } from "../app/gameEntry.ts";
+import ProfileEditor from "../profile/ProfileEditor.tsx";
 import GameBar from "../game/GameBar.tsx";
 import GameHint from "../game/GameHint.tsx";
+import DialogueBox from "../game/DialogueBox.tsx";
 import GameOverlay from "../game/GameOverlay.tsx";
 import type { Overlay } from "../game/GameOverlay.tsx";
 import { rsvpUnanswered } from "../rsvp/landing.ts";
@@ -49,8 +51,13 @@ export default function GamePage() {
   const world = useWorldActive(true);
   const [firstEntry, finishEntry] = useFirstEntry();
   const [overlay, setOverlay] = useState<Overlay>();
+  /** The id of the dialogue an NPC or object shows in the dialogue box (CNT-02), if one is open. */
+  const [dialogue, setDialogue] = useState<string>();
   const [hint, setHint] = useState(() => !hintSeen());
   const rsvpOpen = useRsvpOpen(rsvpEnabled, overlay);
+  /** The second step of the first entry, "Sag hallo": the profile of a guest (GAME-13, PRES-09). */
+  const [hello, setHello] = useState(false);
+  const isVip = session.user?.roles.includes("vip") ?? false;
 
   const openPage = useCallback((page: string, label: string) => {
     setOverlay({ action: { kind: "page", page }, label });
@@ -71,6 +78,28 @@ export default function GamePage() {
   // Without a world, or with guest access off, a guest has no game: the website is the way (MAP-19).
   if (world === false) return <Navigate to="/" replace />;
   if (world === undefined || firstEntry === undefined) return <p>{t("game.loading")}</p>;
+  // Right after the first-entry steps, the RSVP opens in an overlay if it is not answered yet (GAME-13).
+  const finishFirstEntry = () => {
+    finishEntry();
+    if (rsvpOpen === true) openPage(RSVP_PAGE, t("nav.rsvp"));
+  };
+  if (firstEntry && hello) {
+    return (
+      <section className="game-first guest avatar-page">
+        <h1 className="h1">{t("game.first.hello.title")}</h1>
+        <p className="hint">{t("profileCard.text")}</p>
+        <ProfileEditor />
+        <div className="rsvp-actions">
+          <button type="button" className="btn ghost" onClick={finishFirstEntry}>
+            {t("game.first.hello.skip")}
+          </button>
+          <button type="button" className="btn" onClick={finishFirstEntry}>
+            {t("game.first.hello.go")}
+          </button>
+        </div>
+      </section>
+    );
+  }
   if (firstEntry) {
     return (
       <section className="game-first guest avatar-page">
@@ -80,9 +109,9 @@ export default function GamePage() {
           // "Weiter" waits for the RSVP state, so that the RSVP overlay can open right after it (GAME-13).
           continueWaiting={rsvpEnabled && rsvpOpen === undefined}
           onContinue={() => {
-            finishEntry();
-            // Right after the avatar step, the RSVP opens in an overlay if it is not answered yet (GAME-13).
-            if (rsvpOpen === true) openPage(RSVP_PAGE, t("nav.rsvp"));
+            // A guest says hello next; staff and admins have no profile and go on.
+            if (isVip) setHello(true);
+            else finishFirstEntry();
           }}
         />
       </section>
@@ -96,10 +125,15 @@ export default function GamePage() {
         <div className="game-stage">
           <Suspense fallback={<p>{t("game.loading")}</p>}>
             <GameCanvas
-              paused={overlay !== undefined}
+              paused={overlay !== undefined || dialogue !== undefined}
               onActivate={(activation) => {
                 markHintSeen();
                 setHint(false);
+                // A dialogue is not a page: its box stands over the game, which waits (CNT-02).
+                if (activation.action.kind === "dialog") {
+                  setDialogue(activation.action.dialogId);
+                  return;
+                }
                 setOverlay({
                   action: activation.action,
                   ...(activation.label === undefined ? {} : { label: activation.label }),
@@ -110,7 +144,15 @@ export default function GamePage() {
               }}
             />
           </Suspense>
-          {hint && overlay === undefined && <GameHint />}
+          {hint && overlay === undefined && dialogue === undefined && <GameHint />}
+          {dialogue !== undefined && (
+            <DialogueBox
+              id={dialogue}
+              onClose={() => {
+                setDialogue(undefined);
+              }}
+            />
+          )}
         </div>
       </div>
       {overlay && <GameOverlay overlay={overlay} onClose={closeOverlay} onLeave={leaveOverlay} />}

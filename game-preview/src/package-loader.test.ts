@@ -40,7 +40,9 @@ describe("standalone preview snapshot loading (MAP-18)", () => {
     );
     expect(fetchMock).toHaveBeenCalledTimes(
       upload.preview.summary.maps.length +
-        new Set(upload.preview.summary.figures.map((figure) => figure.metadata)).size,
+        new Set(upload.preview.summary.figures.map((figure) => figure.metadata)).size +
+        // The bird of a world of format version 3 is one more file (its metadata).
+        (upload.preview.summary.bird ? 1 : 0),
     );
     expect(requests.some(({ method }) => method === "DELETE" || method === "POST")).toBe(false);
     preview.releaseAssets();

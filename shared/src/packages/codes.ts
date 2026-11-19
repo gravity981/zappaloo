@@ -39,11 +39,17 @@ export const WORLD_FINDING_CODES = [
   "figure_metadata",
   "figure_frame",
   "door_sheet",
+  // The bird of format version 3
+  "bird_metadata",
+  "bird_frame",
+  // The tile animations of format version 3
+  "map_animation",
   // Warnings of the package
   "property_unknown",
   "map_collision",
   "portal_no_target",
   "tileset_unused",
+  "path_unused",
   // Checked at import, against the installation (MAP-08)
   "preset_missing",
   "preset_minigame",

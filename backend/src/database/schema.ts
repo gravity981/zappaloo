@@ -8,6 +8,7 @@
 // (DATA-02); a test checks this for every table, so a table added later cannot
 // forget it.
 import {
+  blob,
   foreignKey,
   index,
   integer,
@@ -526,6 +527,128 @@ export const companionAttendance = sqliteTable(
   (table) => [primaryKey({ columns: [table.companionId, table.programItemId] })],
 );
 
+// --- Profiles (sw-architecture.md 3.6; PRES-09, PRES-13 – PRES-15) -----------------------
+
+/** The options of "How I know the couple", one list per event, edited by the admin (PRES-15). */
+export const relationOptions = sqliteTable(
+  "relation_options",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    eventId: text("event_id")
+      .notNull()
+      .references(() => events.id),
+    name: text("name").notNull(),
+    /** The order of the list; the admin's order. */
+    position: integer("position").notNull(),
+    createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull(),
+  },
+  (table) => [index("relation_options_event").on(table.eventId)],
+);
+
+/**
+ * What others see of a person: optional photo, greeting and "How I know the couple". One row per person: a guest
+ * (`companion_id` null) or one of their companions. The photo is the processed picture itself (256 px, a few
+ * kilobytes), so it goes with the row when the account or companion is deleted (ACC-12) and is part of every backup.
+ */
+export const profiles = sqliteTable(
+  "profiles",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    eventId: text("event_id")
+      .notNull()
+      .references(() => events.id),
+    /** The guest, or the host of the companion. */
+    userId: integer("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    companionId: integer("companion_id").references(() => companions.id, { onDelete: "cascade" }),
+    greeting: text("greeting"),
+    relationId: integer("relation_id").references(() => relationOptions.id, {
+      onDelete: "set null",
+    }),
+    relationLine: text("relation_line"),
+    photo: blob("photo", { mode: "buffer" }),
+    photoMime: text("photo_mime"),
+    updatedAt: integer("updated_at", { mode: "timestamp_ms" }).notNull(),
+  },
+  (table) => [
+    uniqueIndex("profiles_guest")
+      .on(table.eventId, table.userId)
+      .where(sql`${table.companionId} is null`),
+    uniqueIndex("profiles_companion").on(table.companionId),
+  ],
+);
+
+// --- Seating plan (sw-architecture.md 3.6; PRES-05 – PRES-07, PRES-12) ----------------------
+
+/** The tables of the seating plan, made by the admin: a name and the number of places (PRES-05). */
+export const seatingTables = sqliteTable(
+  "seating_tables",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    eventId: text("event_id")
+      .notNull()
+      .references(() => events.id),
+    name: text("name").notNull(),
+    /** The name in lower case, so that two tables cannot differ by their case only. */
+    nameKey: text("name_key").notNull(),
+    places: integer("places").notNull(),
+    createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull(),
+  },
+  (table) => [uniqueIndex("seating_tables_name").on(table.eventId, table.nameKey)],
+);
+
+/**
+ * The table of a person the admin placed (PRES-05): a guest (`u<user id>`) or an approved companion
+ * (`c<companion id>`). A companion without a row follows the guest's table (PRES-07). A table that is deleted takes
+ * its rows with it, so its persons have no table.
+ */
+export const seatingAssignments = sqliteTable(
+  "seating_assignments",
+  {
+    eventId: text("event_id")
+      .notNull()
+      .references(() => events.id),
+    personKey: text("person_key").notNull(),
+    tableId: integer("table_id")
+      .notNull()
+      .references(() => seatingTables.id, { onDelete: "cascade" }),
+  },
+  (table) => [primaryKey({ columns: [table.eventId, table.personKey] })],
+);
+
+/** When guests see the seating plan (PRES-06); without a row, or with no date, it stays hidden. */
+export const seatingConfig = sqliteTable("seating_config", {
+  eventId: text("event_id")
+    .primaryKey()
+    .references(() => events.id),
+  visibleFrom: integer("visible_from", { mode: "timestamp_ms" }),
+});
+
+// --- Dialogues (sw-architecture.md 6.2, 14.4; CNT-02, CNT-03, CNT-08) -------------------------
+
+/**
+ * A dialogue of the game world: the name of the NPC and lines in Markdown that the guest taps through, with an optional
+ * portrait picture. The id is the `contentId` of Tiled presets; the admin edits all of it in Erlebniswelt › Dialoge.
+ */
+export const dialogues = sqliteTable(
+  "dialogues",
+  {
+    eventId: text("event_id")
+      .notNull()
+      .references(() => events.id),
+    id: text("id").notNull(),
+    npcName: text("npc_name").notNull(),
+    /** The lines as a JSON array of Markdown texts. */
+    lines: text("lines").notNull(),
+    /** The portrait as uploaded (at most 1 MB), kept unchanged so that pixel art stays crisp (CNT-08). */
+    portrait: blob("portrait", { mode: "buffer" }),
+    portraitMime: text("portrait_mime"),
+    updatedAt: integer("updated_at", { mode: "timestamp_ms" }).notNull(),
+  },
+  (table) => [primaryKey({ columns: [table.eventId, table.id] })],
+);
+
 // --- Waiting page (sw-architecture.md 10.4; ACS-11, ACS-13) -------------------------------
 
 /** The waiting page's settings: opening date, countdown switch and the admin's own texts. */
@@ -745,4 +868,39 @@ export const worldObjectActions = sqliteTable(
     action: text("action").notNull(),
   },
   (table) => [primaryKey({ columns: [table.eventId, table.mapId, table.objectName] })],
+);
+
+/**
+ * The clickable objects and NPCs whose edge indicator and label the admin turned off (sw-architecture.md 14.4,
+ * GAME-26, GAME-41): a row per map id and object or NPC name, so the setting survives a new import. Without a row
+ * the indicator and label are shown. For less important information or surprises.
+ */
+export const worldHiddenIndicators = sqliteTable(
+  "world_hidden_indicators",
+  {
+    eventId: text("event_id")
+      .notNull()
+      .references(() => events.id),
+    mapId: text("map_id").notNull(),
+    objectName: text("object_name").notNull(),
+  },
+  (table) => [primaryKey({ columns: [table.eventId, table.mapId, table.objectName] })],
+);
+
+/**
+ * The texts the admin gave the NPCs of the world (sw-architecture.md 14.4, MAP-21): a name and a short dialog, per
+ * map id and NPC name, so they survive a new import of the world. Either may be null; a row with neither is removed.
+ */
+export const worldNpcs = sqliteTable(
+  "world_npcs",
+  {
+    eventId: text("event_id")
+      .notNull()
+      .references(() => events.id),
+    mapId: text("map_id").notNull(),
+    npcName: text("npc_name").notNull(),
+    title: text("title"),
+    dialog: text("dialog"),
+  },
+  (table) => [primaryKey({ columns: [table.eventId, table.mapId, table.npcName] })],
 );

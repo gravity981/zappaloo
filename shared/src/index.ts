@@ -16,4 +16,7 @@ export * from "./theme.ts";
 export * from "./contrast.ts";
 export * from "./color.ts";
 export * from "./world.ts";
+export * from "./profile.ts";
+export * from "./seating.ts";
+export * from "./dialogue.ts";
 export * from "./packages/index.ts";

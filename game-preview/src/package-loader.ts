@@ -1,6 +1,7 @@
 import { prepareWorld, type LoadedWorld } from "@zappaloo/game-engine";
 import {
   publicWorldSchema,
+  WORLD_BIRD_METADATA,
   worldFindingSchema,
   type PublicWorld,
   type WorldFindingDto,
@@ -153,10 +154,14 @@ export async function loadPreviewSnapshot(
       }
     }
 
+    const birdMetadata = summary.bird
+      ? await fetchJson(packageFileUrl(token, WORLD_BIRD_METADATA))
+      : undefined;
     const world = prepareWorld({
       summary,
       maps,
       figureMetadata,
+      ...(birdMetadata === undefined ? {} : { birdMetadata }),
       resolveAsset: (path) => packageFileUrl(token, path),
     });
     releaseAssets = await prepareAssets(world);

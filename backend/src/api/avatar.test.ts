@@ -1,8 +1,16 @@
 // The avatar editor's API (AVA-01, AVA-02; sw-architecture.md 7.3): which figures a person may choose by the tiers
 // and the roles, the choice, the fallback, and the companions.
 import { afterEach, describe, expect, it } from "vitest";
-import type { AvatarResponse, Role } from "@zappaloo/shared";
-import { companions } from "../database/schema.ts";
+import { eq } from "drizzle-orm";
+import sharp from "sharp";
+import type { AvatarResponse, GuestFiguresResponse, Role } from "@zappaloo/shared";
+import {
+  companionAttendance,
+  companions,
+  memberships,
+  programItems,
+  rsvpAttendance,
+} from "../database/schema.ts";
 import { createTestApp, signIn } from "../test-support.ts";
 import type { TestContext } from "../test-support.ts";
 import { buildArchive } from "../packages/build.ts";
@@ -123,6 +131,19 @@ describe("the avatar editor's figures (AVA-01, AVA-02)", () => {
     expect((await get(ctx, vip)).persons[0]?.chosen).toBe(false);
   });
 
+  it("[AVA-01][GAME-36] the figure of the tier npc is offered to nobody, whatever their roles, and refused for a person or a companion", async () => {
+    const { ctx } = await setup();
+    const everything = await userWith(ctx, "alles", ["admin", "staff", "vip"]);
+    expect(idsOf(await get(ctx, everything))).not.toContain("herold");
+    expect(idsOf(await get(ctx, everything))).toEqual(
+      expect.arrayContaining(["wedding-guest", "crew", "pastor"]),
+    );
+    expect((await put(ctx, everything, "me", "herold")).statusCode).toBe(403);
+    // The world has the figure, so it is no unknown figure: it is a figure the person may not choose.
+    const vip = await userWith(ctx, "gast", ["vip"]);
+    expect((await put(ctx, vip, "me", "herold")).statusCode).toBe(403);
+  });
+
   it("[AVA-02] a figure that the person may no longer choose falls back to the first they may choose", async () => {
     const { ctx } = await setup();
     const both = await userWith(ctx, "beides", ["vip", "staff"]);
@@ -169,5 +190,203 @@ describe("the avatar editor's figures (AVA-01, AVA-02)", () => {
   it("[AVA-01] the editor needs a signed-in user", async () => {
     const { ctx } = await setup();
     expect((await ctx.app.inject({ url: "/api/avatar" })).statusCode).toBe(401);
+  });
+});
+
+describe("the wandering guest figures (PRES-01, PRES-04, AVA-04)", () => {
+  const guests = async (ctx: TestContext, headers: Headers) =>
+    (await ctx.app.inject({ url: "/api/world/guests", headers })).json<GuestFiguresResponse>();
+
+  /** One program item and yes answers of the given persons (the RSVP wizard writes the same rows). */
+  function answer(
+    ctx: TestContext,
+    answers: { userId?: number; companionId?: number; yes: boolean }[],
+  ) {
+    const { db } = ctx.database;
+    const item = db
+      .insert(programItems)
+      .values({ eventId: "event1", name: "Trauung", createdAt: new Date() })
+      .returning({ id: programItems.id })
+      .get().id;
+    for (const entry of answers) {
+      if (entry.userId !== undefined) {
+        db.insert(rsvpAttendance)
+          .values({
+            eventId: "event1",
+            userId: entry.userId,
+            programItemId: item,
+            attending: entry.yes,
+          })
+          .run();
+      }
+      if (entry.companionId !== undefined) {
+        db.insert(companionAttendance)
+          .values({
+            eventId: "event1",
+            companionId: entry.companionId,
+            programItemId: item,
+            attending: entry.yes,
+          })
+          .run();
+      }
+    }
+  }
+
+  const addCompanion = (
+    ctx: TestContext,
+    hostUserId: number,
+    name: string,
+    figure: string | null,
+  ) =>
+    ctx.database.db
+      .insert(companions)
+      .values({
+        eventId: "event1",
+        hostUserId,
+        name,
+        status: "approved",
+        avatarFigure: figure,
+        createdAt: new Date(),
+      })
+      .returning({ id: companions.id })
+      .get().id;
+
+  it("[PRES-01][AVA-04] lists attending persons and approved companions with their chosen figure, not the signed-in user", async () => {
+    const { ctx } = await setup();
+    const anna = await userWith(ctx, "anna", ["vip"]);
+    const bert = await userWith(ctx, "bert", ["vip"]);
+    const annaId = await idOf(ctx, anna);
+    const bertId = await idOf(ctx, bert);
+    expect((await put(ctx, anna, "me", "kid")).statusCode).toBe(200);
+    expect((await put(ctx, bert, "me", "male-guest")).statusCode).toBe(200);
+    const mia = addCompanion(ctx, bertId, "Mia", "wedding-guest");
+    answer(ctx, [
+      { userId: annaId, yes: true },
+      { userId: bertId, yes: true },
+      { companionId: mia, yes: true },
+    ]);
+    const seenByAnna = await guests(ctx, anna);
+    const bare = { greeting: null, badge: null, line: null, photo: null };
+    expect(seenByAnna.guests).toEqual([
+      { id: `u${String(bertId)}`, name: "bert", figure: "male-guest", ...bare },
+      { id: `c${String(mia)}`, name: "Mia", figure: "wedding-guest", ...bare },
+    ]);
+    // Bert's own companion stays in his list; only his own figure is left out.
+    expect((await guests(ctx, bert)).guests.map((guest) => guest.name)).toEqual(["anna", "Mia"]);
+  });
+
+  it("[PRES-01] a person who said no, did not answer, or has no figure does not appear", async () => {
+    const { ctx } = await setup();
+    const viewer = await userWith(ctx, "viewer", ["vip"]);
+    const no = await userWith(ctx, "nein", ["vip"]);
+    const silent = await userWith(ctx, "still", ["vip"]);
+    const plain = await userWith(ctx, "ohne", ["vip"]);
+    const noId = await idOf(ctx, no);
+    const plainId = await idOf(ctx, plain);
+    await put(ctx, no, "me", "kid");
+    await put(ctx, silent, "me", "kid");
+    const hostId = await idOf(ctx, viewer);
+    const noCompanion = addCompanion(ctx, hostId, "Absage", "kid");
+    const noFigure = addCompanion(ctx, hostId, "Ohne Figur", null);
+    answer(ctx, [
+      { userId: noId, yes: false },
+      { userId: plainId, yes: true },
+      { companionId: noCompanion, yes: false },
+      { companionId: noFigure, yes: true },
+    ]);
+    expect((await guests(ctx, viewer)).guests).toEqual([]);
+  });
+
+  it("[PRES-01] a figure that the active world no longer has is left out", async () => {
+    const { ctx } = await setup();
+    const viewer = await userWith(ctx, "viewer", ["vip"]);
+    const old = await userWith(ctx, "alt", ["vip"]);
+    const oldId = await idOf(ctx, old);
+    ctx.database.db
+      .update(memberships)
+      .set({ avatarFigure: "gibt-es-nicht" })
+      .where(eq(memberships.userId, oldId))
+      .run();
+    answer(ctx, [{ userId: oldId, yes: true }]);
+    expect((await guests(ctx, viewer)).guests).toEqual([]);
+  });
+
+  it("[PRES-04] the figures are for signed-in users only", async () => {
+    const { ctx } = await setup();
+    expect((await ctx.app.inject({ url: "/api/world/guests" })).statusCode).toBe(401);
+  });
+
+  /** A 300 × 200 JPEG, as a phone would send it. */
+  const jpeg = () =>
+    sharp({ create: { width: 300, height: 200, channels: 3, background: "#369" } })
+      .jpeg()
+      .toBuffer();
+
+  it("[PRES-10] a guest comes with greeting, relation badge, line and the version of the photo for the speech bubble", async () => {
+    const { ctx } = await setup();
+    const viewer = await userWith(ctx, "viewer", ["vip"]);
+    const bert = await userWith(ctx, "bert", ["vip"]);
+    const bertId = await idOf(ctx, bert);
+    await put(ctx, bert, "me", "male-guest");
+    answer(ctx, [{ userId: bertId, yes: true }]);
+    const relation = (await ctx.app.inject({ url: "/api/profile/people", headers: bert })).json<{
+      relations: { id: number; name: string }[];
+    }>().relations[2];
+    await ctx.app.inject({
+      method: "PUT",
+      url: "/api/profile/people/me",
+      headers: bert,
+      payload: { greeting: "Hallo!", relation: relation?.id, relationLine: "Nachbar" },
+    });
+    await ctx.app.inject({
+      method: "PUT",
+      url: "/api/profile/people/me/photo",
+      headers: { ...bert, "content-type": "image/jpeg" },
+      payload: await jpeg(),
+    });
+    const [guest] = (await guests(ctx, viewer)).guests;
+    expect(guest).toMatchObject({
+      name: "bert",
+      greeting: "Hallo!",
+      badge: relation?.name,
+      line: "Nachbar",
+      photo: expect.any(Number) as number,
+    });
+    // Another guest sees the picture at the guest's own address, with the version in it.
+    const photo = await ctx.app.inject({
+      url: `/api/world/guests/u${String(bertId)}/photo?v=${String(guest?.photo)}`,
+      headers: viewer,
+    });
+    expect(photo.statusCode).toBe(200);
+    expect(photo.headers["content-type"]).toBe("image/webp");
+  });
+
+  it("[PRES-10] the photo of a person who does not attend, or has none, is not served; neither is it to a visitor", async () => {
+    const { ctx } = await setup();
+    const viewer = await userWith(ctx, "viewer", ["vip"]);
+    const bert = await userWith(ctx, "bert", ["vip"]);
+    const bertId = await idOf(ctx, bert);
+    await put(ctx, bert, "me", "male-guest");
+    await ctx.app.inject({
+      method: "PUT",
+      url: "/api/profile/people/me/photo",
+      headers: { ...bert, "content-type": "image/jpeg" },
+      payload: await jpeg(),
+    });
+    const url = `/api/world/guests/u${String(bertId)}/photo`;
+    // Bert has a photo but did not answer the RSVP: he is no guest figure, so his picture is not served.
+    expect((await ctx.app.inject({ url, headers: viewer })).statusCode).toBe(404);
+    answer(ctx, [{ userId: bertId, yes: true }]);
+    expect((await ctx.app.inject({ url, headers: viewer })).statusCode).toBe(200);
+    expect((await ctx.app.inject({ url })).statusCode).toBe(401);
+    // No photo, no picture.
+    const carl = await userWith(ctx, "carl", ["vip"]);
+    const carlId = await idOf(ctx, carl);
+    await put(ctx, carl, "me", "kid");
+    answer(ctx, [{ userId: carlId, yes: true }]);
+    expect(
+      (await ctx.app.inject({ url: `/api/world/guests/u${String(carlId)}/photo`, headers: viewer }))
+        .statusCode,
+    ).toBe(404);
   });
 });

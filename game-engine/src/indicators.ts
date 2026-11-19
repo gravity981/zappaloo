@@ -24,18 +24,18 @@ export interface Rect {
   height: number;
 }
 
-/** What an object is, as far as an indicator is concerned. */
-export type IndicatorTarget =
-  { kind: "object"; hidden: boolean; hasAction: boolean } | { kind: "portal"; hasTarget: boolean };
-
 /**
- * Whether an object may get an indicator: a clickable object with an action assigned, or a portal with a target.
- * Easter eggs (GAME-08) and objects without an action get none. With `anyObject` (the game preview, which cannot
- * assign actions), every clickable object but an easter egg gets one.
+ * Whether an object or NPC shows its edge indicator and its label: only its setting `showIndicator` decides, which
+ * the admin sets per object and NPC (GAME-26, GAME-41). It is on unless the setting says `false`; an easter egg, an
+ * object without an action or an object that shows a dialogue follows the setting like any other.
  */
-export function wantsIndicator(target: IndicatorTarget, anyObject = false): boolean {
-  if (target.kind === "portal") return target.hasTarget;
-  return !target.hidden && (target.hasAction || anyObject);
+export function indicatorShown(settings: ReadonlyMap<string, boolean>, key: string): boolean {
+  return settings.get(key) ?? true;
+}
+
+/** Whether a portal may get an indicator: when it has a target (a portal without one does nothing). */
+export function portalWantsIndicator(hasTarget: boolean): boolean {
+  return hasTarget;
 }
 
 /** Whether the bounds of an object lie entirely outside the view (both in world pixels). */

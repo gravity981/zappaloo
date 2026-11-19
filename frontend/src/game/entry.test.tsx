@@ -116,11 +116,31 @@ const rsvpState = (answered: boolean) => ({
   companions: [],
 });
 
+/** The profile of the signed-in guest and the relation list (PRES-09, PRES-15). */
+const profiles = {
+  persons: [
+    {
+      id: "me",
+      key: "u1",
+      name: "Anna",
+      greeting: null,
+      relation: null,
+      relationLine: null,
+      photo: null,
+    },
+  ],
+  relations: [
+    { id: 1, name: "Familie Braut" },
+    { id: 2, name: "Freunde Braut" },
+  ],
+};
+
 function setup(options: { chosen?: boolean; answered?: boolean; world?: boolean } = {}) {
   return fakeBackend({
     "GET /api/session": () => signedIn,
     "GET /api/world": () => ({ status: 200, body: options.world === false ? null : world }),
     "GET /api/avatar": () => ({ status: 200, body: { persons: [person(options.chosen ?? true)] } }),
+    "GET /api/profile/people": () => ({ status: 200, body: profiles }),
     "GET /api/rsvp": () => ({ status: 200, body: rsvpState(options.answered ?? true) }),
     "GET /api/programme": () => ({ status: 200, body: programme }),
   });
@@ -183,8 +203,61 @@ describe("entering the game", () => {
       expect(screen.getByRole("button", { name: "Weiter" })).toBeEnabled();
     });
     user.click(screen.getByRole("button", { name: "Weiter" }));
+    // Then the guest says hello (profile photo, greeting, relation); skipping goes on.
+    expect(await screen.findByRole("heading", { name: "Sag hallo" })).toBeVisible();
+    expect(screen.queryByTestId("game-canvas")).toBeNull();
+    user.click(screen.getByRole("button", { name: "Überspringen" }));
     expect(await screen.findByTestId("game-canvas")).toBeVisible();
     expect(await screen.findByRole("dialog", { name: "Anmeldung" })).toBeVisible();
+  });
+
+  it("[GAME-13][PRES-09][PRES-13][PRES-15] the step «Sag hallo» stores the greeting and the chosen relation and shows the bubble preview", async () => {
+    const saved: unknown[] = [];
+    fakeBackend({
+      "GET /api/session": () => signedIn,
+      "GET /api/world": () => ({ status: 200, body: world }),
+      "GET /api/avatar": () => ({ status: 200, body: { persons: [person(false)] } }),
+      "GET /api/profile/people": () => ({ status: 200, body: profiles }),
+      "PUT /api/profile/people/me": () => {
+        saved.push("saved");
+        return {
+          status: 200,
+          body: {
+            ...profiles,
+            persons: [
+              {
+                ...profiles.persons[0],
+                greeting: "Hallo zusammen",
+                relation: 2,
+                relationLine: "WG aus Bern",
+              },
+            ],
+          },
+        };
+      },
+      "GET /api/rsvp": () => ({ status: 200, body: rsvpState(true) }),
+      "GET /api/programme": () => ({ status: 200, body: programme }),
+    });
+    renderAt("/game");
+    await screen.findByRole("heading", { name: "Wie siehst du aus?" });
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "Weiter" })).toBeEnabled();
+    });
+    user.click(screen.getByRole("button", { name: "Weiter" }));
+    await screen.findByRole("heading", { name: "Sag hallo" });
+    user.type(screen.getByLabelText("Gruss (eine Zeile)"), "Hallo zusammen");
+    // The preview follows the typing, before anything is stored.
+    expect(within(screen.getByTestId("bubble-preview")).getByText("Hallo zusammen")).toBeVisible();
+    user.click(screen.getByRole("button", { name: "Freunde Braut" }));
+    await waitFor(() => {
+      expect(saved.length).toBeGreaterThan(0);
+    });
+    expect(
+      await screen.findByRole("button", { name: "Freunde Braut", pressed: true }),
+    ).toBeVisible();
+    expect(within(screen.getByTestId("bubble-preview")).getByText("Freunde Braut")).toBeVisible();
+    user.click(screen.getByRole("button", { name: "Los geht's" }));
+    expect(await screen.findByTestId("game-canvas")).toBeVisible();
   });
 
   it("[GAME-13] with a figure for everybody and an answered RSVP, the game opens at once", async () => {

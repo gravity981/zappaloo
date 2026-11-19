@@ -4,7 +4,13 @@
 // them as single files, and a project that makes packages pins the version it targets.
 import { z } from "zod";
 import { themeJsonSchema, themeManifestSchema } from "../../shared/src/theme.ts";
-import { tiledMapSchema, worldFiguresSchema, worldManifestSchema } from "../../shared/src/world.ts";
+import {
+  tiledMapSchema,
+  worldFiguresSchema,
+  worldFiguresV3Schema,
+  worldManifestV2Schema,
+  worldManifestV3Schema,
+} from "../../shared/src/world.ts";
 import { PACKAGE_DEFINITIONS } from "../../shared/src/packages/index.ts";
 import { renderPackageDocument } from "../../shared/src/packages/markdown.ts";
 
@@ -12,9 +18,12 @@ import { renderPackageDocument } from "../../shared/src/packages/markdown.ts";
 export const SCHEMA_FILES: Record<string, z.ZodType> = {
   "theme-manifest.v2.schema.json": themeManifestSchema,
   "theme.v2.schema.json": themeJsonSchema,
-  "world-manifest.v2.schema.json": worldManifestSchema,
+  "world-manifest.v2.schema.json": worldManifestV2Schema,
   "world-figures.v2.schema.json": worldFiguresSchema,
   "world-map.v2.schema.json": tiledMapSchema,
+  "world-manifest.v3.schema.json": worldManifestV3Schema,
+  "world-figures.v3.schema.json": worldFiguresV3Schema,
+  "world-map.v3.schema.json": tiledMapSchema,
 };
 
 /** The text of one schema file: JSON, two-space indented, with a final newline. */

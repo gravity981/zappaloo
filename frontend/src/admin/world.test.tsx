@@ -386,3 +386,180 @@ describe("game world › Objekte & Portale (MAP-15)", () => {
     expect(await screen.findByText(/noch keine Welt importiert/)).toBeVisible();
   });
 });
+
+describe("game world › Objekte & Portale › NPCs (MAP-21, GAME-37)", () => {
+  const withNpcs = {
+    maps: [
+      {
+        id: "kirche",
+        name: "Kirche & Garten",
+        clickables: [],
+        npcs: [
+          {
+            name: "kuester",
+            label: "Küster",
+            preset: { kind: "page", page: "programme" },
+            missing: false,
+            title: "Küster Fritz",
+            dialog: "Psst!",
+          },
+          { name: "gaertner", missing: false },
+        ],
+        portals: [],
+      },
+      { id: "garten", name: "Garten", clickables: [], npcs: [], portals: [] },
+    ],
+    startMap: "kirche",
+    pages: ["programme", "rsvp", "profile"],
+    dialogues: [],
+  };
+
+  const open = async (extra: Record<string, () => { status: number; body: unknown }> = {}) => {
+    const calls = fakeBackend({
+      "GET /api/session": asAdmin,
+      "GET /api/admin/world": () => ({
+        status: 200,
+        body: { guestAccess: true, active: sommerfest, previous: null },
+      }),
+      "GET /api/admin/world/objects": () => ({ status: 200, body: withNpcs }),
+      "GET /api/content": () => ({ status: 200, body: site }),
+      ...extra,
+    });
+    renderAt("/admin/world");
+    user.click(await screen.findByRole("button", { name: "Objekte & Portale" }));
+    await screen.findByText("NPCs (2)");
+    return calls;
+  };
+
+  it("[MAP-21] a map with NPCs lists each with its name, short dialog and action, and the preset of the Tiled file; a map without has no card", async () => {
+    await open();
+    const sexton = screen.getByTestId("npc-kuester");
+    // The admin's name shows; without one the Tiled label stands in as the placeholder.
+    expect(within(sexton).getByText("Küster Fritz")).toBeVisible();
+    expect(within(sexton).getByLabelText(/^Name/)).toHaveValue("Küster Fritz");
+    expect(within(sexton).getByLabelText(/^Kurzer Dialog/)).toHaveValue("Psst!");
+    expect(within(sexton).getByText(/5 \/ 120/)).toBeVisible();
+    expect(within(sexton).getByText("Vorgabe aus Tiled: Seite: Programm")).toBeVisible();
+    expect(within(sexton).getByRole("combobox", { name: "Aktion von Küster Fritz" })).toHaveValue(
+      "page:programme",
+    );
+    const gardener = screen.getByTestId("npc-gaertner");
+    expect(within(gardener).getByLabelText(/^Name/)).toHaveValue("");
+    expect(within(gardener).getByLabelText(/^Name/)).toHaveAttribute("placeholder", "gaertner");
+    expect(within(gardener).getByText("Ohne Vorgabe aus Tiled")).toBeVisible();
+    expect(within(gardener).getByLabelText(/^Kurzer Dialog/)).toHaveAttribute("maxlength", "120");
+    expect(within(gardener).getByLabelText(/^Name/)).toHaveAttribute("maxlength", "60");
+    // The map without NPCs has no card.
+    user.click(screen.getByRole("button", { name: "Garten" }));
+    expect(screen.queryByText(/^NPCs \(/)).toBeNull();
+  });
+
+  it("[MAP-21] the texts are saved with the button, which waits for a change; an emptied text is sent as none", async () => {
+    const calls = await open({
+      "PUT /api/admin/world/npcs/kirche/kuester": () => ({ status: 200, body: withNpcs }),
+      "PUT /api/admin/world/npcs/kirche/gaertner": () => ({ status: 200, body: withNpcs }),
+    });
+    const sexton = screen.getByTestId("npc-kuester");
+    const save = within(sexton).getByRole("button", { name: "Speichern" });
+    expect(save).toBeDisabled();
+    user.clear(within(sexton).getByLabelText(/^Kurzer Dialog/));
+    expect(save).toBeEnabled();
+    user.click(save);
+    expect(await within(sexton).findByText("Gespeichert.")).toBeVisible();
+    const gardener = screen.getByTestId("npc-gaertner");
+    user.type(within(gardener).getByLabelText(/^Name/), "  Gärtner Hans ");
+    user.type(within(gardener).getByLabelText(/^Kurzer Dialog/), "Schöne Rosen!");
+    user.click(within(gardener).getByRole("button", { name: "Speichern" }));
+    await waitFor(() => {
+      expect(calls.filter((call) => call.method === "PUT").map((call) => call.body)).toEqual([
+        { title: "Küster Fritz", dialog: null },
+        { title: "Gärtner Hans", dialog: "Schöne Rosen!" },
+      ]);
+    });
+    expect(calls.find((call) => call.method === "PUT")?.csrf).toBe("csrf-9");
+  });
+
+  it("[MAP-21][GAME-38] the action of an NPC is picked like an object's and saved at once; the preset can be restored", async () => {
+    const calls = await open({
+      "PUT /api/admin/world/objects/kirche/kuester": () => ({ status: 200, body: withNpcs }),
+    });
+    const select = screen.getByRole("combobox", { name: "Aktion von Küster Fritz" });
+    fireEvent.change(select, { target: { value: "page:profile" } });
+    expect(await screen.findByText("Gespeichert.")).toBeVisible();
+    fireEvent.change(select, { target: { value: "page:programme" } });
+    await waitFor(() => {
+      expect(calls.filter((call) => call.method === "PUT").map((call) => call.body)).toEqual([
+        { action: { kind: "page", page: "profile" } },
+        { action: null },
+      ]);
+    });
+  });
+
+  it("[MAP-21] a text that could not be saved shows the error and keeps the draft", async () => {
+    await open({
+      "PUT /api/admin/world/npcs/kirche/gaertner": () => ({
+        status: 404,
+        body: { error: { code: "object_not_found", message: "gone" } },
+      }),
+    });
+    const gardener = screen.getByTestId("npc-gaertner");
+    user.type(within(gardener).getByLabelText(/^Name/), "Hans");
+    user.click(within(gardener).getByRole("button", { name: "Speichern" }));
+    expect(await screen.findByRole("alert")).toBeVisible();
+    expect(within(gardener).getByLabelText(/^Name/)).toHaveValue("Hans");
+    expect(within(gardener).queryByText("Gespeichert.")).toBeNull();
+  });
+});
+
+describe("game world › Objekte & Portale › indicator and label (GAME-26, GAME-41)", () => {
+  const list = {
+    maps: [
+      {
+        id: "kirche",
+        name: "Kirche",
+        clickables: [
+          { name: "altar", label: "Programm", hidden: false, missing: false, showIndicator: true },
+          { name: "glocke", hidden: false, missing: false, showIndicator: false },
+        ],
+        npcs: [{ name: "kuester", label: "Küster", missing: false, showIndicator: false }],
+        portals: [],
+      },
+    ],
+    startMap: "kirche",
+    pages: ["programme"],
+    dialogues: [],
+  };
+
+  it("[GAME-41] each object and NPC has a checkbox for its indicator and label, which shows what is set and saves at once", async () => {
+    const calls = fakeBackend({
+      "GET /api/session": asAdmin,
+      "GET /api/admin/world": () => ({
+        status: 200,
+        body: { guestAccess: true, active: sommerfest, previous: null },
+      }),
+      "GET /api/admin/world/objects": () => ({ status: 200, body: list }),
+      "GET /api/content": () => ({ status: 200, body: site }),
+      "PUT /api/admin/world/objects/kirche/altar/indicator": () => ({ status: 200, body: list }),
+      "PUT /api/admin/world/objects/kirche/kuester/indicator": () => ({ status: 200, body: list }),
+    });
+    renderAt("/admin/world");
+    user.click(await screen.findByRole("button", { name: "Objekte & Portale" }));
+    const altar = await screen.findByRole("checkbox", {
+      name: "Randhinweis und Label von Programm zeigen",
+    });
+    expect(altar).toBeChecked();
+    expect(
+      screen.getByRole("checkbox", { name: "Randhinweis und Label von glocke zeigen" }),
+    ).not.toBeChecked();
+    const sexton = within(screen.getByTestId("npc-kuester")).getByRole("checkbox");
+    expect(sexton).not.toBeChecked();
+    user.click(altar);
+    user.click(sexton);
+    await waitFor(() => {
+      expect(calls.filter((call) => call.method === "PUT").map((call) => call.body)).toEqual([
+        { showIndicator: false },
+        { showIndicator: true },
+      ]);
+    });
+  });
+});

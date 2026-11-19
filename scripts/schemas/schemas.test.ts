@@ -34,7 +34,7 @@ describe("the JSON Schemas and the documents of the package formats (THM-07, MAP
   });
 
   it("[MAP-17][THM-07] the Markdown documents are build output: one per format version, none committed", () => {
-    expect(Object.keys(generatedDocuments()).sort()).toEqual(["theme-v2.md", "world-v2.md"]);
+    expect(Object.keys(generatedDocuments()).sort()).toEqual(["theme-v2.md", "world-v2.md", "world-v3.md"]);
     expect(readdirSync(SCHEMA_DIR).filter((name) => name.endsWith(".md"))).toEqual([]);
   });
 
@@ -44,15 +44,25 @@ describe("the JSON Schemas and the documents of the package formats (THM-07, MAP
     expect(committed("theme.v2.schema.json").safeParse(json(files["theme.json"])).success).toBe(true);
   });
 
-  it("[MAP-17] the test world passes the world schemas", () => {
-    const files = testWorldFiles();
-    expect(committed("world-manifest.v2.schema.json").safeParse(json(files["manifest.json"])).success).toBe(true);
-    expect(committed("world-figures.v2.schema.json").safeParse(json(files["avatar/figures.json"])).success).toBe(true);
-    const maps = Object.keys(files).filter((path) => path.startsWith("maps/"));
-    expect(maps).toHaveLength(3);
-    for (const path of maps) {
-      expect(committed("world-map.v2.schema.json").safeParse(json(files[path])).success, path).toBe(true);
+  it("[MAP-17][MAP-20] each test world passes the world schemas of its own format version", () => {
+    for (const version of [2, 3] as const) {
+      const files = testWorldFiles(version);
+      expect(committed(`world-manifest.v${String(version)}.schema.json`).safeParse(json(files["manifest.json"])).success).toBe(true);
+      expect(committed(`world-figures.v${String(version)}.schema.json`).safeParse(json(files["avatar/figures.json"])).success).toBe(true);
+      const maps = Object.keys(files).filter((path) => path.startsWith("maps/"));
+      expect(maps).toHaveLength(3);
+      for (const path of maps) {
+        expect(committed(`world-map.v${String(version)}.schema.json`).safeParse(json(files[path])).success, path).toBe(true);
+      }
     }
+  });
+
+  it("[MAP-20] the manifest schema of a version takes its own version only", () => {
+    const v3 = json(testWorldFiles(3)["manifest.json"]);
+    const v2 = json(testWorldFiles(2)["manifest.json"]);
+    expect(committed("world-manifest.v3.schema.json").safeParse(v3).success).toBe(true);
+    expect(committed("world-manifest.v3.schema.json").safeParse(v2).success).toBe(false);
+    expect(committed("world-manifest.v2.schema.json").safeParse(v3).success).toBe(false);
   });
 
   it("[MAP-17] a schema refuses a manifest with an unknown field, as the validator does", () => {
