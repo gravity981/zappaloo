@@ -36,7 +36,7 @@ test("[MAP-18][MAP-06][MAP-16] the standalone preview loads validated packages w
   await expect(page.locator("canvas")).toHaveCount(1);
   await expect(page.getByLabel("Map").locator("option")).toHaveCount(3);
   await expect(page.getByRole("combobox", { name: "Spawn" })).toHaveValue("start");
-  await expect(page.getByLabel("Figure").locator("option")).toHaveCount(5);
+  await expect(page.getByLabel("Figure").locator("option")).toHaveCount(6);
 
   await page.getByLabel("Map").selectOption({ label: "Saal" });
   await page.getByRole("combobox", { name: "Spawn" }).selectOption("start");

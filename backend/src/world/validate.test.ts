@@ -168,14 +168,16 @@ describe("the test world", () => {
       "kid",
       "crew",
       "pastor",
+      "herold",
     ]);
-    // Kind and tier are both mandatory (7.3): the three tiers and all kinds but none missing are in the test world.
+    // Kind and tier are both mandatory (7.3): the three tiers, the tier of the NPCs and all kinds are in the test world.
     expect(result.package.figures.map((figure) => figure.tier)).toEqual([
       "tier1",
       "tier1",
       "tier1",
       "tier2",
       "tier3",
+      "npc",
     ]);
     expect(result.package.figures.map((figure) => figure.type)).toEqual([
       "female",
@@ -183,6 +185,7 @@ describe("the test world", () => {
       "child",
       "other",
       "male",
+      "other",
     ]);
     expect(result.package.manifest.startMap).toBe("kirche");
     expect(result.package.manifest.tileWidth).toBe(64);
@@ -1572,5 +1575,141 @@ describe("format version 3: tile animations (MAP-20, GAME-35)", () => {
       tilesetNamed(m, "boden").tiles = [{ id: 0, animation: [{ tileid: 1, duration: 100 }] }];
     });
     expectAccepted(files);
+  });
+});
+
+describe("format version 3: NPCs, paths and the wave (MAP-20, GAME-36)", () => {
+  /** The entry of `avatar/figures.json` at an index. */
+  const figureEntry = (figures: Json, index: number): Json => {
+    const found = (figures.figures as Json[])[index];
+    if (found === undefined) throw new Error(`no figure ${String(index)}`);
+    return found;
+  };
+  const setProperty = (object: Json, name: string, value: string | boolean): void => {
+    const properties = object.properties as Json[];
+    const found = properties.find((item) => item.name === name);
+    if (found === undefined) properties.push({ name, type: "string", value });
+    else found.value = value;
+  };
+
+  it("[GAME-36][MAP-20] accepts the NPCs of the test world: a standing one with a wave and an action, and one on a path", () => {
+    const files = world();
+    expectAccepted(files);
+    const kirche = read(files, "maps/kirche.json");
+    expect(objectNamed(kirche, "kuester").type).toBe("npc");
+    const garten = read(files, "maps/garten.json");
+    expect(objectNamed(garten, "gaertner-runde").type).toBe("path");
+  });
+
+  it("[GAME-36][MAP-20] refuses an NPC without a figure or with a figure the package does not have", () => {
+    const missing = edit(world(), "maps/kirche.json", (m) => {
+      const npc = objectNamed(m, "kuester");
+      npc.properties = (npc.properties as Json[]).filter((item) => item.name !== "figure");
+    });
+    expectRefused(missing, "map_property");
+    const unknown = edit(world(), "maps/kirche.json", (m) => {
+      setProperty(objectNamed(m, "kuester"), "figure", "nobody");
+    });
+    const findings = expectRefused(unknown, "map_property");
+    expect(findings.some((finding) => finding.detail.includes("nobody"))).toBe(true);
+  });
+
+  it("[GAME-36][MAP-20] an NPC may use a figure of any tier", () => {
+    const files = edit(world(), "maps/kirche.json", (m) => {
+      setProperty(objectNamed(m, "kuester"), "figure", "wedding-guest");
+    });
+    expectAccepted(files);
+  });
+
+  it("[GAME-36][MAP-20] refuses a path that names no path of the map, or that is not a polyline of two points", () => {
+    const unknown = edit(world(), "maps/garten.json", (m) => {
+      setProperty(objectNamed(m, "gaertner"), "path", "nowhere");
+    });
+    expectRefused(unknown, "map_reference");
+    const short = edit(world(), "maps/garten.json", (m) => {
+      const path = objectNamed(m, "gaertner-runde");
+      path.polyline = (path.polyline as Json[]).slice(0, 1);
+    });
+    expectRefused(short, "map_object");
+  });
+
+  it("[GAME-36][MAP-20] a path that no NPC names is a warning, and a path must be a polyline", () => {
+    const unused = edit(world(), "maps/garten.json", (m) => {
+      const npc = objectNamed(m, "gaertner");
+      npc.properties = (npc.properties as Json[]).filter((item) => item.name !== "path");
+    });
+    const result = checkWorldPackage(archive(unused));
+    expect(result.ok).toBe(true);
+    expect(codes(result.findings, "warning")).toContain("path_unused");
+    const polygon = edit(world(), "maps/garten.json", (m) => {
+      const path = objectNamed(m, "gaertner-runde");
+      path.polygon = path.polyline;
+      delete path.polyline;
+    });
+    expectRefused(polygon, "map_object");
+  });
+
+  it("[GAME-36][MAP-20] the names of NPCs and paths are unique among the objects of a map", () => {
+    const files = edit(world(), "maps/kirche.json", (m) => {
+      objectNamed(m, "kuester").name = "altar";
+    });
+    expectRefused(files, "map_object");
+  });
+
+  it("[GAME-36][GAME-38][MAP-20] an NPC takes the preset action of a clickable object, checked the same way", () => {
+    const files = edit(world(), "maps/kirche.json", (m) => {
+      setProperty(objectNamed(m, "kuester"), "action", "teleport");
+    });
+    expectRefused(files, "map_property");
+  });
+
+  it("[GAME-36][MAP-20] format version 2 has neither the types npc and path nor the tier npc or a wave", () => {
+    const v2 = testWorldFiles(2);
+    const withNpc = edit(v2, "maps/garten.json", (m) => {
+      const layer = (m.layers as Json[]).find((item) => item.type === "objectgroup");
+      (layer?.objects as Json[]).push({
+        id: 90,
+        name: "gaertner",
+        type: "npc",
+        x: 0,
+        y: 0,
+        width: 0,
+        height: 0,
+        point: true,
+        visible: true,
+        properties: [{ name: "figure", type: "string", value: "kid" }],
+      });
+    });
+    expectRefused(withNpc, "map_object");
+    const tier = edit(v2, "avatar/figures.json", (figures) => {
+      figureEntry(figures, 4).tier = "npc";
+    });
+    expectRefused(tier, "figure_list");
+    const wave = edit(v2, "avatar/figures.json", (figures) => {
+      figureEntry(figures, 4).wave = "waving";
+    });
+    // An unknown field of the file is refused as such (14.4).
+    expectRefused(wave, "json_field");
+  });
+
+  it("[GAME-36][MAP-20] refuses a wave that is no animation of the metadata, or that has other frames per direction", () => {
+    const unknown = edit(world(), "avatar/figures.json", (figures) => {
+      figureEntry(figures, 5).wave = "dancing";
+    });
+    expectRefused(unknown, "figure_metadata");
+    const uneven = editMetadata(world(), "herold", (state) => {
+      const waving = ((state.frames as Json).animations as Json).waving as Json;
+      waving.north = (waving.north as string[]).slice(0, 1);
+    });
+    expectRefused(uneven, "figure_frame");
+  });
+
+  it("[GAME-36][MAP-20] refuses a wave frame that is missing or has another size than the canvas", () => {
+    const missing = world();
+    delete missing["avatar/herold/Idle/animations/waving/south/frame_001.png"];
+    expectRefused(missing, "file_missing");
+    const wrong = world();
+    wrong["avatar/herold/Idle/animations/waving/south/frame_001.png"] = encodePng(8, 8, [0, 0, 0]);
+    expectRefused(wrong, "figure_frame");
   });
 });

@@ -603,6 +603,8 @@ test("[PRES-10] a guest figure stands still and opens its speech bubble when the
 
   // The player walks to the guest; within 2 tile widths its bubble opens with all that the profile says.
   await expect(async () => {
+    // A click on the open bubble pins it, so the guest is clicked only while the bubble is closed.
+    if (await bubble.isVisible()) return;
     const now = (await gameState(page)).guests.find((guest) => guest.id === first.id);
     if (now === undefined) throw new Error("guest gone");
     const target = await pagePoint(page, { x: now.x, y: now.y });
@@ -819,4 +821,105 @@ test("[GAME-35][MAP-20] the fountain of the garden plays its animation, and with
   await expect(page.getByTestId("game-canvas")).toBeVisible({ timeout: 20_000 });
   await page.waitForFunction(() => window.__zappaloo?.game?.state()?.mapId === "garten");
   expect((await gameState(page)).tileAnimation).toEqual({ objects: 0, frames: [] });
+});
+
+test("[GAME-36][MAP-20] the gardener walks his path to the end, waits there and walks back; the sexton stands and waves now and then", async ({
+  page,
+  context,
+}, testInfo) => {
+  test.skip(testInfo.project.name !== "desktop-chromium", "shared settings: one profile only");
+  test.setTimeout(90_000);
+  // With the lowest random number the first wave comes after 8 seconds, and the NPCs set off at once.
+  await page.addInitScript(() => {
+    Math.random = () => 0.01;
+  });
+  await signInAsAdmin(page, context);
+  await enterGame(page);
+  await expect(page.getByTestId("game-canvas")).toBeVisible({ timeout: 20_000 });
+  const npcs = async () => (await gameState(page)).npcs;
+  const named = async (name: string) => (await npcs()).find((npc) => npc.name === name);
+
+  // The church: the sexton stands where his point is, facing the player, and waves.
+  expect(await gameState(page)).toMatchObject({ mapId: "kirche" });
+  const sexton = await named("kuester");
+  expect(sexton).toMatchObject({ figure: "herold", moving: false, tappable: true });
+  expect(Math.abs((sexton?.x ?? 0) - 256)).toBeLessThanOrEqual(1);
+  expect(Math.abs((sexton?.y ?? 0) - 176)).toBeLessThanOrEqual(1);
+  await expect.poll(async () => (await named("kuester"))?.waving, { timeout: 20_000 }).toBe(true);
+  await page.screenshot({ path: testInfo.outputPath("game-npc-wave.png") });
+  // He stays where he is; the church has no other NPC.
+  expect((await named("kuester"))?.moving).toBe(false);
+  expect(await npcs()).toHaveLength(1);
+
+  // The garden: the gardener has no action, so a tap on him is a tap on the ground; he walks his path of 120 pixels.
+  await page.evaluate(() => window.__zappaloo?.game?.selectSpawn("garten", "start"));
+  await page.waitForFunction(() => window.__zappaloo?.game?.state()?.mapId === "garten");
+  const start = await named("gaertner");
+  expect(start).toMatchObject({ figure: "male-guest", tappable: false });
+  // He starts at the first point of his path (he has already set off).
+  expect(Math.abs((start?.x ?? 99) - 0)).toBeLessThanOrEqual(30);
+  const xs: number[] = [];
+  await expect
+    .poll(
+      async () => {
+        const gardener = await named("gaertner");
+        if (gardener === undefined) return -1;
+        xs.push(gardener.x);
+        return gardener.moving ? 0 : gardener.x;
+      },
+      { timeout: 30_000, intervals: [100] },
+    )
+    .toBeGreaterThanOrEqual(115);
+  // He walked there in small steps, not by jumping, and now waits at the end.
+  expect(xs.some((x) => x > 20 && x < 100)).toBe(true);
+  await expect
+    .poll(async () => (await named("gaertner"))?.moving, { timeout: 15_000, intervals: [100] })
+    .toBe(true);
+  await expect
+    .poll(async () => (await named("gaertner"))?.x ?? 999, { timeout: 15_000, intervals: [100] })
+    .toBeLessThan(110);
+  await page.screenshot({ path: testInfo.outputPath("game-npc-walk.png") });
+});
+
+test("[GAME-38][GAME-36] a tap on the sexton walks the player to him, he waits and glows meanwhile, and the programme opens; he has no sparkles", async ({
+  page,
+  context,
+}, testInfo) => {
+  test.skip(testInfo.project.name !== "desktop-chromium", "shared settings: one profile only");
+  await signInAsAdmin(page, context);
+  await enterGame(page);
+  await expect(page.getByTestId("game-canvas")).toBeVisible({ timeout: 20_000 });
+  const sexton = (await gameState(page)).npcs.find((npc) => npc.name === "kuester");
+  if (sexton === undefined) throw new Error("the church has no sexton");
+  // An NPC is no clickable object of the map: no sparkles, no shine, and no indicator at the edge.
+  const objects = (await page.evaluate(() => window.__zappaloo?.game?.clickables())) ?? [];
+  expect(objects.some((object) => object.name === "kuester")).toBe(false);
+  await expect(page.locator('[data-indicator="object:kuester"]')).toHaveCount(0);
+  expect((await gameState(page)).walk.glow).toBeNull();
+
+  // A tap on his body: the walk starts, and he glows and waits (he does not walk on while the player is on the way).
+  const body = async () => {
+    const now = (await gameState(page)).npcs.find((npc) => npc.name === "kuester");
+    if (now === undefined) throw new Error("the sexton is gone");
+    return { now, target: await pagePoint(page, { x: now.x, y: now.y - 8 }) };
+  };
+  const first = await body();
+  await page.mouse.click(first.target.x, first.target.y);
+  const walking = await gameState(page);
+  expect(walking.walk.glow).not.toBeNull();
+  expect(walking.npcs.find((npc) => npc.name === "kuester")).toMatchObject({
+    x: first.now.x,
+    y: first.now.y,
+  });
+  // The page of the action opens above the game, named by the NPC's label (GAME-06).
+  const dialog = page.getByRole("dialog", { name: "Küster" });
+  await expect(async () => {
+    if (await dialog.isVisible()) return;
+    const again = await body();
+    await page.mouse.click(again.target.x, again.target.y);
+    await expect(dialog).toBeVisible({ timeout: 4_000 });
+  }).toPass({ timeout: 40_000 });
+  // The page is open above the game, and the glow is gone with the walk.
+  expect((await gameState(page)).walk.glow).toBeNull();
+  await page.screenshot({ path: testInfo.outputPath("game-npc-tap.png") });
 });

@@ -22,13 +22,22 @@ const CHANGED: Record<string, Partial<RuleDefinition<WorldFindingCode>>> = {
     text: "The format version in `manifest.json` is one the platform reads: 2 or 3. A package is checked against the rules of its own version.",
   },
   "map.objects": {
-    text: "Objects have one of the types of 14.2 and a shape that type allows. Spawn points, portals and clickable objects have a unique name. An untyped object is a point (an approach point). Ellipses, text and individually hidden objects are refused. Tile objects use their image's natural size and bottom alignment; scaling, rotation and flipping are refused. The type `seat` is not read any more: the seating plan lives in the platform, not in the world.",
+    text: "Objects have one of the types of 14.2 and a shape that type allows. Spawn points, portals and clickable objects have a unique name. An untyped object is a point (an approach point). Ellipses, text and individually hidden objects are refused. Tile objects use their image's natural size and bottom alignment; scaling, rotation and flipping are refused. The type `seat` is not read any more: the seating plan lives in the platform, not in the world. An `npc` is a point and a `path` a polyline of at least 2 points; their names are unique among the spawn points, portals, clickable objects, NPCs and paths.",
   },
   "map.properties": {
-    text: "The properties of each object type are present and valid: a portal is a tile object whose tile has a `trigger` polygon or rectangle and names a map and a spawn point (both or neither), a clickable object's action comes with its property (`page`, `contentId` or `minigameId`). The map property `name`, if given, is the name the admin area shows: 1–60 characters. The map properties `clouds`, `birds` and `fog`, if given, are booleans: an effect is on unless it is set to `false` (an indoor map turns them off).",
+    text: "The properties of each object type are present and valid: a portal is a tile object whose tile has a `trigger` polygon or rectangle and names a map and a spawn point (both or neither), a clickable object's action comes with its property (`page`, `contentId` or `minigameId`). The map property `name`, if given, is the name the admin area shows: 1–60 characters. The map properties `clouds`, `birds` and `fog`, if given, are booleans: an effect is on unless it is set to `false` (an indoor map turns them off). An NPC names a `figure` of the package and may name a `path` of the same map; it takes the optional `label` and the preset `action` properties of a clickable object.",
   },
   "map.tileset": {
     text: "Tilesets are embedded. A sheet tileset has the tile width and height of the world and uses one image from `tilesets/`, a whole number of tiles; an image-collection tileset uses one PNG per tile, each from `tilesets/`, of any size, with the size stated in the tileset (the objects of a map, such as buildings or signs, are image collections). The tile ids do not overlap. Non-zero tile offsets are refused. A tileset used by tile objects must use bottom alignment. The animation of an image-collection tile is checked by `map.animation`.",
+  },
+  "figure.list": {
+    text: "`avatar/figures.json` lists 1 to 50 figures, each with an id that is unique and 1–40 characters of `a–z`, `0–9` and `-`, an optional label of 1–30 characters, a mandatory `type` (`male`, `female`, `child` or `other`; `other` is a kind of its own), a mandatory `tier` (`tier1`, `tier2`, `tier3` or `npc`, the tier of the figures only NPCs use), an optional `wave` (the name of an animation of its metadata) and the path of its metadata. At least one figure is `tier1`, so that every guest has a figure to choose.",
+  },
+  "figure.metadata": {
+    text: "The metadata of a figure is a PixelLab metadata file: its first state names the canvas (`character.size`) and the frames of the four directions for the standing pose and for the walk, and for the animation the figure names as its `wave`.",
+  },
+  "figure.frames": {
+    text: "Every frame the metadata lists is a PNG in the figure's folder of exactly the canvas size, with a side of 8 to 256 pixels. Each name of the frame's path (folders and file) has letters, digits, `.`, `_` and `-` only and starts with a letter or digit, as the game serves it. The walk, and the wave if the figure has one, have the same number of frames, 1 to 16, in each direction.",
   },
   "figure.unreferenced": {
     text: "Every PNG and metadata file in `avatar/` is named by a figure, through `figures.json` or its metadata; every PNG in `ambient/` is named by the metadata of the bird.",
@@ -51,6 +60,17 @@ const BIRD_RULES: RuleDefinition<WorldFindingCode>[] = [
     requirements: ["MAP-20", "GAME-32"],
     text: `Every frame the bird's metadata lists is a PNG in \`ambient/bird/\` of exactly the canvas size, with a side of ${range(WORLD_LIMITS.figureFrameSide.min, WORLD_LIMITS.figureFrameSide.max)} pixels, named as the frames of a figure; each direction of the animation has the same number of frames, ${range(WORLD_LIMITS.flyFrames.min, WORLD_LIMITS.flyFrames.max)}. The frames are played at 8 frames per second.`,
     codes: ["bird_frame"],
+  },
+];
+
+const NPC_RULES: RuleDefinition<WorldFindingCode>[] = [
+  {
+    id: "path.unused",
+    scope: "validator",
+    severity: "warning",
+    requirements: ["MAP-20", "GAME-36"],
+    text: "A `path` that no NPC of its map names is reported; the package is still accepted.",
+    codes: ["path_unused"],
   },
 ];
 
@@ -121,6 +141,7 @@ export const worldV3: PackageDefinition<WorldFindingCode> = {
     ...worldV2.rules.map((rule) => ({ ...rule, ...CHANGED[rule.id] })),
     ...BIRD_RULES,
     ...ANIMATION_RULES,
+    ...NPC_RULES,
   ],
   changes: [
     ...worldV2.changes,

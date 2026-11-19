@@ -172,6 +172,13 @@ function tileObject(
   return object(id, name, kind, box, properties, { gid });
 }
 
+/** A polyline from screen points; the object stands at the first point, the others are relative to it. */
+const polyline = (points: [number, number][]) => ({
+  polyline: points.map(([x, y]) =>
+    tiledVector(x - (points[0]?.[0] ?? 0), y - (points[0]?.[1] ?? 0)),
+  ),
+});
+
 /** A polygon, with its points relative to the object's position (Tiled's convention). */
 const polygon = (points: [number, number][]) => ({
   polygon: points.map(([x, y]) => tiledVector(x, y)),
@@ -398,6 +405,24 @@ function maps(version: TestWorldVersion): Record<string, unknown> {
             // The edge of the world: the border along the map, inside which the guests walk and outside which the
             // fog lies (GAME-33).
             object(90, "", "border", { x: 0, y: 0 }, [], polygon(mapEdge(12, 10))),
+            // The sexton stands in a quiet corner and waves now and then; a tap on him opens the programme (GAME-36).
+            ...(version >= 3
+              ? [
+                  object(
+                    20,
+                    "kuester",
+                    "npc",
+                    { x: 256, y: 176 },
+                    [
+                      property("figure", "herold"),
+                      property("label", "Küster"),
+                      property("action", "page"),
+                      property("page", "programme"),
+                    ],
+                    { point: true },
+                  ),
+                ]
+              : []),
             point(2, "eingang", "spawn", 160, 40),
             tileObject(3, "zum-garten", "portal", { x: 0, y: 192, width: 64, height: 32 }, PORTAL, [
               property("targetMap", "garten"),
@@ -474,6 +499,30 @@ function maps(version: TestWorldVersion): Record<string, unknown> {
       objectLayer(3, "Gameplay", [
         point(1, "start", "spawn", 64, 64),
         object(90, "", "border", { x: 0, y: 0 }, [], polygon(mapEdge(14, 10))),
+        // The gardener walks to and fro along a path (format version 3, GAME-36).
+        ...(version >= 3
+          ? [
+              object(
+                21,
+                "gaertner-runde",
+                "path",
+                { x: 0, y: 230 },
+                [],
+                polyline([
+                  [0, 230],
+                  [120, 230],
+                ]),
+              ),
+              object(
+                22,
+                "gaertner",
+                "npc",
+                { x: 0, y: 230 },
+                [property("figure", "male-guest"), property("path", "gaertner-runde")],
+                { point: true },
+              ),
+            ]
+          : []),
         tileObject(2, "zur-kirche", "portal", { x: 0, y: 32, width: 64, height: 32 }, PORTAL, [
           property("targetMap", "kirche"),
           property("targetSpawn", "eingang"),
@@ -574,7 +623,15 @@ function figureFrame(colour: [number, number, number]): Buffer {
 }
 
 /** One figure's PixelLab metadata, its frames and the folder they sit in. */
-function figure(folder: string, colour: [number, number, number]): Record<string, Buffer> {
+/** The frames of the wave of the NPC figure of the test world. */
+const WAVE_FRAMES = 3;
+
+function figure(
+  folder: string,
+  colour: [number, number, number],
+  /** The name of an extra animation, which an NPC waves with (format version 3). */
+  wave?: string,
+): Record<string, Buffer> {
   const frame = () => figureFrame(colour);
   const directions = ["south", "west", "east", "north"] as const;
   const rotations = Object.fromEntries(directions.map((d) => [d, `Idle/rotations/${d}.png`]));
@@ -587,6 +644,17 @@ function figure(folder: string, colour: [number, number, number]): Record<string
       ),
     ]),
   );
+  const frameNames = (animation: string, count: number) =>
+    Object.fromEntries(
+      directions.map((d) => [
+        d,
+        Array.from(
+          { length: count },
+          (_, index) =>
+            `Idle/animations/${animation}/${d}/frame_${String(index).padStart(3, "0")}.png`,
+        ),
+      ]),
+    );
   const metadata = {
     group_id: `${folder}-group`,
     states: [
@@ -601,7 +669,13 @@ function figure(folder: string, colour: [number, number, number]): Record<string
           view: "high top-down",
         },
         folder: "Idle",
-        frames: { rotations, animations: { walking } },
+        frames: {
+          rotations,
+          animations: {
+            walking,
+            ...(wave === undefined ? {} : { [wave]: frameNames(wave, WAVE_FRAMES) }),
+          },
+        },
       },
     ],
     export_version: "1",
@@ -615,6 +689,11 @@ function figure(folder: string, colour: [number, number, number]): Record<string
       files[
         `avatar/${folder}/Idle/animations/walking/${d}/frame_${String(index).padStart(3, "0")}.png`
       ] = frame();
+    }
+  }
+  if (wave !== undefined) {
+    for (const names of Object.values(frameNames(wave, WAVE_FRAMES))) {
+      for (const name of names) files[`avatar/${folder}/${name}`] = frame();
     }
   }
   return files;
@@ -726,6 +805,19 @@ export function testWorldFiles(version: TestWorldVersion = 3): Record<string, Bu
           tier: "tier3",
           metadata: "pastor/metadata.json",
         },
+        // The figure only NPCs use, which waves (format version 3, GAME-36).
+        ...(version >= 3
+          ? [
+              {
+                id: "herold",
+                label: "Herold",
+                type: "other",
+                tier: "npc",
+                wave: "waving",
+                metadata: "herold/metadata.json",
+              },
+            ]
+          : []),
       ],
     }),
     "door/door.json": json({
@@ -742,6 +834,7 @@ export function testWorldFiles(version: TestWorldVersion = 3): Record<string, Bu
     ...figure("kid", [0xe0, 0xa0, 0x2a]),
     ...figure("crew", [0x2a, 0xa0, 0x6a]),
     ...figure("pastor", [0x30, 0x30, 0x30]),
+    ...(version >= 3 ? figure("herold", [0xd0, 0x90, 0x20], "waving") : {}),
     // The bird belongs to format version 3.
     ...(version === 3 ? bird() : {}),
   };

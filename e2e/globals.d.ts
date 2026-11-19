@@ -24,6 +24,15 @@ declare global {
                 bubble: boolean;
                 pinned: boolean;
               }[];
+              npcs: {
+                name: string;
+                figure: string;
+                x: number;
+                y: number;
+                moving: boolean;
+                waving: boolean;
+                tappable: boolean;
+              }[];
               atmosphere: { fog: boolean; clouds: number; birds: number };
               tileAnimation: { objects: number; frames: number[] };
             }

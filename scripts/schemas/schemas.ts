@@ -7,6 +7,7 @@ import { themeJsonSchema, themeManifestSchema } from "../../shared/src/theme.ts"
 import {
   tiledMapSchema,
   worldFiguresSchema,
+  worldFiguresV3Schema,
   worldManifestV2Schema,
   worldManifestV3Schema,
 } from "../../shared/src/world.ts";
@@ -21,7 +22,7 @@ export const SCHEMA_FILES: Record<string, z.ZodType> = {
   "world-figures.v2.schema.json": worldFiguresSchema,
   "world-map.v2.schema.json": tiledMapSchema,
   "world-manifest.v3.schema.json": worldManifestV3Schema,
-  "world-figures.v3.schema.json": worldFiguresSchema,
+  "world-figures.v3.schema.json": worldFiguresV3Schema,
   "world-map.v3.schema.json": tiledMapSchema,
 };
 

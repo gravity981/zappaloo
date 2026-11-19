@@ -131,6 +131,19 @@ describe("the avatar editor's figures (AVA-01, AVA-02)", () => {
     expect((await get(ctx, vip)).persons[0]?.chosen).toBe(false);
   });
 
+  it("[AVA-01][GAME-36] the figure of the tier npc is offered to nobody, whatever their roles, and refused for a person or a companion", async () => {
+    const { ctx } = await setup();
+    const everything = await userWith(ctx, "alles", ["admin", "staff", "vip"]);
+    expect(idsOf(await get(ctx, everything))).not.toContain("herold");
+    expect(idsOf(await get(ctx, everything))).toEqual(
+      expect.arrayContaining(["wedding-guest", "crew", "pastor"]),
+    );
+    expect((await put(ctx, everything, "me", "herold")).statusCode).toBe(403);
+    // The world has the figure, so it is no unknown figure: it is a figure the person may not choose.
+    const vip = await userWith(ctx, "gast", ["vip"]);
+    expect((await put(ctx, vip, "me", "herold")).statusCode).toBe(403);
+  });
+
   it("[AVA-02] a figure that the person may no longer choose falls back to the first they may choose", async () => {
     const { ctx } = await setup();
     const both = await userWith(ctx, "beides", ["vip", "staff"]);

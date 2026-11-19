@@ -2,6 +2,7 @@
 // draws. Transport and the mapping from asset paths to URLs belong to the host.
 import {
   pixelLabBirdSchema,
+  pixelLabDirectionsSchema,
   pixelLabMetadataSchema,
   publicWorldSchema,
   WORLD_DIRECTIONS,
@@ -20,6 +21,8 @@ export interface FigureData {
   size: { width: number; height: number };
   standing: Record<Direction, string>;
   walk: Record<Direction, string[]>;
+  /** The wave an NPC plays while it stands (format version 3), when the figure has one. */
+  wave?: Record<Direction, string[]>;
 }
 
 /** The bird of the world (format version 3, GAME-32): the flying frames to the east and the west, as texture keys. */
@@ -100,12 +103,25 @@ export function prepareWorld(source: WorldSource): LoadedWorld {
         state.frames.animations.walking[direction].map(frame),
       ]),
     ) as Record<Direction, string[]>;
+    // The animation the figure names as its wave, in the four directions (validated on import).
+    const waveFrames =
+      figure.wave === undefined
+        ? undefined
+        : pixelLabDirectionsSchema.safeParse(
+            (state.frames.animations as Record<string, unknown>)[figure.wave],
+          );
+    const wave = waveFrames?.success
+      ? (Object.fromEntries(
+          WORLD_DIRECTIONS.map((direction) => [direction, waveFrames.data[direction].map(frame)]),
+        ) as Record<Direction, string[]>)
+      : undefined;
     figures.push({
       id: figure.id,
       ...(figure.label === undefined ? {} : { label: figure.label }),
       size: { width: state.character.size.width, height: state.character.size.height },
       standing,
       walk,
+      ...(wave === undefined ? {} : { wave }),
     });
   }
 
@@ -138,6 +154,7 @@ export function prepareWorld(source: WorldSource): LoadedWorld {
   for (const figure of figures) {
     for (const key of Object.values(figure.standing)) keys.add(key);
     for (const list of Object.values(figure.walk)) for (const key of list) keys.add(key);
+    for (const list of Object.values(figure.wave ?? {})) for (const key of list) keys.add(key);
   }
   for (const key of [...(bird?.flying.east ?? []), ...(bird?.flying.west ?? [])]) keys.add(key);
   for (const key of keys) {

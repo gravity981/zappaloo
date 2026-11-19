@@ -34,6 +34,8 @@ export interface MapContext {
   images: Map<string, PngSize>;
   /** The format version of the package (14.4); 2 when it is not known. */
   formatVersion?: number;
+  /** The ids of the figures of the package, to check what an NPC names; unknown when the figures are invalid. */
+  figureIds?: ReadonlySet<string>;
 }
 
 /** A portal of a valid map, with its target; checked against the other maps by `checkMapReferences`. */
@@ -81,6 +83,8 @@ const SHAPES: Record<string, Shape[]> = {
   clickable: ["rectangle", "polygon", "tile"],
   decoration: ["rectangle", "polygon", "tile", "point"],
   seat: ["point"],
+  npc: ["point"],
+  path: ["polyline"],
   wander: ["rectangle", "polygon"],
   border: ["polygon"],
   collision: ["rectangle", "polygon"],
@@ -96,12 +100,17 @@ const PROPERTIES: Record<string, string[]> = {
   clickable: ["label", "approach", "action", "page", "contentId", "minigameId", "hidden"],
   decoration: [],
   seat: ["table"],
+  npc: ["figure", "label", "path", "action", "page", "contentId", "minigameId"],
+  path: [],
   wander: [],
   border: [],
   collision: [],
   protected: [],
   "": [],
 };
+
+/** The object types of format version 3 only (14.2, story 6g). */
+const V3_TYPES: readonly string[] = ["npc", "path"];
 
 /** The property each action of a clickable object needs (14.2). */
 const ACTION_PROPERTY: Record<string, "page" | "contentId" | "minigameId"> = {
@@ -464,6 +473,23 @@ export function checkMap(id: string, bytes: Buffer, context: MapContext): MapRes
           name,
         ),
       );
+    }
+  }
+
+  // The paths: each path an NPC names is a path of this map; a path no NPC names is a warning (format version 3).
+  const named = new Set<string>();
+  for (const npc of objects.npcs) {
+    if (npc.path === undefined) continue;
+    named.add(npc.path);
+    if (!objects.paths.has(npc.path)) {
+      findings.push(
+        errorFinding(file, "map_reference", `path ${npc.path} names no path of the map`, npc.label),
+      );
+    }
+  }
+  for (const path of objects.paths) {
+    if (!named.has(path)) {
+      findings.push(warningFinding(file, "path_unused", "no NPC of the map names this path", path));
     }
   }
 
@@ -974,6 +1000,10 @@ interface ObjectsResult {
   points: Set<string>;
   /** Approach references: object name → the point it names. */
   approaches: [string, string][];
+  /** The NPCs' references: object name → the figure and the path it names (format version 3). */
+  npcs: { label: string; figure: string | undefined; path: string | undefined }[];
+  /** The names of the paths of the map. */
+  paths: Set<string>;
   /** Whether a collision rectangle, polygon or border is on the map. */
   collision: boolean;
   /** Whether a tile with a collision guide is placed on the map. */
@@ -994,6 +1024,8 @@ function checkObjects(
     portals: [],
     points: new Set(),
     approaches: [],
+    npcs: [],
+    paths: new Set(),
     collision: false,
     placedBlocking: false,
   };
@@ -1080,7 +1112,9 @@ function checkObject(
     return;
   }
   // Format version 3 does not read the type `seat` any more: the seating plan lives in the platform (14.4).
-  if (!(type in SHAPES) || (type === "seat" && (context.formatVersion ?? 2) >= 3)) {
+  // The types `npc` and `path` exist in format version 3 only.
+  const v3 = (context.formatVersion ?? 2) >= 3;
+  if (!(type in SHAPES) || (type === "seat" && v3) || (V3_TYPES.includes(type) && !v3)) {
     findings.push(errorFinding(file, "map_object", `the type ${type} is not allowed`, label));
     return;
   }
@@ -1098,7 +1132,13 @@ function checkObject(
     }
   }
 
-  if (type === "spawn" || type === "portal" || type === "clickable") {
+  if (
+    type === "spawn" ||
+    type === "portal" ||
+    type === "clickable" ||
+    type === "npc" ||
+    type === "path"
+  ) {
     if (!WORLD_ID_PATTERN.test(name)) {
       findings.push(
         errorFinding(
@@ -1113,7 +1153,7 @@ function checkObject(
         errorFinding(
           file,
           "map_object",
-          "the name is used by another spawn, portal or clickable object",
+          "the name is used by another spawn, portal, clickable object, NPC or path",
           label,
         ),
       );
@@ -1135,6 +1175,15 @@ function checkObject(
     checkPortal(object, label, file, findings, result, properties, tileGuides);
   } else if (type === "clickable") {
     checkClickable(label, file, findings, properties);
+  } else if (type === "npc") {
+    checkNpc(label, file, findings, properties, context, result);
+  } else if (type === "path") {
+    result.paths.add(name);
+    if ((object.polyline?.length ?? 0) < 2) {
+      findings.push(
+        errorFinding(file, "map_object", "a path is a polyline of at least 2 points", label),
+      );
+    }
   } else if (type === "seat") {
     const table = properties.get("table");
     const value = typeof table === "number" ? String(table) : stringProperty(table);
@@ -1146,6 +1195,34 @@ function checkObject(
   } else if (type === "collision" || type === "border") {
     result.collision = true;
   }
+}
+
+/** An NPC (format version 3, GAME-36): its figure and path are names, checked against the package and the map. */
+function checkNpc(
+  label: string,
+  file: string,
+  findings: WorldFinding[],
+  properties: Map<string, unknown>,
+  context: MapContext,
+  result: ObjectsResult,
+): void {
+  const figure = stringProperty(properties.get("figure"));
+  const path = stringProperty(properties.get("path"));
+  if (figure === undefined || !WORLD_ID_PATTERN.test(figure)) {
+    findings.push(
+      errorFinding(file, "map_property", "figure is missing or not a figure id", label),
+    );
+  } else if (context.figureIds !== undefined && !context.figureIds.has(figure)) {
+    findings.push(
+      errorFinding(file, "map_property", `figure ${figure} is no figure of the package`, label),
+    );
+  }
+  if (properties.has("path") && (path === undefined || !WORLD_ID_PATTERN.test(path))) {
+    findings.push(errorFinding(file, "map_property", "path is not a path name", label));
+  }
+  result.npcs.push({ label, figure, path });
+  // The label and the preset action are those of a clickable object.
+  checkClickable(label, file, findings, properties);
 }
 
 function checkPortal(

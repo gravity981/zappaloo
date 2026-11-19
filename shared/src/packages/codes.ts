@@ -49,6 +49,7 @@ export const WORLD_FINDING_CODES = [
   "map_collision",
   "portal_no_target",
   "tileset_unused",
+  "path_unused",
   // Checked at import, against the installation (MAP-08)
   "preset_missing",
   "preset_minigame",

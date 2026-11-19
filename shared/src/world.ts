@@ -112,7 +112,11 @@ export type WorldFigureType = (typeof WORLD_FIGURE_TYPES)[number];
 
 /** The tiers of a figure: `tier1` for vip, `tier2` for staff, `tier3` for admin (7.3, decided 2026-11-17). */
 export const WORLD_FIGURE_TIERS = ["tier1", "tier2", "tier3"] as const;
-export type WorldFigureTier = (typeof WORLD_FIGURE_TIERS)[number];
+/** The tier of the figures that only NPCs use (format version 3, story 6g): no role and no companion chooses it. */
+export const WORLD_NPC_TIER = "npc";
+/** Every tier a figure can have in the newest format version: the tier of a role, or `npc`. */
+export const WORLD_FIGURE_TIERS_V3 = [...WORLD_FIGURE_TIERS, WORLD_NPC_TIER] as const;
+export type WorldFigureTier = (typeof WORLD_FIGURE_TIERS_V3)[number];
 
 /** The tier each role may choose from; exact, not cumulative (7.3). */
 export const WORLD_ROLE_TIERS = { vip: "tier1", staff: "tier2", admin: "tier3" } as const;
@@ -133,14 +137,43 @@ export const worldFigureSchema = z.strictObject({
     .string()
     .regex(/^[A-Za-z0-9][A-Za-z0-9._/-]{0,199}\.json$/, "the path of a JSON file in avatar/"),
 });
-export type WorldFigure = z.infer<typeof worldFigureSchema>;
+export type WorldFigureV2 = z.infer<typeof worldFigureSchema>;
+
+/**
+ * One figure of format version 3: the tier `npc` besides those of the roles, and the optional `wave`, the name of an
+ * animation of the figure's metadata that an NPC plays while it stands (14.4).
+ */
+export const worldFigureV3Schema = worldFigureSchema.extend({
+  tier: z.enum(WORLD_FIGURE_TIERS_V3),
+  /** The animation of the metadata an NPC waves with, e.g. `waving`. */
+  wave: z
+    .string()
+    .regex(/^[A-Za-z0-9][A-Za-z0-9_-]{0,39}$/, "the name of an animation of the metadata")
+    .optional(),
+});
+export type WorldFigure = z.infer<typeof worldFigureV3Schema>;
 
 /** `avatar/figures.json`: the complete figures a guest can choose from (14.4, 7.3). */
 export const worldFiguresSchema = z.strictObject({
   $schema: z.string().optional(),
   figures: z.array(worldFigureSchema).min(1).max(WORLD_LIMITS.figures),
 });
-export type WorldFigures = z.infer<typeof worldFiguresSchema>;
+export type WorldFiguresV2 = z.infer<typeof worldFiguresSchema>;
+
+/** `avatar/figures.json` of format version 3. */
+export const worldFiguresV3Schema = z.strictObject({
+  $schema: z.string().optional(),
+  figures: z.array(worldFigureV3Schema).min(1).max(WORLD_LIMITS.figures),
+});
+export type WorldFigures = z.infer<typeof worldFiguresV3Schema>;
+
+/** An animation of a figure's metadata: the frames of each of the four directions. */
+export const pixelLabDirectionsSchema = z.object({
+  south: z.array(z.string()),
+  west: z.array(z.string()),
+  east: z.array(z.string()),
+  north: z.array(z.string()),
+});
 
 /**
  * The PixelLab metadata of a figure (`metadata.json`). Only the fields the platform uses are named; all
@@ -579,7 +612,7 @@ export const publicWorldSchema = z.object({
   tileHeight: z.number().int(),
   maps: z.array(z.string()),
   /** The figures a guest can choose; `metadata` is relative to `avatar/`. */
-  figures: z.array(worldFigureSchema),
+  figures: z.array(worldFigureV3Schema),
   /** The actions the admin assigned to clickable objects; they replace the presets of the maps (MAP-15). */
   actions: z.array(worldActionOverrideSchema).default([]),
   /** Whether the world has a bird (`ambient/bird/metadata.json`, format version 3): without one there are no birds. */

@@ -78,6 +78,22 @@ export interface ClickableArea {
   preset?: WorldObjectAction;
 }
 
+/** An NPC (14.2, GAME-36): a figure at a point of the map, standing or walking along a path. */
+export interface NpcSpec {
+  name: string;
+  /** The Tiled id of the object, which the glow of the NPC is kept under. */
+  objectId: number;
+  /** The id of the figure it is drawn as. */
+  figure: string;
+  label?: string;
+  /** Where it stands, in the map's pixel space; with a path, where the path starts. */
+  position: Point;
+  /** The points of its path in the map's pixel space, from the first to the last. */
+  path?: Point[];
+  /** The preset of its action; the admin's assignment (by `<map>/<name>`) replaces it (MAP-15). */
+  preset?: WorldObjectAction;
+}
+
 export interface PortalArea {
   name: string;
   /** The Tiled id of the portal's tile object: its arrow, which wobbles (GAME-15). */
@@ -114,6 +130,8 @@ export interface ParsedMap {
   /** The wander areas (`type = wander`) in the map's pixel space, where guest figures walk (PRES-02). */
   wanders: Point[][];
   clickables: ClickableArea[];
+  /** The NPCs of the map (format version 3, GAME-36). */
+  npcs: NpcSpec[];
   /** Which effects the map has (format version 3, GAME-34): each is on unless the map property says `false`. */
   atmosphere: MapAtmosphere;
   /** The number of tile layers that are drawn (for the tests and the test hook). */
@@ -342,6 +360,8 @@ export function parseMap(id: string, json: unknown): ParsedMap {
   const spawns = new Map<string, Point>();
   const portals: PortalArea[] = [];
   const clickables: (Omit<ClickableArea, "approach"> & { approachName?: string })[] = [];
+  const npcObjects: { object: TiledObject; position: Point }[] = [];
+  const paths = new Map<string, Point[]>();
   const points = new Map<string, Point>();
   const toScreen = (x: number, y: number): Point => tiledToWorld({ x, y }, size);
   for (const layer of layers) {
@@ -398,6 +418,13 @@ export function parseMap(id: string, json: unknown): ParsedMap {
       } else if (type === "" && object.point === true && object.name !== undefined) {
         // An untyped point is the approach point of a clickable object (14.2).
         points.set(object.name, toScreen(object.x, object.y));
+      } else if (type === "npc" && object.point === true) {
+        npcObjects.push({ object, position: toScreen(object.x, object.y) });
+      } else if (type === "path" && object.polyline !== undefined) {
+        paths.set(
+          object.name ?? "",
+          object.polyline.map((p) => toScreen(object.x + p.x, object.y + p.y)),
+        );
       } else if (type === "clickable" && polygon !== undefined) {
         clickables.push(clickableOf(object, polygon));
       } else if (type === "wander" && polygon !== undefined) {
@@ -430,6 +457,26 @@ export function parseMap(id: string, json: unknown): ParsedMap {
         (approachName === undefined ? undefined : points.get(approachName)) ??
         belowOf(clickable.polygon, size),
     })),
+    npcs: npcObjects.flatMap(({ object, position }) => {
+      const figure = stringOf(propertyOf(object, "figure"));
+      if (figure === undefined) return [];
+      const label = stringOf(propertyOf(object, "label"));
+      const route = paths.get(stringOf(propertyOf(object, "path")) ?? "");
+      const preset = presetActionOf(object.properties);
+      const first = route?.[0];
+      return [
+        {
+          name: object.name ?? "",
+          objectId: object.id,
+          figure,
+          ...(label === undefined ? {} : { label }),
+          // On a path the NPC starts at the polyline's first point (14.2).
+          position: first ?? position,
+          ...(route !== undefined && route.length >= 2 ? { path: route } : {}),
+          ...(preset === undefined ? {} : { preset }),
+        },
+      ];
+    }),
     atmosphere: atmosphereOf(map),
     drawnLayers,
   };

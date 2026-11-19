@@ -21,12 +21,12 @@ describe("the package definitions (THM-02, MAP-16, MAP-17)", () => {
     const codes = ruleCodes(worldV3);
     expect([...new Set(codes)].length).toBe(codes.length);
     expect([...codes].sort()).toEqual([...WORLD_FINDING_CODES].sort());
-    // Format version 2 has no bird and no tile animation, so no rule for their codes.
+    // Format version 2 has no bird, tile animation or path, so no rule for their codes.
     const v2 = ruleCodes(worldV2);
     expect([...new Set(v2)].length).toBe(v2.length);
     expect([...v2].sort()).toEqual(
       WORLD_FINDING_CODES.filter(
-        (code) => !code.startsWith("bird_") && code !== "map_animation",
+        (code) => !code.startsWith("bird_") && code !== "map_animation" && code !== "path_unused",
       ).sort(),
     );
   });

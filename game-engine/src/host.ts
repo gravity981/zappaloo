@@ -1,4 +1,5 @@
 import type { GuestFigure, WorldObjectAction } from "@zappaloo/shared";
+import type { NpcState } from "./npc-crowd.ts";
 import type { GuestState } from "./guest-crowd.ts";
 import type { LoadedWorld } from "./world-data.ts";
 import type { Point } from "./geometry.ts";
@@ -48,6 +49,8 @@ export interface GameState {
   view: { x: number; y: number; zoom: number; width: number; height: number };
   /** The wandering guest figures of this map (test hook, PRES-01). */
   guests: GuestState[];
+  /** The NPCs of this map (test hook, GAME-36). */
+  npcs: NpcState[];
   /** The effects of the map: whether it has fog, how many cloud shadows and how many birds are there (test hook, GAME-31 – GAME-34). */
   atmosphere: { fog: boolean; clouds: number; birds: number };
   /** The animated tile objects of this map and the frame each shows now (test hook, GAME-35). */

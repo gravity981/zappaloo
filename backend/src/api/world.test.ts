@@ -76,7 +76,13 @@ describe("the world of the event (MAP-04, MAP-05, MAP-06, MAP-08, MAP-09, MAP-10
       "kid",
       "crew",
       "pastor",
+      "herold",
     ]);
+    // The NPC figure comes with its tier and its wave, for the game (GAME-36).
+    expect(body.figures.find((figure) => figure.id === "herold")).toMatchObject({
+      tier: "npc",
+      wave: "waving",
+    });
     expect(body.tileWidth).toBe(64);
     expect(body.tileHeight).toBe(32);
     expect(body.maps).toHaveLength(3);

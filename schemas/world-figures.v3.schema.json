@@ -35,12 +35,17 @@
             "enum": [
               "tier1",
               "tier2",
-              "tier3"
+              "tier3",
+              "npc"
             ]
           },
           "metadata": {
             "type": "string",
             "pattern": "^[A-Za-z0-9][A-Za-z0-9._/-]{0,199}\\.json$"
+          },
+          "wave": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_-]{0,39}$"
           }
         },
         "required": [

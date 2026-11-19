@@ -8,6 +8,7 @@ import { walkFrameIndex } from "./figures.ts";
 import { Atmosphere } from "./atmosphere.ts";
 import { atmospherePlan, prefersReducedMotion } from "./atmosphere-plan.ts";
 import { TileAnimations, type AnimatedPicture } from "./tile-animation.ts";
+import { NpcCrowd } from "./npc-crowd.ts";
 import { GuestCrowd } from "./guest-crowd.ts";
 import type { GuestFigure } from "@zappaloo/shared";
 import { figureDepth, figureOcclusionSegment, occlusionSegmentRelation } from "./draw-order.ts";
@@ -206,6 +207,10 @@ export class WorldScene extends Phaser.Scene {
   #shadow: Phaser.GameObjects.Ellipse | undefined;
   /** The wandering guest figures of the map (PRES-01). */
   #crowd: GuestCrowd | undefined;
+  /** The NPCs of the map (GAME-36). */
+  #npcs: NpcCrowd | undefined;
+  /** The glow of each tappable NPC by its Tiled id: dark, until a walk leads to the NPC (GAME-38). */
+  #npcGlows = new Map<number, Phaser.Filters.Glow>();
   /** The fog, the cloud shadows and the birds of the map (GAME-31 – GAME-34). */
   #atmosphere: Atmosphere | undefined;
   #tileAnimations: TileAnimations | undefined;
@@ -273,6 +278,8 @@ export class WorldScene extends Phaser.Scene {
     this.#portalGlows.clear();
     this.#shadow = undefined;
     this.#crowd = undefined;
+    this.#npcs = undefined;
+    this.#npcGlows = new Map();
     this.#atmosphere = undefined;
     this.#tileAnimations = undefined;
     this.#guests = options.guests ?? [];
@@ -359,6 +366,9 @@ export class WorldScene extends Phaser.Scene {
                 photoOf: options.guestPhoto,
               },
         );
+        // The NPCs walk and wave; those with an action glow while the player walks to them (GAME-36, GAME-38).
+        this.#npcs = new NpcCrowd(this, map, this.#world, CAMERA_ZOOM, () => this.#pixelRatio());
+        this.#glowNpcs(this.#npcs);
         // The fog, the cloud shadows and the birds, unless the map or the device switches them off (GAME-34).
         this.#atmosphere = new Atmosphere(
           this,
@@ -401,6 +411,7 @@ export class WorldScene extends Phaser.Scene {
         walk: { marker: this.#feedback.marker ?? null, glow: this.#feedback.glow ?? null },
         glows: this.#glows.size,
         guests: this.#crowd?.states ?? [],
+        npcs: this.#npcs?.states ?? [],
         atmosphere: this.#atmosphere?.state ?? { fog: false, clouds: 0, birds: 0 },
         tileAnimation: {
           objects: this.#tileAnimations?.count ?? 0,
@@ -628,6 +639,29 @@ export class WorldScene extends Phaser.Scene {
     }
   }
 
+  /**
+   * The map with the tappable NPCs among its clickable objects, for the tap, Enter and Space. The NPCs are not in
+   * `map.clickables`, so they have neither sparkles nor an edge indicator (GAME-38).
+   */
+  #interactiveMap(map: ParsedMap): ParsedMap {
+    const areas = this.#npcs?.areas ?? [];
+    return areas.length === 0 ? map : { ...map, clickables: [...map.clickables, ...areas] };
+  }
+
+  /** A glow on the figure of each tappable NPC, dark until the player walks to it (GAME-38). */
+  #glowNpcs(npcs: NpcCrowd): void {
+    for (const area of npcs.areas) {
+      if (area.objectId === undefined) continue;
+      const sprite = npcs.spriteOf(area.objectId);
+      if (sprite === undefined) continue;
+      sprite.enableFilters();
+      const glow = sprite.filters?.internal.addGlow(GLOW_COLOR, 0, 0, 0.8, false, 8, 10);
+      if (glow === undefined) continue;
+      glow.setPaddingOverride(null);
+      this.#npcGlows.set(area.objectId, glow);
+    }
+  }
+
   /** The glow along the edges of the clickable objects that sparkle, steady until a walk leads to one (GAME-29). */
   #glowClickables(map: ParsedMap): void {
     for (const area of map.clickables) {
@@ -659,6 +693,10 @@ export class WorldScene extends Phaser.Scene {
         marker.setPosition(at.x, at.y).setVisible(true);
         this.#markerPulse?.restart();
       }
+    }
+    // An NPC glows only while the player walks to it, and is dark otherwise (GAME-38).
+    for (const [id, glow] of this.#npcGlows) {
+      glow.outerStrength = id === glowing ? objectGlowStrength(true, time - this.#glowSince) : 0;
     }
     for (const [id, glow] of this.#glows) {
       if (this.#portalGlows.has(id)) {
@@ -742,7 +780,7 @@ export class WorldScene extends Phaser.Scene {
       .map((key) => Phaser.Input.Keyboard.JustDown(key))
       .some((value) => value);
     if (pressed && !this.#activationBlocked && !isTypingTarget(document.activeElement)) {
-      const area = clickableInReach(map, this.#position);
+      const area = clickableInReach(this.#interactiveMap(map), this.#position);
       if (area !== undefined) {
         this.#path = [];
         this.#pending = undefined;
@@ -791,6 +829,12 @@ export class WorldScene extends Phaser.Scene {
     this.#followPlayer();
     // The guest figures and their bubbles, with the camera of this frame (PRES-10).
     this.#crowd?.update(delta, this.#position);
+    // The NPC the player walks to waits for them (GAME-38).
+    const walkingTo = this.#pending;
+    this.#npcs?.hold(
+      walkingTo !== undefined && this.#npcs.areas.includes(walkingTo) ? walkingTo.name : undefined,
+    );
+    this.#npcs?.update(delta, this.#position);
     this.#atmosphere?.update(delta);
     this.#tileAnimations?.update(delta);
     player.setDepth(figureDepth(this.#position, map.occluders, map.size.width));
@@ -1249,7 +1293,7 @@ export class WorldScene extends Phaser.Scene {
     const size = map.size;
     const portal = portalAt(map, point);
     // A tap on a clickable object walks to its approach point, where its action runs (GAME-16).
-    const area = portal === undefined ? clickableAt(map, point) : undefined;
+    const area = portal === undefined ? clickableAt(this.#interactiveMap(map), point) : undefined;
     this.#pending = undefined;
     this.#feedbackEvent({ type: "tap" });
     if (area !== undefined) {
@@ -1619,7 +1663,10 @@ export class WorldScene extends Phaser.Scene {
     reachable: boolean;
   }[] {
     const map = this.#map;
-    const inReach = map === undefined ? undefined : clickableInReach(map, this.#position)?.name;
+    const inReach =
+      map === undefined
+        ? undefined
+        : clickableInReach(this.#interactiveMap(map), this.#position)?.name;
     return (map?.clickables ?? []).map((area) => {
       const centre = polygonCentre(area.polygon);
       return {

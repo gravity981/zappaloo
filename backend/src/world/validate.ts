@@ -187,7 +187,7 @@ export function checkWorldPackage(archive: Buffer): WorldCheck {
     }
   }
 
-  const figureCheck = checkFigures(files, images);
+  const figureCheck = checkFigures(files, images, version);
   findings.push(...figureCheck.findings);
   const figures = figureCheck.figures;
 
@@ -207,6 +207,7 @@ export function checkWorldPackage(archive: Buffer): WorldCheck {
       files,
       images,
       formatVersion: manifest?.formatVersion ?? version,
+      ...(figures === undefined ? {} : { figureIds: new Set(figures.map((figure) => figure.id)) }),
     });
     findings.push(...result.findings);
     if (result.info !== undefined) infos.push(result.info);

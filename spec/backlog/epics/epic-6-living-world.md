@@ -122,6 +122,11 @@ Requirements: GAME-35.
 **Tiled world project:** `npc` objects with `figure`, `label` and `path` polylines; NPC figures with tier `npc` and a wave animation.
 Mock screen: `game`.
 - Object type `npc`, polylines as paths, tier `npc`, `wave`; NPCs walk their paths, stand and wave, in the app and the game preview; tapping walks to them with the glow, no sparkle.
+- **Decided 2026-11-18 (with the project owner):**
+  - **Paths:** a path is a polyline object with `type = path` and a unique name; the NPC's `path` names it. The NPC starts at the polyline's first point, so its own point matters only for an NPC without a path. A name that is no path, a polyline of fewer than 2 points, or an unknown `figure` is an error; a path no NPC names is a warning.
+  - **Figures:** an NPC may use any figure of the world, not only those with tier `npc`; the tier `npc` only keeps a figure out of the avatar editor and out of the guests' figures. The tier `npc` and `wave` exist in format version 3 only.
+  - **Action:** an NPC takes the optional preset properties of a clickable object (`action`, `page`, `contentId`, `minigameId`) and the same assignment by `<map>/<name>`, so 6h only adds the short dialog and the admin list. An NPC without an action is not tappable: a tap on it is a tap on the ground. NPC names share the namespace of the spawn points, portals and clickable objects.
+  - **Facing:** a standing NPC without a path faces south, one on a path the way it last walked; the wave plays in that direction. A figure without `wave` just stands, no error.
 Requirements: GAME-36, GAME-38.
 Re-verified: GAME-25, AVA-01.
 

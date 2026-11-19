@@ -46,6 +46,7 @@ rate on the phone.
   **Preview and watch**. **Stop watching** leaves the current preview running.
 - Use **Map**, **Spawn**, and **Figure** to choose the scene.
 - A package of format version 3 shows its atmosphere too: the fog along the borders, the cloud shadows and, every 20 to 60 seconds, the bird (the preview loads `ambient/bird/` from the local package). The map properties `clouds`, `birds` and `fog` turn them off per map.
+- The NPCs of a world of format version 3 are shown and move as in the game (GAME-36): along their paths, standing and waving. The preview has no actions, so tapping an NPC does nothing there.
 - The preview has no guests, so it shows two sample figures with made-up names (`Guest 1`, …) in the wander areas of every map that has one; they check the areas and their collisions (PRES-02). Some carry a made-up greeting, badge and line, so the speech bubbles can be checked too (no photos: the initials).
 - Expand **Guides and view** to toggle collision, border, spawn, portal,
   and grid guides, or **Artwork only** to hide gameplay elements.
