@@ -428,7 +428,7 @@ test("[AVA-01][AVA-02] the avatar editor offers an admin the tier3 figures only,
   await gameState(page);
 });
 
-test("[GAME-12][GAME-13][GAME-14][GAME-17][GAME-18] first entry: the avatar comes first, then the game with its bar and hint; the own avatar opens the profile; the sign-in lands in the game and Website leaves it", async ({
+test("[GAME-12][GAME-13][GAME-14][GAME-17] first entry: the avatar comes first, then the game with its bar and hint; the own avatar opens nothing; the sign-in lands in the game and Website leaves it", async ({
   page,
   context,
 }, testInfo) => {
@@ -450,13 +450,12 @@ test("[GAME-12][GAME-13][GAME-14][GAME-17][GAME-18] first entry: the avatar come
   await expect(bar.getByRole("button")).toHaveCount(0);
   await expect(page.getByTestId("game-hint")).toBeVisible();
 
-  // A tap on the own avatar opens the profile above the game.
+  // A tap on the own avatar opens nothing: the profile is reached through the website (GAME-18 withdrawn).
   const state = await gameState(page);
   // The sprite stands on its feet point (offset by the anchor); its body is about 16 pixels high.
   const own = await pagePoint(page, { x: state.x - 3, y: state.y + 2 });
   await page.mouse.click(own.x, own.y);
-  await expect(page.getByRole("dialog", { name: de.nav.profile })).toBeVisible();
-  await page.getByRole("button", { name: de.game.overlay.close }).click();
+  await expect(page.getByRole("dialog")).toHaveCount(0);
 
   // "Website" leaves the game; the start page offers the way back.
   await page.getByRole("link", { name: de.nav.site }).click();
@@ -605,7 +604,10 @@ test("[PRES-10] a guest figure stands still and opens its speech bubble when the
   await expect(async () => {
     // A click on the open bubble pins it, so the guest is clicked only while the bubble is closed.
     if (await bubble.isVisible()) return;
-    const now = (await gameState(page)).guests.find((guest) => guest.id === first.id);
+    const state = await gameState(page);
+    // A walk that is still going is left to arrive: a second click next to the guest would pin the bubble.
+    if (state.walk.marker !== null) throw new Error("still walking");
+    const now = state.guests.find((guest) => guest.id === first.id);
     if (now === undefined) throw new Error("guest gone");
     const target = await pagePoint(page, { x: now.x, y: now.y });
     await page.mouse.click(target.x, target.y);

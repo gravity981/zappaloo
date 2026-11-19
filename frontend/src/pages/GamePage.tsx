@@ -1,7 +1,7 @@
-// The game page (GAME-12 – GAME-14, GAME-17, GAME-18; UX mocks `game`, `onboard-avatar`). On the first entry the
+// The game page (GAME-12 – GAME-14, GAME-17; UX mocks `game`, `onboard-avatar`). On the first entry the
 // guest first chooses the avatar of everybody who has none (the same editor as in the profile), then answers the
-// RSVP in an overlay if it is still open, then plays freely. In the game: the bar at the top, the hint until the
-// first object is used, and a tap on the own avatar opens the profile. Pages open as an overlay above the paused game.
+// RSVP in an overlay if it is still open, then plays freely. In the game: the bar at the top and the hint until the
+// first object is used. Pages open as an overlay above the paused game.
 import { lazy, Suspense, useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Navigate, useNavigate } from "react-router";
@@ -20,7 +20,6 @@ import type { Overlay } from "../game/GameOverlay.tsx";
 import { rsvpUnanswered } from "../rsvp/landing.ts";
 
 const RSVP_PAGE = "rsvp";
-const PROFILE_PAGE = "profile";
 
 // Phaser is only downloaded when the game is opened, so the website stays light.
 const GameCanvas = lazy(() => import("../game/GameCanvas.tsx"));
@@ -138,9 +137,6 @@ export default function GamePage() {
                   action: activation.action,
                   ...(activation.label === undefined ? {} : { label: activation.label }),
                 });
-              }}
-              onPlayerTap={() => {
-                openPage(PROFILE_PAGE, t("nav.profile"));
               }}
             />
           </Suspense>

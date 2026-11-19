@@ -74,8 +74,6 @@ export interface GameHost {
   onReady?: () => void;
   /** The player activated a clickable object; the host runs the action (overlay, reading panel, dialogue). */
   onActivate?: (activation: GameActivation) => void;
-  /** The player tapped or clicked their own avatar (GAME-18); the host decides what that opens. */
-  onPlayerTap?: () => void;
 }
 
 /** The words the engine shows, which the host supplies in its own language; the engine has none of its own. */

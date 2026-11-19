@@ -2,7 +2,7 @@
 
 | Status | Release | Depends on | Branch |
 |---|---|---|---|
-| ready | Living-world pilot (completes it) | 6 | `feature/epic-6.1-living-world-polish` |
+| in progress | Living-world pilot (completes it) | 6 | `feature/epic-6.1-living-world-polish` |
 
 [Roadmap](../roadmap.md) · [How we work on epics](../README.md)
 
@@ -52,10 +52,11 @@ Added 2026-11-19, after the project owner tried epic 6. A set of improvements to
 
 First sketch (2026-11-19), refined with the decisions above. Built in the order of decision 12.
 
-### Story 6.1a – Own figure no longer opens the profile
+### Story 6.1a – Own figure no longer opens the profile — Done (2026-11-19)
 
 - Tapping or clicking the player's own avatar does nothing, and the profile is reached through the website.
 - GAME-18 is withdrawn in this story: "~~Clicking or tapping the player's own avatar opens the profile as an overlay.~~ (withdrawn 2026-11-19, epic 6.1: the profile is reached through the website)"; its tests are removed or turned into a test that tapping the own avatar opens nothing.
+- Built: `onPlayerTap` (engine host, `GameCanvas`, `GamePage`), the hit test `onAvatar` and its branch in `GameScene` are removed, so a tap on the figure is an ordinary tap on the ground. The end-to-end test checks that it opens nothing.
 Requirements: none new (GAME-18 withdrawn).
 
 ### Story 6.1b – Silhouettes behind obstacles

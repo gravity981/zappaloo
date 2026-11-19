@@ -45,7 +45,7 @@ import {
   shineGradient,
   visibleEdge,
 } from "./interaction.ts";
-import { onAvatar, playerSpritePosition } from "./player-anchor.ts";
+import { playerSpritePosition } from "./player-anchor.ts";
 import { isTypingTarget } from "./keys.ts";
 import { startsPaused } from "./pause.ts";
 import { SHADOW_DEPTH_BELOW, figureShadow } from "./figure-shadow.ts";
@@ -242,12 +242,6 @@ export class WorldScene extends Phaser.Scene {
   };
   readonly #onTap = (pointer: Phaser.Input.Pointer): void => {
     const world = this.cameras.main.getWorldPoint(pointer.x, pointer.y);
-    // A tap on the player's own avatar goes to the host and does not walk (GAME-18).
-    const own = this.#host?.onPlayerTap;
-    if (own !== undefined && this.#ownAvatarHit(world)) {
-      own();
-      return;
-    }
     this.#tapTo({ x: world.x, y: world.y });
   };
 
@@ -1747,12 +1741,6 @@ export class WorldScene extends Phaser.Scene {
       if (this.textures.exists(key)) this.textures.remove(key);
     }
     this.#shineKeys.clear();
-  }
-
-  /** Whether a tap is on the player's own avatar, not on the world around it (GAME-18). */
-  #ownAvatarHit(point: Point): boolean {
-    const player = this.#player;
-    return player !== undefined && onAvatar(point, player);
   }
 
   /** Stops the game while a page is open above it, and lets the keys reach the page (GAME-11). */

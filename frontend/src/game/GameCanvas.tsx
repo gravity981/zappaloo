@@ -60,16 +60,14 @@ type Status =
 
 /**
  * The game. The page above it (GAME-11) belongs to the parent: `paused` stands the game still while a page is open,
- * and `onActivate` and `onPlayerTap` tell the parent what the player used (GAME-06, GAME-18).
+ * and `onActivate` tells the parent what the player used (GAME-06).
  */
 export default function GameCanvas({
   paused,
   onActivate,
-  onPlayerTap,
 }: {
   paused: boolean;
   onActivate: (activation: GameActivation) => void;
-  onPlayerTap: () => void;
 }) {
   const { t } = useTranslation();
   const parent = useRef<HTMLDivElement>(null);
@@ -77,11 +75,9 @@ export default function GameCanvas({
   const game = useRef<GameInstance>(null);
   // The engine keeps the first callbacks it gets; these refs let it call the latest ones.
   const activate = useRef(onActivate);
-  const tap = useRef(onPlayerTap);
   const translate = useRef(t);
   useEffect(() => {
     activate.current = onActivate;
-    tap.current = onPlayerTap;
     translate.current = t;
   });
 
@@ -129,9 +125,6 @@ export default function GameCanvas({
         onStateChange: exposeState,
         onActivate: (activation) => {
           activate.current(activation);
-        },
-        onPlayerTap: () => {
-          tap.current();
         },
       },
       // The words the engine shows come from the app, in the guest's language.

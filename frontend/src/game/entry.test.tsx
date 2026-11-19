@@ -1,4 +1,4 @@
-// Entering the game (GAME-12 – GAME-14, GAME-17, GAME-18; UX mocks game, onboard-avatar, home). The Phaser canvas and the
+// Entering the game (GAME-12 – GAME-14, GAME-17; UX mocks game, onboard-avatar, home). The Phaser canvas and the
 // avatar editor are replaced by stand-ins: they are tested elsewhere (end-to-end, avatar.test.tsx).
 import { cleanup, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
@@ -8,10 +8,8 @@ import { fakeBackend, renderAt, signedIn, user } from "../test/backend.tsx";
 vi.mock("./GameCanvas.tsx", () => ({
   default: ({
     onActivate,
-    onPlayerTap,
   }: {
     onActivate: (a: { mapId: string; object: string; action: unknown }) => void;
-    onPlayerTap: () => void;
   }) => (
     <div data-testid="game-canvas">
       <button
@@ -25,9 +23,6 @@ vi.mock("./GameCanvas.tsx", () => ({
         }}
       >
         use object
-      </button>
-      <button type="button" onClick={onPlayerTap}>
-        own avatar
       </button>
     </div>
   ),
@@ -306,12 +301,5 @@ describe("entering the game", () => {
       expect(screen.queryByTestId("game-hint")).toBeNull();
     });
     expect(localStorage.getItem("zappaloo.game.hintSeen")).toBe("1");
-  });
-
-  it("[GAME-18] a tap on the own avatar opens the profile as an overlay", async () => {
-    setup();
-    renderAt("/game");
-    user.click(await screen.findByRole("button", { name: "own avatar" }));
-    expect(await screen.findByRole("dialog", { name: "Profil" })).toBeVisible();
   });
 });
