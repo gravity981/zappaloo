@@ -82,6 +82,8 @@ export interface GameHost {
 export interface GameTexts {
   /** Shown over the game while the map behind a portal is built (GAME-30). Without it, the overlay has no text. */
   loading?: string;
+  /** The playful texts of the start screen (GAME-43), one per step of the loading; without them only the bar shows. */
+  loadingSteps?: readonly string[];
   /** The name of the cross of a pinned speech bubble, for screen readers (PRES-10). */
   closeBubble?: string;
   /** The greeting of a guest who wrote none (PRES-10), e.g. "Hallo 🙂". */

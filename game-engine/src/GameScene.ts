@@ -76,6 +76,13 @@ import { PORTAL_ARROW_BOB, PORTAL_ARROW_HOVER, PORTAL_ARROW_RISE } from "./porta
 import { EdgeIndicatorLayer } from "./edge-indicators.ts";
 import { hideLoadingOverlay, showLoadingOverlay } from "./loading-overlay.ts";
 import {
+  hideStartScreen,
+  LOADER_SHARE,
+  MAP_DRAWN,
+  setStartProgress,
+  startScreenIsUp,
+} from "./start-screen.ts";
+import {
   indicatorBox,
   indicatorPlace,
   isOutside,
@@ -339,6 +346,12 @@ export class WorldScene extends Phaser.Scene {
   preload(): void {
     const world = this.#world;
     if (world === undefined) return;
+    // The bar of the start screen follows the loader (GAME-43); after a portal the screen is gone.
+    if (startScreenIsUp(this.game)) {
+      this.load.on(Phaser.Loader.Events.PROGRESS, (value: number) => {
+        setStartProgress(this.game, value * LOADER_SHARE);
+      });
+    }
     for (const [key, url] of world.images) {
       if (!this.textures.exists(key)) this.load.image(key, url);
     }
@@ -353,6 +366,7 @@ export class WorldScene extends Phaser.Scene {
     // ratio (the window moves to another screen) changes the zoom itself.
     this.scale.on(Phaser.Scale.Events.RESIZE, this.#onResize);
     this.#drawMap(map);
+    setStartProgress(this.game, MAP_DRAWN);
     this.#tileAnimations = this.#animateObjects(map);
     // The guides lie above every layer, the foreground ones included (MAP-18).
     this.#guideGraphics = this.add.graphics().setDepth(2_000_000);
@@ -877,6 +891,7 @@ export class WorldScene extends Phaser.Scene {
    */
   #enterMap(): void {
     hideLoadingOverlay(this.game);
+    hideStartScreen(this.game);
     if (this.#artworkOnly) return;
     const entries = (this.game.registry.get(ENTRIES_REGISTRY_KEY) as number | undefined) ?? 0;
     if (this.#flash) {

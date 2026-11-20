@@ -23,6 +23,7 @@ import { rememberedMap, rememberMap } from "./map-preference.ts";
 import { objectTitle } from "./titles.ts";
 import { accentColorAt } from "./silhouette-color.ts";
 import { loadWorld } from "./world-data.ts";
+import GameLoading from "./GameLoading.tsx";
 
 /** The figure that applies to the signed-in player; undefined when it cannot be read. */
 async function ownFigure(): Promise<string | undefined> {
@@ -137,6 +138,7 @@ export default function GameCanvas({
       // The words the engine shows come from the app, in the guest's language.
       texts: {
         loading: translate.current("game.mapLoading"),
+        loadingSteps: translate.current("game.loadingSteps", { returnObjects: true }),
         closeBubble: translate.current("game.bubbleClose"),
         defaultGreeting: translate.current("game.defaultGreeting"),
       },
@@ -182,7 +184,7 @@ export default function GameCanvas({
     };
   }, [paused, status]);
 
-  if (status.kind === "loading") return <p>{t("game.loading")}</p>;
+  if (status.kind === "loading") return <GameLoading />;
   if (status.kind === "none") return <p>{t("game.noWorld")}</p>;
   if (status.kind === "failed") return <p role="alert">{t("game.loadFailed")}</p>;
   return <div ref={parent} className="game-canvas" data-testid="game-canvas" />;

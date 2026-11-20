@@ -114,11 +114,14 @@ Re-verified: GAME-17 (reworded), PRES-10 (the cross). Depends on 6.1c.
 - Reworded in this story (project owner, 2026-11-20): the greeting bubble of an object or NPC opens within **2 tiles** (halved from 4, closes beyond 2.25, was 4.5) at the project owner's request. **While it is open, the figure's label is hidden**: the bubble takes its place, reversing the rule of 6.1d that the label stays above which the bubble stood. The label comes back when the bubble closes.
 Requirements: GAME-41 (re-verified, reworded), GAME-37 (reworded: the range).
 
-### Story 6.1g – Black canvas and progress bar while the game loads
+### Story 6.1g – Black canvas and progress bar while the game loads — Done (2026-11-20)
 
 Mock screens: game loading.
 - The loading text is replaced by a black canvas the size of the game: the white loading text until Phaser loads, then a progress bar with a random playful text per step (decision 8, Q13).
-Requirements: GAME-43.
+- Built: before the engine starts (the lazy chunk, the world and figure data), `GameLoading` is a black view of the stage with the white loading text. The engine then puts up its own start screen (`start-screen.ts`) over the same black the moment `createGame` runs: a bar that follows Phaser's loader (70 % of the bar), then the drawn map (90 %), then the rest of the setup (100 %), where the screen goes (`#enterMap`). The text changes at 0, 25, 50, 70 and 90 %, picked at random from the pool and never the same twice in a row. The pool is `game.loadingSteps` (15 German texts) and reaches the engine as `texts.loadingSteps`; without a pool (the game preview) the bar stands alone. A portal keeps its grey veil (GAME-30): the start screen is shown once.
+- Not done: the page's own wait for the world status (`GamePage`, before the game bar exists) is still the plain text; it lasts one request.
+- Note: the mock set has no "game loading" screen yet, so the screen was built from decision 8; the mock still has to be added.
+Requirements: GAME-43 (now implemented; left the "not yet implemented" list).
 
 ### Story 6.1h – The installed app updates itself
 

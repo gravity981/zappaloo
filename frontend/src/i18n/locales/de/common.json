@@ -845,6 +845,23 @@
     "loadFailed": "Die digitale Erlebniswelt konnte nicht geladen werden.",
     "noWorld": "Die digitale Erlebniswelt ist noch nicht eingerichtet.",
     "mapLoading": "Wird geladen …",
+    "loadingSteps": [
+      "Bäume werden gepflanzt",
+      "Strassen werden gewischt",
+      "Girlanden werden aufgehängt",
+      "Blumen werden gegossen",
+      "Die Gäste werden gezählt",
+      "Tische werden gedeckt",
+      "Die Band stimmt ihre Instrumente",
+      "Wolken werden aufgepumpt",
+      "Vögel werden aufgeweckt",
+      "Kopfsteinpflaster wird poliert",
+      "Die Torte wird bewacht",
+      "Laternen werden angezündet",
+      "Der rote Teppich wird ausgerollt",
+      "Konfetti wird sortiert",
+      "Der Nebel wird gelüftet"
+    ],
     "first": {
       "continue": "Weiter",
       "hello": {

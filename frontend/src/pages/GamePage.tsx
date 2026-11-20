@@ -14,6 +14,7 @@ import { useFirstEntry, useWorldEntry } from "../app/gameEntry.ts";
 import ProfileEditor from "../profile/ProfileEditor.tsx";
 import GameBar from "../game/GameBar.tsx";
 import DialogueBox from "../game/DialogueBox.tsx";
+import GameLoading from "../game/GameLoading.tsx";
 import GameOverlay from "../game/GameOverlay.tsx";
 import type { Overlay } from "../game/GameOverlay.tsx";
 import { rsvpUnanswered } from "../rsvp/landing.ts";
@@ -130,7 +131,7 @@ export default function GamePage() {
       <div className="game-window guest">
         <GameBar />
         <div className="game-stage">
-          <Suspense fallback={<p>{t("game.loading")}</p>}>
+          <Suspense fallback={<GameLoading />}>
             <GameCanvas
               paused={overlay !== undefined || shownDialogue !== undefined}
               onActivate={(activation) => {
