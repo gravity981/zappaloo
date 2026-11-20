@@ -66,7 +66,8 @@ Requirements: none new. (The own-avatar tap is withdrawn, see above.)
 - Figures covered by objects stay visible as silhouettes (decision 6).
 - The target marker of a tap (GAME-24) placed behind an obstacle is shown as a silhouette too, as soon as any part of it is covered (added 2026-11-19).
 - Built: `silhouette.ts` (the arithmetic), `silhouette-layer.ts` (alpha masks, covers from tile objects and foreground tile layers, the silhouette sprites and the marker's ring), wired into `GameScene`; the page passes the theme's accent colour. Decisions are in sw-architecture.md ("Silhouettes").
-- Open: the frame rate on the iPhone is not checked yet (checked with the diagnostics overlay together with 6.1j); the foreground-layer measuring and the target marker's silhouette are covered by unit tests only, because the test world has no reachable place behind them.
+- Checked on the iPhone (2026-11-20, project owner): the frame rate is good.
+- Not covered by a device check: the foreground-layer measuring and the target marker's silhouette are covered by unit tests only, because the test world has no reachable place behind them.
 Requirements: GAME-42.
 
 ### Story 6.1c – Dialogues give objects and NPCs a voice — Done (2026-11-20)
@@ -122,32 +123,33 @@ Mock screens: game loading.
 - Changed after the first try (project owner, 2026-11-20): the page's own wait for the world status (`GamePage`) is a black page with no text (`game-boot`), so nothing flashes white; a game that cannot load shows "Die digitale Erlebniswelt konnte nicht geladen werden." in white on the black view, with no button of its own (the game bar's "Webseite" leads back); the mock `game-loading` shows the three states. The German UI says "Webseite" everywhere, not "Website".
 Requirements: GAME-43 (now implemented; left the "not yet implemented" list).
 
-### Story 6.1h – The installed app updates itself — Done (2026-11-20), iPhone check open
+### Story 6.1h – The installed app updates itself — Done (2026-11-20), iPhone check passed (2026-11-20)
 
 - The client notices a new release and reloads itself at a safe moment (decision 9). No service worker.
 - The new icon is served at once; on iOS the guest adds the app again (decision 9).
 - Built: `UpdateWatcher` (in `Root`) asks `GET /api/version` on start and on every `visibilitychange` to visible, and reloads when `isNewRelease` says the release differs (a server that only adds `-rc.N` runs the same build, like `displayVersion`). A page can hold the reload with `useHoldUpdate`: the game page holds it while an overlay, a dialogue or the guided first entry is open, and the reload follows when the last hold ends. Everywhere else it reloads at once. `/api/version` answers `no-store` and the client asks with `cache: "no-store"`. An unreachable server never reloads.
 - Decided while building: a reload happens once per server version and session (`sessionStorage`), so a cache between the server and the phone that still delivers the old client cannot cause a reload loop. Icons are served `no-cache` instead of `max-age=3600`, because the `apple-touch-icon` link in `index.html` cannot carry the version the manifest uses.
-- Open: a form being filled in on the website is reloaded with the page (the spec says "at once"); say so if the RSVP or a profile form should hold the update too. The check on the iPhone (suspend the installed app, deploy a release candidate, open it again) is still to do, then a row in the manual test protocol.
+- Decided (project owner, 2026-11-20): a form being filled in on the website is reloaded with the page, and its data can be lost. Updates are rare, so no form holds the update; the spec's "at once" stands.
+- Checked on the iPhone (2026-11-20, project owner): the update works as implemented. Recorded in the manual test protocol as PWA-06.
 Requirements: PWA-06.
 
-### Story 6.1i – Resources freed in the background and on close — Done (2026-11-20), iPhone check open
+### Story 6.1i – Resources freed in the background and on close — Done (2026-11-20), iPhone check passed (2026-11-20)
 
 - Measure on the iPhone, then stop everything that runs while the app is in the background or closed (decision 10).
 - Code analysis (2026-11-20), what runs when the app is in the background: nothing of the game. Phaser pauses its loop on `visibilitychange` (`Game.onHidden`), the engine's timers (sparkles, shines) and tweens run on the scene's clock and stand still with it, the speech bubbles, labels and edge indicators are DOM layers updated from the scene, and the frame diagnostics are off in a production build. The game has no audio. The app polls nothing: `EventProvider` and `UpdateWatcher` ask once when the page becomes visible again; the intervals of the countdown and the figure preview live on their pages only. A page that is frozen on close (`pagehide`) was visible-then-hidden first, so `visibilitychange` has stopped the loop already; no extra `pagehide` handler is needed.
 - Found: **the WebGL context was never released.** Leaving the game destroys Phaser, and Phaser's renderer deletes its GL objects, but it never calls `WEBGL_lose_context`; the browser keeps the context and the canvas's drawing buffer (up to 3x the screen) until garbage collection, which Safari does late. That fits an iPhone that gets slower after the app was used and closed.
 - Built: when the game is destroyed the engine releases the context after Phaser has finished (`releaseContext`, `release-context.ts`: `loseContext()` and a canvas buffer of 1 x 1 pixel).
-- Open: the check on the iPhone with Safari Web Inspector over the tailnet (Mac needed): (1) Timelines › JavaScript & Events with the app in the background for a minute, expecting no activity; (2) Graphics › WebGL: open the game, leave it for the website and open it again three times, expecting one context at a time and the memory back to its starting level; (3) the installed app, closed and reopened, over a longer session. Then a row for PWA-07 in the manual test protocol. The result is reported even if nothing more is found.
-Requirements: PWA-07 (the context release is unit-tested; the device check is open).
+- Checked on the iPhone with Safari Web Inspector (2026-11-20, project owner): the issue is resolved. Recorded in the manual test protocol as PWA-07.
+Requirements: PWA-07 (the context release is unit-tested; the device check passed 2026-11-20).
 
-### Story 6.1j – Smooth overlays on iOS — Done (2026-11-20), iPhone check open
+### Story 6.1j – Smooth overlays on iOS — Done (2026-11-20), iPhone check passed (2026-11-20)
 
 - Overlays open over the game at full frame rate on iOS (decision 11).
 - Code analysis (2026-11-20): the overlay is a plain fixed layer with a translucent background; it has no blur or backdrop filter and no animation. The cause found is in the engine: `scene.pause()` only stops the scene's update, and Phaser still draws a paused scene every frame (status `PAUSED` is below `SLEEPING` in `SceneManager.render`). So the canvas at device pixels (up to 3x) with its glow filters was redrawn 60 times a second behind the page, while the page's React root mounted and fetched its data.
 - Built: `setGamePaused` also puts the game loop to sleep (`setLoopAsleep`, `pause.ts`) and wakes it with a fresh time step when the page or dialogue closes. The canvas keeps its last picture behind the translucent overlay. A game that a test plays by hand (`advanceGame`) is never woken (`isPlayedByHand`). No gain for the overlay's own mount work is claimed: that is measured on the iPhone.
-- Follow-up (2026-11-20, after the project owner's check on the iPhone: the frame rate improved, the pages that an object opens still stutter): the game now stops synchronously in `onActivate`, before React starts on the page (it used to stop in an effect after the overlay's first commit, so it drew on while the page mounted); the page of the overlay is rendered two frames after the sheet, so the sheet's first frame does not wait for it; the close button takes the focus without scrolling (`preventScroll`). Not done, and a UX deviation to decide first (the mock has no opening animation): a slide-up of the sheet with `transform` and `opacity` only, which the compositor plays even while the main thread works.
-- Open: the check on the iPhone (Safari and the installed app): open a page and a dialogue, compare with the build before (Web Inspector timeline), and a row for GAME-44 in the manual test protocol. If the opening still stutters, the next suspects are the React root mounted in one go (`OverlayPage`) and the page's first render; the fix would be to open the sheet first and mount the page a frame later.
-Requirements: GAME-44 (the loop stops behind a page; unit-tested, the device check is open).
+- Follow-up (2026-11-20, after the project owner's check on the iPhone: the frame rate improved, the pages that an object opens still stutter): the game now stops synchronously in `onActivate`, before React starts on the page (it used to stop in an effect after the overlay's first commit, so it drew on while the page mounted); the page of the overlay is rendered two frames after the sheet, so the sheet's first frame does not wait for it; the close button takes the focus without scrolling (`preventScroll`). Not built: a slide-up of the sheet with `transform` and `opacity` only, which the compositor would play even while the main thread works. Decided (project owner, 2026-11-20): not needed, the current implementation is good (the mock has no opening animation, and none is added).
+- Checked on the iPhone (2026-11-20, project owner, Safari and the installed app): the current implementation is good. Recorded in the manual test protocol as GAME-44.
+Requirements: GAME-44 (the loop stops behind a page; unit-tested, the device check passed 2026-11-20).
 
 ### Story 6.1k – Independent game tests in a project of their own — Done (2026-11-19)
 

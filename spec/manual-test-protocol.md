@@ -19,3 +19,7 @@ Checks that need a real environment, real devices or real time (see [test-strate
 | OPS-10 | 2026-11-13 | GitHub | pass | First release candidate built by the manual workflow, tagged and published as a pre-release |
 | OPS-11 | 2026-11-13 | GitHub | pass | Promotion of the latest candidate to a release, with the version and minor, major tags and the GitHub release |
 | GAME-27 | 2026-11-17 | iPhone 16 Pro, Safari (game preview over Tailscale, dev server) | pass | View smooth while walking, 60 fps in the diagnostics overlay (story 5.1a); installed app, Android Chrome and desktop still to be checked |
+| GAME-42 | 2026-11-20 | iPhone (project owner's device) | pass | Silhouettes behind obstacles: frame rate good (story 6.1b) |
+| PWA-06 | 2026-11-20 | iPhone, installed app (project owner's device) | pass | Installed app updates itself on a new release, as implemented in story 6.1h; a form being filled in on the website is reloaded with the page (accepted) |
+| PWA-07 | 2026-11-20 | iPhone, Safari Web Inspector (project owner's device) | pass | Background, WebGL contexts over repeated visits and the installed app after a longer session: the issue is resolved (story 6.1i) |
+| GAME-44 | 2026-11-20 | iPhone, Safari and installed app (project owner's device) | pass | Pages and dialogues open over the game at full frame rate; current implementation accepted (story 6.1j) |

@@ -20,7 +20,7 @@ import de from "../frontend/src/i18n/locales/de/common.json" with { type: "json"
 
 /**
  * After every test the settings that tests change are as the others expect them: guest access on, the sexton back at his
- * preset action and his indicator on like the altar's, and the dialogues that tests made for him gone (MAP-19, MAP-21,
+ * preset action and the indicators of the altar, the sexton and osterei on, and the dialogues that tests made for him gone (MAP-19, MAP-21,
  * GAME-41). A test that fails halfway has not put them back itself. The API is used, not the pages: it is quick, and
  * works after a timeout. The admin is a fresh one, because the test's own session may be gone.
  */
@@ -36,7 +36,7 @@ test.afterEach(async ({ browser, baseURL }) => {
     await page.request.put("/api/admin/world/guest-access", { headers, data: { enabled: true } });
     await assignAction(page, "kirche", "kuester", null);
     await assignAction(page, "kirche", "altar", null);
-    for (const object of ["altar", "kuester"]) {
+    for (const object of ["altar", "kuester", "osterei"]) {
       await page.request.put(`/api/admin/world/objects/kirche/${object}/indicator`, {
         headers,
         data: { showIndicator: true },
@@ -59,6 +59,15 @@ const SEXTON_DIALOGUES = ["Küster Fritz", "Wirt", LONG_NAME];
 async function csrfHeaders(page: Page): Promise<Record<string, string>> {
   const session = (await (await page.request.get("/api/session")).json()) as { csrfToken: string };
   return { "x-csrf-token": session.csrfToken };
+}
+
+/** Turns the edge indicator of an object or NPC of the church map on or off (GAME-41, the setting showIndicator). */
+async function setIndicator(page: Page, object: string, showIndicator: boolean): Promise<void> {
+  const result = await page.request.put(`/api/admin/world/objects/kirche/${object}/indicator`, {
+    headers: await csrfHeaders(page),
+    data: { showIndicator },
+  });
+  if (!result.ok()) throw new Error(`setting the indicator failed: ${await result.text()}`);
 }
 
 /**
@@ -308,7 +317,7 @@ test("[GAME-06][GAME-08][GAME-11][GAME-15][GAME-16] a tap on an object walks to 
   const objects = await page.evaluate(() => window.__zappaloo?.game?.clickables() ?? []);
   const altar = objects.find((item) => item.name === "altar");
   if (altar === undefined) throw new Error("the start map has no object altar");
-  // The easter egg is a clickable object like the others, but it does not sparkle (GAME-08).
+  // The object osterei is hidden in the map: it does not sparkle (GAME-08).
   expect(objects.find((item) => item.name === "osterei")?.hidden).toBe(true);
 
   // Objects sparkle at random intervals (GAME-15).
@@ -356,21 +365,23 @@ test("[GAME-06][GAME-08][GAME-11][GAME-15][GAME-16] a tap on an object walks to 
   }).toPass();
 });
 
-test("[GAME-26][GAME-06][GAME-16] an object outside the view has an indicator at the edge, the easter egg has none, and a tap on the indicator walks to the object and opens its page", async ({
+test("[GAME-26][GAME-06][GAME-16] an object outside the view has an indicator at the edge, an object whose indicator is off has none, and a tap on the indicator walks to the object and opens its page", async ({
   page,
   context,
 }) => {
-  // A phone-sized view shows only a small part of the map, so objects lie outside it. It is tall enough that the
-  // indicator of the sexton (an NPC with an action, GAME-39) does not overlap the altar's, which it would hide.
+  // A phone-sized view shows only a small part of the map, so objects lie outside it. The sexton's indicator is off
+  // here: where two indicators would overlap, the nearer one hides the other (GAME-41), which would hide the altar's.
   await page.setViewportSize({ width: 360, height: 420 });
   await signInAsAdmin(page, context);
+  await setIndicator(page, "kuester", false);
+  // Only the setting showIndicator decides for an object, whatever it is: the object osterei, turned off here, has none.
+  await setIndicator(page, "osterei", false);
   await enterGame(page);
   const before = await gameState(page);
   const indicators = page.getByTestId("edge-indicator");
   await expect(indicators.first()).toBeVisible({ timeout: 10_000 });
+  await expect(page.locator('[data-indicator="object:osterei"]')).toHaveCount(0);
   // At most six indicators (GAME-26).
-  // Only the setting showIndicator decides, so an easter egg or an object that shows a dialogue has one unless the
-  // admin turned it off (GAME-41); at most six are shown at a time.
   expect(await indicators.count()).toBeLessThanOrEqual(6);
 
   // Each indicator lies in the view, with a touch area of at least 44 x 44 pixels, 12 pixels from its edge.
@@ -1070,12 +1081,13 @@ test("[MAP-21][CNT-09][GAME-37] the admin makes a dialogue with a greeting for t
   // The game time is advanced by hand: the walks and waits of the figures do not depend on the speed of the machine.
   const bubble = page.locator('[data-testid="guest-bubble"][data-guest="npc:kuester"]');
   await advanceUntil(page, () => bubble.isVisible(), 10_000);
-  // A greeting bubble holds the greeting only (no portrait, no name); the label names the figure, and stays.
+  // A greeting bubble holds the greeting only (no portrait, no name). While it is open it takes the place of the
+  // label of its figure, which comes back when it closes (GAME-37, story 6.1d).
   await expect(bubble).toHaveText("Psst, hier entlang zum Programm!");
   await expect(bubble).toHaveAttribute("aria-label", "Küster Fritz");
   await expect(bubble.locator("img")).toHaveCount(0);
-  await expect(page.locator('[data-testid="object-label"][data-label="npc:kuester"]')).toHaveText(
-    "Küster Fritz",
+  await expect(page.locator('[data-testid="object-label"][data-label="npc:kuester"]')).toHaveCount(
+    0,
   );
   const sexton = async () => (await gameState(page)).npcs.find((npc) => npc.name === "kuester");
   expect(await sexton()).toMatchObject({ bubble: true, moving: false, tappable: true });
@@ -1206,6 +1218,8 @@ test("[GAME-26][GAME-41] a long name is not cut off: the label of an object in s
 }) => {
   test.setTimeout(90_000);
   await signInAsAdmin(page, context);
+  // The sexton's indicator is off, so that it cannot hide the altar's on the phone-sized view (GAME-41).
+  await setIndicator(page, "kuester", false);
   const id = await ensureDialogue(page, LONG_NAME, "");
   await assignAction(page, "kirche", "altar", { kind: "dialog", dialogId: id });
   /** Whether the text of an element shows whole: nothing is cut off by the box, its lines are all visible. */

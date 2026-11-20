@@ -169,6 +169,21 @@ export class EdgeIndicatorLayer {
     button.addEventListener("click", () => {
       this.#onTap(view.id);
     });
+    // A press on the button is not a press on the game. The game's own pointer handling listens on the window and
+    // would see the press without its release, which is on this button, and then ignore every later tap on the
+    // ground (the click above still runs).
+    for (const type of [
+      "pointerdown",
+      "pointerup",
+      "mousedown",
+      "mouseup",
+      "touchstart",
+      "touchend",
+    ]) {
+      button.addEventListener(type, (event) => {
+        event.stopPropagation();
+      });
+    }
     return button;
   }
 }

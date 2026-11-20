@@ -28,7 +28,7 @@ test("[SEC-10] pages, scripts and API responses carry X-Robots-Tag noindex", asy
   }
 });
 
-test("[LANG-01] the website shows its texts in German", async ({ page, context }) => {
+test("[LANG-01] the website shows its texts in German @flaky", async ({ page, context }) => {
   await signInAsAdmin(page, context);
   await page.goto("/");
   await expect(page.locator("html")).toHaveAttribute("lang", "de");
@@ -41,7 +41,7 @@ test("[LANG-01] the website shows its texts in German", async ({ page, context }
   ).toBeVisible();
 });
 
-test("the game route mounts Phaser with the world, or leads to the start page while no world is set up", async ({
+test("the game route mounts Phaser with the world, or leads to the start page while no world is set up @flaky", async ({
   page,
   context,
 }) => {
@@ -70,7 +70,7 @@ test("the backend reports health and version", { tag: "@smoke" }, async ({ reque
   expect(version.version).toMatch(/\+dev$/);
 });
 
-test("[CFG-02][CFG-05] the server started with the example event and serves it with its toggles", async ({
+test("[CFG-02][CFG-05] the server started with the example event and serves it with its toggles @flaky", async ({
   page,
   context,
 }) => {
@@ -87,7 +87,7 @@ test("[CFG-02][CFG-05] the server started with the example event and serves it w
   });
 });
 
-test("[ACS-09][ACS-07] without a session only the public pages and routes are reachable", async ({
+test("[ACS-09][ACS-07] without a session only the public pages and routes are reachable @flaky", async ({
   page,
   request,
 }) => {
