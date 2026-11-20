@@ -583,7 +583,7 @@ test("[GAME-12][GAME-13][GAME-14][GAME-17] first entry: the avatar comes first, 
   await expect(page.getByTestId("game-canvas")).toBeVisible();
 });
 
-test("[GAME-21] the game fills a phone's screen and is a window of at most 1280 x 800 on a wide screen", async ({
+test("[GAME-21][GAME-07] the game fills a phone's screen and is a window of at most 1280 x 800 on a wide screen", async ({
   page,
   context,
 }) => {
@@ -1296,7 +1296,12 @@ test("[GAME-41][GAME-40] an object, portal or NPC in sight carries its label, na
   const wirt = await ensureDialogue(page, "Wirt", "Prost!");
   await assignAction(page, "kirche", "altar", { kind: "dialog", dialogId: wirt });
   await enterGame(page);
-  await expect(label("object:altar")).toHaveText("Wirt", { timeout: 10_000 });
+  // The altar has a greeting now, and the player stands near it: its speech bubble opens with the figure name and takes
+  // the place of the label while it is open (GAME-37, GAME-41). The label comes back when the bubble closes.
+  await expect(
+    page.locator('[data-testid="guest-bubble"][data-guest="object:altar"]'),
+  ).toHaveAttribute("aria-label", "Wirt", { timeout: 10_000 });
+  await expect(label("object:altar")).toHaveCount(0);
   await assignAction(page, "kirche", "altar", null);
 
   // The admin turns the indicator and label of the altar and of the sexton off, for surprises and side notes.

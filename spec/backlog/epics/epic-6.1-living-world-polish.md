@@ -2,7 +2,7 @@
 
 | Status | Release | Depends on | Branch |
 |---|---|---|---|
-| in progress | Living-world pilot (completes it) | 6 | `feature/epic-6.1-living-world-polish` |
+| done | Living-world pilot (completes it) | 6 | `feature/epic-6.1-living-world-polish` |
 
 [Roadmap](../roadmap.md) · [How we work on epics](../README.md)
 
@@ -113,7 +113,7 @@ Re-verified: GAME-17 (reworded), PRES-10 (the cross). Depends on 6.1c.
 - Built: the arrow's hover and bob are the constants of `portal-arrow.ts` (6 px and 4 px), shared by the float and the label; a portal's label is lifted by their sum (`IndicatorSource.lift`), so its bottom sits 4 px above the arrow's highest point, not above the picture.
 - Reworded in this story (project owner, 2026-11-20, screenshot of "Programm" on two lines): **labels in sight stay on one line.** A label is as wide as its text in the label's font (measured by the browser, `measureObjectLabelText`) plus the padding, and only the view bounds it; the 260 px cap of GAME-41 is gone for labels in sight. Only a text wider than the view wraps, onto up to three lines. The same holds for edge-indicator labels, which are bounded by the room the view leaves beside the icon. A label wraps only at spaces, never inside a word (`overflow-wrap: normal`; the project owner, 2026-11-20: "it's ok to have new lines after whitespace"). The 260 px cap is gone everywhere, and the bubble's label clearance uses the same measure.
 - Reworded in this story (project owner, 2026-11-20): the greeting bubble of an object or NPC opens within **2 tiles** (halved from 4, closes beyond 2.25, was 4.5) at the project owner's request. **While it is open, the figure's label is hidden**: the bubble takes its place, reversing the rule of 6.1d that the label stays above which the bubble stood. The label comes back when the bubble closes.
-Requirements: GAME-41 (re-verified, reworded), GAME-37 (reworded: the range).
+Re-verified: GAME-41, GAME-37 (reworded: the range).
 
 ### Story 6.1g – Black canvas and progress bar while the game loads — Done (2026-11-20)
 
@@ -233,8 +233,63 @@ Added 2026-11-20 at the project owner's request, after the first floating versio
 - iPhone: the name is trimmed to the capital letters (`text-box: trim-both cap alphabetic`) in the game bar and in the website header, because the web fonts of a theme have an ascent and a descent that differ; the website header is **sticky**, so it is not left under the status bar when the game is left (PWA-04).
 - Spec: GAME-14 and PWA-04 reworded, THM-17 no longer lists the game bar, GAME-43, the implementation notes of GAME-26 and of the bar; the mock `game` and `game-loading` show the new bar.
 - Added to the story (project owner, 2026-11-20): a portal fades the screen **out to white** (350 ms of game time, camera fade) and only then loads the new map; the white stays on a layer of the game (`whiteout.ts`) across the scene restart, the loading veil goes up over it, and the new map is entered with the flash from white as before (GAME-30).
-Requirements: GAME-14, GAME-26, GAME-30, GAME-37, GAME-41, PWA-04.
+Re-verified: GAME-14, GAME-26, GAME-30, GAME-37, GAME-41, PWA-04.
 
 ## Report
 
-<Added when the epic is complete, from the template in README.md.>
+### Epic report (2026-11-20)
+
+**Summary:** Guests in the living world: their own figure no longer opens the profile; figures behind objects show as silhouettes; objects and NPCs with a dialogue show its figure name and greeting in one speech bubble at a time; the welcome dialogue opens once on the first entry; the game loads on a black canvas with a progress bar; the installed app updates itself on a new release and frees its resources when closed; overlays open smoothly on iOS; labels wrap and stay on one line; edge indicators take a tap without stopping the game's later taps.
+
+**Stories:**
+- 6.1a Own figure no longer opens the profile – done
+- 6.1b Silhouettes behind obstacles – done (iPhone frame rate checked)
+- 6.1c Dialogues give objects and NPCs a voice – done
+- 6.1d One speech bubble, greetings from 4 tiles – done (later changed to 2 tiles, see 6.1d's own text)
+- 6.1e Welcome dialogue on the first entry – done
+- 6.1f Portal label higher – done
+- 6.1g Black canvas and progress bar while the game loads – done
+- 6.1h The installed app updates itself – changed: a form being filled in is reloaded with the page, accepted by the project owner; iPhone check passed
+- 6.1i Resources freed in the background and on close – done (iPhone check passed)
+- 6.1j Smooth overlays on iOS – changed: the slide-up animation was not built, the current implementation was accepted; iPhone check passed
+- 6.1k Independent game tests in a project of their own – done
+- 6.1l Deterministic game time in the tests – done
+- 6.1m Four layers of testing – done (one open question, see below)
+- 6.1n A friendly screen for unexpected errors – done
+- 6.1o Dialogue text types itself out – done
+- 6.1p The game bar floats over the world, and a portal fades to white – done
+- Not in the stories: a fix found on the iPhone after 6.1j: a press on an edge indicator left the game holding the pointer, so later taps on the map were ignored. Fixed in `game-engine/src/edge-indicators.ts` (the indicator stops press and touch events from reaching the game); confirmed on the project owner's iPhone.
+- None moved or dropped.
+
+**Requirements:** 10 of 10 planned for this epic, all with passing tests (requirement report). Overall: 243 of 301 active requirements implemented (233 passing); 58 not yet implemented.
+
+**Tests:**
+- Lint and typecheck: pass.
+- Vitest (unit, component, integration): 1,746 of 1,746 passed in 176 files.
+- Playwright: 86 passed, 0 failed, 0 flaky, 33 skipped. The skips are deliberate: each one is limited to some browser projects (for example "phones only", "desktop only", "one profile only"). Five tests that fail under load in the full run and pass alone are tagged `@flaky` (`spec/test-strategy.md` 8.8) and are not run locally.
+- Requirement report: exits with errors only for the deployment test (`infrastructure/deploy/deploy.test.ts`). Its results in `reports/vitest-deploy.json` are from 2026-11-17 and the test runs on CI only; CI must confirm it.
+- Manual checks on the project owner's iPhone, recorded in `spec/manual-test-protocol.md`: GAME-42 (silhouette frame rate), PWA-06 (update), PWA-07 (resources), GAME-44 (overlays).
+- The edge indicator fix has no automated regression test: Playwright's touch emulation does not reproduce the stuck pointer. It is verified on the device only.
+
+**Spec changes and deviations:**
+- GAME-18 withdrawn (own avatar tap opens nothing; the profile is reached through the website).
+- MAP-21, GAME-37, GAME-41 and GAME-40 reworded (NPCs configured like objects; the dialogue's figure name and greeting; one bubble at a time; a bubble hides the label of its figure while it is open).
+- GAME-26 reworded: an object's indicator depends only on its `showIndicator` setting. There is no separate easter-egg case.
+- GAME-14 and PWA-04 reworded (the game bar floats; the website header is sticky).
+- GAME-43 implemented; GAME-07 covered by the screen-size test of GAME-21.
+- SEC-04 left the "not yet implemented" list (it has passing tests).
+- 6.1h: no form holds an update (accepted). 6.1j: no slide-up animation (accepted).
+
+**Remaining requirements by epic** (requirement report): 1 – 1 (a deployment-test requirement, checked on CI); 7 – 30; 8 – 22; 9 – 2; 10 – 3. Total 58.
+
+**Waiting on the project owner:**
+- The release: the Living-world pilot (after epic 6.1) goes to production; the release is the project owner's to start (runbook). The deployment test must pass on CI first.
+- Open question from 6.1m: may a speech bubble cover an edge indicator? The test no longer depends on the answer.
+- The admin table still shows an "Easter Egg" tag for hidden objects (`frontend/src/admin/AdminWorldObjects.tsx`). Rename it to match "there are only objects and NPCs"?
+- CNT-02 and CNT-03 are planned in epic 4 and epic 6, which the requirement report warns about. Decide which epic owns them.
+- Next epics: epics 7 and 8 have their dependencies done (epic 5) but are still open, not refined. No refined epic waits for 6.1.
+
+**Risks and notes:**
+- The GAME-41 labels test now expects the altar's speech bubble with the figure name, because the altar has a greeting and the player stands next to it (GAME-41 and GAME-37). This follows the spec, not the earlier expectation.
+- Option-A setup: tests that check the altar's indicator and label switch the sexton's indicator off first, because two indicators at the phone-sized view can overlap and the nearer one wins (GAME-41).
+- The iPhone checks were reported by the project owner; the rows in the protocol record the device as the project owner's device.

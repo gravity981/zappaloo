@@ -94,9 +94,9 @@ All active requirements are listed here until their stage is delivered. Shrink t
 | PHO | PHO-01 – PHO-03, PHO-05 – PHO-19 | 18 |
 | MOD | MOD-01 – MOD-05 | 5 |
 | OPS | OPS-13 | 1 |
-| SEC | SEC-04, SEC-06 – SEC-08 | 4 |
+| SEC | SEC-06 – SEC-08 | 3 |
 | PERF | PERF-01, PERF-03, PERF-04 | 3 |
-| **Total** | | **59** |
+| **Total** | | **58** |
 
 The stage each requirement belongs to is listed in `sw-architecture.md`, section 28.
 
