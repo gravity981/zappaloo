@@ -142,13 +142,9 @@ export class NpcCrowd {
 
   /**
    * The NPCs whose dialogue has a greeting as bubble participants; one without a greeting has no bubble (GAME-37). The
-   * bubble holds the greeting only, no portrait and no name; `labels` are the labels of the objects and NPCs by id,
-   * so that the bubble stands above the label of its NPC.
+   * bubble holds the greeting only, no portrait and no name, and it replaces the NPC's label while it is open.
    */
-  participants(
-    player: Point,
-    labels: ReadonlyMap<string, string> = new Map(),
-  ): BubbleParticipant[] {
+  participants(player: Point): BubbleParticipant[] {
     const onTap = this.#onTap;
     return this.#members.flatMap((member) => {
       const { spec, walker, figure, texts, area } = member;
@@ -161,7 +157,6 @@ export class NpcCrowd {
           // The top of its body, where its label stands too: the sprite is drawn a little lower than its feet.
           head: { x: walker.position.x, y: walker.position.y - figure.size.height },
           content: { name: npcTitle(spec, texts), greeting: texts.dialog, compact: true },
-          labelText: labels.get(id),
           openTiles: GREETING_BUBBLE_OPEN_TILES,
           closeTiles: GREETING_BUBBLE_CLOSE_TILES,
           // A tap on the bubble does what a tap on the NPC does; an NPC without an action pins it like a guest.

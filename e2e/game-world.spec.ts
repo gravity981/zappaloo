@@ -1152,7 +1152,7 @@ test("[GAME-37][CNT-09] an object and an NPC with a greeting show it in a speech
   const sextonBubble = page.locator('[data-testid="guest-bubble"][data-guest="npc:kuester"]');
   const altarBubble = page.locator('[data-testid="guest-bubble"][data-guest="object:altar"]');
 
-  // At the start both are within 4 tiles of the player; the sexton is nearer, so his is the only bubble.
+  // Where both are in range, the nearer one's bubble is the only one open; the sexton is the nearer one here.
   await advanceUntil(page, () => sextonBubble.isVisible(), 10_000);
   await expect(bubbles).toHaveCount(1);
   await expect(sextonBubble).toHaveText("Psst, hier entlang!");
@@ -1161,11 +1161,9 @@ test("[GAME-37][CNT-09] an object and an NPC with a greeting show it in a speech
   // It is as small as its text: narrower than the bubble of a guest (214 pixels).
   const box = await sextonBubble.boundingBox();
   expect(box?.width).toBeLessThan(180);
-  // His label stays, and the bubble stands above it, not over it.
+  // While his greeting bubble is open, his label is hidden: the bubble takes its place (GAME-41).
   const label = page.locator('[data-testid="object-label"][data-label="npc:kuester"]');
-  await expect(label).toHaveText("Küster Fritz");
-  const labelBox = await label.boundingBox();
-  expect((box?.y ?? 0) + (box?.height ?? 0)).toBeLessThanOrEqual(labelBox?.y ?? 0);
+  await expect(label).toHaveCount(0);
 
   // Walking to the altar makes it the nearest: its bubble takes over, and again there is one only.
   const target = await pagePoint(page, { x: 128, y: 112 });
@@ -1190,7 +1188,7 @@ test("[GAME-37][CNT-09] an object and an NPC with a greeting show it in a speech
   await expect(dialogue).toContainText("Wirt");
 });
 
-test("[GAME-26][GAME-41] a long name is not cut off: the label of an object in sight and the label of an edge indicator wrap onto more lines", async ({
+test("[GAME-26][GAME-41] a long name is not cut off: the label of an object in sight stays on one line when the view allows, the label of an edge indicator wraps", async ({
   page,
   context,
 }) => {
@@ -1208,14 +1206,15 @@ test("[GAME-26][GAME-41] a long name is not cut off: the label of an object in s
       width: element.clientWidth,
     }));
 
-  // In sight: a pill that is wider than the old limit of 160 pixels would allow, or has more than one line.
+  // In sight, on a desktop view: the name fits on one line, a pill wider than 160 pixels (GAME-41, story 6.1f).
   await enterGame(page);
   await expect(page.getByTestId("game-canvas")).toBeVisible({ timeout: 20_000 });
   const label = page.locator('[data-testid="object-label"][data-label="object:altar"]');
   await expect(label).toHaveText(LONG_NAME, { timeout: 10_000 });
   const inSight = await showsWhole(label);
   expect(inSight.whole).toBe(true);
-  expect(inSight.height > 22 || inSight.width > 160).toBe(true);
+  expect(inSight.height).toBeLessThan(30);
+  expect(inSight.width).toBeGreaterThan(160);
 
   // Out of sight, on a phone-sized view: the label of its edge indicator, whole as well.
   await page.setViewportSize({ width: 360, height: 420 });

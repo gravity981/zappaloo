@@ -2,18 +2,18 @@
 // the view, how big a greeting bubble is, and which bubble is shown: only one at a time. The layout is computed here
 // without a browser, like the edge indicators (indicators.ts); bubble-layer.ts only puts the HTML in place.
 import type { Point } from "./geometry.ts";
-import { objectLabelHeight } from "./object-labels.ts";
 
 /** A guest figure's bubble opens when the player is this close, in tile widths (decided 2026-11-18). */
 export const BUBBLE_OPEN_TILES = 0.8;
 /** An open bubble closes when the player is further away than this, so that it does not flicker at the edge. */
 export const BUBBLE_CLOSE_TILES = 1.1;
 /**
- * The greeting of an object or NPC wants attention: its bubble opens from further away, within 4 tile widths, and
- * closes beyond 4.5 (GAME-37, decided 2026-11-19, epic 6.1; it was 3 for NPCs).
+ * The greeting of an object or NPC opens its bubble when the player is within 2 tile widths, and it closes beyond 2.25
+ * (GAME-37). It was 4 and 4.5 (decided 2026-11-19, epic 6.1), and was halved on 2026-11-20 at the project owner's
+ * request. The closing distance keeps the ratio of the two (4.5 : 4).
  */
-export const GREETING_BUBBLE_OPEN_TILES = 4;
-export const GREETING_BUBBLE_CLOSE_TILES = 4.5;
+export const GREETING_BUBBLE_OPEN_TILES = 2;
+export const GREETING_BUBBLE_CLOSE_TILES = 2.25;
 
 /** The width of a bubble in CSS pixels (the mock's): wider on a phone. */
 export const BUBBLE_WIDTH = 214;
@@ -68,12 +68,6 @@ export function greetingBubbleSize(
   const width = Math.min(bubbleWidth(viewWidth), Math.ceil(wanted) + GREETING_PAD_X);
   const rows = Math.max(1, Math.ceil(wanted / Math.max(1, width - GREETING_PAD_X)));
   return { width, height: rows * GREETING_LINE + GREETING_PAD_Y };
-}
-
-/** The room a label takes above a figure that a bubble has to stay clear of: its height and the gap to the figure. */
-export function labelClearance(labelText: string | undefined, viewWidth: number): number {
-  if (labelText === undefined) return 0;
-  return objectLabelHeight(labelText, Math.min(viewWidth, 260)) + 6;
 }
 
 /** The estimated height of a bubble in CSS pixels, from its lines of text (at least the picture's height). */

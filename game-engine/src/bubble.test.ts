@@ -10,23 +10,23 @@ import {
   GREETING_BUBBLE_OPEN_TILES,
   greetingBubbleSize,
   isNear,
-  labelClearance,
   placeBubble,
 } from "./bubble.ts";
 
 const TILE = 64;
 
 describe("when a greeting bubble opens and closes (GAME-37)", () => {
-  it("[GAME-37] opens within 4 tile widths and closes beyond 4.5, further than a guest's", () => {
-    expect(GREETING_BUBBLE_OPEN_TILES).toBe(4);
-    expect(GREETING_BUBBLE_CLOSE_TILES).toBe(4.5);
+  it("[GAME-37] opens within 2 tile widths and closes beyond 2.25, further than a guest's", () => {
+    // Half of the first range of 4 tiles (4 : 4.5 before), with the same ratio of opening and closing.
+    expect(GREETING_BUBBLE_OPEN_TILES).toBe(2);
+    expect(GREETING_BUBBLE_CLOSE_TILES).toBe(2.25);
     expect(GREETING_BUBBLE_OPEN_TILES).toBeGreaterThan(BUBBLE_OPEN_TILES);
     const near = (distance: number, wasOpen: boolean) =>
       isNear(distance, TILE, wasOpen, GREETING_BUBBLE_OPEN_TILES, GREETING_BUBBLE_CLOSE_TILES);
-    expect(near(4 * TILE, false)).toBe(true);
-    expect(near(4.2 * TILE, false)).toBe(false);
-    expect(near(4.2 * TILE, true)).toBe(true);
-    expect(near(4.6 * TILE, true)).toBe(false);
+    expect(near(2 * TILE, false)).toBe(true);
+    expect(near(2.1 * TILE, false)).toBe(false);
+    expect(near(2.2 * TILE, true)).toBe(true);
+    expect(near(2.3 * TILE, true)).toBe(false);
   });
 });
 
@@ -46,16 +46,6 @@ describe("how big a greeting bubble is (GAME-37)", () => {
     expect(long.width).toBe(bubbleWidth(1000));
     expect(long.height).toBeGreaterThan(greetingBubbleSize("x".repeat(10), 1000).height);
     expect(greetingBubbleSize("x".repeat(200), 390).width).toBe(bubbleWidth(390));
-  });
-
-  it("[GAME-37] stands above the label of its figure, not over it", () => {
-    expect(labelClearance(undefined, 800)).toBe(0);
-    const one = labelClearance("Programm", 800);
-    expect(one).toBeGreaterThan(22);
-    // A label of several lines takes more room.
-    expect(
-      labelClearance("Ein sehr langer Name einer Seite der Hochzeit, die man besuchen kann", 800),
-    ).toBeGreaterThan(one);
   });
 });
 

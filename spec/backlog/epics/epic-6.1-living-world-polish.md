@@ -109,7 +109,10 @@ Re-verified: GAME-17 (reworded), PRES-10 (the cross). Depends on 6.1c.
 ### Story 6.1f – Portal label higher
 
 - The portal's label sits clear above its floating arrow (decision 7).
-Requirements: GAME-41 (re-verified).
+- Built: the arrow's hover and bob are the constants of `portal-arrow.ts` (6 px and 4 px), shared by the float and the label; a portal's label is lifted by their sum (`IndicatorSource.lift`), so its bottom sits 4 px above the arrow's highest point, not above the picture.
+- Reworded in this story (project owner, 2026-11-20, screenshot of "Programm" on two lines): **labels in sight stay on one line.** A label is as wide as its text in the label's font (measured by the browser, `measureObjectLabelText`) plus the padding, and only the view bounds it; the 260 px cap of GAME-41 is gone for labels in sight. Only a text wider than the view wraps, onto up to three lines. The same holds for edge-indicator labels, which are bounded by the room the view leaves beside the icon. A label wraps only at spaces, never inside a word (`overflow-wrap: normal`; the project owner, 2026-11-20: "it's ok to have new lines after whitespace"). The 260 px cap is gone everywhere, and the bubble's label clearance uses the same measure.
+- Reworded in this story (project owner, 2026-11-20): the greeting bubble of an object or NPC opens within **2 tiles** (halved from 4, closes beyond 2.25, was 4.5) at the project owner's request. **While it is open, the figure's label is hidden**: the bubble takes its place, reversing the rule of 6.1d that the label stays above which the bubble stood. The label comes back when the bubble closes.
+Requirements: GAME-41 (re-verified, reworded), GAME-37 (reworded: the range).
 
 ### Story 6.1g – Black canvas and progress bar while the game loads
 

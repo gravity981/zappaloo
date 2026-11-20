@@ -11,7 +11,7 @@ import { atmospherePlan, prefersReducedMotion } from "./atmosphere-plan.ts";
 import { TileAnimations, type AnimatedPicture } from "./tile-animation.ts";
 import { BubbleBoard, type BubbleParticipant } from "./bubble-board.ts";
 import { GREETING_BUBBLE_CLOSE_TILES, GREETING_BUBBLE_OPEN_TILES } from "./bubble.ts";
-import { ObjectLabelLayer } from "./object-label-layer.ts";
+import { ObjectLabelLayer, measureObjectLabelText } from "./object-label-layer.ts";
 import {
   chooseObjectLabels,
   objectLabelBox,
@@ -72,6 +72,7 @@ import type { Cover } from "./silhouette.ts";
 import { isTypingTarget } from "./keys.ts";
 import { startsPaused } from "./pause.ts";
 import { SHADOW_DEPTH_BELOW, figureShadow } from "./figure-shadow.ts";
+import { PORTAL_ARROW_BOB, PORTAL_ARROW_HOVER, PORTAL_ARROW_RISE } from "./portal-arrow.ts";
 import { EdgeIndicatorLayer } from "./edge-indicators.ts";
 import { hideLoadingOverlay, showLoadingOverlay } from "./loading-overlay.ts";
 import {
@@ -117,6 +118,8 @@ interface IndicatorSource {
   centre: Point;
   /** The point a tap on the indicator taps: the same as a tap on the object itself. */
   tap: Point;
+  /** How far the label lifts above the top of the bounds: a portal's arrow bobs above its picture (GAME-41, 6.1f). */
+  lift: number;
 }
 
 /** How long the screen flash of entering a map lasts, in milliseconds (GAME-30). */
@@ -255,6 +258,8 @@ export class WorldScene extends Phaser.Scene {
   /** The labels of the objects in sight (GAME-41). */
   #labelLayer: ObjectLabelLayer | undefined;
   #indicatorSources: IndicatorSource[] = [];
+  /** The ids of the figures whose bubble is open in this frame: their labels are hidden while it is open (GAME-41). */
+  #openBubbles: ReadonlySet<string> = new Set();
   readonly #onKeyDown = (event: KeyboardEvent): void => {
     // The scroll and button keys are the game's only while it runs and no field or button of the page has the focus.
     if (
@@ -561,8 +566,8 @@ export class WorldScene extends Phaser.Scene {
 
   /**
    * The clickable objects whose dialogue has a greeting, as bubble participants (GAME-37, CNT-09): the greeting shows over
-   * the top of the object when the player is within 4 tiles of its shape, and a tap on it does what a tap on the object
-   * does. `labels` are the labels in sight by id, so that the bubble stands above the label.
+   * the top of the object when the player is within 1 tile of its shape, and a tap on it does what a tap on the object
+   * does. `labels` are the names by id, the bubble itself holds the greeting only.
    */
   #objectGreetings(labels: ReadonlyMap<string, string>): BubbleParticipant[] {
     const world = this.#world;
@@ -579,7 +584,6 @@ export class WorldScene extends Phaser.Scene {
           distance: distanceToRect(this.#position, box),
           head: { x: box.x + box.width / 2, y: box.y },
           content: { name: labels.get(id) ?? area.label ?? area.name, greeting, compact: true },
-          labelText: labels.get(id),
           openTiles: GREETING_BUBBLE_OPEN_TILES,
           closeTiles: GREETING_BUBBLE_CLOSE_TILES,
           onTap: () => {
@@ -617,6 +621,7 @@ export class WorldScene extends Phaser.Scene {
         bounds: box,
         centre: { x: box.x + box.width / 2, y: box.y + box.height / 2 },
         tap: interiorPoint(area.polygon),
+        lift: 0,
       });
     }
     for (const portal of map.portals) {
@@ -630,6 +635,8 @@ export class WorldScene extends Phaser.Scene {
         bounds: box,
         centre: { x: box.x + box.width / 2, y: box.y + box.height / 2 },
         tap: interiorPoint(portal.polygon),
+        // The label clears the highest point of the bobbing arrow, not only the picture's top (decision 7).
+        lift: PORTAL_ARROW_RISE,
       });
     }
     this.#indicatorSources = sources;
@@ -675,14 +682,16 @@ export class WorldScene extends Phaser.Scene {
           bounds,
           centre: { x: x + bounds.width / 2, y: y + bounds.height / 2 },
           tap: interiorPoint(body.polygon),
+          lift: 0,
         };
       });
   }
 
   /**
    * The labels of the objects in sight (GAME-41): an object, portal or NPC with an indicator that is not outside the
-   * view carries its label on top, the nearest first and without overlaps. A label stays while a greeting bubble is
-   * open over its figure: the bubble holds the greeting only, so the label names the figure.
+   * view carries its label on top, the nearest first and without overlaps. While a greeting bubble is open over its
+   * figure, the label is hidden: the bubble takes its place (decided 2026-11-20, reversing the 6.1d rule that the
+   * label stays).
    */
   #updateLabels(): void {
     const layer = this.#labelLayer;
@@ -695,19 +704,23 @@ export class WorldScene extends Phaser.Scene {
       y: (point.y - camera.midPoint.y) * CAMERA_ZOOM + view.height / 2,
     });
     const candidates = [...this.#indicatorSources, ...this.#npcIndicatorSources()]
-      // A greeting bubble does not name its figure, so the label stays while the bubble is open (GAME-37, GAME-41).
       .filter((source) => !isOutside(source.bounds, camera.worldView))
+      // The greeting bubble of the figure takes the label's place while it is open (GAME-37, GAME-41).
+      .filter((source) => !this.#openBubbles.has(source.id))
       .map((source) => {
-        const width = objectLabelWidth(source.label, view.width);
+        const width = objectLabelWidth(source.label, view.width, measureObjectLabelText);
         return {
           source,
           width,
           id: source.id,
           box: objectLabelBox(
-            toView({ x: source.bounds.x + source.bounds.width / 2, y: source.bounds.y }),
+            toView({
+              x: source.bounds.x + source.bounds.width / 2,
+              y: source.bounds.y - source.lift,
+            }),
             width,
             view,
-            objectLabelHeight(source.label, width),
+            objectLabelHeight(source.label, width, measureObjectLabelText),
           ),
           distance: Math.hypot(
             source.centre.x - this.#position.x,
@@ -747,7 +760,13 @@ export class WorldScene extends Phaser.Scene {
       .map((source) => {
         const place = indicatorPlace(avatar, toView(source.centre), view);
         const side = labelSide(place.point, view.width);
-        const width = labelWidth(source.label, place.point, view.width, side);
+        const width = labelWidth(
+          source.label,
+          place.point,
+          view.width,
+          side,
+          measureObjectLabelText,
+        );
         return {
           source,
           point: place.point,
@@ -1065,9 +1084,11 @@ export class WorldScene extends Phaser.Scene {
     const shown =
       this.#board?.update([
         ...(this.#crowd?.participants(this.#position) ?? []),
-        ...(this.#npcs?.participants(this.#position, labels) ?? []),
+        ...(this.#npcs?.participants(this.#position) ?? []),
         ...this.#objectGreetings(labels),
       ]) ?? new Set<string>();
+    // A figure whose greeting bubble is open has no label this frame (GAME-41, decided 2026-11-20).
+    this.#openBubbles = shown;
     this.#crowd?.update(delta, this.#position, shown);
     // The NPC the player walks to waits for them (GAME-38).
     const walkingTo = this.#pending;
@@ -1655,10 +1676,8 @@ export class WorldScene extends Phaser.Scene {
    */
   #floatPortals(map: ParsedMap): void {
     // The arrow hovers above the ground, so its shadow shows below it, and rises and sinks by the amplitude.
-    const HOVER = 6;
     /** Above the foreground layers (at most about 1,100,000), below the effects of the objects (1,500,000). */
     const PORTAL_ARROW_DEPTH = 1_200_000;
-    const AMPLITUDE = 4;
     for (const portal of map.portals) {
       const sprite = this.#objectSprites.get(portal.objectId);
       if (sprite === undefined) continue;
@@ -1676,7 +1695,7 @@ export class WorldScene extends Phaser.Scene {
       // The arrow floats above the world: nothing in it, no prop and no foreground layer, covers it. Its shadow
       // keeps the depth of the ground it lies on, so a figure in front still stands over the shadow.
       sprite.setDepth(PORTAL_ARROW_DEPTH);
-      const base = sprite.y - HOVER;
+      const base = sprite.y - PORTAL_ARROW_HOVER;
       // A warm glow around the arrow's own pixels, which breathes with the float.
       sprite.enableFilters();
       const glow = sprite.filters?.internal.addGlow(PORTAL_GLOW_COLOR, 3, 0, 0.8);
@@ -1695,7 +1714,7 @@ export class WorldScene extends Phaser.Scene {
         repeat: -1,
         onUpdate: (tween) => {
           const rise = tween.getValue() ?? 0;
-          sprite.y = base - AMPLITUDE * rise;
+          sprite.y = base - PORTAL_ARROW_BOB * rise;
           shadow.setScale(1 - 0.25 * rise);
           shadow.setAlpha(1 - 0.4 * rise);
           // While the avatar walks into this portal, the pulse of the walk sets the glow (GAME-25).

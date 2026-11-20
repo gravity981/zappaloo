@@ -79,7 +79,7 @@ function label(view: IndicatorView): HTMLSpanElement {
   text.textContent = view.label;
   text.style.cssText =
     `box-sizing:border-box;width:max-content;max-width:${String(view.labelWidth)}px;overflow:hidden;` +
-    "display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:3;overflow-wrap:anywhere;" +
+    "display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:3;overflow-wrap:normal;" +
     "padding:2px 8px;border-radius:6px;background:#fff;color:#000;" +
     "font:600 12px/1.3 system-ui,sans-serif;box-shadow:0 0 0 1px rgba(0,0,0,.3),1px 1px 0 1px rgba(0,0,0,.2)";
   return text;

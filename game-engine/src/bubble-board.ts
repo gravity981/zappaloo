@@ -9,7 +9,6 @@ import {
   chooseBubbles,
   greetingBubbleSize,
   isNear,
-  labelClearance,
   placeBubble,
   type BubbleCandidate,
   type BubbleContent,
@@ -39,11 +38,7 @@ export interface BubbleParticipant {
   content: BubbleContent;
   /** The address of the picture of the circle; without one it shows the initials. A compact bubble has none. */
   photo?: string | undefined;
-  /**
-   * The label that stands on top of the figure (GAME-41), if there is one: the bubble stands above it, not over it.
-   */
-  labelText?: string | undefined;
-  /** The bubble opens within this many tile widths (default 0.8; a greeting 4) and closes beyond `closeTiles` (1.1; 4.5). */
+  /** The bubble opens within this many tile widths (default 0.8; a greeting 2) and closes beyond `closeTiles` (1.1; 2.25). */
   openTiles?: number;
   closeTiles?: number;
   /**
@@ -180,11 +175,8 @@ export class BubbleBoard {
       greeting === undefined
         ? { width, height: bubbleHeight(item.content, width) }
         : greetingBubbleSize(greeting, view.width);
-    // The bubble stands above the label of the figure, if it has one in sight.
-    const anchor = {
-      x: projected.x,
-      y: projected.y - labelClearance(item.labelText, view.width),
-    };
+    // A greeting bubble replaces the label of its figure while it is open (GAME-41), so it stands on the figure itself.
+    const anchor = projected;
     return { ...placeBubble(anchor, size, view), ...size, compact: greeting !== undefined };
   }
 }
