@@ -106,7 +106,7 @@ Mock screens: game first entry, admin Erlebniswelt.
 Requirements: none new.
 Re-verified: GAME-17 (reworded), PRES-10 (the cross). Depends on 6.1c.
 
-### Story 6.1f – Portal label higher
+### Story 6.1f – Portal label higher — Done (2026-11-20)
 
 - The portal's label sits clear above its floating arrow (decision 7).
 - Built: the arrow's hover and bob are the constants of `portal-arrow.ts` (6 px and 4 px), shared by the float and the label; a portal's label is lifted by their sum (`IndicatorSource.lift`), so its bottom sits 4 px above the arrow's highest point, not above the picture.
