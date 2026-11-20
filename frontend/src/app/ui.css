@@ -1283,7 +1283,9 @@ button {
     gap: 0;
     background: var(--a-bar, var(--a-card, #ffffff));
     border-top: 1px solid var(--a-line);
-    padding: 6px 0 calc(6px + env(safe-area-inset-bottom));
+    /* The buttons sit low: of the home indicator's area (34 px on an iPhone) only what is left over 16 px is kept, so the
+       bar still reaches the edge of the screen but the gap under the buttons is small. */
+    padding: 6px 0 max(6px, calc(env(safe-area-inset-bottom, 0px) - 16px));
     z-index: 10;
   }
   .site-nav a {

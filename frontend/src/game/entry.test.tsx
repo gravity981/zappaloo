@@ -180,6 +180,16 @@ describe("entering the game", () => {
     expect(within(bar).getByRole("link", { name: "Webseite" })).toHaveAttribute("href", "/");
   });
 
+  it("[GAME-14] while the game is open the page behind it has the game's colour, and the website's again once it is left", async () => {
+    setup();
+    renderAt("/game");
+    expect(await screen.findByTestId("game-canvas")).toBeVisible();
+    expect(document.documentElement.style.background).toBe("rgb(17, 17, 17)");
+    user.click(screen.getByRole("link", { name: "Webseite" }));
+    expect(await screen.findByText("Willkommen!")).toBeVisible();
+    expect(document.documentElement.style.background).toBe("");
+  });
+
   it("[GAME-14] without a date of the event the bar shows the name alone", async () => {
     setup();
     renderAt("/game");

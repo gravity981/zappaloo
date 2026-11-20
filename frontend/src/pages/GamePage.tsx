@@ -22,6 +22,28 @@ import { useHoldUpdate } from "../app/updateCheck.ts";
 
 const RSVP_PAGE = "rsvp";
 
+/** The colour of the game's frame (`.game-page` in styles.css): the page's own background while the game is open. */
+const GAME_BACKGROUND = "#111111";
+
+/**
+ * While the game is open, the page behind it is the game's colour. An installed iPhone app keeps the strip above the
+ * layout (the status bar's area) outside the game's frame, and there the page's own background shows, which is the
+ * website's colour; it is the game's colour here, and so are the browser's bar (`theme-color`) and the overscroll.
+ */
+function useGameBackground(): void {
+  useEffect(() => {
+    const root = document.documentElement;
+    const meta = document.querySelector<HTMLMetaElement>('meta[name="theme-color"]');
+    const before = { background: root.style.background, color: meta?.content };
+    root.style.background = GAME_BACKGROUND;
+    if (meta) meta.content = GAME_BACKGROUND;
+    return () => {
+      root.style.background = before.background;
+      if (meta && before.color !== undefined) meta.content = before.color;
+    };
+  }, []);
+}
+
 // Phaser is only downloaded when the game is opened, so the website stays light.
 const GameCanvas = lazy(() => import("../game/GameCanvas.tsx"));
 
@@ -46,6 +68,7 @@ function useRsvpOpen(enabled: boolean, reload: unknown): boolean | undefined {
 
 export default function GamePage() {
   const { t } = useTranslation();
+  useGameBackground();
   const session = useSession();
   const rsvpEnabled = useFeature("rsvp") && (session.user?.roles.includes("vip") ?? false);
   const worldEntry = useWorldEntry(true);
