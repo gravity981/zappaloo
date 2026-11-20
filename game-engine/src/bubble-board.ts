@@ -25,6 +25,8 @@ export interface BubbleSetup {
   /** A point of the map in the game view, in CSS pixels, and the size of the view. */
   project: (world: Point) => Point;
   viewSize: () => { width: number; height: number };
+  /** The height of what covers the top of the view, in CSS pixels; bubbles stay below it. */
+  topInset?: () => number;
 }
 
 /** A figure that can have a bubble this frame. */
@@ -177,6 +179,10 @@ export class BubbleBoard {
         : greetingBubbleSize(greeting, view.width);
     // A greeting bubble replaces the label of its figure while it is open (GAME-41), so it stands on the figure itself.
     const anchor = projected;
-    return { ...placeBubble(anchor, size, view), ...size, compact: greeting !== undefined };
+    return {
+      ...placeBubble(anchor, size, view, this.#setup.topInset?.() ?? 0),
+      ...size,
+      compact: greeting !== undefined,
+    };
   }
 }

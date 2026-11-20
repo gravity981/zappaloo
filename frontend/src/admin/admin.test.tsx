@@ -62,7 +62,7 @@ describe("admin area", () => {
       "Einstellungen",
     ]);
     expect(await screen.findByText("Plattform geschlossen")).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Zur Website" })).toHaveAttribute("href", "/");
+    expect(screen.getByRole("link", { name: "Zur Webseite" })).toHaveAttribute("href", "/");
   });
 });
 

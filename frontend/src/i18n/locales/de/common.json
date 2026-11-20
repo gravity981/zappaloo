@@ -12,7 +12,7 @@
     "rsvp": "Anmeldung",
     "waiting": "Warteseite",
     "more": "Mehr",
-    "site": "Website",
+    "site": "Webseite",
     "programme": "Programm"
   },
   "invite": {
@@ -76,7 +76,7 @@
   "admin": {
     "personType": "Typ",
     "title": "Verwaltung",
-    "toWebsite": "Zur Website",
+    "toWebsite": "Zur Webseite",
     "platformOpen": "Plattform offen",
     "platformClosed": "Plattform geschlossen",
     "close": "Schliessen",
@@ -639,7 +639,7 @@
       "title": "Design",
       "activeTag": "Aktiv: {{name}}",
       "standardTag": "Standard-Design",
-      "info": "Format {{version}} · importiert am {{date}} um {{time}}. Das Design gilt für die Website und die Gästeseiten sowie für die Icons der App. Die Verwaltung bleibt neutral.",
+      "info": "Format {{version}} · importiert am {{date}} um {{time}}. Das Design gilt für die Webseite und die Gästeseiten sowie für die Icons der App. Die Verwaltung bleibt neutral.",
       "standardInfo": "Es gilt das Standard-Design der Plattform.",
       "importButton": "Design importieren",
       "importing": "Paket wird geprüft …",
@@ -678,7 +678,7 @@
       "title": "Welt",
       "activeTag": "Aktiv: {{name}}",
       "noneTag": "Keine Welt",
-      "noneInfo": "Es ist noch keine digitale Erlebniswelt importiert. Bis dahin landen Gäste nach dem Einloggen auf der Website, und die Warteseite zeigt die eingebaute Tür.",
+      "noneInfo": "Es ist noch keine digitale Erlebniswelt importiert. Bis dahin landen Gäste nach dem Einloggen auf der Webseite, und die Warteseite zeigt die eingebaute Tür.",
       "info": "Format {{version}} · Kachel {{width}} × {{height}} Pixel · {{figures}} Figuren · importiert am {{date}} um {{time}} · Startkarte: {{start}}",
       "previous": "Vorherige Welt: «{{name}}» vom {{date}} um {{time}}",
       "guestAccess": "Gästezugang zur Erlebniswelt",
@@ -872,7 +872,6 @@
     },
     "overlay": {
       "title": "Erlebniswelt",
-      "paused": "II PAUSIERT",
       "close": "Schliessen",
       "comingSoon": "Das gibt es hier bald."
     },

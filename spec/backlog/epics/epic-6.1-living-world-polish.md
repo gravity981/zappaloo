@@ -119,8 +119,7 @@ Requirements: GAME-41 (re-verified, reworded), GAME-37 (reworded: the range).
 Mock screens: game loading.
 - The loading text is replaced by a black canvas the size of the game: the white loading text until Phaser loads, then a progress bar with a random playful text per step (decision 8, Q13).
 - Built: before the engine starts (the lazy chunk, the world and figure data), `GameLoading` is a black view of the stage with the white loading text. The engine then puts up its own start screen (`start-screen.ts`) over the same black the moment `createGame` runs: a bar that follows Phaser's loader (70 % of the bar), then the drawn map (90 %), then the rest of the setup (100 %), where the screen goes (`#enterMap`). The text changes at 0, 25, 50, 70 and 90 %, picked at random from the pool and never the same twice in a row. The pool is `game.loadingSteps` (15 German texts) and reaches the engine as `texts.loadingSteps`; without a pool (the game preview) the bar stands alone. A portal keeps its grey veil (GAME-30): the start screen is shown once.
-- Not done: the page's own wait for the world status (`GamePage`, before the game bar exists) is still the plain text; it lasts one request.
-- Note: the mock set has no "game loading" screen yet, so the screen was built from decision 8; the mock still has to be added.
+- Changed after the first try (project owner, 2026-11-20): the page's own wait for the world status (`GamePage`) is a black page with no text (`game-boot`), so nothing flashes white; a game that cannot load shows "Die digitale Erlebniswelt konnte nicht geladen werden." in white on the black view, with no button of its own (the game bar's "Webseite" leads back); the mock `game-loading` shows the three states. The German UI says "Webseite" everywhere, not "Website".
 Requirements: GAME-43 (now implemented; left the "not yet implemented" list).
 
 ### Story 6.1h – The installed app updates itself — Done (2026-11-20), iPhone check open

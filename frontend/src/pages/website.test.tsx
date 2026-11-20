@@ -215,7 +215,7 @@ describe("the website frame (WEB-04, WEB-01)", () => {
       "GET /api/content": () => ({ status: 200, body: site }),
     });
     renderAt("/");
-    const nav = await screen.findByRole("navigation", { name: "Website" });
+    const nav = await screen.findByRole("navigation", { name: "Webseite" });
     expect(within(nav).getByRole("link", { name: "Start" })).toHaveAttribute("href", "/");
     expect(within(nav).getByRole("link", { name: "Mehr" })).toHaveAttribute("href", "/mehr");
   });
@@ -417,7 +417,7 @@ describe("the schedule (WEB-07, WEB-09, WEB-10)", () => {
     });
     renderAt("/");
     expect(await screen.findByText(/Sa\., 12\. Juni 2027/)).toBeInTheDocument();
-    const nav = screen.getByRole("navigation", { name: "Website" });
+    const nav = screen.getByRole("navigation", { name: "Webseite" });
     expect(
       within(nav)
         .getAllByRole("link")

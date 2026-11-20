@@ -24,6 +24,7 @@ import { objectTitle } from "./titles.ts";
 import { accentColorAt } from "./silhouette-color.ts";
 import { loadWorld } from "./world-data.ts";
 import GameLoading from "./GameLoading.tsx";
+import GameLoadFailed from "./GameLoadFailed.tsx";
 
 /** The figure that applies to the signed-in player; undefined when it cannot be read. */
 async function ownFigure(): Promise<string | undefined> {
@@ -125,6 +126,15 @@ export default function GameCanvas({
       parent: parent.current,
       world: status.world,
       guests: status.guests,
+      // The game bar floats over the top of the world: indicators, labels and bubbles stay below its pills.
+      topInset: () => {
+        const element = parent.current;
+        const bar = element?.closest(".game-window")?.querySelector(".game-bar > *");
+        if (!element || !bar) return 0;
+        const pills = [...(bar.parentElement?.children ?? [])];
+        const bottom = Math.max(...pills.map((pill) => pill.getBoundingClientRect().bottom));
+        return Math.max(0, Math.ceil(bottom - element.getBoundingClientRect().top) + 8);
+      },
       host: {
         selection: { ...selection, ...(figureId === undefined ? {} : { figureId }) },
         rememberMap: (mapId) => {
@@ -190,6 +200,6 @@ export default function GameCanvas({
 
   if (status.kind === "loading") return <GameLoading />;
   if (status.kind === "none") return <p>{t("game.noWorld")}</p>;
-  if (status.kind === "failed") return <p role="alert">{t("game.loadFailed")}</p>;
+  if (status.kind === "failed") return <GameLoadFailed />;
   return <div ref={parent} className="game-canvas" data-testid="game-canvas" />;
 }

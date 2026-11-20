@@ -94,7 +94,7 @@ describe("a page above the game (GAME-11)", () => {
     const dialog = await screen.findByRole("dialog", { name: "Programm" });
     expect(dialog).toBeVisible();
     expect(await screen.findByText("Trauung")).toBeVisible();
-    expect(screen.getByText("II PAUSIERT")).toBeVisible();
+    expect(screen.queryByText("II PAUSIERT")).toBeNull();
     user.click(screen.getByRole("button", { name: "Schliessen" }));
     expect(onClose).toHaveBeenCalledTimes(1);
   });

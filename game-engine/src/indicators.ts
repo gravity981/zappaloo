@@ -69,8 +69,8 @@ export interface IndicatorInsets {
 }
 
 /**
- * The insets for a view whose top part is covered by a bar of `barHeight` pixels. Where the bar is a sibling above
- * the canvas, as in the app, the view starts below it and \`barHeight\` is 0.
+ * The insets for a view whose top part is covered by a bar of `barHeight` pixels. The app's game bar floats over the
+ * view and passes its height (the `topInset` option); the game preview has no bar and it is 0.
  */
 export function indicatorInsets(barHeight = 0): IndicatorInsets {
   const centre = INDICATOR_INSET + INDICATOR_TOUCH_SIZE / 2;

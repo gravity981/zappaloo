@@ -99,6 +99,11 @@ export interface GameEngineOptions {
   view?: GameView;
   /** The words the game shows. */
   texts?: GameTexts;
+  /**
+   * The height in CSS pixels of what the app lays over the top of the view (the game bar's pills), read each frame.
+   * Edge indicators, labels and speech bubbles stay below it. Without it nothing covers the view (the game preview).
+   */
+  topInset?: () => number;
   /** The figures of the attending guests that wander the maps (PRES-01); each walks on the map its id picks (PRES-02). */
   guests?: readonly GuestFigure[];
   /**

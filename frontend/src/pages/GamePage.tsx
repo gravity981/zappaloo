@@ -87,7 +87,8 @@ export default function GamePage() {
 
   // Without a world, or with guest access off, a guest has no game: the website is the way (MAP-19).
   if (world === false) return <Navigate to="/" replace />;
-  if (world === undefined || firstEntry === undefined) return <p>{t("game.loading")}</p>;
+  if (world === undefined || firstEntry === undefined)
+    return <div className="game-boot" aria-busy="true" data-testid="game-boot" />;
   // Right after the first-entry steps, the RSVP opens in an overlay if it is not answered yet (GAME-13).
   const finishFirstEntry = () => {
     finishEntry();

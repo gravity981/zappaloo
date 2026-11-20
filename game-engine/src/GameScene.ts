@@ -84,6 +84,7 @@ import {
 } from "./start-screen.ts";
 import {
   indicatorBox,
+  indicatorInsets,
   indicatorPlace,
   isOutside,
   labelSide,
@@ -260,6 +261,8 @@ export class WorldScene extends Phaser.Scene {
   #atmosphere: Atmosphere | undefined;
   #tileAnimations: TileAnimations | undefined;
   #guests: readonly GuestFigure[] = [];
+  /** The height of what the app covers the top of the view with (the game bar), read each frame. */
+  #topInset: () => number = () => 0;
   /** The edge indicators over the canvas and the objects they may point to (GAME-26). */
   #indicatorLayer: EdgeIndicatorLayer | undefined;
   /** The labels of the objects in sight (GAME-41). */
@@ -329,6 +332,7 @@ export class WorldScene extends Phaser.Scene {
     this.#atmosphere = undefined;
     this.#tileAnimations = undefined;
     this.#guests = options.guests ?? [];
+    this.#topInset = options.topInset ?? (() => 0);
     this.#indicatorLayer?.destroy();
     this.#indicatorLayer = undefined;
     this.#labelLayer?.destroy();
@@ -412,6 +416,7 @@ export class WorldScene extends Phaser.Scene {
                     width: camera.width / this.#pixelRatio(),
                     height: camera.height / this.#pixelRatio(),
                   }),
+                  topInset: () => this.#topInset(),
                 },
                 map.size.width,
               );
@@ -735,6 +740,7 @@ export class WorldScene extends Phaser.Scene {
             width,
             view,
             objectLabelHeight(source.label, width, measureObjectLabelText),
+            this.#topInset(),
           ),
           distance: Math.hypot(
             source.centre.x - this.#position.x,
@@ -772,7 +778,12 @@ export class WorldScene extends Phaser.Scene {
     const candidates = [...this.#indicatorSources, ...this.#npcIndicatorSources()]
       .filter((source) => isOutside(source.bounds, camera.worldView))
       .map((source) => {
-        const place = indicatorPlace(avatar, toView(source.centre), view);
+        const place = indicatorPlace(
+          avatar,
+          toView(source.centre),
+          view,
+          indicatorInsets(this.#topInset()),
+        );
         const side = labelSide(place.point, view.width);
         const width = labelWidth(
           source.label,

@@ -3,6 +3,7 @@ import { render, screen } from "@testing-library/react";
 import { beforeAll, describe, expect, it } from "vitest";
 import { initI18n } from "../i18n/i18n.ts";
 import de from "../i18n/locales/de/common.json";
+import GameLoadFailed from "./GameLoadFailed.tsx";
 import GameLoading from "./GameLoading.tsx";
 
 beforeAll(async () => {
@@ -15,6 +16,15 @@ describe("the game before the engine starts (GAME-43)", () => {
     const view = screen.getByTestId("game-loading");
     expect(view.className).toBe("game-loading");
     expect(view.textContent).toBe(de.game.loading);
+  });
+
+  it("[GAME-43] a game that cannot load says so on the black view, without a button of its own", () => {
+    render(<GameLoadFailed />);
+    const view = screen.getByRole("alert");
+    expect(view.className).toBe("game-loading");
+    expect(view.textContent).toBe(de.game.loadFailed);
+    expect(screen.queryByRole("link")).toBeNull();
+    expect(screen.queryByRole("button")).toBeNull();
   });
 
   it("[GAME-43] the pool of playful texts is built into the app: about fifteen, none empty", () => {

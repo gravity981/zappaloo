@@ -56,12 +56,13 @@ export function objectLabelBox(
   width: number,
   view: { width: number; height: number },
   height = OBJECT_LABEL_HEIGHT,
+  barHeight = 0,
 ): Rect {
   const left = OBJECT_LABEL_MARGIN;
   const right = Math.max(left, view.width - OBJECT_LABEL_MARGIN - width);
   return {
     x: Math.min(right, Math.max(left, top.x - width / 2)),
-    y: Math.max(OBJECT_LABEL_MARGIN, top.y - OBJECT_LABEL_GAP - height),
+    y: Math.max(barHeight + OBJECT_LABEL_MARGIN, top.y - OBJECT_LABEL_GAP - height),
     width,
     height,
   };

@@ -38,7 +38,7 @@ The decisions behind the mocks, by question number in the prototype's "Questions
 | 13 | Own contributions | "Meine Beiträge" in the profile (ACC-12). |
 | 14, 47 | Own figure | Always shown, no switch (PRES-04). |
 | 15 | Avatar step | Cannot be skipped; "Zufällig" makes it one tap. |
-| 16, 41 | Game bar | Bar at the top: the event's name and "Website", which leaves the game (changed 2026-11-17: Programm, Anmeldung and Hochladen are objects of the world, not buttons). No buttons at the bottom, no event-day "now / next" in the game (GAME-14, WEB-07). |
+| 16, 41 | Game bar | Bar at the top: the event's name and "Webseite", which leaves the game (changed 2026-11-17: Programm, Anmeldung and Hochladen are objects of the world, not buttons). No buttons at the bottom, no event-day "now / next" in the game (GAME-14, WEB-07). |
 | 17, 40, 42 | World objects | Clickable objects come from the event's Tiled maps; each map has its own. They sparkle along their edges at random, and a shine passes over them now and then; tapping one walks the avatar there and runs its action. Portals between scenes are floating arrows. The admin assigns each object's action per map in "Erlebniswelt" (GAME-05, GAME-06, GAME-15, GAME-16, MAP-15). |
 | 40 | Own avatar | Tapping it does nothing special; the profile is reached through the website (GAME-18 withdrawn 2026-11-19, epic 6.1). |
 | 43 | Discoverability | The sparkle, plus a welcome dialogue at the first entry that the admin picks in Erlebniswelt › Welt & Import (GAME-17; before epic 6.1 a hint "Tippe auf Dinge, die funkeln"). |
@@ -155,7 +155,7 @@ Written into sw-architecture.md 14.2 and 14.4 as well.
 | NPCs in Erlebniswelt | NPCs are rows of the objects table in the tab Objekte & Portale, marked "NPC", with the same columns as an object: the action select (live at once), the preset and the checkbox for the indicator and label (MAP-21; changed 2026-11-19, epic 6.1: the card with the name and the short dialog is gone, name and greeting come from the dialogue). The NPC's bubble and edge indicator are described in the notes of the screen `game`. |
 | Indicator and label on or off | A checkbox per object in a column "Hinweis im Spiel" of the objects table (decided 2026-11-18, GAME-41; NPCs are rows of the same table since 2026-11-19): on by default; off for less important information or surprises. Whether an object or NPC has an indicator and label depends only on this setting (showIndicator), on by default. |
 | Who uses Erlebniswelt | Only admins manage the world: import, rollback, guest access, object actions and dialogues. Disabling guest access hides guest entry points and blocks direct guest navigation while leaving the active package and admin management available. |
-| Game bar in stage 5 | Programm, Anmeldung, Website; since 2026-11-17 only the event's name and Website (GAME-14). |
+| Game bar in stage 5 | Programm, Anmeldung, Webseite; since 2026-11-17 only the event's name and Webseite (GAME-14). |
 | First entry in stage 5 | The avatar step, then the RSVP overlay while the RSVP is open. "Sag hallo" comes with stage 6 (GAME-13). |
 | Without a world or with guest access disabled | Guests land on the website, and no guest navigation to the Erlebniswelt is shown. |
 

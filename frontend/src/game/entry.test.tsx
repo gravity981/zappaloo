@@ -142,11 +142,11 @@ function setup(options: { chosen?: boolean; answered?: boolean; world?: boolean 
 }
 
 describe("entering the game", () => {
-  it("[GAME-12] with an active world, the start leads into the game; the Website button shows the start page, which offers to enter the world", async () => {
+  it("[GAME-12] with an active world, the start leads into the game; the Webseite button shows the start page, which offers to enter the world", async () => {
     setup();
     renderAt("/");
     expect(await screen.findByTestId("game-canvas")).toBeVisible();
-    user.click(screen.getByRole("link", { name: "Website" }));
+    user.click(screen.getByRole("link", { name: "Webseite" }));
     expect(await screen.findByText("Willkommen!")).toBeVisible();
     expect(screen.getByRole("link", { name: "Erlebniswelt betreten" })).toHaveAttribute(
       "href",
@@ -262,13 +262,13 @@ describe("entering the game", () => {
     expect(screen.queryByRole("dialog")).toBeNull();
   });
 
-  it("[GAME-14] the bar has only the title and the Website button, whether the RSVP is open or answered", async () => {
+  it("[GAME-14] the bar has only the title and the Webseite button, whether the RSVP is open or answered", async () => {
     for (const answered of [false, true]) {
       setup({ chosen: true, answered });
       renderAt("/game");
       const bar = await screen.findByRole("banner");
       expect(bar).toBeVisible();
-      expect(within(bar).getByRole("link", { name: "Website" })).toBeVisible();
+      expect(within(bar).getByRole("link", { name: "Webseite" })).toBeVisible();
       // No Programm or Anmeldung button, no badge, no navigation: they are reached through the objects.
       expect(within(bar).queryAllByRole("button")).toHaveLength(0);
       expect(within(bar).queryByRole("navigation")).toBeNull();
