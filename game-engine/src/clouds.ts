@@ -1,6 +1,7 @@
 // The cloud shadows (GAME-31): soft, faint, translucent dark shapes that drift over the map from left to right at random
 // heights. Each starts outside the map's boundary and disappears after it has crossed the other side. This is the
 // movement; the picture of a shadow is drawn in atmosphere.ts.
+import { gameRandom } from "./random.ts";
 import type { Rectangle } from "./geometry.ts";
 
 /** How dark a shadow is: faint, so that it reads as a shadow and not as a stain on the screen (decided 2026-11-18). */
@@ -40,7 +41,7 @@ export class CloudField {
   readonly #shapes: number;
   readonly clouds: Cloud[] = [];
 
-  constructor(bounds: Rectangle, shapes: number, random: () => number = Math.random) {
+  constructor(bounds: Rectangle, shapes: number, random: () => number = gameRandom) {
     this.#bounds = bounds;
     this.#random = random;
     this.#shapes = Math.max(1, shapes);

@@ -32,7 +32,9 @@ const pwaPlugin: FastifyPluginAsyncZod<PwaOptions> = (app, { event, icons }) => 
     (request, reply) =>
       reply
         .type("image/png")
-        .header("cache-control", "public, max-age=3600")
+        // Revalidated every time: the apple-touch-icon link in index.html cannot carry a version,
+        // so a changed icon must be served at once (PWA-06).
+        .header("cache-control", "no-cache")
         .send(icons.icon(request.params.file).bytes),
   );
 

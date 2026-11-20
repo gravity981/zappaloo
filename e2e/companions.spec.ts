@@ -4,7 +4,7 @@ import de from "../frontend/src/i18n/locales/de/common.json" with { type: "json"
 // The settings of the installation are shared by all tests, which run side by side: this test
 // uses the defaults of 7.4.2 (one answer per person, accompanying persons without approval). The
 // other settings are tested with the API and the pages (RSVP-11, RSVP-12).
-test("[RSVP-08][RSVP-10][RSVP-12][RSVP-13][RSVP-15][SEC-11] a guest adds an accompanying person, who counts at once; the admin removes them", async ({
+test("[RSVP-08][RSVP-10][RSVP-12][RSVP-13][RSVP-15][SEC-11] a guest adds an accompanying person, who counts at once; the admin removes them @flaky", async ({
   page,
   context,
   browser,

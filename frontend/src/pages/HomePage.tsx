@@ -114,7 +114,7 @@ export default function HomePage() {
   if (world === true && !hasVisitedWebsite()) return <Navigate to="/game" replace />;
   if (!content || world === undefined) return null;
   const enter = world && (
-    <Link className="btn" to="/game">
+    <Link className="btn" to="/game" reloadDocument>
       <SiteIcon path={SITE_ICON_PATHS.play} />
       {t("website.enterWorld")}
     </Link>

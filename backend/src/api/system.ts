@@ -17,7 +17,11 @@ export const systemRoutes: FastifyPluginCallbackZod<SystemRoutesOptions> = (app,
   app.get(
     "/api/version",
     { config: PUBLIC, schema: { querystring: noQuery, response: { 200: versionResponseSchema } } },
-    () => options.version,
+    // Never cached: the clients compare their version with it to notice a new release (PWA-06).
+    (_request, reply) => {
+      void reply.header("cache-control", "no-store");
+      return options.version;
+    },
   );
 
   app.get(

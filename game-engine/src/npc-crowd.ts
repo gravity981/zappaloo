@@ -2,10 +2,11 @@
 // walking its path with the walk animation, or standing and waving now and then. NPCs are simulated on this device
 // only and do not block the player. An NPC with an action is tappable: the crowd keeps a clickable area for it that
 // follows the figure, which the scene's tap, Enter and arrival logic read like those of an object (14.2, 14.4).
+import { gameRandom } from "./random.ts";
 import Phaser from "phaser";
-import type { PublicNpc } from "@zappaloo/shared";
+import type { PublicNpc, WorldObjectAction } from "@zappaloo/shared";
 import type { BubbleBoard, BubbleParticipant } from "./bubble-board.ts";
-import { NPC_BUBBLE_CLOSE_TILES, NPC_BUBBLE_OPEN_TILES } from "./bubble.ts";
+import { GREETING_BUBBLE_CLOSE_TILES, GREETING_BUBBLE_OPEN_TILES } from "./bubble.ts";
 import { figureDepth } from "./draw-order.ts";
 import { SHADOW_DEPTH_BELOW, figureShadow } from "./figure-shadow.ts";
 import { walkFrameIndex } from "./figures.ts";
@@ -81,9 +82,9 @@ export class NpcCrowd {
       if (figure === undefined) continue;
       const walker = new NpcWalker(spec.position, {
         path: spec.path,
-        initialWait: Math.random() * waitDuration(Math.random),
+        initialWait: gameRandom() * waitDuration(gameRandom),
         waveDuration: waveLength(figure),
-        random: Math.random,
+        random: gameRandom,
       });
       const sprite = scene.add.sprite(0, 0, figure.standing.south).setOrigin(0.5, 1);
       const shadow = scene.add.ellipse(0, 0, 1, 1, 0x000000, 1);
@@ -101,10 +102,16 @@ export class NpcCrowd {
   }
 
   /** Every NPC's body as a polygon where it stands now, with its name and label: what its edge indicator points at. */
-  get bodies(): { name: string; label?: string; polygon: Point[] }[] {
+  get bodies(): {
+    name: string;
+    label?: string;
+    preset?: WorldObjectAction;
+    polygon: Point[];
+  }[] {
     return this.#members.map(({ spec, figure, walker }) => ({
       name: spec.name,
       ...(spec.label === undefined ? {} : { label: spec.label }),
+      ...(spec.preset === undefined ? {} : { preset: spec.preset }),
       polygon: this.#bodyOf(figure, walker.position),
     }));
   }
@@ -112,6 +119,11 @@ export class NpcCrowd {
   /** The drawn figure of a tappable NPC by the Tiled id of its object, for its glow. */
   spriteOf(objectId: number): Phaser.GameObjects.Sprite | undefined {
     return this.#members.find((member) => member.spec.objectId === objectId)?.sprite;
+  }
+
+  /** The drawn figures, for their silhouettes behind objects (GAME-42). */
+  get sprites(): Phaser.GameObjects.Sprite[] {
+    return this.#members.map((member) => member.sprite);
   }
 
   /** The NPCs on this map, for the test hook. */
@@ -128,21 +140,25 @@ export class NpcCrowd {
     }));
   }
 
-  /** The NPCs with a short dialog as bubble participants; one without a short dialog has no bubble (GAME-37). */
+  /**
+   * The NPCs whose dialogue has a greeting as bubble participants; one without a greeting has no bubble (GAME-37). The
+   * bubble holds the greeting only, no portrait and no name, and it replaces the NPC's label while it is open.
+   */
   participants(player: Point): BubbleParticipant[] {
     const onTap = this.#onTap;
     return this.#members.flatMap((member) => {
-      const { spec, walker, sprite, figure, texts, area } = member;
+      const { spec, walker, figure, texts, area } = member;
       if (this.#board === undefined || texts?.dialog === undefined) return [];
+      const id = `npc:${spec.name}`;
       return [
         {
-          id: `npc:${spec.name}`,
+          id,
           distance: Math.hypot(walker.position.x - player.x, walker.position.y - player.y),
-          head: { x: sprite.x, y: sprite.y - figure.size.height },
-          content: { name: npcTitle(spec, texts), greeting: texts.dialog },
-          photo: texts.portrait,
-          openTiles: NPC_BUBBLE_OPEN_TILES,
-          closeTiles: NPC_BUBBLE_CLOSE_TILES,
+          // The top of its body, where its label stands too: the sprite is drawn a little lower than its feet.
+          head: { x: walker.position.x, y: walker.position.y - figure.size.height },
+          content: { name: npcTitle(spec, texts), greeting: texts.dialog, compact: true },
+          openTiles: GREETING_BUBBLE_OPEN_TILES,
+          closeTiles: GREETING_BUBBLE_CLOSE_TILES,
           // A tap on the bubble does what a tap on the NPC does; an NPC without an action pins it like a guest.
           ...(area === undefined || onTap === undefined
             ? {}

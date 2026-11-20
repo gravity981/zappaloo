@@ -13,10 +13,10 @@ This document defines how the requirements in [sw-architecture.md](sw-architectu
 
 | Level | Tool | Scope | Runs in |
 |---|---|---|---|
-| Unit | Vitest | Pure logic in `backend`, `shared`, `game-engine`, `game-preview`, `theme-editor`, `frontend` (e.g. access-condition evaluation, role combination rules, result plausibility checks, config schema validation) | CI, every push |
-| Component | Vitest + React Testing Library (jsdom) | React UI components and pages in isolation | CI, every push |
-| Integration | Vitest | Backend modules against a real SQLite database (temporary file per test run), and the HTTP API through the real server | CI, every push |
-| End-to-end | Playwright | Full stack in the browser: website flows, game world, standalone game preview, contributions. Desktop and mobile viewports (Chromium, WebKit) | CI, every push |
+| Unit | Vitest | Pure logic in `backend`, `shared`, `game-engine`, `game-preview`, `theme-editor`, `frontend` (e.g. access-condition evaluation, role combination rules, result plausibility checks, config schema validation) | Layer 1 (related) and 2 (related, before a commit); all of them in layer 3 (every pull request and push) |
+| Component | Vitest + React Testing Library (jsdom) | React UI components and pages in isolation | As unit tests |
+| Integration | Vitest | Backend modules against a real SQLite database (temporary file per test run), and the HTTP API through the real server | As unit tests |
+| End-to-end | Playwright | Full stack in the browser: website flows, game world, standalone game preview, contributions. Desktop and mobile viewports (Chromium, WebKit) | Layer 3: the relevant specs and the `@smoke` tests, in Chromium; layer 4 (nightly, release candidate): all, in every browser |
 | Deployment smoke | Playwright / shell scripts | Docker Compose stack started in CI: reverse proxy, live update connections, persistence across container restart | CI, every push (local TLS); production checks per release |
 | Load | open (see section 6) | Concurrent players and uploads against the production host | Before each production event |
 | Manual | Written test protocol | Real-device checks (iOS/Android camera), backup restore drill, production firewall/TLS | Before each production event |
@@ -94,12 +94,9 @@ All active requirements are listed here until their stage is delivered. Shrink t
 | PHO | PHO-01 – PHO-03, PHO-05 – PHO-19 | 18 |
 | MOD | MOD-01 – MOD-05 | 5 |
 | OPS | OPS-13 | 1 |
-| SEC | SEC-04, SEC-06 – SEC-08 | 4 |
+| SEC | SEC-06 – SEC-08 | 3 |
 | PERF | PERF-01, PERF-03, PERF-04 | 3 |
-| GAME | GAME-42 – GAME-44 | 3 |
-| CNT | CNT-09 | 1 |
-| PWA | PWA-06, PWA-07 | 2 |
-| **Total** | | **65** |
+| **Total** | | **58** |
 
 The stage each requirement belongs to is listed in `sw-architecture.md`, section 28.
 
@@ -165,53 +162,61 @@ Organisational items that are not software requirements:
 - Event screen tested on the venue projector, with the screen link created and revoked after the event.
 - Before shutdown: shutdown date set, notice sent, export taken and handed to the hosts.
 
-## 8. Testing efficiency policy (decided 2026-11-17)
+## 8. Testing layers and efficiency policy (decided 2026-11-17, revised 2026-11-20 as four layers, epic 6.1m)
 
-The objective is to minimize test execution time while maintaining software quality and sufficient confidence. The policy applies to everyone who runs tests in this repository: the developer, Claude and any subagent. CI is the exception: it always runs everything (`npm run check`, section 2).
+The objective is to minimize test execution time while maintaining software quality and sufficient confidence. Tests run in four layers, from the quickest and narrowest to the slowest and widest; each layer catches what the one before it lets pass, so that no one has to run everything all the time. The policy applies to everyone who changes the code: the developer, Claude and any subagent.
 
-### 8.1 General rules
+| Layer | When | What runs | Where |
+|---|---|---|---|
+| 1 | While developing | Only the tests related to the changed files; focused component tests | `npm run test:related`, `npx vitest run <path>`, `npx playwright test <spec> -g "<ID>"` |
+| 2 | Before each commit | The related unit tests; `tsc`, ESLint and Prettier on the changed code only | `npm run precommit`, run by the git hook |
+| 3 | Pull request and push to `main` | All unit, component and integration tests; the relevant e2e tests; the smoke e2e tests | `ci.yml` |
+| 4 | Nightly, and for a release candidate | All unit tests; all e2e tests in every browser; the deployment test; the requirement report | `nightly.yml`, `ci.yml` as a full run |
 
-1. Never run the entire test suite after every code change.
-2. Always prefer targeted tests covering the modified functionality.
-3. Never rerun tests that have already passed unless relevant source code, test code, dependencies or configuration have changed.
-4. Batch related code changes before running tests.
-5. Avoid running identical tests concurrently across multiple agents.
-6. Do not run tests simply to reconfirm previously established results.
+The rules of the later layers do not replace those of the earlier ones: the code that reaches a pull request has passed layers 1 and 2 on the machine that made it.
 
-### 8.2 Before running tests
+### 8.1 Layer 1: during development
 
-1. Inspect the current changes with `git diff`.
-2. Identify the modified files and the affected components.
-3. Identify the tests relevant to those changes.
-4. Determine the smallest meaningful test subset.
-5. Prefer existing test commands that support filtering or test selection.
+1. Never run the entire test suite after every code change; run only the tests related to the files that changed.
+2. **Vitest:** `npm run test:related -- <files>` runs the tests that import the changed files (Vitest's `related`, which follows the imports); `npx vitest run <path>` runs one file or folder; `npx vitest` (`npm run test:watch`) re-runs what a save affects.
+3. **Components:** test a component in isolation with React Testing Library next to the component (`*.test.tsx`), rather than through a browser, as long as the behaviour is in the component.
+4. **End-to-end:** a Playwright test runs only when the change is visible in a browser flow, and then only its spec: `npx playwright test e2e/<file> --project=<project> -g "<title or ID>"` (the game tests are the project `game`, `npm run test:e2e:game`).
+5. Inspect `git diff`, name the modified files and the components they affect, and pick the smallest meaningful subset before running anything. Batch related changes before running tests.
+6. Never rerun tests that already passed unless the source, the test, a dependency or the configuration changed; do not run tests only to reconfirm a known result. Do not run identical tests concurrently in several agents.
 
-### 8.3 Execution strategy
+### 8.2 Layer 2: before committing
 
-In this priority:
+`npm run precommit` checks the changed files only (the staged ones; without any, or with `--worktree`, every changed or new file of the working tree):
 
-1. Targeted unit tests for the modified functionality.
-2. Relevant integration tests, if component interactions are affected.
-3. Static analysis, linting and type checking, as appropriate.
-4. Broader regression tests only when justified by the scope or the risk of the change.
+- **Prettier** on the changed files (it skips what `.prettierignore` lists and the types it does not know);
+- **ESLint** on the changed TypeScript and JavaScript files, with no warnings;
+- **`tsc`** in the workspaces that contain a changed TypeScript or `tsconfig` file, for the root project when a script, an end-to-end test or a root configuration changed, and in every workspace when `shared` changed (the others use its types). `tsc` checks a whole project, so it cannot be limited to single files; the limit is the workspace;
+- the **unit tests related** to the changed files (`npm run test:related`).
 
-### 8.4 When a test fails
+The git hook `.githooks/pre-commit` runs it on every commit, so it applies to every commit, whoever makes it; `npm install` points git at the hook (`core.hooksPath`). Git may run on the host (a terminal in WSL, VS Code's source control outside the container), where there is no Node.js, and the setting is shared with the container through `.git/config`; so without `node` the hook runs the same checks in the running dev container of the repository (`docker exec`, found by its `devcontainer.local_folder` label), and without a container it refuses the commit with a message that says what to start. All steps run, and a commit with a failing step is refused. A run that passed is remembered (in `.git/precommit-passed`) by the commit it ran on and the content of every changed file, and the hook does not run the checks again for the same files committed unchanged: a check made beforehand with `npm run precommit -- --worktree` counts, and so does a hook run that passed on an earlier try. Other files, other content or another commit run everything; `--force` runs the checks anyway; `git commit --no-verify` skips it in an emergency, and layer 3 still checks the same things.
 
-1. Analyze the failure before executing anything again.
-2. Identify whether the current changes caused it.
-3. Fix the underlying issue.
-4. Rerun only the failed test and the tests affected by the fix.
-5. Do not rerun previously passing unrelated tests.
+### 8.3 Layer 3: pull request and push to `main`
 
-### 8.5 The full test suite
+`ci.yml` runs on every pull request and every push to `main` (sw-architecture.md 23.2):
 
-Run the complete suite only when:
+- lint, format check, type check, migration check and build;
+- **all** Vitest tests (unit, component, integration);
+- the **relevant e2e tests**: `node scripts/ci/select-e2e.ts <base>` compares the changed files with the map `e2e/relevant.json` (an area of the repository → the specs that cover it). A changed file in an area adds its specs; a changed spec runs itself; shared code, configuration, dependencies and code that no area knows run every spec; documents, unit tests and the other workflows run none. A test checks that every spec is in an area and that every path of the map exists;
+- the **smoke e2e tests** (the **core/critical** tests, the "no regression" set): the tests tagged `@smoke` (Playwright's `{ tag: "@smoke" }`) in the specs that were not selected. They are a short set of the core journeys: sign-in, an admin area, the RSVP, the game loads and walks, the health check. A new core journey gets the tag;
+- the e2e tests run in **Chromium** only (the projects `desktop-chromium` and `game`); the other browsers run in layer 4;
+- the image build, its smoke test and the deployment test, as before.
 
-- the user explicitly requests it;
-- the changes affect shared infrastructure or cross-cutting functionality;
-- the changes involve dependencies or configurations with broad impact;
-- targeted testing cannot provide sufficient confidence;
-- it is required for a release or for CI validation (including the requirement report, which reads the results of a complete Vitest and Playwright run).
+A pull request does **not** run the requirement report: it would show every test it did not run as untested. The report runs in layer 4.
+
+### 8.4 Layer 4: nightly
+
+`nightly.yml` runs at 02:00 UTC (and by hand) on `main`, **only if `main` has changed** since the commit of its last finished nightly run (a run that found nothing new counts as one; started by hand with `force` it runs anyway). It calls `ci.yml` as a **full run**: all unit tests, all e2e tests in every project (Chromium, WebKit, Android and iOS viewports), the deployment test, and the requirement report, which CI fails on when an implemented requirement has no passing test. A release candidate runs the same full suite before it is built (23.3), so a candidate is never built from a commit that only passed layer 3. GitHub e-mails a failed scheduled run.
+
+### 8.5 When a test fails, and the full suite
+
+1. Analyze the failure before executing anything again; identify whether the current changes caused it; fix the underlying issue.
+2. Rerun only the failed test and the tests affected by the fix, not the previously passing unrelated ones.
+3. Run the complete suite locally (`npm test`, `npm run test:e2e`, `npm run check`) only when the user asks, when shared infrastructure or cross-cutting functionality changed, when dependencies or configuration with broad impact changed, when targeted tests cannot give enough confidence, or for a release or for the requirement report (`npm run req-report` reads the results of a complete Vitest and Playwright run). Layers 3 and 4 run everything that needs running, so a local full run is the exception.
 
 ### 8.6 Multi-agent coordination
 
@@ -226,14 +231,22 @@ At the end of a task, report the tests executed, the tests passed and failed, th
 
 ### 8.8 Flaky end-to-end tests (decided 2026-11-18)
 
-A test that fails now and then without a change in the code is **flaky**. It is tracked here and, in a local run, kept apart from the full run, so that a run is not red because of the load of the machine. CI still runs every e2e test.
+A test that fails now and then without a change in the code is **flaky**. It is tracked here and, in a local run, kept apart from the full run, so that a run is not red because of the load of the machine. CI runs them like every other test: a pull request runs a flaky test when it is selected (8.3), and the nightly full run runs all of them (8.4).
 
 - **Marking.** A flaky test names itself with `@flaky` at the end of its title: `test("[ABC-01] does something @flaky", …)`. Playwright's `grep` finds it by that text, and the requirement report reads it from the title.
-- **Runs.** Locally, `npm run test:e2e` leaves the flaky tests out, and `npm run test:e2e:flaky` runs only them, with two retries, into `reports/playwright-flaky.json` and `playwright-report-flaky/`. **CI runs all e2e tests in one run** (`CI` set, two retries), flaky ones included, and its result is the verdict.
+- **Runs.** Locally, `npm run test:e2e` leaves the flaky tests out, and `npm run test:e2e:flaky` runs only them, with two retries, into `reports/playwright-flaky.json` and `playwright-report-flaky/`. **CI** (`CI` set, two retries) includes the flaky tests in the runs of 8.3 and 8.4, and its result is the verdict.
 - **Requirement report.** It reads `reports/playwright.json` and, when it exists, `reports/playwright-flaky.json`. A flaky test counts like any other test: its results are results. Without the file of the flaky run the report prints a notice. A complete verdict for a requirement needs the full run (`CI=1 npm run test:e2e`) or both local runs.
 - **Tracking.** Every `@flaky` test has a row in the table below, and every row has a test (a test in `scripts/req-report/spec-consistency.test.ts` checks this). A row says since when the test is flaky and what was seen. When the cause is fixed, the tag and the row are removed in the same commit.
+- **Game tests** (decided 2026-11-19, epic 6.1k): they are the Playwright project `game` (`npm run test:e2e:game`), not a serial chain. The test world is imported once before the run (`e2e/global-setup.ts`), each test signs in as an admin of its own, and a hook after each test puts back the shared settings it may have changed. A failing test retries alone. The game's time slows down on a busy machine (Phaser caps a frame's step at 200 ms), so the project runs one worker and starts last; since epic 6.1l a test build seeds the engine's random choices (`?seed=`, default 1; `?random=0.01` fixes every choice to one number) and the hook `advance(ms)` plays game time in frames of 1/60 s, so that tests wait for game time, not for the clock (the helpers `advance` and `advanceUntil` in `e2e/game-world.spec.ts`). The first `advance` stops the game's own clock for the rest of the page.
+- **Frontend unit tests** (2026-11-20, epic 6.1d): Testing Library gives `findBy*` and `waitFor` one second by default, and a full run (167 files at once) made a few component tests fail now and then just after that second; `asyncUtilTimeout` is 5 seconds in the setup of the frontend tests. A passing test does not wait for it.
 - **New tests.** A new e2e test that fails in a full run without a change in the code is first re-run alone. When it passes alone and fails under load, it gets the tag and a row. The tag is not a place to hide a test that fails for a reason.
 
 | File | Test | Projects seen | Since | Symptom |
 |---|---|---|---|---|
 | `e2e/rsvp.spec.ts` | a guest answers the RSVP once for the invited program items; the admin sees it and changes it | mobile-ios | 2026-11-18 | Timed out on the first attempt, passed on the retry. |
+| `e2e/companions.spec.ts` | a guest adds an accompanying person, who counts at once; the admin removes them | desktop-webkit | 2026-11-20 | Full run (6 workers, load): failed with "Target page, context or browser has been closed" or a timeout, or a wrong state; passed when run alone. |
+| `e2e/guest-accounts.spec.ts` | a signed-in account without vip adds an invitation to itself | desktop-webkit | 2026-11-20 | Full run (6 workers, load): failed with "Target page, context or browser has been closed" or a timeout, or a wrong state; passed when run alone. |
+| `e2e/skeleton.spec.ts` | [LANG-01] the website shows its texts in German | desktop-webkit | 2026-11-20 | Full run (6 workers, load): failed with "Target page, context or browser has been closed" or a timeout, or a wrong state; passed when run alone. |
+| `e2e/skeleton.spec.ts` | the game route mounts Phaser with the world, or leads to the start page while no world is set up | desktop-webkit | 2026-11-20 | Full run (6 workers, load): failed with "Target page, context or browser has been closed" or a timeout, or a wrong state; passed when run alone. |
+| `e2e/skeleton.spec.ts` | [CFG-02][CFG-05] the server started with the example event and serves it with its toggles | desktop-webkit | 2026-11-20 | Full run (6 workers, load): failed with "Target page, context or browser has been closed" or a timeout, or a wrong state; passed when run alone. |
+| `e2e/skeleton.spec.ts` | [ACS-09][ACS-07] without a session only the public pages and routes are reachable | desktop-webkit | 2026-11-20 | Full run (6 workers, load): failed with "Target page, context or browser has been closed" or a timeout, or a wrong state; passed when run alone. |

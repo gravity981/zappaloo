@@ -4,8 +4,8 @@
 // previous world after a second click. Only admins use this page; the server refuses everyone else.
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { worldRefusalSchema, worldStatusSchema } from "@zappaloo/shared";
-import type { WorldFindingDto, WorldStatus } from "@zappaloo/shared";
+import { dialoguesResponseSchema, worldRefusalSchema, worldStatusSchema } from "@zappaloo/shared";
+import type { DialogueSummary, WorldFindingDto, WorldStatus } from "@zappaloo/shared";
 import { apiRequest } from "../app/api.ts";
 import { useSession } from "../app/session.ts";
 import { useEventFormat } from "../rsvp/format.ts";
@@ -63,6 +63,7 @@ function WorldCard() {
   const errorText = useErrorText();
   const { csrfToken } = useSession();
   const { data, failed, reload } = useAdminData(WORLD_PATH, worldStatusSchema);
+  const { data: dialogueList } = useAdminData("/api/admin/dialogues", dialoguesResponseSchema);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string>();
   const [saved, setSaved] = useState<string>();
@@ -106,6 +107,20 @@ function WorldCard() {
     else setError(errorText(result.errorCode));
   }
 
+  /** The welcome dialogue (GAME-17): live at once; none (null) shows nothing on the first entry. */
+  async function setWelcomeDialogue(dialogue: string | null) {
+    setBusy(true);
+    setError(undefined);
+    setSaved(undefined);
+    const result = await apiRequest("PUT", `${WORLD_PATH}/welcome-dialogue`, {
+      csrfToken,
+      body: { dialogue },
+    });
+    setBusy(false);
+    if (result.ok) reload();
+    else setError(errorText(result.errorCode));
+  }
+
   async function rollback() {
     setBusy(true);
     setError(undefined);
@@ -140,6 +155,8 @@ function WorldCard() {
         onArm={setArmed}
         onRollback={() => void rollback()}
         onGuestAccess={(enabled) => void setGuestAccess(enabled)}
+        dialogues={dialogueList?.dialogues ?? []}
+        onWelcomeDialogue={(dialogue) => void setWelcomeDialogue(dialogue)}
         onImport={(file) => void importFile(file)}
       />
       {error && (
@@ -225,6 +242,8 @@ function WorldSummary({
   onArm,
   onRollback,
   onGuestAccess,
+  dialogues,
+  onWelcomeDialogue,
   onImport,
 }: {
   status: WorldStatus;
@@ -233,6 +252,8 @@ function WorldSummary({
   onArm: (armed: boolean) => void;
   onRollback: () => void;
   onGuestAccess: (enabled: boolean) => void;
+  dialogues: DialogueSummary[];
+  onWelcomeDialogue: (dialogue: string | null) => void;
   onImport: (file: File) => void;
 }) {
   const { t } = useTranslation();
@@ -289,6 +310,30 @@ function WorldSummary({
             disabled={busy}
             onChange={onGuestAccess}
           />
+        </div>
+      )}
+      {active && (
+        <div className="setrow">
+          <div className="grow">
+            <b className="sm">{t("admin.world.welcome")}</b>
+            <span className="hint">{t("admin.world.welcomeHint")}</span>
+          </div>
+          <select
+            className="input auto"
+            aria-label={t("admin.world.welcome")}
+            value={status.welcomeDialogue ?? ""}
+            disabled={busy}
+            onChange={(event) => {
+              onWelcomeDialogue(event.target.value === "" ? null : event.target.value);
+            }}
+          >
+            <option value="">{t("admin.world.welcomeNone")}</option>
+            {dialogues.map((dialogue) => (
+              <option key={dialogue.id} value={dialogue.id}>
+                {dialogue.npcName}
+              </option>
+            ))}
+          </select>
         </div>
       )}
       <div className="row">

@@ -1,12 +1,14 @@
-// The dialogues of the game world (sw-architecture.md 6.2, 14.4; CNT-02, CNT-03, CNT-08): the name of an NPC and lines
-// in Markdown that the guest taps through, with an optional portrait. The admin edits them in Erlebniswelt › Dialoge;
-// a clickable object with the action `dialog` shows one.
+// The dialogues of the game world (sw-architecture.md 6.2, 14.4; CNT-02, CNT-03, CNT-08, CNT-09): the figure's name, a
+// greeting for its speech bubble and lines in Markdown that the guest taps through, with an optional portrait. The
+// admin edits them in Erlebniswelt › Dialoge; a clickable object or an NPC with the action `dialog` shows one.
 import { z } from "zod";
 
 export const DIALOGUE_LIMITS = {
-  /** The id (the `contentId` of Tiled presets): `a–z 0–9 -`, in characters. */
+  /** The id (the `contentId` of Tiled presets), made from the figure's name when the dialogue is created: `a–z 0–9 -`. */
   id: 40,
   npcName: 60,
+  /** The greeting in the speech bubble of the object or NPC that shows the dialogue, in characters (CNT-09). */
+  greeting: 120,
   /** How many lines, and the length of one in characters. */
   lines: 30,
   line: 500,
@@ -26,14 +28,14 @@ export const dialogueUseSchema = z.object({
 });
 export type DialogueUse = z.infer<typeof dialogueUseSchema>;
 
-/** `POST /api/admin/dialogues` and `PUT /api/admin/dialogues/:id`: a dialogue without its portrait. */
+/**
+ * `POST /api/admin/dialogues` and `PUT /api/admin/dialogues/:id`: a dialogue without its portrait. The admin does not
+ * enter the id: it is made from the figure's name when the dialogue is created and never changes (CNT-09). The greeting
+ * may be empty: then the object or NPC has no speech bubble.
+ */
 export const dialogueRequestSchema = z.strictObject({
-  id: z
-    .string()
-    .min(1)
-    .max(DIALOGUE_LIMITS.id)
-    .regex(DIALOGUE_ID_PATTERN, "1–40 characters of a–z, 0–9 and -"),
   npcName: z.string().trim().min(1).max(DIALOGUE_LIMITS.npcName),
+  greeting: z.string().trim().max(DIALOGUE_LIMITS.greeting).default(""),
   lines: z
     .array(z.string().trim().min(1).max(DIALOGUE_LIMITS.line))
     .min(1)
@@ -45,6 +47,8 @@ export type DialogueRequest = z.infer<typeof dialogueRequestSchema>;
 export const dialogueSummarySchema = z.object({
   id: z.string(),
   npcName: z.string(),
+  /** The greeting of the speech bubble; empty without one. */
+  greeting: z.string(),
   lines: z.number().int(),
   portrait: z.boolean(),
   /** The objects that show it; empty while it is not used. */
@@ -60,6 +64,8 @@ export type DialoguesResponse = z.infer<typeof dialoguesResponseSchema>;
 export const dialogueDetailSchema = z.object({
   id: z.string(),
   npcName: z.string(),
+  /** The greeting of the speech bubble; empty without one. */
+  greeting: z.string(),
   lines: z.array(z.string()),
   /** The version of the portrait for its address, or null without one. */
   portrait: z.number().int().nullable(),

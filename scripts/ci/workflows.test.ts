@@ -34,6 +34,7 @@ interface Workflow {
 const ci = parse(read(".github/workflows/ci.yml")) as Workflow;
 const cleanup = parse(read(".github/workflows/cleanup-images.yml")) as Workflow;
 const candidateWorkflow = parse(read(".github/workflows/release-candidate.yml")) as Workflow;
+const nightly = parse(read(".github/workflows/nightly.yml")) as Workflow;
 const promoteWorkflow = parse(read(".github/workflows/promote.yml")) as Workflow;
 const dockerfile = read("infrastructure/docker/Dockerfile");
 const packageJson = JSON.parse(read("package.json")) as {
@@ -61,7 +62,7 @@ describe("ci.yml", () => {
     expect(ci.on.push).toEqual({ branches: ["main"] });
   });
 
-  it("[OPS-06] runs lint, type checks, build, all tests and the requirement report", () => {
+  it("[OPS-06] runs lint, type checks, build, all unit tests, the e2e tests and, in a full run, the requirement report", () => {
     for (const command of [
       "npm ci",
       "npm run lint",
@@ -74,12 +75,30 @@ describe("ci.yml", () => {
       expect(runs(checks), command).toContain(command);
     }
     expect(runs(e2e)).toContain("npm ci");
-    expect(runs(e2e)).toContain("npm run test:e2e");
     expect(runs(image)).toContain("npm run test:deploy");
-    // The report reads the results of all jobs, and runs even when tests failed.
+    // The report reads the results of all jobs, and runs even when tests failed, but only in a full run: a pull
+    // request does not run every end-to-end test, so the report would show them as untested.
     expect(report?.needs).toEqual(["checks", "e2e", "image"]);
-    expect(report?.if).toBe("${{ !cancelled() }}");
+    expect(report?.if).toBe("${{ inputs.full && !cancelled() }}");
     expect(runs(report)).toContain("npm run req-report");
+  });
+
+  it("[OPS-06] a pull request runs the relevant e2e specs and the smoke set in Chromium, a full run everything", () => {
+    const steps = e2e?.steps ?? [];
+    const all = steps.find((step) => step.run === "npm run test:e2e");
+    expect(all?.if).toBe("${{ inputs.full }}");
+    const select = steps.find((step) => step.run?.includes("scripts/ci/select-e2e.ts"));
+    expect(select?.if).toBe("${{ !inputs.full }}");
+    const relevant = steps.find(
+      (step) => step.run?.includes("playwright test") && !step.run.includes("@smoke"),
+    );
+    expect(relevant?.run).toContain("--project=desktop-chromium --project=game");
+    expect(relevant?.if).toContain("!inputs.full");
+    const smoke = steps.find((step) => step.run?.includes("--grep @smoke"));
+    expect(smoke?.run).toContain("--project=desktop-chromium --project=game");
+    // The smoke set also runs when the relevant specs failed, so that both results are known.
+    expect(smoke?.if).toContain("!cancelled()");
+    expect(ci.on).toHaveProperty("workflow_call.inputs.full.default", false);
   });
 
   it("runs the end-to-end tests in Playwright's official image of the installed Playwright version", () => {
@@ -162,6 +181,8 @@ describe("release-candidate.yml", () => {
 
   it("[OPS-10] runs the full test suite before building, pushing and tagging the candidate", () => {
     expect(jobs.tests?.uses).toBe("./.github/workflows/ci.yml");
+    // The candidate gets every end-to-end test in every browser and the requirement report (OPS-20).
+    expect(jobs.tests).toHaveProperty("with.full", true);
     expect(ci.on).toHaveProperty("workflow_call");
     expect(jobs.release?.needs).toEqual(["prepare", "tests"]);
     const release = jobs.release;
@@ -173,12 +194,9 @@ describe("release-candidate.yml", () => {
       "APP_VERSION=${{ needs.prepare.outputs.version }}\nAPP_COMMIT=${{ github.sha }}\n",
     );
     const steps = all(release);
-    const order = [
-      "smoke-test-image.sh",
-      "docker push",
-      "git push origin",
-      "gh release create",
-    ].map((text) => steps.indexOf(text));
+    const order = ["smoke-test-image.sh", "docker push", "gh release create"].map((text) =>
+      steps.indexOf(text),
+    );
     expect(order.every((index) => index >= 0)).toBe(true);
     expect([...order].sort((a, b) => a - b)).toEqual(order);
     expect(steps).toContain("--prerelease");
@@ -187,6 +205,45 @@ describe("release-candidate.yml", () => {
     expect(steps).toContain("scripts/release/cli.ts notes");
     expect(steps).toContain("--notes-file notes.md");
     expect(steps).not.toContain("--generate-notes");
+  });
+
+  it("[OPS-10][OPS-12] makes the tag last, with the pre-release, so that a failed run does not use up the number", () => {
+    const steps = jobs.release?.steps ?? [];
+    // No step makes or deletes a tag by itself: tags `v*` can't be deleted (OPS-12), so a tag that exists is used up.
+    expect(steps.some((step) => /git (tag|push)/.test(step.run ?? ""))).toBe(false);
+    const create = steps.findIndex((step) => step.run?.includes("gh release create"));
+    expect(create).toBe(steps.length - 1);
+    expect(steps[create]?.run).toContain('--target "$GITHUB_SHA"');
+    expect(steps[create]?.run).not.toContain("--verify-tag");
+    // Everything the pre-release needs is made before the image is pushed.
+    const prepared = steps.findIndex((step) => step.run?.includes("scripts/release/cli.ts bundle"));
+    const pushed = steps.findIndex((step) => step.run?.includes("docker push"));
+    expect(prepared).toBeGreaterThanOrEqual(0);
+    expect(prepared).toBeLessThan(pushed);
+    expect(pushed).toBeLessThan(create);
+  });
+});
+
+describe("nightly.yml", () => {
+  const text = read(".github/workflows/nightly.yml");
+
+  it("[OPS-20] runs every night and by hand, only on main", () => {
+    expect(nightly.on).toHaveProperty("schedule");
+    expect(nightly.on).toHaveProperty("workflow_dispatch.inputs.force");
+    expect(text).toContain("github.ref != 'refs/heads/main'");
+  });
+
+  it("[OPS-20] runs the full suite only when main has changed since the last nightly run", () => {
+    const changed = nightly.jobs.changed;
+    expect(JSON.stringify(changed?.steps)).toContain("gh run list");
+    expect(JSON.stringify(changed?.steps)).toContain("nightly.yml");
+    const tests = nightly.jobs.tests;
+    expect(tests?.needs).toBe("changed");
+    expect(tests?.if).toBe("${{ needs.changed.outputs.run == 'true' }}");
+    expect(tests?.uses).toBe("./.github/workflows/ci.yml");
+    expect(tests).toHaveProperty("with.full", true);
+    // The called workflow pushes images and reads packages.
+    expect(tests?.permissions).toMatchObject({ contents: "read", packages: "write" });
   });
 });
 

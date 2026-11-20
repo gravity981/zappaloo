@@ -1,5 +1,6 @@
 // Clickable objects in play (sw-architecture.md 14.2, GAME-06, GAME-15, GAME-16): which object a tap or press
 // means, where the avatar stops, and when it has arrived. Pure: it reads the parsed map and points.
+import { gameRandom } from "./random.ts";
 import type { WorldObjectAction } from "@zappaloo/shared";
 import { distanceToOutline, pointInPolygon, type Point } from "./geometry.ts";
 import type { ClickableArea, ParsedMap } from "./map-model.ts";
@@ -75,12 +76,12 @@ export function actionOf(
 export const MAX_SPARKLES = 5;
 
 /** The random time in milliseconds until the next sparkle appears (GAME-15): 0.15 to 0.45 seconds. */
-export function nextSparkleDelay(random: () => number = Math.random): number {
+export function nextSparkleDelay(random: () => number = gameRandom): number {
   return 150 + random() * 300;
 }
 
 /** The random time in milliseconds until a shine passes over an object (GAME-15): 3 to 7 seconds. */
-export function nextShineDelay(random: () => number = Math.random): number {
+export function nextShineDelay(random: () => number = gameRandom): number {
   return 3000 + random() * 4000;
 }
 

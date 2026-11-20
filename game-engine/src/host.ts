@@ -53,6 +53,8 @@ export interface GameState {
   npcs: NpcState[];
   /** The effects of the map: whether it has fog, how many cloud shadows and how many birds are there (test hook, GAME-31 – GAME-34). */
   atmosphere: { fog: boolean; clouds: number; birds: number };
+  /** The silhouettes that show behind objects: the player's, how many figures' in all, the target marker's (test hook, GAME-42). */
+  silhouettes: { player: boolean; figures: number; marker: boolean };
   /** The animated tile objects of this map and the frame each shows now (test hook, GAME-35). */
   tileAnimation: { objects: number; frames: number[] };
 }
@@ -74,14 +76,14 @@ export interface GameHost {
   onReady?: () => void;
   /** The player activated a clickable object; the host runs the action (overlay, reading panel, dialogue). */
   onActivate?: (activation: GameActivation) => void;
-  /** The player tapped or clicked their own avatar (GAME-18); the host decides what that opens. */
-  onPlayerTap?: () => void;
 }
 
 /** The words the engine shows, which the host supplies in its own language; the engine has none of its own. */
 export interface GameTexts {
   /** Shown over the game while the map behind a portal is built (GAME-30). Without it, the overlay has no text. */
   loading?: string;
+  /** The playful texts of the start screen (GAME-43), one per step of the loading; without them only the bar shows. */
+  loadingSteps?: readonly string[];
   /** The name of the cross of a pinned speech bubble, for screen readers (PRES-10). */
   closeBubble?: string;
   /** The greeting of a guest who wrote none (PRES-10), e.g. "Hallo 🙂". */
@@ -97,6 +99,11 @@ export interface GameEngineOptions {
   view?: GameView;
   /** The words the game shows. */
   texts?: GameTexts;
+  /**
+   * The height in CSS pixels of what the app lays over the top of the view (the game bar's pills), read each frame.
+   * Edge indicators, labels and speech bubbles stay below it. Without it nothing covers the view (the game preview).
+   */
+  topInset?: () => number;
   /** The figures of the attending guests that wander the maps (PRES-01); each walks on the map its id picks (PRES-02). */
   guests?: readonly GuestFigure[];
   /**
@@ -107,6 +114,8 @@ export interface GameEngineOptions {
   titleOf?: (action: WorldObjectAction) => string | undefined;
   /** The address of a guest's photo for the speech bubble; without it the bubble shows the initials. */
   guestPhoto?: (guest: GuestFigure) => string | undefined;
+  /** The colour of the silhouettes of figures behind objects (GAME-42), as a number (0xRRGGBB): the event's accent colour. */
+  silhouetteColor?: number;
   /** Shows the development diagnostics overlay (GAME-27); never set in a production build. */
   diagnostics?: boolean;
 }

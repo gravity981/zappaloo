@@ -3,6 +3,7 @@
 // simulated on this device only. A guest near the player stands still, turns to them and opens a speech bubble
 // (PRES-10); a click or tap pins the bubble until its cross closes it. Which bubbles are open is decided by the
 // bubble board (bubble-board.ts), together with the NPCs' bubbles.
+import { gameRandom } from "./random.ts";
 import Phaser from "phaser";
 import type { GuestFigure } from "@zappaloo/shared";
 import { playerCollisionEllipse, walkable } from "./collision.ts";
@@ -85,7 +86,7 @@ export class GuestCrowd {
     const regions: Member["region"][] = [];
     for (const guest of guestsOnMap(world, map, guests)) {
       const figure = world.figures.find((item) => item.id === guest.figure);
-      const startCell = cells[Math.floor(Math.random() * cells.length)];
+      const startCell = cells[Math.floor(gameRandom() * cells.length)];
       if (figure === undefined || startCell === undefined) continue;
       let region = regions.find((item) => item.keys.has(cellKey(startCell)));
       if (region === undefined) {
@@ -94,7 +95,7 @@ export class GuestCrowd {
         regions.push(region);
       }
       const position = cellCentre(startCell.column, startCell.row, map.size);
-      const wanderer = new Wanderer(position, Math.random() * waitDuration(Math.random));
+      const wanderer = new Wanderer(position, gameRandom() * waitDuration(gameRandom));
       const sprite = scene.add.sprite(0, 0, figure.standing.south).setOrigin(0.5, 1);
       const shadow = scene.add.ellipse(0, 0, 1, 1, 0x000000, 1);
       // The tag is the pill of the edge-indicator labels, a texture of the name at this device's pixel ratio.
@@ -119,6 +120,11 @@ export class GuestCrowd {
       this.#members.push(member);
       this.#place(member);
     }
+  }
+
+  /** The drawn figures, for their silhouettes behind objects (GAME-42). */
+  get sprites(): Phaser.GameObjects.Sprite[] {
+    return this.#members.map((member) => member.sprite);
   }
 
   /** The guests on this map, for the test hook. */
@@ -170,7 +176,7 @@ export class GuestCrowd {
         });
       }
       member.wanderer.update(dt, step, {
-        random: Math.random,
+        random: gameRandom,
         isWalkable: (point) =>
           walkable(map.obstacles, playerCollisionEllipse(point, map.size.width)),
         route: (from) => this.#route(member, from),
@@ -183,7 +189,7 @@ export class GuestCrowd {
   /** A walk to a random cell of the figure's region. */
   #route(member: Member, from: Point): Point[] | undefined {
     const { cells } = member.region;
-    const goal = cells[Math.floor(Math.random() * cells.length)];
+    const goal = cells[Math.floor(gameRandom() * cells.length)];
     if (goal === undefined) return undefined;
     const path = findPath(this.#grid, startCells(this.#map, this.#grid, from), goal);
     if (path === undefined) return undefined;

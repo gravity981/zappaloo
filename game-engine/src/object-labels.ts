@@ -2,21 +2,49 @@
 // edge indicator comes into view, its indicator goes and its name sticks to the top of it, the same white pill as
 // the indicator's label. Where a label stands and which of several are shown is decided here, in CSS pixels of the
 // game view, so that tests can check each rule without Phaser or a browser.
-import { LABEL_MAX_WIDTH, boxesOverlap, type Rect } from "./indicators.ts";
+import {
+  LABEL_MAX_LINES,
+  boxesOverlap,
+  estimateTextWidth,
+  type Rect,
+  type TextMeasure,
+} from "./indicators.ts";
 import type { Point } from "./geometry.ts";
 
-/** The height of a label's pill, and the space between its bottom and the top of the object, in CSS pixels. */
+/** The height of a label's pill of one line, and the space between its bottom and the top of the object, in CSS pixels. */
 export const OBJECT_LABEL_HEIGHT = 22;
+/** What each further line of a label adds to its height. */
+const OBJECT_LABEL_LINE = 16;
 export const OBJECT_LABEL_GAP = 4;
 /** The least space between a label and the edge of the view. */
 export const OBJECT_LABEL_MARGIN = 4;
-/** The width of one character of a label (12 px semibold), estimated, and the padding of the pill. */
-const CHAR_WIDTH = 6.8;
+/** The padding of the pill, left and right together (2 px top and bottom, 8 px at each side in the stylesheet). */
 const PADDING = 16;
 
-/** The width of a label for a text: estimated from its length, and at most the width of an indicator's label. */
-export function objectLabelWidth(text: string): number {
-  return Math.min(Math.ceil(Array.from(text).length * CHAR_WIDTH) + PADDING, LABEL_MAX_WIDTH);
+/**
+ * The width of a label for a text: the width of the text in the label's font plus the padding, so that the text fits
+ * on one line. Only the view bounds it: a text wider than the view wraps (objectLabelHeight) and is not cut off.
+ */
+export function objectLabelWidth(
+  text: string,
+  viewWidth = Number.POSITIVE_INFINITY,
+  measure: TextMeasure = estimateTextWidth,
+): number {
+  const room = Math.max(PADDING + 4 * 6.8, viewWidth - 2 * OBJECT_LABEL_MARGIN);
+  return Math.min(Math.ceil(measure(text)) + PADDING, room);
+}
+
+/** The height of a label for a text at a width: one line is 22 pixels, each further line adds 16 (up to three lines). */
+export function objectLabelHeight(
+  text: string,
+  width: number,
+  measure: TextMeasure = estimateTextWidth,
+): number {
+  const lines = Math.min(
+    LABEL_MAX_LINES,
+    Math.max(1, Math.ceil(measure(text) / Math.max(1, width - PADDING))),
+  );
+  return OBJECT_LABEL_HEIGHT + (lines - 1) * OBJECT_LABEL_LINE;
 }
 
 /**
@@ -27,14 +55,16 @@ export function objectLabelBox(
   top: Point,
   width: number,
   view: { width: number; height: number },
+  height = OBJECT_LABEL_HEIGHT,
+  barHeight = 0,
 ): Rect {
   const left = OBJECT_LABEL_MARGIN;
   const right = Math.max(left, view.width - OBJECT_LABEL_MARGIN - width);
   return {
     x: Math.min(right, Math.max(left, top.x - width / 2)),
-    y: Math.max(OBJECT_LABEL_MARGIN, top.y - OBJECT_LABEL_GAP - OBJECT_LABEL_HEIGHT),
+    y: Math.max(barHeight + OBJECT_LABEL_MARGIN, top.y - OBJECT_LABEL_GAP - height),
     width,
-    height: OBJECT_LABEL_HEIGHT,
+    height,
   };
 }
 

@@ -1,7 +1,8 @@
-// Erlebniswelt › Dialoge (sw-architecture.md 6.2, 14.4; CNT-02, CNT-03, CNT-08; UX mock `admin-world`, variants
-// "Dialoge" and "Dialog bearbeiten"): the dialogues of the game world, each with the NPC's name, lines in Markdown, an
-// optional portrait and the objects that show it. Deleting needs a long press and is refused while an object shows
-// the dialogue; a new id keeps the assignments.
+// Erlebniswelt › Dialoge (sw-architecture.md 6.2, 14.4; CNT-02, CNT-03, CNT-08, CNT-09; UX mock `admin-world`, variants
+// "Dialoge" and "Dialog bearbeiten"): the dialogues of the game world, each with the figure's name, a greeting for the
+// speech bubble, lines in Markdown, an optional portrait and the objects that show it. The id is made from the name
+// when the dialogue is created and shown read-only; it never changes. Deleting needs a long press and is refused while
+// an object shows the dialogue.
 import { useEffect, useRef, useState } from "react";
 import type { SubmitEvent } from "react";
 import { useTranslation } from "react-i18next";
@@ -111,15 +112,14 @@ function DialogueEditor({
   const call = useAdminCall();
   const { csrfToken } = useSession();
   const errorText = useErrorText({
-    dialogue_exists: t("admin.dialogues.exists"),
     portrait_too_large: t("admin.dialogues.portraitTooLarge"),
     portrait_type: t("admin.dialogues.portraitType"),
     portrait_invalid: t("admin.dialogues.portraitInvalid"),
   });
   const [detail, setDetail] = useState<DialogueDetail>();
   const [loaded, setLoaded] = useState(id === undefined);
-  const [dialogueId, setDialogueId] = useState(id ?? "");
   const [npcName, setNpcName] = useState("");
+  const [greeting, setGreeting] = useState("");
   const [lines, setLines] = useState<string[]>([""]);
   const [error, setError] = useState<string>();
   const [saved, setSaved] = useState(false);
@@ -136,8 +136,8 @@ function DialogueEditor({
   function take(next: DialogueDetail) {
     known.current = next.id;
     setDetail(next);
-    setDialogueId(next.id);
     setNpcName(next.npcName);
+    setGreeting(next.greeting);
     setLines(next.lines);
   }
 
@@ -163,8 +163,8 @@ function DialogueEditor({
   async function save(form: SubmitEvent<HTMLFormElement>) {
     form.preventDefault();
     const body = {
-      id: dialogueId.trim(),
       npcName: npcName.trim(),
+      greeting: greeting.trim(),
       lines: lines.map((line) => line.trim()),
     };
     const result =
@@ -174,7 +174,7 @@ function DialogueEditor({
       setError(undefined);
       setSaved(true);
       take(parsed.data);
-      // A new dialogue, or one with a new id, is edited under its new id from now on.
+      // A new dialogue is edited under its id from now on.
       if (parsed.data.id !== id) onSwitch(parsed.data.id);
     } else {
       setSaved(false);
@@ -264,18 +264,33 @@ function DialogueEditor({
         </label>
         <label className="field">
           <span>{t("admin.dialogues.id")}</span>
+          {id === undefined ? (
+            <small className="hint">{t("admin.dialogues.idNew")}</small>
+          ) : (
+            <>
+              <input className="input" value={id} readOnly />
+              <small className="hint">{t("admin.dialogues.idHint", { id })}</small>
+            </>
+          )}
+        </label>
+        <label className="field grid-span">
+          <span>{t("admin.dialogues.greeting")}</span>
           <input
             className="input"
-            value={dialogueId}
-            maxLength={DIALOGUE_LIMITS.id}
-            pattern="[a-z0-9\-]+"
-            required
+            value={greeting}
+            maxLength={DIALOGUE_LIMITS.greeting}
             onChange={(event) => {
-              setDialogueId(event.target.value);
+              setGreeting(event.target.value);
               setSaved(false);
             }}
           />
-          <small className="hint">{t("admin.dialogues.idHint", { id: dialogueId || "…" })}</small>
+          <small className="hint">
+            {t("admin.dialogues.greetingHint")} ·{" "}
+            {t("admin.dialogues.counter", {
+              count: Array.from(greeting).length,
+              max: DIALOGUE_LIMITS.greeting,
+            })}
+          </small>
         </label>
       </div>
       <div className="stack">

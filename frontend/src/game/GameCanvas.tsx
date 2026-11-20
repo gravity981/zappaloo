@@ -18,10 +18,13 @@ import {
 } from "@zappaloo/shared";
 import type { GuestFigure } from "@zappaloo/shared";
 import { apiRequest } from "../app/api.ts";
-import { exposeGame, exposeState } from "./test-hook.ts";
+import { exposeGame, exposeState, seedRandomForTests } from "./test-hook.ts";
 import { rememberedMap, rememberMap } from "./map-preference.ts";
 import { objectTitle } from "./titles.ts";
+import { accentColorAt } from "./silhouette-color.ts";
 import { loadWorld } from "./world-data.ts";
+import GameLoading from "./GameLoading.tsx";
+import GameLoadFailed from "./GameLoadFailed.tsx";
 
 /** The figure that applies to the signed-in player; undefined when it cannot be read. */
 async function ownFigure(): Promise<string | undefined> {
@@ -58,18 +61,21 @@ type Status =
       titles: Map<string, string>;
     };
 
+function silhouetteOption(element: Element): { silhouetteColor?: number } {
+  const silhouetteColor = accentColorAt(element);
+  return silhouetteColor === undefined ? {} : { silhouetteColor };
+}
+
 /**
  * The game. The page above it (GAME-11) belongs to the parent: `paused` stands the game still while a page is open,
- * and `onActivate` and `onPlayerTap` tell the parent what the player used (GAME-06, GAME-18).
+ * and `onActivate` tells the parent what the player used (GAME-06).
  */
 export default function GameCanvas({
   paused,
   onActivate,
-  onPlayerTap,
 }: {
   paused: boolean;
   onActivate: (activation: GameActivation) => void;
-  onPlayerTap: () => void;
 }) {
   const { t } = useTranslation();
   const parent = useRef<HTMLDivElement>(null);
@@ -77,11 +83,9 @@ export default function GameCanvas({
   const game = useRef<GameInstance>(null);
   // The engine keeps the first callbacks it gets; these refs let it call the latest ones.
   const activate = useRef(onActivate);
-  const tap = useRef(onPlayerTap);
   const translate = useRef(t);
   useEffect(() => {
     activate.current = onActivate;
-    tap.current = onPlayerTap;
     translate.current = t;
   });
 
@@ -117,10 +121,20 @@ export default function GameCanvas({
     }
     const selection = entryPoint(status.world, rememberedMap(status.world, storage));
     const figureId = status.figure ?? status.world.figures[0]?.id;
+    seedRandomForTests();
     const instance = createGame({
       parent: parent.current,
       world: status.world,
       guests: status.guests,
+      // The game bar floats over the top of the world: indicators, labels and bubbles stay below its pills.
+      topInset: () => {
+        const element = parent.current;
+        const bar = element?.closest(".game-window")?.querySelector(".game-bar > *");
+        if (!element || !bar) return 0;
+        const pills = [...(bar.parentElement?.children ?? [])];
+        const bottom = Math.max(...pills.map((pill) => pill.getBoundingClientRect().bottom));
+        return Math.max(0, Math.ceil(bottom - element.getBoundingClientRect().top) + 8);
+      },
       host: {
         selection: { ...selection, ...(figureId === undefined ? {} : { figureId }) },
         rememberMap: (mapId) => {
@@ -128,26 +142,31 @@ export default function GameCanvas({
         },
         onStateChange: exposeState,
         onActivate: (activation) => {
+          // Every activation opens a page or a dialogue, over a game that stands still. The game stops now, before
+          // React starts on the page, and not in the effect after its first commit: the page then opens without a
+          // game drawing behind it (GAME-44).
+          if (game.current) setGamePaused(game.current, true);
           activate.current(activation);
-        },
-        onPlayerTap: () => {
-          tap.current();
         },
       },
       // The words the engine shows come from the app, in the guest's language.
       texts: {
         loading: translate.current("game.mapLoading"),
+        loadingSteps: translate.current("game.loadingSteps", { returnObjects: true }),
         closeBubble: translate.current("game.bubbleClose"),
         defaultGreeting: translate.current("game.defaultGreeting"),
       },
-      // The title of what an object opens names its edge indicator and its label (GAME-40): the title of a page.
-      // A dialogue has none (objects that show one have no indicator or label), nor has a minigame yet (stage 8).
-      titleOf: (action) => objectTitle(action, translate.current, status.titles),
+      // The name of what an object or NPC shows names its edge indicator and its label (GAME-40): the figure name of a
+      // dialogue, the title of a page. A minigame has none yet (stage 8).
+      titleOf: (action) =>
+        objectTitle(action, translate.current, status.titles, status.world.dialogues),
       // The photo of a guest for the speech bubble (PRES-10); the version lets the browser keep it.
       guestPhoto: (guest) =>
         guest.photo === null
           ? undefined
           : `/api/world/guests/${guest.id}/photo?v=${String(guest.photo)}`,
+      // The silhouettes of figures behind objects are in the event's accent colour (GAME-42).
+      ...silhouetteOption(parent.current),
       transparent: import.meta.env.VITE_TEST_HOOKS === "true",
       preserveDrawingBuffer: import.meta.env.VITE_TEST_HOOKS === "true",
       // The frame diagnostics (GAME-27) exist on the dev server only; a production build drops them.
@@ -179,8 +198,8 @@ export default function GameCanvas({
     };
   }, [paused, status]);
 
-  if (status.kind === "loading") return <p>{t("game.loading")}</p>;
+  if (status.kind === "loading") return <GameLoading />;
   if (status.kind === "none") return <p>{t("game.noWorld")}</p>;
-  if (status.kind === "failed") return <p role="alert">{t("game.loadFailed")}</p>;
+  if (status.kind === "failed") return <GameLoadFailed />;
   return <div ref={parent} className="game-canvas" data-testid="game-canvas" />;
 }

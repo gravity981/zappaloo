@@ -5,7 +5,7 @@
 // the session and the event of the app. The sheet takes the focus while it is open; the game stands still behind it.
 // The action `dialog` is not a page: the dialogue box of the game shows it (DialogueBox, CNT-02).
 import type { MouseEvent as ReactMouseEvent } from "react";
-import { useCallback, useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { useTranslation } from "react-i18next";
 import { MemoryRouter, useNavigate, useRoutes, type NavigateFunction } from "react-router";
@@ -141,8 +141,25 @@ function OverlayPage({
     };
   }, []);
 
+  // The sheet paints first and the page is rendered two frames later, so the first frame of the overlay does not wait
+  // for the page to render (GAME-44).
+  const [ready, setReady] = useState(false);
+  useEffect(() => {
+    let second = 0;
+    const first = requestAnimationFrame(() => {
+      second = requestAnimationFrame(() => {
+        setReady(true);
+      });
+    });
+    return () => {
+      cancelAnimationFrame(first);
+      cancelAnimationFrame(second);
+    };
+  }, []);
+
   // The page follows the app's session and event; a change renders the same root again.
   useEffect(() => {
+    if (!ready) return;
     root.current?.render(
       <SessionContext.Provider value={session}>
         <EventContext.Provider value={event}>
@@ -155,7 +172,7 @@ function OverlayPage({
         </EventContext.Provider>
       </SessionContext.Provider>,
     );
-  }, [page, session, event, setEvent, onClose, onLeave, handOutNavigate]);
+  }, [ready, page, session, event, setEvent, onClose, onLeave, handOutNavigate]);
 
   return (
     <div
@@ -188,7 +205,8 @@ export default function GameOverlay({
     const previous = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     const game = frame.current?.parentElement?.querySelector<HTMLElement>(".game-window");
     game?.setAttribute("inert", "");
-    closeButton.current?.focus();
+    // No scrolling to the button: on iOS a focus that scrolls makes the sheet jump while it opens.
+    closeButton.current?.focus({ preventScroll: true });
     return () => {
       game?.removeAttribute("inert");
       previous?.focus();
@@ -208,9 +226,6 @@ export default function GameOverlay({
 
   return (
     <div className="game-overlay" data-testid="game-overlay" ref={frame}>
-      <span className="game-paused" aria-hidden="true">
-        {t("game.overlay.paused")}
-      </span>
       <div
         className="game-sheet guest"
         role="dialog"

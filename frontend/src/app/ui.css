@@ -174,6 +174,10 @@
   flex-direction: column;
   gap: 12px;
 }
+:is(.admin, .guest) .grid-span {
+  grid-column: 1 / -1;
+}
+
 :is(.admin, .guest) .grid-2 {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
@@ -1103,6 +1107,10 @@ button {
 
 /* The signed-in pages: header with the account links, one column of content */
 .guest-site-head {
+  /* stays at the top while the page scrolls, so it never ends up under the status bar of an installed app */
+  position: sticky;
+  top: 0;
+  z-index: 10;
   display: flex;
   align-items: center;
   flex-wrap: wrap;
@@ -1115,6 +1123,15 @@ button {
 .guest-site-head b {
   font: 600 16px/1.15 var(--a-display);
   margin-right: 16px;
+}
+/* The heading font is a web font whose ascent and descent are often far from equal, so centring its line box does not
+   centre the letters (seen on iOS). Where the browser can trim the box to the capital letters (Safari 18.2, Chrome 133)
+   the letters themselves are centred; the padding gives the trimmed box back some room, as in the game's bar. */
+@supports (text-box: trim-both cap alphabetic) {
+  .guest-site-head b {
+    text-box: trim-both cap alphabetic;
+    padding: 0.3em 0;
+  }
 }
 .guest-site-head nav {
   display: flex;
@@ -1266,7 +1283,9 @@ button {
     gap: 0;
     background: var(--a-bar, var(--a-card, #ffffff));
     border-top: 1px solid var(--a-line);
-    padding: 6px 0 calc(6px + env(safe-area-inset-bottom));
+    /* The buttons sit low: of the home indicator's area (34 px on an iPhone) only what is left over 16 px is kept, so the
+       bar still reaches the edge of the screen but the gap under the buttons is small. */
+    padding: 6px 0 max(6px, calc(env(safe-area-inset-bottom, 0px) - 16px));
     z-index: 10;
   }
   .site-nav a {
@@ -1697,10 +1716,11 @@ button {
   position: relative;
   display: flex;
   gap: 12px;
-  align-items: flex-start;
+  /* The portrait is centred in the height of the box; the text stays at the top (`.dialogue-text`). */
+  align-items: center;
   box-sizing: border-box;
   width: min(100%, 640px);
-  padding: 12px 36px 12px 12px;
+  padding: 12px;
   background: #fff;
   color: #000;
   border: 2px solid #222;
@@ -1715,6 +1735,7 @@ button {
 }
 .dialogue-portrait {
   flex: none;
+  align-self: center;
   width: 72px;
   height: 72px;
   object-fit: contain;
@@ -1725,7 +1746,10 @@ button {
 .dialogue-portrait.pixelated {
   image-rendering: pixelated;
 }
+/* The text starts at the top; its bottom edge leaves room for the page counter and the arrow in the corner. */
 .dialogue-text {
+  align-self: flex-start;
+  padding-bottom: 16px;
   flex: 1;
   min-width: 0;
   display: flex;
@@ -1738,24 +1762,97 @@ button {
 .dialogue-text .markdown p {
   margin: 0;
 }
+/* The page counter and the arrow stand in the bottom right corner of the box. The arrow shows when the whole page is
+   there (CNT-10); its place is kept, so the box does not change. */
 .dialogue-step {
-  align-self: flex-end;
+  position: absolute;
   font-size: 12px;
   color: #6a6a64;
+  right: 12px;
+  bottom: 6px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
 }
-.dialogue-close {
-  position: absolute;
-  top: -10px;
-  right: -10px;
-  width: 24px;
-  height: 24px;
-  padding: 0;
-  border: 0;
-  border-radius: 50%;
-  background: #222;
-  color: #fff;
+.dialogue-next {
+  display: inline-block;
+  width: 1ch;
   font:
-    13px/1 system-ui,
-    sans-serif;
+    700 16px/1 ui-monospace,
+    monospace;
+  color: #222;
+  visibility: hidden;
+}
+.dialogue-next[data-visible="true"] {
+  visibility: visible;
+  animation: dialogue-next-bounce 0.8s ease-in-out infinite;
+}
+@keyframes dialogue-next-bounce {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  50% {
+    transform: translateX(4px);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .dialogue-next[data-visible="true"] {
+    animation: none;
+  }
+}
+/* The error screen (WEB-13, WEB-14; UX mock app-error): stands outside the theme wrapper, so the
+   .themed class on its frame gives it the default tokens. */
+.guest .err-message {
+  align-items: center;
+  text-align: center;
+  gap: 12px;
+  padding: 28px 18px;
+}
+.guest .err-details {
+  border: 1px solid var(--a-line);
+  border-radius: 10px;
+  background: var(--a-card);
+  padding: 10px 12px;
+}
+.guest .err-details summary {
   cursor: pointer;
+  font-weight: 600;
+  font-size: 13px;
+}
+.guest .err-details[open] summary {
+  margin-bottom: 10px;
+}
+.guest .err-kv {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 4px 12px;
+  font-size: 12px;
+  margin-bottom: 10px;
+}
+.guest .err-val {
+  word-break: break-word;
+  user-select: all;
+}
+.guest .err-pre {
+  margin: 0 0 10px;
+  padding: 10px;
+  border-radius: 8px;
+  background: var(--a-fill);
+  font:
+    11px/1.45 ui-monospace,
+    SFMono-Regular,
+    Menlo,
+    monospace;
+  white-space: pre-wrap;
+  word-break: break-word;
+  max-height: 160px;
+  overflow: auto;
+  user-select: all;
+}
+.guest .err-copy {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
 }

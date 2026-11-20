@@ -2,21 +2,35 @@
 // GAME-19). It draws the active map and the player's figure, reads the arrow keys and taps, and follows the player
 // with the camera at the map's zoom. What the map means (collisions, paths, portals, draw order) is in the plain
 // modules next to it; this scene only wires them to Phaser.
+import { gameRandom } from "./random.ts";
 import Phaser from "phaser";
 import { walkable, cellOf, playerCollisionEllipse } from "./collision.ts";
 import { walkFrameIndex } from "./figures.ts";
 import { Atmosphere } from "./atmosphere.ts";
 import { atmospherePlan, prefersReducedMotion } from "./atmosphere-plan.ts";
 import { TileAnimations, type AnimatedPicture } from "./tile-animation.ts";
-import { BubbleBoard } from "./bubble-board.ts";
-import { ObjectLabelLayer } from "./object-label-layer.ts";
-import { chooseObjectLabels, objectLabelBox, objectLabelWidth } from "./object-labels.ts";
+import { BubbleBoard, type BubbleParticipant } from "./bubble-board.ts";
+import { GREETING_BUBBLE_CLOSE_TILES, GREETING_BUBBLE_OPEN_TILES } from "./bubble.ts";
+import { ObjectLabelLayer, measureObjectLabelText } from "./object-label-layer.ts";
+import {
+  chooseObjectLabels,
+  objectLabelBox,
+  objectLabelHeight,
+  objectLabelWidth,
+} from "./object-labels.ts";
 import { NpcCrowd } from "./npc-crowd.ts";
 import { npcTitle, npcKey } from "./npc-texts.ts";
 import { GuestCrowd } from "./guest-crowd.ts";
 import type { GuestFigure } from "@zappaloo/shared";
 import { figureDepth, figureOcclusionSegment, occlusionSegmentRelation } from "./draw-order.ts";
-import { interiorPoint, mapBounds, type Point, polygonCentre, tileToPixel } from "./geometry.ts";
+import {
+  distanceToRect,
+  interiorPoint,
+  mapBounds,
+  type Point,
+  polygonCentre,
+  tileToPixel,
+} from "./geometry.ts";
 import { cellKey, findPath, reachableCells, type Cell, type Grid } from "./pathfinding.ts";
 import {
   navigationGrid,
@@ -45,14 +59,33 @@ import {
   shineGradient,
   visibleEdge,
 } from "./interaction.ts";
-import { onAvatar, playerSpritePosition } from "./player-anchor.ts";
+import { playerSpritePosition } from "./player-anchor.ts";
+import {
+  AlphaMasks,
+  coverOfPicture,
+  coversOfTileLayer,
+  MARKER_DEPTH,
+  SilhouetteLayer,
+  type MarkerShape,
+} from "./silhouette-layer.ts";
+import type { Cover } from "./silhouette.ts";
 import { isTypingTarget } from "./keys.ts";
 import { startsPaused } from "./pause.ts";
 import { SHADOW_DEPTH_BELOW, figureShadow } from "./figure-shadow.ts";
+import { PORTAL_ARROW_BOB, PORTAL_ARROW_HOVER, PORTAL_ARROW_RISE } from "./portal-arrow.ts";
 import { EdgeIndicatorLayer } from "./edge-indicators.ts";
 import { hideLoadingOverlay, showLoadingOverlay } from "./loading-overlay.ts";
+import { hideWhiteout, showWhiteout } from "./whiteout.ts";
+import {
+  hideStartScreen,
+  LOADER_SHARE,
+  MAP_DRAWN,
+  setStartProgress,
+  startScreenIsUp,
+} from "./start-screen.ts";
 import {
   indicatorBox,
+  indicatorInsets,
   indicatorPlace,
   isOutside,
   labelSide,
@@ -94,10 +127,14 @@ interface IndicatorSource {
   centre: Point;
   /** The point a tap on the indicator taps: the same as a tap on the object itself. */
   tap: Point;
+  /** How far the label lifts above the top of the bounds: a portal's arrow bobs above its picture (GAME-41, 6.1f). */
+  lift: number;
 }
 
 /** How long the screen flash of entering a map lasts, in milliseconds (GAME-30). */
 const FLASH_MS = 450;
+/** How long the screen fades out to white when a portal is taken, before the new map is loaded (GAME-30). */
+const WHITEOUT_MS = 350;
 
 /** The game registry's count of the maps entered in this game (test hook). */
 const ENTRIES_REGISTRY_KEY = "zappaloo.game-map-entries";
@@ -105,8 +142,8 @@ const ENTRIES_REGISTRY_KEY = "zappaloo.game-map-entries";
 /** The warm glow of a portal's floating arrow (GAME-15). */
 const PORTAL_GLOW_COLOR = 0xffd36b;
 
-/** Below the objects and figures (their depths are the y of their feet, from 0 on), above the ground layers. */
-const MARKER_DEPTH = -1;
+/** The colour of the silhouettes when the host gives none (GAME-42): a dark blue. */
+const DEFAULT_SILHOUETTE_COLOR = 0x1d2b4f;
 
 /** The zoom of the camera; fixed for every map (decided 2026-11-15). */
 export const CAMERA_ZOOM = 2;
@@ -174,6 +211,11 @@ export class WorldScene extends Phaser.Scene {
   #pending: ClickableArea | undefined;
   /** The arrows of the portals by the Tiled id of their tile object, which wobble (GAME-15). */
   #objectSprites = new Map<number, ObjectPicture>();
+  /** The tile layers drawn above the figures (the Foreground), which can cover them (GAME-42). */
+  #foregroundLayers: Phaser.Tilemaps.TilemapLayer[] = [];
+  #silhouettes: SilhouetteLayer | undefined;
+  /** The half width of the target marker's ring in map pixels. */
+  #markerRadius = 0;
   /** How many sparkles have appeared in this map, and how many are visible now (GAME-15). */
   #sparkles = 0;
   #activeSparkles = 0;
@@ -222,11 +264,15 @@ export class WorldScene extends Phaser.Scene {
   #atmosphere: Atmosphere | undefined;
   #tileAnimations: TileAnimations | undefined;
   #guests: readonly GuestFigure[] = [];
+  /** The height of what the app covers the top of the view with (the game bar), read each frame. */
+  #topInset: () => number = () => 0;
   /** The edge indicators over the canvas and the objects they may point to (GAME-26). */
   #indicatorLayer: EdgeIndicatorLayer | undefined;
   /** The labels of the objects in sight (GAME-41). */
   #labelLayer: ObjectLabelLayer | undefined;
   #indicatorSources: IndicatorSource[] = [];
+  /** The ids of the figures whose bubble is open in this frame: their labels are hidden while it is open (GAME-41). */
+  #openBubbles: ReadonlySet<string> = new Set();
   readonly #onKeyDown = (event: KeyboardEvent): void => {
     // The scroll and button keys are the game's only while it runs and no field or button of the page has the focus.
     if (
@@ -242,12 +288,6 @@ export class WorldScene extends Phaser.Scene {
   };
   readonly #onTap = (pointer: Phaser.Input.Pointer): void => {
     const world = this.cameras.main.getWorldPoint(pointer.x, pointer.y);
-    // A tap on the player's own avatar goes to the host and does not walk (GAME-18).
-    const own = this.#host?.onPlayerTap;
-    if (own !== undefined && this.#ownAvatarHit(world)) {
-      own();
-      return;
-    }
     this.#tapTo({ x: world.x, y: world.y });
   };
 
@@ -279,6 +319,8 @@ export class WorldScene extends Phaser.Scene {
     this.#path = [];
     this.#pending = undefined;
     this.#objectSprites = new Map();
+    this.#foregroundLayers = [];
+    this.#silhouettes = undefined;
     this.#feedback = NO_FEEDBACK;
     this.#marker = undefined;
     this.#markerPulse = undefined;
@@ -293,6 +335,7 @@ export class WorldScene extends Phaser.Scene {
     this.#atmosphere = undefined;
     this.#tileAnimations = undefined;
     this.#guests = options.guests ?? [];
+    this.#topInset = options.topInset ?? (() => 0);
     this.#indicatorLayer?.destroy();
     this.#indicatorLayer = undefined;
     this.#labelLayer?.destroy();
@@ -310,6 +353,12 @@ export class WorldScene extends Phaser.Scene {
   preload(): void {
     const world = this.#world;
     if (world === undefined) return;
+    // The bar of the start screen follows the loader (GAME-43); after a portal the screen is gone.
+    if (startScreenIsUp(this.game)) {
+      this.load.on(Phaser.Loader.Events.PROGRESS, (value: number) => {
+        setStartProgress(this.game, value * LOADER_SHARE);
+      });
+    }
     for (const [key, url] of world.images) {
       if (!this.textures.exists(key)) this.load.image(key, url);
     }
@@ -324,6 +373,7 @@ export class WorldScene extends Phaser.Scene {
     // ratio (the window moves to another screen) changes the zoom itself.
     this.scale.on(Phaser.Scale.Events.RESIZE, this.#onResize);
     this.#drawMap(map);
+    setStartProgress(this.game, MAP_DRAWN);
     this.#tileAnimations = this.#animateObjects(map);
     // The guides lie above every layer, the foreground ones included (MAP-18).
     this.#guideGraphics = this.add.graphics().setDepth(2_000_000);
@@ -369,6 +419,7 @@ export class WorldScene extends Phaser.Scene {
                     width: camera.width / this.#pixelRatio(),
                     height: camera.height / this.#pixelRatio(),
                   }),
+                  topInset: () => this.#topInset(),
                 },
                 map.size.width,
               );
@@ -408,6 +459,7 @@ export class WorldScene extends Phaser.Scene {
         );
       }
       this.#createMarker(map);
+      this.#createSilhouettes();
       // The camera does not follow by itself: it is centred on the snapped sprite in update() (GAME-27).
       this.cameras.main.setRoundPixels(true);
     }
@@ -442,6 +494,11 @@ export class WorldScene extends Phaser.Scene {
         guests: this.#crowd?.states ?? [],
         npcs: this.#npcs?.states ?? [],
         atmosphere: this.#atmosphere?.state ?? { fog: false, clouds: 0, birds: 0 },
+        silhouettes: this.#silhouettes?.state(this.#player) ?? {
+          player: false,
+          figures: 0,
+          marker: false,
+        },
         tileAnimation: {
           objects: this.#tileAnimations?.count ?? 0,
           frames: [...(this.#tileAnimations?.shown ?? [])],
@@ -515,6 +572,51 @@ export class WorldScene extends Phaser.Scene {
     camera.centerOn(player.x, player.y);
   }
 
+  /** The box of an object in the map: its picture's, or its shape's when it has no picture. */
+  #boundsOf(objectId: number | undefined, polygon: Point[]): Rect {
+    const sprite = objectId === undefined ? undefined : this.#objectSprites.get(objectId);
+    if (sprite !== undefined) {
+      const box = sprite.getBounds();
+      return { x: box.x, y: box.y, width: box.width, height: box.height };
+    }
+    const xs = polygon.map((point) => point.x);
+    const ys = polygon.map((point) => point.y);
+    const x = Math.min(...xs);
+    const y = Math.min(...ys);
+    return { x, y, width: Math.max(...xs) - x, height: Math.max(...ys) - y };
+  }
+
+  /**
+   * The clickable objects whose dialogue has a greeting, as bubble participants (GAME-37, CNT-09): the greeting shows over
+   * the top of the object when the player is within 1 tile of its shape, and a tap on it does what a tap on the object
+   * does. `labels` are the names by id, the bubble itself holds the greeting only.
+   */
+  #objectGreetings(labels: ReadonlyMap<string, string>): BubbleParticipant[] {
+    const world = this.#world;
+    const map = this.#map;
+    if (world === undefined || map === undefined) return [];
+    return map.clickables.flatMap((area) => {
+      const greeting = world.greetings.get(npcKey(map.id, area.name));
+      if (greeting === undefined) return [];
+      const box = this.#boundsOf(area.objectId, area.polygon);
+      const id = `object:${area.name}`;
+      return [
+        {
+          id,
+          distance: distanceToRect(this.#position, box),
+          head: { x: box.x + box.width / 2, y: box.y },
+          content: { name: labels.get(id) ?? area.label ?? area.name, greeting, compact: true },
+          openTiles: GREETING_BUBBLE_OPEN_TILES,
+          closeTiles: GREETING_BUBBLE_CLOSE_TILES,
+          onTap: () => {
+            if (this.sys.isActive() && !this.#transitioning)
+              this.#tapTo(interiorPoint(area.polygon));
+          },
+        },
+      ];
+    });
+  }
+
   /**
    * The objects that may get an edge indicator: the clickable objects with an action and the portals with a target
    * (GAME-26). Their bounds are the picture's, or the shape's when the object has no picture.
@@ -524,18 +626,8 @@ export class WorldScene extends Phaser.Scene {
     const parent = this.game.canvas.parentElement;
     if (world === undefined || parent === null) return;
     const options = this.game.registry.get(ENGINE_CONFIG_REGISTRY_KEY) as GameEngineOptions;
-    const bounds = (objectId: number | undefined, polygon: Point[]): Rect => {
-      const sprite = objectId === undefined ? undefined : this.#objectSprites.get(objectId);
-      if (sprite !== undefined) {
-        const box = sprite.getBounds();
-        return { x: box.x, y: box.y, width: box.width, height: box.height };
-      }
-      const xs = polygon.map((point) => point.x);
-      const ys = polygon.map((point) => point.y);
-      const x = Math.min(...xs);
-      const y = Math.min(...ys);
-      return { x, y, width: Math.max(...xs) - x, height: Math.max(...ys) - y };
-    };
+    const bounds = (objectId: number | undefined, polygon: Point[]): Rect =>
+      this.#boundsOf(objectId, polygon);
     const sources: IndicatorSource[] = [];
     for (const area of map.clickables) {
       const action = actionOf(world.actions, map.id, area);
@@ -551,6 +643,7 @@ export class WorldScene extends Phaser.Scene {
         bounds: box,
         centre: { x: box.x + box.width / 2, y: box.y + box.height / 2 },
         tap: interiorPoint(area.polygon),
+        lift: 0,
       });
     }
     for (const portal of map.portals) {
@@ -564,6 +657,8 @@ export class WorldScene extends Phaser.Scene {
         bounds: box,
         centre: { x: box.x + box.width / 2, y: box.y + box.height / 2 },
         tap: interiorPoint(portal.polygon),
+        // The label clears the highest point of the bobbing arrow, not only the picture's top (decision 7).
+        lift: PORTAL_ARROW_RISE,
       });
     }
     this.#indicatorSources = sources;
@@ -586,6 +681,7 @@ export class WorldScene extends Phaser.Scene {
     const world = this.#world;
     const map = this.#map;
     if (world === undefined || map === undefined) return [];
+    const options = this.game.registry.get(ENGINE_CONFIG_REGISTRY_KEY) as GameEngineOptions;
     return (this.#npcs?.bodies ?? [])
       .filter((body) => indicatorShown(world.showIndicator, npcKey(map.id, body.name)))
       .map((body) => {
@@ -597,18 +693,27 @@ export class WorldScene extends Phaser.Scene {
         return {
           id: `npc:${body.name}`,
           kind: "object" as const,
-          label: npcTitle(body, world.npcs.get(npcKey(map.id, body.name))),
+          // The figure name of its dialogue, else the title of the page it opens, else its label or name (GAME-40).
+          label: npcTitle(
+            body,
+            world.npcs.get(npcKey(map.id, body.name)),
+            options.titleOf?.(
+              world.actions.get(npcKey(map.id, body.name)) ?? body.preset ?? { kind: "none" },
+            ),
+          ),
           bounds,
           centre: { x: x + bounds.width / 2, y: y + bounds.height / 2 },
           tap: interiorPoint(body.polygon),
+          lift: 0,
         };
       });
   }
 
   /**
    * The labels of the objects in sight (GAME-41): an object, portal or NPC with an indicator that is not outside the
-   * view carries its label on top, the nearest first and without overlaps. An NPC whose speech bubble is open
-   * shows no label: the bubble names it.
+   * view carries its label on top, the nearest first and without overlaps. While a greeting bubble is open over its
+   * figure, the label is hidden: the bubble takes its place (decided 2026-11-20, reversing the 6.1d rule that the
+   * label stays).
    */
   #updateLabels(): void {
     const layer = this.#labelLayer;
@@ -621,21 +726,24 @@ export class WorldScene extends Phaser.Scene {
       y: (point.y - camera.midPoint.y) * CAMERA_ZOOM + view.height / 2,
     });
     const candidates = [...this.#indicatorSources, ...this.#npcIndicatorSources()]
-      .filter(
-        (source) =>
-          !isOutside(source.bounds, camera.worldView) &&
-          !(source.id.startsWith("npc:") && (this.#board?.isOpen(source.id) ?? false)),
-      )
+      .filter((source) => !isOutside(source.bounds, camera.worldView))
+      // The greeting bubble of the figure takes the label's place while it is open (GAME-37, GAME-41).
+      .filter((source) => !this.#openBubbles.has(source.id))
       .map((source) => {
-        const width = objectLabelWidth(source.label);
+        const width = objectLabelWidth(source.label, view.width, measureObjectLabelText);
         return {
           source,
           width,
           id: source.id,
           box: objectLabelBox(
-            toView({ x: source.bounds.x + source.bounds.width / 2, y: source.bounds.y }),
+            toView({
+              x: source.bounds.x + source.bounds.width / 2,
+              y: source.bounds.y - source.lift,
+            }),
             width,
             view,
+            objectLabelHeight(source.label, width, measureObjectLabelText),
+            this.#topInset(),
           ),
           distance: Math.hypot(
             source.centre.x - this.#position.x,
@@ -673,9 +781,20 @@ export class WorldScene extends Phaser.Scene {
     const candidates = [...this.#indicatorSources, ...this.#npcIndicatorSources()]
       .filter((source) => isOutside(source.bounds, camera.worldView))
       .map((source) => {
-        const place = indicatorPlace(avatar, toView(source.centre), view);
+        const place = indicatorPlace(
+          avatar,
+          toView(source.centre),
+          view,
+          indicatorInsets(this.#topInset()),
+        );
         const side = labelSide(place.point, view.width);
-        const width = labelWidth(source.label, place.point, view.width, side);
+        const width = labelWidth(
+          source.label,
+          place.point,
+          view.width,
+          side,
+          measureObjectLabelText,
+        );
         return {
           source,
           point: place.point,
@@ -718,12 +837,51 @@ export class WorldScene extends Phaser.Scene {
   }
 
   /**
+   * What covers the figures (the tile objects and the foreground layers) and the silhouettes that show them through
+   * (GAME-42). The covers are measured once per map; only animated objects are read again as they change.
+   */
+  #createSilhouettes(): void {
+    const options = this.game.registry.get(ENGINE_CONFIG_REGISTRY_KEY) as GameEngineOptions;
+    const masks = new AlphaMasks(this);
+    const covers: Cover[] = [
+      ...[...this.#objectSprites.values()].map((picture) => coverOfPicture(picture, masks)),
+      ...this.#foregroundLayers.flatMap((layer) => coversOfTileLayer(layer, masks)),
+    ];
+    this.#silhouettes = new SilhouetteLayer(
+      this,
+      options.silhouetteColor ?? DEFAULT_SILHOUETTE_COLOR,
+      masks,
+      covers,
+    );
+  }
+
+  /** The silhouettes of the player, the guest figures, the NPCs and the target marker, as they stand this frame. */
+  #updateSilhouettes(player: Phaser.GameObjects.Sprite): void {
+    const marker = this.#marker;
+    const shape: MarkerShape | undefined =
+      marker?.visible === true
+        ? {
+            centre: { x: marker.x, y: marker.y },
+            radiusX: this.#markerRadius,
+            radiusY: this.#markerRadius / 2,
+            scale: marker.scale,
+            alpha: marker.alpha,
+          }
+        : undefined;
+    this.#silhouettes?.update(
+      [player, ...(this.#crowd?.sprites ?? []), ...(this.#npcs?.sprites ?? [])],
+      shape,
+    );
+  }
+
+  /**
    * The ring of the target marker (GAME-24): an ellipse of the tile's 2 : 1 ratio, 0.4 tile widths wide, in the colour
    * of the glow with a dark contour, flat on the ground. It pulses once per second, from 0.8 to 1.2 times its size
    * while it fades out. It lies above the ground layers and below objects and figures.
    */
   #createMarker(map: ParsedMap): void {
     const width = map.size.width * 0.4;
+    this.#markerRadius = width / 2;
     const contour = this.add.ellipse(0, 0, width, width / 2).setStrokeStyle(3.5, 0x141414, 0.9);
     const ring = this.add.ellipse(0, 0, width, width / 2).setStrokeStyle(2, GLOW_COLOR, 1);
     const marker = this.add
@@ -747,6 +905,9 @@ export class WorldScene extends Phaser.Scene {
    */
   #enterMap(): void {
     hideLoadingOverlay(this.game);
+    hideStartScreen(this.game);
+    // The white of the portal stays until the flash below has begun from white (GAME-30).
+    hideWhiteout(this.game);
     if (this.#artworkOnly) return;
     const entries = (this.game.registry.get(ENTRIES_REGISTRY_KEY) as number | undefined) ?? 0;
     if (this.#flash) {
@@ -943,12 +1104,22 @@ export class WorldScene extends Phaser.Scene {
     const spritePosition = playerSpritePosition(this.#position, CAMERA_ZOOM, this.#pixelRatio());
     player.setPosition(spritePosition.x, spritePosition.y);
     this.#followPlayer();
-    // The guest figures and their bubbles, with the camera of this frame (PRES-10).
+    // The speech bubble, with the camera of this frame: only one is open (GAME-37), the pinned one or the nearest
+    // figure's, of the guest figures, the NPCs and the objects with a greeting (PRES-10).
+    const labels = new Map(
+      [...this.#indicatorSources, ...this.#npcIndicatorSources()].map((source) => [
+        source.id,
+        source.label,
+      ]),
+    );
     const shown =
       this.#board?.update([
         ...(this.#crowd?.participants(this.#position) ?? []),
         ...(this.#npcs?.participants(this.#position) ?? []),
+        ...this.#objectGreetings(labels),
       ]) ?? new Set<string>();
+    // A figure whose greeting bubble is open has no label this frame (GAME-41, decided 2026-11-20).
+    this.#openBubbles = shown;
     this.#crowd?.update(delta, this.#position, shown);
     // The NPC the player walks to waits for them (GAME-38).
     const walkingTo = this.#pending;
@@ -960,6 +1131,7 @@ export class WorldScene extends Phaser.Scene {
     this.#tileAnimations?.update(delta);
     player.setDepth(figureDepth(this.#position, map.occluders, map.size.width));
     this.#placeShadow(map, player);
+    this.#updateSilhouettes(player);
     this.#drawOcclusionActor();
     this.#drawCollisionActor();
 
@@ -1087,6 +1259,9 @@ export class WorldScene extends Phaser.Scene {
         const depth =
           order > actorLayerOrder ? 1_000_000 + order * 1000 : -1_000_000 + order * 1000;
         displayLayer.setDepth(depth);
+        if (depth > 0 && displayLayer instanceof Phaser.Tilemaps.TilemapLayer) {
+          this.#foregroundLayers.push(displayLayer);
+        }
       }
       const objects = drawObjects && this.#drawNativeTileObjects(map, tilemap);
       return { ground: true, objects };
@@ -1532,10 +1707,8 @@ export class WorldScene extends Phaser.Scene {
    */
   #floatPortals(map: ParsedMap): void {
     // The arrow hovers above the ground, so its shadow shows below it, and rises and sinks by the amplitude.
-    const HOVER = 6;
     /** Above the foreground layers (at most about 1,100,000), below the effects of the objects (1,500,000). */
     const PORTAL_ARROW_DEPTH = 1_200_000;
-    const AMPLITUDE = 4;
     for (const portal of map.portals) {
       const sprite = this.#objectSprites.get(portal.objectId);
       if (sprite === undefined) continue;
@@ -1553,7 +1726,7 @@ export class WorldScene extends Phaser.Scene {
       // The arrow floats above the world: nothing in it, no prop and no foreground layer, covers it. Its shadow
       // keeps the depth of the ground it lies on, so a figure in front still stands over the shadow.
       sprite.setDepth(PORTAL_ARROW_DEPTH);
-      const base = sprite.y - HOVER;
+      const base = sprite.y - PORTAL_ARROW_HOVER;
       // A warm glow around the arrow's own pixels, which breathes with the float.
       sprite.enableFilters();
       const glow = sprite.filters?.internal.addGlow(PORTAL_GLOW_COLOR, 3, 0, 0.8);
@@ -1572,7 +1745,7 @@ export class WorldScene extends Phaser.Scene {
         repeat: -1,
         onUpdate: (tween) => {
           const rise = tween.getValue() ?? 0;
-          sprite.y = base - AMPLITUDE * rise;
+          sprite.y = base - PORTAL_ARROW_BOB * rise;
           shadow.setScale(1 - 0.25 * rise);
           shadow.setAlpha(1 - 0.4 * rise);
           // While the avatar walks into this portal, the pulse of the walk sets the glow (GAME-25).
@@ -1594,7 +1767,7 @@ export class WorldScene extends Phaser.Scene {
     if (visible.length === 0) return;
     const schedule = (): void => {
       this.#sparkleTimer = this.time.delayedCall(nextSparkleDelay(), () => {
-        const area = visible[Math.floor(Math.random() * visible.length)];
+        const area = visible[Math.floor(gameRandom() * visible.length)];
         if (area !== undefined && this.#activeSparkles < MAX_SPARKLES) this.#sparkle(area);
         schedule();
       });
@@ -1637,9 +1810,9 @@ export class WorldScene extends Phaser.Scene {
 
   #sparkle(area: ClickableArea): void {
     const edge = this.#edges.get(area.name);
-    const at = edge?.[Math.floor(Math.random() * edge.length)];
+    const at = edge?.[Math.floor(gameRandom() * edge.length)];
     if (at === undefined) return;
-    const radius = 1.5 + Math.random() * 1.5;
+    const radius = 1.5 + gameRandom() * 1.5;
     const star = this.add.graphics({ x: at.x, y: at.y }).setDepth(1_500_000);
     star.fillStyle(0xfff3a0, 1);
     star.fillPoints(
@@ -1662,7 +1835,7 @@ export class WorldScene extends Phaser.Scene {
       alpha: 0,
       scale: 1.8,
       angle: 45,
-      duration: 450 + Math.random() * 300,
+      duration: 450 + gameRandom() * 300,
       onComplete: () => {
         star.destroy();
         this.#activeSparkles -= 1;
@@ -1679,7 +1852,7 @@ export class WorldScene extends Phaser.Scene {
     if (visible.length === 0) return;
     const schedule = (): void => {
       this.#shineTimer = this.time.delayedCall(nextShineDelay(), () => {
-        const area = visible[Math.floor(Math.random() * visible.length)];
+        const area = visible[Math.floor(gameRandom() * visible.length)];
         if (area !== undefined) this.#shine(area);
         schedule();
       });
@@ -1749,12 +1922,6 @@ export class WorldScene extends Phaser.Scene {
     this.#shineKeys.clear();
   }
 
-  /** Whether a tap is on the player's own avatar, not on the world around it (GAME-18). */
-  #ownAvatarHit(point: Point): boolean {
-    const player = this.#player;
-    return player !== undefined && onAvatar(point, player);
-  }
-
   /** Stops the game while a page is open above it, and lets the keys reach the page (GAME-11). */
   setPaused(paused: boolean): void {
     const keyboard = this.input.keyboard;
@@ -1807,10 +1974,22 @@ export class WorldScene extends Phaser.Scene {
 
   #transition(mapId: string, spawn: string | undefined): void {
     this.#transitioning = true;
-    // The veil is put up now, and painted before the scene restarts at the next frame; the new scene takes it down
-    // when it is ready (GAME-30).
+    // The screen fades out to white first (GAME-30); only when it is white is the new map loaded. The restart throws
+    // the camera's fade away, so a white layer of the game takes over at that moment, and the loading veil goes up
+    // over it; the new scene takes both down when it is ready, and enters with its flash from white.
     const options = this.game.registry.get(ENGINE_CONFIG_REGISTRY_KEY) as GameEngineOptions;
-    showLoadingOverlay(this.game, options.texts?.loading);
-    this.scene.restart({ mapId, spawn: spawn ?? "start" });
+    this.cameras.main.fade(
+      WHITEOUT_MS,
+      255,
+      255,
+      255,
+      true,
+      (_camera: unknown, progress: number) => {
+        if (progress < 1) return;
+        showWhiteout(this.game);
+        showLoadingOverlay(this.game, options.texts?.loading);
+        this.scene.restart({ mapId, spawn: spawn ?? "start" });
+      },
+    );
   }
 }

@@ -17,3 +17,27 @@ export function rememberPause(store: PauseStore, paused: boolean): void {
 export function startsPaused(store: PauseStore): boolean {
   return store.get(PAUSED_REGISTRY_KEY) === true;
 }
+
+/** The part of Phaser's game loop that stopping the drawing uses. */
+export interface DrawLoop {
+  running: boolean;
+  sleep(): void;
+  resetDelta(): void;
+  wake(): void;
+}
+
+/**
+ * Stops the game loop while the game stands still behind a page (GAME-44), and starts it again afterwards. A paused
+ * Phaser scene is still drawn every frame, so the full-resolution canvas with its filters would compete with the
+ * page opening above it; with the loop asleep the canvas keeps its last picture and costs nothing. A loop that a test
+ * plays by hand (`manual`) is never woken.
+ */
+export function setLoopAsleep(loop: DrawLoop, paused: boolean, manual: boolean): void {
+  if (manual) return;
+  if (paused) {
+    loop.sleep();
+  } else if (!loop.running) {
+    loop.resetDelta();
+    loop.wake();
+  }
+}

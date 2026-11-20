@@ -28,7 +28,7 @@ test("[SEC-10] pages, scripts and API responses carry X-Robots-Tag noindex", asy
   }
 });
 
-test("[LANG-01] the website shows its texts in German", async ({ page, context }) => {
+test("[LANG-01] the website shows its texts in German @flaky", async ({ page, context }) => {
   await signInAsAdmin(page, context);
   await page.goto("/");
   await expect(page.locator("html")).toHaveAttribute("lang", "de");
@@ -41,7 +41,7 @@ test("[LANG-01] the website shows its texts in German", async ({ page, context }
   ).toBeVisible();
 });
 
-test("the game route mounts Phaser with the world, or leads to the start page while no world is set up", async ({
+test("the game route mounts Phaser with the world, or leads to the start page while no world is set up @flaky", async ({
   page,
   context,
 }) => {
@@ -62,7 +62,7 @@ test("the game route mounts Phaser with the world, or leads to the start page wh
   }
 });
 
-test("the backend reports health and version", async ({ request }) => {
+test("the backend reports health and version", { tag: "@smoke" }, async ({ request }) => {
   const health = await request.get("/api/health");
   expect(health.status()).toBe(200);
   expect(await health.json()).toMatchObject({ status: "ok" });
@@ -70,7 +70,7 @@ test("the backend reports health and version", async ({ request }) => {
   expect(version.version).toMatch(/\+dev$/);
 });
 
-test("[CFG-02][CFG-05] the server started with the example event and serves it with its toggles", async ({
+test("[CFG-02][CFG-05] the server started with the example event and serves it with its toggles @flaky", async ({
   page,
   context,
 }) => {
@@ -87,7 +87,7 @@ test("[CFG-02][CFG-05] the server started with the example event and serves it w
   });
 });
 
-test("[ACS-09][ACS-07] without a session only the public pages and routes are reachable", async ({
+test("[ACS-09][ACS-07] without a session only the public pages and routes are reachable @flaky", async ({
   page,
   request,
 }) => {
@@ -109,4 +109,30 @@ test("[ACS-09][ACS-07] without a session only the public pages and routes are re
   for (const path of ["/api/health", "/api/version", "/api/session"]) {
     expect((await request.get(path)).status(), path).toBe(200);
   }
+});
+
+test("[WEB-13][WEB-14] a page that fails shows the friendly error screen with copyable details, not the router's page", async ({
+  page,
+  context,
+}) => {
+  await signInAsAdmin(page, context);
+  await page.goto("/test-error?invitation=SECRET");
+
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText(de.error.title);
+  await expect(page.getByText("Hey developer")).toHaveCount(0);
+  await expect(page.getByRole("button", { name: de.error.reload })).toBeVisible();
+  await expect(page.getByRole("link", { name: de.error.home })).toHaveAttribute("href", "/");
+
+  // The details are closed in a production build; the test build is one.
+  const details = page.locator("details.err-details");
+  await expect(details).not.toHaveAttribute("open", "");
+  await details.getByText(de.error.details).click();
+  await expect(details.getByText("/test-error", { exact: true })).toBeVisible();
+  await expect(details.getByText("this page fails on purpose").first()).toBeVisible();
+  await expect(details).not.toContainText("SECRET");
+
+  // The way out leads to the start page.
+  await page.getByRole("link", { name: de.error.home }).click();
+  await expect(page).toHaveURL(/\/$/);
+  await expect(page.getByTestId("app-error")).toHaveCount(0);
 });

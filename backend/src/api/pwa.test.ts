@@ -118,6 +118,15 @@ describe("the web app manifest (PWA-01)", () => {
   });
 });
 
+describe("the version endpoint (PWA-06)", () => {
+  it("[PWA-06] is never cached, so a client always sees the release that runs now", async () => {
+    context = await createTestApp();
+    const response = await context.app.inject("/api/version");
+    expect(response.statusCode).toBe(200);
+    expect(response.headers["cache-control"]).toBe("no-store");
+  });
+});
+
 describe("the app icons (PWA-02)", () => {
   it("[PWA-02] serves the built-in icons in the exact sizes when the event has none", async () => {
     context = await createTestApp();
@@ -129,7 +138,7 @@ describe("the app icons (PWA-02)", () => {
     }
   });
 
-  it("[PWA-02] serves the icons of the active theme, and the manifest asks for them with a new version", async () => {
+  it("[PWA-02][PWA-06] serves the icons of the active theme, and the manifest asks for them with a new version", async () => {
     context = await createTestApp();
     const ctx = context;
     const before = (await ctx.app.inject("/manifest.webmanifest")).json<Manifest>();
@@ -137,6 +146,8 @@ describe("the app icons (PWA-02)", () => {
     await importTheme(ctx, validThemeFiles({ "icons/icon-512.png": own }));
     const response = await ctx.app.inject("/app-icons/icon-512.png");
     expect(response.rawPayload.equals(own)).toBe(true);
+    // [PWA-06] A changed icon is served at once: the browser revalidates instead of keeping it for an hour.
+    expect(response.headers["cache-control"]).toBe("no-cache");
     const after = (await ctx.app.inject("/manifest.webmanifest")).json<Manifest>();
     expect(after.icons[1]?.src).not.toBe(before.icons[1]?.src);
     // The icon the theme does not carry is still the built-in one, as the optional maskable icon.

@@ -4,12 +4,14 @@ import { Outlet } from "react-router";
 import { AppTitle } from "./AppTitle.tsx";
 import { EventProvider } from "./EventProvider.tsx";
 import { SessionProvider } from "./SessionProvider.tsx";
+import { UpdateWatcher } from "./UpdateWatcher.tsx";
 
 export default function Root() {
   return (
     <SessionProvider>
       <EventProvider>
         <AppTitle />
+        <UpdateWatcher />
         <Outlet />
       </EventProvider>
     </SessionProvider>

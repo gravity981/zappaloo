@@ -70,13 +70,17 @@ function picture(view: IndicatorView): SVGElement {
   return root;
 }
 
-/** The label beside an indicator: black text on white, as wide as the layout reserved for it. */
+/**
+ * The label beside an indicator: black text on white, as wide as its text needs up to what the layout reserved for it.
+ * A longer text wraps onto up to three lines; only what is beyond them is cut off.
+ */
 function label(view: IndicatorView): HTMLSpanElement {
   const text = document.createElement("span");
   text.textContent = view.label;
   text.style.cssText =
-    `box-sizing:border-box;max-width:${String(view.labelWidth)}px;overflow:hidden;text-overflow:ellipsis;` +
-    "white-space:nowrap;padding:2px 8px;border-radius:6px;background:#fff;color:#000;" +
+    `box-sizing:border-box;width:max-content;max-width:${String(view.labelWidth)}px;overflow:hidden;` +
+    "display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:3;overflow-wrap:normal;" +
+    "padding:2px 8px;border-radius:6px;background:#fff;color:#000;" +
     "font:600 12px/1.3 system-ui,sans-serif;box-shadow:0 0 0 1px rgba(0,0,0,.3),1px 1px 0 1px rgba(0,0,0,.2)";
   return text;
 }
@@ -165,6 +169,21 @@ export class EdgeIndicatorLayer {
     button.addEventListener("click", () => {
       this.#onTap(view.id);
     });
+    // A press on the button is not a press on the game. The game's own pointer handling listens on the window and
+    // would see the press without its release, which is on this button, and then ignore every later tap on the
+    // ground (the click above still runs).
+    for (const type of [
+      "pointerdown",
+      "pointerup",
+      "mousedown",
+      "mouseup",
+      "touchstart",
+      "touchend",
+    ]) {
+      button.addEventListener(type, (event) => {
+        event.stopPropagation();
+      });
+    }
     return button;
   }
 }

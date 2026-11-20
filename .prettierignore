@@ -6,6 +6,7 @@ coverage/
 test-results/
 playwright-report/
 playwright-report-flaky/
+playwright-report-smoke/
 dist/
 
 # UX mocks are a hand-written HTML prototype, not project code

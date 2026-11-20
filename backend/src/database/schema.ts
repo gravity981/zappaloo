@@ -625,11 +625,12 @@ export const seatingConfig = sqliteTable("seating_config", {
   visibleFrom: integer("visible_from", { mode: "timestamp_ms" }),
 });
 
-// --- Dialogues (sw-architecture.md 6.2, 14.4; CNT-02, CNT-03, CNT-08) -------------------------
+// --- Dialogues (sw-architecture.md 6.2, 14.4; CNT-02, CNT-03, CNT-08, CNT-09) -----------------
 
 /**
- * A dialogue of the game world: the name of the NPC and lines in Markdown that the guest taps through, with an optional
- * portrait picture. The id is the `contentId` of Tiled presets; the admin edits all of it in Erlebniswelt › Dialoge.
+ * A dialogue of the game world: the name of the figure, a greeting for the speech bubble and lines in Markdown that the
+ * guest taps through, with an optional portrait picture. The id is the `contentId` of Tiled presets; it is made from the
+ * name when the dialogue is created and never changes. The admin edits the rest in Erlebniswelt › Dialoge.
  */
 export const dialogues = sqliteTable(
   "dialogues",
@@ -639,6 +640,10 @@ export const dialogues = sqliteTable(
       .references(() => events.id),
     id: text("id").notNull(),
     npcName: text("npc_name").notNull(),
+    /** The greeting in the speech bubble of the object or NPC that shows the dialogue; null: no speech bubble (CNT-09). */
+    greeting: text("greeting"),
+    /** Whether this is the welcome dialogue that opens once on the first entry; at most one per event (GAME-17). */
+    welcome: integer("welcome", { mode: "boolean" }).notNull().default(false),
     /** The lines as a JSON array of Markdown texts. */
     lines: text("lines").notNull(),
     /** The portrait as uploaded (at most 1 MB), kept unchanged so that pixel art stays crisp (CNT-08). */
@@ -885,22 +890,4 @@ export const worldHiddenIndicators = sqliteTable(
     objectName: text("object_name").notNull(),
   },
   (table) => [primaryKey({ columns: [table.eventId, table.mapId, table.objectName] })],
-);
-
-/**
- * The texts the admin gave the NPCs of the world (sw-architecture.md 14.4, MAP-21): a name and a short dialog, per
- * map id and NPC name, so they survive a new import of the world. Either may be null; a row with neither is removed.
- */
-export const worldNpcs = sqliteTable(
-  "world_npcs",
-  {
-    eventId: text("event_id")
-      .notNull()
-      .references(() => events.id),
-    mapId: text("map_id").notNull(),
-    npcName: text("npc_name").notNull(),
-    title: text("title"),
-    dialog: text("dialog"),
-  },
-  (table) => [primaryKey({ columns: [table.eventId, table.mapId, table.npcName] })],
 );

@@ -158,3 +158,13 @@ export function rectangleToPolygon(x: number, y: number, width: number, height: 
     { x, y: y + height },
   ];
 }
+
+/** The distance of a point from a rectangle: 0 inside it, else to its nearest edge or corner. */
+export function distanceToRect(
+  point: Point,
+  rect: { x: number; y: number; width: number; height: number },
+): number {
+  const dx = Math.max(rect.x - point.x, 0, point.x - (rect.x + rect.width));
+  const dy = Math.max(rect.y - point.y, 0, point.y - (rect.y + rect.height));
+  return Math.hypot(dx, dy);
+}

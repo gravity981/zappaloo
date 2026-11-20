@@ -53,7 +53,7 @@ describe("game world › Welt & Import", () => {
       "GET /api/session": asAdmin,
       "GET /api/admin/world": () => ({
         status: 200,
-        body: { guestAccess: true, active: sommerfest, previous: null },
+        body: { guestAccess: true, welcomeDialogue: null, active: sommerfest, previous: null },
       }),
     });
     renderAt("/admin/world");
@@ -78,7 +78,7 @@ describe("game world › Welt & Import", () => {
       "GET /api/session": asAdmin,
       "GET /api/admin/world": () => ({
         status: 200,
-        body: { guestAccess: false, active: null, previous: null },
+        body: { guestAccess: false, welcomeDialogue: null, active: null, previous: null },
       }),
     });
     renderAt("/admin/world");
@@ -92,7 +92,7 @@ describe("game world › Welt & Import", () => {
       "GET /api/session": asAdmin,
       "GET /api/admin/world": () => ({
         status: 200,
-        body: { guestAccess: true, active: sommerfest, previous: null },
+        body: { guestAccess: true, welcomeDialogue: null, active: sommerfest, previous: null },
       }),
     });
     renderAt("/admin/world");
@@ -113,7 +113,7 @@ describe("game world › Welt & Import", () => {
       "GET /api/session": asAdmin,
       "GET /api/admin/world": () => ({
         status: 200,
-        body: { guestAccess: true, active: sommerfest, previous: null },
+        body: { guestAccess: true, welcomeDialogue: null, active: sommerfest, previous: null },
       }),
       "POST /api/admin/world": () => ({
         status: 422,
@@ -161,11 +161,14 @@ describe("game world › Welt & Import", () => {
       "GET /api/session": asAdmin,
       "GET /api/admin/world": () => ({
         status: 200,
-        body: { guestAccess: true, active, previous: null },
+        body: { guestAccess: true, welcomeDialogue: null, active, previous: null },
       }),
       "POST /api/admin/world": () => {
         active = sommerfest;
-        return { status: 200, body: { guestAccess: true, active, previous: null } };
+        return {
+          status: 200,
+          body: { guestAccess: true, welcomeDialogue: null, active, previous: null },
+        };
       },
     });
     renderAt("/admin/world");
@@ -185,12 +188,15 @@ describe("game world › Welt & Import", () => {
       "GET /api/session": asAdmin,
       "GET /api/admin/world": () => ({
         status: 200,
-        body: { guestAccess: true, active, previous: before },
+        body: { guestAccess: true, welcomeDialogue: null, active, previous: before },
       }),
       "POST /api/admin/world/rollback": () => {
         active = { ...sommerfest, name: "Erste Welt", importId: "imp-1" };
         before = { name: "Sommerfest", importedAt: sommerfest.importedAt };
-        return { status: 200, body: { guestAccess: true, active, previous: before } };
+        return {
+          status: 200,
+          body: { guestAccess: true, welcomeDialogue: null, active, previous: before },
+        };
       },
     });
     renderAt("/admin/world");
@@ -218,11 +224,14 @@ describe("game world › guest access (MAP-19)", () => {
       "GET /api/session": asAdmin,
       "GET /api/admin/world": () => ({
         status: 200,
-        body: { guestAccess, active: sommerfest, previous: null },
+        body: { guestAccess, welcomeDialogue: null, active: sommerfest, previous: null },
       }),
       "PUT /api/admin/world/guest-access": () => {
         guestAccess = false;
-        return { status: 200, body: { guestAccess, active: sommerfest, previous: null } };
+        return {
+          status: 200,
+          body: { guestAccess, welcomeDialogue: null, active: sommerfest, previous: null },
+        };
       },
     });
     renderAt("/admin/world");
@@ -249,7 +258,7 @@ describe("game world › guest access (MAP-19)", () => {
       "GET /api/session": asAdmin,
       "GET /api/admin/world": () => ({
         status: 200,
-        body: { guestAccess: false, active: null, previous: null },
+        body: { guestAccess: false, welcomeDialogue: null, active: null, previous: null },
       }),
     });
     renderAt("/admin/world");
@@ -293,7 +302,7 @@ describe("game world › Objekte & Portale (MAP-15)", () => {
           {
             name: "pastor",
             hidden: false,
-            preset: { kind: "dialog", dialogId: "npc-pastor" },
+            preset: { kind: "dialog", dialogId: "pfarrer-keller" },
             missing: true,
           },
           { name: "osterei", hidden: true, missing: false },
@@ -312,14 +321,14 @@ describe("game world › Objekte & Portale (MAP-15)", () => {
       "GET /api/session": asAdmin,
       "GET /api/admin/world": () => ({
         status: 200,
-        body: { guestAccess: true, active: sommerfest, previous: null },
+        body: { guestAccess: true, welcomeDialogue: null, active: sommerfest, previous: null },
       }),
       "GET /api/admin/world/objects": () => ({ status: 200, body: objects }),
       "GET /api/content": () => ({ status: 200, body: site }),
     });
     renderAt("/admin/world");
     user.click(await screen.findByRole("button", { name: "Objekte & Portale" }));
-    expect(await screen.findByText("Anklickbare Objekte (3)")).toBeVisible();
+    expect(await screen.findByText("Anklickbare Objekte und NPCs (3)")).toBeVisible();
     // The select shows the action that applies; the preset has its own column.
     const altar = screen.getByRole("combobox", { name: "Aktion von Programm" });
     expect(altar).toHaveValue("page:programme");
@@ -345,7 +354,7 @@ describe("game world › Objekte & Portale (MAP-15)", () => {
       "GET /api/session": asAdmin,
       "GET /api/admin/world": () => ({
         status: 200,
-        body: { guestAccess: true, active: sommerfest, previous: null },
+        body: { guestAccess: true, welcomeDialogue: null, active: sommerfest, previous: null },
       }),
       "GET /api/admin/world/objects": () => ({ status: 200, body: objects }),
       "GET /api/content": () => ({ status: 200, body: site }),
@@ -374,7 +383,7 @@ describe("game world › Objekte & Portale (MAP-15)", () => {
       "GET /api/session": asAdmin,
       "GET /api/admin/world": () => ({
         status: 200,
-        body: { guestAccess: false, active: null, previous: null },
+        body: { guestAccess: false, welcomeDialogue: null, active: null, previous: null },
       }),
       "GET /api/admin/world/objects": () => ({
         status: 200,
@@ -393,15 +402,13 @@ describe("game world › Objekte & Portale › NPCs (MAP-21, GAME-37)", () => {
       {
         id: "kirche",
         name: "Kirche & Garten",
-        clickables: [],
+        clickables: [{ name: "altar", label: "Programm", hidden: false, missing: false }],
         npcs: [
           {
             name: "kuester",
             label: "Küster",
             preset: { kind: "page", page: "programme" },
             missing: false,
-            title: "Küster Fritz",
-            dialog: "Psst!",
           },
           { name: "gaertner", missing: false },
         ],
@@ -419,7 +426,7 @@ describe("game world › Objekte & Portale › NPCs (MAP-21, GAME-37)", () => {
       "GET /api/session": asAdmin,
       "GET /api/admin/world": () => ({
         status: 200,
-        body: { guestAccess: true, active: sommerfest, previous: null },
+        body: { guestAccess: true, welcomeDialogue: null, active: sommerfest, previous: null },
       }),
       "GET /api/admin/world/objects": () => ({ status: 200, body: withNpcs }),
       "GET /api/content": () => ({ status: 200, body: site }),
@@ -427,63 +434,43 @@ describe("game world › Objekte & Portale › NPCs (MAP-21, GAME-37)", () => {
     });
     renderAt("/admin/world");
     user.click(await screen.findByRole("button", { name: "Objekte & Portale" }));
-    await screen.findByText("NPCs (2)");
+    await screen.findByText("Anklickbare Objekte und NPCs (3)");
     return calls;
   };
 
-  it("[MAP-21] a map with NPCs lists each with its name, short dialog and action, and the preset of the Tiled file; a map without has no card", async () => {
+  it("[MAP-21] a map's NPCs are rows of the same table as its objects, marked as NPCs, with the action, the preset of the Tiled file and the indicator; they have no name or short dialog of their own", async () => {
     await open();
-    const sexton = screen.getByTestId("npc-kuester");
-    // The admin's name shows; without one the Tiled label stands in as the placeholder.
-    expect(within(sexton).getByText("Küster Fritz")).toBeVisible();
-    expect(within(sexton).getByLabelText(/^Name/)).toHaveValue("Küster Fritz");
-    expect(within(sexton).getByLabelText(/^Kurzer Dialog/)).toHaveValue("Psst!");
-    expect(within(sexton).getByText(/5 \/ 120/)).toBeVisible();
-    expect(within(sexton).getByText("Vorgabe aus Tiled: Seite: Programm")).toBeVisible();
-    expect(within(sexton).getByRole("combobox", { name: "Aktion von Küster Fritz" })).toHaveValue(
-      "page:programme",
-    );
-    const gardener = screen.getByTestId("npc-gaertner");
-    expect(within(gardener).getByLabelText(/^Name/)).toHaveValue("");
-    expect(within(gardener).getByLabelText(/^Name/)).toHaveAttribute("placeholder", "gaertner");
-    expect(within(gardener).getByText("Ohne Vorgabe aus Tiled")).toBeVisible();
-    expect(within(gardener).getByLabelText(/^Kurzer Dialog/)).toHaveAttribute("maxlength", "120");
-    expect(within(gardener).getByLabelText(/^Name/)).toHaveAttribute("maxlength", "60");
-    // The map without NPCs has no card.
+    const sexton = screen.getByRole("combobox", { name: "Aktion von Küster" }).closest("tr");
+    expect(sexton).not.toBeNull();
+    if (sexton === null) return;
+    expect(within(sexton).getByText("NPC")).toBeVisible();
+    expect(within(sexton).getByText("kuester")).toBeVisible();
+    expect(within(sexton).getByRole("combobox")).toHaveValue("page:programme");
+    // The third column is the preset of the Tiled file.
+    expect(sexton.querySelectorAll("td")[2]).toHaveTextContent("Seite: Programm");
+    expect(
+      within(sexton).getByRole("checkbox", { name: "Randhinweis und Label von Küster zeigen" }),
+    ).toBeChecked();
+    // An NPC without a preset in Tiled is listed too, and an object is not marked as an NPC.
+    const gardener = screen.getByRole("combobox", { name: "Aktion von gaertner" }).closest("tr");
+    expect(gardener && within(gardener).getByText("NPC")).toBeVisible();
+    const altar = screen.getByRole("combobox", { name: "Aktion von Programm" }).closest("tr");
+    expect(altar && within(altar).queryByText("NPC")).toBeNull();
+    // The name and the greeting of a figure are those of its dialogue: there is nothing to type here.
+    expect(screen.queryByLabelText(/Kurzer Dialog/)).toBeNull();
+    expect(screen.queryByRole("button", { name: /Speichern/ })).toBeNull();
+    // The map without NPCs and objects says so.
     user.click(screen.getByRole("button", { name: "Garten" }));
-    expect(screen.queryByText(/^NPCs \(/)).toBeNull();
-  });
-
-  it("[MAP-21] the texts are saved with the button, which waits for a change; an emptied text is sent as none", async () => {
-    const calls = await open({
-      "PUT /api/admin/world/npcs/kirche/kuester": () => ({ status: 200, body: withNpcs }),
-      "PUT /api/admin/world/npcs/kirche/gaertner": () => ({ status: 200, body: withNpcs }),
-    });
-    const sexton = screen.getByTestId("npc-kuester");
-    const save = within(sexton).getByRole("button", { name: "Speichern" });
-    expect(save).toBeDisabled();
-    user.clear(within(sexton).getByLabelText(/^Kurzer Dialog/));
-    expect(save).toBeEnabled();
-    user.click(save);
-    expect(await within(sexton).findByText("Gespeichert.")).toBeVisible();
-    const gardener = screen.getByTestId("npc-gaertner");
-    user.type(within(gardener).getByLabelText(/^Name/), "  Gärtner Hans ");
-    user.type(within(gardener).getByLabelText(/^Kurzer Dialog/), "Schöne Rosen!");
-    user.click(within(gardener).getByRole("button", { name: "Speichern" }));
-    await waitFor(() => {
-      expect(calls.filter((call) => call.method === "PUT").map((call) => call.body)).toEqual([
-        { title: "Küster Fritz", dialog: null },
-        { title: "Gärtner Hans", dialog: "Schöne Rosen!" },
-      ]);
-    });
-    expect(calls.find((call) => call.method === "PUT")?.csrf).toBe("csrf-9");
+    expect(
+      screen.getByText("Diese Karte hat keine anklickbaren Objekte und keine NPCs."),
+    ).toBeVisible();
   });
 
   it("[MAP-21][GAME-38] the action of an NPC is picked like an object's and saved at once; the preset can be restored", async () => {
     const calls = await open({
       "PUT /api/admin/world/objects/kirche/kuester": () => ({ status: 200, body: withNpcs }),
     });
-    const select = screen.getByRole("combobox", { name: "Aktion von Küster Fritz" });
+    const select = screen.getByRole("combobox", { name: "Aktion von Küster" });
     fireEvent.change(select, { target: { value: "page:profile" } });
     expect(await screen.findByText("Gespeichert.")).toBeVisible();
     fireEvent.change(select, { target: { value: "page:programme" } });
@@ -493,21 +480,7 @@ describe("game world › Objekte & Portale › NPCs (MAP-21, GAME-37)", () => {
         { action: null },
       ]);
     });
-  });
-
-  it("[MAP-21] a text that could not be saved shows the error and keeps the draft", async () => {
-    await open({
-      "PUT /api/admin/world/npcs/kirche/gaertner": () => ({
-        status: 404,
-        body: { error: { code: "object_not_found", message: "gone" } },
-      }),
-    });
-    const gardener = screen.getByTestId("npc-gaertner");
-    user.type(within(gardener).getByLabelText(/^Name/), "Hans");
-    user.click(within(gardener).getByRole("button", { name: "Speichern" }));
-    expect(await screen.findByRole("alert")).toBeVisible();
-    expect(within(gardener).getByLabelText(/^Name/)).toHaveValue("Hans");
-    expect(within(gardener).queryByText("Gespeichert.")).toBeNull();
+    expect(calls.find((call) => call.method === "PUT")?.csrf).toBe("csrf-9");
   });
 });
 
@@ -535,7 +508,7 @@ describe("game world › Objekte & Portale › indicator and label (GAME-26, GAM
       "GET /api/session": asAdmin,
       "GET /api/admin/world": () => ({
         status: 200,
-        body: { guestAccess: true, active: sommerfest, previous: null },
+        body: { guestAccess: true, welcomeDialogue: null, active: sommerfest, previous: null },
       }),
       "GET /api/admin/world/objects": () => ({ status: 200, body: list }),
       "GET /api/content": () => ({ status: 200, body: site }),
@@ -551,7 +524,9 @@ describe("game world › Objekte & Portale › indicator and label (GAME-26, GAM
     expect(
       screen.getByRole("checkbox", { name: "Randhinweis und Label von glocke zeigen" }),
     ).not.toBeChecked();
-    const sexton = within(screen.getByTestId("npc-kuester")).getByRole("checkbox");
+    const sexton = screen.getByRole("checkbox", {
+      name: "Randhinweis und Label von Küster zeigen",
+    });
     expect(sexton).not.toBeChecked();
     user.click(altar);
     user.click(sexton);
@@ -561,5 +536,50 @@ describe("game world › Objekte & Portale › indicator and label (GAME-26, GAM
         { showIndicator: true },
       ]);
     });
+  });
+});
+
+describe("game world › welcome dialogue (GAME-17)", () => {
+  const dialogueList = {
+    dialogues: [
+      { id: "wirt", npcName: "Wirt", greeting: "", lines: 1, portrait: false, usedBy: [] },
+      { id: "braut", npcName: "Braut", greeting: "", lines: 2, portrait: false, usedBy: [] },
+    ],
+  };
+
+  it("[GAME-17] the admin picks the welcome dialogue from the dialogues, or none, and it is sent at once", async () => {
+    let welcomeDialogue: string | null = null;
+    const status = () => ({
+      status: 200,
+      body: { guestAccess: true, welcomeDialogue, active: sommerfest, previous: null },
+    });
+    const calls = fakeBackend({
+      "GET /api/session": asAdmin,
+      "GET /api/admin/world": status,
+      "GET /api/admin/dialogues": () => ({ status: 200, body: dialogueList }),
+      "PUT /api/admin/world/welcome-dialogue": () => {
+        const put = calls.filter((call) => call.method === "PUT").at(-1);
+        welcomeDialogue = (put?.body as { dialogue: string | null }).dialogue;
+        return status();
+      },
+    });
+    renderAt("/admin/world");
+    const select = await screen.findByRole("combobox", { name: "Begrüssungsdialog" });
+    expect(select).toHaveValue("");
+    expect(within(select).getByRole("option", { name: "– keiner –" })).toBeVisible();
+    fireEvent.change(select, { target: { value: "braut" } });
+    await waitFor(() => {
+      expect(screen.getByRole("combobox", { name: "Begrüssungsdialog" })).toHaveValue("braut");
+    });
+    const put = calls.find((call) => call.method === "PUT");
+    expect(put?.body).toEqual({ dialogue: "braut" });
+    expect(put?.csrf).toBe("csrf-9");
+    fireEvent.change(screen.getByRole("combobox", { name: "Begrüssungsdialog" }), {
+      target: { value: "" },
+    });
+    await waitFor(() => {
+      expect(calls.filter((call) => call.method === "PUT")).toHaveLength(2);
+    });
+    expect(calls.filter((call) => call.method === "PUT")[1]?.body).toEqual({ dialogue: null });
   });
 });

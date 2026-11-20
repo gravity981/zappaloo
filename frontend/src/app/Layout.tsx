@@ -86,7 +86,9 @@ export default function Layout() {
         {!restricted && (
           <div className="site-head-r">
             {world && (
-              <NavLink className="btn sm" to="/game">
+              // A page load, not a client-side step: iOS Safari colours the areas behind its bars from the page it
+              // loaded, and after a step inside the page they stayed the website's cream instead of the game's black.
+              <NavLink className="btn sm" to="/game" reloadDocument>
                 <SiteIcon path={SITE_ICON_PATHS.play} />
                 {t("nav.game")}
               </NavLink>

@@ -29,7 +29,6 @@ const idParams = z.strictObject({ id: z.string().min(1).max(40) });
 
 const STATUS = {
   dialogue_not_found: 404,
-  dialogue_exists: 409,
   dialogue_in_use: 409,
   portrait_too_large: 413,
   portrait_type: 415,
@@ -90,7 +89,7 @@ const dialoguePlugin: FastifyPluginAsyncZod<DialogueOptions> = (app, { dialogue,
       schema: {
         querystring: noQuery,
         body: dialogueRequestSchema,
-        response: { 201: dialogueDetailSchema, 409: errorBody },
+        response: { 201: dialogueDetailSchema },
       },
     },
     async (request, reply) => {
@@ -110,7 +109,7 @@ const dialoguePlugin: FastifyPluginAsyncZod<DialogueOptions> = (app, { dialogue,
         querystring: noQuery,
         params: idParams,
         body: dialogueRequestSchema,
-        response: { 200: dialogueDetailSchema, 404: errorBody, 409: errorBody },
+        response: { 200: dialogueDetailSchema, 404: errorBody },
       },
     },
     async (request, reply) => {

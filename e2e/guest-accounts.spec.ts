@@ -101,7 +101,7 @@ test("[ACC-18][ACC-19][INV-20][INV-21] an admin blocks, unblocks and deletes a g
   await expect(page.getByRole("row", { name: new RegExp(never) })).toHaveCount(0);
 });
 
-test("[ACC-07][INV-07] a signed-in account without vip adds an invitation to itself", async ({
+test("[ACC-07][INV-07] a signed-in account without vip adds an invitation to itself @flaky", async ({
   page,
   context,
 }) => {

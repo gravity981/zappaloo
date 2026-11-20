@@ -9,11 +9,23 @@ export const INDICATOR_INSET = 12;
 export const INDICATOR_TOUCH_SIZE = 44;
 /** The space between an indicator's circle and its label, in CSS pixels. */
 export const LABEL_GAP = 6;
-/** The widest a label gets, in CSS pixels; a longer text is cut off with an ellipsis. */
-export const LABEL_MAX_WIDTH = 160;
-/** The width of one character of a label, estimated (the label's font is 12 px, semibold), and its padding. */
-const LABEL_CHAR_WIDTH = 6.8;
-const LABEL_PADDING = 16;
+/**
+ * A label is as wide as its text in the label's font, plus the padding, so that the text stays on one line (story
+ * 6.1f, decided 2026-11-20). Only the room in the view bounds it; a text wider than that wraps onto up to
+ * `LABEL_MAX_LINES` lines, and only what is beyond those is cut off.
+ */
+export const LABEL_MAX_LINES = 3;
+/** The padding of a label's pill, left and right together. */
+export const LABEL_PADDING = 16;
+/** The width of one character of a label (12 px semibold), estimated for a place without a browser to measure it. */
+const ESTIMATED_CHAR_WIDTH = 6.8;
+
+/** The width in CSS pixels of a text in a label's font. The browser measures it (object-label-layer.ts). */
+export type TextMeasure = (text: string) => number;
+
+/** Without a browser: the width of a text estimated from its length. */
+export const estimateTextWidth: TextMeasure = (text) =>
+  Array.from(text).length * ESTIMATED_CHAR_WIDTH;
 /** At most this many indicators are shown at a time. */
 export const MAX_INDICATORS = 6;
 
@@ -57,8 +69,8 @@ export interface IndicatorInsets {
 }
 
 /**
- * The insets for a view whose top part is covered by a bar of `barHeight` pixels. Where the bar is a sibling above
- * the canvas, as in the app, the view starts below it and \`barHeight\` is 0.
+ * The insets for a view whose top part is covered by a bar of `barHeight` pixels. The app's game bar floats over the
+ * view and passes its height (the `topInset` option); the game preview has no bar and it is 0.
  */
 export function indicatorInsets(barHeight = 0): IndicatorInsets {
   const centre = INDICATOR_INSET + INDICATOR_TOUCH_SIZE / 2;
@@ -113,17 +125,33 @@ export function labelSide(point: Point, viewWidth: number): LabelSide {
 }
 
 /**
- * The width of a label for a text: estimated from its length (the layout is computed without a browser), and at most
- * what the view leaves beside the indicator, and {@link LABEL_MAX_WIDTH}.
+ * The width of a label for a text: the text's width in the label's font plus the padding, and at most what the view
+ * leaves beside the indicator. A text wider than that wraps (labelLines); it is not cut off before it.
  */
-export function labelWidth(text: string, point: Point, viewWidth: number, side: LabelSide): number {
+export function labelWidth(
+  text: string,
+  point: Point,
+  viewWidth: number,
+  side: LabelSide,
+  measure: TextMeasure = estimateTextWidth,
+): number {
   const room =
     (side === "left" ? point.x : viewWidth - point.x) -
     INDICATOR_TOUCH_SIZE / 2 -
     LABEL_GAP -
     INDICATOR_INSET;
-  const wanted = Math.ceil(text.length * LABEL_CHAR_WIDTH) + LABEL_PADDING;
-  return Math.max(0, Math.min(wanted, LABEL_MAX_WIDTH, room));
+  const wanted = Math.ceil(measure(text)) + LABEL_PADDING;
+  return Math.max(0, Math.min(wanted, room));
+}
+
+/** How many lines a label of this width needs for a text, at most `LABEL_MAX_LINES`. */
+export function labelLines(
+  text: string,
+  width: number,
+  measure: TextMeasure = estimateTextWidth,
+): number {
+  const lines = Math.ceil(measure(text) / Math.max(1, width - LABEL_PADDING));
+  return Math.min(LABEL_MAX_LINES, Math.max(1, lines));
 }
 
 /** The space an indicator takes in the view: its touch area and its label beside it (0 wide without a label). */

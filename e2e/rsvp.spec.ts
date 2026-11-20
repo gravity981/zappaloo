@@ -1,122 +1,123 @@
 import { clientAddress, expect, PASSWORD, signInAsAdmin, stayOnWebsite, test } from "./support.ts";
 import de from "../frontend/src/i18n/locales/de/common.json" with { type: "json" };
 
-test("[RSVP-01][RSVP-02][RSVP-03][RSVP-04][RSVP-05][RSVP-06][RSVP-11][ACC-17][SEC-11][DATA-05] a guest answers the RSVP once for the invited program items; the admin sees it and changes it @flaky", async ({
-  page,
-  context,
-  browser,
-  baseURL,
-}) => {
-  // Two browsers, many steps, and the other browser profiles run at the same time.
-  test.setTimeout(90_000);
-  const suffix = Math.random().toString(36).slice(2, 8);
-  const name = `E2E Gast ${suffix}`;
-  const username = `gast${suffix}`;
+test(
+  "[RSVP-01][RSVP-02][RSVP-03][RSVP-04][RSVP-05][RSVP-06][RSVP-11][ACC-17][SEC-11][DATA-05] a guest answers the RSVP once for the invited program items; the admin sees it and changes it @flaky",
+  { tag: "@smoke" },
+  async ({ page, context, browser, baseURL }) => {
+    // Two browsers, many steps, and the other browser profiles run at the same time.
+    test.setTimeout(90_000);
+    const suffix = Math.random().toString(36).slice(2, 8);
+    const name = `E2E Gast ${suffix}`;
+    const username = `gast${suffix}`;
 
-  // The admin opens the RSVP until far in the future (the example deadline is in 2027).
-  await signInAsAdmin(page, context);
-  await page.goto("/admin/settings");
-  await page.getByLabel(de.admin.rsvpSettings.deadline).fill("31.12.2099");
-  await page.getByRole("button", { name: de.admin.rsvpSettings.saveDeadline }).click();
-  await expect(
-    page.getByRole("status").filter({ hasText: de.admin.rsvpSettings.saved }),
-  ).toBeVisible();
-  // The example program items and menus of the seeded event are there, one program item has the meal.
-  await expect(page.getByText(de.admin.rsvpSettings.mealTag, { exact: true })).toBeVisible();
+    // The admin opens the RSVP until far in the future (the example deadline is in 2027).
+    await signInAsAdmin(page, context);
+    await page.goto("/admin/settings");
+    await page.getByLabel(de.admin.rsvpSettings.deadline).fill("31.12.2099");
+    await page.getByRole("button", { name: de.admin.rsvpSettings.saveDeadline }).click();
+    await expect(
+      page.getByRole("status").filter({ hasText: de.admin.rsvpSettings.saved }),
+    ).toBeVisible();
+    // The example program items and menus of the seeded event are there, one program item has the meal.
+    await expect(page.getByText(de.admin.rsvpSettings.mealTag, { exact: true })).toBeVisible();
 
-  // An invitation for every program item except the party.
-  await page.goto("/admin/invitations");
-  await page.getByLabel(de.admin.invitations.names).fill(name);
-  const invitedTo = page.getByRole("group", { name: de.admin.invitations.programItems });
-  await invitedTo.getByRole("button", { name: "Party" }).click();
-  await page.getByRole("button", { name: /Einladung erstellen/ }).click();
-  const codeCell = page.locator(".invitation-code");
-  await expect(codeCell).toHaveText(/^[A-Z0-9]{6}$/);
-  const code = (await codeCell.textContent()) ?? "";
+    // An invitation for every program item except the party.
+    await page.goto("/admin/invitations");
+    await page.getByLabel(de.admin.invitations.names).fill(name);
+    const invitedTo = page.getByRole("group", { name: de.admin.invitations.programItems });
+    await invitedTo.getByRole("button", { name: "Party" }).click();
+    await page.getByRole("button", { name: /Einladung erstellen/ }).click();
+    const codeCell = page.locator(".invitation-code");
+    await expect(codeCell).toHaveText(/^[A-Z0-9]{6}$/);
+    const code = (await codeCell.textContent()) ?? "";
 
-  // The guest is on the guest list before the card is redeemed: without an answer (ACC-17).
-  await page.goto("/admin/rsvp");
-  await expect(page.getByRole("row", { name: new RegExp(name) })).toContainText(
-    de.admin.rsvp.statuses.none,
-  );
+    // The guest is on the guest list before the card is redeemed: without an answer (ACC-17).
+    await page.goto("/admin/rsvp");
+    await expect(page.getByRole("row", { name: new RegExp(name) })).toContainText(
+      de.admin.rsvp.statuses.none,
+    );
 
-  // The guest redeems the invitation in a browser of their own and answers.
-  const guestContext = await browser.newContext({
-    ...(baseURL ? { baseURL } : {}),
-    extraHTTPHeaders: { "x-forwarded-for": clientAddress() },
-  });
-  await stayOnWebsite(guestContext);
-  const guest = await guestContext.newPage();
-  await guest.goto(`/invite/${code}`);
-  await guest.getByLabel(de.invite.username).fill(username);
-  await guest.getByLabel(de.setPassword.password, { exact: true }).fill(PASSWORD);
-  await guest.getByRole("button", { name: de.invite.register }).click();
-  // A new guest who has not answered lands on the Anmeldung right away (RSVP-24).
-  await expect(guest).toHaveURL(/\/rsvp$/);
+    // The guest redeems the invitation in a browser of their own and answers.
+    const guestContext = await browser.newContext({
+      ...(baseURL ? { baseURL } : {}),
+      extraHTTPHeaders: { "x-forwarded-for": clientAddress() },
+    });
+    await stayOnWebsite(guestContext);
+    const guest = await guestContext.newPage();
+    await guest.goto(`/invite/${code}`);
+    await guest.getByLabel(de.invite.username).fill(username);
+    await guest.getByLabel(de.setPassword.password, { exact: true }).fill(PASSWORD);
+    await guest.getByRole("button", { name: de.invite.register }).click();
+    // A new guest who has not answered lands on the Anmeldung right away (RSVP-24).
+    await expect(guest).toHaveURL(/\/rsvp$/);
 
-  await expect(
-    guest.getByRole("heading", { name: de.rsvp.greeting.replace("{{name}}", name) }),
-  ).toBeVisible();
-  // One answer for the invited program items (the default, RSVP-11); the party is not among them.
-  // Each program item lists its activities with their start times (RSVP-16).
-  await expect(guest.getByText("Trauung – Eintreffen 13:30, Trauung 14:00")).toBeVisible();
-  await expect(guest.getByText("Dinner – Dinner 18:30, Paar-Quiz 20:30")).toBeVisible();
-  await expect(guest.getByText("Party – Party 22:00")).toHaveCount(0);
-  await expect(guest.getByRole("button", { name: `Trauung: ${de.rsvp.attending}` })).toHaveCount(0);
-  await guest.getByRole("button", { name: de.rsvp.yes, exact: true }).click();
-  await guest.getByRole("button", { name: de.rsvp.next }).click();
+    await expect(
+      guest.getByRole("heading", { name: de.rsvp.greeting.replace("{{name}}", name) }),
+    ).toBeVisible();
+    // One answer for the invited program items (the default, RSVP-11); the party is not among them.
+    // Each program item lists its activities with their start times (RSVP-16).
+    await expect(guest.getByText("Trauung – Eintreffen 13:30, Trauung 14:00")).toBeVisible();
+    await expect(guest.getByText("Dinner – Dinner 18:30, Paar-Quiz 20:30")).toBeVisible();
+    await expect(guest.getByText("Party – Party 22:00")).toHaveCount(0);
+    await expect(guest.getByRole("button", { name: `Trauung: ${de.rsvp.attending}` })).toHaveCount(
+      0,
+    );
+    await guest.getByRole("button", { name: de.rsvp.yes, exact: true }).click();
+    await guest.getByRole("button", { name: de.rsvp.next }).click();
 
-  // The menu is asked because the guest attends the meal program item, and it is required.
-  await expect(guest.getByRole("button", { name: de.rsvp.next })).toBeDisabled();
-  await guest.getByRole("button", { name: "Vegetarisch" }).click();
-  await guest.getByLabel(de.rsvp.allergies).fill("Nüsse");
-  await guest.getByRole("button", { name: de.rsvp.next }).click();
-  await guest.getByLabel(de.rsvp.song).fill("ABBA – Dancing Queen");
-  await guest.getByRole("button", { name: de.rsvp.send }).click();
-  await expect(
-    guest.getByRole("heading", { name: de.rsvp.done.replace("{{name}}", name) }),
-  ).toBeVisible();
+    // The menu is asked because the guest attends the meal program item, and it is required.
+    await expect(guest.getByRole("button", { name: de.rsvp.next })).toBeDisabled();
+    await guest.getByRole("button", { name: "Vegetarisch" }).click();
+    await guest.getByLabel(de.rsvp.allergies).fill("Nüsse");
+    await guest.getByRole("button", { name: de.rsvp.next }).click();
+    await guest.getByLabel(de.rsvp.song).fill("ABBA – Dancing Queen");
+    await guest.getByRole("button", { name: de.rsvp.send }).click();
+    await expect(
+      guest.getByRole("heading", { name: de.rsvp.done.replace("{{name}}", name) }),
+    ).toBeVisible();
 
-  // The answer is on the server: a reload shows the summary, not the wizard.
-  await guest.reload();
-  await expect(guest.getByText("ABBA – Dancing Queen")).toBeVisible();
+    // The answer is on the server: a reload shows the summary, not the wizard.
+    await guest.reload();
+    await expect(guest.getByText("ABBA – Dancing Queen")).toBeVisible();
 
-  // The admin sees the answer with the allergies, and the guest counts as answered.
-  await page.goto("/admin/rsvp");
-  const row = page.getByRole("row", { name: new RegExp(name) });
-  // Program items and menu are short forms with the full name as the tooltip (RSVP-23).
-  for (const title of ["Trauung", "Apéro", "Dinner", "Vegetarisch"]) {
-    await expect(row.getByTitle(title)).toBeVisible();
-  }
-  await expect(row).toContainText("Nüsse");
-  await expect(page.getByRole("link", { name: "CSV" })).toHaveAttribute(
-    "href",
-    "/api/admin/rsvp/export",
-  );
-  const csv = await page.request.get("/api/admin/rsvp/export");
-  expect(await csv.text()).toContain(
-    `${name};${de.personTypes.adult};zugesagt;ja;ja;ja;;Vegetarisch;ABBA – Dancing Queen;Nüsse`,
-  );
+    // The admin sees the answer with the allergies, and the guest counts as answered.
+    await page.goto("/admin/rsvp");
+    const row = page.getByRole("row", { name: new RegExp(name) });
+    // Program items and menu are short forms with the full name as the tooltip (RSVP-23).
+    for (const title of ["Trauung", "Apéro", "Dinner", "Vegetarisch"]) {
+      await expect(row.getByTitle(title)).toBeVisible();
+    }
+    await expect(row).toContainText("Nüsse");
+    await expect(page.getByRole("link", { name: "CSV" })).toHaveAttribute(
+      "href",
+      "/api/admin/rsvp/export",
+    );
+    const csv = await page.request.get("/api/admin/rsvp/export");
+    expect(await csv.text()).toContain(
+      `${name};${de.personTypes.adult};zugesagt;ja;ja;ja;;Vegetarisch;ABBA – Dancing Queen;Nüsse`,
+    );
 
-  // Allergies reach nobody but the admin: the guest has no access to the overview.
-  expect((await guest.request.get("/api/admin/rsvp")).status()).toBe(403);
+    // Allergies reach nobody but the admin: the guest has no access to the overview.
+    expect((await guest.request.get("/api/admin/rsvp")).status()).toBe(403);
 
-  // The admin changes the answer in admin mode; the guest sees the change.
-  await row.getByRole("link", { name: `${de.admin.rsvp.edit}: ${name}` }).click();
-  await expect(page.getByText(de.rsvp.adminMode)).toBeVisible();
-  await page.getByRole("button", { name: de.rsvp.change }).click();
-  await page.getByRole("button", { name: de.rsvp.no, exact: true }).click();
-  await page.getByRole("button", { name: de.rsvp.send }).click();
-  await expect(page.getByRole("button", { name: de.rsvp.change })).toBeVisible();
-  await guest.reload();
-  await expect(
-    guest.getByRole("heading", { name: de.rsvp.declined.replace("{{name}}", name) }),
-  ).toBeVisible();
+    // The admin changes the answer in admin mode; the guest sees the change.
+    await row.getByRole("link", { name: `${de.admin.rsvp.edit}: ${name}` }).click();
+    await expect(page.getByText(de.rsvp.adminMode)).toBeVisible();
+    await page.getByRole("button", { name: de.rsvp.change }).click();
+    await page.getByRole("button", { name: de.rsvp.no, exact: true }).click();
+    await page.getByRole("button", { name: de.rsvp.send }).click();
+    await expect(page.getByRole("button", { name: de.rsvp.change })).toBeVisible();
+    await guest.reload();
+    await expect(
+      guest.getByRole("heading", { name: de.rsvp.declined.replace("{{name}}", name) }),
+    ).toBeVisible();
 
-  // The card "Zuletzt" tells about it.
-  await page.goto("/admin");
-  await expect(page.getByRole("region", { name: de.admin.home.activity })).toContainText(
-    /Anmeldung|Admin-Modus/,
-  );
-  await guestContext.close();
-});
+    // The card "Zuletzt" tells about it.
+    await page.goto("/admin");
+    await expect(page.getByRole("region", { name: de.admin.home.activity })).toContainText(
+      /Anmeldung|Admin-Modus/,
+    );
+    await guestContext.close();
+  },
+);

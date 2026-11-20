@@ -31,16 +31,21 @@ import ProfilePage from "../pages/ProfilePage.tsx";
 import RsvpPage from "../pages/RsvpPage.tsx";
 import SetPasswordPage from "../pages/SetPasswordPage.tsx";
 import VerifyEmailPage from "../pages/VerifyEmailPage.tsx";
+import { RouteErrorScreen } from "./ErrorScreen.tsx";
 import Layout from "./Layout.tsx";
 import RequireOpen from "./RequireOpen.tsx";
 import RequireSignIn from "./RequireSignIn.tsx";
 import Root from "./Root.tsx";
 import { ThemeScope } from "./ThemeScope.tsx";
+import { testRoutes } from "./testRoutes.ts";
 
 export const routes: RouteObject[] = [
   {
     element: <Root />,
+    // Every error nobody planned for shows the friendly screen, not the router's own page (WEB-13).
+    errorElement: <RouteErrorScreen />,
     children: [
+      ...testRoutes,
       {
         // The website and the guest pages carry the event's theme; the admin area does not.
         element: <ThemeScope />,

@@ -1,7 +1,10 @@
 # CI (sw-architecture.md 23.2, OPS-06, OPS-08): every pull request and every push
-# to main. Checks and end-to-end tests run in parallel. The image is built,
-# smoke-tested and deployment-tested only after both passed, and pushed to the
-# registry only from main. The requirement report combines the results of all jobs.
+# to main (layer 3 of the testing layers, spec/test-strategy.md 8.3): all unit tests, and of the
+# end-to-end tests, in Chromium, those that e2e/relevant.json maps the changed files to plus the
+# smoke set. Checks and end-to-end tests run in parallel. The image is built, smoke-tested and
+# deployment-tested only after both passed, and pushed to the registry only from main.
+# With `full` (the nightly run and a release candidate, layer 4) every end-to-end test runs, in
+# every browser, and the requirement report combines the results of all jobs.
 name: CI
 
 on:
@@ -10,12 +13,18 @@ on:
     branches: [main]
   # The full test suite of a release candidate (release-candidate.yml)
   workflow_call:
+    inputs:
+      full:
+        description: Run every end-to-end test in every browser, and the requirement report
+        type: boolean
+        default: false
 
 permissions:
   contents: read
 
 concurrency:
-  group: ci-${{ github.ref }}
+  # A full run (nightly, release candidate) does not queue behind or cancel the run of a push.
+  group: ci-${{ github.ref }}-${{ inputs.full && 'full' || 'light' }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 env:
@@ -73,16 +82,38 @@ jobs:
           node-version-file: .node-version
           cache: npm
       - run: npm ci
-      - name: End-to-end tests
+      # A full run: everything, in every browser (layer 4).
+      - name: End-to-end tests (all)
+        if: ${{ inputs.full }}
         run: npm run test:e2e
+      # A pull request or a push (layer 3): the specs the changed files map to (all of them for shared
+      # code, none for documents), then the smoke set of the other specs. Chromium only; the other
+      # browsers run in the nightly pipeline.
+      - name: Select the end-to-end tests
+        if: ${{ !inputs.full }}
+        id: select
+        env:
+          BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
+        run: node scripts/ci/select-e2e.ts "$BASE" --github-output
+      - name: End-to-end tests (relevant)
+        if: ${{ !inputs.full && steps.select.outputs.mode != 'none' }}
+        env:
+          SPECS: ${{ steps.select.outputs.specs }}
+        run: npx playwright test --project=desktop-chromium --project=game $SPECS
+      - name: End-to-end tests (smoke)
+        if: ${{ !cancelled() && !inputs.full && steps.select.outputs.mode != 'all' }}
+        env:
+          REST: ${{ steps.select.outputs.rest }}
+          E2E_REPORT_SUFFIX: -smoke
+        run: npx playwright test --project=desktop-chromium --project=game --grep @smoke $REST
       - name: Upload test results
         if: ${{ !cancelled() }}
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: e2e-results
           path: |
-            reports/playwright.json
-            playwright-report/
+            reports/playwright*.json
+            playwright-report*/
             !world/**
             !world-scratch/**
           retention-days: 14
@@ -159,7 +190,8 @@ jobs:
   report:
     name: Requirement report
     needs: [checks, e2e, image]
-    if: ${{ !cancelled() }}
+    # Only a full run has every result the report needs (a pull request runs part of the end-to-end tests).
+    if: ${{ inputs.full && !cancelled() }}
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:

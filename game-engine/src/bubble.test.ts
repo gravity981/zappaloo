@@ -6,25 +6,46 @@ import {
   bubbleHeight,
   bubbleWidth,
   chooseBubbles,
+  GREETING_BUBBLE_CLOSE_TILES,
+  GREETING_BUBBLE_OPEN_TILES,
+  greetingBubbleSize,
   isNear,
-  NPC_BUBBLE_CLOSE_TILES,
-  NPC_BUBBLE_OPEN_TILES,
   placeBubble,
 } from "./bubble.ts";
 
 const TILE = 64;
 
-describe("when an NPC's bubble opens and closes (GAME-37)", () => {
-  it("[GAME-37] opens within 3 tile widths and closes beyond 3.5, further than a guest's", () => {
-    expect(NPC_BUBBLE_OPEN_TILES).toBe(3);
-    expect(NPC_BUBBLE_CLOSE_TILES).toBe(3.5);
-    expect(NPC_BUBBLE_OPEN_TILES).toBeGreaterThan(BUBBLE_OPEN_TILES);
+describe("when a greeting bubble opens and closes (GAME-37)", () => {
+  it("[GAME-37] opens within 2 tile widths and closes beyond 2.25, further than a guest's", () => {
+    // Half of the first range of 4 tiles (4 : 4.5 before), with the same ratio of opening and closing.
+    expect(GREETING_BUBBLE_OPEN_TILES).toBe(2);
+    expect(GREETING_BUBBLE_CLOSE_TILES).toBe(2.25);
+    expect(GREETING_BUBBLE_OPEN_TILES).toBeGreaterThan(BUBBLE_OPEN_TILES);
     const near = (distance: number, wasOpen: boolean) =>
-      isNear(distance, TILE, wasOpen, NPC_BUBBLE_OPEN_TILES, NPC_BUBBLE_CLOSE_TILES);
-    expect(near(3 * TILE, false)).toBe(true);
-    expect(near(3.2 * TILE, false)).toBe(false);
-    expect(near(3.2 * TILE, true)).toBe(true);
-    expect(near(3.6 * TILE, true)).toBe(false);
+      isNear(distance, TILE, wasOpen, GREETING_BUBBLE_OPEN_TILES, GREETING_BUBBLE_CLOSE_TILES);
+    expect(near(2 * TILE, false)).toBe(true);
+    expect(near(2.1 * TILE, false)).toBe(false);
+    expect(near(2.2 * TILE, true)).toBe(true);
+    expect(near(2.3 * TILE, true)).toBe(false);
+  });
+});
+
+describe("how big a greeting bubble is (GAME-37)", () => {
+  it("[GAME-37] is as small as its text allows: narrower for a short greeting, one row", () => {
+    const short = greetingBubbleSize("Hallo!", 1000);
+    const longer = greetingBubbleSize("Schön, dass du da bist!", 1000);
+    expect(short.width).toBeLessThan(longer.width);
+    expect(short.width).toBeLessThan(bubbleWidth(1000) / 2);
+    expect(short.height).toBe(longer.height);
+    // Nothing but the text: a row, and the padding.
+    expect(short.height).toBeLessThan(40);
+  });
+
+  it("[GAME-37] is never wider than a bubble of a guest, and a longer text takes more rows", () => {
+    const long = greetingBubbleSize("x".repeat(200), 1000);
+    expect(long.width).toBe(bubbleWidth(1000));
+    expect(long.height).toBeGreaterThan(greetingBubbleSize("x".repeat(10), 1000).height);
+    expect(greetingBubbleSize("x".repeat(200), 390).width).toBe(bubbleWidth(390));
   });
 });
 
@@ -48,6 +69,16 @@ describe("where a bubble stands (PRES-10)", () => {
     expect(place.x).toBe(400 - 107);
     expect(place.y).toBeLessThan(300 - 90);
     expect(place.tail).toBe(107);
+  });
+
+  it("[GAME-37][GAME-14] stays below a bar over the top of the view, with its margin", () => {
+    const bar = 56;
+    const high = placeBubble({ x: 400, y: 40 }, size, view, bar);
+    expect(high.y).toBe(bar + BUBBLE_MARGIN);
+    // A figure low in the view keeps the bubble where it was.
+    expect(placeBubble({ x: 400, y: 400 }, size, view, bar).y).toBe(
+      placeBubble({ x: 400, y: 400 }, size, view).y,
+    );
   });
 
   it("[PRES-10] stays inside the view at the sides, and the tail still points at the figure", () => {
@@ -75,31 +106,26 @@ describe("where a bubble stands (PRES-10)", () => {
   });
 });
 
-describe("which bubbles are shown (decision 10 of epic 6)", () => {
-  const box = (x: number) => ({ x, y: 100, width: 214, height: 90 });
-
-  it("[PRES-10] several bubbles are shown at once when they do not overlap", () => {
-    const shown = chooseBubbles([
-      { id: "a", distance: 50, box: box(0), pinned: false },
-      { id: "b", distance: 80, box: box(300), pinned: false },
-    ]);
-    expect(shown.sort()).toEqual(["a", "b"]);
-  });
-
-  it("[PRES-10] of bubbles that would overlap only the nearest figure's is shown, whatever the input order", () => {
+describe("which bubble is shown (GAME-37, decision 4 of epic 6.1)", () => {
+  it("[GAME-37] exactly one bubble is shown: of the figures whose range the player is in, the nearest, whatever the input order", () => {
     const candidates = [
-      { id: "far", distance: 90, box: box(100), pinned: false },
-      { id: "near", distance: 40, box: box(0), pinned: false },
-      { id: "farther", distance: 120, box: box(150), pinned: false },
+      { id: "far", distance: 90, pinned: false },
+      { id: "near", distance: 40, pinned: false },
+      { id: "farther", distance: 120, pinned: false },
     ];
     expect(chooseBubbles(candidates)).toEqual(["near"]);
     expect(chooseBubbles([...candidates].reverse())).toEqual(["near"]);
   });
 
-  it("[PRES-10] a pinned bubble is always shown and wins against a nearer figure's", () => {
+  it("[GAME-37] none is shown when no figure is in range", () => {
+    expect(chooseBubbles([])).toEqual([]);
+  });
+
+  it("[PRES-10] a pinned bubble stays and wins against a nearer figure's: no other bubble opens meanwhile", () => {
     const shown = chooseBubbles([
-      { id: "near", distance: 10, box: box(0), pinned: false },
-      { id: "pinned", distance: 300, box: box(100), pinned: true },
+      { id: "near", distance: 10, pinned: false },
+      { id: "pinned", distance: 300, pinned: true },
+      { id: "also-near", distance: 20, pinned: false },
     ]);
     expect(shown).toEqual(["pinned"]);
   });

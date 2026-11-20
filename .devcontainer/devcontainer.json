@@ -47,6 +47,8 @@
     "vscode": {
       "extensions": [
         "anthropic.claude-code",
+        // Token usage and rate-limit windows in the status bar; its bridge files live in the claude-config volume
+        "kararo-consulting.token-usage-tracker",
 
         "dbaeumer.vscode-eslint",
         "esbenp.prettier-vscode",

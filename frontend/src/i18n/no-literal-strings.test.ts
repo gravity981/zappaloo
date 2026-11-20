@@ -4,6 +4,7 @@
 import { fileURLToPath } from "node:url";
 import { ESLint } from "eslint";
 import i18next from "eslint-plugin-i18next";
+import reactHooks from "eslint-plugin-react-hooks";
 import tseslint from "typescript-eslint";
 import { describe, expect, it } from "vitest";
 import { noLiteralUiStrings } from "../../../eslint.config.js";
@@ -22,8 +23,10 @@ function lintWithRule(): ESLint {
           parser: tseslint.parser,
           parserOptions: { ecmaFeatures: { jsx: true } },
         },
-        plugins: { i18next },
-        rules: noLiteralUiStrings,
+        // The rule of a disable comment must be known here, or ESLint reports the comment itself.
+        plugins: { i18next, "react-hooks": reactHooks as ESLint.Plugin },
+        // The hook rule is switched on, so that the disable comment in TypedText.tsx refers to a rule that is run here.
+        rules: { ...noLiteralUiStrings, "react-hooks/exhaustive-deps": "error" },
       },
     ],
   });

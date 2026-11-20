@@ -1,0 +1,27 @@
+#!/bin/sh
+# The checks before a commit (spec/test-strategy.md 8.2): changed files only, `node scripts/precommit/cli.ts`.
+#
+# Node.js lives in the dev container (CLAUDE.md, Environment), but git may run on the host (a terminal in WSL, the
+# source control view of VS Code outside the container), and `.git/config`, with this hook, is shared with the
+# container. So: with `node` at hand the checks run here; without it they run in the running dev container of this
+# repository. Skip the checks in an emergency with `git commit --no-verify`; the pull request runs them anyway.
+
+if command -v node >/dev/null 2>&1; then
+  exec node scripts/precommit/cli.ts
+fi
+
+# Git for Windows would turn the container paths below into Windows paths.
+export MSYS_NO_PATHCONV=1
+if command -v docker >/dev/null 2>&1; then
+  # The dev container of the repository: its label names the folder that was opened, ending in "zappaloo".
+  container=$(docker ps --format '{{.ID}} {{.Label "devcontainer.local_folder"}}' 2>/dev/null |
+    grep -E '[/\\]zappaloo$' | head -n 1 | cut -d' ' -f1)
+  if [ -n "$container" ]; then
+    echo "pre-commit: no node here, running the checks in the dev container $container." >&2
+    exec docker exec -u vscode -w /workspaces/zappaloo "$container" node scripts/precommit/cli.ts
+  fi
+fi
+
+echo "pre-commit: the checks need Node.js, and neither node nor a running dev container was found." >&2
+echo "pre-commit: start the dev container (or install Node.js, see .node-version), or use 'git commit --no-verify'." >&2
+exit 1

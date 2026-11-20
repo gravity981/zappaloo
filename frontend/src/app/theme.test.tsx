@@ -136,7 +136,7 @@ describe("soft buttons, chips and the bars take a tint of the accent (THM-17)", 
     expect(fill).toBe("#ffffff");
   });
 
-  it("[THM-17] the bars of the website, the game and the phone take the bar colour; the platform's white without a theme", () => {
+  it("[THM-17] the bars of the website and the phone take the bar colour; the platform's white without a theme", () => {
     const css = readFileSync(join(import.meta.dirname, "ui.css"), "utf8");
     const head = /\.guest-site-head \{[^}]*\}/.exec(css)?.[0] ?? "";
     expect(head).toContain("background: var(--a-bar, var(--a-card));");
@@ -145,13 +145,9 @@ describe("soft buttons, chips and the bars take a tint of the accent (THM-17)", 
     expect(css).toMatch(
       /\.guest-site-head nav a\.active \{\s*background: var\(--a-bar-pill, var\(--a-fill\)\);/,
     );
-    // the game's bar is the website's bar: it does not set a background of its own
-    const game = readFileSync(join(import.meta.dirname, "styles.css"), "utf8");
-    for (const rule of game.match(/\.guest-site-head\.game-bar[^{]*\{[^}]*\}/g) ?? []) {
-      expect(rule).not.toMatch(/background/);
-    }
-    expect(readFileSync(join(import.meta.dirname, "../game/GameBar.tsx"), "utf8")).toContain(
-      'className="guest-site-head game-bar"',
+    // the game's bar floats over the world as translucent pills: it is not the website's bar and takes no bar colour
+    expect(readFileSync(join(import.meta.dirname, "../game/GameBar.tsx"), "utf8")).not.toContain(
+      "guest-site-head",
     );
   });
 

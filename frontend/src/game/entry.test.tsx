@@ -1,4 +1,4 @@
-// Entering the game (GAME-12 – GAME-14, GAME-17, GAME-18; UX mocks game, onboard-avatar, home). The Phaser canvas and the
+// Entering the game (GAME-12 – GAME-14, GAME-17; UX mocks game, onboard-avatar, home). The Phaser canvas and the
 // avatar editor are replaced by stand-ins: they are tested elsewhere (end-to-end, avatar.test.tsx).
 import { cleanup, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
@@ -8,10 +8,8 @@ import { fakeBackend, renderAt, signedIn, user } from "../test/backend.tsx";
 vi.mock("./GameCanvas.tsx", () => ({
   default: ({
     onActivate,
-    onPlayerTap,
   }: {
     onActivate: (a: { mapId: string; object: string; action: unknown }) => void;
-    onPlayerTap: () => void;
   }) => (
     <div data-testid="game-canvas">
       <button
@@ -25,9 +23,6 @@ vi.mock("./GameCanvas.tsx", () => ({
         }}
       >
         use object
-      </button>
-      <button type="button" onClick={onPlayerTap}>
-        own avatar
       </button>
     </div>
   ),
@@ -135,8 +130,24 @@ const profiles = {
   ],
 };
 
-function setup(options: { chosen?: boolean; answered?: boolean; world?: boolean } = {}) {
+function setup(
+  options: { chosen?: boolean; answered?: boolean; world?: boolean; eventDate?: string } = {},
+) {
   return fakeBackend({
+    ...(options.eventDate === undefined
+      ? {}
+      : {
+          "GET /api/website": () => ({
+            status: 200,
+            body: {
+              countdown: null,
+              eventDay: false,
+              eventDate: options.eventDate,
+              now: null,
+              next: null,
+            },
+          }),
+        }),
     "GET /api/session": () => signedIn,
     "GET /api/world": () => ({ status: 200, body: options.world === false ? null : world }),
     "GET /api/avatar": () => ({ status: 200, body: { persons: [person(options.chosen ?? true)] } }),
@@ -147,16 +158,45 @@ function setup(options: { chosen?: boolean; answered?: boolean; world?: boolean 
 }
 
 describe("entering the game", () => {
-  it("[GAME-12] with an active world, the start leads into the game; the Website button shows the start page, which offers to enter the world", async () => {
+  it("[GAME-12] with an active world, the start leads into the game; the Webseite button shows the start page, which offers to enter the world", async () => {
     setup();
     renderAt("/");
     expect(await screen.findByTestId("game-canvas")).toBeVisible();
-    user.click(screen.getByRole("link", { name: "Website" }));
+    user.click(screen.getByRole("link", { name: "Webseite" }));
     expect(await screen.findByText("Willkommen!")).toBeVisible();
     expect(screen.getByRole("link", { name: "Erlebniswelt betreten" })).toHaveAttribute(
       "href",
       "/game",
     );
+  });
+
+  it("[GAME-14] the bar over the game shows the event's name with its date, as the website's header does, and Webseite", async () => {
+    setup({ eventDate: "2027-06-12" });
+    renderAt("/game");
+    expect(await screen.findByTestId("game-canvas")).toBeVisible();
+    const bar = screen.getByRole("banner");
+    expect(bar).toHaveClass("game-bar");
+    expect(await within(bar).findByText(/12\. Juni 2027/)).toBeVisible();
+    expect(within(bar).getByRole("link", { name: "Webseite" })).toHaveAttribute("href", "/");
+  });
+
+  it("[GAME-14] while the game is open the page behind it has the game's colour, and the website's again once it is left", async () => {
+    setup();
+    renderAt("/game");
+    expect(await screen.findByTestId("game-canvas")).toBeVisible();
+    expect(document.documentElement.style.background).toBe("rgb(17, 17, 17)");
+    user.click(screen.getByRole("link", { name: "Webseite" }));
+    expect(await screen.findByText("Willkommen!")).toBeVisible();
+    expect(document.documentElement.style.background).toBe("");
+  });
+
+  it("[GAME-14] without a date of the event the bar shows the name alone", async () => {
+    setup();
+    renderAt("/game");
+    expect(await screen.findByTestId("game-canvas")).toBeVisible();
+    const bar = screen.getByRole("banner");
+    expect(within(bar).getByRole("link", { name: "Webseite" })).toBeVisible();
+    expect(bar.querySelector("small")).toBeNull();
   });
 
   it("[GAME-12] a direct link opens its target, and without a world the start page stays", async () => {
@@ -267,13 +307,13 @@ describe("entering the game", () => {
     expect(screen.queryByRole("dialog")).toBeNull();
   });
 
-  it("[GAME-14] the bar has only the title and the Website button, whether the RSVP is open or answered", async () => {
+  it("[GAME-14] the bar has only the title and the Webseite button, whether the RSVP is open or answered", async () => {
     for (const answered of [false, true]) {
       setup({ chosen: true, answered });
       renderAt("/game");
       const bar = await screen.findByRole("banner");
       expect(bar).toBeVisible();
-      expect(within(bar).getByRole("link", { name: "Website" })).toBeVisible();
+      expect(within(bar).getByRole("link", { name: "Webseite" })).toBeVisible();
       // No Programm or Anmeldung button, no badge, no navigation: they are reached through the objects.
       expect(within(bar).queryAllByRole("button")).toHaveLength(0);
       expect(within(bar).queryByRole("navigation")).toBeNull();
@@ -282,36 +322,83 @@ describe("entering the game", () => {
     }
   });
 
-  it("[GAME-07] the hint names the way of playing that suits the device: tapping on a phone, clicking and Enter with a mouse", async () => {
-    const matches = (pointerFine: boolean) => () => ({ matches: pointerFine });
-    for (const [fine, text] of [
-      [false, "Tippe auf Dinge, die funkeln"],
-      [true, "Klicke auf Dinge, die funkeln – oder geh hin und drück Enter"],
-    ] as const) {
-      vi.stubGlobal("matchMedia", matches(fine));
-      localStorage.clear();
-      setup();
-      renderAt("/game");
-      expect(await screen.findByTestId("game-hint")).toHaveTextContent(text);
-      cleanup();
-    }
-  });
-
-  it("[GAME-17] the hint shows until the first object is used, and does not come back", async () => {
-    setup();
-    renderAt("/game");
-    expect(await screen.findByTestId("game-hint")).toBeVisible();
-    user.click(screen.getByRole("button", { name: "use object" }));
-    await waitFor(() => {
-      expect(screen.queryByTestId("game-hint")).toBeNull();
+  /** The backend of a first entry with the welcome dialogue picked (or not): the guest has no figure yet. */
+  function welcomeSetup(options: { welcome: string | null; answered?: boolean }) {
+    return fakeBackend({
+      "GET /api/session": () => signedIn,
+      "GET /api/world": () => ({
+        status: 200,
+        body: { ...world, welcomeDialogue: options.welcome },
+      }),
+      "GET /api/avatar": () => ({ status: 200, body: { persons: [person(false)] } }),
+      "GET /api/profile/people": () => ({ status: 200, body: profiles }),
+      "GET /api/rsvp": () => ({ status: 200, body: rsvpState(options.answered ?? true) }),
+      "GET /api/programme": () => ({ status: 200, body: programme }),
+      "GET /api/dialogues/willkommen": () => ({
+        status: 200,
+        body: {
+          id: "willkommen",
+          npcName: "Brautpaar",
+          lines: ["Schön, dass ihr da seid!"],
+          portrait: null,
+        },
+      }),
     });
-    expect(localStorage.getItem("zappaloo.game.hintSeen")).toBe("1");
+  }
+  const throughFirstEntry = async () => {
+    await screen.findByRole("heading", { name: "Wie siehst du aus?" });
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "Weiter" })).toBeEnabled();
+    });
+    user.click(screen.getByRole("button", { name: "Weiter" }));
+    await screen.findByRole("heading", { name: "Sag hallo" });
+    user.click(screen.getByRole("button", { name: "Überspringen" }));
+    await screen.findByTestId("game-canvas");
+  };
+
+  it("[GAME-17] the picked welcome dialogue opens once at the end of the first entry, and nothing else (no hint) shows", async () => {
+    welcomeSetup({ welcome: "willkommen" });
+    renderAt("/game");
+    await throughFirstEntry();
+    const welcome = await screen.findByRole("dialog", { name: "Brautpaar" });
+    // The line types itself out (CNT-10).
+    await waitFor(() => {
+      expect(welcome).toHaveTextContent("Schön, dass ihr da seid!");
+    });
+    expect(screen.queryByText(/die funkeln/)).toBeNull();
   });
 
-  it("[GAME-18] a tap on the own avatar opens the profile as an overlay", async () => {
-    setup();
+  it("[GAME-17] without a welcome dialogue nothing opens after the first entry", async () => {
+    welcomeSetup({ welcome: null });
     renderAt("/game");
-    user.click(await screen.findByRole("button", { name: "own avatar" }));
-    expect(await screen.findByRole("dialog", { name: "Profil" })).toBeVisible();
+    await throughFirstEntry();
+    expect(screen.queryByRole("dialog")).toBeNull();
+    expect(screen.queryByText(/die funkeln/)).toBeNull();
+  });
+
+  it("[GAME-13][GAME-17] an open RSVP comes first: the welcome opens when its overlay is closed", async () => {
+    welcomeSetup({ welcome: "willkommen", answered: false });
+    renderAt("/game");
+    await throughFirstEntry();
+    const rsvp = await screen.findByRole("dialog", { name: "Anmeldung" });
+    expect(screen.queryByRole("dialog", { name: "Brautpaar" })).toBeNull();
+    user.click(within(rsvp).getByRole("button", { name: /schliessen/i }));
+    expect(await screen.findByRole("dialog", { name: "Brautpaar" })).toBeVisible();
+  });
+
+  it("[GAME-17] a guest who already has a figure enters without the welcome", async () => {
+    fakeBackend({
+      "GET /api/session": () => signedIn,
+      "GET /api/world": () => ({
+        status: 200,
+        body: { ...world, welcomeDialogue: "willkommen" },
+      }),
+      "GET /api/avatar": () => ({ status: 200, body: { persons: [person(true)] } }),
+      "GET /api/rsvp": () => ({ status: 200, body: rsvpState(true) }),
+      "GET /api/programme": () => ({ status: 200, body: programme }),
+    });
+    renderAt("/game");
+    expect(await screen.findByTestId("game-canvas")).toBeVisible();
+    expect(screen.queryByRole("dialog")).toBeNull();
   });
 });

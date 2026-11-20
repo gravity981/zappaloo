@@ -3,7 +3,11 @@ import { ENGINE_CONFIG_REGISTRY_KEY, PIXEL_RATIO_REGISTRY_KEY, WORLD_SCENE_KEY }
 import { showDiagnostics } from "./diagnostics.ts";
 import { canvasBufferSize, canvasPixelRatio } from "./pixel-grid.ts";
 import { WorldScene } from "./GameScene.ts";
-import { rememberPause } from "./pause.ts";
+import { isPlayedByHand } from "./manual-clock.ts";
+import { rememberPause, setLoopAsleep } from "./pause.ts";
+import { gameRandom } from "./random.ts";
+import { releaseContext } from "./release-context.ts";
+import { showStartScreen } from "./start-screen.ts";
 import type { GameEngineOptions, GameGuides, GameSelection, GameView } from "./host.ts";
 
 export type GameInstance = Phaser.Game;
@@ -28,9 +32,19 @@ export function createGame({ parent, ...options }: GameMountOptions): GameInstan
   game.registry.set(ENGINE_CONFIG_REGISTRY_KEY, options);
   game.registry.set(PIXEL_RATIO_REGISTRY_KEY, ratio);
   keepCanvasSized(game, parent);
+  // Black, with a bar, until the first map is ready (GAME-43).
+  showStartScreen(game, parent, options.texts?.loadingSteps ?? [], gameRandom);
   setGameDiagnostics(game, options.diagnostics === true);
   game.events.once(Phaser.Core.Events.DESTROY, () => {
     setGameDiagnostics(game, false);
+    // Phaser deletes its GL objects after this event but keeps the context: release it once it is done (PWA-07).
+    const gl =
+      game.renderer instanceof Phaser.Renderer.WebGL.WebGLRenderer ? game.renderer.gl : null;
+    const canvas = game.canvas;
+    if (gl)
+      setTimeout(() => {
+        releaseContext(gl, canvas);
+      }, 0);
   });
   return game;
 }
@@ -132,6 +146,7 @@ export function setGamePaused(game: GameInstance, paused: boolean): void {
   const scene = game.scene.getScene(WORLD_SCENE_KEY);
   if (scene instanceof WorldScene && (scene.sys.isActive() || scene.sys.isPaused())) {
     scene.setPaused(paused);
+    setLoopAsleep(game.loop, paused, isPlayedByHand(game));
   }
 }
 

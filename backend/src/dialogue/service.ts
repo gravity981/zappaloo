@@ -1,9 +1,10 @@
-// The dialogues of the game world (sw-architecture.md 6.2, 14.4; CNT-02, CNT-03, CNT-08): the admin edits them in
-// Erlebniswelt › Dialoge; a clickable object with the action `dialog` shows one. A dialogue in use cannot be deleted;
-// a new id keeps the admin's assignments. Every change and its audit entry (ids only) run in one transaction.
+// The dialogues of the game world (sw-architecture.md 6.2, 14.4; CNT-02, CNT-03, CNT-08, CNT-09): the admin edits them in
+// Erlebniswelt › Dialoge; a clickable object or an NPC with the action `dialog` shows one. The id is made from the
+// figure's name when the dialogue is created and never changes, so the assignments and the Tiled presets that name it
+// stay valid. A dialogue in use cannot be deleted. Every change and its audit entry (ids only) run in one transaction.
 import { and, eq } from "drizzle-orm";
 import sharp from "sharp";
-import { DIALOGUE_LIMITS, worldActionSchema } from "@zappaloo/shared";
+import { DIALOGUE_LIMITS } from "@zappaloo/shared";
 import type {
   DialogueDetail,
   DialogueGuest,
@@ -12,15 +13,15 @@ import type {
   DialogueUse,
 } from "@zappaloo/shared";
 import { detectImage } from "../content/images.ts";
-import { dialogues, worldObjectActions } from "../database/schema.ts";
+import { dialogues } from "../database/schema.ts";
 import type { Database } from "../database/database.ts";
 import type { Actor, EventService } from "../event/service.ts";
 import type { WorldService } from "../world/service.ts";
+import { newDialogueId } from "./id.ts";
 
 export class DialogueError extends Error {
   readonly code:
     | "dialogue_not_found"
-    | "dialogue_exists"
     | "dialogue_in_use"
     | "portrait_too_large"
     | "portrait_type"
@@ -96,6 +97,7 @@ export class DialogueService {
       .map((row) => ({
         id: row.id,
         npcName: row.npcName,
+        greeting: row.greeting ?? "",
         lines: linesOf(row).length,
         portrait: row.portrait !== null,
         usedBy: this.usedBy(row.id),
@@ -106,6 +108,7 @@ export class DialogueService {
     return {
       id: row.id,
       npcName: row.npcName,
+      greeting: row.greeting ?? "",
       lines: linesOf(row),
       portrait: row.portrait === null ? null : row.updatedAt.getTime(),
       usedBy: this.usedBy(row.id),
@@ -116,76 +119,43 @@ export class DialogueService {
     return this.#detail(this.#require(id));
   }
 
+  /** Creates a dialogue; its id is made from the figure's name (CNT-09). */
   create(request: DialogueRequest, actor: Actor): DialogueDetail {
     const eventId = this.#event.eventId;
-    if (this.#row(request.id) !== undefined) {
-      throw new DialogueError("dialogue_exists", "there is a dialogue with this id already");
-    }
+    const id = newDialogueId(request.npcName, (candidate) => this.#row(candidate) !== undefined);
     this.#database.db.transaction((tx) => {
       tx.insert(dialogues)
         .values({
           eventId,
-          id: request.id,
+          id,
           npcName: request.npcName,
+          greeting: request.greeting === "" ? null : request.greeting,
           lines: JSON.stringify(request.lines),
           updatedAt: new Date(),
         })
         .run();
-      this.#event.audit(actor, "dialogue.create", { dialogue: request.id }, tx);
+      this.#event.audit(actor, "dialogue.create", { dialogue: id }, tx);
     });
-    return this.get(request.id);
+    return this.get(id);
   }
 
-  /**
-   * Changes a dialogue; a new id is taken over by the admin's assignments (they follow the dialogue), while presets in
-   * Tiled files that name the old id point to nothing then (a warning, MAP-08).
-   */
+  /** Changes a dialogue. The id stays: the assignments and the presets of the Tiled files that name it stay valid. */
   update(id: string, request: DialogueRequest, actor: Actor): DialogueDetail {
     const eventId = this.#event.eventId;
     this.#require(id);
-    const renamed = request.id !== id;
-    if (renamed && this.#row(request.id) !== undefined) {
-      throw new DialogueError("dialogue_exists", "there is a dialogue with this id already");
-    }
     this.#database.db.transaction((tx) => {
       tx.update(dialogues)
         .set({
-          id: request.id,
           npcName: request.npcName,
+          greeting: request.greeting === "" ? null : request.greeting,
           lines: JSON.stringify(request.lines),
           updatedAt: new Date(),
         })
         .where(and(eq(dialogues.eventId, eventId), eq(dialogues.id, id)))
         .run();
-      if (renamed) {
-        for (const row of tx
-          .select()
-          .from(worldObjectActions)
-          .where(eq(worldObjectActions.eventId, eventId))
-          .all()) {
-          const action = worldActionSchema.safeParse(JSON.parse(row.action));
-          if (!action.success || action.data.kind !== "dialog" || action.data.dialogId !== id)
-            continue;
-          tx.update(worldObjectActions)
-            .set({ action: JSON.stringify({ kind: "dialog", dialogId: request.id }) })
-            .where(
-              and(
-                eq(worldObjectActions.eventId, eventId),
-                eq(worldObjectActions.mapId, row.mapId),
-                eq(worldObjectActions.objectName, row.objectName),
-              ),
-            )
-            .run();
-        }
-      }
-      this.#event.audit(
-        actor,
-        "dialogue.update",
-        renamed ? { dialogue: id, renamedTo: request.id } : { dialogue: id },
-        tx,
-      );
+      this.#event.audit(actor, "dialogue.update", { dialogue: id }, tx);
     });
-    return this.get(request.id);
+    return this.get(id);
   }
 
   /** Deletes a dialogue that no object shows; the error names the objects that do. */
