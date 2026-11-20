@@ -75,6 +75,7 @@ Zappaloo is a reusable event platform (first use: a wedding) that combines a bro
 | `npm run typecheck` | `tsc` for the root (scripts, e2e, configs) and every workspace |
 | `npm test` | Vitest, all workspaces; JSON results in `reports/vitest.json` |
 | `npm run test:e2e` | Playwright (desktop/mobile, Chromium/WebKit) against the backend serving a test build of the frontend (port 4173, data in `.e2e-data/`); JSON results in `reports/playwright.json`. Tests marked `@flaky` are left out locally; CI (and `CI=1`) runs all |
+| `npm run test:e2e:game` | Only the game world tests (Playwright project `game`, one worker; the test world is imported once by `e2e/global-setup.ts`) |
 | `npm run test:e2e:flaky` | Only the tests whose title ends with `@flaky`, with two retries; results in `reports/playwright-flaky.json`. The known flaky tests are tracked in `spec/test-strategy.md` 8.8 |
 | `npm run req-report` | Requirement report from the spec and both JSON results; full report as a page with a collapsible result tree in `reports/requirements.html` (CI: artifact `requirement-report`, with a short summary on the run page); non-zero exit on errors |
 | `npm run check` | All of the above in CI order |

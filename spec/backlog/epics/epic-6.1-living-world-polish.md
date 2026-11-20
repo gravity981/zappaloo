@@ -119,6 +119,22 @@ Requirements: PWA-07.
 - Overlays open over the game at full frame rate on iOS (decision 11).
 Requirements: GAME-44. Checked on the iPhone and recorded in the manual test protocol, like GAME-27.
 
+### Story 6.1k – Independent game tests in a project of their own — Done (2026-11-19)
+
+Added 2026-11-19 at the project owner's request, after an analysis of the unstable end-to-end tests: the game tests were one serial chain (a failure skipped the rest and re-ran all of it), ran beside every other spec on a busy machine, and the game's time slows down when the machine is busy (Phaser caps the step of a frame at 200 ms).
+- The test world is imported once before the run (`e2e/global-setup.ts`); no game test depends on another.
+- The game tests are a Playwright project `game` (one browser, one worker, listed last so that it starts when the other specs are mostly done); `npm run test:e2e:game` runs only it. The other projects ignore the file, which removes 81 skipped tests.
+- A test that changes a shared setting (guest access, the sexton's texts) no longer has to put it back on its own: a hook after every test does it through the API, also after a failure.
+Requirements: none new.
+
+### Story 6.1l – Deterministic game time in the tests
+
+Added 2026-11-19, with 6.1k.
+- Test builds (`VITE_TEST_HOOKS`) get a seeded random source for the engine (guest and NPC positions and waits, sparkles) and a way to advance the game by fixed frames, so that a walk takes the same frames whatever the machine's load.
+- The fixed waits (`waitForTimeout`) and the timing-dependent assertions of the game tests become state polls or fixed frames (`GAME-09`, `PRES-10`: the guest's walk away is random today, one run in six fails).
+- An overlay that covers what a test clicks (the sexton's bubble over the altar's edge indicator, `GAME-26`) is avoided by the test's setup, not by luck of the layout.
+Requirements: none new.
+
 ## Report
 
 <Added when the epic is complete, from the template in README.md.>

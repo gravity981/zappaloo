@@ -1,7 +1,8 @@
 // The game world end to end (sw-architecture.md 3.1, 3.5, 14.4; GAME-01, GAME-03, GAME-07, GAME-09, GAME-10, GAME-11, GAME-15, GAME-16): an admin
 // imports the test world, and the game route draws its start map with the player at the start point; the arrow keys
 // and a tap move the player, and a portal leads on to the next map, which the device remembers.
-// The tests share one installation and one world, so they run one after the other.
+// The world is imported once before the run (e2e/global-setup.ts); the tests run in the project "game", one worker,
+// and do not depend on each other. A test that changes a shared setting is put back by the hook below, also on failure.
 import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { expect, test, type Page } from "@playwright/test";
@@ -16,7 +17,33 @@ import {
 } from "./support.ts";
 import de from "../frontend/src/i18n/locales/de/common.json" with { type: "json" };
 
-test.describe.configure({ mode: "serial" });
+/**
+ * After every test the settings that tests change are as the others expect them: guest access on, and the sexton
+ * without his own name and short dialog (MAP-19, MAP-21). A test that fails halfway has not put them back itself.
+ * The API is used, not the pages: it is quick, and works after a timeout. The admin is a fresh one, because the
+ * test's own session may be gone.
+ */
+test.afterEach(async ({ browser, baseURL }) => {
+  const context = await browser.newContext({
+    baseURL,
+    extraHTTPHeaders: { "x-forwarded-for": clientAddress() },
+  });
+  try {
+    const page = await context.newPage();
+    await signInAsAdmin(page, context);
+    const session = (await (await page.request.get("/api/session")).json()) as {
+      csrfToken: string;
+    };
+    const headers = { "x-csrf-token": session.csrfToken };
+    await page.request.put("/api/admin/world/guest-access", { headers, data: { enabled: true } });
+    await page.request.put("/api/admin/world/npcs/kirche/kuester", {
+      headers,
+      data: { title: null, dialog: null },
+    });
+  } finally {
+    await context.close();
+  }
+});
 
 /** Opens the game as the signed-in user, who has chosen a figure (the first-entry avatar step is tested apart). */
 async function enterGame(page: Page): Promise<void> {
@@ -81,8 +108,6 @@ test("[GAME-01][GAME-03] an admin imports the test world, and the game draws its
   page,
   context,
 }, testInfo) => {
-  // The world is one setting of the installation: one profile only (as the other shared settings).
-  test.skip(testInfo.project.name !== "desktop-chromium", "shared settings: one profile only");
   await signInAsAdmin(page, context);
   await page.goto("/admin/world");
   mkdirSync(testInfo.outputDir, { recursive: true });
@@ -105,8 +130,7 @@ test("[GAME-01][GAME-03] an admin imports the test world, and the game draws its
 test("[GAME-09] the arrow keys move the player in the screen's directions", async ({
   page,
   context,
-}, testInfo) => {
-  test.skip(testInfo.project.name !== "desktop-chromium", "shared settings: one profile only");
+}) => {
   await signInAsAdmin(page, context);
   await enterGame(page);
   const before = await gameState(page);
@@ -126,8 +150,7 @@ test("[GAME-09] the arrow keys move the player in the screen's directions", asyn
 test("[GAME-24][GAME-28][GAME-29] a tap on the ground shows the marker while the avatar walks, and it is gone on arrival; the figure has a shadow and the clickable objects glow", async ({
   page,
   context,
-}, testInfo) => {
-  test.skip(testInfo.project.name !== "desktop-chromium", "shared settings: one profile only");
+}) => {
   await signInAsAdmin(page, context);
   await enterGame(page);
   const before = await gameState(page);
@@ -162,8 +185,7 @@ test("[GAME-24][GAME-28][GAME-29] a tap on the ground shows the marker while the
 test("[GAME-10][GAME-03][GAME-30] a tap walks the player into the portal, which leads to the next map, behind a loading veil and with a screen flash; the device remembers the map", async ({
   page,
   context,
-}, testInfo) => {
-  test.skip(testInfo.project.name !== "desktop-chromium", "shared settings: one profile only");
+}) => {
   await signInAsAdmin(page, context);
   await enterGame(page);
   const first = await gameState(page);
@@ -195,8 +217,7 @@ test("[GAME-10][GAME-03][GAME-30] a tap walks the player into the portal, which 
 test("[GAME-06][GAME-08][GAME-11][GAME-15][GAME-16] a tap on an object walks to it and opens its page above the paused game; closing returns to the same spot, and Enter opens it again", async ({
   page,
   context,
-}, testInfo) => {
-  test.skip(testInfo.project.name !== "desktop-chromium", "shared settings: one profile only");
+}) => {
   await signInAsAdmin(page, context);
   await enterGame(page);
   await gameState(page);
@@ -254,8 +275,7 @@ test("[GAME-06][GAME-08][GAME-11][GAME-15][GAME-16] a tap on an object walks to 
 test("[GAME-26][GAME-06][GAME-16] an object outside the view has an indicator at the edge, the easter egg has none, and a tap on the indicator walks to the object and opens its page", async ({
   page,
   context,
-}, testInfo) => {
-  test.skip(testInfo.project.name !== "desktop-chromium", "shared settings: one profile only");
+}) => {
   // A phone-sized view shows only a small part of the map, so objects lie outside it. It is tall enough that the
   // indicator of the sexton (an NPC with an action, GAME-39) does not overlap the altar's, which it would hide.
   await page.setViewportSize({ width: 360, height: 420 });
@@ -309,8 +329,7 @@ test("[GAME-26][GAME-06][GAME-16] an object outside the view has an indicator at
 test("[GAME-11] Enter on the close button of an object's page closes it, and the object does not open again", async ({
   page,
   context,
-}, testInfo) => {
-  test.skip(testInfo.project.name !== "desktop-chromium", "shared settings: one profile only");
+}) => {
   await signInAsAdmin(page, context);
   await enterGame(page);
   await gameState(page);
@@ -335,8 +354,7 @@ test("[GAME-11][GAME-13] on the first entry with an open RSVP, typing into the R
   context,
   browser,
   baseURL,
-}, testInfo) => {
-  test.skip(testInfo.project.name !== "desktop-chromium", "shared settings: one profile only");
+}) => {
   test.setTimeout(90_000);
   const suffix = Math.random().toString(36).slice(2, 8);
   const name = `E2E Spiel ${suffix}`;
@@ -407,8 +425,7 @@ test("[GAME-11][GAME-13] on the first entry with an open RSVP, typing into the R
 test("[AVA-01][AVA-02] the avatar editor offers an admin the tier3 figures only, by kind; choosing a kind stores a figure and enables the next step", async ({
   page,
   context,
-}, testInfo) => {
-  test.skip(testInfo.project.name !== "desktop-chromium", "shared settings: one profile only");
+}) => {
   await signInAsAdmin(page, context);
   await page.goto("/avatar");
   // The test world's only tier3 figure is the pastor, a man: the admin's editor offers that one kind.
@@ -431,8 +448,7 @@ test("[AVA-01][AVA-02] the avatar editor offers an admin the tier3 figures only,
 test("[GAME-12][GAME-13][GAME-14][GAME-17] first entry: the avatar comes first, then the game with its bar and hint; the own avatar opens nothing; the sign-in lands in the game and Website leaves it", async ({
   page,
   context,
-}, testInfo) => {
-  test.skip(testInfo.project.name !== "desktop-chromium", "shared settings: one profile only");
+}) => {
   await signInAsAdmin(page, context);
   // Nothing chosen yet: the avatar editor, no game, "Weiter" waits for a figure.
   await page.goto("/game");
@@ -472,8 +488,7 @@ test("[GAME-12][GAME-13][GAME-14][GAME-17] first entry: the avatar comes first, 
 test("[GAME-21] the game fills a phone's screen and is a window of at most 1280 x 800 on a wide screen", async ({
   page,
   context,
-}, testInfo) => {
-  test.skip(testInfo.project.name !== "desktop-chromium", "shared settings: one profile only");
+}) => {
   await signInAsAdmin(page, context);
   await chooseFirstFigure(page);
   const window = page.locator(".game-window");
@@ -494,8 +509,7 @@ test("[GAME-21] the game fills a phone's screen and is a window of at most 1280 
 test("[MAP-19] an admin switches guest access off and on again in Welt & Import; the active world stays", async ({
   page,
   context,
-}, testInfo) => {
-  test.skip(testInfo.project.name !== "desktop-chromium", "shared settings: one profile only");
+}) => {
   await signInAsAdmin(page, context);
   await page.goto("/admin/world");
   const toggle = page.getByRole("switch", { name: de.admin.world.guestAccess });
@@ -525,7 +539,6 @@ test("[PRES-01][PRES-02][PRES-04][PRES-08][AVA-04] the figures of the attending 
   page,
   context,
 }, testInfo) => {
-  test.skip(testInfo.project.name !== "desktop-chromium", "shared settings: one profile only");
   // The other guests come from the server (covered by its tests); here twelve of them are given to the browser.
   const guests = Array.from({ length: 12 }, (_, index) => ({
     id: `u${String(100 + index)}`,
@@ -573,7 +586,6 @@ test("[PRES-10] a guest figure stands still and opens its speech bubble when the
   page,
   context,
 }, testInfo) => {
-  test.skip(testInfo.project.name !== "desktop-chromium", "shared settings: one profile only");
   // One guest with a complete profile (no photo: the initials), so that the map it walks on can be found by its name.
   const guests = Array.from({ length: 4 }, (_, index) => ({
     id: `u${String(200 + index)}`,
@@ -657,8 +669,7 @@ test("[PRES-10] a guest figure stands still and opens its speech bubble when the
 test("[PRES-05][PRES-06] the admin makes a table with its places in the seating plan, and the guest's table finder tells that no plan is visible yet", async ({
   page,
   context,
-}, testInfo) => {
-  test.skip(testInfo.project.name !== "desktop-chromium", "shared settings: one profile only");
+}) => {
   await signInAsAdmin(page, context);
   await page.goto("/admin/seating");
   await expect(page.getByRole("heading", { name: de.admin.seating.title })).toBeVisible();
@@ -678,7 +689,6 @@ test("[CNT-02][CNT-03][GAME-06] the admin writes the dialogue of an NPC in Erleb
   page,
   context,
 }, testInfo) => {
-  test.skip(testInfo.project.name !== "desktop-chromium", "shared settings: one profile only");
   await signInAsAdmin(page, context);
   // The test world's object "pastor" opens the dialogue "npc-pastor" (a Tiled preset), which does not exist yet.
   await page.goto("/admin/world");
@@ -731,7 +741,6 @@ test("[GAME-31][GAME-33][GAME-34][MAP-20] the church has fog and cloud shadows, 
   page,
   context,
 }, testInfo) => {
-  test.skip(testInfo.project.name !== "desktop-chromium", "shared settings: one profile only");
   await signInAsAdmin(page, context);
   await enterGame(page);
   await expect(page.getByTestId("game-canvas")).toBeVisible({ timeout: 20_000 });
@@ -766,7 +775,6 @@ test("[GAME-32] now and then a flock of the world's bird flies through the view"
   page,
   context,
 }, testInfo) => {
-  test.skip(testInfo.project.name !== "desktop-chromium", "shared settings: one profile only");
   test.setTimeout(90_000);
   // The first flock comes 20 to 60 seconds after the map is entered; with the lowest random number it is 20 seconds.
   await page.addInitScript(() => {
@@ -796,7 +804,6 @@ test("[GAME-35][MAP-20] the fountain of the garden plays its animation, and with
   page,
   context,
 }, testInfo) => {
-  test.skip(testInfo.project.name !== "desktop-chromium", "shared settings: one profile only");
   await signInAsAdmin(page, context);
   await enterGame(page);
   await expect(page.getByTestId("game-canvas")).toBeVisible({ timeout: 20_000 });
@@ -829,7 +836,6 @@ test("[GAME-36][MAP-20] the gardener walks his path to the end, waits there and 
   page,
   context,
 }, testInfo) => {
-  test.skip(testInfo.project.name !== "desktop-chromium", "shared settings: one profile only");
   test.setTimeout(90_000);
   // With the lowest random number the first wave comes after 8 seconds, and the NPCs set off at once.
   await page.addInitScript(() => {
@@ -887,7 +893,6 @@ test("[GAME-38][GAME-36] a tap on the sexton walks the player to him, he waits a
   page,
   context,
 }, testInfo) => {
-  test.skip(testInfo.project.name !== "desktop-chromium", "shared settings: one profile only");
   await signInAsAdmin(page, context);
   await enterGame(page);
   await expect(page.getByTestId("game-canvas")).toBeVisible({ timeout: 20_000 });
@@ -942,7 +947,6 @@ test("[MAP-21][GAME-37] the admin gives the sexton a name and a short dialog; in
   page,
   context,
 }, testInfo) => {
-  test.skip(testInfo.project.name !== "desktop-chromium", "shared settings: one profile only");
   test.setTimeout(90_000);
   await signInAsAdmin(page, context);
   await setSextonTexts(page, "Küster Fritz", "Psst, hier entlang zum Programm!");
@@ -985,7 +989,6 @@ test("[GAME-39][GAME-37] an NPC with an action outside the view has an indicator
   page,
   context,
 }, testInfo) => {
-  test.skip(testInfo.project.name !== "desktop-chromium", "shared settings: one profile only");
   test.setTimeout(90_000);
   await signInAsAdmin(page, context);
   await setSextonTexts(page, "Küster Fritz", "");
@@ -1023,7 +1026,6 @@ test("[GAME-41][GAME-40] an object, portal or NPC in sight carries its label, na
   page,
   context,
 }, testInfo) => {
-  test.skip(testInfo.project.name !== "desktop-chromium", "shared settings: one profile only");
   test.setTimeout(120_000);
   await signInAsAdmin(page, context);
   await enterGame(page);
@@ -1098,7 +1100,6 @@ test("[GAME-42] the player shows as a silhouette while an object in front covers
   page,
   context,
 }, testInfo) => {
-  test.skip(testInfo.project.name !== "desktop-chromium", "shared settings: one profile only");
   await signInAsAdmin(page, context);
   await enterGame(page);
   await expect(page.getByTestId("game-canvas")).toBeVisible({ timeout: 20_000 });

@@ -9,6 +9,8 @@ const isCI = Boolean(process.env.CI);
 const flakyRun = Boolean(process.env.E2E_FLAKY);
 const FLAKY = /@flaky/;
 const PORT = 4173;
+/** The game world tests; they run in the project "game" only. */
+const GAME_SPEC = /game-world\.spec\.ts$/;
 const PREVIEW_PORT = Number(process.env.ZAPPALOO_GAME_PREVIEW_PORT ?? 5175);
 if (!Number.isInteger(PREVIEW_PORT) || PREVIEW_PORT < 1 || PREVIEW_PORT > 65535) {
   throw new Error("ZAPPALOO_GAME_PREVIEW_PORT must be a valid TCP port.");
@@ -28,6 +30,8 @@ const sharedEnv = {
 // The JSON results feed the requirement report.
 export default defineConfig({
   testDir: "./e2e",
+  // The installation gets the test world once, before any test (e2e/global-setup.ts).
+  globalSetup: "./e2e/global-setup.ts",
   outputDir: "./test-results",
   // Twice the default of 30 s: WebKit and parallel workers are slow on a busy machine.
   timeout: 60_000,
@@ -80,9 +84,19 @@ export default defineConfig({
     },
   ],
   projects: [
-    { name: "desktop-chromium", use: { ...devices["Desktop Chrome"] } },
-    { name: "desktop-webkit", use: { ...devices["Desktop Safari"] } },
-    { name: "mobile-android", use: { ...devices["Pixel 7"] } },
-    { name: "mobile-ios", use: { ...devices["iPhone 15"] } },
+    { name: "desktop-chromium", testIgnore: GAME_SPEC, use: { ...devices["Desktop Chrome"] } },
+    { name: "desktop-webkit", testIgnore: GAME_SPEC, use: { ...devices["Desktop Safari"] } },
+    { name: "mobile-android", testIgnore: GAME_SPEC, use: { ...devices["Pixel 7"] } },
+    { name: "mobile-ios", testIgnore: GAME_SPEC, use: { ...devices["iPhone 15"] } },
+    // The game tests: one browser, the tests of the file one after the other in one worker (the game is heavy:
+    // software WebGL, and a busy machine slows its time, see spec/test-strategy.md 8.8). The project is listed last, so
+    // that it starts when the other specs are mostly done. The tests do not depend on each other: a failure
+    // retries that test alone. `npm run test:e2e:game` runs only this project.
+    {
+      name: "game",
+      testMatch: GAME_SPEC,
+      fullyParallel: false,
+      use: { ...devices["Desktop Chrome"] },
+    },
   ],
 });
