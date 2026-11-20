@@ -23,6 +23,8 @@
     "typecheck": "tsc -p tsconfig.json && npm run typecheck --workspaces --if-present",
     "test": "vitest run --project shared --project game-engine --project game-preview --project theme-editor --project backend --project frontend --project scripts",
     "test:watch": "vitest --project shared --project game-engine --project game-preview --project theme-editor --project backend --project frontend --project scripts",
+    "test:related": "vitest related --run --passWithNoTests --project shared --project game-engine --project game-preview --project theme-editor --project backend --project frontend --project scripts",
+    "precommit": "node scripts/precommit/cli.ts",
     "test:e2e": "playwright test",
     "test:e2e:game": "playwright test --project=game",
     "test:e2e:flaky": "E2E_FLAKY=1 playwright test",
@@ -41,7 +43,8 @@
     "cli": "node backend/src/cli.ts",
     "migration-check": "node scripts/migration-check/cli.ts",
     "test:deploy": "VITEST_JSON=reports/vitest-deploy.json vitest run --project deploy",
-    "build:image": "infrastructure/scripts/build-image.sh"
+    "build:image": "infrastructure/scripts/build-image.sh",
+    "prepare": "[ -f scripts/precommit/install.ts ] && node scripts/precommit/install.ts || true"
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",

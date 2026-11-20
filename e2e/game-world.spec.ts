@@ -129,47 +129,49 @@ async function pagePoint(
   };
 }
 
-test("[GAME-01][GAME-03] an admin imports the test world, and the game draws its start map with the player at the start point", async ({
-  page,
-  context,
-}, testInfo) => {
-  await signInAsAdmin(page, context);
-  await page.goto("/admin/world");
-  mkdirSync(testInfo.outputDir, { recursive: true });
-  const archive = join(testInfo.outputDir, "world.tar.gz");
-  writeFileSync(archive, buildTestWorld());
-  await page.locator('input[type="file"]').setInputFiles(archive);
-  await expect(page.getByText(de.admin.world.imported)).toBeVisible();
-  await expect(page.getByText(`Aktiv: ${TEST_WORLD_NAME}`)).toBeVisible();
+test(
+  "[GAME-01][GAME-03] an admin imports the test world, and the game draws its start map with the player at the start point",
+  { tag: "@smoke" },
+  async ({ page, context }, testInfo) => {
+    await signInAsAdmin(page, context);
+    await page.goto("/admin/world");
+    mkdirSync(testInfo.outputDir, { recursive: true });
+    const archive = join(testInfo.outputDir, "world.tar.gz");
+    writeFileSync(archive, buildTestWorld());
+    await page.locator('input[type="file"]').setInputFiles(archive);
+    await expect(page.getByText(de.admin.world.imported)).toBeVisible();
+    await expect(page.getByText(`Aktiv: ${TEST_WORLD_NAME}`)).toBeVisible();
 
-  await enterGame(page);
-  // The first load of the game fetches the Phaser chunk, which takes longer on a busy machine.
-  await expect(page.getByTestId("game-canvas")).toBeVisible({ timeout: 20_000 });
-  const state = await gameState(page);
-  expect(state.mapId).toBe("kirche");
-  expect(state.direction).toBe("south");
-  await page.waitForTimeout(500);
-  await page.screenshot({ path: testInfo.outputPath("game-start.png") });
-});
+    await enterGame(page);
+    // The first load of the game fetches the Phaser chunk, which takes longer on a busy machine.
+    await expect(page.getByTestId("game-canvas")).toBeVisible({ timeout: 20_000 });
+    const state = await gameState(page);
+    expect(state.mapId).toBe("kirche");
+    expect(state.direction).toBe("south");
+    await page.waitForTimeout(500);
+    await page.screenshot({ path: testInfo.outputPath("game-start.png") });
+  },
+);
 
-test("[GAME-09] the arrow keys move the player in the screen's directions", async ({
-  page,
-  context,
-}) => {
-  await signInAsAdmin(page, context);
-  await enterGame(page);
-  const before = await gameState(page);
-  await page.keyboard.down("ArrowRight");
-  await advance(page, 1000);
-  await page.keyboard.up("ArrowRight");
-  const after = await gameState(page);
-  expect(after.direction).toBe("east");
-  // The right arrow walks to the right on the screen: the player moved, to the right (x grows) and the walk is
-  // mostly horizontal. The game time is advanced by hand, so the machine's load does not matter. The directions and the equal speed of diagonal moves are tested in
-  // movement.test.ts (GAME-09).
-  expect(after.x - before.x).toBeGreaterThan(4);
-  expect(Math.abs(after.y - before.y)).toBeLessThan(Math.abs(after.x - before.x));
-});
+test(
+  "[GAME-09] the arrow keys move the player in the screen's directions",
+  { tag: "@smoke" },
+  async ({ page, context }) => {
+    await signInAsAdmin(page, context);
+    await enterGame(page);
+    const before = await gameState(page);
+    await page.keyboard.down("ArrowRight");
+    await advance(page, 1000);
+    await page.keyboard.up("ArrowRight");
+    const after = await gameState(page);
+    expect(after.direction).toBe("east");
+    // The right arrow walks to the right on the screen: the player moved, to the right (x grows) and the walk is
+    // mostly horizontal. The game time is advanced by hand, so the machine's load does not matter. The directions and the equal speed of diagonal moves are tested in
+    // movement.test.ts (GAME-09).
+    expect(after.x - before.x).toBeGreaterThan(4);
+    expect(Math.abs(after.y - before.y)).toBeLessThan(Math.abs(after.x - before.x));
+  },
+);
 
 test("[GAME-24][GAME-28][GAME-29] a tap on the ground shows the marker while the avatar walks, and it is gone on arrival; the figure has a shadow and the clickable objects glow", async ({
   page,

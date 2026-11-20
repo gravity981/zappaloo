@@ -1,7 +1,11 @@
 # Release candidate (sw-architecture.md 23.3, OPS-10): started manually on main
 # with the version to release. Runs the full test suite, builds the image with
 # that version, pushes it as <version>-rc.<M>, tags v<version>-rc.<M> and
-# publishes a GitHub pre-release with the deployment bundle.
+# publishes a GitHub pre-release with the deployment bundle. The number M is used up by the
+# tag, and the tag is made by the very last step: the pre-release is created with `--target`, which makes
+# GitHub create the tag when the release is published, after the assets are uploaded. A failure
+# before that leaves no tag, so the next run takes the same number (tags `v*` are never moved or
+# deleted, OPS-12, so a tag that exists could not be taken back).
 name: Release candidate
 
 on:
@@ -68,6 +72,8 @@ jobs:
       contents: read
       packages: write
     uses: ./.github/workflows/ci.yml
+    with:
+      full: true
 
   release:
     name: Build and publish
@@ -107,27 +113,13 @@ jobs:
           cache-to: type=gha,mode=max
       - name: Smoke test
         run: infrastructure/scripts/smoke-test-image.sh "$IMAGE:$IMAGE_TAG" "$VERSION" "$GITHUB_SHA"
-      - name: Log in to the registry
-        uses: docker/login-action@81c6f93d4bc991e510b342a00b419b3bb4efc5c6 # v4.7.0
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-      - name: Push image
-        run: docker push "$IMAGE:$IMAGE_TAG"
-      - name: Tag the commit
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git tag --annotate "$TAG" --message "Release candidate $TAG" "$GITHUB_SHA"
-          git push origin "refs/tags/$TAG"
       # The JSON Schemas and the format documents are generated from the code, which needs the
       # packages (zod) installed; the example theme alone needs no install.
       - name: Install dependencies
         run: npm ci --no-audit --no-fund
-      - name: GitHub pre-release with the deployment bundle
-        env:
-          GH_TOKEN: ${{ github.token }}
+      # Everything the pre-release needs is made before the image is pushed and the tag is set, so that
+      # a failure here does not use up the number of the candidate.
+      - name: Prepare the pre-release (bundle, assets, notes)
         run: |
           set -euo pipefail
           bundle=$(node scripts/release/cli.ts bundle "$TAG" dist --ref "$GITHUB_SHA")
@@ -141,5 +133,24 @@ jobs:
           # commands to install or update staging with the bundle (OPS-19).
           node scripts/release/cli.ts notes "$TAG" "$GITHUB_REPOSITORY" --ref "$GITHUB_SHA" \
             --intro "Release candidate of $VERSION, image \`$IMAGE:$IMAGE_TAG\`." > notes.md
-          gh release create "$TAG" --verify-tag --prerelease --title "Zappaloo $TAG" \
-            --notes-file notes.md "$bundle" "$example" "${schemas[@]}"
+          printf '%s\n' "$bundle" "$example" "${schemas[@]}" > assets.txt
+      - name: Log in to the registry
+        uses: docker/login-action@81c6f93d4bc991e510b342a00b419b3bb4efc5c6 # v4.7.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Push image
+        run: docker push "$IMAGE:$IMAGE_TAG"
+      # The last step, and the only one that makes the tag: GitHub creates `v<version>-rc.<M>` on the commit
+      # when it publishes the release, after the assets are uploaded. If the step fails before that, there
+      # is no tag and the number is free; the image pushed above is overwritten by the next run (the tag of
+      # an image is mutable, and nothing deploys it without the pre-release).
+      - name: GitHub pre-release with the deployment bundle (this creates the tag)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mapfile -t assets < assets.txt
+          gh release create "$TAG" --target "$GITHUB_SHA" --prerelease --title "Zappaloo $TAG" \
+            --notes-file notes.md "${assets[@]}"

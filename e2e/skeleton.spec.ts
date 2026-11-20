@@ -62,7 +62,7 @@ test("the game route mounts Phaser with the world, or leads to the start page wh
   }
 });
 
-test("the backend reports health and version", async ({ request }) => {
+test("the backend reports health and version", { tag: "@smoke" }, async ({ request }) => {
   const health = await request.get("/api/health");
   expect(health.status()).toBe(200);
   expect(await health.json()).toMatchObject({ status: "ok" });

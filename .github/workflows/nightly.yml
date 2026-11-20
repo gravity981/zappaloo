@@ -1,0 +1,68 @@
+# Nightly (layer 4 of the testing layers, spec/test-strategy.md 8.4): every night, the main branch gets the
+# full set of tests, but only if its code has changed since the last nightly run. All unit tests, all end-to-end
+# tests in every browser, the deployment test and the requirement report: the full CI run (ci.yml with `full`).
+# GitHub e-mails a failed scheduled run to the person who last changed the schedule.
+name: Nightly
+
+on:
+  schedule:
+    - cron: "0 2 * * *"
+  workflow_dispatch:
+    inputs:
+      force:
+        description: Run even when main has not changed since the last nightly run
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: nightly
+  cancel-in-progress: false
+
+jobs:
+  changed:
+    name: Changed since the last run
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      actions: read
+    outputs:
+      run: ${{ steps.compare.outputs.run }}
+    steps:
+      # A scheduled run starts from the default branch; a manual one may start elsewhere, which would test that.
+      - name: Only for main
+        if: github.ref != 'refs/heads/main'
+        run: |
+          echo "The nightly run tests main, not $GITHUB_REF." >&2
+          exit 1
+      - name: Compare with the last nightly run
+        id: compare
+        env:
+          GH_TOKEN: ${{ github.token }}
+          FORCE: ${{ inputs.force }}
+        run: |
+          # The commit of the latest finished nightly run (a skipped one counts: it compared the same commit).
+          last=$(gh run list --repo "$GITHUB_REPOSITORY" --workflow nightly.yml --branch main \
+            --status completed --limit 20 --json headSha,conclusion \
+            --jq '[.[] | select(.conclusion == "success" or .conclusion == "failure")][0].headSha // ""')
+          if [ "$FORCE" = "true" ] || [ "$last" != "$GITHUB_SHA" ]; then
+            echo "run=true" >> "$GITHUB_OUTPUT"
+            echo "main is at $GITHUB_SHA, the last nightly run saw '${last:-nothing}': running the tests."
+          else
+            echo "run=false" >> "$GITHUB_OUTPUT"
+            echo "main is still at $GITHUB_SHA, as in the last nightly run: nothing to test."
+          fi
+
+  tests:
+    name: Full test suite
+    needs: changed
+    if: ${{ needs.changed.outputs.run == 'true' }}
+    permissions:
+      contents: read
+      packages: write
+    uses: ./.github/workflows/ci.yml
+    with:
+      full: true

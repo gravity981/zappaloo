@@ -2,65 +2,66 @@ import { expect, test } from "./support.ts";
 import { clientAddress, createAdmin, PASSWORD } from "./support.ts";
 import de from "../frontend/src/i18n/locales/de/common.json" with { type: "json" };
 
-test("[ACC-14][ACC-01][ACC-04][ACC-05] set the password with the setup link, sign in, edit the profile, sign out", async ({
-  page,
-  context,
-}) => {
-  const username = `u${Math.random().toString(36).slice(2, 10)}`;
-  const link = createAdmin(username);
-  await context.setExtraHTTPHeaders({ "x-forwarded-for": clientAddress() });
+test(
+  "[ACC-14][ACC-01][ACC-04][ACC-05] set the password with the setup link, sign in, edit the profile, sign out",
+  { tag: "@smoke" },
+  async ({ page, context }) => {
+    const username = `u${Math.random().toString(36).slice(2, 10)}`;
+    const link = createAdmin(username);
+    await context.setExtraHTTPHeaders({ "x-forwarded-for": clientAddress() });
 
-  // The one-time link sets the password: the page greets the new account by its username, has
-  // one password field with an eye button and no repeated field.
-  await page.goto(link);
-  await expect(
-    page.getByText(de.setPassword.hintSetup.replace("{{username}}", username)),
-  ).toBeVisible();
-  await expect(page.getByLabel(/wiederholen/)).toHaveCount(0);
-  const password = page.getByLabel(de.setPassword.password, { exact: true });
-  await password.fill(PASSWORD);
-  await page.getByRole("button", { name: de.guest.showPassword }).click();
-  await expect(password).toHaveAttribute("type", "text");
-  await page.getByRole("button", { name: de.setPassword.submit }).click();
-  await expect(page.getByRole("heading", { name: de.setPassword.doneTitle })).toBeVisible();
+    // The one-time link sets the password: the page greets the new account by its username, has
+    // one password field with an eye button and no repeated field.
+    await page.goto(link);
+    await expect(
+      page.getByText(de.setPassword.hintSetup.replace("{{username}}", username)),
+    ).toBeVisible();
+    await expect(page.getByLabel(/wiederholen/)).toHaveCount(0);
+    const password = page.getByLabel(de.setPassword.password, { exact: true });
+    await password.fill(PASSWORD);
+    await page.getByRole("button", { name: de.guest.showPassword }).click();
+    await expect(password).toHaveAttribute("type", "text");
+    await page.getByRole("button", { name: de.setPassword.submit }).click();
+    await expect(page.getByRole("heading", { name: de.setPassword.doneTitle })).toBeVisible();
 
-  // The link works once: a used link says so at once, before a password is typed.
-  await page.goto(link);
-  await expect(page.getByRole("alert")).toHaveText(de.setPassword.invalidTitle);
-  await expect(page.getByLabel(de.setPassword.password, { exact: true })).toHaveCount(0);
+    // The link works once: a used link says so at once, before a password is typed.
+    await page.goto(link);
+    await expect(page.getByRole("alert")).toHaveText(de.setPassword.invalidTitle);
+    await expect(page.getByLabel(de.setPassword.password, { exact: true })).toHaveCount(0);
 
-  // A wrong password is refused; the right one signs in.
-  await page.goto("/login");
-  await page.getByLabel(de.login.username).fill(username);
-  await page.getByLabel(de.login.password).fill("wrong-password");
-  await page.getByRole("button", { name: de.login.submit }).click();
-  await expect(page.getByRole("alert")).toHaveText(de.errors.invalid_credentials);
-  await page.getByLabel(de.login.password).fill(PASSWORD);
-  await page.getByRole("button", { name: de.login.submit }).click();
-  await expect(page.getByRole("link", { name: de.nav.profile })).toBeVisible();
+    // A wrong password is refused; the right one signs in.
+    await page.goto("/login");
+    await page.getByLabel(de.login.username).fill(username);
+    await page.getByLabel(de.login.password).fill("wrong-password");
+    await page.getByRole("button", { name: de.login.submit }).click();
+    await expect(page.getByRole("alert")).toHaveText(de.errors.invalid_credentials);
+    await page.getByLabel(de.login.password).fill(PASSWORD);
+    await page.getByRole("button", { name: de.login.submit }).click();
+    await expect(page.getByRole("link", { name: de.nav.profile })).toBeVisible();
 
-  // The session cookie is not readable by scripts, and it is not sent along with cross-site POSTs.
-  const cookie = (await context.cookies()).find((c) => c.name === "zappaloo_session");
-  expect(cookie).toMatchObject({ httpOnly: true, sameSite: "Lax", path: "/" });
-  expect(await page.evaluate(() => document.cookie)).not.toContain("zappaloo_session");
+    // The session cookie is not readable by scripts, and it is not sent along with cross-site POSTs.
+    const cookie = (await context.cookies()).find((c) => c.name === "zappaloo_session");
+    expect(cookie).toMatchObject({ httpOnly: true, sameSite: "Lax", path: "/" });
+    expect(await page.evaluate(() => document.cookie)).not.toContain("zappaloo_session");
 
-  // The profile is editable, and the change survives a reload (it is on the server).
-  await page.getByRole("link", { name: de.nav.profile }).click();
-  // The name is stored when the field is left.
-  await page.getByLabel(de.profile.displayName).fill("E2E Admin");
-  await page.getByLabel(de.profile.displayName).blur();
-  await expect(page.getByRole("status")).toHaveText(de.profile.saved);
-  await page.reload();
-  await expect(page.getByLabel(de.profile.displayName)).toHaveValue("E2E Admin");
+    // The profile is editable, and the change survives a reload (it is on the server).
+    await page.getByRole("link", { name: de.nav.profile }).click();
+    // The name is stored when the field is left.
+    await page.getByLabel(de.profile.displayName).fill("E2E Admin");
+    await page.getByLabel(de.profile.displayName).blur();
+    await expect(page.getByRole("status")).toHaveText(de.profile.saved);
+    await page.reload();
+    await expect(page.getByLabel(de.profile.displayName)).toHaveValue("E2E Admin");
 
-  // Signing out ends the session: the profile is no longer reachable.
-  // Ausloggen is on the profile page.
-  await page.getByRole("link", { name: de.nav.profile }).click();
-  await page.getByRole("button", { name: de.nav.logout }).click();
-  await expect(page.getByRole("heading", { name: de.login.title })).toBeVisible();
-  await page.goto("/profile");
-  await expect(page.getByRole("heading", { name: de.login.title })).toBeVisible();
-});
+    // Signing out ends the session: the profile is no longer reachable.
+    // Ausloggen is on the profile page.
+    await page.getByRole("link", { name: de.nav.profile }).click();
+    await page.getByRole("button", { name: de.nav.logout }).click();
+    await expect(page.getByRole("heading", { name: de.login.title })).toBeVisible();
+    await page.goto("/profile");
+    await expect(page.getByRole("heading", { name: de.login.title })).toBeVisible();
+  },
+);
 
 test("[SEC-01] the API refuses a state-changing request without the CSRF token and from another origin", async ({
   playwright,

@@ -139,7 +139,7 @@ Added 2026-11-19, with 6.1k.
 - Open: whether a speech bubble may cover an edge indicator is a layout question for the project owner (the test no longer depends on it).
 Requirements: none new.
 
-### Story 6.1m – Four layers of testing
+### Story 6.1m – Four layers of testing — Done (2026-11-20)
 
 Added 2026-11-20 at the project owner's request; **refined 2026-11-20**, not built yet. It revises `spec/test-strategy.md` section 8 (and section 2, the CI description), the "Testing efficiency" part of CLAUDE.md, the pull-request workflow, and adds a nightly pipeline.
 
@@ -154,17 +154,22 @@ The four layers (the project owner's words, shortened):
 2. **Requirement report:** it runs nightly and on a release candidate, not on the pull request. The release-candidate run stays a full suite.
 3. **Layer 2 is enforced by a git hook** that runs a script `npm run precommit` on changed files only: the related unit tests, `tsc` on the workspaces that contain changed files, ESLint and Prettier on the changed files. It applies to the project owner's commits too.
 4. **The "no regression" set** is a short set of end-to-end tests tagged `@smoke` (sign-in, the game loads and walks, the RSVP, the admin area). It runs on every pull request in addition to the relevant tests; the "core/critical" tests are this same set.
-5. **Release candidate:** the number of a candidate (`-rc.N`) is used up only when the whole pipeline succeeded. Today the number is the next one after the existing `-rc.N` tags, and the tag is pushed in the job "Build and publish" after the tests, the image build, the smoke test and the push of the image; a failure before the tag leaves the number free, but a failure after it (the pre-release with the bundle) leaves a tag and an image that use it up. The job is reordered so that the tag push is the last step that can fail, and a step that runs on failure removes a tag and an image it had pushed.
+5. **Release candidate:** the number of a candidate (`-rc.N`) is used up only when the whole pipeline succeeded. The number comes from the existing `-rc.N` tags, so it is used up by the tag. First plan (2026-11-20): push the tag late and take it back on a failure. **Changed while building:** tags `v*` can't be deleted (OPS-12, a repository ruleset), so a tag that exists is used up. Instead the tag is made by the last step of the job: the pre-release is created with `gh release create --target <commit>`, which makes GitHub create the tag when it publishes the release, after the assets are uploaded. Everything else (the image build and smoke test, the bundle, the assets, the notes) comes before, and the image is pushed just before it. A run that fails before has made no tag. The pushed image of a failed run is overwritten by the next run. The tag is now lightweight, no longer annotated.
 6. **Defaults, unless the project owner says otherwise:** the pull request's e2e tests run in Chromium only (the other browsers run nightly); the nightly runs at 02:00 UTC, compares the SHA of `main` with that of its last successful run, and a failure is reported by GitHub's own e-mail for a failed scheduled run.
 
-**Built as:**
+**Built as (2026-11-20):**
 - the sections of `test-strategy.md` and the rules in CLAUDE.md, rewritten around the four layers (the efficiency policy of 8.1 – 8.7 becomes layers 1 and 2; 8.5 and 8.8 are updated);
 - `npm run precommit` and the git hook (installed by `npm install`, so a fresh clone has it);
 - `e2e/relevant.json` with its consistency test, and `@smoke` tags on the core e2e tests;
 - `ci.yml` with the lighter pull-request run (selection of the e2e specs from the changed paths, Chromium only, no requirement report) and its input for a full run, which `release-candidate.yml` passes;
 - `nightly.yml` (schedule and manual start; the change check; all Vitest and e2e tests in all browsers; the requirement report);
 - the release candidate's reordering (decision 5).
-Requirements: none new.
+- Spec: OPS-06 reworded (what CI runs on a pull request), OPS-10 (the tag is made last), new OPS-20 (the nightly pipeline); sections 23.2 and 23.3 and `test-strategy.md` 2 and 8 rewritten (8.1 – 8.4 are the layers; 8.8 keeps its number).
+- Also: the `full` input of `ci.yml` (a full run: every project, the requirement report; used by the nightly run and the release candidate), a separate concurrency group for full runs, `E2E_REPORT_SUFFIX` for the smoke run's reports, `npm run test:related`, the `prepare` script that sets the hook up (it does nothing where `scripts/` is missing, as in the Docker build).
+- The hook (fixed 2026-11-20, after the first commit from the host failed with "node: not found"): git on the host shares `.git/config` and the hook, but has no Node.js. Without `node` the hook runs the checks in the running dev container (`docker exec`), and refuses the commit with a clear message without one; `scripts/precommit/hook.test.ts` runs the real hook with fake `node` and `docker` commands for the three cases. Checked with `git hook run pre-commit` on 27 staged files, with and without `node` on the PATH.
+- Not done: the project owner's repository settings (a required check for pull requests, if wanted) are theirs; the first nightly run starts at the next 02:00 UTC after the merge to `main`; the hook starts to work after `npm install` (the devcontainer's `npm ci` does it).
+Requirements: OPS-20.
+Re-verified: OPS-06, OPS-10, OPS-12.
 
 ## Report
 

@@ -7,6 +7,8 @@ const isCI = Boolean(process.env.CI);
  * runs all e2e tests in one run.
  */
 const flakyRun = Boolean(process.env.E2E_FLAKY);
+/** A second run in the same job (the smoke set of a pull request) writes its reports beside the first (`-smoke`). */
+const reportSuffix = process.env.E2E_REPORT_SUFFIX ?? "";
 const FLAKY = /@flaky/;
 const PORT = 4173;
 /** The game world tests; they run in the project "game" only. */
@@ -44,11 +46,18 @@ export default defineConfig({
     ["list"],
     [
       "json",
-      { outputFile: flakyRun ? "reports/playwright-flaky.json" : "reports/playwright.json" },
+      {
+        outputFile: flakyRun
+          ? "reports/playwright-flaky.json"
+          : `reports/playwright${reportSuffix}.json`,
+      },
     ],
     [
       "html",
-      { outputFolder: flakyRun ? "playwright-report-flaky" : "playwright-report", open: "never" },
+      {
+        outputFolder: flakyRun ? "playwright-report-flaky" : `playwright-report${reportSuffix}`,
+        open: "never",
+      },
     ],
   ],
   use: {

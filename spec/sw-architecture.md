@@ -2659,20 +2659,22 @@ Production data and uploads must never be overwritten or deleted by a deployment
 
 - `main` is always releasable. Work happens on short-lived feature branches (one per epic, `feature/epic-<n>-<title>`, see backlog/README.md) and is merged into `main` through pull requests.
 - No branch protection on `main` (single developer). CI runs on every pull request and push, and a release candidate is only built from a commit whose CI passed (23.3).
-- Workflow **`ci.yml`** runs on every pull request and every push to `main`:
+- Workflow **`ci.yml`** runs on every pull request and every push to `main` (layer 3 of the testing layers, test-strategy.md 8.3), and as a **full run** when another workflow calls it with `full` (the nightly run and a release candidate, layer 4):
 
 | Step | Tools |
 |---|---|
 | Lint and format check | ESLint, Prettier |
 | Type check | `tsc --noEmit` (frontend, backend, shared, scripts) |
 | Unit, component and integration tests | Vitest |
-| End-to-end tests | Playwright (Chromium, WebKit; desktop and mobile viewports) |
-| Requirement report | `npm run req-report` (section 3 of test-strategy.md) |
+| End-to-end tests | Playwright. A pull request or a push: in Chromium, the specs that `e2e/relevant.json` maps the changed files to (all of them for shared code or configuration, none for documents) and the tests tagged `@smoke` of the others. A full run: every test in Chromium, WebKit, desktop and mobile viewports |
+| Requirement report | `npm run req-report` (section 3 of test-strategy.md); in a full run only, because a pull request does not run every test |
 | Migration check | Drizzle migrations apply cleanly to an empty database and to a reference database of the latest release (DATA-04) |
 | Determine version | `<last release>+build.<N>` (23.1) |
 | Image build | Docker build with version and commit baked in; on `main` also pushed to the registry, after the end-to-end tests passed |
 
 The end-to-end tests run in their own job, in parallel with the other checks, inside Playwright's official container image (`mcr.microsoft.com/playwright:v<version>-noble`, the version of `@playwright/test` in `package.json`). Browsers and their system packages come with the image, so nothing is installed at run time. The image job waits for both jobs.
+
+Workflow **`nightly.yml`** (OPS-20) runs at 02:00 UTC and can be started by hand. A first job compares the commit of `main` with the commit of the last finished nightly run (a run that found nothing new counts) and skips the tests when they are the same, unless started by hand with `force`; the second job is `ci.yml` as a full run. GitHub e-mails a failed scheduled run.
 | Image smoke test | Start the image, check `GET /api/version` returns the version determined above |
 
 Images built from `main` are kept for 30 days; release candidates and releases are kept forever. The weekly workflow `cleanup-images.yml` deletes images whose only tags are build tags (`X.Y.Z_build.N`) and that are older than 30 days.
@@ -2694,9 +2696,8 @@ flowchart LR
 1. Checks that it runs on `main`, that CI passed for this commit, that `version` is valid SemVer, that it is higher than the latest release, and that `v<version>` does not exist yet.
 2. Determines the next candidate number M (one more than the highest existing `v<version>-rc.*` tag, starting at 1).
 3. Runs the full test suite, including the end-to-end tests (it calls `ci.yml`).
-4. Builds the image with version `<version>` baked in — without the `-rc.M` suffix — runs the smoke test, and pushes it with image tag `<version>-rc.M`.
-5. Creates and pushes the tag `v<version>-rc.M` on the commit.
-6. Creates a GitHub **pre-release** for the tag (`gh release create --prerelease`), attaches the deployment bundle (23.5) and writes the release notes (23.3.1).
+4. Builds the image with version `<version>` baked in — without the `-rc.M` suffix — and runs the smoke test; prepares the deployment bundle (23.5), the assets and the release notes (23.3.1); then pushes the image with image tag `<version>-rc.M`.
+5. Creates a GitHub **pre-release** with the bundle and the notes (`gh release create --target <commit> --prerelease`). This is the last step, and it makes the tag `v<version>-rc.M` on the commit: GitHub creates the tag when it publishes the release, after the assets are uploaded. A run that fails before has made no tag, so the next run takes the same number M (tags `v*` are never moved or deleted, OPS-12, so a tag could not be taken back); the image pushed by the failed run is overwritten by it.
 
 **Workflow `promote.yml`** – started manually with input `candidate` (e.g. `v1.2.0-rc.2`):
 
@@ -2823,11 +2824,11 @@ In dev, the same commands run from source with `npm run cli -- <command>`.
 | OPS-03 | The stack publishes only Caddy's HTTP and HTTPS ports, and on staging Mailpit's web UI; the application and database ports are never published. Firewall, SSH and network are the operator's (21.1, 21.3). | Must |
 | OPS-04 | Persistent data (database, photos, uploads, imported maps and tilesets) lives outside the container file system and survives container restarts, updates and deployments unchanged. | Must |
 | OPS-05 | The project provides the tools and documentation to back up and restore an installation: a consistent database backup while running, a full backup and scripted restore of database and files, and a runbook listing everything to back up; scheduling and off-site storage are the operator's (22.2). | Must |
-| OPS-06 | On every commit and pull request, GitHub Actions runs the tests, the TypeScript checks, the builds and the requirement report. | Must |
+| OPS-06 | On every pull request and every push to `main`, GitHub Actions runs the lint, format, TypeScript and migration checks, the build, all unit, component and integration tests, and, in Chromium, the end-to-end tests that the changed files call for plus a smoke set (layer 3, test-strategy.md 8.3). The requirement report runs in the full runs (OPS-20, OPS-10) (changed 2026-11-20, epic 6.1). | Must |
 | OPS-07 | ~~After successful checks, GitHub Actions deploys to the VPS and verifies the deployment status.~~ (withdrawn: hosting is out of scope; deployments stay manual with `deploy.sh`, see 21) | – |
 | OPS-08 | Every build carries a version according to the version scheme (23.1), baked into the image once at build time together with the commit (23.6); `GET /api/version` returns both, `GET /api/health` and the website footer show the version, and CI checks the version with a smoke test of the built image. | Must |
 | OPS-09 | ~~`main` is protected: changes reach it only through a pull request with a passing CI workflow.~~ (withdrawn: single developer, no branch protection needed; release candidates still require a passing CI run, see OPS-10) | – |
-| OPS-10 | A release candidate is built from `main` by a manually started workflow after the full test suite passed, pushed with image tag `<version>-rc.<M>`, tagged `v<version>-rc.<M>` and published as a GitHub pre-release with the deployment bundle (23.3). | Must |
+| OPS-10 | A release candidate is built from `main` by a manually started workflow after the full test suite passed, pushed with image tag `<version>-rc.<M>`, tagged `v<version>-rc.<M>` and published as a GitHub pre-release with the deployment bundle (23.3). The tag is made last, by publishing the pre-release, so a run that fails does not use up the candidate number (changed 2026-11-20, epic 6.1). | Must |
 | OPS-11 | Only the latest candidate of a version can be promoted to a release; promotion does not rebuild, adds the tag `v<version>` and the image tags `<version>`, `<major>.<minor>`, `<major>`, and creates a GitHub release (23.3). | Must |
 | OPS-12 | Tags `v*` can't be moved or deleted (repository tag ruleset); they are created only by the release workflows, which never reuse an existing tag. | Must |
 | OPS-13 | A staging environment, not reachable from the internet, verifies release candidates against a restore of a prod backup provided by the operator; it runs only during verification, its data is deleted afterwards, and it never sends email to real recipients (23.4). | Must |
@@ -2837,6 +2838,7 @@ In dev, the same commands run from source with `npm run cli -- <command>`.
 | OPS-17 | The application image contains a command-line interface that runs inside the application container in every environment, with the commands `version` and `migrate` (23.8). | Must |
 | OPS-18 | The CLI commands `backup` (consistent database backup while the application runs) and `restore` (only while the application is stopped, confirmed with `--force`) are available and used by `deploy.sh` (23.8). | Must |
 | OPS-19 | The notes of every release and pre-release list what changed since the previous release, built from the commit messages (Added, Fixed, Changed, Dependencies; housekeeping left out), and the commands to install and to update the environment from the release's deployment bundle, one `.tar.gz` archive (23.3.1, 23.5). | Must |
+| OPS-20 | A scheduled workflow runs every night on `main`, only when `main` has changed since its last run, the full test suite: all unit tests, all end-to-end tests in every browser, the deployment test and the requirement report (layer 4, test-strategy.md 8.4). A release candidate runs the same full suite (added 2026-11-20, epic 6.1). | Should |
 
 ---
 

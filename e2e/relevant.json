@@ -1,0 +1,164 @@
+{
+  "comment": "Which end-to-end specs a pull request runs for the files it changes (spec/test-strategy.md 8.3). A changed file that matches an area adds the area's specs; a file under `all`, and any other code file, runs every spec; a file under `none`, a unit test or a document runs none. Prefixes are matched at the start of the repository path. A test checks that every spec is in an area and that every path exists.",
+  "all": [
+    "shared/",
+    "package.json",
+    "package-lock.json",
+    "tsconfig",
+    "playwright.config.ts",
+    "vitest.config.ts",
+    "eslint.config.js",
+    "e2e/support.ts",
+    "e2e/global-setup.ts",
+    "e2e/globals.d.ts",
+    "e2e/relevant.json",
+    ".github/workflows/ci.yml",
+    ".node-version",
+    "backend/src/app.ts",
+    "backend/src/server.ts",
+    "backend/src/config.ts",
+    "backend/src/database/",
+    "backend/drizzle/",
+    "frontend/src/app/",
+    "frontend/src/main.tsx",
+    "frontend/src/i18n/",
+    "frontend/index.html",
+    "frontend/vite.config.ts"
+  ],
+  "none": [
+    "spec/",
+    "infrastructure/",
+    "scripts/",
+    "schemas/",
+    "LICENSE",
+    ".github/workflows/nightly.yml",
+    ".github/workflows/release-candidate.yml",
+    ".github/workflows/promote.yml",
+    ".github/workflows/cleanup-images.yml",
+    ".github/PULL_REQUEST_TEMPLATE.md",
+    ".devcontainer/",
+    ".githooks/"
+  ],
+  "areas": [
+    {
+      "name": "game world",
+      "paths": [
+        "game-engine/",
+        "frontend/src/game/",
+        "frontend/src/avatar/",
+        "frontend/src/pages/GamePage",
+        "backend/src/world/",
+        "backend/src/dialogue/",
+        "backend/src/seating/",
+        "backend/src/api/world",
+        "backend/src/api/dialogues",
+        "backend/src/api/avatar",
+        "backend/src/api/seating",
+        "backend/src/api/world-access",
+        "frontend/src/pages/SeatingPage",
+        "frontend/src/pages/AvatarPage"
+      ],
+      "specs": ["e2e/game-world.spec.ts", "e2e/game-preview.spec.ts", "e2e/skeleton.spec.ts"]
+    },
+    {
+      "name": "game preview and theme editor",
+      "paths": ["game-preview/", "theme-editor/"],
+      "specs": ["e2e/game-preview.spec.ts", "e2e/theme.spec.ts"]
+    },
+    {
+      "name": "RSVP and companions",
+      "paths": [
+        "backend/src/rsvp/",
+        "frontend/src/rsvp/",
+        "backend/src/api/rsvp",
+        "backend/src/api/companions",
+        "frontend/src/pages/RsvpPage",
+        "frontend/src/pages/ProgrammePage",
+        "backend/src/api/invitations"
+      ],
+      "specs": [
+        "e2e/rsvp.spec.ts",
+        "e2e/companions.spec.ts",
+        "e2e/waiting.spec.ts",
+        "e2e/narrow.spec.ts"
+      ]
+    },
+    {
+      "name": "accounts and sign-in",
+      "paths": [
+        "backend/src/auth/",
+        "backend/src/profile/",
+        "backend/src/api/auth",
+        "backend/src/api/profile",
+        "frontend/src/profile/",
+        "frontend/src/guest/",
+        "backend/src/api/access",
+        "backend/src/api/invitations",
+        "frontend/src/pages/LoginPage",
+        "frontend/src/pages/InvitePage",
+        "frontend/src/pages/SetPasswordPage",
+        "frontend/src/pages/ForgotPasswordPage",
+        "frontend/src/pages/VerifyEmailPage",
+        "frontend/src/pages/ProfilePage"
+      ],
+      "specs": [
+        "e2e/accounts.spec.ts",
+        "e2e/guest-accounts.spec.ts",
+        "e2e/companions.spec.ts",
+        "e2e/admin.spec.ts",
+        "e2e/narrow.spec.ts",
+        "e2e/skeleton.spec.ts"
+      ]
+    },
+    {
+      "name": "admin area and event setup",
+      "paths": [
+        "frontend/src/admin/",
+        "backend/src/event/",
+        "backend/src/api/admin",
+        "backend/src/cli.ts",
+        "backend/src/api/event",
+        "backend/src/api/events",
+        "backend/src/api/platform",
+        "backend/src/api/footer"
+      ],
+      "specs": ["e2e/admin.spec.ts", "e2e/setup.spec.ts", "e2e/footer.spec.ts", "e2e/theme.spec.ts"]
+    },
+    {
+      "name": "theme",
+      "paths": [
+        "backend/src/theme/",
+        "backend/src/packages/",
+        "backend/src/api/theme",
+        "backend/src/api/site"
+      ],
+      "specs": ["e2e/theme.spec.ts", "e2e/footer.spec.ts", "e2e/game-world.spec.ts"]
+    },
+    {
+      "name": "waiting page",
+      "paths": ["backend/src/waiting/", "frontend/src/waiting/"],
+      "specs": ["e2e/waiting.spec.ts", "e2e/narrow.spec.ts"]
+    },
+    {
+      "name": "website and content",
+      "paths": [
+        "backend/src/website/",
+        "backend/src/content/",
+        "frontend/src/pages/",
+        "backend/src/api/content",
+        "backend/src/api/website"
+      ],
+      "specs": [
+        "e2e/skeleton.spec.ts",
+        "e2e/narrow.spec.ts",
+        "e2e/footer.spec.ts",
+        "e2e/privacy.spec.ts"
+      ]
+    },
+    {
+      "name": "installable app",
+      "paths": ["backend/src/pwa/", "backend/src/api/pwa", "frontend/src/pages/InstallPage"],
+      "specs": ["e2e/app-install.spec.ts", "e2e/skeleton.spec.ts"]
+    }
+  ]
+}

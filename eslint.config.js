@@ -39,6 +39,7 @@ export default tseslint.config(
       "test-results/",
       "playwright-report/",
       "playwright-report-flaky/",
+      "playwright-report-smoke/",
       // Deliberately broken files for the lint tests
       "**/__fixtures__/",
     ],
