@@ -2,6 +2,7 @@
 // GAME-19). It draws the active map and the player's figure, reads the arrow keys and taps, and follows the player
 // with the camera at the map's zoom. What the map means (collisions, paths, portals, draw order) is in the plain
 // modules next to it; this scene only wires them to Phaser.
+import { gameRandom } from "./random.ts";
 import Phaser from "phaser";
 import { walkable, cellOf, playerCollisionEllipse } from "./collision.ts";
 import { walkFrameIndex } from "./figures.ts";
@@ -1653,7 +1654,7 @@ export class WorldScene extends Phaser.Scene {
     if (visible.length === 0) return;
     const schedule = (): void => {
       this.#sparkleTimer = this.time.delayedCall(nextSparkleDelay(), () => {
-        const area = visible[Math.floor(Math.random() * visible.length)];
+        const area = visible[Math.floor(gameRandom() * visible.length)];
         if (area !== undefined && this.#activeSparkles < MAX_SPARKLES) this.#sparkle(area);
         schedule();
       });
@@ -1696,9 +1697,9 @@ export class WorldScene extends Phaser.Scene {
 
   #sparkle(area: ClickableArea): void {
     const edge = this.#edges.get(area.name);
-    const at = edge?.[Math.floor(Math.random() * edge.length)];
+    const at = edge?.[Math.floor(gameRandom() * edge.length)];
     if (at === undefined) return;
-    const radius = 1.5 + Math.random() * 1.5;
+    const radius = 1.5 + gameRandom() * 1.5;
     const star = this.add.graphics({ x: at.x, y: at.y }).setDepth(1_500_000);
     star.fillStyle(0xfff3a0, 1);
     star.fillPoints(
@@ -1721,7 +1722,7 @@ export class WorldScene extends Phaser.Scene {
       alpha: 0,
       scale: 1.8,
       angle: 45,
-      duration: 450 + Math.random() * 300,
+      duration: 450 + gameRandom() * 300,
       onComplete: () => {
         star.destroy();
         this.#activeSparkles -= 1;
@@ -1738,7 +1739,7 @@ export class WorldScene extends Phaser.Scene {
     if (visible.length === 0) return;
     const schedule = (): void => {
       this.#shineTimer = this.time.delayedCall(nextShineDelay(), () => {
-        const area = visible[Math.floor(Math.random() * visible.length)];
+        const area = visible[Math.floor(gameRandom() * visible.length)];
         if (area !== undefined) this.#shine(area);
         schedule();
       });

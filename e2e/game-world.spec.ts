@@ -46,9 +46,9 @@ test.afterEach(async ({ browser, baseURL }) => {
 });
 
 /** Opens the game as the signed-in user, who has chosen a figure (the first-entry avatar step is tested apart). */
-async function enterGame(page: Page): Promise<void> {
+async function enterGame(page: Page, query = ""): Promise<void> {
   await chooseFirstFigure(page);
-  await page.goto("/game");
+  await page.goto(`/game${query}`);
 }
 
 type State = NonNullable<Awaited<ReturnType<typeof readState>>>;
@@ -63,6 +63,31 @@ async function gameState(page: Page): Promise<State> {
   const state = await readState(page);
   if (state === undefined) throw new Error("the game has no state");
   return state;
+}
+
+/**
+ * Plays `ms` of game time (frames of 1/60 s). The first call stops the game's own clock for the rest of the test: the
+ * game then moves only by what is advanced here, so that a walk takes the same game time on a busy machine as on a
+ * quiet one. Wall-clock waits are what made the game tests flaky (spec/test-strategy.md 8.8).
+ */
+async function advance(page: Page, ms: number): Promise<void> {
+  await page.evaluate((time) => {
+    window.__zappaloo?.game?.advance(time);
+  }, ms);
+}
+
+/** Plays game time, `step` at a time, until the condition holds; fails when `limit` of game time has passed. */
+async function advanceUntil(
+  page: Page,
+  done: () => Promise<boolean>,
+  limit = 30_000,
+  step = 100,
+): Promise<void> {
+  for (let played = 0; played <= limit; played += step) {
+    if (await done()) return;
+    await advance(page, step);
+  }
+  throw new Error(`the game did not get there in ${String(limit)} ms of game time`);
 }
 
 /**
@@ -135,13 +160,12 @@ test("[GAME-09] the arrow keys move the player in the screen's directions", asyn
   await enterGame(page);
   const before = await gameState(page);
   await page.keyboard.down("ArrowRight");
-  await page.waitForTimeout(1000);
+  await advance(page, 1000);
   await page.keyboard.up("ArrowRight");
   const after = await gameState(page);
   expect(after.direction).toBe("east");
   // The right arrow walks to the right on the screen: the player moved, to the right (x grows) and the walk is
-  // mostly horizontal. How far it got is not asserted: it depends on the frame rate of the machine, which a parallel
-  // run slows (the engine caps the step of a frame). The directions and the equal speed of diagonal moves are tested in
+  // mostly horizontal. The game time is advanced by hand, so the machine's load does not matter. The directions and the equal speed of diagonal moves are tested in
   // movement.test.ts (GAME-09).
   expect(after.x - before.x).toBeGreaterThan(4);
   expect(Math.abs(after.y - before.y)).toBeLessThan(Math.abs(after.x - before.x));
@@ -317,9 +341,11 @@ test("[GAME-26][GAME-06][GAME-16] an object outside the view has an indicator at
     return { color: style.color, background: style.backgroundColor };
   });
   expect(labelColors).toEqual({ color: "rgb(0, 0, 0)", background: "rgb(255, 255, 255)" });
-  await altar.click();
+  // The sexton is near the start, and his speech bubble can lie over the altar's indicator: the click goes to the
+  // indicator itself, which is what is tested here, whatever floats over it.
+  await altar.dispatchEvent("click");
   const overlay = page.getByRole("dialog", { name: "Programm" });
-  await expect(overlay).toBeVisible({ timeout: 40_000 });
+  await advanceUntil(page, () => overlay.isVisible(), 40_000);
   const arrived = await gameState(page);
   expect(Math.hypot(arrived.x - before.x, arrived.y - before.y)).toBeGreaterThan(30);
   // The page is open above the paused game: no indicators over it (GAME-11).
@@ -345,7 +371,7 @@ test("[GAME-11] Enter on the close button of an object's page closes it, and the
   await close.focus();
   await page.keyboard.press("Enter");
   await expect(overlay).toHaveCount(0);
-  await page.waitForTimeout(800);
+  await advance(page, 800);
   await expect(overlay).toHaveCount(0);
 });
 
@@ -409,7 +435,7 @@ test("[GAME-11][GAME-13] on the first entry with an open RSVP, typing into the R
   await field.click();
   const before = await gameState(guest);
   await guest.keyboard.type("wasd");
-  await guest.waitForTimeout(600);
+  await advance(guest, 600);
   await expect(field).toHaveValue("wasd");
   const after = await gameState(guest);
   expect([after.x, after.y]).toEqual([before.x, before.y]);
@@ -613,18 +639,22 @@ test("[PRES-10] a guest figure stands still and opens its speech bubble when the
   await expect(bubble).toHaveCount(0);
 
   // The player walks to the guest; within 2 tile widths its bubble opens with all that the profile says.
-  await expect(async () => {
-    // A click on the open bubble pins it, so the guest is clicked only while the bubble is closed.
-    if (await bubble.isVisible()) return;
-    const state = await gameState(page);
-    // A walk that is still going is left to arrive: a second click next to the guest would pin the bubble.
-    if (state.walk.marker !== null) throw new Error("still walking");
-    const now = state.guests.find((guest) => guest.id === first.id);
-    if (now === undefined) throw new Error("guest gone");
-    const target = await pagePoint(page, { x: now.x, y: now.y });
-    await page.mouse.click(target.x, target.y);
-    await expect(bubble).toBeVisible({ timeout: 3_000 });
-  }).toPass({ timeout: 60_000 });
+  await advanceUntil(
+    page,
+    async () => {
+      // A click on the open bubble pins it, so the guest is clicked only while the bubble is closed.
+      if (await bubble.isVisible()) return true;
+      const state = await gameState(page);
+      // A walk that is still going is left to arrive: a second click next to the guest would pin the bubble.
+      if (state.walk.marker !== null) return false;
+      const now = state.guests.find((guest) => guest.id === first.id);
+      if (now === undefined) throw new Error("guest gone");
+      const target = await pagePoint(page, { x: now.x, y: now.y });
+      await page.mouse.click(target.x, target.y);
+      return false;
+    },
+    60_000,
+  );
   await expect(bubble).toContainText(first.name);
   await expect(bubble).toContainText(
     guests.find((guest) => guest.id === first.id)?.greeting ?? de.game.defaultGreeting,
@@ -634,7 +664,7 @@ test("[PRES-10] a guest figure stands still and opens its speech bubble when the
   // The figure stands still while its bubble is open.
   const standing = (await gameState(page)).guests.find((guest) => guest.id === first.id);
   expect(standing).toMatchObject({ bubble: true, pinned: false });
-  await page.waitForTimeout(1_200);
+  await advance(page, 1_200);
   const later = (await gameState(page)).guests.find((guest) => guest.id === first.id);
   expect({ x: later?.x, y: later?.y, moving: later?.moving }).toEqual({
     x: standing?.x,
@@ -645,6 +675,7 @@ test("[PRES-10] a guest figure stands still and opens its speech bubble when the
 
   // A click pins the bubble (a cross appears); it stays open when the player walks away.
   await bubble.click();
+  await advance(page, 100);
   await expect(bubble).toHaveAttribute("data-pinned", "true");
   // The player walks away with the arrow keys, in the first direction that leads far enough (the map has edges).
   const distance = async () => {
@@ -654,13 +685,14 @@ test("[PRES-10] a guest figure stands still and opens its speech bubble when the
   for (const key of ["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown"]) {
     if ((await distance()) > 3 * 64) break;
     await page.keyboard.down(key);
-    await page.waitForTimeout(2_500);
+    await advance(page, 2_500);
     await page.keyboard.up(key);
   }
   expect(await distance()).toBeGreaterThan(3 * 64);
   await expect(bubble).toBeVisible();
   // The cross closes it, and the figure goes on strolling.
   await bubble.getByRole("button", { name: de.game.bubbleClose }).click();
+  await advance(page, 100);
   await expect(bubble).toHaveCount(0);
   const closed = (await gameState(page)).guests.find((guest) => guest.id === first.id);
   expect(closed).toMatchObject({ bubble: false, pinned: false });
@@ -691,18 +723,33 @@ test("[CNT-02][CNT-03][GAME-06] the admin writes the dialogue of an NPC in Erleb
 }, testInfo) => {
   await signInAsAdmin(page, context);
   // The test world's object "pastor" opens the dialogue "npc-pastor" (a Tiled preset), which does not exist yet.
-  await page.goto("/admin/world");
-  await page.getByRole("button", { name: de.admin.world.tabDialogues }).click();
-  await page.getByRole("button", { name: de.admin.dialogues.add }).click();
-  await page.getByLabel(de.admin.dialogues.npcName).fill("Pfarrer Keller");
-  await page.getByLabel(de.admin.dialogues.id).fill("npc-pastor");
-  await page.getByLabel("Zeile 1", { exact: true }).fill("Grüss Gott! Schön, dass du da bist.");
-  await page.getByRole("button", { name: de.admin.dialogues.addLine }).click();
-  await page.getByLabel("Zeile 2", { exact: true }).fill("Die Trauung beginnt um **14:00**.");
-  await page.getByRole("button", { name: de.admin.dialogues.save }).click();
-  await expect(page.getByText(de.admin.dialogues.saved)).toBeVisible();
-  // It is used by the object, which the editor says.
-  await expect(page.getByText("kirche › pastor", { exact: false })).toBeVisible();
+  const lines = ["Grüss Gott! Schön, dass du da bist.", "Die Trauung beginnt um **14:00**."];
+  const known = await page.request.get("/api/admin/dialogues/npc-pastor");
+  if (known.ok()) {
+    // A retry: the dialogue of the first attempt is still there (the pastor object uses it, so it cannot be
+    // deleted). Its content is put back, and the rest of the test runs as usual.
+    const session = (await (await page.request.get("/api/session")).json()) as {
+      csrfToken: string;
+    };
+    const put = await page.request.put("/api/admin/dialogues/npc-pastor", {
+      headers: { "x-csrf-token": session.csrfToken },
+      data: { id: "npc-pastor", npcName: "Pfarrer Keller", lines },
+    });
+    expect(put.ok()).toBe(true);
+  } else {
+    await page.goto("/admin/world");
+    await page.getByRole("button", { name: de.admin.world.tabDialogues }).click();
+    await page.getByRole("button", { name: de.admin.dialogues.add }).click();
+    await page.getByLabel(de.admin.dialogues.npcName).fill("Pfarrer Keller");
+    await page.getByLabel(de.admin.dialogues.id).fill("npc-pastor");
+    await page.getByLabel("Zeile 1", { exact: true }).fill(lines[0] ?? "");
+    await page.getByRole("button", { name: de.admin.dialogues.addLine }).click();
+    await page.getByLabel("Zeile 2", { exact: true }).fill(lines[1] ?? "");
+    await page.getByRole("button", { name: de.admin.dialogues.save }).click();
+    await expect(page.getByText(de.admin.dialogues.saved)).toBeVisible();
+    // It is used by the object, which the editor says.
+    await expect(page.getByText("kirche › pastor", { exact: false })).toBeVisible();
+  }
 
   await enterGame(page);
   await expect(page.getByTestId("game-canvas")).toBeVisible({ timeout: 20_000 });
@@ -712,20 +759,25 @@ test("[CNT-02][CNT-03][GAME-06] the admin writes the dialogue of an NPC in Erleb
   );
   if (pastor === undefined) throw new Error("the test world has no pastor");
   const box = page.getByTestId("dialogue-box");
-  await expect(async () => {
-    // A tap on the open box goes on to the next line, so the pastor is tapped only while the box is closed (the walk
-    // to him can take longer than one attempt on a busy machine).
-    if (await box.isVisible()) return;
-    const target = await pagePoint(page, { x: pastor.x, y: pastor.y });
-    await page.mouse.click(target.x, target.y);
-    await expect(box).toBeVisible({ timeout: 4_000 });
-  }).toPass({ timeout: 40_000 });
+  await advanceUntil(
+    page,
+    async () => {
+      // A tap on the open box goes on to the next line, so the pastor is tapped only while the box is closed and
+      // the player is not on the way to him.
+      if (await box.isVisible()) return true;
+      if ((await gameState(page)).walk.marker !== null) return false;
+      const target = await pagePoint(page, { x: pastor.x, y: pastor.y });
+      await page.mouse.click(target.x, target.y);
+      return false;
+    },
+    60_000,
+  );
   await expect(box).toContainText("Pfarrer Keller");
   await expect(box).toContainText("Grüss Gott! Schön, dass du da bist.");
   await expect(box).toContainText("1 / 2");
   // The game waits behind the box: the player stands still while it is open.
   const standing = await gameState(page);
-  await page.waitForTimeout(600);
+  await advance(page, 600);
   const still = await gameState(page);
   expect({ x: still.x, y: still.y }).toEqual({ x: standing.x, y: standing.y });
   await page.screenshot({ path: testInfo.outputPath("game-dialogue.png") });
@@ -775,29 +827,16 @@ test("[GAME-32] now and then a flock of the world's bird flies through the view"
   page,
   context,
 }, testInfo) => {
-  test.setTimeout(90_000);
   // The first flock comes 20 to 60 seconds after the map is entered; with the lowest random number it is 20 seconds.
-  await page.addInitScript(() => {
-    Math.random = () => 0.01;
-  });
+  // The game time is advanced by hand, so the 20 seconds do not take 20 seconds.
   await signInAsAdmin(page, context);
-  await enterGame(page);
+  await enterGame(page, "?random=0.01");
   await expect(page.getByTestId("game-canvas")).toBeVisible({ timeout: 20_000 });
   expect((await gameState(page)).atmosphere.birds).toBe(0);
-  await expect
-    .poll(async () => (await gameState(page)).atmosphere.birds, {
-      timeout: 40_000,
-      intervals: [500],
-    })
-    .toBeGreaterThanOrEqual(3);
+  await advanceUntil(page, async () => (await gameState(page)).atmosphere.birds >= 3, 40_000, 500);
   await page.screenshot({ path: testInfo.outputPath("game-birds.png") });
   // The flock leaves the view on the other side, and then there are none until the next one.
-  await expect
-    .poll(async () => (await gameState(page)).atmosphere.birds, {
-      timeout: 40_000,
-      intervals: [500],
-    })
-    .toBe(0);
+  await advanceUntil(page, async () => (await gameState(page)).atmosphere.birds === 0, 40_000, 500);
 });
 
 test("[GAME-35][MAP-20] the fountain of the garden plays its animation, and with reduced motion it stands on its first frame", async ({
@@ -836,13 +875,10 @@ test("[GAME-36][MAP-20] the gardener walks his path to the end, waits there and 
   page,
   context,
 }, testInfo) => {
-  test.setTimeout(90_000);
-  // With the lowest random number the first wave comes after 8 seconds, and the NPCs set off at once.
-  await page.addInitScript(() => {
-    Math.random = () => 0.01;
-  });
+  // With the lowest random number the first wave comes after 8 seconds, and the NPCs set off at once. The game time is
+  // advanced by hand, so the waits of the figures do not depend on the machine.
   await signInAsAdmin(page, context);
-  await enterGame(page);
+  await enterGame(page, "?random=0.01");
   await expect(page.getByTestId("game-canvas")).toBeVisible({ timeout: 20_000 });
   const npcs = async () => (await gameState(page)).npcs;
   const named = async (name: string) => (await npcs()).find((npc) => npc.name === name);
@@ -853,7 +889,7 @@ test("[GAME-36][MAP-20] the gardener walks his path to the end, waits there and 
   expect(sexton).toMatchObject({ figure: "herold", moving: false, tappable: true });
   expect(Math.abs((sexton?.x ?? 0) - 256)).toBeLessThanOrEqual(1);
   expect(Math.abs((sexton?.y ?? 0) - 176)).toBeLessThanOrEqual(1);
-  await expect.poll(async () => (await named("kuester"))?.waving, { timeout: 20_000 }).toBe(true);
+  await advanceUntil(page, async () => (await named("kuester"))?.waving === true, 20_000);
   await page.screenshot({ path: testInfo.outputPath("game-npc-wave.png") });
   // He stays where he is; the church has no other NPC.
   expect((await named("kuester"))?.moving).toBe(false);
@@ -861,31 +897,27 @@ test("[GAME-36][MAP-20] the gardener walks his path to the end, waits there and 
 
   // The garden: the gardener has no action, so a tap on him is a tap on the ground; he walks his path of 120 pixels.
   await page.evaluate(() => window.__zappaloo?.game?.selectSpawn("garten", "start"));
-  await page.waitForFunction(() => window.__zappaloo?.game?.state()?.mapId === "garten");
+  // The new map's files load in real time; the scene starts with the frames played meanwhile.
+  await advanceUntil(page, async () => (await gameState(page)).mapId === "garten", 120_000, 50);
   const start = await named("gaertner");
   expect(start).toMatchObject({ figure: "male-guest", tappable: false });
   // He starts at the first point of his path (he has already set off).
   expect(Math.abs((start?.x ?? 99) - 0)).toBeLessThanOrEqual(30);
   const xs: number[] = [];
-  await expect
-    .poll(
-      async () => {
-        const gardener = await named("gaertner");
-        if (gardener === undefined) return -1;
-        xs.push(gardener.x);
-        return gardener.moving ? 0 : gardener.x;
-      },
-      { timeout: 30_000, intervals: [100] },
-    )
-    .toBeGreaterThanOrEqual(115);
+  await advanceUntil(
+    page,
+    async () => {
+      const gardener = await named("gaertner");
+      if (gardener === undefined) throw new Error("the gardener is gone");
+      xs.push(gardener.x);
+      return !gardener.moving && gardener.x >= 115;
+    },
+    30_000,
+  );
   // He walked there in small steps, not by jumping, and now waits at the end.
   expect(xs.some((x) => x > 5 && x < 115)).toBe(true);
-  await expect
-    .poll(async () => (await named("gaertner"))?.moving, { timeout: 15_000, intervals: [100] })
-    .toBe(true);
-  await expect
-    .poll(async () => (await named("gaertner"))?.x ?? 999, { timeout: 15_000, intervals: [100] })
-    .toBeLessThan(110);
+  await advanceUntil(page, async () => (await named("gaertner"))?.moving === true, 15_000);
+  await advanceUntil(page, async () => ((await named("gaertner"))?.x ?? 999) < 110, 15_000);
   await page.screenshot({ path: testInfo.outputPath("game-npc-walk.png") });
 });
 

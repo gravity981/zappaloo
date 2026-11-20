@@ -127,12 +127,16 @@ Added 2026-11-19 at the project owner's request, after an analysis of the unstab
 - A test that changes a shared setting (guest access, the sexton's texts) no longer has to put it back on its own: a hook after every test does it through the API, also after a failure.
 Requirements: none new.
 
-### Story 6.1l – Deterministic game time in the tests
+### Story 6.1l – Deterministic game time in the tests — Done (2026-11-20)
 
 Added 2026-11-19, with 6.1k.
 - Test builds (`VITE_TEST_HOOKS`) get a seeded random source for the engine (guest and NPC positions and waits, sparkles) and a way to advance the game by fixed frames, so that a walk takes the same frames whatever the machine's load.
 - The fixed waits (`waitForTimeout`) and the timing-dependent assertions of the game tests become state polls or fixed frames (`GAME-09`, `PRES-10`: the guest's walk away is random today, one run in six fails).
 - An overlay that covers what a test clicks (the sexton's bubble over the altar's edge indicator, `GAME-26`) is avoided by the test's setup, not by luck of the layout.
+- Built: every random choice of the engine goes through `gameRandom` (`random.ts`); a test build seeds it (`?seed=`, default 1) or fixes every choice to one number (`?random=0.01`, which replaces the tests' override of `Math.random`). The test hook `advance(ms)` plays frames of 1/60 s and stops the game's own clock for the rest of the page (`manual-clock.ts`). In `game-world.spec.ts` the helpers `advance` and `advanceUntil` replace the wall-clock waits of GAME-09, GAME-11 (Enter), GAME-11/GAME-13 (typing), PRES-10, CNT-02 (the dialogue box), GAME-26, GAME-32 (birds) and GAME-36 (NPC walks); GAME-26 sends its click to the indicator itself. The retry of CNT-02 finds its dialogue from the first attempt (a dialogue used by an object cannot be deleted) and puts its content back through the API.
+- Left as they are: three waits of 500 to 600 ms that only let a screenshot or a negative check settle (`GAME-01`, `GAME-06` paused game, the atmosphere test) and the camera-settle poll; none can fail from a slow machine, and the tests after them need the game's own clock.
+- Measured: GAME-09, PRES-10 and GAME-26, 5 runs each with all 12 cores busy, 15 of 15 passed (before: PRES-10 failed about one run in six on a quiet machine). The project "game" takes 3.4 minutes instead of 4.7; the slowest test is 14 s (the birds test took 43 s, GAME-36 24 s).
+- Open: whether a speech bubble may cover an edge indicator is a layout question for the project owner (the test no longer depends on it).
 Requirements: none new.
 
 ## Report

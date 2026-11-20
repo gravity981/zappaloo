@@ -1,6 +1,8 @@
 // The birds (GAME-32): now and then, every 20 to 60 seconds, a small flock flies through the view above everything,
 // from one side to the other, to the left or to the right. This is the schedule and the flight; the sprites are drawn
 // in atmosphere.ts. The flight is in the view, in CSS pixels, so it looks the same whatever the camera does.
+import { gameRandom } from "./random.ts";
+
 export const FLOCK_EVERY_MS = { min: 20_000, max: 60_000 } as const;
 /** The speed of a flock, in CSS pixels of the view per second. */
 export const FLOCK_SPEED = { min: 90, max: 140 } as const;
@@ -32,12 +34,12 @@ export interface Flock {
 }
 
 /** The time to the next flock, in milliseconds. */
-export function nextFlockIn(random: () => number = Math.random): number {
+export function nextFlockIn(random: () => number = gameRandom): number {
   return FLOCK_EVERY_MS.min + random() * (FLOCK_EVERY_MS.max - FLOCK_EVERY_MS.min);
 }
 
 /** A flock for the view: it comes from the left or from the right at a random height. */
-export function makeFlock(random: () => number = Math.random): Flock {
+export function makeFlock(random: () => number = gameRandom): Flock {
   const count = FLOCK_SIZE.min + Math.floor(random() * (FLOCK_SIZE.max - FLOCK_SIZE.min + 1));
   return {
     direction: random() < 0.5 ? "east" : "west",
@@ -81,7 +83,7 @@ export class FlockSchedule {
   #wait: number;
   flock: Flock | undefined;
 
-  constructor(random: () => number = Math.random) {
+  constructor(random: () => number = gameRandom) {
     this.#random = random;
     this.#wait = nextFlockIn(random);
   }

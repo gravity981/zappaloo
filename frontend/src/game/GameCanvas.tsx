@@ -18,7 +18,7 @@ import {
 } from "@zappaloo/shared";
 import type { GuestFigure } from "@zappaloo/shared";
 import { apiRequest } from "../app/api.ts";
-import { exposeGame, exposeState } from "./test-hook.ts";
+import { exposeGame, exposeState, seedRandomForTests } from "./test-hook.ts";
 import { rememberedMap, rememberMap } from "./map-preference.ts";
 import { objectTitle } from "./titles.ts";
 import { accentColorAt } from "./silhouette-color.ts";
@@ -119,6 +119,7 @@ export default function GameCanvas({
     }
     const selection = entryPoint(status.world, rememberedMap(status.world, storage));
     const figureId = status.figure ?? status.world.figures[0]?.id;
+    seedRandomForTests();
     const instance = createGame({
       parent: parent.current,
       world: status.world,

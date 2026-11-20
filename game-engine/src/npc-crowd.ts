@@ -2,6 +2,7 @@
 // walking its path with the walk animation, or standing and waving now and then. NPCs are simulated on this device
 // only and do not block the player. An NPC with an action is tappable: the crowd keeps a clickable area for it that
 // follows the figure, which the scene's tap, Enter and arrival logic read like those of an object (14.2, 14.4).
+import { gameRandom } from "./random.ts";
 import Phaser from "phaser";
 import type { PublicNpc } from "@zappaloo/shared";
 import type { BubbleBoard, BubbleParticipant } from "./bubble-board.ts";
@@ -81,9 +82,9 @@ export class NpcCrowd {
       if (figure === undefined) continue;
       const walker = new NpcWalker(spec.position, {
         path: spec.path,
-        initialWait: Math.random() * waitDuration(Math.random),
+        initialWait: gameRandom() * waitDuration(gameRandom),
         waveDuration: waveLength(figure),
-        random: Math.random,
+        random: gameRandom,
       });
       const sprite = scene.add.sprite(0, 0, figure.standing.south).setOrigin(0.5, 1);
       const shadow = scene.add.ellipse(0, 0, 1, 1, 0x000000, 1);

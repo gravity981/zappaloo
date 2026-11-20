@@ -49,6 +49,7 @@ declare global {
           hidden: boolean;
           reachable: boolean;
         }[];
+        advance: (ms: number) => void;
         selectSpawn: (mapId: string, spawn: string) => void;
         setGuides: (guides: {
           collisions: boolean;

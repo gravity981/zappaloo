@@ -1,9 +1,12 @@
 // Test hook for the end-to-end tests (test-strategy.md, "Game world tests"): exposes the engine state to Playwright.
 // Only built in when VITE_TEST_HOOKS=true.
 import {
+  advanceGame,
   getGameClickables,
   getGameRenderStack,
   setGameGuides,
+  fixGameRandom,
+  seedGameRandom,
   setGameSelection,
   WORLD_SCENE_KEY,
   type GameGuides,
@@ -17,6 +20,11 @@ export interface GameTestHook {
   renderStack: () => { type: string; depth: number }[];
   /** The clickable objects of the current map: centre and approach point in map pixels. */
   clickables: () => ReturnType<typeof getGameClickables>;
+  /**
+   * Plays `ms` of game time in frames of 1/60 s. The first call stops the game's own clock for good: from then on the
+   * game moves only by what a test advances, so that its time does not depend on the machine's load.
+   */
+  advance: (ms: number) => void;
   selectSpawn: (mapId: string, spawn: string) => void;
   setGuides: (guides: GameGuides) => void;
   renderArtwork: (
@@ -34,6 +42,23 @@ declare global {
   }
 }
 
+/**
+ * In a test build the engine's random choices follow a seed, so that guests and NPCs start where they started in the
+ * last run: `?seed=<number>` in the address, else 1. `?random=<number>` makes every choice that one number (0.01 gives the
+ * shortest waits). A production build keeps `Math.random`.
+ */
+export function seedRandomForTests(): void {
+  if (import.meta.env.VITE_TEST_HOOKS !== "true") return;
+  const query = new URLSearchParams(window.location.search);
+  const fixed = Number(query.get("random"));
+  if (query.has("random") && Number.isFinite(fixed)) {
+    fixGameRandom(fixed);
+    return;
+  }
+  const seed = Number(query.get("seed") ?? 1);
+  seedGameRandom(Number.isFinite(seed) ? seed : 1);
+}
+
 let game: GameInstance | null = null;
 let read: (() => GameState) | null = null;
 
@@ -47,6 +72,9 @@ function publish(): void {
           state: () => read?.(),
           renderStack: () => getGameRenderStack(instance),
           clickables: () => getGameClickables(instance),
+          advance: (ms) => {
+            advanceGame(instance, ms);
+          },
           selectSpawn: (mapId, spawn) => {
             setGameSelection(instance, { mapId, spawn });
           },
