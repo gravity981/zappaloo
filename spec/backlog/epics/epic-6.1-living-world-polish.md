@@ -183,6 +183,17 @@ The four layers (the project owner's words, shortened):
 Requirements: OPS-20.
 Re-verified: OPS-06, OPS-10, OPS-12.
 
+### Story 6.1n – A friendly screen for unexpected errors
+
+Added 2026-11-20 after the project owner got the router's "Unexpected Application Error! … Hey developer" page on `/game` (the cause was the dev server's stale module, not the code). **Refined 2026-11-20**: Q70 and Q71 of the mock `app-error` are decided as proposed; not built yet.
+
+Mock screens: Unexpected error (`app-error`: Meldung, Technische Details, Nach einem Update, Entwicklung).
+- One error screen for every route: the router's `errorElement` and an error boundary around the whole app show it, so no error page of the router or the browser appears. Friendly text without technical words, "Neu laden" and "Zur Startseite" (WEB-13).
+- A module of the app that cannot be loaded (`Failed to fetch dynamically imported module`, `Importing a module script failed`, `doesn't provide an export named`) says "Ein Teil der App konnte nicht geladen werden" and suggests the reload.
+- The disclosure "Technische Details" (closed in production, open on the development server, `import.meta.env.DEV`): error number (short, from the message and the page), message, page without query, time (UTC), version and commit, browser, stack, and "Details kopieren" as plain text; no personal data; nothing is sent anywhere (WEB-14, Q70, Q71).
+- The pure part (the details, the error number, the kind of error) is a tested function; the screen is a component test; an end-to-end test shows the screen for a page that fails, through a route that exists in test builds only (`VITE_TEST_HOOKS`).
+Requirements: WEB-13, WEB-14.
+
 ## Report
 
 <Added when the epic is complete, from the template in README.md.>

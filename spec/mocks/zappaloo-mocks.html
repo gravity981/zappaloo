@@ -378,6 +378,12 @@ select.m-input { appearance: auto; }
 .m-gbtn .dot { position: absolute; top: -7px; right: -6px; min-width: 18px; height: 18px; border-radius: 9px; background: var(--w-badge); color: #fff; font-size: 11px; display: grid; place-items: center; border: 2px solid #fff; }
 .m-gme { position: absolute; left: 10px; bottom: 12px; z-index: 3; display: flex; gap: 6px; }
 .m-gme button { width: 44px; height: 44px; border-radius: 50%; border: 2px solid #222; background: rgba(255,255,255,0.95); display: grid; place-items: center; cursor: pointer; box-shadow: 2px 2px 0 rgba(0,0,0,0.25); color: #222; }
+.m-err-details { border: 1px solid var(--w-line); border-radius: 10px; background: var(--w-card); padding: 10px 12px; }
+.m-err-details summary { cursor: pointer; font-weight: 600; font-size: 13px; }
+.m-err-details[open] summary { margin-bottom: 10px; }
+.m-err-kv { display: grid; grid-template-columns: auto 1fr; gap: 4px 12px; font-size: 12px; margin-bottom: 10px; }
+.m-err-val { word-break: break-word; user-select: all; }
+.m-err-pre { margin: 0 0 10px; padding: 10px; border-radius: 8px; background: var(--w-fill); font: 11px/1.45 ui-monospace, SFMono-Regular, Menlo, monospace; white-space: pre-wrap; word-break: break-word; max-height: 160px; overflow: auto; user-select: all; }
 .m-bubble { position: absolute; z-index: 4; width: 214px; background: #fff; border: 2px solid #222; border-radius: 12px; padding: 10px; transform: translate(-50%, calc(-100% - 12px)); box-shadow: 3px 3px 0 rgba(0,0,0,0.25); display: flex; gap: 10px; cursor: pointer; }
 .m-bubble::after { content: ""; position: absolute; left: 50%; bottom: -9px; width: 14px; height: 14px; background: #fff; border-right: 2px solid #222; border-bottom: 2px solid #222; transform: translateX(-50%) rotate(45deg); }
 .m-bubble .grow { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; font-size: 12px; }
@@ -885,6 +891,48 @@ add({
   render: () => bare(`
     <div class="m-card flat" style="align-items:center;text-align:center;gap:12px;padding:28px 18px"><div class="m-av lg">?</div><h1 class="m-h1" style="font-size:20px">Seite nicht gefunden</h1><p class="m-muted">Diese Seite gibt es nicht (mehr).</p></div>
     <button class="m-btn block" data-go="home">Zur Startseite</button>`),
+});
+add({
+  id: "app-error", group: "access", title: "Unexpected error", path: "/<any page>", reqs: ["WEB-13", "WEB-14"],
+  variants: [["message", "Meldung"], ["details", "Technische Details"], ["update", "Nach einem Update"], ["dev", "Entwicklung"]],
+  shows: [
+    "Decided 2026-11-20 (Q70, Q71; WEB-13, WEB-14; story 6.1n), drawn after the app showed React Router's own page “Unexpected Application Error! … Hey developer” on /game. It replaces that page for every route (an error page of the router and one around the whole app); nothing in the app shows it by design.",
+    "Message (decided as drawn): friendly and without blame, no technical words in the main text. One main action, “Neu laden”; “Zur Startseite” leads out. The page is the same bare layout as “Seite nicht gefunden”, with the event's name on top; in the game it keeps the same card over a dark backdrop.",
+    "Technische Details: a closed disclosure for everyone, so that an expert (or the guest on the phone to the organiser) can see what happened. Open: an error number (short, from the message and the page), the error's own message, the page (path without the query), the time (UTC), the version of the app with its commit, the browser, and the stack. “Details kopieren” puts all of it into the clipboard as plain text. It holds no personal data: no name, no account, no cookies, no tokens, no address query.",
+    "Nach einem Update: a module or file of the app that cannot be loaded (typical right after a new release, or with a tab that has been open for days) gets its own text, “Ein Teil der App konnte nicht geladen werden”, because a reload fixes it. The button reloads the page from the server.",
+    "Entwicklung: on the development server the details are open at once and show the full stack, with the line “Auch in der Konsole des Browsers”. A production build never opens them by itself.",
+  ],
+  qs: [
+    { n: 70, q: "What does an unexpected error show, and who sees the details?", p: "Decided as drawn: a friendly message for everyone, the technical details behind a disclosure (closed in production, open in development), with a button that copies them. No personal data in the details." },
+    { n: 71, q: "Is an error reported to the operator automatically?", p: "Proposal: no. There is no error reporting service (privacy, and a small event); the guest copies the details and sends them. Can be added later if the hosts want it." },
+  ],
+  render: (v) => {
+    const dev = v === "dev";
+    const update = v === "update";
+    const open = v === "details" || dev;
+    const message = update
+      ? "Failed to fetch dynamically imported module: /assets/GameCanvas-BcQQ_qXq.js"
+      : dev
+        ? "The requested module '/@fs/…/game-engine/src/indicators.ts' doesn't provide an export named: 'labelLines'"
+        : "TypeError: Cannot read properties of undefined (reading 'lines')";
+    const id = update ? "E-91C4D0" : dev ? "E-3F9A2C" : "E-7B20E5";
+    const stack = update
+      ? "TypeError: Failed to fetch dynamically imported module: /assets/GameCanvas-BcQQ_qXq.js\n    at https://fest.example.ch/assets/index-D3x9Qa1B.js:1:48210"
+      : `${message}\n    at renderDialogue (https://fest.example.ch/assets/GameCanvas-BcQQ_qXq.js:1:20431)\n    at Object.react-stack-bottom-frame (https://fest.example.ch/assets/index-D3x9Qa1B.js:8:59212)\n    at renderWithHooks (https://fest.example.ch/assets/index-D3x9Qa1B.js:8:21044)`;
+    const rows = [["Fehler-Nr.", id], ["Meldung", message], ["Seite", "/game"], ["Zeit", "20.11.2026, 10:42:07 (UTC)"], ["Version", "2.1.0+build.412 (fcff293)"], ["Browser", "Safari 18.1 auf iOS 18.1"]];
+    const details = `<details class="m-err-details" ${open ? "open" : ""}><summary>Technische Details</summary>
+      <div class="m-err-kv">${rows.map(([k, val]) => `<span class="m-muted sm">${k}</span><span class="m-err-val">${val}</span>`).join("")}</div>
+      <pre class="m-err-pre">${stack}</pre>
+      <div class="m-row2"><button class="m-btn soft sm">Details kopieren</button><span class="m-hint">Enthält keine persönlichen Daten.${dev ? " Auch in der Konsole des Browsers." : ""}</span></div></details>`;
+    return bare(`
+    ${dev ? '<div class="m-card flat sm"><b>Entwicklung</b>Nur auf dem Dev-Server sind die Details gleich aufgeklappt. Hilft ein Neuladen nicht, den Dev-Server neu starten (veraltete Module).</div>' : ""}
+    <div class="m-card flat" style="align-items:center;text-align:center;gap:12px;padding:28px 18px"><div class="m-av lg">!</div>
+      <h1 class="m-h1" style="font-size:20px">${update ? "Ein Teil der App konnte nicht geladen werden" : "Hier ist etwas schiefgelaufen"}</h1>
+      <p class="m-muted">${update ? "Das passiert zum Beispiel nach einem Update. Lade die Seite neu, dann geht es weiter." : "Die Seite konnte nicht angezeigt werden. Das liegt nicht an dir. Lade sie neu oder gehe zurück zur Startseite."}</p></div>
+    <button class="m-btn block" data-go="home">Neu laden</button>
+    <button class="m-btn soft block" data-go="home">Zur Startseite</button>
+    ${details}`);
+  },
 });
 add({
   id: "privacy", group: "access", title: "Privacy notice", path: "/datenschutz", reqs: ["SEC-09", "SEC-11"],
@@ -1850,6 +1898,8 @@ const DECIDED = {
   67: "Yes.",
   68: "As proposed (decided 2026-11-17): it falls back to the first figure the person may choose, like a figure that the world no longer has.",
   69: "As drawn, with the glow also on a portal's arrow and a thick ring in the glow's light colour with its dark outline (decided 2026-11-17, confirmed before story 5.1e).",
+  70: "As proposed (decided 2026-11-20): a friendly message for everyone, the technical details behind a disclosure (closed in production, open on the development server) with a button that copies them, no personal data in them. WEB-13, WEB-14.",
+  71: "As proposed (decided 2026-11-20): no automatic report to the operator (no error reporting service, privacy, a small event); the guest copies the details and sends them. Can be added later if the hosts want it.",
 };
 const GLOBAL_QS = [
   { q: "Visual theme: when do we decide the look (colours, fonts, pixel style of the UI)?", p: "These mocks are deliberately neutral. theme.json fields are specified in stage 4." },
