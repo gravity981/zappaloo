@@ -95,7 +95,7 @@ Re-verified: MAP-21, GAME-39, GAME-40, GAME-41 (reworded).
 Requirements: none new.
 Re-verified: GAME-37, PRES-10 (reworded), GAME-26, GAME-41 (labels wrap).
 
-### Story 6.1e – Welcome dialogue on the first entry
+### Story 6.1e – Welcome dialogue on the first entry — Done (2026-11-20)
 
 Mock screens: game first entry, admin Erlebniswelt.
 - The hint of GAME-17 is replaced by a welcome dialogue the admin edits (decision 5).
