@@ -1,12 +1,15 @@
-// The speech bubbles of the figures of one map, guests and NPCs together (PRES-10, GAME-37): which figures have an
-// open bubble, which are pinned or were closed with their cross, and which of the open ones would overlap. The crowds
-// say what they have, as participants, once a frame; the board decides, and draws the bubbles over the canvas.
+// The speech bubbles of one map: the guest figures, the NPCs and the objects with a greeting together (PRES-10,
+// GAME-37): which of them has an open bubble, which are pinned or were closed with their cross. Only one bubble is
+// open at a time: the pinned one, else the nearest. The crowds say what they have, as participants, once a frame; the
+// board decides, and draws the bubble over the canvas.
 import { BubbleLayer, type BubbleView } from "./bubble-layer.ts";
 import {
   bubbleHeight,
   bubbleWidth,
   chooseBubbles,
+  greetingBubbleSize,
   isNear,
+  labelClearance,
   placeBubble,
   type BubbleCandidate,
   type BubbleContent,
@@ -27,21 +30,25 @@ export interface BubbleSetup {
 
 /** A figure that can have a bubble this frame. */
 export interface BubbleParticipant {
-  /** A key that stays the same for the figure: a guest's id, `npc:<name>` for an NPC. */
+  /** A key that stays the same for the figure: a guest's id, `npc:<name>` for an NPC, `object:<name>` for an object. */
   id: string;
   /** The distance of the figure from the player, in map pixels. */
   distance: number;
   /** The top of the figure's head in the map's pixel space, which the tail points to. */
   head: Point;
   content: BubbleContent;
-  /** The address of the picture of the circle; without one it shows the initials. */
+  /** The address of the picture of the circle; without one it shows the initials. A compact bubble has none. */
   photo?: string | undefined;
-  /** The bubble opens within this many tile widths (default 0.8) and closes beyond `closeTiles` (default 1.1). */
+  /**
+   * The label that stands on top of the figure (GAME-41), if there is one: the bubble stands above it, not over it.
+   */
+  labelText?: string | undefined;
+  /** The bubble opens within this many tile widths (default 0.8; a greeting 4) and closes beyond `closeTiles` (1.1; 4.5). */
   openTiles?: number;
   closeTiles?: number;
   /**
-   * What a tap or click on the bubble does instead of pinning it (an NPC with an action: walk there and run it).
-   * Without it a tap pins the bubble until its cross is used.
+   * What a tap or click on the bubble does instead of pinning it (an NPC or object with an action: walk there and run
+   * it). Without it a tap pins the bubble until its cross is used.
    */
   onTap?: () => void;
 }
@@ -115,7 +122,7 @@ export class BubbleBoard {
   update(participants: readonly BubbleParticipant[]): Set<string> {
     const setup = this.#setup;
     const view = setup.viewSize();
-    const width = bubbleWidth(view.width);
+    const maxWidth = bubbleWidth(view.width);
     const known = new Set(participants.map((item) => item.id));
     for (const id of this.#states.keys()) if (!known.has(id)) this.#states.delete(id);
     this.#taps.clear();
@@ -134,14 +141,8 @@ export class BubbleBoard {
       // A bubble closed with its cross opens again only after the player has been away.
       if (!near) state.dismissed = false;
       if (!state.pinned && (state.dismissed || !near)) continue;
-      const place = this.place(item, width, view);
-      places.set(item.id, place);
-      candidates.push({
-        id: item.id,
-        distance: item.distance,
-        pinned: state.pinned,
-        box: { x: place.x, y: place.y, width, height: place.height },
-      });
+      places.set(item.id, this.place(item, maxWidth, view));
+      candidates.push({ id: item.id, distance: item.distance, pinned: state.pinned });
     }
     const shown = new Set(chooseBubbles(candidates));
     for (const [id, state] of this.#states) state.open = shown.has(id);
@@ -157,9 +158,12 @@ export class BubbleBoard {
           line: item.content.line,
           photo: item.photo,
           pinned: this.#state(item.id).pinned,
+          compact: place.compact,
           x: place.x,
           y: place.y,
-          width,
+          width: place.width,
+          height: place.height,
+          maxWidth,
           tail: place.tail,
         };
         return [view];
@@ -168,10 +172,19 @@ export class BubbleBoard {
     return shown;
   }
 
-  /** Where a bubble stands in the view, and how tall it is. */
+  /** Where a bubble stands in the view, and how big it is: a greeting bubble is as small as its text allows. */
   place(item: BubbleParticipant, width: number, view: { width: number; height: number }) {
-    const head = this.#setup.project(item.head);
-    const height = bubbleHeight(item.content, width);
-    return { ...placeBubble(head, { width, height }, view), height };
+    const projected = this.#setup.project(item.head);
+    const greeting = item.content.compact === true ? item.content.greeting : undefined;
+    const size =
+      greeting === undefined
+        ? { width, height: bubbleHeight(item.content, width) }
+        : greetingBubbleSize(greeting, view.width);
+    // The bubble stands above the label of the figure, if it has one in sight.
+    const anchor = {
+      x: projected.x,
+      y: projected.y - labelClearance(item.labelText, view.width),
+    };
+    return { ...placeBubble(anchor, size, view), ...size, compact: greeting !== undefined };
   }
 }

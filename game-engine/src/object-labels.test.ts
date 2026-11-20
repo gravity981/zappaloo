@@ -6,6 +6,7 @@ import {
   OBJECT_LABEL_MARGIN,
   chooseObjectLabels,
   objectLabelBox,
+  objectLabelHeight,
   objectLabelWidth,
 } from "./object-labels.ts";
 import { LABEL_MAX_WIDTH } from "./indicators.ts";
@@ -29,11 +30,25 @@ describe("the place of a label (GAME-41)", () => {
     expect(objectLabelBox({ x: 200, y: 10 }, 80, view).y).toBe(OBJECT_LABEL_MARGIN);
   });
 
-  it("[GAME-41] has the width of its text, as the label of an indicator: at most 160 pixels, longer text is cut off", () => {
+  it("[GAME-41] has the width of its text, as the label of an indicator: at most 260 pixels, longer text wraps", () => {
     expect(objectLabelWidth("Programm")).toBeLessThan(
       objectLabelWidth("Wo sitze ich bei der Feier?"),
     );
     expect(objectLabelWidth("x".repeat(100))).toBe(LABEL_MAX_WIDTH);
+    // On a narrow view it is no wider than the view leaves.
+    expect(objectLabelWidth("x".repeat(100), 200)).toBe(200 - 2 * OBJECT_LABEL_MARGIN);
+  });
+
+  it("[GAME-41] a long name takes more lines instead of being cut off, and the box is as high as its lines", () => {
+    const name = "Anreise, Parkplätze und Haltestellen rund um die Kirche und den Schlossgarten";
+    const width = objectLabelWidth(name);
+    expect(objectLabelHeight("Programm", objectLabelWidth("Programm"))).toBe(OBJECT_LABEL_HEIGHT);
+    expect(objectLabelHeight(name, width)).toBeGreaterThan(OBJECT_LABEL_HEIGHT);
+    // The box stands above the object with its bottom at the same gap, however many lines it has.
+    const one = objectLabelBox({ x: 200, y: 150 }, width, view);
+    const two = objectLabelBox({ x: 200, y: 150 }, width, view, objectLabelHeight(name, width));
+    expect(two.y + two.height).toBe(one.y + one.height);
+    expect(two.height).toBeGreaterThan(one.height);
   });
 });
 

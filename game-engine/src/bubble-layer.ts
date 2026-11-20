@@ -1,4 +1,4 @@
-// The speech bubbles of the guest figures as HTML over the game canvas (PRES-10, UX mock `game`): crisp text, a real
+// The speech bubbles as HTML over the game canvas (PRES-10, GAME-37, UX mock `game`): crisp text, a real
 // button for the cross and an area to click or tap. Where they stand and which are shown is decided in bubble.ts;
 // this only puts them in place, like the edge indicators (edge-indicators.ts).
 
@@ -13,10 +13,14 @@ export interface BubbleView {
   photo?: string | undefined;
   /** A pinned bubble stays open until its cross is used. */
   pinned: boolean;
-  /** The top left corner in the game view, in CSS pixels, and its width. */
+  /** A greeting bubble: the greeting only, no picture, no name, as small as its text allows. */
+  compact: boolean;
+  /** The top left corner in the game view, in CSS pixels, its width and its estimated height, and the widest it gets. */
   x: number;
   y: number;
   width: number;
+  height: number;
+  maxWidth: number;
   /** Where the tail points to, from the left edge of the bubble. */
   tail: number;
 }
@@ -78,7 +82,7 @@ export class BubbleLayer {
   /** Shows or hides a bubble: the `hidden` attribute alone loses to the bubble's own `display: flex`. */
   #show(root: HTMLDivElement): void {
     root.hidden = this.#hidden;
-    root.style.display = this.#hidden ? "none" : "flex";
+    root.style.display = this.#hidden ? "none" : root.dataset.compact === "true" ? "block" : "flex";
   }
 
   /** Shows exactly these bubbles, creating, moving and removing them as needed. */
@@ -97,7 +101,8 @@ export class BubbleLayer {
         view.line,
         view.photo,
         view.pinned,
-        view.width,
+        view.compact,
+        view.maxWidth,
       ].join("|");
       let entry = this.#bubbles.get(view.id);
       if (entry?.key !== key) {
@@ -107,7 +112,11 @@ export class BubbleLayer {
         this.#parent.append(entry.root);
       }
       this.#show(entry.root);
-      entry.root.style.transform = `translate(${String(Math.round(view.x))}px, ${String(Math.round(view.y))}px)`;
+      // A compact bubble is as high as its text, which the layout only estimates: its bottom, with the tail, is what
+      // stands at the figure, so it hangs from the estimated bottom edge upwards.
+      entry.root.style.transform = view.compact
+        ? `translate(${String(Math.round(view.x))}px, ${String(Math.round(view.y + view.height))}px) translateY(-100%)`
+        : `translate(${String(Math.round(view.x))}px, ${String(Math.round(view.y))}px)`;
       entry.tail.style.left = `${String(Math.round(view.tail) - 7)}px`;
     }
   }
@@ -118,15 +127,25 @@ export class BubbleLayer {
   }
 
   #create(view: BubbleView): { root: HTMLDivElement; tail: HTMLSpanElement } {
-    const root = element(
-      "div",
-      `position:absolute;left:0;top:0;z-index:5;box-sizing:border-box;width:${String(view.width)}px;display:flex;gap:10px;` +
-        "padding:10px;background:#fff;color:#000;border:2px solid #222;border-radius:12px;" +
-        "box-shadow:3px 3px 0 rgba(0,0,0,.25);font:12px/1.3 system-ui,sans-serif;cursor:pointer;" +
-        "touch-action:manipulation;-webkit-tap-highlight-color:transparent",
-    );
+    const root = view.compact
+      ? element(
+          "div",
+          // The greeting of an object or NPC: its text and nothing else, in a box that is as small as the text allows.
+          `position:absolute;left:0;top:0;z-index:5;box-sizing:border-box;width:max-content;max-width:${String(view.maxWidth)}px;` +
+            "padding:6px 10px;background:#fff;color:#000;border:2px solid #222;border-radius:12px;" +
+            "box-shadow:3px 3px 0 rgba(0,0,0,.25);font:12px/1.3 system-ui,sans-serif;overflow-wrap:anywhere;" +
+            "cursor:pointer;touch-action:manipulation;-webkit-tap-highlight-color:transparent",
+        )
+      : element(
+          "div",
+          `position:absolute;left:0;top:0;z-index:5;box-sizing:border-box;width:${String(view.width)}px;display:flex;gap:10px;` +
+            "padding:10px;background:#fff;color:#000;border:2px solid #222;border-radius:12px;" +
+            "box-shadow:3px 3px 0 rgba(0,0,0,.25);font:12px/1.3 system-ui,sans-serif;cursor:pointer;" +
+            "touch-action:manipulation;-webkit-tap-highlight-color:transparent",
+        );
     root.setAttribute("data-testid", "guest-bubble");
     root.setAttribute("data-guest", view.id);
+    root.dataset.compact = String(view.compact);
     root.setAttribute("data-pinned", String(view.pinned));
     root.setAttribute("role", "group");
     root.setAttribute("aria-label", view.name);
@@ -140,7 +159,9 @@ export class BubbleLayer {
         this.#callbacks.onPin(view.id);
       }
     });
-    if (view.photo === undefined) {
+    if (view.compact) {
+      root.append(view.greeting ?? "");
+    } else if (view.photo === undefined) {
       root.append(
         element(
           "div",
@@ -155,23 +176,25 @@ export class BubbleLayer {
       picture.alt = "";
       root.append(picture);
     }
-    const text = element(
-      "div",
-      "flex:1;min-width:0;display:flex;flex-direction:column;align-items:flex-start;gap:3px;overflow-wrap:anywhere",
-    );
-    text.append(element("b", "font-size:13px;font-weight:700", view.name));
-    if (view.badge !== undefined) {
-      text.append(
-        element(
-          "span",
-          "padding:1px 8px;border-radius:999px;background:#e8e8e2;font-size:11px;font-weight:600",
-          view.badge,
-        ),
+    if (!view.compact) {
+      const text = element(
+        "div",
+        "flex:1;min-width:0;display:flex;flex-direction:column;align-items:flex-start;gap:3px;overflow-wrap:anywhere",
       );
+      text.append(element("b", "font-size:13px;font-weight:700", view.name));
+      if (view.badge !== undefined) {
+        text.append(
+          element(
+            "span",
+            "padding:1px 8px;border-radius:999px;background:#e8e8e2;font-size:11px;font-weight:600",
+            view.badge,
+          ),
+        );
+      }
+      if (view.greeting !== undefined) text.append(element("span", "", view.greeting));
+      if (view.line !== undefined) text.append(element("span", "color:#6a6a64", view.line));
+      root.append(text);
     }
-    if (view.greeting !== undefined) text.append(element("span", "", view.greeting));
-    if (view.line !== undefined) text.append(element("span", "color:#6a6a64", view.line));
-    root.append(text);
     // The tail points down at the figure; it moves with the bubble when this is held inside the view.
     const tail = element(
       "span",

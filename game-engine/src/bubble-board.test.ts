@@ -1,9 +1,9 @@
 // @vitest-environment jsdom
-// The bubbles of guests and NPCs together (PRES-10, GAME-37): who has an open bubble, what a tap on it does, and which
-// of two overlapping bubbles shows.
+// The speech bubbles of guests, NPCs and objects together (PRES-10, GAME-37): who has an open bubble, what a tap on it
+// does, that only one bubble is open at a time, and what a greeting bubble shows.
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { BubbleBoard, type BubbleParticipant } from "./bubble-board.ts";
-import { NPC_BUBBLE_CLOSE_TILES, NPC_BUBBLE_OPEN_TILES } from "./bubble.ts";
+import { GREETING_BUBBLE_CLOSE_TILES, GREETING_BUBBLE_OPEN_TILES } from "./bubble.ts";
 
 const TILE = 64;
 let parent: HTMLElement;
@@ -38,11 +38,23 @@ const npc = (distance: number, changes: Partial<BubbleParticipant> = {}) => ({
   id: "npc:kuester",
   distance,
   head: { x: 300, y: 300 },
-  content: { name: "Küster", greeting: "Psst!" },
-  openTiles: NPC_BUBBLE_OPEN_TILES,
-  closeTiles: NPC_BUBBLE_CLOSE_TILES,
+  content: { name: "Küster", greeting: "Psst!", compact: true },
+  openTiles: GREETING_BUBBLE_OPEN_TILES,
+  closeTiles: GREETING_BUBBLE_CLOSE_TILES,
   ...changes,
 });
+const altar = (distance: number, changes: Partial<BubbleParticipant> = {}) => ({
+  id: "object:altar",
+  distance,
+  head: { x: 300, y: 300 },
+  content: { name: "Programm", greeting: "Hier geht's zum Programm.", compact: true },
+  openTiles: GREETING_BUBBLE_OPEN_TILES,
+  closeTiles: GREETING_BUBBLE_CLOSE_TILES,
+  ...changes,
+});
+/** The distance of the bottom edge of a greeting bubble from the top of the view: where its tail stands. */
+const bottomOf = (bubble: Element | undefined): number =>
+  Number(/translate\([-\d.]+px, ([-\d.]+)px\)/.exec((bubble as HTMLElement).style.transform)?.[1]);
 const bubbles = () => [...parent.querySelectorAll("[data-testid=guest-bubble]")];
 
 describe("who has an open bubble", () => {
@@ -54,37 +66,66 @@ describe("who has an open bubble", () => {
     expect(bubbles()).toHaveLength(0);
   });
 
-  it("[GAME-37] an NPC's bubble opens from 3 tile widths and closes beyond 3.5", () => {
-    expect(board.update([npc(3.1 * TILE)])).toEqual(new Set());
-    expect(board.update([npc(3 * TILE)])).toEqual(new Set(["npc:kuester"]));
+  it("[GAME-37] the bubble of an NPC or an object with a greeting opens from 4 tile widths and closes beyond 4.5", () => {
+    expect(board.update([npc(4.1 * TILE)])).toEqual(new Set());
+    expect(board.update([npc(4 * TILE)])).toEqual(new Set(["npc:kuester"]));
     expect(board.isOpen("npc:kuester")).toBe(true);
-    expect(board.update([npc(3.4 * TILE)])).toEqual(new Set(["npc:kuester"]));
-    expect(board.update([npc(3.6 * TILE)])).toEqual(new Set());
+    expect(board.update([npc(4.4 * TILE)])).toEqual(new Set(["npc:kuester"]));
+    expect(board.update([npc(4.6 * TILE)])).toEqual(new Set());
     expect(board.isOpen("npc:kuester")).toBe(false);
     expect(bubbles()).toHaveLength(0);
+    expect(board.update([altar(4 * TILE)])).toEqual(new Set(["object:altar"]));
   });
 
-  it("[GAME-37] an open bubble shows the name and the short dialog of the NPC", () => {
+  it("[GAME-37] a greeting bubble holds the greeting only: no portrait, no initials, no name, as small as the text allows", () => {
     board.update([npc(2 * TILE)]);
-    const [bubble] = bubbles();
-    expect(bubble?.textContent).toContain("Küster");
-    expect(bubble?.textContent).toContain("Psst!");
+    const [bubble] = bubbles() as HTMLElement[];
+    expect(bubble?.textContent).toBe("Psst!");
+    expect(bubble?.querySelector("img")).toBeNull();
+    expect(bubble?.children.length).toBe(1);
+    // A screen reader still hears who speaks; the box hugs its text up to the width of a bubble.
+    expect(bubble?.getAttribute("aria-label")).toBe("Küster");
+    expect(bubble?.dataset.compact).toBe("true");
+    expect(bubble?.style.width).toBe("max-content");
+    expect(Number.parseInt(bubble?.style.maxWidth ?? "0")).toBeLessThanOrEqual(240);
+    expect(bubble?.style.display).toBe("block");
   });
 
-  it("[GAME-37][PRES-10] bubbles of an NPC and of a guest can be open at once, and of two that would overlap only the nearer shows", () => {
-    // Heads far apart: both show.
-    const apart = board.update([
-      npc(2 * TILE),
-      guest("a", 0.5 * TILE, { head: { x: 600, y: 400 } }),
+  it("[PRES-10] the bubble of a guest keeps its picture, name, badge and lines", () => {
+    board.update([
+      guest("a", 0.5 * TILE, {
+        content: { name: "Erika", badge: "Freunde Braut", greeting: "Hallo!", line: "WG Bern" },
+      }),
     ]);
-    expect(apart).toEqual(new Set(["npc:kuester", "a"]));
-    expect(bubbles()).toHaveLength(2);
-    // The same spot: the guest is nearer, the NPC's bubble gives way.
-    const together = board.update([npc(2 * TILE), guest("a", 0.5 * TILE)]);
-    expect(together).toEqual(new Set(["a"]));
-    // And the other way round.
-    const nearer = board.update([npc(0.4 * TILE), guest("a", 0.7 * TILE)]);
-    expect(nearer).toEqual(new Set(["npc:kuester"]));
+    const [bubble] = bubbles() as HTMLElement[];
+    expect(bubble?.dataset.compact).toBe("false");
+    expect(bubble?.textContent).toContain("Erika");
+    expect(bubble?.textContent).toContain("Freunde Braut");
+    expect(bubble?.textContent).toContain("WG Bern");
+    expect(bubble?.style.display).toBe("flex");
+  });
+
+  it("[GAME-37] a greeting bubble stands above the label of its figure", () => {
+    board.update([npc(2 * TILE)]);
+    const plain = bottomOf(bubbles()[0]);
+    board.update([npc(2 * TILE, { labelText: "Küster" })]);
+    expect(bottomOf(bubbles()[0])).toBeLessThan(plain);
+  });
+
+  it("[GAME-37][PRES-10] only one bubble is open at a time: of a guest, an NPC and an object whose range the player is in, the nearest", () => {
+    const all = (npcDistance: number, guestDistance: number, objectDistance: number) =>
+      board.update([
+        npc(npcDistance),
+        guest("a", guestDistance, { head: { x: 600, y: 400 } }),
+        altar(objectDistance, { head: { x: 100, y: 200 } }),
+      ]);
+    expect(all(2 * TILE, 0.5 * TILE, 3 * TILE)).toEqual(new Set(["a"]));
+    expect(bubbles()).toHaveLength(1);
+    // The guest is out of its small range: the nearer greeting shows, the other gives way.
+    expect(all(2 * TILE, 3 * TILE, 3.5 * TILE)).toEqual(new Set(["npc:kuester"]));
+    expect(all(3 * TILE, 3 * TILE, 1 * TILE)).toEqual(new Set(["object:altar"]));
+    expect(bubbles()).toHaveLength(1);
+    expect(board.isOpen("npc:kuester")).toBe(false);
   });
 });
 
@@ -101,6 +142,20 @@ describe("a tap on a bubble", () => {
     // It opens again after the player has been away.
     board.update([guest("a", 5 * TILE)]);
     expect(board.update([guest("a", 0.5 * TILE)])).toEqual(new Set(["a"]));
+  });
+
+  it("[PRES-10][GAME-37] while a guest's bubble is pinned no other bubble opens, however near the figure is", () => {
+    board.update([guest("a", 0.5 * TILE)]);
+    (bubbles()[0] as HTMLElement).click();
+    expect(board.update([guest("a", 5 * TILE), npc(0.5 * TILE), altar(0.2 * TILE)])).toEqual(
+      new Set(["a"]),
+    );
+    expect(bubbles()).toHaveLength(1);
+    // After its cross the nearest opens.
+    parent.querySelector<HTMLElement>("button[aria-label=Schliessen]")?.click();
+    expect(board.update([guest("a", 5 * TILE), npc(0.5 * TILE), altar(0.2 * TILE)])).toEqual(
+      new Set(["object:altar"]),
+    );
   });
 
   it("[GAME-37] on the bubble of an NPC with an action does what a tap on the NPC does, and does not pin it", () => {
@@ -121,21 +176,17 @@ describe("a tap on a bubble", () => {
 });
 
 describe("hiding the bubbles while a page is open (GAME-11)", () => {
-  it("[GAME-11] the bubbles are not displayed while hidden, and are again when shown", () => {
+  it("[GAME-11] the bubble is not displayed while hidden, and is again when shown", () => {
     board.update([npc(2 * TILE)]);
-    expect((bubbles()[0] as HTMLElement).style.display).toBe("flex");
+    expect((bubbles()[0] as HTMLElement).style.display).toBe("block");
     board.setHidden(true);
     expect((bubbles()[0] as HTMLElement).style.display).toBe("none");
-    // A bubble made while hidden is hidden too.
-    board.update([npc(2 * TILE), guest("a", 0.5 * TILE, { head: { x: 600, y: 400 } })]);
-    expect(bubbles().map((bubble) => (bubble as HTMLElement).style.display)).toEqual([
-      "none",
-      "none",
-    ]);
+    // A bubble made while hidden is hidden too, whatever its kind.
+    board.update([guest("a", 0.5 * TILE)]);
+    expect(bubbles().map((bubble) => (bubble as HTMLElement).style.display)).toEqual(["none"]);
     board.setHidden(false);
-    expect(bubbles().map((bubble) => (bubble as HTMLElement).style.display)).toEqual([
-      "flex",
-      "flex",
-    ]);
+    expect(bubbles().map((bubble) => (bubble as HTMLElement).style.display)).toEqual(["flex"]);
+    board.update([altar(1 * TILE)]);
+    expect(bubbles().map((bubble) => (bubble as HTMLElement).style.display)).toEqual(["block"]);
   });
 });

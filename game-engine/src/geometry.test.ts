@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  distanceToRect,
   distanceToOutline,
   interiorPoint,
   mapBounds,
@@ -84,5 +85,21 @@ describe("the isometric geometry (MAP-02, GAME-02)", () => {
     expect(pointInPolygon(interiorPoint(L), L)).toBe(true);
     // A convex trigger keeps its centre.
     expect(interiorPoint(square)).toEqual({ x: 5, y: 5 });
+  });
+});
+
+describe("the distance of the player from an object (GAME-37)", () => {
+  const box = { x: 100, y: 100, width: 50, height: 40 };
+
+  it("[GAME-37] is 0 inside the box and on its edge", () => {
+    expect(distanceToRect({ x: 120, y: 120 }, box)).toBe(0);
+    expect(distanceToRect({ x: 100, y: 140 }, box)).toBe(0);
+  });
+
+  it("[GAME-37] is the distance to the nearest edge beside or above it, and to the nearest corner diagonally", () => {
+    expect(distanceToRect({ x: 80, y: 120 }, box)).toBe(20);
+    expect(distanceToRect({ x: 120, y: 190 }, box)).toBe(50);
+    expect(distanceToRect({ x: 180, y: 180 }, box)).toBe(50);
+    expect(distanceToRect({ x: 153, y: 144 }, box)).toBe(5);
   });
 });

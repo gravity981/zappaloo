@@ -2,7 +2,9 @@ import { describe, expect, it } from "vitest";
 import {
   INDICATOR_INSET,
   LABEL_GAP,
+  LABEL_MAX_LINES,
   LABEL_MAX_WIDTH,
+  labelLines,
   boxesOverlap,
   indicatorBox,
   labelSide,
@@ -162,7 +164,8 @@ describe("the labels of the indicators (GAME-26)", () => {
     expect(labelSide({ x: 196, y: 34 }, phone.width)).toBe("left");
   });
 
-  it("[GAME-26] a label is as wide as its text needs, at most 160 px and at most what the view leaves beside it", () => {
+  it("[GAME-26] a label is as wide as its text needs, at most 260 px (a longer text wraps) and at most what the view leaves beside it", () => {
+    expect(LABEL_MAX_WIDTH).toBe(260);
     const point = { x: 40, y: 300 };
     const short = labelWidth("Programm", point, phone.width, "right");
     expect(short).toBeGreaterThan(40);
@@ -178,6 +181,18 @@ describe("the labels of the indicators (GAME-26)", () => {
     );
     // No room, no label.
     expect(labelWidth("Portal", { x: 360, y: 300 }, phone.width, "right")).toBe(0);
+  });
+
+  it("[GAME-26] a long name wraps onto up to three lines and is not cut off before that", () => {
+    // A name of a page that is far longer than the old limit of one line of 160 pixels.
+    const name = "Anreise, Parkplätze und Haltestellen rund um die Kirche";
+    expect(Array.from(name).length * 6.8).toBeGreaterThan(160);
+    expect(labelLines("Programm", LABEL_MAX_WIDTH)).toBe(1);
+    expect(labelLines(name, LABEL_MAX_WIDTH)).toBe(2);
+    // Narrower, it takes more lines; beyond three lines only is it cut off.
+    expect(labelLines(name, 140)).toBe(3);
+    expect(labelLines("x".repeat(500), LABEL_MAX_WIDTH)).toBe(LABEL_MAX_LINES);
+    expect(labelLines("", LABEL_MAX_WIDTH)).toBe(1);
   });
 
   it("[GAME-26] the space of an indicator is its touch area with the label beside it, on the label's side", () => {

@@ -50,6 +50,8 @@ export interface LoadedWorld {
   npcs: Map<string, PublicNpc>;
   /** The figure names of the dialogues by their ids; they name the objects and NPCs that show one (GAME-40). */
   dialogues: Map<string, string>;
+  /** The greetings of the clickable objects that show a dialogue, by `<map id>/<object name>` (GAME-37, CNT-09). */
+  greetings: Map<string, string>;
   /**
    * The `showIndicator` the admin set for objects and NPCs, by `<map id>/<name>`; one that is not listed shows its edge
    * indicator and label (GAME-26, GAME-41).
@@ -184,6 +186,9 @@ export function prepareWorld(source: WorldSource): LoadedWorld {
     actions: new Map(summary.actions.map((item) => [`${item.map}/${item.object}`, item.action])),
     npcs: new Map(summary.npcs.map((item) => [`${item.map}/${item.name}`, item])),
     dialogues: new Map(summary.dialogues.map((item) => [item.id, item.name])),
+    greetings: new Map(
+      summary.greetings.map((item) => [`${item.map}/${item.object}`, item.greeting]),
+    ),
     showIndicator: new Map(
       summary.indicators.map((item) => [`${item.map}/${item.object}`, item.showIndicator]),
     ),

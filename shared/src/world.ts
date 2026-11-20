@@ -663,6 +663,13 @@ export const publicWorldSchema = z.object({
   /** The figure names of the dialogues by their ids: they name the objects and NPCs that show one (GAME-40). */
   dialogues: z.array(z.object({ id: z.string(), name: z.string() })).default([]),
   /**
+   * The clickable objects (not the NPCs, which are in `npcs`) whose effective action is a dialogue with a greeting: the
+   * text of the speech bubble they show over their top (GAME-37, CNT-09).
+   */
+  greetings: z
+    .array(z.object({ map: z.string(), object: z.string(), greeting: z.string() }))
+    .default([]),
+  /**
    * The objects and NPCs whose `showIndicator` the admin changed (GAME-26, GAME-41); every other object and NPC
    * shows its edge indicator and label.
    */

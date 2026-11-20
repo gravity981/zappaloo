@@ -37,7 +37,7 @@ describe("the labels of the objects in sight (GAME-41)", () => {
       );
     expect(displays()).toEqual(["none", "none"]);
     layer.setHidden(false);
-    expect(displays()).toEqual(["block", "block"]);
+    expect(displays()).toEqual(["-webkit-box", "-webkit-box"]);
     layer.destroy();
     parent.remove();
   });

@@ -9,8 +9,12 @@ export const INDICATOR_INSET = 12;
 export const INDICATOR_TOUCH_SIZE = 44;
 /** The space between an indicator's circle and its label, in CSS pixels. */
 export const LABEL_GAP = 6;
-/** The widest a label gets, in CSS pixels; a longer text is cut off with an ellipsis. */
-export const LABEL_MAX_WIDTH = 160;
+/**
+ * The widest a label gets, in CSS pixels. A longer text wraps onto more lines, up to `LABEL_MAX_LINES`; only a text
+ * beyond that is cut off, so that the names of pages and dialogues show whole (the limit was 160 pixels, one line).
+ */
+export const LABEL_MAX_WIDTH = 260;
+export const LABEL_MAX_LINES = 3;
 /** The width of one character of a label, estimated (the label's font is 12 px, semibold), and its padding. */
 const LABEL_CHAR_WIDTH = 6.8;
 const LABEL_PADDING = 16;
@@ -122,8 +126,14 @@ export function labelWidth(text: string, point: Point, viewWidth: number, side: 
     INDICATOR_TOUCH_SIZE / 2 -
     LABEL_GAP -
     INDICATOR_INSET;
-  const wanted = Math.ceil(text.length * LABEL_CHAR_WIDTH) + LABEL_PADDING;
+  const wanted = Math.ceil(Array.from(text).length * LABEL_CHAR_WIDTH) + LABEL_PADDING;
   return Math.max(0, Math.min(wanted, LABEL_MAX_WIDTH, room));
+}
+
+/** How many lines a label of this width needs for a text, estimated; at most `LABEL_MAX_LINES`. */
+export function labelLines(text: string, width: number): number {
+  const perLine = Math.max(1, Math.floor((width - LABEL_PADDING) / LABEL_CHAR_WIDTH));
+  return Math.min(LABEL_MAX_LINES, Math.max(1, Math.ceil(Array.from(text).length / perLine)));
 }
 
 /** The space an indicator takes in the view: its touch area and its label beside it (0 wide without a label). */

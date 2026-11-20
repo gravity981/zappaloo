@@ -61,6 +61,7 @@ export class PreviewPackageStore {
           // ... and no dialogues: the NPCs show no speech bubble (GAME-37, CNT-09), and no dialogue names an object.
           npcs: [],
           dialogues: [],
+          greetings: [],
           indicators: [],
         },
         findings: result.findings,

@@ -811,6 +811,39 @@ describe("the NPCs in Erlebniswelt: action and indicator like an object; name an
     });
   });
 
+  it("[GAME-37][CNT-09] a clickable object whose dialogue has a greeting is listed with it for the game; an object with an empty greeting, another action or no dialogue is not, and an NPC is listed under its NPCs", async () => {
+    context = await createTestApp();
+    const ctx = context;
+    const admin = await signIn(ctx, "boss", ["admin"]);
+    await upload(ctx, admin, buildTestWorld());
+    expect((await world(ctx, admin)).greetings).toEqual([]);
+
+    await makeDialogue(ctx, admin, { npcName: "Wirt", greeting: "Prost!", lines: ["Hallo!"] });
+    await makeDialogue(ctx, admin, { npcName: "Koch", greeting: "", lines: ["Hunger?"] });
+    await assign(ctx, admin, "kirche", "altar", { kind: "dialog", dialogId: "wirt" });
+    await assign(ctx, admin, "kirche", "schild", { kind: "dialog", dialogId: "koch" });
+    await assign(ctx, admin, "kirche", "kuester", { kind: "dialog", dialogId: "wirt" });
+    const listed = await world(ctx, admin);
+    // The object with the greeting; not the one with an empty greeting, and the NPC is under `npcs`.
+    expect(listed.greetings).toEqual([{ map: "kirche", object: "altar", greeting: "Prost!" }]);
+    expect(listed.npcs).toEqual([
+      { map: "kirche", name: "kuester", title: "Wirt", dialog: "Prost!" },
+    ]);
+
+    // The greeting is the dialogue's: changing it is live; another action takes the bubble away.
+    await ctx.app.inject({
+      method: "PUT",
+      url: "/api/admin/dialogues/wirt",
+      headers: admin,
+      payload: { npcName: "Wirt", greeting: "Zum Wohl!", lines: ["Hallo!"] },
+    });
+    expect((await world(ctx, admin)).greetings).toEqual([
+      { map: "kirche", object: "altar", greeting: "Zum Wohl!" },
+    ]);
+    await assign(ctx, admin, "kirche", "altar", { kind: "page", page: "profile" });
+    expect((await world(ctx, admin)).greetings).toEqual([]);
+  });
+
   it("[MAP-21] there is no route for an NPC's own name and short dialog any more", async () => {
     context = await createTestApp();
     const ctx = context;

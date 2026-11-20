@@ -6,7 +6,7 @@ import { gameRandom } from "./random.ts";
 import Phaser from "phaser";
 import type { PublicNpc, WorldObjectAction } from "@zappaloo/shared";
 import type { BubbleBoard, BubbleParticipant } from "./bubble-board.ts";
-import { NPC_BUBBLE_CLOSE_TILES, NPC_BUBBLE_OPEN_TILES } from "./bubble.ts";
+import { GREETING_BUBBLE_CLOSE_TILES, GREETING_BUBBLE_OPEN_TILES } from "./bubble.ts";
 import { figureDepth } from "./draw-order.ts";
 import { SHADOW_DEPTH_BELOW, figureShadow } from "./figure-shadow.ts";
 import { walkFrameIndex } from "./figures.ts";
@@ -140,21 +140,30 @@ export class NpcCrowd {
     }));
   }
 
-  /** The NPCs with a short dialog as bubble participants; one without a short dialog has no bubble (GAME-37). */
-  participants(player: Point): BubbleParticipant[] {
+  /**
+   * The NPCs whose dialogue has a greeting as bubble participants; one without a greeting has no bubble (GAME-37). The
+   * bubble holds the greeting only, no portrait and no name; `labels` are the labels of the objects and NPCs by id,
+   * so that the bubble stands above the label of its NPC.
+   */
+  participants(
+    player: Point,
+    labels: ReadonlyMap<string, string> = new Map(),
+  ): BubbleParticipant[] {
     const onTap = this.#onTap;
     return this.#members.flatMap((member) => {
-      const { spec, walker, sprite, figure, texts, area } = member;
+      const { spec, walker, figure, texts, area } = member;
       if (this.#board === undefined || texts?.dialog === undefined) return [];
+      const id = `npc:${spec.name}`;
       return [
         {
-          id: `npc:${spec.name}`,
+          id,
           distance: Math.hypot(walker.position.x - player.x, walker.position.y - player.y),
-          head: { x: sprite.x, y: sprite.y - figure.size.height },
-          content: { name: npcTitle(spec, texts), greeting: texts.dialog },
-          photo: texts.portrait,
-          openTiles: NPC_BUBBLE_OPEN_TILES,
-          closeTiles: NPC_BUBBLE_CLOSE_TILES,
+          // The top of its body, where its label stands too: the sprite is drawn a little lower than its feet.
+          head: { x: walker.position.x, y: walker.position.y - figure.size.height },
+          content: { name: npcTitle(spec, texts), greeting: texts.dialog, compact: true },
+          labelText: labels.get(id),
+          openTiles: GREETING_BUBBLE_OPEN_TILES,
+          closeTiles: GREETING_BUBBLE_CLOSE_TILES,
           // A tap on the bubble does what a tap on the NPC does; an NPC without an action pins it like a guest.
           ...(area === undefined || onTap === undefined
             ? {}

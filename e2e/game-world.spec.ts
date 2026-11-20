@@ -5,7 +5,7 @@
 // and do not depend on each other. A test that changes a shared setting is put back by the hook below, also on failure.
 import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test, type Locator, type Page } from "@playwright/test";
 import { dialogueSlug } from "../backend/src/dialogue/id.ts";
 import { buildTestWorld, TEST_WORLD_NAME } from "../backend/src/world/build.ts";
 import {
@@ -52,7 +52,8 @@ test.afterEach(async ({ browser, baseURL }) => {
 });
 
 /** The figure names of the dialogues that tests make for the sexton, which the hook above removes. */
-const SEXTON_DIALOGUES = ["Küster Fritz", "Wirt"];
+const LONG_NAME = "Anreise, Parkplätze und Haltestellen rund um die Kirche";
+const SEXTON_DIALOGUES = ["Küster Fritz", "Wirt", LONG_NAME];
 
 /** The CSRF header of the signed-in user, for the requests that change something. */
 async function csrfHeaders(page: Page): Promise<Record<string, string>> {
@@ -1056,8 +1057,13 @@ test("[MAP-21][CNT-09][GAME-37] the admin makes a dialogue with a greeting for t
   // The game time is advanced by hand: the walks and waits of the figures do not depend on the speed of the machine.
   const bubble = page.locator('[data-testid="guest-bubble"][data-guest="npc:kuester"]');
   await advanceUntil(page, () => bubble.isVisible(), 10_000);
-  await expect(bubble).toContainText("Küster Fritz");
-  await expect(bubble).toContainText("Psst, hier entlang zum Programm!");
+  // A greeting bubble holds the greeting only (no portrait, no name); the label names the figure, and stays.
+  await expect(bubble).toHaveText("Psst, hier entlang zum Programm!");
+  await expect(bubble).toHaveAttribute("aria-label", "Küster Fritz");
+  await expect(bubble.locator("img")).toHaveCount(0);
+  await expect(page.locator('[data-testid="object-label"][data-label="npc:kuester"]')).toHaveText(
+    "Küster Fritz",
+  );
   const sexton = async () => (await gameState(page)).npcs.find((npc) => npc.name === "kuester");
   expect(await sexton()).toMatchObject({ bubble: true, moving: false, tappable: true });
   await page.screenshot({ path: testInfo.outputPath("game-npc-bubble.png") });
@@ -1127,6 +1133,97 @@ test("[GAME-39][GAME-37][GAME-40] an NPC outside the view has an indicator named
   // The dialogue is open above the paused game: no indicator over it (GAME-11).
   await expect(indicator).toBeHidden();
   await page.setViewportSize({ width: 1280, height: 720 });
+});
+
+test("[GAME-37][CNT-09] an object and an NPC with a greeting show it in a speech bubble; only the nearest one's bubble is open, and a greeting bubble holds the greeting only, above the label", async ({
+  page,
+  context,
+}) => {
+  test.setTimeout(120_000);
+  await signInAsAdmin(page, context);
+  const wirt = await ensureDialogue(page, "Wirt", "Prost!");
+  const fritz = await ensureDialogue(page, "Küster Fritz", "Psst, hier entlang!");
+  await assignAction(page, "kirche", "altar", { kind: "dialog", dialogId: wirt });
+  await assignAction(page, "kirche", "kuester", { kind: "dialog", dialogId: fritz });
+  await enterGame(page);
+  await expect(page.getByTestId("game-canvas")).toBeVisible({ timeout: 20_000 });
+  const bubbles = page.getByTestId("guest-bubble");
+  const sextonBubble = page.locator('[data-testid="guest-bubble"][data-guest="npc:kuester"]');
+  const altarBubble = page.locator('[data-testid="guest-bubble"][data-guest="object:altar"]');
+
+  // At the start both are within 4 tiles of the player; the sexton is nearer, so his is the only bubble.
+  await advanceUntil(page, () => sextonBubble.isVisible(), 10_000);
+  await expect(bubbles).toHaveCount(1);
+  await expect(sextonBubble).toHaveText("Psst, hier entlang!");
+  await expect(sextonBubble).toHaveAttribute("data-compact", "true");
+  await expect(sextonBubble.locator("img")).toHaveCount(0);
+  // It is as small as its text: narrower than the bubble of a guest (214 pixels).
+  const box = await sextonBubble.boundingBox();
+  expect(box?.width).toBeLessThan(180);
+  // His label stays, and the bubble stands above it, not over it.
+  const label = page.locator('[data-testid="object-label"][data-label="npc:kuester"]');
+  await expect(label).toHaveText("Küster Fritz");
+  const labelBox = await label.boundingBox();
+  expect((box?.y ?? 0) + (box?.height ?? 0)).toBeLessThanOrEqual(labelBox?.y ?? 0);
+
+  // Walking to the altar makes it the nearest: its bubble takes over, and again there is one only.
+  const target = await pagePoint(page, { x: 128, y: 112 });
+  await page.mouse.click(target.x, target.y);
+  await advanceUntil(page, () => altarBubble.isVisible(), 30_000);
+  await expect(bubbles).toHaveCount(1);
+  await expect(altarBubble).toHaveText("Prost!");
+  await expect(sextonBubble).toHaveCount(0);
+
+  // A tap on the greeting of an object does what a tap on the object does: its dialogue opens.
+  const dialogue = page.getByTestId("dialogue-box");
+  await advanceUntil(
+    page,
+    async () => {
+      if (await dialogue.isVisible()) return true;
+      if (!(await altarBubble.isVisible())) return false;
+      await altarBubble.click({ timeout: 5_000 });
+      return false;
+    },
+    30_000,
+  );
+  await expect(dialogue).toContainText("Wirt");
+});
+
+test("[GAME-26][GAME-41] a long name is not cut off: the label of an object in sight and the label of an edge indicator wrap onto more lines", async ({
+  page,
+  context,
+}) => {
+  test.setTimeout(90_000);
+  await signInAsAdmin(page, context);
+  const id = await ensureDialogue(page, LONG_NAME, "");
+  await assignAction(page, "kirche", "altar", { kind: "dialog", dialogId: id });
+  /** Whether the text of an element shows whole: nothing is cut off by the box, its lines are all visible. */
+  const showsWhole = (locator: Locator) =>
+    locator.evaluate((element) => ({
+      whole:
+        element.scrollHeight <= element.clientHeight + 1 &&
+        element.scrollWidth <= element.clientWidth + 1,
+      height: element.clientHeight,
+      width: element.clientWidth,
+    }));
+
+  // In sight: a pill that is wider than the old limit of 160 pixels would allow, or has more than one line.
+  await enterGame(page);
+  await expect(page.getByTestId("game-canvas")).toBeVisible({ timeout: 20_000 });
+  const label = page.locator('[data-testid="object-label"][data-label="object:altar"]');
+  await expect(label).toHaveText(LONG_NAME, { timeout: 10_000 });
+  const inSight = await showsWhole(label);
+  expect(inSight.whole).toBe(true);
+  expect(inSight.height > 22 || inSight.width > 160).toBe(true);
+
+  // Out of sight, on a phone-sized view: the label of its edge indicator, whole as well.
+  await page.setViewportSize({ width: 360, height: 420 });
+  const indicator = page.locator('[data-indicator="object:altar"]');
+  await expect(indicator).toBeVisible({ timeout: 10_000 });
+  await expect(indicator).toContainText(LONG_NAME);
+  const onEdge = await showsWhole(indicator.locator("span").last());
+  expect(onEdge.whole).toBe(true);
+  expect(onEdge.height > 22 || onEdge.width > 160).toBe(true);
 });
 
 test("[GAME-41][GAME-40] an object, portal or NPC in sight carries its label, named by the title of what it opens, whatever else it is, unless the admin turned showIndicator off", async ({

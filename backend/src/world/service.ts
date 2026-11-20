@@ -239,6 +239,7 @@ export class WorldService {
       actions: this.#overridesOf(active),
       npcs: this.#publicNpcs(active),
       dialogues: this.#dialogueNames(),
+      greetings: this.#publicGreetings(active),
       indicators: this.#hiddenIndicators(active).map((item) => ({ ...item, showIndicator: false })),
       // Format version 3: without the metadata of the bird there are no birds (GAME-32).
       bird: existsSync(join(this.directory, active.importId, WORLD_BIRD_METADATA)),
@@ -270,6 +271,34 @@ export class WorldService {
       .where(eq(dialogues.eventId, this.#event.eventId))
       .all()
       .sort((a, b) => a.id.localeCompare(b.id));
+  }
+
+  /**
+   * The greetings of the clickable objects whose effective action (the admin's assignment, else the Tiled preset) is a
+   * dialogue with a greeting: the text of the speech bubble over the object (GAME-37, CNT-09). The NPCs have theirs in
+   * `npcs`.
+   */
+  #publicGreetings(world: StoredWorld): { map: string; object: string; greeting: string }[] {
+    const actions = new Map(
+      this.#storedOverrides().map((item) => [`${item.map}/${item.object}`, item.action]),
+    );
+    const greetings = new Map(
+      this.#database.db
+        .select({ id: dialogues.id, greeting: dialogues.greeting })
+        .from(dialogues)
+        .where(eq(dialogues.eventId, this.#event.eventId))
+        .all()
+        .flatMap((row) =>
+          row.greeting === null || row.greeting === "" ? [] : [[row.id, row.greeting] as const],
+        ),
+    );
+    return this.#objectsOf(world).flatMap((map) =>
+      map.clickables.flatMap((clickable) => {
+        const action = actions.get(`${map.id}/${clickable.name}`) ?? clickable.preset;
+        const greeting = action?.kind === "dialog" ? greetings.get(action.dialogId) : undefined;
+        return greeting === undefined ? [] : [{ map: map.id, object: clickable.name, greeting }];
+      }),
+    );
   }
 
   /**

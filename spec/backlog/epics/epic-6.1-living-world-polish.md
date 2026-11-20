@@ -24,6 +24,8 @@ Added 2026-11-19, after the project owner tried epic 6. A set of improvements to
 11. When a new release is deployed, the installed app updates itself, which it does not today, and the icon on the home screen follows when it has changed.
 12. Check that resources are freed when the app is closed: the project owner's iPhone gets noticeably slower after closing the app.
 13. Overlays opening in the game world stutter and lag on iOS. They should open smoothly.
+14. (2026-11-20) The labels of edge indicators and the labels in sight elide too early: longer site names must show without eliding.
+15. (2026-11-20, acceptance criterion of story 6.1d) The greeting speech bubbles of NPCs show no portrait and are as small as possible to hold the greeting text.
 
 **Decisions** (2026-11-19, with the project owner; the numbers are those of the open questions of the first sketch):
 1. **Dialogue id (Q1):** the admin no longer enters it. The id is made from the figure name when the dialogue is created and is shown read-only in the dialogue's panel, so that Tiled presets (`action: dialog`, `contentId`) keep working.
@@ -80,13 +82,18 @@ Mock screens: admin Erlebniswelt (Dialoge, Objekte & Portale).
 Requirements: CNT-09.
 Re-verified: MAP-21, GAME-39, GAME-40, GAME-41 (reworded).
 
-### Story 6.1d – One speech bubble, greetings from 4 tiles
+### Story 6.1d – One speech bubble, greetings from 4 tiles — Done (2026-11-20)
 
 - NPCs (and objects, decision 3) whose dialogue has a greeting show it in a speech bubble from 4 tiles away, like guest figures.
 - Only one speech bubble is visible, the nearest figure's (decision 4).
 - Reworded in this story: **GAME-37** "When the player comes within 4 tiles of a clickable object or NPC whose dialogue has a greeting, it shows the greeting in a speech bubble; an NPC stops and turns to the player. Only one speech bubble is visible at a time: of the guest figures, objects and NPCs whose range the player is in, the nearest one's (decision 4)." **PRES-10**: "several bubbles can be open at once, and of bubbles that would overlap, only the nearest figure's is shown" becomes "only one speech bubble is visible at a time (GAME-37)".
+- Added by the project owner, 2026-11-20 (acceptance criterion): the greeting bubbles of NPCs (and, being the same bubble, of objects) show **no portrait** and are **as small as possible to contain the greeting text**: no picture, no initials, no name; the label of the figure stays and the bubble stands above it.
+- Added by the project owner, 2026-11-20 (finding 14): the **labels of edge indicators and in-sight labels elide too early**: it must be possible to have longer site names without eliding. The limit of 160 pixels in one line is gone: a label is at most 260 pixels wide and wraps onto up to three lines; only a text beyond three lines is cut off.
+- Built: `GET /api/world` lists the greetings of clickable objects (`greetings`); `chooseBubbles` returns one bubble (the pinned one, else the nearest); greeting bubbles are compact (`greetingBubbleSize`, text only, hanging from the figure's top, above the label by `labelClearance`) and open from 4 tiles, closing beyond 4.5; an object's distance is that to the nearest point of its picture or shape (`distanceToRect`); a tap on an object's greeting taps the object. The label of an NPC no longer hides while its bubble is open. Labels wrap (`labelLines`, `objectLabelHeight`).
+- Decided while building: PRES-10 keeps its rule that a pinned bubble stays until its cross is used (decision 4 says "until the player walks away", which is the same bubble: it is the guests' bubble that can be pinned, and it is the one that does not close when the player walks away); no other bubble opens while one is pinned. The bubble of an NPC is anchored at the top of its body, where its label stands, not at the sprite, which is drawn a little lower.
+- Also stabilized: five frontend unit tests (profiles, seating, theme, entry) failed now and then in a full run, always just after one second: the default of Testing Library for `findBy*` and `waitFor` is 1000 ms, which a run of 167 test files at once exceeds. `asyncUtilTimeout` is now 5000 ms in `frontend/src/test/setup.ts`; it only decides how long a test that really fails waits.
 Requirements: none new.
-Re-verified: GAME-37, PRES-10 (reworded).
+Re-verified: GAME-37, PRES-10 (reworded), GAME-26, GAME-41 (labels wrap).
 
 ### Story 6.1e – Welcome dialogue on the first entry
 

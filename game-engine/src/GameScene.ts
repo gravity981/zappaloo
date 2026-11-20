@@ -9,15 +9,28 @@ import { walkFrameIndex } from "./figures.ts";
 import { Atmosphere } from "./atmosphere.ts";
 import { atmospherePlan, prefersReducedMotion } from "./atmosphere-plan.ts";
 import { TileAnimations, type AnimatedPicture } from "./tile-animation.ts";
-import { BubbleBoard } from "./bubble-board.ts";
+import { BubbleBoard, type BubbleParticipant } from "./bubble-board.ts";
+import { GREETING_BUBBLE_CLOSE_TILES, GREETING_BUBBLE_OPEN_TILES } from "./bubble.ts";
 import { ObjectLabelLayer } from "./object-label-layer.ts";
-import { chooseObjectLabels, objectLabelBox, objectLabelWidth } from "./object-labels.ts";
+import {
+  chooseObjectLabels,
+  objectLabelBox,
+  objectLabelHeight,
+  objectLabelWidth,
+} from "./object-labels.ts";
 import { NpcCrowd } from "./npc-crowd.ts";
 import { npcTitle, npcKey } from "./npc-texts.ts";
 import { GuestCrowd } from "./guest-crowd.ts";
 import type { GuestFigure } from "@zappaloo/shared";
 import { figureDepth, figureOcclusionSegment, occlusionSegmentRelation } from "./draw-order.ts";
-import { interiorPoint, mapBounds, type Point, polygonCentre, tileToPixel } from "./geometry.ts";
+import {
+  distanceToRect,
+  interiorPoint,
+  mapBounds,
+  type Point,
+  polygonCentre,
+  tileToPixel,
+} from "./geometry.ts";
 import { cellKey, findPath, reachableCells, type Cell, type Grid } from "./pathfinding.ts";
 import {
   navigationGrid,
@@ -532,6 +545,52 @@ export class WorldScene extends Phaser.Scene {
     camera.centerOn(player.x, player.y);
   }
 
+  /** The box of an object in the map: its picture's, or its shape's when it has no picture. */
+  #boundsOf(objectId: number | undefined, polygon: Point[]): Rect {
+    const sprite = objectId === undefined ? undefined : this.#objectSprites.get(objectId);
+    if (sprite !== undefined) {
+      const box = sprite.getBounds();
+      return { x: box.x, y: box.y, width: box.width, height: box.height };
+    }
+    const xs = polygon.map((point) => point.x);
+    const ys = polygon.map((point) => point.y);
+    const x = Math.min(...xs);
+    const y = Math.min(...ys);
+    return { x, y, width: Math.max(...xs) - x, height: Math.max(...ys) - y };
+  }
+
+  /**
+   * The clickable objects whose dialogue has a greeting, as bubble participants (GAME-37, CNT-09): the greeting shows over
+   * the top of the object when the player is within 4 tiles of its shape, and a tap on it does what a tap on the object
+   * does. `labels` are the labels in sight by id, so that the bubble stands above the label.
+   */
+  #objectGreetings(labels: ReadonlyMap<string, string>): BubbleParticipant[] {
+    const world = this.#world;
+    const map = this.#map;
+    if (world === undefined || map === undefined) return [];
+    return map.clickables.flatMap((area) => {
+      const greeting = world.greetings.get(npcKey(map.id, area.name));
+      if (greeting === undefined) return [];
+      const box = this.#boundsOf(area.objectId, area.polygon);
+      const id = `object:${area.name}`;
+      return [
+        {
+          id,
+          distance: distanceToRect(this.#position, box),
+          head: { x: box.x + box.width / 2, y: box.y },
+          content: { name: labels.get(id) ?? area.label ?? area.name, greeting, compact: true },
+          labelText: labels.get(id),
+          openTiles: GREETING_BUBBLE_OPEN_TILES,
+          closeTiles: GREETING_BUBBLE_CLOSE_TILES,
+          onTap: () => {
+            if (this.sys.isActive() && !this.#transitioning)
+              this.#tapTo(interiorPoint(area.polygon));
+          },
+        },
+      ];
+    });
+  }
+
   /**
    * The objects that may get an edge indicator: the clickable objects with an action and the portals with a target
    * (GAME-26). Their bounds are the picture's, or the shape's when the object has no picture.
@@ -541,18 +600,8 @@ export class WorldScene extends Phaser.Scene {
     const parent = this.game.canvas.parentElement;
     if (world === undefined || parent === null) return;
     const options = this.game.registry.get(ENGINE_CONFIG_REGISTRY_KEY) as GameEngineOptions;
-    const bounds = (objectId: number | undefined, polygon: Point[]): Rect => {
-      const sprite = objectId === undefined ? undefined : this.#objectSprites.get(objectId);
-      if (sprite !== undefined) {
-        const box = sprite.getBounds();
-        return { x: box.x, y: box.y, width: box.width, height: box.height };
-      }
-      const xs = polygon.map((point) => point.x);
-      const ys = polygon.map((point) => point.y);
-      const x = Math.min(...xs);
-      const y = Math.min(...ys);
-      return { x, y, width: Math.max(...xs) - x, height: Math.max(...ys) - y };
-    };
+    const bounds = (objectId: number | undefined, polygon: Point[]): Rect =>
+      this.#boundsOf(objectId, polygon);
     const sources: IndicatorSource[] = [];
     for (const area of map.clickables) {
       const action = actionOf(world.actions, map.id, area);
@@ -632,8 +681,8 @@ export class WorldScene extends Phaser.Scene {
 
   /**
    * The labels of the objects in sight (GAME-41): an object, portal or NPC with an indicator that is not outside the
-   * view carries its label on top, the nearest first and without overlaps. An NPC whose speech bubble is open
-   * shows no label: the bubble names it.
+   * view carries its label on top, the nearest first and without overlaps. A label stays while a greeting bubble is
+   * open over its figure: the bubble holds the greeting only, so the label names the figure.
    */
   #updateLabels(): void {
     const layer = this.#labelLayer;
@@ -646,13 +695,10 @@ export class WorldScene extends Phaser.Scene {
       y: (point.y - camera.midPoint.y) * CAMERA_ZOOM + view.height / 2,
     });
     const candidates = [...this.#indicatorSources, ...this.#npcIndicatorSources()]
-      .filter(
-        (source) =>
-          !isOutside(source.bounds, camera.worldView) &&
-          !(source.id.startsWith("npc:") && (this.#board?.isOpen(source.id) ?? false)),
-      )
+      // A greeting bubble does not name its figure, so the label stays while the bubble is open (GAME-37, GAME-41).
+      .filter((source) => !isOutside(source.bounds, camera.worldView))
       .map((source) => {
-        const width = objectLabelWidth(source.label);
+        const width = objectLabelWidth(source.label, view.width);
         return {
           source,
           width,
@@ -661,6 +707,7 @@ export class WorldScene extends Phaser.Scene {
             toView({ x: source.bounds.x + source.bounds.width / 2, y: source.bounds.y }),
             width,
             view,
+            objectLabelHeight(source.label, width),
           ),
           distance: Math.hypot(
             source.centre.x - this.#position.x,
@@ -1007,11 +1054,19 @@ export class WorldScene extends Phaser.Scene {
     const spritePosition = playerSpritePosition(this.#position, CAMERA_ZOOM, this.#pixelRatio());
     player.setPosition(spritePosition.x, spritePosition.y);
     this.#followPlayer();
-    // The guest figures and their bubbles, with the camera of this frame (PRES-10).
+    // The speech bubble, with the camera of this frame: only one is open (GAME-37), the pinned one or the nearest
+    // figure's, of the guest figures, the NPCs and the objects with a greeting (PRES-10).
+    const labels = new Map(
+      [...this.#indicatorSources, ...this.#npcIndicatorSources()].map((source) => [
+        source.id,
+        source.label,
+      ]),
+    );
     const shown =
       this.#board?.update([
         ...(this.#crowd?.participants(this.#position) ?? []),
-        ...(this.#npcs?.participants(this.#position) ?? []),
+        ...(this.#npcs?.participants(this.#position, labels) ?? []),
+        ...this.#objectGreetings(labels),
       ]) ?? new Set<string>();
     this.#crowd?.update(delta, this.#position, shown);
     // The NPC the player walks to waits for them (GAME-38).
