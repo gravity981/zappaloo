@@ -1107,6 +1107,10 @@ button {
 
 /* The signed-in pages: header with the account links, one column of content */
 .guest-site-head {
+  /* stays at the top while the page scrolls, so it never ends up under the status bar of an installed app */
+  position: sticky;
+  top: 0;
+  z-index: 10;
   display: flex;
   align-items: center;
   flex-wrap: wrap;
@@ -1119,6 +1123,15 @@ button {
 .guest-site-head b {
   font: 600 16px/1.15 var(--a-display);
   margin-right: 16px;
+}
+/* The heading font is a web font whose ascent and descent are often far from equal, so centring its line box does not
+   centre the letters (seen on iOS). Where the browser can trim the box to the capital letters (Safari 18.2, Chrome 133)
+   the letters themselves are centred; the padding gives the trimmed box back some room, as in the game's bar. */
+@supports (text-box: trim-both cap alphabetic) {
+  .guest-site-head b {
+    text-box: trim-both cap alphabetic;
+    padding: 0.3em 0;
+  }
 }
 .guest-site-head nav {
   display: flex;

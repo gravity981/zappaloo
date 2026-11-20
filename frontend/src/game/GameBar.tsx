@@ -4,19 +4,27 @@
 import { useTranslation } from "react-i18next";
 import { Link } from "react-router";
 import { markWebsiteVisit } from "../app/gameEntry.ts";
+import { websiteResponseSchema } from "@zappaloo/shared";
+import { useApiData } from "../app/useApi.ts";
 import { useSiteName } from "../guest/site.ts";
+import { useEventFormat } from "../rsvp/format.ts";
 import { SITE_ICON_PATHS } from "../app/siteIconPaths.ts";
 import { SiteIcon } from "../app/siteIcons.tsx";
 
 export default function GameBar() {
   const { t } = useTranslation();
   const name = useSiteName();
-  // Two translucent pills over the world: the event's name at the top left, "Webseite" at the top right.
+  const format = useEventFormat();
+  const website = useApiData("/api/website", websiteResponseSchema);
+  // Two translucent pills over the world: the event's name with its date under it at the top left, "Webseite" at the top right.
   return (
     <header className="game-bar">
-      <b className="game-bar-name">
-        <span>{name ?? t("app.name")}</span>
-      </b>
+      <div className="game-bar-name">
+        <b>
+          <span>{name ?? t("app.name")}</span>
+        </b>
+        {website?.eventDate && <small>{format.dayShort(website.eventDate)}</small>}
+      </div>
       <Link className="game-bar-web" to="/" onClick={markWebsiteVisit}>
         <SiteIcon path={SITE_ICON_PATHS.home} />
         {t("nav.site")}

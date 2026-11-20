@@ -150,8 +150,8 @@ body {
     overflow: hidden;
   }
 }
-/* The game's bar floats over the world: the event's name at the top left and "Webseite" at the top right, each in its own
-   rounded pill with a translucent background. The bar takes no clicks itself, so the world stays playable between the pills. */
+/* The game's bar floats over the world: the event's name (with its date under it) at the top left and "Webseite" at the top right, each in its own
+   rounded rectangle with a translucent background. The bar takes no clicks itself, so the world stays playable between the pills. */
 .game-window.guest {
   position: relative;
 }
@@ -160,9 +160,11 @@ body {
   top: 0;
   left: 0;
   right: 0;
-  z-index: 2;
+  /* Above every layer the engine puts over the canvas (indicators 4, bubbles 5, loading overlay 6, start screen 7), so the
+     bar neither shows for a moment before the start screen covers it, nor sinks under the loading veil of a portal. */
+  z-index: 8;
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
   gap: 8px;
   padding: calc(10px + env(safe-area-inset-top, 0px)) 12px 0;
@@ -174,10 +176,10 @@ body {
   align-items: center;
   gap: 6px;
   box-sizing: border-box;
-  height: 40px;
+  min-height: 40px;
   min-width: 0;
   padding: 0 14px;
-  border-radius: 999px;
+  border-radius: 12px;
   background: rgba(18, 18, 18, 0.45);
   color: #fff;
   font-family: inherit;
@@ -188,17 +190,38 @@ body {
   backdrop-filter: blur(4px);
 }
 /* The name is the event's title, so it uses the heading font and is larger; "Webseite" is a button in the body font. */
+/* With the date under it, as in the website's header, the pill grows to hold both lines. */
 .game-bar .game-bar-name {
-  padding: 0 18px;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 0;
+  padding: 4px 12px;
+}
+.game-bar .game-bar-name b {
+  display: block;
+  max-width: 100%;
+  min-width: 0;
   font-family: var(--a-display, inherit);
   font-size: 20px;
   line-height: 1.2;
+}
+.game-bar .game-bar-name small {
+  max-width: 100%;
+  margin-top: -2px;
+  overflow: hidden;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.3;
+  opacity: 0.85;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 /* The text sits in an inner span, centred by the pill's flex box. The theme's heading font is a web font whose ascent and
    descent are often far from equal, so centring its line box does not centre the letters (seen on iOS). Where the browser
    can trim the box to the capital letters (Safari 18.2, Chrome 133) the letters themselves are centred; the padding gives
    descenders the room that the trim takes, since the ellipsis clips at the padding box. */
-.game-bar .game-bar-name > span {
+.game-bar .game-bar-name b > span {
   display: block;
   min-width: 0;
   overflow: hidden;
@@ -206,7 +229,7 @@ body {
   white-space: nowrap;
 }
 @supports (text-box: trim-both cap alphabetic) {
-  .game-bar .game-bar-name > span {
+  .game-bar .game-bar-name b > span {
     text-box: trim-both cap alphabetic;
     padding: 0.3em 0;
   }
