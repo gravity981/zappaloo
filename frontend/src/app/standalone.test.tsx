@@ -114,6 +114,21 @@ describe("safe areas (PWA-04)", () => {
     expect(rule(sheet === "ui" ? ui : waiting, selector)).toContain(`env(${inset}`);
   });
 
+  it("[PWA-04] the header of the website is sticky, so it stays at the top and never ends under the status bar", () => {
+    const head = rule(ui, ".guest-site-head");
+    expect(head).toContain("position: sticky");
+    expect(head).toContain("top: 0");
+    // above the page's content and its sticky panel headers, below the pages that open over the game (z-index 50)
+    expect(Number(/z-index: (\d+)/.exec(head)?.[1])).toBeGreaterThan(5);
+    expect(Number(/z-index: (\d+)/.exec(head)?.[1])).toBeLessThan(50);
+  });
+
+  it("[PWA-04] the name in the header is trimmed to its capital letters where the browser can, so it is centred on an iPhone", () => {
+    expect(ui).toMatch(
+      /@supports \(text-box: trim-both cap alphabetic\) \{\s*\.guest-site-head b \{[^}]*text-box: trim-both cap alphabetic/,
+    );
+  });
+
   it("[PWA-04] the full-screen pages follow the visible height of a phone", () => {
     expect(rule(ui, ".guest")).toContain("100dvh");
     expect(rule(ui, ".admin")).toContain("100dvh");

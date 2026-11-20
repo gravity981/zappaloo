@@ -38,6 +38,17 @@ describe("the place of a label (GAME-41)", () => {
     expect(objectLabelBox({ x: 200, y: 10 }, 80, view).y).toBe(OBJECT_LABEL_MARGIN);
   });
 
+  it("[GAME-41][GAME-14] stays below a bar over the top of the view, whatever the object's height", () => {
+    const bar = 56;
+    expect(objectLabelBox({ x: 200, y: 10 }, 80, view, OBJECT_LABEL_HEIGHT, bar).y).toBe(
+      bar + OBJECT_LABEL_MARGIN,
+    );
+    // An object low enough that its label clears the bar keeps its place.
+    expect(objectLabelBox({ x: 200, y: 200 }, 80, view, OBJECT_LABEL_HEIGHT, bar).y).toBe(
+      objectLabelBox({ x: 200, y: 200 }, 80, view).y,
+    );
+  });
+
   it("[GAME-41] is as wide as its text in the label's font, plus the padding, so that a word fits on one line", () => {
     // A browser measures "Programm" at 70 px: the label is that and the padding, not an estimate that is too narrow.
     const measure = (text: string) => text.length * 8.75;

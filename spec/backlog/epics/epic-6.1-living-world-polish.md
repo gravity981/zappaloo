@@ -223,6 +223,16 @@ Added 2026-11-20 at the project owner's request, with the story 6.1i: dialogues 
 Requirements: CNT-10.
 Re-verified: CNT-02, CNT-08.
 
+### Story 6.1p – The game bar floats over the world, and a portal fades to white — Done (2026-11-20)
+
+Added 2026-11-20 at the project owner's request, after the first floating version (committed as "two rounded pills").
+- Decided (project owner, 2026-11-20): the bar is no full-width header in the website's colour but two boxes over the world: the event's name **with its date** (as in the website header) at the top left, Webseite at the top right; rounded rectangles (12 px), translucent dark, Webseite with a white border, the name larger and in the heading font, Webseite in the body font.
+- Built: `GameBar` is `position: absolute` over the game window and takes no taps except on Webseite; `z-index: 8`, above the engine's layers (4 – 7), so the start screen no longer covers it after it showed for a moment (the flash on re-entry on iPhone). New engine option `topInset` (a function read each frame): edge indicators (`indicatorInsets`), the labels of objects in sight (`objectLabelBox`) and speech bubbles (`placeBubble`) stay below the boxes. The game preview passes none.
+- iPhone: the name is trimmed to the capital letters (`text-box: trim-both cap alphabetic`) in the game bar and in the website header, because the web fonts of a theme have an ascent and a descent that differ; the website header is **sticky**, so it is not left under the status bar when the game is left (PWA-04).
+- Spec: GAME-14 and PWA-04 reworded, THM-17 no longer lists the game bar, GAME-43, the implementation notes of GAME-26 and of the bar; the mock `game` and `game-loading` show the new bar.
+- Added to the story (project owner, 2026-11-20): a portal fades the screen **out to white** (350 ms of game time, camera fade) and only then loads the new map; the white stays on a layer of the game (`whiteout.ts`) across the scene restart, the loading veil goes up over it, and the new map is entered with the flash from white as before (GAME-30).
+Requirements: GAME-14, GAME-26, GAME-30, GAME-37, GAME-41, PWA-04.
+
 ## Report
 
 <Added when the epic is complete, from the template in README.md.>

@@ -71,6 +71,16 @@ describe("where a bubble stands (PRES-10)", () => {
     expect(place.tail).toBe(107);
   });
 
+  it("[GAME-37][GAME-14] stays below a bar over the top of the view, with its margin", () => {
+    const bar = 56;
+    const high = placeBubble({ x: 400, y: 40 }, size, view, bar);
+    expect(high.y).toBe(bar + BUBBLE_MARGIN);
+    // A figure low in the view keeps the bubble where it was.
+    expect(placeBubble({ x: 400, y: 400 }, size, view, bar).y).toBe(
+      placeBubble({ x: 400, y: 400 }, size, view).y,
+    );
+  });
+
   it("[PRES-10] stays inside the view at the sides, and the tail still points at the figure", () => {
     const left = placeBubble({ x: 10, y: 300 }, size, view);
     expect(left.x).toBe(BUBBLE_MARGIN);

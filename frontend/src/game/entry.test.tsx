@@ -130,8 +130,24 @@ const profiles = {
   ],
 };
 
-function setup(options: { chosen?: boolean; answered?: boolean; world?: boolean } = {}) {
+function setup(
+  options: { chosen?: boolean; answered?: boolean; world?: boolean; eventDate?: string } = {},
+) {
   return fakeBackend({
+    ...(options.eventDate === undefined
+      ? {}
+      : {
+          "GET /api/website": () => ({
+            status: 200,
+            body: {
+              countdown: null,
+              eventDay: false,
+              eventDate: options.eventDate,
+              now: null,
+              next: null,
+            },
+          }),
+        }),
     "GET /api/session": () => signedIn,
     "GET /api/world": () => ({ status: 200, body: options.world === false ? null : world }),
     "GET /api/avatar": () => ({ status: 200, body: { persons: [person(options.chosen ?? true)] } }),
@@ -152,6 +168,25 @@ describe("entering the game", () => {
       "href",
       "/game",
     );
+  });
+
+  it("[GAME-14] the bar over the game shows the event's name with its date, as the website's header does, and Webseite", async () => {
+    setup({ eventDate: "2027-06-12" });
+    renderAt("/game");
+    expect(await screen.findByTestId("game-canvas")).toBeVisible();
+    const bar = screen.getByRole("banner");
+    expect(bar).toHaveClass("game-bar");
+    expect(await within(bar).findByText(/12\. Juni 2027/)).toBeVisible();
+    expect(within(bar).getByRole("link", { name: "Webseite" })).toHaveAttribute("href", "/");
+  });
+
+  it("[GAME-14] without a date of the event the bar shows the name alone", async () => {
+    setup();
+    renderAt("/game");
+    expect(await screen.findByTestId("game-canvas")).toBeVisible();
+    const bar = screen.getByRole("banner");
+    expect(within(bar).getByRole("link", { name: "Webseite" })).toBeVisible();
+    expect(bar.querySelector("small")).toBeNull();
   });
 
   it("[GAME-12] a direct link opens its target, and without a world the start page stays", async () => {

@@ -108,6 +108,27 @@ describe("who has an open bubble", () => {
     expect(bubble.y + bubble.height).toBe(300 - 8);
   });
 
+  it("[GAME-37][GAME-14] a bubble stays below the bar over the top of the view, which the app reports each time", () => {
+    let bar = 56;
+    const covered = new BubbleBoard(
+      {
+        parent,
+        closeLabel: "Schliessen",
+        project: (point) => point,
+        viewSize: () => ({ width: 800, height: 600 }),
+        topInset: () => bar,
+      },
+      TILE,
+    );
+    const high = { ...altar(0), head: { x: 300, y: 20 } };
+    expect(covered.place(high, 400, { width: 800, height: 600 }).y).toBeGreaterThanOrEqual(bar);
+    // A bar that is taller now (the date appeared) moves the bubble down with it.
+    const before = covered.place(high, 400, { width: 800, height: 600 }).y;
+    bar = 80;
+    expect(covered.place(high, 400, { width: 800, height: 600 }).y).toBeGreaterThan(before);
+    covered.destroy();
+  });
+
   it("[GAME-37][PRES-10] only one bubble is open at a time: of a guest, an NPC and an object whose range the player is in, the nearest", () => {
     const all = (npcDistance: number, guestDistance: number, objectDistance: number) =>
       board.update([

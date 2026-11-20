@@ -75,6 +75,7 @@ import { SHADOW_DEPTH_BELOW, figureShadow } from "./figure-shadow.ts";
 import { PORTAL_ARROW_BOB, PORTAL_ARROW_HOVER, PORTAL_ARROW_RISE } from "./portal-arrow.ts";
 import { EdgeIndicatorLayer } from "./edge-indicators.ts";
 import { hideLoadingOverlay, showLoadingOverlay } from "./loading-overlay.ts";
+import { hideWhiteout, showWhiteout } from "./whiteout.ts";
 import {
   hideStartScreen,
   LOADER_SHARE,
@@ -132,6 +133,8 @@ interface IndicatorSource {
 
 /** How long the screen flash of entering a map lasts, in milliseconds (GAME-30). */
 const FLASH_MS = 450;
+/** How long the screen fades out to white when a portal is taken, before the new map is loaded (GAME-30). */
+const WHITEOUT_MS = 350;
 
 /** The game registry's count of the maps entered in this game (test hook). */
 const ENTRIES_REGISTRY_KEY = "zappaloo.game-map-entries";
@@ -903,6 +906,8 @@ export class WorldScene extends Phaser.Scene {
   #enterMap(): void {
     hideLoadingOverlay(this.game);
     hideStartScreen(this.game);
+    // The white of the portal stays until the flash below has begun from white (GAME-30).
+    hideWhiteout(this.game);
     if (this.#artworkOnly) return;
     const entries = (this.game.registry.get(ENTRIES_REGISTRY_KEY) as number | undefined) ?? 0;
     if (this.#flash) {
@@ -1969,10 +1974,22 @@ export class WorldScene extends Phaser.Scene {
 
   #transition(mapId: string, spawn: string | undefined): void {
     this.#transitioning = true;
-    // The veil is put up now, and painted before the scene restarts at the next frame; the new scene takes it down
-    // when it is ready (GAME-30).
+    // The screen fades out to white first (GAME-30); only when it is white is the new map loaded. The restart throws
+    // the camera's fade away, so a white layer of the game takes over at that moment, and the loading veil goes up
+    // over it; the new scene takes both down when it is ready, and enters with its flash from white.
     const options = this.game.registry.get(ENGINE_CONFIG_REGISTRY_KEY) as GameEngineOptions;
-    showLoadingOverlay(this.game, options.texts?.loading);
-    this.scene.restart({ mapId, spawn: spawn ?? "start" });
+    this.cameras.main.fade(
+      WHITEOUT_MS,
+      255,
+      255,
+      255,
+      true,
+      (_camera: unknown, progress: number) => {
+        if (progress < 1) return;
+        showWhiteout(this.game);
+        showLoadingOverlay(this.game, options.texts?.loading);
+        this.scene.restart({ mapId, spawn: spawn ?? "start" });
+      },
+    );
   }
 }

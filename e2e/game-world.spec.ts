@@ -259,7 +259,7 @@ test("[GAME-24][GAME-28][GAME-29] a tap on the ground shows the marker while the
   expect(Math.hypot(after.x - before.x, after.y - before.y)).toBeGreaterThan(20);
 });
 
-test("[GAME-10][GAME-03][GAME-30] a tap walks the player into the portal, which leads to the next map, behind a loading veil and with a screen flash; the device remembers the map", async ({
+test("[GAME-10][GAME-03][GAME-30] a tap walks the player into the portal, which leads to the next map, after a white-out, behind a loading veil and with a screen flash; the device remembers the map", async ({
   page,
   context,
 }) => {
@@ -269,11 +269,13 @@ test("[GAME-10][GAME-03][GAME-30] a tap walks the player into the portal, which 
   expect(first.entries).toBe(1);
   // Notes whether the grey loading veil is put up while the next map is built (GAME-30).
   await page.evaluate(() => {
-    const seen = window as unknown as { sawLoadingVeil?: boolean };
+    const seen = window as unknown as { sawLoadingVeil?: boolean; sawWhiteout?: boolean };
     seen.sawLoadingVeil = false;
+    seen.sawWhiteout = false;
     new MutationObserver(() => {
       if (document.querySelector('[data-testid="map-loading"]') !== null)
         seen.sawLoadingVeil = true;
+      if (document.querySelector('[data-testid="map-whiteout"]') !== null) seen.sawWhiteout = true;
     }).observe(document.body, { childList: true, subtree: true });
   });
   // The portal "zum-garten" of the start map lies at the left corner of the map, around (32, 176) in map pixels.
@@ -284,7 +286,12 @@ test("[GAME-10][GAME-03][GAME-30] a tap walks the player into the portal, which 
   expect(
     await page.evaluate(() => (window as unknown as { sawLoadingVeil?: boolean }).sawLoadingVeil),
   ).toBe(true);
+  // The screen was white before the new map was loaded, and that white is gone once the map is ready (GAME-30).
+  expect(
+    await page.evaluate(() => (window as unknown as { sawWhiteout?: boolean }).sawWhiteout),
+  ).toBe(true);
   await expect(page.getByTestId("map-loading")).toHaveCount(0);
+  await expect(page.getByTestId("map-whiteout")).toHaveCount(0);
   await expect.poll(async () => (await readState(page))?.entries).toBe(2);
 
   await page.reload();
