@@ -97,8 +97,8 @@ All active requirements are listed here until their stage is delivered. Shrink t
 | SEC | SEC-04, SEC-06 – SEC-08 | 4 |
 | PERF | PERF-01, PERF-03, PERF-04 | 3 |
 | GAME | GAME-44 | 1 |
-| PWA | PWA-06, PWA-07 | 2 |
-| **Total** | | **62** |
+| PWA | PWA-07 | 1 |
+| **Total** | | **61** |
 
 The stage each requirement belongs to is listed in `sw-architecture.md`, section 28.
 

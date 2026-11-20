@@ -18,6 +18,7 @@ import GameLoading from "../game/GameLoading.tsx";
 import GameOverlay from "../game/GameOverlay.tsx";
 import type { Overlay } from "../game/GameOverlay.tsx";
 import { rsvpUnanswered } from "../rsvp/landing.ts";
+import { useHoldUpdate } from "../app/updateCheck.ts";
 
 const RSVP_PAGE = "rsvp";
 
@@ -65,6 +66,8 @@ export default function GamePage() {
   const welcomeOpen =
     welcomePending && firstEntry === false && overlay === undefined && welcome !== null;
   const shownDialogue = dialogue ?? (welcomeOpen ? welcome : undefined);
+  // A new release waits while an overlay, a dialogue or the guided first entry is open (PWA-06).
+  useHoldUpdate(overlay !== undefined || shownDialogue !== undefined || firstEntry !== false);
 
   const openPage = useCallback((page: string, label: string) => {
     setOverlay({ action: { kind: "page", page }, label });

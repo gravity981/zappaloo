@@ -123,10 +123,13 @@ Mock screens: game loading.
 - Note: the mock set has no "game loading" screen yet, so the screen was built from decision 8; the mock still has to be added.
 Requirements: GAME-43 (now implemented; left the "not yet implemented" list).
 
-### Story 6.1h – The installed app updates itself
+### Story 6.1h – The installed app updates itself — Done (2026-11-20), iPhone check open
 
 - The client notices a new release and reloads itself at a safe moment (decision 9). No service worker.
 - The new icon is served at once; on iOS the guest adds the app again (decision 9).
+- Built: `UpdateWatcher` (in `Root`) asks `GET /api/version` on start and on every `visibilitychange` to visible, and reloads when `isNewRelease` says the release differs (a server that only adds `-rc.N` runs the same build, like `displayVersion`). A page can hold the reload with `useHoldUpdate`: the game page holds it while an overlay, a dialogue or the guided first entry is open, and the reload follows when the last hold ends. Everywhere else it reloads at once. `/api/version` answers `no-store` and the client asks with `cache: "no-store"`. An unreachable server never reloads.
+- Decided while building: a reload happens once per server version and session (`sessionStorage`), so a cache between the server and the phone that still delivers the old client cannot cause a reload loop. Icons are served `no-cache` instead of `max-age=3600`, because the `apple-touch-icon` link in `index.html` cannot carry the version the manifest uses.
+- Open: a form being filled in on the website is reloaded with the page (the spec says "at once"); say so if the RSVP or a profile form should hold the update too. The check on the iPhone (suspend the installed app, deploy a release candidate, open it again) is still to do, then a row in the manual test protocol.
 Requirements: PWA-06.
 
 ### Story 6.1i – Resources freed in the background and on close
