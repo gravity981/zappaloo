@@ -490,6 +490,8 @@ export type WorldActive = z.infer<typeof worldActiveSchema>;
 export const worldStatusSchema = z.object({
   /** Whether guests may enter the world (MAP-19). */
   guestAccess: z.boolean(),
+  /** The id of the dialogue that opens once on the first entry (GAME-17); null: no welcome. */
+  welcomeDialogue: z.string().nullable(),
   active: worldActiveSchema.nullable(),
   previous: z.object({ name: z.string(), importedAt: z.string() }).nullable(),
 });
@@ -497,6 +499,9 @@ export type WorldStatus = z.infer<typeof worldStatusSchema>;
 
 /** `PUT /api/admin/world/guest-access` (MAP-19). */
 export const worldGuestAccessRequestSchema = z.strictObject({ enabled: z.boolean() });
+
+/** `PUT /api/admin/world/welcome-dialogue` (GAME-17): the dialogue's id, or null for no welcome. */
+export const worldWelcomeRequestSchema = z.strictObject({ dialogue: z.string().min(1).nullable() });
 
 // --- The actions of clickable objects (sw-architecture.md 14.2, GAME-06, MAP-15). ---
 
@@ -674,6 +679,8 @@ export const publicWorldSchema = z.object({
    * shows its edge indicator and label.
    */
   indicators: z.array(worldIndicatorSettingSchema).default([]),
+  /** The id of the welcome dialogue that opens once on the first entry (GAME-17); null: nothing opens. */
+  welcomeDialogue: z.string().nullable().default(null),
   /** Whether the world has a bird (`ambient/bird/metadata.json`, format version 3): without one there are no birds. */
   bird: z.boolean().default(false),
 });

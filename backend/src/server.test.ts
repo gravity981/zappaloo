@@ -73,5 +73,6 @@ describe("startup", () => {
     // It fails for the other prod settings, not for the event.
     expect(result.stderr).toContain("PUBLIC_URL: required in prod");
     expect(result.stderr).not.toContain("EVENT_SLUG");
-  });
+    // The test waits for a child process (up to 20 s), so it needs more than the default 10 s while the suite runs.
+  }, 30_000);
 });

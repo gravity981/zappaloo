@@ -690,6 +690,63 @@ describe("guest access to the world (MAP-19)", () => {
   });
 });
 
+describe("the welcome dialogue (GAME-17)", () => {
+  const pick = (ctx: TestContext, headers: Headers, dialogue: string | null) =>
+    ctx.app.inject({
+      method: "PUT",
+      url: "/api/admin/world/welcome-dialogue",
+      headers,
+      payload: { dialogue },
+    });
+  const makeDialogue = (ctx: TestContext, headers: Headers, npcName: string) =>
+    ctx.app.inject({
+      method: "POST",
+      url: "/api/admin/dialogues",
+      headers,
+      payload: { npcName, lines: ["Willkommen!"] },
+    });
+
+  it("[GAME-17] no dialogue is picked by default; the admin picks one, which the game's world names, and picks another or none", async () => {
+    context = await createTestApp();
+    const ctx = context;
+    ctx.event.setSetting("platformOpen", true, "cli");
+    const admin = await signIn(ctx, "boss", ["admin"]);
+    await upload(ctx, admin, buildTestWorld());
+    const guest = await signIn(ctx, "gast", ["vip"]);
+    const publicWorld = async () =>
+      bodyOf<PublicWorld>(await ctx.app.inject({ url: "/api/world", headers: guest }));
+    expect(await publicWorld()).toMatchObject({ welcomeDialogue: null });
+
+    await makeDialogue(ctx, admin, "Wirt");
+    await makeDialogue(ctx, admin, "Braut");
+    expect(bodyOf<WorldStatus>(await pick(ctx, admin, "wirt")).welcomeDialogue).toBe("wirt");
+    expect(await publicWorld()).toMatchObject({ welcomeDialogue: "wirt" });
+    // Only one dialogue welcomes.
+    await pick(ctx, admin, "braut");
+    expect(await publicWorld()).toMatchObject({ welcomeDialogue: "braut" });
+    expect(bodyOf<WorldStatus>(await pick(ctx, admin, null)).welcomeDialogue).toBeNull();
+    expect(await publicWorld()).toMatchObject({ welcomeDialogue: null });
+  });
+
+  it("[GAME-17] an unknown dialogue is refused, deleting the welcome dialogue ends the welcome, and only admins pick; each change is audited", async () => {
+    context = await createTestApp();
+    const ctx = context;
+    const staff = await signIn(ctx, "redakteur", ["staff"]);
+    expect((await pick(ctx, staff, null)).statusCode).toBe(403);
+    const admin = await signIn(ctx, "boss", ["admin"]);
+    await upload(ctx, admin, buildTestWorld());
+    expect((await pick(ctx, admin, "gibt-es-nicht")).statusCode).toBe(422);
+    await makeDialogue(ctx, admin, "Wirt");
+    await pick(ctx, admin, "wirt");
+    await ctx.app.inject({ method: "DELETE", url: "/api/admin/dialogues/wirt", headers: admin });
+    const status = await ctx.app.inject({ url: "/api/admin/world", headers: admin });
+    expect(bodyOf<WorldStatus>(status).welcomeDialogue).toBeNull();
+    expect(ctx.event.auditEntries().map((entry) => entry.action)).toContain(
+      "world.welcome_dialogue",
+    );
+  });
+});
+
 describe("the NPCs in Erlebniswelt: action and indicator like an object; name and greeting from the dialogue (MAP-21, CNT-09, GAME-37)", () => {
   const objects = async (ctx: TestContext, headers: Headers) =>
     bodyOf<WorldObjects>(await ctx.app.inject({ url: "/api/admin/world/objects", headers }));

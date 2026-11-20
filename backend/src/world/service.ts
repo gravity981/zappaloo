@@ -195,12 +195,52 @@ export class WorldService {
     });
   }
 
+  /** The id of the welcome dialogue (GAME-17), or null when the admin picked none. */
+  welcomeDialogue(): string | null {
+    const row = this.#database.db
+      .select({ id: dialogues.id })
+      .from(dialogues)
+      .where(and(eq(dialogues.eventId, this.#event.eventId), eq(dialogues.welcome, true)))
+      .get();
+    return row?.id ?? null;
+  }
+
+  /**
+   * Picks the welcome dialogue, or none with null (GAME-17). The flag lives on the dialogue, so deleting it ends the
+   * welcome by itself. Returns false when nothing changed; an unknown id is refused. Audited.
+   */
+  setWelcomeDialogue(id: string | null, actor: Actor): boolean {
+    const eventId = this.#event.eventId;
+    return this.#database.db.transaction((tx) => {
+      if (id !== null) {
+        const exists = tx
+          .select({ id: dialogues.id })
+          .from(dialogues)
+          .where(and(eq(dialogues.eventId, eventId), eq(dialogues.id, id)))
+          .get();
+        if (exists === undefined)
+          throw new WorldObjectError("target_not_found", "no such dialogue");
+      }
+      if (this.welcomeDialogue() === id) return false;
+      tx.update(dialogues).set({ welcome: false }).where(eq(dialogues.eventId, eventId)).run();
+      if (id !== null) {
+        tx.update(dialogues)
+          .set({ welcome: true })
+          .where(and(eq(dialogues.eventId, eventId), eq(dialogues.id, id)))
+          .run();
+      }
+      this.#event.audit(actor, "world.welcome_dialogue", { dialogue: id }, tx);
+      return true;
+    });
+  }
+
   /** The admin's view of the worlds (MAP-05, MAP-09). */
   status(): WorldStatus {
     const active = this.active();
     const previous = this.#role("previous");
     return {
       guestAccess: this.guestAccess(),
+      welcomeDialogue: this.welcomeDialogue(),
       active:
         active === undefined
           ? null
@@ -240,6 +280,7 @@ export class WorldService {
       npcs: this.#publicNpcs(active),
       dialogues: this.#dialogueNames(),
       greetings: this.#publicGreetings(active),
+      welcomeDialogue: this.welcomeDialogue(),
       indicators: this.#hiddenIndicators(active).map((item) => ({ ...item, showIndicator: false })),
       // Format version 3: without the metadata of the bird there are no birds (GAME-32).
       bird: existsSync(join(this.directory, active.importId, WORLD_BIRD_METADATA)),

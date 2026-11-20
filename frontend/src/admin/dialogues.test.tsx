@@ -57,7 +57,7 @@ function backend(extra: Record<string, () => { status: number; body?: unknown }>
     "GET /api/event": () => ({ status: 200, body: event }),
     "GET /api/admin/world": () => ({
       status: 200,
-      body: { active: null, previous: null, guestAccess: true },
+      body: { active: null, previous: null, guestAccess: true, welcomeDialogue: null },
     }),
     "GET /api/admin/dialogues": () => ({
       status: 200,

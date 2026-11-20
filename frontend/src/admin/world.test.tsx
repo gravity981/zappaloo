@@ -53,7 +53,7 @@ describe("game world › Welt & Import", () => {
       "GET /api/session": asAdmin,
       "GET /api/admin/world": () => ({
         status: 200,
-        body: { guestAccess: true, active: sommerfest, previous: null },
+        body: { guestAccess: true, welcomeDialogue: null, active: sommerfest, previous: null },
       }),
     });
     renderAt("/admin/world");
@@ -78,7 +78,7 @@ describe("game world › Welt & Import", () => {
       "GET /api/session": asAdmin,
       "GET /api/admin/world": () => ({
         status: 200,
-        body: { guestAccess: false, active: null, previous: null },
+        body: { guestAccess: false, welcomeDialogue: null, active: null, previous: null },
       }),
     });
     renderAt("/admin/world");
@@ -92,7 +92,7 @@ describe("game world › Welt & Import", () => {
       "GET /api/session": asAdmin,
       "GET /api/admin/world": () => ({
         status: 200,
-        body: { guestAccess: true, active: sommerfest, previous: null },
+        body: { guestAccess: true, welcomeDialogue: null, active: sommerfest, previous: null },
       }),
     });
     renderAt("/admin/world");
@@ -113,7 +113,7 @@ describe("game world › Welt & Import", () => {
       "GET /api/session": asAdmin,
       "GET /api/admin/world": () => ({
         status: 200,
-        body: { guestAccess: true, active: sommerfest, previous: null },
+        body: { guestAccess: true, welcomeDialogue: null, active: sommerfest, previous: null },
       }),
       "POST /api/admin/world": () => ({
         status: 422,
@@ -161,11 +161,14 @@ describe("game world › Welt & Import", () => {
       "GET /api/session": asAdmin,
       "GET /api/admin/world": () => ({
         status: 200,
-        body: { guestAccess: true, active, previous: null },
+        body: { guestAccess: true, welcomeDialogue: null, active, previous: null },
       }),
       "POST /api/admin/world": () => {
         active = sommerfest;
-        return { status: 200, body: { guestAccess: true, active, previous: null } };
+        return {
+          status: 200,
+          body: { guestAccess: true, welcomeDialogue: null, active, previous: null },
+        };
       },
     });
     renderAt("/admin/world");
@@ -185,12 +188,15 @@ describe("game world › Welt & Import", () => {
       "GET /api/session": asAdmin,
       "GET /api/admin/world": () => ({
         status: 200,
-        body: { guestAccess: true, active, previous: before },
+        body: { guestAccess: true, welcomeDialogue: null, active, previous: before },
       }),
       "POST /api/admin/world/rollback": () => {
         active = { ...sommerfest, name: "Erste Welt", importId: "imp-1" };
         before = { name: "Sommerfest", importedAt: sommerfest.importedAt };
-        return { status: 200, body: { guestAccess: true, active, previous: before } };
+        return {
+          status: 200,
+          body: { guestAccess: true, welcomeDialogue: null, active, previous: before },
+        };
       },
     });
     renderAt("/admin/world");
@@ -218,11 +224,14 @@ describe("game world › guest access (MAP-19)", () => {
       "GET /api/session": asAdmin,
       "GET /api/admin/world": () => ({
         status: 200,
-        body: { guestAccess, active: sommerfest, previous: null },
+        body: { guestAccess, welcomeDialogue: null, active: sommerfest, previous: null },
       }),
       "PUT /api/admin/world/guest-access": () => {
         guestAccess = false;
-        return { status: 200, body: { guestAccess, active: sommerfest, previous: null } };
+        return {
+          status: 200,
+          body: { guestAccess, welcomeDialogue: null, active: sommerfest, previous: null },
+        };
       },
     });
     renderAt("/admin/world");
@@ -249,7 +258,7 @@ describe("game world › guest access (MAP-19)", () => {
       "GET /api/session": asAdmin,
       "GET /api/admin/world": () => ({
         status: 200,
-        body: { guestAccess: false, active: null, previous: null },
+        body: { guestAccess: false, welcomeDialogue: null, active: null, previous: null },
       }),
     });
     renderAt("/admin/world");
@@ -312,7 +321,7 @@ describe("game world › Objekte & Portale (MAP-15)", () => {
       "GET /api/session": asAdmin,
       "GET /api/admin/world": () => ({
         status: 200,
-        body: { guestAccess: true, active: sommerfest, previous: null },
+        body: { guestAccess: true, welcomeDialogue: null, active: sommerfest, previous: null },
       }),
       "GET /api/admin/world/objects": () => ({ status: 200, body: objects }),
       "GET /api/content": () => ({ status: 200, body: site }),
@@ -345,7 +354,7 @@ describe("game world › Objekte & Portale (MAP-15)", () => {
       "GET /api/session": asAdmin,
       "GET /api/admin/world": () => ({
         status: 200,
-        body: { guestAccess: true, active: sommerfest, previous: null },
+        body: { guestAccess: true, welcomeDialogue: null, active: sommerfest, previous: null },
       }),
       "GET /api/admin/world/objects": () => ({ status: 200, body: objects }),
       "GET /api/content": () => ({ status: 200, body: site }),
@@ -374,7 +383,7 @@ describe("game world › Objekte & Portale (MAP-15)", () => {
       "GET /api/session": asAdmin,
       "GET /api/admin/world": () => ({
         status: 200,
-        body: { guestAccess: false, active: null, previous: null },
+        body: { guestAccess: false, welcomeDialogue: null, active: null, previous: null },
       }),
       "GET /api/admin/world/objects": () => ({
         status: 200,
@@ -417,7 +426,7 @@ describe("game world › Objekte & Portale › NPCs (MAP-21, GAME-37)", () => {
       "GET /api/session": asAdmin,
       "GET /api/admin/world": () => ({
         status: 200,
-        body: { guestAccess: true, active: sommerfest, previous: null },
+        body: { guestAccess: true, welcomeDialogue: null, active: sommerfest, previous: null },
       }),
       "GET /api/admin/world/objects": () => ({ status: 200, body: withNpcs }),
       "GET /api/content": () => ({ status: 200, body: site }),
@@ -499,7 +508,7 @@ describe("game world › Objekte & Portale › indicator and label (GAME-26, GAM
       "GET /api/session": asAdmin,
       "GET /api/admin/world": () => ({
         status: 200,
-        body: { guestAccess: true, active: sommerfest, previous: null },
+        body: { guestAccess: true, welcomeDialogue: null, active: sommerfest, previous: null },
       }),
       "GET /api/admin/world/objects": () => ({ status: 200, body: list }),
       "GET /api/content": () => ({ status: 200, body: site }),
@@ -527,5 +536,50 @@ describe("game world › Objekte & Portale › indicator and label (GAME-26, GAM
         { showIndicator: true },
       ]);
     });
+  });
+});
+
+describe("game world › welcome dialogue (GAME-17)", () => {
+  const dialogueList = {
+    dialogues: [
+      { id: "wirt", npcName: "Wirt", greeting: "", lines: 1, portrait: false, usedBy: [] },
+      { id: "braut", npcName: "Braut", greeting: "", lines: 2, portrait: false, usedBy: [] },
+    ],
+  };
+
+  it("[GAME-17] the admin picks the welcome dialogue from the dialogues, or none, and it is sent at once", async () => {
+    let welcomeDialogue: string | null = null;
+    const status = () => ({
+      status: 200,
+      body: { guestAccess: true, welcomeDialogue, active: sommerfest, previous: null },
+    });
+    const calls = fakeBackend({
+      "GET /api/session": asAdmin,
+      "GET /api/admin/world": status,
+      "GET /api/admin/dialogues": () => ({ status: 200, body: dialogueList }),
+      "PUT /api/admin/world/welcome-dialogue": () => {
+        const put = calls.filter((call) => call.method === "PUT").at(-1);
+        welcomeDialogue = (put?.body as { dialogue: string | null }).dialogue;
+        return status();
+      },
+    });
+    renderAt("/admin/world");
+    const select = await screen.findByRole("combobox", { name: "Begrüssungsdialog" });
+    expect(select).toHaveValue("");
+    expect(within(select).getByRole("option", { name: "– keiner –" })).toBeVisible();
+    fireEvent.change(select, { target: { value: "braut" } });
+    await waitFor(() => {
+      expect(screen.getByRole("combobox", { name: "Begrüssungsdialog" })).toHaveValue("braut");
+    });
+    const put = calls.find((call) => call.method === "PUT");
+    expect(put?.body).toEqual({ dialogue: "braut" });
+    expect(put?.csrf).toBe("csrf-9");
+    fireEvent.change(screen.getByRole("combobox", { name: "Begrüssungsdialog" }), {
+      target: { value: "" },
+    });
+    await waitFor(() => {
+      expect(calls.filter((call) => call.method === "PUT")).toHaveLength(2);
+    });
+    expect(calls.filter((call) => call.method === "PUT")[1]?.body).toEqual({ dialogue: null });
   });
 });

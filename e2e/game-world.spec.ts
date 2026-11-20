@@ -524,7 +524,7 @@ test("[AVA-01][AVA-02] the avatar editor offers an admin the tier3 figures only,
   await gameState(page);
 });
 
-test("[GAME-12][GAME-13][GAME-14][GAME-17] first entry: the avatar comes first, then the game with its bar and hint; the own avatar opens nothing; the sign-in lands in the game and Website leaves it", async ({
+test("[GAME-12][GAME-13][GAME-14][GAME-17] first entry: the avatar comes first, then the game with its bar and no hint; the own avatar opens nothing; the sign-in lands in the game and Website leaves it", async ({
   page,
   context,
 }) => {
@@ -537,13 +537,14 @@ test("[GAME-12][GAME-13][GAME-14][GAME-17] first entry: the avatar comes first, 
   await page.getByRole("group", { name: de.avatar.kind }).getByRole("button").first().click();
   await page.getByRole("button", { name: de.game.first.continue }).click();
 
-  // The game: the bar at the top, the hint for newcomers.
+  // The game: the bar at the top.
   await expect(page.getByTestId("game-canvas")).toBeVisible();
   // The bar has only the title and "Website" (GAME-14).
   const bar = page.getByRole("banner");
   await expect(bar.getByRole("link", { name: de.nav.site })).toBeVisible();
   await expect(bar.getByRole("button")).toHaveCount(0);
-  await expect(page.getByTestId("game-hint")).toBeVisible();
+  // The hint of earlier versions is gone (GAME-17: without a welcome dialogue nothing is shown).
+  await expect(page.getByText(/die funkeln/)).toHaveCount(0);
 
   // A tap on the own avatar opens nothing: the profile is reached through the website (GAME-18 withdrawn).
   const state = await gameState(page);

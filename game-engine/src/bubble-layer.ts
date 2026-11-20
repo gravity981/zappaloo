@@ -205,7 +205,8 @@ export class BubbleLayer {
     if (view.pinned) {
       const close = element(
         "button",
-        "position:absolute;top:-10px;right:-10px;width:24px;height:24px;padding:0;border:0;border-radius:50%;" +
+        "position:absolute;top:-10px;right:-10px;box-sizing:border-box;width:24px;height:24px;min-width:0;min-height:0;" +
+          "padding:0;margin:0;border:0;border-radius:50%;" +
           "background:#222;color:#fff;font:13px/1 system-ui,sans-serif;cursor:pointer;display:grid;place-items:center",
         "×",
       );

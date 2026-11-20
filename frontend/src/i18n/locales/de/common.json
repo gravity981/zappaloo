@@ -684,6 +684,9 @@
       "guestAccess": "Gästezugang zur Erlebniswelt",
       "guestAccessOn": "Gäste können die Erlebniswelt betreten.",
       "guestAccessOff": "Gäste können die Erlebniswelt nicht öffnen; die aktive Welt bleibt erhalten.",
+      "welcome": "Begrüssungsdialog",
+      "welcomeHint": "Öffnet sich einmal beim ersten Betreten der Erlebniswelt, nach dem Einstieg.",
+      "welcomeNone": "– keiner –",
       "importButton": "Welt importieren",
       "importing": "Wird importiert …",
       "imported": "Die Welt wurde importiert.",
@@ -842,10 +845,6 @@
     "loadFailed": "Die digitale Erlebniswelt konnte nicht geladen werden.",
     "noWorld": "Die digitale Erlebniswelt ist noch nicht eingerichtet.",
     "mapLoading": "Wird geladen …",
-    "hint": {
-      "touch": "Tippe auf Dinge, die funkeln",
-      "desktop": "Klicke auf Dinge, die funkeln – oder geh hin und drück Enter"
-    },
     "first": {
       "continue": "Weiter",
       "hello": {

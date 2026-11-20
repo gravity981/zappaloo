@@ -277,29 +277,81 @@ describe("entering the game", () => {
     }
   });
 
-  it("[GAME-07] the hint names the way of playing that suits the device: tapping on a phone, clicking and Enter with a mouse", async () => {
-    const matches = (pointerFine: boolean) => () => ({ matches: pointerFine });
-    for (const [fine, text] of [
-      [false, "Tippe auf Dinge, die funkeln"],
-      [true, "Klicke auf Dinge, die funkeln – oder geh hin und drück Enter"],
-    ] as const) {
-      vi.stubGlobal("matchMedia", matches(fine));
-      localStorage.clear();
-      setup();
-      renderAt("/game");
-      expect(await screen.findByTestId("game-hint")).toHaveTextContent(text);
-      cleanup();
-    }
+  /** The backend of a first entry with the welcome dialogue picked (or not): the guest has no figure yet. */
+  function welcomeSetup(options: { welcome: string | null; answered?: boolean }) {
+    return fakeBackend({
+      "GET /api/session": () => signedIn,
+      "GET /api/world": () => ({
+        status: 200,
+        body: { ...world, welcomeDialogue: options.welcome },
+      }),
+      "GET /api/avatar": () => ({ status: 200, body: { persons: [person(false)] } }),
+      "GET /api/profile/people": () => ({ status: 200, body: profiles }),
+      "GET /api/rsvp": () => ({ status: 200, body: rsvpState(options.answered ?? true) }),
+      "GET /api/programme": () => ({ status: 200, body: programme }),
+      "GET /api/dialogues/willkommen": () => ({
+        status: 200,
+        body: {
+          id: "willkommen",
+          npcName: "Brautpaar",
+          lines: ["Schön, dass ihr da seid!"],
+          portrait: null,
+        },
+      }),
+    });
+  }
+  const throughFirstEntry = async () => {
+    await screen.findByRole("heading", { name: "Wie siehst du aus?" });
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "Weiter" })).toBeEnabled();
+    });
+    user.click(screen.getByRole("button", { name: "Weiter" }));
+    await screen.findByRole("heading", { name: "Sag hallo" });
+    user.click(screen.getByRole("button", { name: "Überspringen" }));
+    await screen.findByTestId("game-canvas");
+  };
+
+  it("[GAME-17] the picked welcome dialogue opens once at the end of the first entry, and nothing else (no hint) shows", async () => {
+    welcomeSetup({ welcome: "willkommen" });
+    renderAt("/game");
+    await throughFirstEntry();
+    expect(await screen.findByRole("dialog", { name: "Brautpaar" })).toHaveTextContent(
+      "Schön, dass ihr da seid!",
+    );
+    expect(screen.queryByText(/die funkeln/)).toBeNull();
   });
 
-  it("[GAME-17] the hint shows until the first object is used, and does not come back", async () => {
-    setup();
+  it("[GAME-17] without a welcome dialogue nothing opens after the first entry", async () => {
+    welcomeSetup({ welcome: null });
     renderAt("/game");
-    expect(await screen.findByTestId("game-hint")).toBeVisible();
-    user.click(screen.getByRole("button", { name: "use object" }));
-    await waitFor(() => {
-      expect(screen.queryByTestId("game-hint")).toBeNull();
+    await throughFirstEntry();
+    expect(screen.queryByRole("dialog")).toBeNull();
+    expect(screen.queryByText(/die funkeln/)).toBeNull();
+  });
+
+  it("[GAME-13][GAME-17] an open RSVP comes first: the welcome opens when its overlay is closed", async () => {
+    welcomeSetup({ welcome: "willkommen", answered: false });
+    renderAt("/game");
+    await throughFirstEntry();
+    const rsvp = await screen.findByRole("dialog", { name: "Anmeldung" });
+    expect(screen.queryByRole("dialog", { name: "Brautpaar" })).toBeNull();
+    user.click(within(rsvp).getByRole("button", { name: /schliessen/i }));
+    expect(await screen.findByRole("dialog", { name: "Brautpaar" })).toBeVisible();
+  });
+
+  it("[GAME-17] a guest who already has a figure enters without the welcome", async () => {
+    fakeBackend({
+      "GET /api/session": () => signedIn,
+      "GET /api/world": () => ({
+        status: 200,
+        body: { ...world, welcomeDialogue: "willkommen" },
+      }),
+      "GET /api/avatar": () => ({ status: 200, body: { persons: [person(true)] } }),
+      "GET /api/rsvp": () => ({ status: 200, body: rsvpState(true) }),
+      "GET /api/programme": () => ({ status: 200, body: programme }),
     });
-    expect(localStorage.getItem("zappaloo.game.hintSeen")).toBe("1");
+    renderAt("/game");
+    expect(await screen.findByTestId("game-canvas")).toBeVisible();
+    expect(screen.queryByRole("dialog")).toBeNull();
   });
 });

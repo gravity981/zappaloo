@@ -642,6 +642,8 @@ export const dialogues = sqliteTable(
     npcName: text("npc_name").notNull(),
     /** The greeting in the speech bubble of the object or NPC that shows the dialogue; null: no speech bubble (CNT-09). */
     greeting: text("greeting"),
+    /** Whether this is the welcome dialogue that opens once on the first entry; at most one per event (GAME-17). */
+    welcome: integer("welcome", { mode: "boolean" }).notNull().default(false),
     /** The lines as a JSON array of Markdown texts. */
     lines: text("lines").notNull(),
     /** The portrait as uploaded (at most 1 MB), kept unchanged so that pixel art stays crisp (CNT-08). */

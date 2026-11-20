@@ -41,7 +41,7 @@ The decisions behind the mocks, by question number in the prototype's "Questions
 | 16, 41 | Game bar | Bar at the top: the event's name and "Website", which leaves the game (changed 2026-11-17: Programm, Anmeldung and Hochladen are objects of the world, not buttons). No buttons at the bottom, no event-day "now / next" in the game (GAME-14, WEB-07). |
 | 17, 40, 42 | World objects | Clickable objects come from the event's Tiled maps; each map has its own. They sparkle along their edges at random, and a shine passes over them now and then; tapping one walks the avatar there and runs its action. Portals between scenes are floating arrows. The admin assigns each object's action per map in "Erlebniswelt" (GAME-05, GAME-06, GAME-15, GAME-16, MAP-15). |
 | 40 | Own avatar | Tapping it does nothing special; the profile is reached through the website (GAME-18 withdrawn 2026-11-19, epic 6.1). |
-| 43 | Discoverability | The sparkle plus a hint at the first entry, "Tippe auf Dinge, die funkeln" (GAME-17). |
+| 43 | Discoverability | The sparkle, plus a welcome dialogue at the first entry that the admin picks in Erlebniswelt › Welt & Import (GAME-17; before epic 6.1 a hint "Tippe auf Dinge, die funkeln"). |
 | 18 | Overlay links | Links inside an overlay stay in the overlay. |
 | 19 | Website tabs | Start · Programm · Hochladen · Erinnerungen · Mehr (bottom tab bar on phones, top nav on desktop). |
 | 20 | Start page | Fixed layout. The hosts edit the hero image, the welcome text and the countdown switch. The cards are fixed (RSVP status, countdown, now / next, shortcuts). Changed 2026-11-13, see "Start page" under stage 4. |

@@ -100,8 +100,11 @@ Re-verified: GAME-37, PRES-10 (reworded), GAME-26, GAME-41 (labels wrap).
 Mock screens: game first entry, admin Erlebniswelt.
 - The hint of GAME-17 is replaced by a welcome dialogue the admin edits (decision 5).
 - Reworded in this story: **GAME-17** "On the first entry, after the guided start (GAME-13), the welcome dialogue that the admin picked in Erlebniswelt opens once; without one, nothing is shown."
+- Built: the admin picks the dialogue in Erlebniswelt › Welt & Import ("Begrüssungsdialog"); it is the flag `dialogues.welcome` (migration `0036`), `PUT /api/admin/world/welcome-dialogue`, `welcomeDialogue` in the world status and in `GET /api/world`. The game page opens it after the guided steps. The hint (`GameHint`, its style and its `hintSeen` key) is removed, and so is the unit test [GAME-07] of the hint's wording: GAME-07 stays covered by the end-to-end tests of the screen sizes.
+- Decided while building: GAME-13 puts the RSVP in the guided start, so the welcome opens after the RSVP overlay is closed (GAME-17 says "after the guided start"). It is shown once per first entry and not remembered on the device, so a guest who already has a figure does not get it.
+- Fixed with it (project owner, 2026-11-20): the cross of a pinned speech bubble was an ellipse in the game preview and a circle in the app. The preview's stylesheet gives every `button` `min-height: 2.4rem` and padding; the engine's cross set only width and height, so the preview stretched it. The cross now sets `min-width`, `min-height`, `padding`, `margin` and `box-sizing` itself, so no host stylesheet can change it (`bubble-layer.test.ts`).
 Requirements: none new.
-Re-verified: GAME-17 (reworded). Depends on 6.1c.
+Re-verified: GAME-17 (reworded), PRES-10 (the cross). Depends on 6.1c.
 
 ### Story 6.1f – Portal label higher
 

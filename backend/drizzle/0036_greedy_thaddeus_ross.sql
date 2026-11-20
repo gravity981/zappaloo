@@ -1,0 +1,1 @@
+ALTER TABLE `dialogues` ADD `welcome` integer DEFAULT false NOT NULL;

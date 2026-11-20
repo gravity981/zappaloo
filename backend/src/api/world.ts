@@ -12,6 +12,7 @@ import {
   worldObjectsSchema,
   worldRefusalSchema,
   worldStatusSchema,
+  worldWelcomeRequestSchema,
 } from "@zappaloo/shared";
 import type { FastifyPluginAsyncZod } from "fastify-type-provider-zod";
 import { NoPreviousWorld, WorldObjectError, WorldRefused } from "../world/service.ts";
@@ -97,6 +98,30 @@ const worldPlugin: FastifyPluginAsyncZod<WorldOptions> = (app, { world }) => {
     (request) => {
       world.setGuestAccess(request.body.enabled, actor(request));
       return world.status();
+    },
+  );
+
+  // The welcome dialogue that opens once on the first entry (GAME-17); null picks none.
+  app.put(
+    "/api/admin/world/welcome-dialogue",
+    {
+      ...admin,
+      schema: {
+        querystring: noQuery,
+        body: worldWelcomeRequestSchema,
+        response: { 200: worldStatusSchema, 422: worldRefusalSchema.pick({ error: true }) },
+      },
+    },
+    async (request, reply) => {
+      try {
+        world.setWelcomeDialogue(request.body.dialogue, actor(request));
+      } catch (error) {
+        if (error instanceof WorldObjectError) {
+          return reply.status(422).send({ error: { code: error.code, message: error.message } });
+        }
+        throw error;
+      }
+      return await reply.send(world.status());
     },
   );
 

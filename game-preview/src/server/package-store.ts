@@ -62,6 +62,8 @@ export class PreviewPackageStore {
           npcs: [],
           dialogues: [],
           greetings: [],
+          // ... and no welcome dialogue (GAME-17).
+          welcomeDialogue: null,
           indicators: [],
         },
         findings: result.findings,

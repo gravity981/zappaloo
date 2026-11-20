@@ -253,6 +253,13 @@
       "when": 1795163068202,
       "tag": "0035_wild_iron_monger",
       "breakpoints": true
+    },
+    {
+      "idx": 36,
+      "version": "6",
+      "when": 1795170251141,
+      "tag": "0036_greedy_thaddeus_ross",
+      "breakpoints": true
     }
   ]
 }
