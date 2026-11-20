@@ -26,6 +26,9 @@ export default defineConfig({
     // Fail instead of moving to another port that is not forwarded.
     strictPort: true,
     headers: noIndexHeaders,
+    // A phone reaches the dev server over the tailnet (`tailscale serve`, https://<machine>.<tailnet>.ts.net); Vite
+    // refuses any other Host name (protection against DNS rebinding). `.ts.net` is only reachable inside a tailnet.
+    allowedHosts: [".ts.net"],
     // The Host header stays the browser's (localhost:5173): the backend refuses a
     // state-changing request whose Origin differs from its Host (SEC-01).
     proxy: {
