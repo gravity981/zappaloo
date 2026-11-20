@@ -1,8 +1,8 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "5f776429-e037-4be3-bca9-54b6c15eba55",
-  "prevId": "c09895d3-2416-4517-8ae4-c553610eadb8",
+  "id": "3fe225d1-fbf4-4b8b-a187-96b6db0f74c7",
+  "prevId": "5f776429-e037-4be3-bca9-54b6c15eba55",
   "tables": {
     "access_releases": {
       "name": "access_releases",
@@ -892,6 +892,13 @@
           "type": "text",
           "primaryKey": false,
           "notNull": true,
+          "autoincrement": false
+        },
+        "greeting": {
+          "name": "greeting",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
           "autoincrement": false
         },
         "lines": {
@@ -2913,66 +2920,6 @@
         "world_hidden_indicators_event_id_map_id_object_name_pk": {
           "columns": ["event_id", "map_id", "object_name"],
           "name": "world_hidden_indicators_event_id_map_id_object_name_pk"
-        }
-      },
-      "uniqueConstraints": {},
-      "checkConstraints": {}
-    },
-    "world_npcs": {
-      "name": "world_npcs",
-      "columns": {
-        "event_id": {
-          "name": "event_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "map_id": {
-          "name": "map_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "npc_name": {
-          "name": "npc_name",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "title": {
-          "name": "title",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "dialog": {
-          "name": "dialog",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        }
-      },
-      "indexes": {},
-      "foreignKeys": {
-        "world_npcs_event_id_events_id_fk": {
-          "name": "world_npcs_event_id_events_id_fk",
-          "tableFrom": "world_npcs",
-          "tableTo": "events",
-          "columnsFrom": ["event_id"],
-          "columnsTo": ["id"],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {
-        "world_npcs_event_id_map_id_npc_name_pk": {
-          "columns": ["event_id", "map_id", "npc_name"],
-          "name": "world_npcs_event_id_map_id_npc_name_pk"
         }
       },
       "uniqueConstraints": {},

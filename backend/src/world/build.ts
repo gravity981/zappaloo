@@ -454,7 +454,7 @@ function maps(version: TestWorldVersion): Record<string, unknown> {
             object(7, "pastor", "clickable", { x: 64, y: 112, width: 16, height: 16 }, [
               property("label", "Pfarrer"),
               property("action", "dialog"),
-              property("contentId", "npc-pastor"),
+              property("contentId", "pfarrer-keller"),
             ]),
             object(8, "osterei", "clickable", { x: 32, y: 32, width: 16, height: 16 }, [
               property("hidden", true),

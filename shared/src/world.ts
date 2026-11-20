@@ -42,7 +42,6 @@ export const WORLD_LIMITS = {
   labelLength: 30,
   nameLength: 60,
   /** The longest short dialog of an NPC, in characters (MAP-21). */
-  npcDialogLength: 120,
   /** The longest text of a map object's property (a content id, a table, a page). */
   propertyLength: 60,
 } as const;
@@ -581,10 +580,10 @@ export const worldClickableSchema = z.object({
 });
 export type WorldClickable = z.infer<typeof worldClickableSchema>;
 
-/** One NPC of a map, as the admin's list shows it (MAP-21): its Tiled data, the assignment and the two texts. */
+/** One NPC of a map, as the admin's list shows it (MAP-21): its Tiled data and its assignment, like a clickable object. */
 export const worldNpcSchema = z.object({
   name: z.string(),
-  /** The Tiled `label`, which names the NPC until the admin gives it a name. */
+  /** The Tiled `label`, which names the NPC while its action is not a dialogue or a page. */
   label: z.string().optional(),
   /** The preset action of the Tiled file, if it has one. */
   preset: worldActionSchema.optional(),
@@ -594,18 +593,8 @@ export const worldNpcSchema = z.object({
   missing: z.boolean(),
   /** Whether the NPC shows its edge indicator and its label in the game; on unless the admin turns it off. */
   showIndicator: z.boolean().default(true),
-  /** The admin's name for the NPC, if there is one. */
-  title: z.string().optional(),
-  /** The short dialog, if there is one. */
-  dialog: z.string().optional(),
 });
 export type WorldNpc = z.infer<typeof worldNpcSchema>;
-
-/** `PUT /api/admin/world/npcs/:map/:name`: the NPC's name and short dialog; null (or an empty text) removes one (MAP-21). */
-export const worldNpcRequestSchema = z.strictObject({
-  title: z.string().trim().max(WORLD_LIMITS.nameLength).nullable(),
-  dialog: z.string().trim().max(WORLD_LIMITS.npcDialogLength).nullable(),
-});
 
 /** `PUT /api/admin/world/objects/:map/:object/indicator`: whether the object or NPC shows its indicator and label. */
 export const worldIndicatorRequestSchema = z.strictObject({ showIndicator: z.boolean() });
@@ -646,7 +635,7 @@ export const worldObjectsSchema = z.object({
 });
 export type WorldObjects = z.infer<typeof worldObjectsSchema>;
 
-/** What the game knows of an NPC's texts (GAME-37): the admin's name and short dialog, and a portrait. */
+/** What the game knows of an NPC whose action is a dialogue (GAME-37): the dialogue's figure name and greeting, and its portrait. */
 export const publicNpcSchema = z.object({
   map: z.string(),
   name: z.string(),
@@ -669,8 +658,10 @@ export const publicWorldSchema = z.object({
   figures: z.array(worldFigureV3Schema),
   /** The actions the admin assigned to clickable objects; they replace the presets of the maps (MAP-15). */
   actions: z.array(worldActionOverrideSchema).default([]),
-  /** The texts the admin gave the NPCs (MAP-21); an NPC without any is not listed. */
+  /** The NPCs whose effective action is a dialogue (MAP-21, CNT-09): its figure name, greeting and portrait. */
   npcs: z.array(publicNpcSchema).default([]),
+  /** The figure names of the dialogues by their ids: they name the objects and NPCs that show one (GAME-40). */
+  dialogues: z.array(z.object({ id: z.string(), name: z.string() })).default([]),
   /**
    * The objects and NPCs whose `showIndicator` the admin changed (GAME-26, GAME-41); every other object and NPC
    * shows its edge indicator and label.

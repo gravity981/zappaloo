@@ -9,7 +9,10 @@ import type { DialogueGuest } from "@zappaloo/shared";
 import { apiRequest } from "../app/api.ts";
 import Markdown from "../app/Markdown.tsx";
 
-/** A tap or key that comes this soon after the box opened still belongs to the action that opened it. */
+/**
+ * A tap or key that comes this soon after the box opened still belongs to the action that opened it. The box says when
+ * it takes taps (`data-settled`), so that a test waits for that state and not for the clock.
+ */
 const SETTLE_MS = 300;
 /** A portrait up to this many pixels is pixel art and is scaled without smoothing. */
 const PIXEL_ART_SIDE = 128;
@@ -21,11 +24,22 @@ export default function DialogueBox({ id, onClose }: { id: string; onClose: () =
   const [index, setIndex] = useState(0);
   const [pixelated, setPixelated] = useState(false);
   const box = useRef<HTMLDivElement>(null);
-  const openedAt = useRef(0);
+  /** Whether the box takes taps and keys yet; the ref is for the handlers, the state for `data-settled`. */
+  const settled = useRef(false);
+  const [ready, setReady] = useState(false);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      settled.current = true;
+      setReady(true);
+    }, SETTLE_MS);
+    return () => {
+      window.clearTimeout(timer);
+    };
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
-    openedAt.current = Date.now();
     void apiRequest("GET", `/api/dialogues/${id}`).then((result) => {
       if (cancelled) return;
       const parsed = dialogueGuestSchema.safeParse(result.body);
@@ -48,7 +62,7 @@ export default function DialogueBox({ id, onClose }: { id: string; onClose: () =
 
   const last = dialogue === undefined || index >= dialogue.lines.length - 1;
   function next() {
-    if (Date.now() - openedAt.current < SETTLE_MS) return;
+    if (!settled.current) return;
     if (last) onClose();
     else setIndex((current) => current + 1);
   }
@@ -88,6 +102,7 @@ export default function DialogueBox({ id, onClose }: { id: string; onClose: () =
     <div
       className="dialogue-layer"
       data-testid="dialogue-layer"
+      data-settled={ready}
       onClick={() => {
         next();
       }}
@@ -99,6 +114,7 @@ export default function DialogueBox({ id, onClose }: { id: string; onClose: () =
         ref={box}
         tabIndex={-1}
         data-testid="dialogue-box"
+        data-settled={ready}
       >
         {dialogue.portrait !== null && (
           <img

@@ -1,7 +1,7 @@
-// The dialogues of the game world (CNT-02, CNT-03, CNT-08; sw-architecture.md 6.2, 14.4): editing, the use by objects
-// (a preset in Tiled or the admin's assignment), a new id that keeps the assignments, deleting only what no object
-// shows, the portrait, and what the guest reads. The test world's object "pastor" of the map "kirche" has the preset
-// `dialog` with the contentId "npc-pastor".
+// The dialogues of the game world (CNT-02, CNT-03, CNT-08, CNT-09; sw-architecture.md 6.2, 14.4): editing, the id made
+// from the figure's name, the greeting, the use by objects (a preset in Tiled or the admin's assignment), deleting only
+// what no object shows, the portrait, and what the guest reads. The test world's object "pastor" of the map "kirche" has the preset
+// `dialog` with the contentId "pfarrer-keller".
 import sharp from "sharp";
 import { afterEach, describe, expect, it } from "vitest";
 import type {
@@ -42,8 +42,8 @@ async function setup(withWorld = true) {
 }
 
 const body = (changes: Record<string, unknown> = {}) => ({
-  id: "npc-pastor",
   npcName: "Pfarrer Keller",
+  greeting: "Grüss Gott!",
   lines: ["Grüss Gott! Schön, dass du da bist.", "Die Trauung beginnt um **14:00**."],
   ...changes,
 });
@@ -84,50 +84,61 @@ const uploadPortrait = (
   });
 
 describe("editing dialogues (CNT-02)", () => {
-  it("[CNT-02] a dialogue is made with an id, the NPC's name and lines in Markdown, and read back", async () => {
+  it("[CNT-02][CNT-09] a dialogue is made with the figure's name, a greeting and lines in Markdown, and read back; its id comes from the name", async () => {
     const { ctx, admin } = await setup();
     const made = await create(ctx, admin);
     expect(made.statusCode).toBe(201);
     expect(made.json<DialogueDetail>()).toMatchObject({
-      id: "npc-pastor",
+      id: "pfarrer-keller",
       npcName: "Pfarrer Keller",
+      greeting: "Grüss Gott!",
       lines: body().lines,
       portrait: null,
     });
     const [item] = await list(ctx, admin);
     expect(item).toMatchObject({
-      id: "npc-pastor",
+      id: "pfarrer-keller",
       npcName: "Pfarrer Keller",
+      greeting: "Grüss Gott!",
       lines: 2,
       portrait: false,
     });
-    const read = await ctx.app.inject({ url: "/api/admin/dialogues/npc-pastor", headers: admin });
+    const read = await ctx.app.inject({
+      url: "/api/admin/dialogues/pfarrer-keller",
+      headers: admin,
+    });
     expect(read.json<DialogueDetail>().lines).toEqual(body().lines);
   });
 
-  it("[CNT-02] the id has 1–40 characters of a–z, 0–9 and -, the name 1–60, there are 1–30 lines of at most 500 characters, and an id exists once", async () => {
+  it("[CNT-02][CNT-09] the name has 1–60 characters, the greeting at most 120 (and may be empty), there are 1–30 lines of at most 500 characters; the id is not sent, and a second figure of the same name gets -2", async () => {
     const { ctx, admin } = await setup();
     for (const bad of [
-      { id: "" },
-      { id: "Pfarrer" },
-      { id: "pf arrer" },
-      { id: "x".repeat(41) },
+      { id: "pfarrer-keller" },
       { npcName: "   " },
       { npcName: "n".repeat(61) },
+      { greeting: "g".repeat(121) },
       { lines: [] },
       { lines: Array.from({ length: 31 }, () => "x") },
       { lines: ["x".repeat(501)] },
       { lines: ["   "] },
     ]) {
-      expect((await create(ctx, admin, body(bad))).statusCode).toBe(400);
+      expect((await create(ctx, admin, body(bad))).statusCode, JSON.stringify(bad)).toBe(400);
     }
-    expect(
-      (await create(ctx, admin, body({ id: "x".repeat(40), lines: ["x".repeat(500)] }))).statusCode,
-    ).toBe(201);
-    await create(ctx, admin);
-    const twice = await create(ctx, admin);
-    expect(twice.statusCode).toBe(409);
-    expect(twice.json<{ error: { code: string } }>().error.code).toBe("dialogue_exists");
+    const longest = await create(
+      ctx,
+      admin,
+      body({ npcName: "x".repeat(60), greeting: "g".repeat(120), lines: ["x".repeat(500)] }),
+    );
+    expect(longest.statusCode).toBe(201);
+    expect(longest.json<DialogueDetail>().id).toHaveLength(40);
+    // Without a greeting there is no speech bubble: it is stored and read back as empty.
+    const silent = await create(ctx, admin, body({ npcName: "Koch", greeting: "" }));
+    expect(silent.json<DialogueDetail>()).toMatchObject({ id: "koch", greeting: "" });
+    const first = await create(ctx, admin);
+    const second = await create(ctx, admin);
+    expect(first.json<DialogueDetail>().id).toBe("pfarrer-keller");
+    expect(second.statusCode).toBe(201);
+    expect(second.json<DialogueDetail>().id).toBe("pfarrer-keller-2");
   });
 
   it("[CNT-02] a dialogue is changed, and unknown ones are 404", async () => {
@@ -136,14 +147,18 @@ describe("editing dialogues (CNT-02)", () => {
     const changed = await update(
       ctx,
       admin,
-      "npc-pastor",
-      body({ npcName: "Pfarrerin Keller", lines: ["Hallo!"] }),
+      "pfarrer-keller",
+      body({ npcName: "Pfarrerin Keller", greeting: "", lines: ["Hallo!"] }),
     );
     expect(changed.statusCode).toBe(200);
+    // The id stays, whatever the name is now (CNT-09).
     expect(changed.json<DialogueDetail>()).toMatchObject({
+      id: "pfarrer-keller",
       npcName: "Pfarrerin Keller",
+      greeting: "",
       lines: ["Hallo!"],
     });
+    expect((await update(ctx, admin, "pfarrer-keller", body({ id: "neu" }))).statusCode).toBe(400);
     expect((await update(ctx, admin, "gibt-es-nicht", body())).statusCode).toBe(404);
     expect(
       (await ctx.app.inject({ url: "/api/admin/dialogues/gibt-es-nicht", headers: admin }))
@@ -158,9 +173,9 @@ describe("editing dialogues (CNT-02)", () => {
       403,
     );
     expect((await ctx.app.inject({ url: "/api/admin/dialogues" })).statusCode).toBe(401);
-    await create(ctx, admin);
-    await update(ctx, admin, "npc-pastor", body({ id: "pfarrer" }));
-    await remove(ctx, admin, "pfarrer");
+    await create(ctx, admin, body({ npcName: "Koch" }));
+    await update(ctx, admin, "koch", body({ npcName: "Koch", greeting: "Servus" }));
+    await remove(ctx, admin, "koch");
     const entries = ctx.database.db
       .select()
       .from(auditLog)
@@ -172,7 +187,9 @@ describe("editing dialogues (CNT-02)", () => {
       "dialogue.delete",
     ]);
     const logged = entries.map((row) => row.details).join("");
-    expect(logged).not.toContain("Keller");
+    expect(logged).toContain("koch");
+    expect(logged).not.toContain("Koch");
+    expect(logged).not.toContain("Servus");
     expect(logged).not.toContain("Grüss");
   });
 });
@@ -194,14 +211,14 @@ describe("dialogues and the objects that show them (CNT-03, GAME-06)", () => {
       },
     ]);
     const after = await worldObjects(ctx, admin);
-    expect(after.dialogues).toEqual(["npc-pastor"]);
+    expect(after.dialogues).toEqual(["pfarrer-keller"]);
     expect(
       after.maps
         .find((map) => map.id === "kirche")
         ?.clickables.find((item) => item.name === "pastor")?.missing,
     ).toBe(false);
     // The admin points another object to the dialogue; an assignment that replaces the preset removes the use.
-    await create(ctx, admin, body({ id: "koch", npcName: "Koch" }));
+    await create(ctx, admin, body({ npcName: "Koch" }));
     await ctx.app.inject({
       method: "PUT",
       url: "/api/admin/world/objects/kirche/altar",
@@ -218,7 +235,7 @@ describe("dialogues and the objects that show them (CNT-03, GAME-06)", () => {
       payload: { action: { kind: "dialog", dialogId: "koch" } },
     });
     const used = await list(ctx, admin);
-    expect(used.find((item) => item.id === "npc-pastor")?.usedBy).toEqual([]);
+    expect(used.find((item) => item.id === "pfarrer-keller")?.usedBy).toEqual([]);
     expect(
       used
         .find((item) => item.id === "koch")
@@ -227,49 +244,47 @@ describe("dialogues and the objects that show them (CNT-03, GAME-06)", () => {
     ).toEqual(["altar", "pastor"]);
   });
 
-  it("[CNT-03] a new id keeps the admin's assignments; a preset in Tiled that names the old id points to nothing", async () => {
+  it("[CNT-09] the id never changes: renaming the figure keeps the id, the assignments and the preset that names it", async () => {
     const { ctx, admin } = await setup();
-    await create(ctx, admin, body({ id: "koch", npcName: "Koch" }));
+    await create(ctx, admin, body({ npcName: "Koch" }));
     await ctx.app.inject({
       method: "PUT",
       url: "/api/admin/world/objects/kirche/altar",
       headers: admin,
       payload: { action: { kind: "dialog", dialogId: "koch" } },
     });
-    expect(
-      (await update(ctx, admin, "koch", body({ id: "chef", npcName: "Koch" }))).statusCode,
-    ).toBe(200);
+    expect((await update(ctx, admin, "koch", body({ npcName: "Küchenchef" }))).statusCode).toBe(
+      200,
+    );
     const altar = (await worldObjects(ctx, admin)).maps
       .find((map) => map.id === "kirche")
       ?.clickables.find((item) => item.name === "altar");
-    expect(altar?.override).toEqual({ kind: "dialog", dialogId: "chef" });
+    expect(altar?.override).toEqual({ kind: "dialog", dialogId: "koch" });
     expect(altar?.missing).toBe(false);
-    // The old id is gone; renaming onto an id that exists is refused.
-    expect(
-      (await ctx.app.inject({ url: "/api/admin/dialogues/koch", headers: admin })).statusCode,
-    ).toBe(404);
+    // The preset of "pastor" names pfarrer-keller: missing until a dialogue with that id exists, and it stays valid
+    // when its figure is renamed.
+    const preset = async () =>
+      (await worldObjects(ctx, admin)).maps
+        .find((map) => map.id === "kirche")
+        ?.clickables.find((item) => item.name === "pastor")?.missing;
+    expect(await preset()).toBe(true);
     await create(ctx, admin);
-    const clash = await update(ctx, admin, "chef", body({ id: "npc-pastor", npcName: "Koch" }));
-    expect(clash.statusCode).toBe(409);
-    // The preset of "pastor" names npc-pastor, which exists again: no longer missing; rename it away and it is.
-    await update(ctx, admin, "npc-pastor", body({ id: "pfarrer" }));
-    const pastor = (await worldObjects(ctx, admin)).maps
-      .find((map) => map.id === "kirche")
-      ?.clickables.find((item) => item.name === "pastor");
-    expect(pastor?.missing).toBe(true);
+    expect(await preset()).toBe(false);
+    await update(ctx, admin, "pfarrer-keller", body({ npcName: "Pfarrerin Keller" }));
+    expect(await preset()).toBe(false);
   });
 
   it("[CNT-03] a dialogue that an object shows cannot be deleted, and the message names the objects; an unused one can", async () => {
     const { ctx, admin } = await setup();
     await create(ctx, admin);
-    await create(ctx, admin, body({ id: "koch", npcName: "Koch" }));
-    const refused = await remove(ctx, admin, "npc-pastor");
+    await create(ctx, admin, body({ npcName: "Koch" }));
+    const refused = await remove(ctx, admin, "pfarrer-keller");
     expect(refused.statusCode).toBe(409);
     expect(refused.json<{ error: { code: string }; used: { object: string }[] }>()).toMatchObject({
       error: { code: "dialogue_in_use" },
       used: [{ object: "pastor" }],
     });
-    expect((await list(ctx, admin)).map((item) => item.id)).toContain("npc-pastor");
+    expect((await list(ctx, admin)).map((item) => item.id)).toContain("pfarrer-keller");
     expect((await remove(ctx, admin, "koch")).statusCode).toBe(204);
     expect((await remove(ctx, admin, "koch")).statusCode).toBe(404);
   });
@@ -280,13 +295,13 @@ describe("the portrait (CNT-08)", () => {
     const { ctx, admin, guest } = await setup();
     await create(ctx, admin);
     const bytes = await portrait(64, 64);
-    const set = await uploadPortrait(ctx, admin, "npc-pastor", bytes, "image/png");
+    const set = await uploadPortrait(ctx, admin, "pfarrer-keller", bytes, "image/png");
     expect(set.statusCode).toBe(200);
     const version = set.json<DialogueDetail>().portrait;
     expect(version).toEqual(expect.any(Number));
     // The guest gets the very bytes the admin uploaded: pixel art is not changed.
     const served = await ctx.app.inject({
-      url: `/api/dialogues/npc-pastor/portrait?v=${String(version)}`,
+      url: `/api/dialogues/pfarrer-keller/portrait?v=${String(version)}`,
       headers: guest,
     });
     expect(served.statusCode).toBe(200);
@@ -295,12 +310,12 @@ describe("the portrait (CNT-08)", () => {
     expect((await list(ctx, admin))[0]?.portrait).toBe(true);
     const gone = await ctx.app.inject({
       method: "DELETE",
-      url: "/api/admin/dialogues/npc-pastor/portrait",
+      url: "/api/admin/dialogues/pfarrer-keller/portrait",
       headers: admin,
     });
     expect(gone.json<DialogueDetail>().portrait).toBeNull();
     expect(
-      (await ctx.app.inject({ url: "/api/dialogues/npc-pastor/portrait", headers: guest }))
+      (await ctx.app.inject({ url: "/api/dialogues/pfarrer-keller/portrait", headers: guest }))
         .statusCode,
     ).toBe(404);
   });
@@ -313,18 +328,18 @@ describe("the portrait (CNT-08)", () => {
         await uploadPortrait(
           ctx,
           admin,
-          "npc-pastor",
+          "pfarrer-keller",
           await portrait(512, 512, "jpeg"),
           "image/jpeg",
         )
       ).statusCode,
     ).toBe(200);
     expect(
-      (await uploadPortrait(ctx, admin, "npc-pastor", await portrait(513, 100), "image/png"))
+      (await uploadPortrait(ctx, admin, "pfarrer-keller", await portrait(513, 100), "image/png"))
         .statusCode,
     ).toBe(413);
     expect(
-      (await uploadPortrait(ctx, admin, "npc-pastor", await portrait(100, 513), "image/png"))
+      (await uploadPortrait(ctx, admin, "pfarrer-keller", await portrait(100, 513), "image/png"))
         .statusCode,
     ).toBe(413);
     expect(
@@ -332,23 +347,23 @@ describe("the portrait (CNT-08)", () => {
         await uploadPortrait(
           ctx,
           admin,
-          "npc-pastor",
+          "pfarrer-keller",
           Buffer.alloc(1024 * 1024 + 1, 1),
           "image/png",
         )
       ).statusCode,
     ).toBe(413);
     expect(
-      (await uploadPortrait(ctx, admin, "npc-pastor", Buffer.from("hallo"), "image/png"))
+      (await uploadPortrait(ctx, admin, "pfarrer-keller", Buffer.from("hallo"), "image/png"))
         .statusCode,
     ).toBe(415);
     const damaged = Buffer.concat([
       Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
       Buffer.from("kaputt"),
     ]);
-    expect((await uploadPortrait(ctx, admin, "npc-pastor", damaged, "image/png")).statusCode).toBe(
-      422,
-    );
+    expect(
+      (await uploadPortrait(ctx, admin, "pfarrer-keller", damaged, "image/png")).statusCode,
+    ).toBe(422);
     expect(
       (await uploadPortrait(ctx, admin, "gibt-es-nicht", await portrait(8, 8), "image/png"))
         .statusCode,
@@ -360,11 +375,11 @@ describe("what the game reads (CNT-02)", () => {
   it("[CNT-02] a signed-in guest reads the NPC, the lines and the portrait's version of a dialogue; unknown ones are 404", async () => {
     const { ctx, admin, guest } = await setup();
     await create(ctx, admin);
-    await uploadPortrait(ctx, admin, "npc-pastor", await portrait(32, 32), "image/png");
-    const read = await ctx.app.inject({ url: "/api/dialogues/npc-pastor", headers: guest });
+    await uploadPortrait(ctx, admin, "pfarrer-keller", await portrait(32, 32), "image/png");
+    const read = await ctx.app.inject({ url: "/api/dialogues/pfarrer-keller", headers: guest });
     expect(read.statusCode).toBe(200);
     expect(read.json<DialogueGuest>()).toMatchObject({
-      id: "npc-pastor",
+      id: "pfarrer-keller",
       npcName: "Pfarrer Keller",
       lines: body().lines,
       portrait: expect.any(Number) as number,
@@ -373,7 +388,7 @@ describe("what the game reads (CNT-02)", () => {
     expect(
       (await ctx.app.inject({ url: "/api/dialogues/gibt-es-nicht", headers: guest })).statusCode,
     ).toBe(404);
-    expect((await ctx.app.inject({ url: "/api/dialogues/npc-pastor" })).statusCode).toBe(401);
+    expect((await ctx.app.inject({ url: "/api/dialogues/pfarrer-keller" })).statusCode).toBe(401);
   });
 
   it("[CNT-02] with guest access to the world switched off, a guest reads no dialogue", async () => {
@@ -385,10 +400,10 @@ describe("what the game reads (CNT-02)", () => {
       headers: admin,
       payload: { enabled: false },
     });
-    const refused = await ctx.app.inject({ url: "/api/dialogues/npc-pastor", headers: guest });
+    const refused = await ctx.app.inject({ url: "/api/dialogues/pfarrer-keller", headers: guest });
     expect(refused.statusCode).toBe(403);
     expect(
-      (await ctx.app.inject({ url: "/api/dialogues/npc-pastor", headers: admin })).statusCode,
+      (await ctx.app.inject({ url: "/api/dialogues/pfarrer-keller", headers: admin })).statusCode,
     ).toBe(200);
   });
 });

@@ -9,7 +9,6 @@ import {
   worldActionRequestSchema,
   worldGuestAccessRequestSchema,
   worldIndicatorRequestSchema,
-  worldNpcRequestSchema,
   worldObjectsSchema,
   worldRefusalSchema,
   worldStatusSchema,
@@ -191,31 +190,6 @@ const worldPlugin: FastifyPluginAsyncZod<WorldOptions> = (app, { world }) => {
           request.body.showIndicator,
           actor(request),
         );
-      } catch (error) {
-        if (error instanceof WorldObjectError) {
-          return reply.status(404).send({ error: { code: error.code, message: error.message } });
-        }
-        throw error;
-      }
-      return await reply.send(world.objects());
-    },
-  );
-
-  // The name and the short dialog of an NPC (MAP-21); live at once, each text or null.
-  app.put(
-    "/api/admin/world/npcs/:map/:name",
-    {
-      ...admin,
-      schema: {
-        querystring: noQuery,
-        params: z.strictObject({ map: z.string().max(60), name: z.string().max(60) }),
-        body: worldNpcRequestSchema,
-        response: { 200: worldObjectsSchema, 404: worldRefusalSchema.pick({ error: true }) },
-      },
-    },
-    async (request, reply) => {
-      try {
-        world.setNpc(request.params.map, request.params.name, request.body, actor(request));
       } catch (error) {
         if (error instanceof WorldObjectError) {
           return reply.status(404).send({ error: { code: error.code, message: error.message } });

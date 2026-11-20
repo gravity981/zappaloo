@@ -1,18 +1,17 @@
-// Game world › Objekte & Portale (MAP-15, GAME-06; UX mock `admin-world`, variant "objects"): one chip per map,
-// a table of its clickable objects (name, the action the admin picked, the preset of the Tiled file) and the
-// portals as a read-only list. The select shows the action that applies; the preset applies until the admin
-// picks something else, and picking the preset again returns to it. A change is live at once.
+// Game world › Objekte & Portale (MAP-15, MAP-21, GAME-06; UX mock `admin-world`, variant "objects"): one chip per
+// map, a table of its clickable objects and NPCs (name, the action the admin picked, the preset of the Tiled file, the
+// indicator and label) and the portals as a read-only list. An NPC is configured like an object. The select shows the
+// action that applies; the preset applies until the admin picks something else, and picking the preset again returns
+// to it. A change is live at once. The name and the greeting of a figure come from its dialogue.
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { contentResponseSchema, worldObjectsSchema } from "@zappaloo/shared";
 import type { WorldClickable, WorldNpc, WorldObjectAction, WorldObjects } from "@zappaloo/shared";
-import AdminWorldNpcs from "./AdminWorldNpcs.tsx";
 import ActionSelect from "./ActionSelect.tsx";
 import { actionOfValue, selectValue } from "./world-actions.ts";
 import { useAdminCall, useAdminData, useErrorText } from "./data.ts";
 
 const OBJECTS_PATH = "/api/admin/world/objects";
-const NPCS_PATH = "/api/admin/world/npcs";
 export default function AdminWorldObjects() {
   const { t } = useTranslation();
   const errorText = useErrorText();
@@ -44,6 +43,11 @@ export default function AdminWorldObjects() {
   const map = data.maps.find((item) => item.id === selected) ?? data.maps[0];
   if (!map) return null;
   const mapName = (id: string) => data.maps.find((item) => item.id === id)?.name ?? id;
+  /** The clickable objects and the NPCs of the map in one table: an NPC is configured like an object (MAP-21). */
+  const rows: ObjectRow[] = [
+    ...map.clickables.map((item) => ({ ...item, npc: false })),
+    ...map.npcs.map((item: WorldNpc) => ({ ...item, hidden: false, npc: true })),
+  ];
 
   /** The name of a page: the built-in ones by their navigation names, a content page by its title. */
   const pageName = (page: string): string => {
@@ -69,7 +73,7 @@ export default function AdminWorldObjects() {
   };
 
   /** Assigns an action to a clickable object or an NPC: picking what the preset says returns to the preset. */
-  async function assign(clickable: Pick<WorldClickable, "name" | "preset">, value: string) {
+  async function assign(clickable: Pick<ObjectRow, "name" | "preset">, value: string) {
     setError(undefined);
     setSaved(false);
     const candidate = actionOfValue(value);
@@ -113,29 +117,6 @@ export default function AdminWorldObjects() {
     }
   }
 
-  /** Saves the name and the short dialog of an NPC; true when they were saved. */
-  async function saveTexts(npc: WorldNpc, title: string, dialog: string): Promise<boolean> {
-    setError(undefined);
-    setSaved(false);
-    setSaving(npc.name);
-    try {
-      const path = `${NPCS_PATH}/${encodeURIComponent(map?.id ?? "")}/${encodeURIComponent(npc.name)}`;
-      const result = await call("PUT", path, {
-        title: title === "" ? null : title,
-        dialog: dialog === "" ? null : dialog,
-      });
-      const parsed = worldObjectsSchema.safeParse(result.body);
-      if (result.ok && parsed.success) {
-        replace(parsed.data);
-        return true;
-      }
-      setError(errorText(result.errorCode));
-      return false;
-    } finally {
-      setSaving(undefined);
-    }
-  }
-
   return (
     <>
       <div className="chips" role="group" aria-label={t("admin.world.objects.maps")}>
@@ -157,11 +138,11 @@ export default function AdminWorldObjects() {
       <section className="card tight" aria-labelledby="objects-title">
         <div className="row tight-head">
           <b id="objects-title" className="grow">
-            {t("admin.world.objects.title", { count: map.clickables.length })}
+            {t("admin.world.objects.title", { count: rows.length })}
           </b>
           <span className="hint">{t("admin.world.objects.info")}</span>
         </div>
-        {map.clickables.length === 0 ? (
+        {rows.length === 0 ? (
           <p className="hint tight-foot">{t("admin.world.objects.none")}</p>
         ) : (
           <div className="scroll">
@@ -175,7 +156,7 @@ export default function AdminWorldObjects() {
                 </tr>
               </thead>
               <tbody>
-                {map.clickables.map((clickable) => (
+                {rows.map((clickable) => (
                   <ClickableRow
                     key={clickable.name}
                     clickable={clickable}
@@ -201,17 +182,6 @@ export default function AdminWorldObjects() {
           </p>
         )}
       </section>
-      {map.npcs.length > 0 && (
-        <AdminWorldNpcs
-          npcs={map.npcs}
-          targets={data}
-          actionName={actionName}
-          busy={saving}
-          onAction={(npc, value) => void assign(npc, value)}
-          onIndicator={(npc, show) => void setIndicator(npc.name, show)}
-          onTexts={saveTexts}
-        />
-      )}
       <section className="card" aria-labelledby="portals-title">
         <b id="portals-title">
           {t("admin.world.objects.portalsTitle", { count: map.portals.length })}
@@ -242,6 +212,9 @@ export default function AdminWorldObjects() {
   );
 }
 
+/** A row of the table: a clickable object, or an NPC (which is never a Easter egg). */
+type ObjectRow = (WorldClickable | (WorldNpc & { hidden: boolean })) & { npc: boolean };
+
 function ClickableRow({
   clickable,
   targets,
@@ -250,7 +223,7 @@ function ClickableRow({
   onChange,
   onIndicator,
 }: {
-  clickable: WorldClickable;
+  clickable: ObjectRow;
   targets: WorldObjects;
   actionName: (action: WorldObjectAction | undefined) => string;
   busy: boolean;
@@ -264,6 +237,12 @@ function ClickableRow({
         <b>{clickable.label ?? clickable.name}</b>
         <br />
         <span className="hint">{clickable.name}</span>
+        {clickable.npc && (
+          <>
+            {" "}
+            <span className="tag">{t("admin.world.objects.npc")}</span>
+          </>
+        )}
         {clickable.hidden && (
           <>
             {" "}

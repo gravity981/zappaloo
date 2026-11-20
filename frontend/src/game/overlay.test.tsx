@@ -146,7 +146,10 @@ describe("a page above the game (GAME-11)", () => {
 
   it("[GAME-06] an action that comes with a later stage shows a short note instead of a page", async () => {
     fakeBackend({ "GET /api/session": () => signedIn });
-    renderOverlay({ action: { kind: "dialog", dialogId: "npc-pastor" }, label: "Pastor" }, vi.fn());
+    renderOverlay(
+      { action: { kind: "dialog", dialogId: "pfarrer-keller" }, label: "Pastor" },
+      vi.fn(),
+    );
     expect(await screen.findByText("Das gibt es hier bald.")).toBeVisible();
   });
 

@@ -140,9 +140,10 @@ export default function GameCanvas({
         closeBubble: translate.current("game.bubbleClose"),
         defaultGreeting: translate.current("game.defaultGreeting"),
       },
-      // The title of what an object opens names its edge indicator and its label (GAME-40): the title of a page.
-      // A dialogue has none (objects that show one have no indicator or label), nor has a minigame yet (stage 8).
-      titleOf: (action) => objectTitle(action, translate.current, status.titles),
+      // The name of what an object or NPC shows names its edge indicator and its label (GAME-40): the figure name of a
+      // dialogue, the title of a page. A minigame has none yet (stage 8).
+      titleOf: (action) =>
+        objectTitle(action, translate.current, status.titles, status.world.dialogues),
       // The photo of a guest for the speech bubble (PRES-10); the version lets the browser keep it.
       guestPhoto: (guest) =>
         guest.photo === null

@@ -4,7 +4,7 @@
 // follows the figure, which the scene's tap, Enter and arrival logic read like those of an object (14.2, 14.4).
 import { gameRandom } from "./random.ts";
 import Phaser from "phaser";
-import type { PublicNpc } from "@zappaloo/shared";
+import type { PublicNpc, WorldObjectAction } from "@zappaloo/shared";
 import type { BubbleBoard, BubbleParticipant } from "./bubble-board.ts";
 import { NPC_BUBBLE_CLOSE_TILES, NPC_BUBBLE_OPEN_TILES } from "./bubble.ts";
 import { figureDepth } from "./draw-order.ts";
@@ -102,10 +102,16 @@ export class NpcCrowd {
   }
 
   /** Every NPC's body as a polygon where it stands now, with its name and label: what its edge indicator points at. */
-  get bodies(): { name: string; label?: string; polygon: Point[] }[] {
+  get bodies(): {
+    name: string;
+    label?: string;
+    preset?: WorldObjectAction;
+    polygon: Point[];
+  }[] {
     return this.#members.map(({ spec, figure, walker }) => ({
       name: spec.name,
       ...(spec.label === undefined ? {} : { label: spec.label }),
+      ...(spec.preset === undefined ? {} : { preset: spec.preset }),
       polygon: this.#bodyOf(figure, walker.position),
     }));
   }

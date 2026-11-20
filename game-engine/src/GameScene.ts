@@ -603,6 +603,7 @@ export class WorldScene extends Phaser.Scene {
     const world = this.#world;
     const map = this.#map;
     if (world === undefined || map === undefined) return [];
+    const options = this.game.registry.get(ENGINE_CONFIG_REGISTRY_KEY) as GameEngineOptions;
     return (this.#npcs?.bodies ?? [])
       .filter((body) => indicatorShown(world.showIndicator, npcKey(map.id, body.name)))
       .map((body) => {
@@ -614,7 +615,14 @@ export class WorldScene extends Phaser.Scene {
         return {
           id: `npc:${body.name}`,
           kind: "object" as const,
-          label: npcTitle(body, world.npcs.get(npcKey(map.id, body.name))),
+          // The figure name of its dialogue, else the title of the page it opens, else its label or name (GAME-40).
+          label: npcTitle(
+            body,
+            world.npcs.get(npcKey(map.id, body.name)),
+            options.titleOf?.(
+              world.actions.get(npcKey(map.id, body.name)) ?? body.preset ?? { kind: "none" },
+            ),
+          ),
           bounds,
           centre: { x: x + bounds.width / 2, y: y + bounds.height / 2 },
           tap: interiorPoint(body.polygon),

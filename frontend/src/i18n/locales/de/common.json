@@ -708,9 +708,9 @@
       "objects": {
         "noWorld": "Es ist noch keine Welt importiert. Objekte und Portale erscheinen nach dem Import.",
         "maps": "Karten",
-        "title": "Anklickbare Objekte ({{count}})",
+        "title": "Anklickbare Objekte und NPCs ({{count}})",
         "info": "aus der Tiled-Datei · Änderungen sind sofort live",
-        "none": "Diese Karte hat keine anklickbaren Objekte.",
+        "none": "Diese Karte hat keine anklickbaren Objekte und keine NPCs.",
         "object": "Objekt",
         "action": "Aktion",
         "actionOf": "Aktion von {{name}}",
@@ -729,23 +729,8 @@
           "dialog": "Dialog: {{target}}",
           "minigame": "Minispiel: {{target}}",
           "none": "– keine –"
-        }
-      },
-      "npcs": {
-        "title": "NPCs ({{count}})",
-        "info": "Figuren aus der Tiled-Datei · Aktion sofort live, Texte mit «Speichern»",
-        "name": "Name",
-        "nameHint": "Steht in der Sprechblase und am Rand. Leer: das Label aus Tiled.",
-        "action": "Aktion beim Antippen",
-        "actionOf": "Aktion von {{name}}",
-        "preset": "Vorgabe aus Tiled: {{action}}",
-        "noPreset": "Ohne Vorgabe aus Tiled",
-        "indicator": "Randhinweis und Label im Spiel zeigen (aus: für Nebensächliches oder Überraschungen)",
-        "dialog": "Kurzer Dialog",
-        "dialogHint": "Eine Zeile für die Sprechblase. Leer: keine Sprechblase.",
-        "counter": "{{count}} / {{max}}",
-        "save": "Speichern",
-        "saved": "Gespeichert."
+        },
+        "npc": "NPC"
       },
       "tabDialogues": "Dialoge"
     },
@@ -810,12 +795,12 @@
       "none": "Noch keine Dialoge.",
       "edit": "Dialog {{name}} bearbeiten",
       "unused": "nicht verwendet",
-      "hint": "Ein Objekt zeigt einen Dialog, wenn seine Aktion «Dialog» ist (in «Objekte & Portale» oder als Vorgabe in Tiled mit contentId).",
+      "hint": "Ein Objekt oder eine Figur (NPC) zeigt einen Dialog, wenn seine Aktion «Dialog» ist (in «Objekte & Portale» oder als Vorgabe in Tiled mit contentId).",
       "back": "‹ Dialoge",
       "newTitle": "Neuer Dialog",
       "npcName": "Name der Figur",
       "id": "Kennung",
-      "idHint": "In Tiled als contentId = {{id}}. Kleinbuchstaben, Ziffern und -.",
+      "idHint": "Wird beim Anlegen aus dem Namen gebildet und ändert sich nicht. In Tiled als contentId = {{id}}.",
       "line": "Zeile {{n}}",
       "up": "Zeile {{n}} nach oben",
       "down": "Zeile {{n}} nach unten",
@@ -837,11 +822,14 @@
       "save": "Speichern",
       "saved": "Gespeichert.",
       "delete": "Dialog löschen",
-      "deleteHint": "Zum Löschen gedrückt halten. Ein Dialog, den ein Objekt zeigt, lässt sich nicht löschen. Wird die Kennung geändert, zeigen Vorgaben in Tiled mit der alten Kennung auf nichts.",
-      "exists": "Es gibt schon einen Dialog mit dieser Kennung.",
+      "deleteHint": "Zum Löschen gedrückt halten. Ein Dialog, den ein Objekt zeigt, lässt sich nicht löschen.",
       "inUse": "Dieser Dialog wird noch gezeigt von: {{objects}}.",
       "lines_one": "{{count}} Zeile",
-      "lines_other": "{{count}} Zeilen"
+      "lines_other": "{{count}} Zeilen",
+      "idNew": "Wird beim Anlegen aus dem Namen gebildet.",
+      "greeting": "Begrüssung",
+      "greetingHint": "Steht in der Sprechblase des Objekts oder der Figur, die diesen Dialog zeigt. Leer: keine Sprechblase.",
+      "counter": "{{count}} / {{max}}"
     }
   },
   "home": {

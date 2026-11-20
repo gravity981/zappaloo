@@ -1,5 +1,5 @@
 // The dialogue box of the game (CNT-02, CNT-08): the NPC talks line by line over the paused game.
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import { initI18n } from "../i18n/i18n.ts";
 import { fakeBackend } from "../test/backend.tsx";
@@ -28,8 +28,14 @@ function backend(body: unknown, status = 200) {
   return fakeBackend({ "GET /api/dialogues/pfarrer": () => ({ status, body }) });
 }
 
-/** The box ignores a tap or a key that comes right after it opened (they belong to what opened it). */
-const settled = () => new Promise((resolve) => setTimeout(resolve, 350));
+/**
+ * The box ignores a tap or a key that comes right after it opened (they belong to what opened it) and says when it takes
+ * them (`data-settled`): the tests wait for that, not for the clock.
+ */
+const settled = () =>
+  waitFor(() => {
+    expect(screen.getByTestId("dialogue-box")).toHaveAttribute("data-settled", "true");
+  });
 
 describe("the dialogue box", () => {
   it("[CNT-02] shows the NPC's name, the first line as Markdown and how far the dialogue is", async () => {
@@ -83,13 +89,19 @@ describe("the dialogue box", () => {
     expect(second).toHaveBeenCalledTimes(1);
   });
 
-  it("[CNT-02] the key or tap that opened the dialogue does not also turn its first page", async () => {
+  it("[CNT-02] the key or tap that opened the dialogue does not also turn its first page; the box says when it takes taps", async () => {
     backend(dialogue());
     render(<DialogueBox id="pfarrer" onClose={vi.fn()} />);
     const layer = await screen.findByTestId("dialogue-layer");
+    // Just opened: it does not take taps yet, and says so.
+    expect(screen.getByTestId("dialogue-box")).toHaveAttribute("data-settled", "false");
     fireEvent.click(layer);
     fireEvent.keyDown(window, { key: "Enter" });
     expect(screen.getByTestId("dialogue-box")).toHaveTextContent("1 / 3");
+    // Then it does: the next tap turns the page.
+    await settled();
+    fireEvent.click(layer);
+    expect(screen.getByTestId("dialogue-box")).toHaveTextContent("2 / 3");
   });
 
   it("[CNT-08] the portrait is shown on the left from the portrait route, with its version; small pictures are not smoothed", async () => {

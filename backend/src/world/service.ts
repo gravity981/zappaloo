@@ -12,7 +12,6 @@ import {
   dialogues,
   eventSettings,
   worldHiddenIndicators,
-  worldNpcs,
   worldObjectActions,
   worldPackages,
 } from "../database/schema.ts";
@@ -57,13 +56,6 @@ export class WorldRefused extends Error {
     this.findings = findings;
   }
 }
-
-/** The name and the short dialog of an NPC; each may be absent (MAP-21). */
-export interface NpcTexts {
-  title: string | null;
-  dialog: string | null;
-}
-
 /** Why an action could not be assigned (MAP-15). */
 export class WorldObjectError extends Error {
   readonly code: "no_world" | "object_not_found" | "target_not_found";
@@ -246,6 +238,7 @@ export class WorldService {
       figures: active.figures,
       actions: this.#overridesOf(active),
       npcs: this.#publicNpcs(active),
+      dialogues: this.#dialogueNames(),
       indicators: this.#hiddenIndicators(active).map((item) => ({ ...item, showIndicator: false })),
       // Format version 3: without the metadata of the bird there are no birds (GAME-32).
       bird: existsSync(join(this.directory, active.importId, WORLD_BIRD_METADATA)),
@@ -269,58 +262,55 @@ export class WorldService {
     return rows.map((row) => ({ map: row.mapId, object: row.objectName }));
   }
 
-  /** The rows of the NPC texts of the event, by `<map>/<name>`. */
-  #storedNpcs(): Map<string, NpcTexts> {
-    return new Map(
-      this.#database.db
-        .select()
-        .from(worldNpcs)
-        .where(eq(worldNpcs.eventId, this.#event.eventId))
-        .all()
-        .map((row) => [`${row.mapId}/${row.npcName}`, { title: row.title, dialog: row.dialog }]),
-    );
+  /** The figure names of the dialogues by their ids: they name the objects and NPCs that show one (GAME-40). */
+  #dialogueNames(): { id: string; name: string }[] {
+    return this.#database.db
+      .select({ id: dialogues.id, name: dialogues.npcName })
+      .from(dialogues)
+      .where(eq(dialogues.eventId, this.#event.eventId))
+      .all()
+      .sort((a, b) => a.id.localeCompare(b.id));
   }
 
   /**
-   * What the game needs of the NPCs' texts (GAME-37): the admin's name and short dialog of every NPC of the world that
-   * has either, and the portrait of the NPC's dialogue when its effective action is a dialogue that has one (CNT-08).
+   * What the game needs of the NPCs (GAME-37, CNT-09): of every NPC whose effective action (the admin's assignment, else
+   * the Tiled preset) is a dialogue, the figure name, the greeting for its speech bubble (none when the greeting is
+   * empty) and the portrait (CNT-08). An NPC with another action, or none, is not listed.
    */
   #publicNpcs(world: StoredWorld): PublicNpc[] {
-    const stored = this.#storedNpcs();
     const actions = new Map(
       this.#storedOverrides().map((item) => [`${item.map}/${item.object}`, item.action]),
     );
-    const portraits = new Map(
+    const rows = new Map(
       this.#database.db
         .select({
           id: dialogues.id,
+          name: dialogues.npcName,
+          greeting: dialogues.greeting,
           version: dialogues.updatedAt,
-          has: sql<number>`${dialogues.portrait} IS NOT NULL`,
+          hasPortrait: sql<number>`${dialogues.portrait} IS NOT NULL`,
         })
         .from(dialogues)
         .where(eq(dialogues.eventId, this.#event.eventId))
         .all()
-        .filter((row) => row.has === 1)
-        .map((row) => [row.id, row.version.getTime()]),
+        .map((row) => [row.id, row]),
     );
     return this.#objectsOf(world).flatMap((map) =>
       map.npcs.flatMap((npc) => {
-        const key = `${map.id}/${npc.name}`;
-        const texts = stored.get(key);
-        const action = actions.get(key) ?? npc.preset;
-        const version = action?.kind === "dialog" ? portraits.get(action.dialogId) : undefined;
-        if (texts === undefined && version === undefined) return [];
+        const action = actions.get(`${map.id}/${npc.name}`) ?? npc.preset;
+        const row = action?.kind === "dialog" ? rows.get(action.dialogId) : undefined;
+        if (row === undefined) return [];
         return [
           {
             map: map.id,
             name: npc.name,
-            ...(texts?.title ? { title: texts.title } : {}),
-            ...(texts?.dialog ? { dialog: texts.dialog } : {}),
-            ...(version === undefined || action?.kind !== "dialog"
-              ? {}
-              : {
-                  portrait: `/api/dialogues/${encodeURIComponent(action.dialogId)}/portrait?v=${String(version)}`,
-                }),
+            title: row.name,
+            ...(row.greeting === null || row.greeting === "" ? {} : { dialog: row.greeting }),
+            ...(row.hasPortrait === 1
+              ? {
+                  portrait: `/api/dialogues/${encodeURIComponent(row.id)}/portrait?v=${String(row.version.getTime())}`,
+                }
+              : {}),
           },
         ];
       }),
@@ -396,7 +386,6 @@ export class WorldService {
     const overrides = new Map(
       this.#storedOverrides().map((item) => [`${item.map}/${item.object}`, item.action]),
     );
-    const texts = this.#storedNpcs();
     const hidden = new Set(
       this.#hiddenIndicators(active).map((item) => `${item.map}/${item.object}`),
     );
@@ -426,7 +415,6 @@ export class WorldService {
         npcs: map.npcs.map((npc) => {
           const key = `${map.id}/${npc.name}`;
           const override = overrides.get(key);
-          const stored = texts.get(key);
           return {
             name: npc.name,
             ...(npc.label === undefined ? {} : { label: npc.label }),
@@ -434,8 +422,6 @@ export class WorldService {
             ...(override === undefined ? {} : { override }),
             missing: missing(override ?? npc.preset),
             showIndicator: !hidden.has(key),
-            ...(stored?.title ? { title: stored.title } : {}),
-            ...(stored?.dialog ? { dialog: stored.dialog } : {}),
           };
         }),
         portals: map.portals,
@@ -532,37 +518,6 @@ export class WorldService {
           .run();
       }
       this.#event.audit(actor, "world.indicator", { map: mapId, object: objectName }, tx);
-    });
-  }
-
-  /**
-   * Sets the name and the short dialog of an NPC of the active world, each text or null (MAP-21). Live at once. A row
-   * without either text is removed. The audit entry names the map and the NPC only.
-   */
-  setNpc(mapId: string, npcName: string, texts: NpcTexts, actor: Actor): void {
-    const active = this.active();
-    if (active === undefined) throw new WorldObjectError("no_world", "no world is imported");
-    const exists = this.#objectsOf(active).some(
-      (map) => map.id === mapId && map.npcs.some((item) => item.name === npcName),
-    );
-    if (!exists) {
-      throw new WorldObjectError("object_not_found", `the map ${mapId} has no NPC ${npcName}`);
-    }
-    const title = texts.title === null || texts.title === "" ? null : texts.title;
-    const dialog = texts.dialog === null || texts.dialog === "" ? null : texts.dialog;
-    const key = and(
-      eq(worldNpcs.eventId, this.#event.eventId),
-      eq(worldNpcs.mapId, mapId),
-      eq(worldNpcs.npcName, npcName),
-    );
-    this.#database.db.transaction((tx) => {
-      tx.delete(worldNpcs).where(key).run();
-      if (title !== null || dialog !== null) {
-        tx.insert(worldNpcs)
-          .values({ eventId: this.#event.eventId, mapId, npcName, title, dialog })
-          .run();
-      }
-      this.#event.audit(actor, "world.npc", { map: mapId, npc: npcName }, tx);
     });
   }
 
