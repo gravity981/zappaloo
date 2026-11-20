@@ -3,7 +3,8 @@ import { ENGINE_CONFIG_REGISTRY_KEY, PIXEL_RATIO_REGISTRY_KEY, WORLD_SCENE_KEY }
 import { showDiagnostics } from "./diagnostics.ts";
 import { canvasBufferSize, canvasPixelRatio } from "./pixel-grid.ts";
 import { WorldScene } from "./GameScene.ts";
-import { rememberPause } from "./pause.ts";
+import { isPlayedByHand } from "./manual-clock.ts";
+import { rememberPause, setLoopAsleep } from "./pause.ts";
 import { gameRandom } from "./random.ts";
 import { showStartScreen } from "./start-screen.ts";
 import type { GameEngineOptions, GameGuides, GameSelection, GameView } from "./host.ts";
@@ -136,6 +137,7 @@ export function setGamePaused(game: GameInstance, paused: boolean): void {
   const scene = game.scene.getScene(WORLD_SCENE_KEY);
   if (scene instanceof WorldScene && (scene.sys.isActive() || scene.sys.isPaused())) {
     scene.setPaused(paused);
+    setLoopAsleep(game.loop, paused, isPlayedByHand(game));
   }
 }
 

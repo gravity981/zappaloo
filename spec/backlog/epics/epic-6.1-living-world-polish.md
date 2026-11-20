@@ -137,10 +137,13 @@ Requirements: PWA-06.
 - Measure on the iPhone, then stop everything that runs while the app is in the background or closed (decision 10).
 Requirements: PWA-07.
 
-### Story 6.1j – Smooth overlays on iOS
+### Story 6.1j – Smooth overlays on iOS — Done (2026-11-20), iPhone check open
 
 - Overlays open over the game at full frame rate on iOS (decision 11).
-Requirements: GAME-44. Checked on the iPhone and recorded in the manual test protocol, like GAME-27.
+- Code analysis (2026-11-20): the overlay is a plain fixed layer with a translucent background; it has no blur or backdrop filter and no animation. The cause found is in the engine: `scene.pause()` only stops the scene's update, and Phaser still draws a paused scene every frame (status `PAUSED` is below `SLEEPING` in `SceneManager.render`). So the canvas at device pixels (up to 3x) with its glow filters was redrawn 60 times a second behind the page, while the page's React root mounted and fetched its data.
+- Built: `setGamePaused` also puts the game loop to sleep (`setLoopAsleep`, `pause.ts`) and wakes it with a fresh time step when the page or dialogue closes. The canvas keeps its last picture behind the translucent overlay. A game that a test plays by hand (`advanceGame`) is never woken (`isPlayedByHand`). No gain for the overlay's own mount work is claimed: that is measured on the iPhone.
+- Open: the check on the iPhone (Safari and the installed app): open a page and a dialogue, compare with the build before (Web Inspector timeline), and a row for GAME-44 in the manual test protocol. If the opening still stutters, the next suspects are the React root mounted in one go (`OverlayPage`) and the page's first render; the fix would be to open the sheet first and mount the page a frame later.
+Requirements: GAME-44 (the loop stops behind a page; unit-tested, the device check is open).
 
 ### Story 6.1k – Independent game tests in a project of their own — Done (2026-11-19)
 

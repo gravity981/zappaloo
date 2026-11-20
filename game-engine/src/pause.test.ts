@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { PAUSED_REGISTRY_KEY } from "./host.ts";
-import { rememberPause, startsPaused, type PauseStore } from "./pause.ts";
+import { rememberPause, setLoopAsleep, startsPaused, type PauseStore } from "./pause.ts";
 
 /** A registry like Phaser's data manager, kept in a map. */
 function registry(): PauseStore & { values: Map<string, unknown> } {
@@ -29,5 +29,51 @@ describe("the pause the page asks for (GAME-11)", () => {
     rememberPause(game, true);
     rememberPause(game, false);
     expect(startsPaused(game)).toBe(false);
+  });
+});
+
+describe("the game loop behind a page (GAME-44)", () => {
+  function loop(running: boolean) {
+    const calls: string[] = [];
+    return {
+      calls,
+      running,
+      sleep() {
+        calls.push("sleep");
+        this.running = false;
+      },
+      resetDelta() {
+        calls.push("resetDelta");
+      },
+      wake() {
+        calls.push("wake");
+        this.running = true;
+      },
+    };
+  }
+
+  it("[GAME-44] the loop sleeps while a page is open, so the canvas is not drawn behind it", () => {
+    const l = loop(true);
+    setLoopAsleep(l, true, false);
+    expect(l.calls).toEqual(["sleep"]);
+  });
+
+  it("[GAME-44] the loop wakes with a fresh time step when the page closes", () => {
+    const l = loop(false);
+    setLoopAsleep(l, false, false);
+    expect(l.calls).toEqual(["resetDelta", "wake"]);
+  });
+
+  it("[GAME-44] a running loop is not woken again", () => {
+    const l = loop(true);
+    setLoopAsleep(l, false, false);
+    expect(l.calls).toEqual([]);
+  });
+
+  it("[GAME-44] a loop that a test plays by hand is left alone", () => {
+    const l = loop(false);
+    setLoopAsleep(l, false, true);
+    setLoopAsleep(l, true, true);
+    expect(l.calls).toEqual([]);
   });
 });
