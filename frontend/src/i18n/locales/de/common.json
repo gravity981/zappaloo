@@ -904,6 +904,27 @@
     "backHome": "Zur Startseite",
     "text": "Diese Seite gibt es nicht (mehr)."
   },
+  "error": {
+    "title": "Hier ist etwas schiefgelaufen",
+    "text": "Die Seite konnte nicht angezeigt werden. Das liegt nicht an dir. Lade sie neu oder gehe zurück zur Startseite.",
+    "moduleTitle": "Ein Teil der App konnte nicht geladen werden",
+    "moduleText": "Das passiert zum Beispiel nach einem Update. Lade die Seite neu, dann geht es weiter.",
+    "reload": "Neu laden",
+    "home": "Zur Startseite",
+    "details": "Technische Details",
+    "number": "Fehler-Nr.",
+    "message": "Meldung",
+    "page": "Seite",
+    "time": "Zeit",
+    "version": "Version",
+    "browser": "Browser",
+    "copy": "Details kopieren",
+    "copied": "Kopiert.",
+    "noPersonalData": "Enthält keine persönlichen Daten.",
+    "inConsole": "Auch in der Konsole des Browsers.",
+    "devTitle": "Entwicklung:",
+    "devText": "Nur auf dem Dev-Server sind die Details gleich aufgeklappt. Hilft ein Neuladen nicht, den Dev-Server neu starten (veraltete Module)."
+  },
   "footer": {
     "version": "Version {{version}}",
     "privacy": "Datenschutz"

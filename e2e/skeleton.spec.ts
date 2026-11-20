@@ -110,3 +110,29 @@ test("[ACS-09][ACS-07] without a session only the public pages and routes are re
     expect((await request.get(path)).status(), path).toBe(200);
   }
 });
+
+test("[WEB-13][WEB-14] a page that fails shows the friendly error screen with copyable details, not the router's page", async ({
+  page,
+  context,
+}) => {
+  await signInAsAdmin(page, context);
+  await page.goto("/test-error?invitation=SECRET");
+
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText(de.error.title);
+  await expect(page.getByText("Hey developer")).toHaveCount(0);
+  await expect(page.getByRole("button", { name: de.error.reload })).toBeVisible();
+  await expect(page.getByRole("link", { name: de.error.home })).toHaveAttribute("href", "/");
+
+  // The details are closed in a production build; the test build is one.
+  const details = page.locator("details.err-details");
+  await expect(details).not.toHaveAttribute("open", "");
+  await details.getByText(de.error.details).click();
+  await expect(details.getByText("/test-error", { exact: true })).toBeVisible();
+  await expect(details.getByText("this page fails on purpose").first()).toBeVisible();
+  await expect(details).not.toContainText("SECRET");
+
+  // The way out leads to the start page.
+  await page.getByRole("link", { name: de.error.home }).click();
+  await expect(page).toHaveURL(/\/$/);
+  await expect(page.getByTestId("app-error")).toHaveCount(0);
+});

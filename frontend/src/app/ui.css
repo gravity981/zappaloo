@@ -1763,3 +1763,59 @@ button {
     sans-serif;
   cursor: pointer;
 }
+
+/* The error screen (WEB-13, WEB-14; UX mock app-error): stands outside the theme wrapper, so the
+   .themed class on its frame gives it the default tokens. */
+.guest .err-message {
+  align-items: center;
+  text-align: center;
+  gap: 12px;
+  padding: 28px 18px;
+}
+.guest .err-details {
+  border: 1px solid var(--a-line);
+  border-radius: 10px;
+  background: var(--a-card);
+  padding: 10px 12px;
+}
+.guest .err-details summary {
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 13px;
+}
+.guest .err-details[open] summary {
+  margin-bottom: 10px;
+}
+.guest .err-kv {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 4px 12px;
+  font-size: 12px;
+  margin-bottom: 10px;
+}
+.guest .err-val {
+  word-break: break-word;
+  user-select: all;
+}
+.guest .err-pre {
+  margin: 0 0 10px;
+  padding: 10px;
+  border-radius: 8px;
+  background: var(--a-fill);
+  font:
+    11px/1.45 ui-monospace,
+    SFMono-Regular,
+    Menlo,
+    monospace;
+  white-space: pre-wrap;
+  word-break: break-word;
+  max-height: 160px;
+  overflow: auto;
+  user-select: all;
+}
+.guest .err-copy {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}

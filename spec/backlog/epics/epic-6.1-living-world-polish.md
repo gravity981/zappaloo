@@ -183,9 +183,9 @@ The four layers (the project owner's words, shortened):
 Requirements: OPS-20.
 Re-verified: OPS-06, OPS-10, OPS-12.
 
-### Story 6.1n – A friendly screen for unexpected errors
+### Story 6.1n – A friendly screen for unexpected errors — Done (2026-11-20)
 
-Added 2026-11-20 after the project owner got the router's "Unexpected Application Error! … Hey developer" page on `/game` (the cause was the dev server's stale module, not the code). **Refined 2026-11-20**: Q70 and Q71 of the mock `app-error` are decided as proposed; not built yet.
+Added 2026-11-20 after the project owner got the router's "Unexpected Application Error! … Hey developer" page on `/game` (the cause was the dev server's stale module, not the code). **Refined 2026-11-20**: Q70 and Q71 of the mock `app-error` are decided as proposed. **Done 2026-11-20.**
 
 Mock screens: Unexpected error (`app-error`: Meldung, Technische Details, Nach einem Update, Entwicklung).
 - One error screen for every route: the router's `errorElement` and an error boundary around the whole app show it, so no error page of the router or the browser appears. Friendly text without technical words, "Neu laden" and "Zur Startseite" (WEB-13).
