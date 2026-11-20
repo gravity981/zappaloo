@@ -139,6 +139,33 @@ Added 2026-11-19, with 6.1k.
 - Open: whether a speech bubble may cover an edge indicator is a layout question for the project owner (the test no longer depends on it).
 Requirements: none new.
 
+### Story 6.1m – Four layers of testing
+
+Added 2026-11-20 at the project owner's request; **refined 2026-11-20**, not built yet. It revises `spec/test-strategy.md` section 8 (and section 2, the CI description), the "Testing efficiency" part of CLAUDE.md, the pull-request workflow, and adds a nightly pipeline.
+
+The four layers (the project owner's words, shortened):
+1. **During development:** only the tests related to the files being changed: `vitest related`, focused component tests.
+2. **Before committing:** the relevant unit tests; TypeScript type checking, linting and formatting, each only on the changed code.
+3. **Pull request (CI):** all Vitest tests; the relevant e2e tests; the core/critical e2e tests; the "no regression" tests.
+4. **Nightly (a new scheduled pipeline):** the main branch, only when its code has changed since the last nightly run; all Vitest tests and all e2e tests.
+
+**Decisions** (2026-11-20, with the project owner):
+1. **Relevant e2e tests (layer 3):** a map from changed paths to e2e spec files (`e2e/relevant.json`). A change under `game-engine/` or `frontend/src/game/` runs `game-world.spec.ts`, one under `backend/src/rsvp/` the RSVP specs; a change to shared code, configuration or dependencies runs everything. A test checks that every spec file is in the map.
+2. **Requirement report:** it runs nightly and on a release candidate, not on the pull request. The release-candidate run stays a full suite.
+3. **Layer 2 is enforced by a git hook** that runs a script `npm run precommit` on changed files only: the related unit tests, `tsc` on the workspaces that contain changed files, ESLint and Prettier on the changed files. It applies to the project owner's commits too.
+4. **The "no regression" set** is a short set of end-to-end tests tagged `@smoke` (sign-in, the game loads and walks, the RSVP, the admin area). It runs on every pull request in addition to the relevant tests; the "core/critical" tests are this same set.
+5. **Release candidate:** the number of a candidate (`-rc.N`) is used up only when the whole pipeline succeeded. Today the number is the next one after the existing `-rc.N` tags, and the tag is pushed in the job "Build and publish" after the tests, the image build, the smoke test and the push of the image; a failure before the tag leaves the number free, but a failure after it (the pre-release with the bundle) leaves a tag and an image that use it up. The job is reordered so that the tag push is the last step that can fail, and a step that runs on failure removes a tag and an image it had pushed.
+6. **Defaults, unless the project owner says otherwise:** the pull request's e2e tests run in Chromium only (the other browsers run nightly); the nightly runs at 02:00 UTC, compares the SHA of `main` with that of its last successful run, and a failure is reported by GitHub's own e-mail for a failed scheduled run.
+
+**Built as:**
+- the sections of `test-strategy.md` and the rules in CLAUDE.md, rewritten around the four layers (the efficiency policy of 8.1 – 8.7 becomes layers 1 and 2; 8.5 and 8.8 are updated);
+- `npm run precommit` and the git hook (installed by `npm install`, so a fresh clone has it);
+- `e2e/relevant.json` with its consistency test, and `@smoke` tags on the core e2e tests;
+- `ci.yml` with the lighter pull-request run (selection of the e2e specs from the changed paths, Chromium only, no requirement report) and its input for a full run, which `release-candidate.yml` passes;
+- `nightly.yml` (schedule and manual start; the change check; all Vitest and e2e tests in all browsers; the requirement report);
+- the release candidate's reordering (decision 5).
+Requirements: none new.
+
 ## Report
 
 <Added when the epic is complete, from the template in README.md.>
