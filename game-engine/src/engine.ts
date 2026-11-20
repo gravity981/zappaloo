@@ -6,6 +6,7 @@ import { WorldScene } from "./GameScene.ts";
 import { isPlayedByHand } from "./manual-clock.ts";
 import { rememberPause, setLoopAsleep } from "./pause.ts";
 import { gameRandom } from "./random.ts";
+import { releaseContext } from "./release-context.ts";
 import { showStartScreen } from "./start-screen.ts";
 import type { GameEngineOptions, GameGuides, GameSelection, GameView } from "./host.ts";
 
@@ -36,6 +37,14 @@ export function createGame({ parent, ...options }: GameMountOptions): GameInstan
   setGameDiagnostics(game, options.diagnostics === true);
   game.events.once(Phaser.Core.Events.DESTROY, () => {
     setGameDiagnostics(game, false);
+    // Phaser deletes its GL objects after this event but keeps the context: release it once it is done (PWA-07).
+    const gl =
+      game.renderer instanceof Phaser.Renderer.WebGL.WebGLRenderer ? game.renderer.gl : null;
+    const canvas = game.canvas;
+    if (gl)
+      setTimeout(() => {
+        releaseContext(gl, canvas);
+      }, 0);
   });
   return game;
 }

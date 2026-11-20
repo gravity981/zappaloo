@@ -1,13 +1,15 @@
 // The dialogue box of the game (CNT-02, CNT-08; UX mock `admin-world`, preview of a dialogue): an NPC talks to the
 // player. It stands at the bottom of the paused game with the portrait on the left, the NPC's name, one line in
-// Markdown and "n / m · Tippen für weiter". A tap anywhere on the game, Enter or Space goes on, the last one closes
-// it; its cross and Escape close it at once. The game goes on where it stood.
+// Markdown that types itself out (CNT-10) and "n / m" with an arrow that bounces once the page is complete. A tap
+// anywhere on the game, Enter or Space completes a page that is still typing, then goes on; the last page closes
+// it; Escape closes it at once (there is no cross: a guest who wants to leave taps through, or presses Escape). The game goes on where it stood.
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { dialogueGuestSchema } from "@zappaloo/shared";
 import type { DialogueGuest } from "@zappaloo/shared";
 import { apiRequest } from "../app/api.ts";
-import Markdown from "../app/Markdown.tsx";
+import { prefersReducedMotion } from "./reduced-motion.ts";
+import TypedText from "./TypedText.tsx";
 
 /**
  * A tap or key that comes this soon after the box opened still belongs to the action that opened it. The box says when
@@ -22,6 +24,9 @@ export default function DialogueBox({ id, onClose }: { id: string; onClose: () =
   const [dialogue, setDialogue] = useState<DialogueGuest>();
   const [failed, setFailed] = useState(false);
   const [index, setIndex] = useState(0);
+  /** The index of the page whose whole text is shown; a page is done when it is the one in view (CNT-10). */
+  const [doneIndex, setDoneIndex] = useState(-1);
+  const [reducedMotion] = useState(prefersReducedMotion);
   const [pixelated, setPixelated] = useState(false);
   const box = useRef<HTMLDivElement>(null);
   /** Whether the box takes taps and keys yet; the ref is for the handlers, the state for `data-settled`. */
@@ -63,7 +68,9 @@ export default function DialogueBox({ id, onClose }: { id: string; onClose: () =
   const last = dialogue === undefined || index >= dialogue.lines.length - 1;
   function next() {
     if (!settled.current) return;
-    if (last) onClose();
+    // A tap while the page types shows all of it first.
+    if (doneIndex !== index && !reducedMotion) setDoneIndex(index);
+    else if (last) onClose();
     else setIndex((current) => current + 1);
   }
 
@@ -98,11 +105,13 @@ export default function DialogueBox({ id, onClose }: { id: string; onClose: () =
   }
   if (dialogue === undefined) return null;
   const line = dialogue.lines[index] ?? "";
+  const done = reducedMotion || doneIndex === index;
   return (
     <div
       className="dialogue-layer"
       data-testid="dialogue-layer"
       data-settled={ready}
+      data-typing={!done}
       onClick={() => {
         next();
       }}
@@ -131,24 +140,25 @@ export default function DialogueBox({ id, onClose }: { id: string; onClose: () =
         )}
         <div className="dialogue-text">
           <b>{dialogue.npcName}</b>
-          <Markdown text={line} />
+          <TypedText
+            key={index}
+            text={line}
+            complete={done}
+            onDone={() => {
+              setDoneIndex(index);
+            }}
+          />
           <span className="hint dialogue-step">
             {t("game.dialogue.step", { n: index + 1, count: dialogue.lines.length })}
-            {" · "}
-            {last ? t("game.dialogue.tapClose") : t("game.dialogue.tapNext")}
+            <span className="visually-hidden">
+              {" · "}
+              {last ? t("game.dialogue.tapClose") : t("game.dialogue.tapNext")}
+            </span>
+            <span className="dialogue-next" aria-hidden="true" data-visible={done}>
+              &gt;
+            </span>
           </span>
         </div>
-        <button
-          type="button"
-          className="dialogue-close"
-          aria-label={t("game.dialogue.close")}
-          onClick={(event) => {
-            event.stopPropagation();
-            onClose();
-          }}
-        >
-          {t("game.dialogue.closeSign")}
-        </button>
       </div>
     </div>
   );

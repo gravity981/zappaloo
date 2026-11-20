@@ -96,8 +96,7 @@ All active requirements are listed here until their stage is delivered. Shrink t
 | OPS | OPS-13 | 1 |
 | SEC | SEC-04, SEC-06 – SEC-08 | 4 |
 | PERF | PERF-01, PERF-03, PERF-04 | 3 |
-| PWA | PWA-07 | 1 |
-| **Total** | | **60** |
+| **Total** | | **59** |
 
 The stage each requirement belongs to is listed in `sw-architecture.md`, section 28.
 
@@ -120,6 +119,7 @@ The stage each requirement belongs to is listed in `sw-architecture.md`, section
 
 - **GAME-27** (added 2026-11-17, story 5.1a): checked on an iPhone 16 Pro in Safari (60 fps, recorded 2026-11-17). Still open: the installed app on iOS, Android Chrome and a desktop browser, with the diagnostics overlay (`Frame rate and canvas` in the game preview, or `?debug=frames`); each goes into the manual test protocol as a row for GAME-27.
 - **GAME-44** (added 2026-11-20, story 6.1j): the loop stops behind an open page (unit tests pass). Still open: opening a page and a dialogue over the game on an iPhone (Safari and the installed app) at full frame rate, with the diagnostics overlay and the Safari Web Inspector timeline; each goes into the manual test protocol as a row for GAME-44.
+- **PWA-07** (added 2026-11-20, story 6.1i): the release of the WebGL context when the game is destroyed is unit-tested; the game loop stops in the background through Phaser. Still open: Safari Web Inspector on an iPhone (timeline in the background, WebGL contexts and memory over three visits to the game, the installed app after a longer session), recorded as a row for PWA-07 in the manual test protocol.
 
 Cleared on 2026-11-13 and filled again since: PWA-01 – PWA-05, LIC-03 and OPS-02 were checked on prod and are recorded as `pass` rows in [manual-test-protocol.md](manual-test-protocol.md). OPS-02 and OPS-12 (tag ruleset, recorded the same day) left the "not yet implemented" list.
 

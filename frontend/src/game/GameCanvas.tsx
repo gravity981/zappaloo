@@ -132,6 +132,10 @@ export default function GameCanvas({
         },
         onStateChange: exposeState,
         onActivate: (activation) => {
+          // Every activation opens a page or a dialogue, over a game that stands still. The game stops now, before
+          // React starts on the page, and not in the effect after its first commit: the page then opens without a
+          // game drawing behind it (GAME-44).
+          if (game.current) setGamePaused(game.current, true);
           activate.current(activation);
         },
       },

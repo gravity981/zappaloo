@@ -771,7 +771,7 @@ test("[PRES-05][PRES-06] the admin makes a table with its places in the seating 
   await expect(page.getByText(de.seating.secretTitle)).toBeVisible();
 });
 
-test("[CNT-02][CNT-03][GAME-06] the admin writes the dialogue of an NPC in Erlebniswelt, and the player's tap on the NPC opens the dialogue box, which goes on line by line and closes", async ({
+test("[CNT-02][CNT-03][CNT-10][GAME-06] the admin writes the dialogue of an NPC in Erlebniswelt, and the player's tap on the NPC opens the dialogue box, which types its lines, shows an arrow when a page is complete, goes on line by line and closes", async ({
   page,
   context,
 }, testInfo) => {
@@ -840,7 +840,12 @@ test("[CNT-02][CNT-03][GAME-06] the admin writes the dialogue of an NPC in Erleb
   // after it opened (it belongs to what opened it) and says when it takes them: the test waits for that state, not
   // for the clock (a tap that came too soon was lost in CI, where the advanced game time takes no real time).
   await expect(box).toHaveAttribute("data-settled", "true");
-  await page.getByTestId("dialogue-layer").click({ position: { x: 20, y: 20 } });
+  // The line types itself out (CNT-10); once the whole page is there, the arrow bounces and a tap goes on. (A tap
+  // while it types would only complete the page, so the test waits for the end of the typing.)
+  const layer = page.getByTestId("dialogue-layer");
+  await expect(layer).toHaveAttribute("data-typing", "false");
+  await expect(box.locator(".dialogue-next")).toHaveAttribute("data-visible", "true");
+  await layer.click({ position: { x: 20, y: 20 } });
   await expect(box).toContainText("2 / 2");
   await expect(box.locator("strong")).toHaveText("14:00");
   await page.getByTestId("dialogue-layer").click({ position: { x: 20, y: 20 } });

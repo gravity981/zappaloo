@@ -132,16 +132,21 @@ Requirements: GAME-43 (now implemented; left the "not yet implemented" list).
 - Open: a form being filled in on the website is reloaded with the page (the spec says "at once"); say so if the RSVP or a profile form should hold the update too. The check on the iPhone (suspend the installed app, deploy a release candidate, open it again) is still to do, then a row in the manual test protocol.
 Requirements: PWA-06.
 
-### Story 6.1i – Resources freed in the background and on close
+### Story 6.1i – Resources freed in the background and on close — Done (2026-11-20), iPhone check open
 
 - Measure on the iPhone, then stop everything that runs while the app is in the background or closed (decision 10).
-Requirements: PWA-07.
+- Code analysis (2026-11-20), what runs when the app is in the background: nothing of the game. Phaser pauses its loop on `visibilitychange` (`Game.onHidden`), the engine's timers (sparkles, shines) and tweens run on the scene's clock and stand still with it, the speech bubbles, labels and edge indicators are DOM layers updated from the scene, and the frame diagnostics are off in a production build. The game has no audio. The app polls nothing: `EventProvider` and `UpdateWatcher` ask once when the page becomes visible again; the intervals of the countdown and the figure preview live on their pages only. A page that is frozen on close (`pagehide`) was visible-then-hidden first, so `visibilitychange` has stopped the loop already; no extra `pagehide` handler is needed.
+- Found: **the WebGL context was never released.** Leaving the game destroys Phaser, and Phaser's renderer deletes its GL objects, but it never calls `WEBGL_lose_context`; the browser keeps the context and the canvas's drawing buffer (up to 3x the screen) until garbage collection, which Safari does late. That fits an iPhone that gets slower after the app was used and closed.
+- Built: when the game is destroyed the engine releases the context after Phaser has finished (`releaseContext`, `release-context.ts`: `loseContext()` and a canvas buffer of 1 x 1 pixel).
+- Open: the check on the iPhone with Safari Web Inspector over the tailnet (Mac needed): (1) Timelines › JavaScript & Events with the app in the background for a minute, expecting no activity; (2) Graphics › WebGL: open the game, leave it for the website and open it again three times, expecting one context at a time and the memory back to its starting level; (3) the installed app, closed and reopened, over a longer session. Then a row for PWA-07 in the manual test protocol. The result is reported even if nothing more is found.
+Requirements: PWA-07 (the context release is unit-tested; the device check is open).
 
 ### Story 6.1j – Smooth overlays on iOS — Done (2026-11-20), iPhone check open
 
 - Overlays open over the game at full frame rate on iOS (decision 11).
 - Code analysis (2026-11-20): the overlay is a plain fixed layer with a translucent background; it has no blur or backdrop filter and no animation. The cause found is in the engine: `scene.pause()` only stops the scene's update, and Phaser still draws a paused scene every frame (status `PAUSED` is below `SLEEPING` in `SceneManager.render`). So the canvas at device pixels (up to 3x) with its glow filters was redrawn 60 times a second behind the page, while the page's React root mounted and fetched its data.
 - Built: `setGamePaused` also puts the game loop to sleep (`setLoopAsleep`, `pause.ts`) and wakes it with a fresh time step when the page or dialogue closes. The canvas keeps its last picture behind the translucent overlay. A game that a test plays by hand (`advanceGame`) is never woken (`isPlayedByHand`). No gain for the overlay's own mount work is claimed: that is measured on the iPhone.
+- Follow-up (2026-11-20, after the project owner's check on the iPhone: the frame rate improved, the pages that an object opens still stutter): the game now stops synchronously in `onActivate`, before React starts on the page (it used to stop in an effect after the overlay's first commit, so it drew on while the page mounted); the page of the overlay is rendered two frames after the sheet, so the sheet's first frame does not wait for it; the close button takes the focus without scrolling (`preventScroll`). Not done, and a UX deviation to decide first (the mock has no opening animation): a slide-up of the sheet with `transform` and `opacity` only, which the compositor plays even while the main thread works.
 - Open: the check on the iPhone (Safari and the installed app): open a page and a dialogue, compare with the build before (Web Inspector timeline), and a row for GAME-44 in the manual test protocol. If the opening still stutters, the next suspects are the React root mounted in one go (`OverlayPage`) and the page's first render; the fix would be to open the sheet first and mount the page a frame later.
 Requirements: GAME-44 (the loop stops behind a page; unit-tested, the device check is open).
 
@@ -208,6 +213,16 @@ Mock screens: Unexpected error (`app-error`: Meldung, Technische Details, Nach e
 - The disclosure "Technische Details" (closed in production, open on the development server, `import.meta.env.DEV`): error number (short, from the message and the page), message, page without query, time (UTC), version and commit, browser, stack, and "Details kopieren" as plain text; no personal data; nothing is sent anywhere (WEB-14, Q70, Q71).
 - The pure part (the details, the error number, the kind of error) is a tested function; the screen is a component test; an end-to-end test shows the screen for a page that fails, through a route that exists in test builds only (`VITE_TEST_HOOKS`).
 Requirements: WEB-13, WEB-14.
+
+### Story 6.1o – Dialogue text types itself out — Done (2026-11-20)
+
+Added 2026-11-20 at the project owner's request, with the story 6.1i: dialogues show their text animated and an animated `>` arrow as soon as the whole text of a page is shown.
+- Decided (project owner, 2026-11-20): a tap while a page types shows all of it first, then the next tap goes on; about 40 characters per second, and no animation with the system's "reduce motion"; the counter "n / m" stays and the arrow replaces the tap hint.
+- Built: `TypedText` renders the Markdown whole and types its text nodes out (`game/TypedText.tsx`), `DialogueBox` keeps which page is done, and the arrow `.dialogue-next` bounces when it is (CSS `transform`, off with reduced motion). The tap hint is kept as hidden text. Tests wait for `data-typing="false"`.
+- Changed after the first try (project owner, 2026-11-20): the dialogue box has **no close button** (a cross let guests skip a dialogue; Escape still closes it, and the error box keeps its button), and the **portrait is centred vertically**. The "Dialog schliessen" label stays for the error box.
+- Not changed: the preview of a dialogue in the admin stays static; the greeting bubble of an object or NPC does not type.
+Requirements: CNT-10.
+Re-verified: CNT-02, CNT-08.
 
 ## Report
 

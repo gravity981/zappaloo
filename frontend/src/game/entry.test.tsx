@@ -315,9 +315,11 @@ describe("entering the game", () => {
     welcomeSetup({ welcome: "willkommen" });
     renderAt("/game");
     await throughFirstEntry();
-    expect(await screen.findByRole("dialog", { name: "Brautpaar" })).toHaveTextContent(
-      "Schön, dass ihr da seid!",
-    );
+    const welcome = await screen.findByRole("dialog", { name: "Brautpaar" });
+    // The line types itself out (CNT-10).
+    await waitFor(() => {
+      expect(welcome).toHaveTextContent("Schön, dass ihr da seid!");
+    });
     expect(screen.queryByText(/die funkeln/)).toBeNull();
   });
 

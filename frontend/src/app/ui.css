@@ -1701,10 +1701,11 @@ button {
   position: relative;
   display: flex;
   gap: 12px;
-  align-items: flex-start;
+  /* The portrait is centred in the height of the box; the text stays at the top (`.dialogue-text`). */
+  align-items: center;
   box-sizing: border-box;
   width: min(100%, 640px);
-  padding: 12px 36px 12px 12px;
+  padding: 12px;
   background: #fff;
   color: #000;
   border: 2px solid #222;
@@ -1719,6 +1720,7 @@ button {
 }
 .dialogue-portrait {
   flex: none;
+  align-self: center;
   width: 72px;
   height: 72px;
   object-fit: contain;
@@ -1729,7 +1731,10 @@ button {
 .dialogue-portrait.pixelated {
   image-rendering: pixelated;
 }
+/* The text starts at the top; its bottom edge leaves room for the page counter and the arrow in the corner. */
 .dialogue-text {
+  align-self: flex-start;
+  padding-bottom: 16px;
   flex: 1;
   min-width: 0;
   display: flex;
@@ -1742,28 +1747,45 @@ button {
 .dialogue-text .markdown p {
   margin: 0;
 }
+/* The page counter and the arrow stand in the bottom right corner of the box. The arrow shows when the whole page is
+   there (CNT-10); its place is kept, so the box does not change. */
 .dialogue-step {
-  align-self: flex-end;
+  position: absolute;
   font-size: 12px;
   color: #6a6a64;
+  right: 12px;
+  bottom: 6px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
 }
-.dialogue-close {
-  position: absolute;
-  top: -10px;
-  right: -10px;
-  width: 24px;
-  height: 24px;
-  padding: 0;
-  border: 0;
-  border-radius: 50%;
-  background: #222;
-  color: #fff;
+.dialogue-next {
+  display: inline-block;
+  width: 1ch;
   font:
-    13px/1 system-ui,
-    sans-serif;
-  cursor: pointer;
+    700 16px/1 ui-monospace,
+    monospace;
+  color: #222;
+  visibility: hidden;
 }
-
+.dialogue-next[data-visible="true"] {
+  visibility: visible;
+  animation: dialogue-next-bounce 0.8s ease-in-out infinite;
+}
+@keyframes dialogue-next-bounce {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  50% {
+    transform: translateX(4px);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .dialogue-next[data-visible="true"] {
+    animation: none;
+  }
+}
 /* The error screen (WEB-13, WEB-14; UX mock app-error): stands outside the theme wrapper, so the
    .themed class on its frame gives it the default tokens. */
 .guest .err-message {

@@ -881,7 +881,6 @@
     "dialogue": {
       "failed": "Der Dialog konnte nicht geladen werden.",
       "close": "Dialog schliessen",
-      "closeSign": "×",
       "step": "{{n}} / {{count}}",
       "tapNext": "Tippen für weiter",
       "tapClose": "Tippen zum Schliessen"
